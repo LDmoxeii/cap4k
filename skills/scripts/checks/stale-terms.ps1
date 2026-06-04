@@ -22,11 +22,17 @@ function Assert-NoForbiddenPattern {
     [Parameter(Mandatory = $true)]
     [object[]] $Patterns,
     [Parameter(Mandatory = $true)]
-    [string] $Scope
+    [string] $Scope,
+    [switch] $MaskDriftGotchaExamples
   )
 
   foreach ($file in $Files) {
     $text = Get-Content -LiteralPath $file.FullName -Raw
+    if ($MaskDriftGotchaExamples -and $file.FullName -like '*\skills\shared\references\drift-gotchas.md') {
+      $text = $text -replace [regex]::Escape('src-generated/main/kotlin'), 'masked-stale-generated-source-root'
+      $text = $text -replace 'client/cli\b', 'masked-stale-client-cli-boundary'
+    }
+
     foreach ($patternInfo in $Patterns) {
       $name = $patternInfo.Name
       $pattern = $patternInfo.Pattern
@@ -109,7 +115,8 @@ $task8StalePatterns = @(
 Assert-NoForbiddenPattern `
   -Files $skillRuntimeFiles `
   -Patterns $task8StalePatterns `
-  -Scope 'skills Markdown/YAML runtime text'
+  -Scope 'skills Markdown/YAML runtime text' `
+  -MaskDriftGotchaExamples
 
 $legacySkillPatterns = @(
   @{ Name = 'No design support for integration_event'; Pattern = 'No design support for `integration_' + 'event`' },
@@ -189,7 +196,9 @@ foreach ($root in $runtimeSourceRoots) {
     Where-Object { $_.Extension -in @('.kt', '.java') }
 }
 
-Assert-NoForbiddenPattern `
-  -Files $runtimeSourceFiles `
-  -Patterns $removedEventGuidancePatterns `
-  -Scope 'runtime source'
+if ($runtimeSourceFiles.Count -gt 0) {
+  Assert-NoForbiddenPattern `
+    -Files $runtimeSourceFiles `
+    -Patterns $removedEventGuidancePatterns `
+    -Scope 'runtime source'
+}

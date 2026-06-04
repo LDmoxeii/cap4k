@@ -1660,9 +1660,11 @@ git commit --no-verify -m "chore: split cap4k skill validation checks"
 Completion notes:
 
 - `validate-cap4k-skills.ps1` is now a dispatcher. It derives the repo root from `$PSScriptRoot`, uses `Push-Location` while checks run, and invokes checks in the required order.
-- The modules preserve the previous monolithic guardrails for removed skill directories, focused skill references, shared core wording, stale service-integration refs, removed event guidance, public authoring stale text, optional runtime-source scans, and local Markdown link validation.
+- The modules preserve the previous monolithic guardrails for removed skill directories, focused skill references, shared core wording, stale service-integration refs, removed event guidance, public authoring stale text, optional runtime-source scans, and local Markdown link validation. The runtime source scan is skipped when source roots or source files are absent.
 - `routing.yaml` now activates `../shared/workflows/skeleton-generation-gate.md` for the service-integration route so the new gate-reference check can hard fail honestly.
-- Runtime stale-term examples were reworded to avoid carrying literal removed terms in installed skill text while preserving the drift guidance.
+- `routing.ps1` now resolves actual `workflow:` and `required_reads:` Markdown path values relative to the manifest directory, including quoted or unquoted scalars.
+- Restored exact stale examples in `drift-gotchas.md` and kept the validator strict by masking only those examples in that reference file before applying stale-token checks.
+
 ---
 
 ### Task 9: Add Dry Run And Final Migration Audit

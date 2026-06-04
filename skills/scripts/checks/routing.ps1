@@ -17,6 +17,77 @@ function Get-RouteBlock {
   return $match.Value
 }
 
+function ConvertFrom-RoutingScalar {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string] $Value
+  )
+
+  $trimmed = $Value.Trim()
+  if ($trimmed -match '^"(?<value>(?:\\.|[^"])*)"\s*(?:#.*)?$') {
+    return ($Matches['value'] -replace '\\"', '"')
+  }
+
+  if ($trimmed -match "^'(?<value>[^']*)'\s*(?:#.*)?$") {
+    return $Matches['value']
+  }
+
+  return ($trimmed -replace '\s+#.*$', '').Trim()
+}
+
+function Get-MarkdownPathFromRoutingScalar {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string] $Value
+  )
+
+  if ($Value -match '^(?i:https?://)') {
+    return $null
+  }
+
+  if ($Value -match '^(?<path>[^#?]+?\.md)(?:[#?].*)?$') {
+    return $Matches['path']
+  }
+
+  return $null
+}
+
+function Get-IndentLength {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string] $Line
+  )
+
+  if ($Line -match '^(?<indent>\s*)') {
+    return $Matches['indent'].Length
+  }
+
+  return 0
+}
+
+function Assert-RoutingMarkdownPathExists {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string] $PathValue,
+    [Parameter(Mandatory = $true)]
+    [string] $Kind,
+    [Parameter(Mandatory = $true)]
+    [int] $LineNumber,
+    [Parameter(Mandatory = $true)]
+    [string] $ManifestDir
+  )
+
+  $pathOnly = Get-MarkdownPathFromRoutingScalar -Value $PathValue
+  if ($null -eq $pathOnly) {
+    return
+  }
+
+  $resolvedPath = Join-Path $ManifestDir $pathOnly
+  if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+    throw "routing.yaml $Kind path does not resolve at line ${LineNumber}: $PathValue"
+  }
+}
+
 $routingPath = 'skills/cap4k-authoring/routing.yaml'
 $routeMapPath = 'skills/cap4k-authoring/references/route-map.md'
 
@@ -29,6 +100,8 @@ if (Test-Path -LiteralPath $routeMapPath) {
 }
 
 $routingText = Get-Content -LiteralPath $routingPath -Raw
+$routingLines = Get-Content -LiteralPath $routingPath
+$routingManifestDir = Split-Path -Parent $routingPath
 
 $authoringMarkdownFiles = Get-ChildItem -LiteralPath 'skills/cap4k-authoring' -Recurse -File -Filter '*.md'
 foreach ($file in $authoringMarkdownFiles) {
@@ -131,9 +204,43 @@ if ($routingText -match '(?m)^\s*workflow:\s+workflows/') {
 
 $workflowMatches = [regex]::Matches($routingText, '(?m)^\s*workflow:\s+(.+?)\s*$')
 foreach ($match in $workflowMatches) {
-  $workflowPath = $match.Groups[1].Value.Trim()
+  $workflowPath = ConvertFrom-RoutingScalar -Value $match.Groups[1].Value
   if (-not $workflowPath.StartsWith('../')) {
     throw "workflow path must be manifest-relative from routing.yaml: $workflowPath"
+  }
+
+  Assert-RoutingMarkdownPathExists `
+    -PathValue $workflowPath `
+    -Kind 'workflow' `
+    -LineNumber (($routingText.Substring(0, $match.Index) -split "`n").Count) `
+    -ManifestDir $routingManifestDir
+}
+
+for ($lineIndex = 0; $lineIndex -lt $routingLines.Count; $lineIndex++) {
+  $line = $routingLines[$lineIndex]
+  if ($line -notmatch '^\s*required_reads:\s*(?:#.*)?$') {
+    continue
+  }
+
+  $blockIndent = Get-IndentLength -Line $line
+  for ($readIndex = $lineIndex + 1; $readIndex -lt $routingLines.Count; $readIndex++) {
+    $readLine = $routingLines[$readIndex]
+    if ($readLine.Trim().Length -eq 0) {
+      continue
+    }
+
+    if ((Get-IndentLength -Line $readLine) -le $blockIndent) {
+      break
+    }
+
+    if ($readLine -match '^\s*-\s+(?<value>.+?)\s*$') {
+      $requiredRead = ConvertFrom-RoutingScalar -Value $Matches['value']
+      Assert-RoutingMarkdownPathExists `
+        -PathValue $requiredRead `
+        -Kind 'required_reads' `
+        -LineNumber ($readIndex + 1) `
+        -ManifestDir $routingManifestDir
+    }
   }
 }
 

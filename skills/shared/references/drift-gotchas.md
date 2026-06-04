@@ -26,13 +26,13 @@ Do not assign aggregate persistence ownership to Repository. Repository reads/ac
 
 Do not assign Unit of Work or Mediator framework mechanisms to business project code. They are framework capabilities. Business code uses them as runtime boundaries while keeping decisions in domain/application code.
 
-## Old Generated Source Path
+## `src-generated/main/kotlin`
 
-Do not use the old generated-source root spelling. Build-owned generated source belongs under the current build-generated cap4k source root described by plan evidence.
+Do not use the stale `src-generated/main/kotlin` path. Build-owned generated source belongs under the current build-generated cap4k source root described by plan evidence.
 
-## Old Client Boundary Wording
+## `client/cli` Stale Boundary
 
-Do not use old combined client boundary wording. Current generator and design language distinguishes `client` and `client-handler`; client handlers translate external capability calls at the adapter boundary.
+Do not use old `client/cli` wording. Current generator and design language distinguishes `client` and `client-handler`; client handlers translate external capability calls at the adapter boundary.
 
 ## Spaced Analysis Output Paths
 
