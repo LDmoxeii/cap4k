@@ -21,9 +21,9 @@ Then route to the focused skill:
 | Business discovery, aggregate boundaries, events, value objects | [skills/cap4k-business-discovery/SKILL.md](skills/cap4k-business-discovery/SKILL.md), then [skills/cap4k-tactical-modeling/SKILL.md](skills/cap4k-tactical-modeling/SKILL.md) |
 | Generator input authoring: DB/schema, design JSON, manifests, Gradle extension, addons/options, template decisions | [skills/cap4k-generator-inputs/SKILL.md](skills/cap4k-generator-inputs/SKILL.md) |
 | Plan/output ownership review and generation review | [skills/cap4k-generation-review/SKILL.md](skills/cap4k-generation-review/SKILL.md) |
-| Command/query/subscriber/job/controller implementation | [skills/cap4k-implementation/SKILL.md](skills/cap4k-implementation/SKILL.md) |
+| Handwritten command/query/subscriber/job/controller implementation inside approved generated skeletons | [skills/cap4k-handwritten-implementation/SKILL.md](skills/cap4k-handwritten-implementation/SKILL.md) |
 | Service-boundary interaction: read [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) before handling Open Host Service entries, external capability clients, external fact entries, callbacks, message listeners, or integration events. | [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) |
-| Tests, compile, analysis, flow/drawing-board, evidence | [skills/cap4k-verification/SKILL.md](skills/cap4k-verification/SKILL.md) |
+| Verification/audit claims, evidence modes, skipped checks, rollback targeting | [skills/cap4k-verification-audit/SKILL.md](skills/cap4k-verification-audit/SKILL.md) |
 
 Keep this file as a routing shell. Do not duplicate focused skill rules here.
 

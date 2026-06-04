@@ -1210,6 +1210,13 @@ git commit --no-verify -m "docs: add cap4k generator input review skills"
 - Delete: `skills/cap4k-implementation/**`
 - Delete: `skills/cap4k-verification/**`
 
+Sequencing / activation fix:
+
+- `rules/implementation-entry-gates.md` must be in the handwritten implementation Always Read set so implementation authorization is not stored but inactive.
+- `references/evidence-modes.md` must be in the verification audit Always Read set so verification claim limits are loaded before final claims.
+- Route-level `routing.yaml` already activates shared Skeleton Generation Gate, generator-supported skeletons, forced rollback, drift gotchas, and runtime capability map for these routes; do not duplicate those into the phase `SKILL.md` files.
+- `AGENTS.md` and the temporary validator must switch to the new focused skill IDs before deleting old directories to avoid broken intermediate references.
+
 - [ ] **Step 1: Read old implementation and verification content**
 
 Run:
@@ -1226,8 +1233,8 @@ Get-Content -Path skills/cap4k-verification/SKILL.md -Raw
 Create `SKILL.md` with always-read:
 
 ```text
+rules/implementation-entry-gates.md
 ../shared/rules/generated-skeleton-ownership.md
-../shared/workflows/skeleton-generation-gate.md
 workflows/implement-inside-generated-skeletons.md
 ```
 
@@ -1255,6 +1262,10 @@ use Mediator as framework facade when routing internal command/query
 return to earlier phase when skeleton or ownership is wrong
 ```
 
+Also activate `references/implementation-gotchas.md` from this workflow with a
+clear relative path, such as `Read ../references/implementation-gotchas.md
+before editing handwritten logic.`
+
 Create `references/implementation-gotchas.md` from old command/query/subscriber gotchas, but remove repeated skeleton-gate copies and replace them with a link to shared gate.
 
 - [ ] **Step 3: Create `cap4k-verification-audit`**
@@ -1263,7 +1274,7 @@ Create `SKILL.md` with always-read:
 
 ```text
 ../shared/rules/verification-claim-policy.md
-../shared/workflows/forced-rollback.md
+references/evidence-modes.md
 workflows/run-verification-audit.md
 ```
 
@@ -1290,6 +1301,8 @@ state skipped checks
 limit final claim to evidence produced
 ```
 
+Make command permission explicit: compile/test/analysis/HTTP/generation evidence may be used only when user instruction and environment policy allow it; otherwise report skipped checks and limit claims.
+
 - [ ] **Step 4: Delete old implementation and verification directories**
 
 Delete:
@@ -1299,15 +1312,27 @@ skills/cap4k-implementation
 skills/cap4k-verification
 ```
 
-- [ ] **Step 5: Verify and commit Task 6**
+- [ ] **Step 5: Update root shell, validator, and stale refs**
+
+Update:
+
+```text
+AGENTS.md
+skills/scripts/validate-cap4k-skills.ps1
+```
+
+Ensure root routing and runtime skill text no longer contain exact old implementation or verification skill references. The validator should fail if either old directory is reintroduced, require current refs for the new implementation and verification-audit skills, scan `AGENTS.md` and `skills/**` for removed skill references, and continue validating all current skills.
+
+- [ ] **Step 6: Verify and commit Task 6**
 
 Run:
 
 ```powershell
-git diff --check -- skills/cap4k-handwritten-implementation skills/cap4k-verification-audit
+git diff --check -- AGENTS.md skills/cap4k-handwritten-implementation skills/cap4k-verification-audit skills/cap4k-implementation skills/cap4k-verification skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 Test-Path skills/cap4k-implementation
 Test-Path skills/cap4k-verification
-rg -n "cap4k-implementation|cap4k-verification" skills
+rg -n "cap4k-implementation($|[^-])|cap4k-verification($|[^-])" AGENTS.md skills
+powershell -NoProfile -ExecutionPolicy Bypass -File skills/scripts/validate-cap4k-skills.ps1
 ```
 
 Expected:
@@ -1316,12 +1341,13 @@ Expected:
 git diff --check exits 0
 both Test-Path commands return False
 rg exits 1 with no old skill references
+validation exits 0 with pass message
 ```
 
 Commit:
 
 ```powershell
-git add -- skills/cap4k-handwritten-implementation skills/cap4k-verification-audit skills/cap4k-implementation skills/cap4k-verification
+git add -- AGENTS.md skills/cap4k-handwritten-implementation skills/cap4k-verification-audit skills/cap4k-implementation skills/cap4k-verification skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 git commit --no-verify -m "docs: add cap4k implementation verification skills"
 ```
 

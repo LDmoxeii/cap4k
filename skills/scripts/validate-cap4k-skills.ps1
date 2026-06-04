@@ -6,10 +6,14 @@ $skillDirs = Get-ChildItem -LiteralPath 'skills' -Directory |
 $removedModelingSkillName = 'cap4k-' + 'modeling'
 $removedGenerationSkillName = 'cap4k-' + 'generation'
 $removedGeneratedOutputReviewSkillName = 'cap4k-' + 'generated-' + 'output-' + 'review'
+$removedImplementationSkillName = 'cap4k-' + 'implementation'
+$removedVerificationSkillName = 'cap4k-' + 'verification'
 $forbiddenSkillDirs = @(
   (Join-Path 'skills' $removedModelingSkillName),
   (Join-Path 'skills' $removedGenerationSkillName),
-  (Join-Path 'skills' $removedGeneratedOutputReviewSkillName)
+  (Join-Path 'skills' $removedGeneratedOutputReviewSkillName),
+  (Join-Path 'skills' $removedImplementationSkillName),
+  (Join-Path 'skills' $removedVerificationSkillName)
 )
 
 foreach ($forbiddenSkillDir in $forbiddenSkillDirs) {
@@ -109,20 +113,20 @@ $requiredSkillRefs = @{
     '../shared/references/output-ownership-taxonomy.md',
     'workflows/review-plan-and-generate.md'
   )
-  'cap4k-implementation' = @(
-    '../shared/rules/layer-and-runtime-boundaries.md',
+  'cap4k-handwritten-implementation' = @(
+    'rules/implementation-entry-gates.md',
     '../shared/rules/generated-skeleton-ownership.md',
-    '../shared/workflows/skeleton-generation-gate.md'
+    'workflows/implement-inside-generated-skeletons.md'
   )
   'cap4k-service-integration' = @(
     '../shared/rules/layer-and-runtime-boundaries.md',
     '../shared/rules/naming-layout-and-testing.md',
     '../shared/workflows/forced-rollback.md'
   )
-  'cap4k-verification' = @(
+  'cap4k-verification-audit' = @(
     '../shared/rules/verification-claim-policy.md',
-    '../shared/rules/generated-skeleton-ownership.md',
-    '../shared/rules/naming-layout-and-testing.md'
+    'references/evidence-modes.md',
+    'workflows/run-verification-audit.md'
   )
 }
 
@@ -167,6 +171,14 @@ $removedSkillRefPatterns = @(
   @{
     Name = $removedOutputReviewPhrase
     Pattern = [regex]::Escape($removedOutputReviewPhrase)
+  },
+  @{
+    Name = $removedImplementationSkillName
+    Pattern = [regex]::Escape($removedImplementationSkillName) + '($|[^-])'
+  },
+  @{
+    Name = $removedVerificationSkillName
+    Pattern = [regex]::Escape($removedVerificationSkillName) + '($|[^-])'
   }
 )
 
