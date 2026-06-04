@@ -122,9 +122,11 @@ $requiredSkillRefs = @{
     'workflows/implement-inside-generated-skeletons.md'
   )
   'cap4k-service-integration' = @(
+    'rules/integration-event-boundaries.md',
     '../shared/rules/layer-and-runtime-boundaries.md',
-    '../shared/rules/naming-layout-and-testing.md',
-    '../shared/workflows/forced-rollback.md'
+    'workflows/design-open-host-service.md',
+    'workflows/consume-external-capability.md',
+    'workflows/handle-inbound-integration-event.md'
   )
   'cap4k-verification-audit' = @(
     '../shared/rules/verification-claim-policy.md',
@@ -143,6 +145,32 @@ foreach ($skillName in $requiredSkillRefs.Keys) {
   foreach ($requiredRef in $requiredSkillRefs[$skillName]) {
     if ($skillText -notlike "*$requiredRef*") {
       throw "$skillName SKILL.md is missing shared rule reference: $requiredRef"
+    }
+  }
+}
+
+$serviceIntegrationRoot = Join-Path 'skills' 'cap4k-service-integration'
+$staleServiceIntegrationPaths = @(
+  ('workflows/handle-' + 'external-' + 'fact.md'),
+  ('rules/service-' + 'boundaries.md'),
+  ('rules/integration-' + 'events.md')
+)
+
+foreach ($staleServiceIntegrationPath in $staleServiceIntegrationPaths) {
+  $fullPath = Join-Path $serviceIntegrationRoot $staleServiceIntegrationPath
+  if (Test-Path -LiteralPath $fullPath) {
+    throw "Stale service-integration file still exists: $fullPath"
+  }
+}
+
+$serviceIntegrationTextFiles = Get-ChildItem -LiteralPath $serviceIntegrationRoot -Recurse -File |
+  Where-Object { $_.Extension -eq '.md' }
+
+foreach ($file in $serviceIntegrationTextFiles) {
+  $text = Get-Content -LiteralPath $file.FullName -Raw
+  foreach ($staleServiceIntegrationPath in $staleServiceIntegrationPaths) {
+    if ($text.Contains($staleServiceIntegrationPath)) {
+      throw "Stale service-integration reference matched in $($file.FullName): $staleServiceIntegrationPath"
     }
   }
 }

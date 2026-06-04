@@ -1,9 +1,10 @@
 # Service Integration Gotchas
 
-- Controller is not the architecture concept; Open Host Service is the boundary concept.
-- Callback controller is an external fact entry implementation, not a normal write surface.
-- RPC is a transport name. Use Open Host Service when describing the business boundary.
-- OSS, S3, payment, SMS, and media processing are external capabilities behind client ports.
-- Application/business contracts should say resource storage or media storage, not provider terms such as OSS bucket. Technical locators such as `objectKey` may appear only in infrastructure-facing contracts or media processing paths and should not become aggregate identity or public business language by default.
-- A write use case should not be split into entry calls client first and command later.
-- External facts may enter through HTTP callback, MQ listener, or integration event subscriber, but all state advancement still converges to command.
+- Framework transport and business subscriber are separate responsibilities. Runtime handles protocol intake, parsing, registration, and dispatch; the business subscriber handles typed fact meaning, idempotency, semantic translation, and delegation.
+- Published Language leakage happens when a public contract mirrors Aggregate fields, persistence names, internal Domain Event payloads, or private technical IDs. Boundary language must be stable for external readers.
+- Provider terms leak when business contracts say OSS bucket, S3 key, Stripe status, or vendor callback code instead of resource storage, payment result, or another internal capability term. Keep provider vocabulary in adapter-facing mapping unless it is truly public business language.
+- Open Host Service is the boundary concept; controller, RPC, gRPC, and HTTP endpoint are implementation forms.
+- Entry paths must not write Repository or Aggregate state directly. Writes enter Command or explicit application behavior, then Domain behavior enforces invariants and framework UoW records persistence intent.
+- A write use case should not split into an entry calling an external client first and delegating to Command later. Put the outside call inside the approved application use case when it belongs to that use case.
+- Inbound and outbound Integration Events are opposite directions. Inbound events are external facts interpreted by this system; outbound events publish confirmed internal facts in Published Language.
+- Domain code should never receive callback bodies, protocol headers, message envelopes, provider status fields, or transport DTOs. Translate to typed business facts before reaching Domain behavior.

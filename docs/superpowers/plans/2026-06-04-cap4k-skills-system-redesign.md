@@ -1361,7 +1361,7 @@ git commit --no-verify -m "docs: add cap4k implementation verification skills"
 - Modify/Create: `skills/cap4k-service-integration/workflows/*.md`
 - Modify: `skills/cap4k-service-integration/references/gotchas.md`
 
-- [ ] **Step 1: Read old service integration content and current public boundary**
+- [x] **Step 1: Read old service integration content and current public boundary**
 
 Run:
 
@@ -1372,7 +1372,7 @@ Get-Content -Path docs/public/concepts/modeling-building-blocks/integration-even
 Get-Content -Path docs/public/architecture/dependency-rules.md -Raw
 ```
 
-- [ ] **Step 2: Replace specialist `SKILL.md`**
+- [x] **Step 2: Replace specialist `SKILL.md`**
 
 Create thin content with always-read:
 
@@ -1389,7 +1389,7 @@ external capability consumption -> workflows/consume-external-capability.md
 inbound integration event -> workflows/handle-inbound-integration-event.md
 ```
 
-- [ ] **Step 3: Create service rules**
+- [x] **Step 3: Create service rules**
 
 Create `rules/published-language.md`:
 
@@ -1408,7 +1408,7 @@ Domain does not receive raw callback payload or protocol fields.
 Outbound Integration Event expresses confirmed internal facts in published language.
 ```
 
-- [ ] **Step 4: Create service workflows**
+- [x] **Step 4: Create service workflows**
 
 Create:
 
@@ -1437,12 +1437,13 @@ raw callback payload entering domain
 callback/message transport assigned to domain/application business logic
 ```
 
-- [ ] **Step 5: Verify and commit Task 7**
+- [x] **Step 5: Verify and commit Task 7**
 
 Run:
 
 ```powershell
-git diff --check -- skills/cap4k-service-integration
+git diff --check -- skills/cap4k-service-integration skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md skills/cap4k-authoring/routing.yaml
+powershell -NoProfile -ExecutionPolicy Bypass -File skills\scripts\validate-cap4k-skills.ps1
 rg -n "consume/register.*business|raw callback.*domain|adapter/application" skills/cap4k-service-integration
 ```
 
@@ -1450,15 +1451,23 @@ Expected:
 
 ```text
 git diff --check exits 0
+validation script exits 0
 rg exits 1 with no boundary drift
 ```
 
 Commit:
 
 ```powershell
-git add -- skills/cap4k-service-integration
+git add -- skills/cap4k-service-integration skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 git commit --no-verify -m "docs: rebuild cap4k service integration skill"
 ```
+
+Completion notes:
+
+- Rebuilt the service-integration specialist as the final thin specialist with two Always Read entries and three routed workflows.
+- Replaced the old service-integration structure with final Published Language, Integration Event boundary, Open Host Service, external capability, and inbound Integration Event guidance.
+- Updated the validator to require the new specialist references and reject stale legacy service-integration files without creating static scan self-matches.
+- `skills/cap4k-authoring/routing.yaml` already pointed at the final boundary rule, so no routing edit was required.
 
 ---
 
