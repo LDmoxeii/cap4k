@@ -847,6 +847,8 @@ Task 4 sequencing fixes:
 - Create `skills/cap4k-business-discovery/references/business-signals.md` and activate it from the business discovery `Always Read` list. The file is part of the global file structure map and must not be omitted.
 - After deleting `skills/cap4k-modeling`, update the temporary validator so the current intermediate state validates the three new phase skills and no longer requires `cap4k-modeling`.
 - Clear stale `cap4k-modeling` route references only in the listed old generation/implementation files. Those old files remain until later tasks, but after Task 4 they must not point to a deleted runtime skill.
+- Validation must hard-fail if `skills/cap4k-modeling` exists, even if it contains a valid `SKILL.md`; no compatibility alias may remain.
+- Code-spanned route names must be real skill IDs. Do not write combined route phrases such as one code span containing two skill names joined with `or`.
 
 - [ ] **Step 1: Read context and old modeling content**
 
@@ -1009,8 +1011,10 @@ Replace stale `cap4k-modeling` references only in the narrow cleanup files liste
 business clarification or concept discovery -> cap4k-business-discovery
 tactical carrier, boundary, or modeling decision -> cap4k-tactical-modeling
 placement, skeleton expectation, generator input prerequisite, or design contract -> cap4k-technical-design
-mixed old sentence -> cap4k-tactical-modeling or cap4k-technical-design
+mixed old sentence -> split into separate ownership statements; each code-spanned route name must be one real skill ID
 ```
+
+Also update the temporary validator to hard-fail when `skills/cap4k-modeling` exists and to forbid stale `cap4k-modeling` references under `skills`.
 
 - [ ] **Step 7: Verify and commit Task 4**
 
@@ -1462,7 +1466,7 @@ required: cap4k-authoring, cap4k-business-discovery, cap4k-tactical-modeling, ca
 forbidden: cap4k-modeling, cap4k-generation, cap4k-generated-output-review, cap4k-implementation, cap4k-verification
 ```
 
-Hard fail if missing/forbidden conditions are violated.
+Hard fail if missing/forbidden conditions are violated, even when a forbidden directory contains valid frontmatter. Do not allow compatibility aliases.
 
 - [ ] **Step 4: Implement `routing.ps1`**
 
@@ -1553,7 +1557,10 @@ build/cap4k code analysis
 build/cap4k/analysis plan\.json
 business subscriber.*consume
 raw callback.*domain
+cap4k-tactical-modeling or cap4k-technical-design
 ```
+
+Route code spans must contain one real skill ID, not a combined phrase.
 
 - [ ] **Step 9: Implement `link-check.ps1`**
 

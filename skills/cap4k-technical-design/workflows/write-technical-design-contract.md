@@ -8,7 +8,7 @@
 
 ## Procedure
 
-1. Copy every heading from `references/technical-design-contract.md`.
+1. Copy every heading from `../references/technical-design-contract.md`.
 2. Fill each heading from the business brief and tactical carrier table.
 3. Keep unresolved facts in `openDecisions`; do not hide them in assumptions.
 4. For each expected skeleton, answer the Skeleton Generation Gate questions before editing generator inputs or handwritten files.
@@ -18,7 +18,7 @@
 
 ## Required Completion Gate
 
-- Every heading from `references/technical-design-contract.md` is present.
+- Every heading from `../references/technical-design-contract.md` is present.
 - Every heading has content or a blocking open decision.
 - No generator input authoring starts while a blocking carrier or skeleton decision remains open.
 - Skeleton expectations distinguish generated structure from handwritten logic slots.

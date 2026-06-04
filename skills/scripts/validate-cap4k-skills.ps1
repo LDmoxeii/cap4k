@@ -3,6 +3,17 @@ $ErrorActionPreference = 'Stop'
 $skillDirs = Get-ChildItem -LiteralPath 'skills' -Directory |
   Where-Object { $_.Name -notin @('scripts', 'shared') }
 
+$removedModelingSkillName = 'cap4k-' + 'modeling'
+$forbiddenSkillDirs = @(
+  (Join-Path 'skills' $removedModelingSkillName)
+)
+
+foreach ($forbiddenSkillDir in $forbiddenSkillDirs) {
+  if (Test-Path -LiteralPath $forbiddenSkillDir) {
+    throw "Forbidden removed skill directory still exists: $forbiddenSkillDir"
+  }
+}
+
 if ($skillDirs.Count -lt 7) {
   throw "Expected at least 7 cap4k skill directories, found $($skillDirs.Count)."
 }
@@ -122,6 +133,13 @@ foreach ($skillName in $requiredSkillRefs.Keys) {
 
 $skillTextFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File |
   Where-Object { $_.Extension -in '.md', '.yaml', '.yml' }
+
+foreach ($file in $skillTextFiles) {
+  $text = Get-Content -LiteralPath $file.FullName -Raw
+  if ($text -match $removedModelingSkillName) {
+    throw "Forbidden removed skill reference matched in skills runtime text: $($file.FullName): $removedModelingSkillName"
+  }
+}
 
 $rootTextFiles = @()
 if (Test-Path -LiteralPath 'AGENTS.md') {

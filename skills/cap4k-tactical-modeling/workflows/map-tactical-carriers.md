@@ -4,7 +4,7 @@
 
 Start with the `Business Brief` from `cap4k-business-discovery`. If goal, actors, vocabulary, state changes, read needs, external facts, policies, or open decisions are missing, return to business discovery.
 
-Read `references/modeling-gotchas.md` when the brief contains marked risk words.
+Read `../references/modeling-gotchas.md` when the brief contains marked risk words.
 
 ## Carrier Selection Table
 

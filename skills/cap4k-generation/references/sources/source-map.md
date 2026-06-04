@@ -13,4 +13,5 @@
 `domain_event` is allowed to generate subscriber/handler shells, inbound `integration_event` is allowed to generate subscriber shells, `domain_service` is allowed to generate domain service skeletons, and `saga` is allowed to generate saga skeletons.
 If the fact exists but the skeleton is missing, stay in `cap4k-generation`.
 If the missing expectation is a standalone relation or field-mapping plan item, the expectation is wrong; those facts belong to aggregate/entity generation input.
-If the fact itself is missing, return to `cap4k-tactical-modeling or cap4k-technical-design`.
+If the missing fact is a concept or carrier decision, return to `cap4k-tactical-modeling`.
+If the missing fact is a placement, design-contract, or input-surface decision, return to `cap4k-technical-design`.
