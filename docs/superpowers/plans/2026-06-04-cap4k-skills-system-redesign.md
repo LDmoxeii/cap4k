@@ -1673,8 +1673,10 @@ Completion notes:
 - Create: `skills/cap4k-authoring/references/content-studio-dry-run.md`
 - Modify: `skills/cap4k-authoring/SKILL.md`
 - Modify: `skills/cap4k-authoring/routing.yaml`
+- Modify: `skills/scripts/checks/routing.ps1`
+- Modify: `docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md`
 
-- [ ] **Step 1: Create Content Studio dry run reference**
+- [x] **Step 1: Create Content Studio dry run reference**
 
 Create `skills/cap4k-authoring/references/content-studio-dry-run.md` with sections:
 
@@ -1708,7 +1710,7 @@ publish
 
 The dry run must not instruct the worker to run Gradle tasks. It is a spec-level route and workflow validation reference.
 
-- [ ] **Step 2: Add dry-run route**
+- [x] **Step 2: Add dry-run route**
 
 Add route id to `routing.yaml`:
 
@@ -1731,7 +1733,7 @@ Add route id to `routing.yaml`:
       - verification-audit
 ```
 
-- [ ] **Step 3: Mention dry run in authoring router without duplicating content**
+- [x] **Step 3: Mention dry run in authoring router without duplicating content**
 
 Add one bullet in `cap4k-authoring/SKILL.md`:
 
@@ -1739,14 +1741,14 @@ Add one bullet in `cap4k-authoring/SKILL.md`:
 - For a spec-level end-to-end example, use the `content-studio-dry-run` route in `routing.yaml`.
 ```
 
-- [ ] **Step 4: Run full static audit**
+- [x] **Step 4: Run full static audit**
 
 Run:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File skills/scripts/validate-cap4k-skills.ps1
 git status --short -uall
-git diff --check -- skills
+git diff --check -- skills docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 rg -n "T[B]D|T[O]DO|PLACEH[O]LDER|F[I]XME|historical[-]decision|historical[ ]decision|Continue[ ]Brainstorming|Open[ ]Decisions|implement[ ]later|fill[ ]in[ ]details|similar[ ]to" skills
 ```
 
@@ -1759,14 +1761,22 @@ placeholder scan exits 1
 git status shows only expected dry-run files before commit
 ```
 
-- [ ] **Step 5: Commit Task 9**
+- [x] **Step 5: Commit Task 9**
 
 Commit:
 
 ```powershell
-git add -- skills
+git add -- skills docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 git commit --no-verify -m "docs: add cap4k skill workflow dry run"
 ```
+
+Completion notes:
+
+- Added the Content Studio dry-run reference with the required headings and publication flow.
+- Added the `content-studio-dry-run` route with the plan-specified trigger examples, forced rollback read, and full rollback target list.
+- Added the router pointer bullet without duplicating dry-run content.
+- Updated `routing.ps1` narrowly so validation now requires the dry-run route and resolves its required reads.
+- Kept this as a static-only, human-review-gated workflow reference; no generation, application, or broader local execution is part of the dry run.
 
 ---
 

@@ -35,6 +35,23 @@ routes:
       - handwritten-implementation
       - verification-audit
 
+  - id: content-studio-dry-run
+    trigger_examples:
+      - "dry run the cap4k skill workflow"
+      - "show the end-to-end Content Studio authoring path"
+    route_first: cap4k-authoring
+    required_reads:
+      - references/content-studio-dry-run.md
+      - ../shared/workflows/forced-rollback.md
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+      - technical-design
+      - generator-inputs
+      - generation-review
+      - handwritten-implementation
+      - verification-audit
+
   - id: business-discovery
     trigger_examples:
       - "clarify this business idea before modeling"

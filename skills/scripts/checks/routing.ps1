@@ -115,6 +115,7 @@ foreach ($file in $authoringMarkdownFiles) {
 
 $requiredRouteIds = @(
   'full-authoring-flow',
+  'content-studio-dry-run',
   'business-discovery',
   'tactical-modeling',
   'technical-design',
@@ -134,6 +135,13 @@ $fullFlowBlock = $routeBlocks['full-authoring-flow']
 foreach ($requiredSnippet in @('then_chain:', 'cap4k-tactical-modeling', 'cap4k-verification-audit', 'from scratch', 'end-to-end')) {
   if (-not $fullFlowBlock.Contains($requiredSnippet)) {
     throw "full-authoring-flow route is missing required Task 1 signal or chain entry: $requiredSnippet"
+  }
+}
+
+$dryRunBlock = $routeBlocks['content-studio-dry-run']
+foreach ($requiredSnippet in @('dry run the cap4k skill workflow', 'show the end-to-end Content Studio authoring path', 'route_first: cap4k-authoring', 'references/content-studio-dry-run.md', '../shared/workflows/forced-rollback.md')) {
+  if (-not $dryRunBlock.Contains($requiredSnippet)) {
+    throw "content-studio-dry-run route is missing required Task 9 entry: $requiredSnippet"
   }
 }
 
@@ -186,6 +194,10 @@ $requiredReadsByRoute = @{
     '../shared/references/runtime-capability-map.md',
     '../shared/workflows/skeleton-generation-gate.md',
     '../cap4k-service-integration/rules/integration-event-boundaries.md'
+  )
+  'content-studio-dry-run' = @(
+    'references/content-studio-dry-run.md',
+    '../shared/workflows/forced-rollback.md'
   )
 }
 

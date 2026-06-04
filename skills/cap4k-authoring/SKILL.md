@@ -23,6 +23,7 @@ This is the entry router for cap4k business-authoring agents. It is not the rule
 - Do not use public docs, analysis maps, issues, Context7, or historical specs as runtime instructions.
 - Route to the current phase skill before acting.
 - For structural creation or modification, make sure the routed workflow loads `../shared/workflows/skeleton-generation-gate.md`.
+- For a spec-level end-to-end example, use the `content-studio-dry-run` route in `routing.yaml`.
 
 ## Routing Source
 
