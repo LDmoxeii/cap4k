@@ -23,8 +23,8 @@
 4. `Content.approve` 在审核通过后记录 `ContentReviewApprovedDomainEvent`。如果内容还没有媒体就绪时间，它还会记录 `ContentRequiresMediaProcessingDomainEvent`。
 5. `ContentRequiresMediaProcessingDomainEventSubscriber` 接收 domain event，并发送 `StartMediaProcessingCmd`。该 command 创建或复用媒体处理任务。
 6. `http/query.http` 查询 `GET /media-processing/{contentId}`，等任务出现后复制 `task.externalTaskId`。
-7. `http/media-processing.http` 通过 `POST /cap4k/integration-event/http/consume?...` 发送媒体处理成功 integration-event callback。
-8. `MediaProcessingCallbackIntegrationEventSubscriber` 把 callback 转成 `MarkMediaProcessingSucceededCmd`。该 command 标记媒体任务成功，并写入 `MediaProcessingResultSnapshot`。
+7. `http/media-processing.http` 通过 `POST /cap4k/integration-event/http/consume?...` 进入 framework integration-event HTTP transport，由 runtime consume、parse 和 dispatch 为 typed integration event。
+8. `MediaProcessingCallbackIntegrationEventSubscriber` 接收 typed `MediaProcessingCallbackIntegrationEvent`，解释外部事实并委托 `MarkMediaProcessingSucceededCmd`。该 command 标记媒体任务成功，并写入 `MediaProcessingResultSnapshot`。
 9. `MediaProcessingSucceededDomainEventSubscriber` 接收媒体成功事件，并发送 `RecordContentMediaReadyCmd`。
 10. `Content.recordMediaReady` 写入媒体就绪时间。如果审核已通过且内容尚未发布，它会记录 `ContentPublicationReadyDomainEvent`。
 11. `ContentPublicationReadyDomainEventSubscriber` 发送 `PublishContentCmd`。`PublishContentCmd` 只发布 `ReleasePolicy.IMMEDIATE` 且已经 publication-ready 的内容。

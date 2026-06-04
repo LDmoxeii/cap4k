@@ -37,7 +37,7 @@ authoring 时先把 building blocks 放进正确 module，再写 generator input
 Domain Event 是领域内部事实，Integration Event 是跨边界事实。technical design 要决定每个 Event 后续由谁响应：
 
 - Domain Event Subscriber：响应内部领域事实，例如内容发布准备完成后发送 `PublishContentCmd` 或进入 paid publication 判断。
-- Integration Event Subscriber：把外部事实转成内部命令，例如媒体处理 callback 转成 `MarkMediaProcessingSucceededCmd`。
+- Integration Event Subscriber：接收 typed external fact，并做幂等、语义翻译和内部命令委托，例如接收 `MediaProcessingCallbackIntegrationEvent` 后委托 `MarkMediaProcessingSucceededCmd`。
 - outbound integration event：由 application reaction 基于内部事实 attach，对外表达跨边界事实。
 
 Subscriber 不应该成为中心业务判断器。它可以路由后续 Command，但真正的写入资格仍应由 Command 和 Aggregate 重新校验。

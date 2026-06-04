@@ -30,7 +30,7 @@ cap4k generation 可以在 domain module 中生成稳定骨架，例如 aggregat
 
 Domain layer 的依赖方向是向内自足：它不依赖 application、adapter 或 start。application layer 可以依赖 domain 来加载 Aggregate、调用行为并保存；adapter 和 start 可以通过更外层协作间接使用 domain，但 domain 不反向引用它们。
 
-Repository contract、Domain Event 类型和值对象可以被外层使用，但它们不能因为外层协议改变而失去领域命名。若协议字段和领域语言不一致，转换责任属于 adapter 或 application，而不是 domain。
+Repository contract、Domain Event 类型和值对象可以被外层使用，但它们不能因为外层协议改变而失去领域命名。若协议字段和领域语言不一致，protocol shape 应由 framework/runtime transport 与 adapter mapping 收敛；application 只解释 typed fact 或 use-case input，并委托 Command 或 application behavior。Domain 不承担协议转换。
 
 ## 参考项目
 

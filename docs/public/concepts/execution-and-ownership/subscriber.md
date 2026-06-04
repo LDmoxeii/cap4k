@@ -2,7 +2,7 @@
 
 Subscriber 是事件发生之后的反应入口。它接收已经发生的事实，并决定是否要触发后续应用行为、外部通知或状态推进。Subscriber 不应该替代 Command handler 做原始写入意图，也不应该把“收到事件”误写成“重新决定过去发生了什么”。
 
-cap4k 中需要区分两类边界。Domain Event Subscriber 监听 domain layer 释放的领域事实，例如内容已经达到可发布条件；Inbound Integration Event Subscriber 监听系统外部传入的集成事件，例如外部媒体处理 callback。前者围绕内部领域事实做 downstream reaction，后者围绕外部事实进入 application boundary，并需要做协议语义转换、幂等和可信度处理。
+cap4k 中需要区分两类边界。Domain Event Subscriber 监听 domain layer 释放的领域事实，例如内容已经达到可发布条件；Inbound Integration Event Subscriber 监听系统外部传入的 typed integration event，例如外部媒体处理结果。前者围绕内部领域事实做 downstream reaction，后者围绕 typed external fact 进入 application boundary，并需要做事实解释、幂等、语义翻译和可信度处理。
 
 当 reaction 会改变本系统业务状态时，Subscriber 通常应委托给明确的 Command 或 application behavior，而不是在事件处理方法里直接写完整业务流程。这样可以复用 Command handler 的聚合加载、Unit of Work、事件释放和错误处理边界。Subscriber 可以判断是否需要反应，但不应绕过 Aggregate 行为或 Unit of Work 提交边界直接修改业务对象。
 

@@ -26,7 +26,7 @@ Adapter layer tests 应覆盖 protocol conversion。Controller、API Payload、q
 
 参考项目锚点包括 `ContentController`、`ReviewController`、`QueryController`、`AdvancedPaidPublicationController`、`GetContentDetailQryHandler`、`GetMediaProcessingStatusQryHandler`、`TriggerMediaProcessingCliHandler`、`GetMediaProcessingStatusCliHandler`、paid publication `*CliHandler` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。其中 smoke test 可以证明 inbound HTTP consumption wiring 可达，但不替代 domain/application 的 focused tests。
 
-审核 adapter tests 时，检查 mapping、status code、external error handling、callback payload conversion、query response shape 和 persistence technical mapping。若测试在 adapter 层断言业务不变量，应确认这些规则也在 domain/application focused tests 中存在。
+审核 adapter tests 时，检查 mapping、status code、external error handling、callback payload shape mapping、query response shape 和 persistence technical mapping。若测试在 adapter 层断言业务不变量，应确认这些规则也在 domain/application focused tests 中存在。
 
 ## Start Layer Tests
 
