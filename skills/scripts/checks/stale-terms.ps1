@@ -29,8 +29,14 @@ function Assert-NoForbiddenPattern {
   foreach ($file in $Files) {
     $text = Get-Content -LiteralPath $file.FullName -Raw
     if ($MaskDriftGotchaExamples -and $file.FullName -like '*\skills\shared\references\drift-gotchas.md') {
+      $text = $text -replace [regex]::Escape('Repository save'), 'masked-stale-repository-save'
+      $text = $text -replace [regex]::Escape('Repository saves aggregates'), 'masked-stale-repository-saves-aggregates'
+      $text = $text -replace [regex]::Escape('business projects implement Unit of Work'), 'masked-uow-project-code'
+      $text = $text -replace [regex]::Escape('business projects implement Mediator'), 'masked-mediator-project-code'
       $text = $text -replace [regex]::Escape('src-generated/main/kotlin'), 'masked-stale-generated-source-root'
       $text = $text -replace 'client/cli\b', 'masked-stale-client-cli-boundary'
+      $text = $text -replace [regex]::Escape('build/cap4k code analysis'), 'masked-stale-spaced-analysis-output'
+      $text = $text -replace [regex]::Escape('build/cap4k/analysis plan.json'), 'masked-stale-spaced-analysis-plan'
     }
 
     foreach ($patternInfo in $Patterns) {

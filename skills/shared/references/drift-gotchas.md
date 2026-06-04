@@ -18,13 +18,13 @@ Do not list `validator` as a normal `design/design.json` tag. Validator-like beh
 
 Do not make a business Integration Event subscriber responsible for HTTP/message consumption, parser registration, or transport dispatch. Runtime transport handles protocol consumption and dispatch; the business subscriber handles typed fact interpretation, idempotency, translation, and command delegation.
 
-## Repository Persistence Ownership
+## Repository Save Ownership
 
-Do not assign aggregate persistence ownership to Repository. Repository reads/accesses/loads aggregates. Unit of Work owns persistence intent, delete intent, and commit behavior.
+Reject exact stale wording like `Repository save` or `Repository saves aggregates`. Repository reads/accesses/loads aggregates. Unit of Work owns persistence intent, delete intent, and commit behavior.
 
 ## UoW And Mediator Implementation Wording
 
-Do not assign Unit of Work or Mediator framework mechanisms to business project code. They are framework capabilities. Business code uses them as runtime boundaries while keeping decisions in domain/application code.
+Reject exact stale wording like `business projects implement Unit of Work` or `business projects implement Mediator`. They are framework capabilities. Business code uses them as runtime boundaries while keeping decisions in domain/application code.
 
 ## `src-generated/main/kotlin`
 
@@ -36,7 +36,7 @@ Do not use old `client/cli` wording. Current generator and design language disti
 
 ## Spaced Analysis Output Paths
 
-Do not use stale spaced analysis output paths or spaced analysis plan filenames. Treat analysis outputs as build-owned observation evidence and use the current build/cap4k evidence vocabulary.
+Reject exact stale paths `build/cap4k code analysis` and `build/cap4k/analysis plan.json`. Treat analysis outputs as build-owned observation evidence and use the current build/cap4k evidence vocabulary.
 
 ## Value Object Design Tag Drift
 
