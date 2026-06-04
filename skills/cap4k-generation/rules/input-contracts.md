@@ -12,4 +12,4 @@
 - IR analysis is post-compile observation for flow and drawing-board output, not business source generation.
 - addons contribute extra artifacts, not business modeling facts; addon-provided validators must not mutate canonical model or built-in render context.
 - Unsupported core design tags include `value_object` and `validator`.
-- Missing facts route back to `cap4k-modeling`; existing facts with missing skeletons stay in `cap4k-generation`.
+- Missing concept or carrier facts route back to `cap4k-tactical-modeling or cap4k-technical-design`; existing facts with missing skeletons stay in `cap4k-generation`.

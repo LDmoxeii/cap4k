@@ -3,7 +3,7 @@
 - Implementation only fills already existing, ownership-clear generated or project-owned skeletons.
 - Implementation does not create generator-capable skeletons.
 - If a missing surface is generator-capable and the relevant facts already exist, stop and return to `cap4k-generation`.
-- If the missing piece is a missing business input fact, stop and return to `cap4k-modeling`.
+- If the missing piece is a missing business input fact, stop and return to `cap4k-business-discovery`.
 
 ## Generation Sources
 
@@ -17,7 +17,7 @@
 - Missing `*Cmd.kt`, `*Qry.kt`, `*QryHandler.kt`, `*CliHandler.kt`, client, payload, domain event, integration event, domain service, saga, or subscriber skeleton: return to `cap4k-generation`.
 - Missing aggregate, repository, factory, specification, enum, or unique-helper skeleton when DDL/type facts already exist: return to `cap4k-generation`.
 - Missing relation or field-mapping behavior after DDL/type facts already exist: treat it as aggregate/entity generation drift, not a standalone skeleton family, and return to `cap4k-generation`.
-- Missing design entry, DDL annotation, `types.enumManifest`, `types.valueObjectManifest`, or `types.registryFile` entry: return to `cap4k-modeling`.
+- Missing design entry, DDL annotation, `types.enumManifest`, `types.valueObjectManifest`, or `types.registryFile` entry: return to `cap4k-technical-design`.
 
 ## Handwritten Exception
 

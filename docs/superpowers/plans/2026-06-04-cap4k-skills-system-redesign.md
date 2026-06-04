@@ -832,6 +832,21 @@ git commit --no-verify -m "docs: add shared cap4k skill references"
 - Create: `skills/cap4k-tactical-modeling/**`
 - Create: `skills/cap4k-technical-design/**`
 - Delete: `skills/cap4k-modeling/**`
+- Modify: `skills/scripts/validate-cap4k-skills.ps1` as a temporary current-state validator update
+- Modify: `docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md`
+- Narrow stale-reference cleanup only:
+  - `skills/cap4k-implementation/rules/source-of-truth-and-skeletons.md`
+  - `skills/cap4k-implementation/workflows/implement-command-slice.md`
+  - `skills/cap4k-implementation/workflows/implement-query-slice.md`
+  - `skills/cap4k-implementation/workflows/implement-subscriber-or-job.md`
+  - `skills/cap4k-generation/rules/input-contracts.md`
+  - `skills/cap4k-generation/references/sources/source-map.md`
+
+Task 4 sequencing fixes:
+
+- Create `skills/cap4k-business-discovery/references/business-signals.md` and activate it from the business discovery `Always Read` list. The file is part of the global file structure map and must not be omitted.
+- After deleting `skills/cap4k-modeling`, update the temporary validator so the current intermediate state validates the three new phase skills and no longer requires `cap4k-modeling`.
+- Clear stale `cap4k-modeling` route references only in the listed old generation/implementation files. Those old files remain until later tasks, but after Task 4 they must not point to a deleted runtime skill.
 
 - [ ] **Step 1: Read context and old modeling content**
 
@@ -839,6 +854,8 @@ Run:
 
 ```powershell
 Get-Content -Path "C:\Users\LD_moxeii\.codex\skills\skill-based-architecture\SKILL.md" -Raw
+Get-Content -Path "C:\Users\LD_moxeii\.codex\skills\skill-based-architecture\references\progressive-rigor.md" -Raw
+Get-Content -Path docs/superpowers/specs/2026-06-04-cap4k-skills-system-redesign.md -Raw
 Get-ChildItem -Path skills/cap4k-modeling -Recurse -File | ForEach-Object { $_.FullName }
 Get-Content -Path skills/cap4k-modeling/SKILL.md -Raw
 ```
@@ -870,6 +887,7 @@ Capture business intent before choosing cap4k tactical carriers.
 
 1. `../shared/workflows/forced-rollback.md`
 2. `workflows/discover-business-intent.md`
+3. `references/business-signals.md`
 
 ## Rules
 
@@ -892,6 +910,8 @@ Create `workflows/discover-business-intent.md` with sections:
 ```
 
 Business Brief Output must include the fields from the spec: goal, actors, vocabulary, state changes, read needs, external facts, policies, open decisions.
+
+Create `references/business-signals.md` with concrete examples of business intent signals, risk words, and missing facts to ask about. Keep it self-contained and do not require public docs or analysis maps at runtime.
 
 - [ ] **Step 3: Create `cap4k-tactical-modeling`**
 
@@ -960,13 +980,47 @@ Expected:
 No cap4k-modeling compatibility wrapper remains.
 ```
 
-- [ ] **Step 6: Verify and commit Task 4**
+- [ ] **Step 6: Update current temporary validator and stale references**
+
+Update `skills/scripts/validate-cap4k-skills.ps1` so it no longer requires `cap4k-modeling` and instead validates:
+
+```text
+cap4k-business-discovery:
+../shared/workflows/forced-rollback.md
+workflows/discover-business-intent.md
+references/business-signals.md
+
+cap4k-tactical-modeling:
+../shared/references/tactical-affordance-map.md
+../shared/workflows/forced-rollback.md
+workflows/map-tactical-carriers.md
+
+cap4k-technical-design:
+../shared/rules/layer-and-runtime-boundaries.md
+../shared/workflows/skeleton-generation-gate.md
+workflows/write-technical-design-contract.md
+```
+
+Keep validation for still-present old generation, implementation, service-integration, and verification skills until later tasks replace them.
+
+Replace stale `cap4k-modeling` references only in the narrow cleanup files listed in this task. Use the precise new phase target:
+
+```text
+business clarification or concept discovery -> cap4k-business-discovery
+tactical carrier, boundary, or modeling decision -> cap4k-tactical-modeling
+placement, skeleton expectation, generator input prerequisite, or design contract -> cap4k-technical-design
+mixed old sentence -> cap4k-tactical-modeling or cap4k-technical-design
+```
+
+- [ ] **Step 7: Verify and commit Task 4**
 
 Run:
 
 ```powershell
-git diff --check -- skills/cap4k-business-discovery skills/cap4k-tactical-modeling skills/cap4k-technical-design
+git diff --check -- skills/cap4k-business-discovery skills/cap4k-tactical-modeling skills/cap4k-technical-design skills/cap4k-modeling skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md skills/cap4k-implementation/rules/source-of-truth-and-skeletons.md skills/cap4k-implementation/workflows/implement-command-slice.md skills/cap4k-implementation/workflows/implement-query-slice.md skills/cap4k-implementation/workflows/implement-subscriber-or-job.md skills/cap4k-generation/rules/input-contracts.md skills/cap4k-generation/references/sources/source-map.md
 Test-Path skills/cap4k-modeling
+rg -n "cap4k-modeling" skills
+powershell -NoProfile -ExecutionPolicy Bypass -File skills/scripts/validate-cap4k-skills.ps1
 ```
 
 Expected:
@@ -974,12 +1028,14 @@ Expected:
 ```text
 git diff --check exits 0
 Test-Path returns False
+rg exits 1 with no cap4k-modeling references under skills
+validation exits 0 with pass message
 ```
 
 Commit:
 
 ```powershell
-git add -- skills/cap4k-business-discovery skills/cap4k-tactical-modeling skills/cap4k-technical-design skills/cap4k-modeling
+git add -- skills/cap4k-business-discovery skills/cap4k-tactical-modeling skills/cap4k-technical-design skills/cap4k-modeling skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md skills/cap4k-implementation/rules/source-of-truth-and-skeletons.md skills/cap4k-implementation/workflows/implement-command-slice.md skills/cap4k-implementation/workflows/implement-query-slice.md skills/cap4k-implementation/workflows/implement-subscriber-or-job.md skills/cap4k-generation/rules/input-contracts.md skills/cap4k-generation/references/sources/source-map.md
 git commit --no-verify -m "docs: add cap4k discovery modeling design skills"
 ```
 
