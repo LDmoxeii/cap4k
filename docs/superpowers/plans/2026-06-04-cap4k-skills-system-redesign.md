@@ -289,6 +289,7 @@ routes:
     route_first: cap4k-technical-design
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
+      - ../shared/references/generator-supported-skeletons.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-technical-design/workflows/write-technical-design-contract.md
     rollback_targets:
@@ -303,6 +304,7 @@ routes:
     route_first: cap4k-generator-inputs
     required_reads:
       - ../shared/rules/generator-input-source-of-truth.md
+      - ../shared/references/generator-supported-skeletons.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-generator-inputs/workflows/project-generator-inputs.md
     rollback_targets:
@@ -325,6 +327,7 @@ routes:
     route_first: cap4k-generation-review
     required_reads:
       - ../shared/references/output-ownership-taxonomy.md
+      - ../shared/references/drift-gotchas.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-generation-review/workflows/review-plan-and-generate.md
     rollback_targets:
@@ -347,6 +350,8 @@ routes:
     route_first: cap4k-handwritten-implementation
     required_reads:
       - ../shared/rules/generated-skeleton-ownership.md
+      - ../shared/references/generator-supported-skeletons.md
+      - ../shared/references/runtime-capability-map.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-handwritten-implementation/workflows/implement-inside-generated-skeletons.md
     rollback_targets:
@@ -373,6 +378,8 @@ routes:
     route_first: cap4k-verification-audit
     required_reads:
       - ../shared/rules/verification-claim-policy.md
+      - ../shared/references/runtime-capability-map.md
+      - ../shared/references/drift-gotchas.md
       - ../shared/workflows/forced-rollback.md
     workflow: ../cap4k-verification-audit/workflows/run-verification-audit.md
     verification_mode: static-only
@@ -400,6 +407,7 @@ routes:
     route_first: cap4k-service-integration
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
+      - ../shared/references/runtime-capability-map.md
       - ../cap4k-service-integration/rules/integration-event-boundaries.md
     specialist_handoffs:
       - cap4k-technical-design
@@ -769,6 +777,25 @@ drift-gotchas.md:
 - src-generated/main/kotlin
 - client/cli stale boundary
 - spaced analysis output paths
+```
+
+- [ ] **Step 3A: Activate high-risk shared references from route paths**
+
+After creating the shared references, update route or workflow paths so high-risk references are reachable when relevant and are not only stored background. At minimum, `routing.yaml` route `required_reads` must include:
+
+```text
+technical-design -> ../shared/references/generator-supported-skeletons.md
+generator-inputs -> ../shared/references/generator-supported-skeletons.md
+generation-review -> ../shared/references/drift-gotchas.md
+handwritten-implementation -> ../shared/references/generator-supported-skeletons.md, ../shared/references/runtime-capability-map.md
+verification-audit -> ../shared/references/runtime-capability-map.md, ../shared/references/drift-gotchas.md
+service-integration -> ../shared/references/runtime-capability-map.md
+```
+
+Expected:
+
+```text
+High-risk shared references are activated through routed task paths without adding them to `cap4k-authoring/SKILL.md` Always Read.
 ```
 
 - [ ] **Step 4: Verify and commit Task 3**
@@ -1440,6 +1467,13 @@ Hard fail unless these skills reference `../shared/workflows/forced-rollback.md`
 cap4k-business-discovery
 cap4k-tactical-modeling
 cap4k-verification-audit
+```
+Hard fail unless high-risk shared references have at least one inbound `routing.yaml` or workflow reference. Check these references specifically:
+
+```text
+../shared/references/generator-supported-skeletons.md
+../shared/references/runtime-capability-map.md
+../shared/references/drift-gotchas.md
 ```
 
 - [ ] **Step 8: Implement `stale-terms.ps1`**

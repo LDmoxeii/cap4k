@@ -69,6 +69,7 @@ routes:
     route_first: cap4k-technical-design
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
+      - ../shared/references/generator-supported-skeletons.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-technical-design/workflows/write-technical-design-contract.md
     rollback_targets:
@@ -83,6 +84,7 @@ routes:
     route_first: cap4k-generator-inputs
     required_reads:
       - ../shared/rules/generator-input-source-of-truth.md
+      - ../shared/references/generator-supported-skeletons.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-generator-inputs/workflows/project-generator-inputs.md
     rollback_targets:
@@ -105,6 +107,7 @@ routes:
     route_first: cap4k-generation-review
     required_reads:
       - ../shared/references/output-ownership-taxonomy.md
+      - ../shared/references/drift-gotchas.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-generation-review/workflows/review-plan-and-generate.md
     rollback_targets:
@@ -127,6 +130,8 @@ routes:
     route_first: cap4k-handwritten-implementation
     required_reads:
       - ../shared/rules/generated-skeleton-ownership.md
+      - ../shared/references/generator-supported-skeletons.md
+      - ../shared/references/runtime-capability-map.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-handwritten-implementation/workflows/implement-inside-generated-skeletons.md
     rollback_targets:
@@ -153,6 +158,8 @@ routes:
     route_first: cap4k-verification-audit
     required_reads:
       - ../shared/rules/verification-claim-policy.md
+      - ../shared/references/runtime-capability-map.md
+      - ../shared/references/drift-gotchas.md
       - ../shared/workflows/forced-rollback.md
     workflow: ../cap4k-verification-audit/workflows/run-verification-audit.md
     verification_mode: static-only
@@ -180,6 +187,7 @@ routes:
     route_first: cap4k-service-integration
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
+      - ../shared/references/runtime-capability-map.md
       - ../cap4k-service-integration/rules/integration-event-boundaries.md
     specialist_handoffs:
       - cap4k-technical-design

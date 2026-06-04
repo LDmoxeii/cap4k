@@ -39,7 +39,7 @@ Agent rule: never assign external protocol consumption, parser registration, or 
 
 Saga runtime supports request-oriented process coordination, subprocesses, compensable subprocesses, explicit compensation requests, retry, archival, and scheduled compensation. This supports compensation-oriented Saga modeling.
 
-Agent rule: use Saga when persistent progress, retry, recovery, or compensation is required. Do not describe Saga as a generic callback-resume workflow engine without current code evidence.
+Agent rule: use Saga when persistent progress, retry, recovery, or compensation is required. Do not describe Saga as a generic callback-resume workflow engine unless this installed skill bundle has been updated from verified code facts.
 
 ## Analysis Evidence
 

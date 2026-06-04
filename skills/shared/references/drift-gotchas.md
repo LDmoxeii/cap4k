@@ -12,7 +12,7 @@ Do not mention removed or stale analysis switches such as old flow/drawing-board
 
 ## Design Validator Wording
 
-Do not list `validator` as a normal `design/design.json` tag. Validator-like behavior belongs to supported specification, unique helper, addon, or explicit technical design decisions unless current generator input support says otherwise.
+Do not list `validator` as a normal `design/design.json` tag. Validator-like behavior belongs to supported specification, unique helper, addon, or approved technical design decisions unless this installed skill bundle has been updated from verified code facts.
 
 ## Integration Event Transport Assigned To Business Subscriber
 
@@ -40,7 +40,7 @@ Do not use stale spaced output paths such as `build/cap4k code analysis` or spac
 
 ## Value Object Design Tag Drift
 
-Do not list `value_object` as a normal design-json tag unless current input support changes. Value objects currently belong to value-object manifest or type/source conventions, not the normal design block tag set.
+Do not list `value_object` as a normal design-json tag unless task-provided plan evidence and an approved technical design explicitly record support. Value objects currently belong to value-object manifest or type/source conventions, not the normal design block tag set.
 
 ## Integration Event Variant Drift
 

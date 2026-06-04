@@ -22,10 +22,10 @@ Generator-supported structure can come from DB/schema, `design/design.json`, val
 | aggregate | DB/schema aggregate markers and aggregate generator input | Aggregate root structure is not handwritten when generator input can express it. |
 | entity | DB/schema entity/table relation inference | Entity structure follows aggregate modeling and schema input. |
 | factory | Aggregate generator family or design-supported factory skeleton | Keep creation policy in generated factory slots when available. |
-| specification | Aggregate/specification generator family, unique helper input, or explicit design exception | Pre-save constraints return to input design when the expected skeleton is absent. |
+| specification | Aggregate/specification generator family or unique helper input | Pre-save constraints return to generator inputs when the expected skeleton is absent. |
 | repository | Aggregate persistence generator family | Repository handles read/access/load; save ownership stays with Unit of Work. |
 | controller | API/adapter generator family or addon-supported adapter input | Controller skeleton belongs to adapter protocol mapping, not business rule ownership. |
-| job | Scheduled reaction, compensation, polling, or addon-supported job input | Missing job support needs technical design exception before handwritten structure. |
+| job | Scheduled reaction, compensation, polling, or addon-supported job input | Missing job support returns to technical design before handwritten structure. |
 | projection | Aggregate-projection generator family or read-model input | Treat projections as generated/read ownership, not command-side aggregate shortcuts. |
 
 ## Missing Skeleton Rule
@@ -35,5 +35,5 @@ If an expected supported skeleton is absent from plan evidence:
 1. Stop structural implementation.
 2. Check whether the intended structure belongs in DB/schema, `design/design.json`, value-object manifest, enum manifest, Gradle extension configuration, addon/options, or a template override.
 3. If the input can express it, return to generator inputs and regenerate only after plan review is allowed.
-4. If the input cannot express it, return to technical design and record a handwritten structural exception before creating the skeleton.
+4. If the input cannot express it, return to technical design and record an approved handwritten structural decision before creating the skeleton.
 5. If ownership is unclear, treat the change as blocked until generation review classifies the output family and conflict policy.
