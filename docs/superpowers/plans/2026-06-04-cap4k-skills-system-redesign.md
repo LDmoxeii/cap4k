@@ -221,6 +221,40 @@ Use these route ids and route targets:
 version: 1
 default_entry: cap4k-authoring
 routes:
+  - id: full-authoring-flow
+    trigger_examples:
+      - "build a cap4k project from scratch"
+      - "take this business idea through cap4k authoring"
+      - "model, generate, implement, and verify this cap4k slice"
+    positive_signals:
+      - "from scratch"
+      - "end-to-end"
+      - "full authoring"
+      - "new cap4k project"
+    negative_signals:
+      - "only verify this work"
+      - "review plan.json before generation"
+      - "fill this generated handler"
+    route_first: cap4k-business-discovery
+    then_chain:
+      - cap4k-tactical-modeling
+      - cap4k-technical-design
+      - cap4k-generator-inputs
+      - cap4k-generation-review
+      - cap4k-handwritten-implementation
+      - cap4k-verification-audit
+    required_reads:
+      - ../shared/workflows/forced-rollback.md
+    workflow: ../cap4k-business-discovery/workflows/discover-business-intent.md
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+      - technical-design
+      - generator-inputs
+      - generation-review
+      - handwritten-implementation
+      - verification-audit
+
   - id: business-discovery
     trigger_examples:
       - "clarify this business idea before modeling"
@@ -229,7 +263,7 @@ routes:
     route_first: cap4k-business-discovery
     required_reads:
       - ../shared/workflows/forced-rollback.md
-    workflow: workflows/discover-business-intent.md
+    workflow: ../cap4k-business-discovery/workflows/discover-business-intent.md
     rollback_targets:
       - business-discovery
 
@@ -242,7 +276,7 @@ routes:
     required_reads:
       - ../shared/references/tactical-affordance-map.md
       - ../shared/workflows/forced-rollback.md
-    workflow: workflows/map-tactical-carriers.md
+    workflow: ../cap4k-tactical-modeling/workflows/map-tactical-carriers.md
     rollback_targets:
       - business-discovery
       - tactical-modeling
@@ -256,7 +290,7 @@ routes:
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
       - ../shared/workflows/skeleton-generation-gate.md
-    workflow: workflows/write-technical-design-contract.md
+    workflow: ../cap4k-technical-design/workflows/write-technical-design-contract.md
     rollback_targets:
       - tactical-modeling
       - technical-design
@@ -270,7 +304,7 @@ routes:
     required_reads:
       - ../shared/rules/generator-input-source-of-truth.md
       - ../shared/workflows/skeleton-generation-gate.md
-    workflow: workflows/project-generator-inputs.md
+    workflow: ../cap4k-generator-inputs/workflows/project-generator-inputs.md
     rollback_targets:
       - technical-design
       - generator-inputs
@@ -292,7 +326,7 @@ routes:
     required_reads:
       - ../shared/references/output-ownership-taxonomy.md
       - ../shared/workflows/skeleton-generation-gate.md
-    workflow: workflows/review-plan-and-generate.md
+    workflow: ../cap4k-generation-review/workflows/review-plan-and-generate.md
     rollback_targets:
       - technical-design
       - generator-inputs
@@ -314,7 +348,7 @@ routes:
     required_reads:
       - ../shared/rules/generated-skeleton-ownership.md
       - ../shared/workflows/skeleton-generation-gate.md
-    workflow: workflows/implement-inside-generated-skeletons.md
+    workflow: ../cap4k-handwritten-implementation/workflows/implement-inside-generated-skeletons.md
     rollback_targets:
       - technical-design
       - generator-inputs
@@ -325,11 +359,22 @@ routes:
       - "verify this cap4k work"
       - "audit generated vs handwritten ownership"
       - "produce final cap4k evidence"
+    positive_signals:
+      - "final evidence"
+      - "verification claim"
+      - "skipped checks"
+      - "static-only"
+      - "focused-local"
+      - "full-evidence"
+    negative_signals:
+      - "review plan.json before generation"
+      - "inspect generated output before implementation"
+      - "is this generated output safe to edit?"
     route_first: cap4k-verification-audit
     required_reads:
       - ../shared/rules/verification-claim-policy.md
       - ../shared/workflows/forced-rollback.md
-    workflow: workflows/run-verification-audit.md
+    workflow: ../cap4k-verification-audit/workflows/run-verification-audit.md
     verification_mode: static-only
     rollback_targets:
       - business-discovery
@@ -355,7 +400,7 @@ routes:
     route_first: cap4k-service-integration
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
-      - rules/integration-event-boundaries.md
+      - ../cap4k-service-integration/rules/integration-event-boundaries.md
     specialist_handoffs:
       - cap4k-technical-design
       - cap4k-generator-inputs
@@ -1309,6 +1354,10 @@ skills/cap4k-authoring/routing.yaml exists
 skills/cap4k-authoring/references/route-map.md does not exist
 no markdown file in cap4k-authoring contains a route table
 routing.yaml contains route ids from Task 1
+full-authoring-flow route exists and has then_chain
+high-risk verification route has positive_signals and negative_signals
+no `workflow:\s+workflows/` shorthand remains in `routing.yaml`
+no route-local `- rules/integration-event-boundaries.md` shorthand remains in `routing.yaml`
 ```
 
 - [ ] **Step 5: Implement `progressive-loading.ps1`**
@@ -1547,7 +1596,7 @@ placeholder scan exits 1
 Run:
 
 ```powershell
-rg -n "cap4k-business-discovery|cap4k-tactical-modeling|cap4k-technical-design|cap4k-generator-inputs|cap4k-generation-review|cap4k-handwritten-implementation|cap4k-verification-audit|cap4k-service-integration|routing.yaml|skeleton-generation-gate|forced-rollback|content-studio-dry-run" skills docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
+rg -n "cap4k-business-discovery|cap4k-tactical-modeling|cap4k-technical-design|cap4k-generator-inputs|cap4k-generation-review|cap4k-handwritten-implementation|cap4k-verification-audit|cap4k-service-integration|routing.yaml|skeleton-generation-gate|forced-rollback|full-authoring-flow|content-studio-dry-run" skills docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 ```
 
 Expected:
