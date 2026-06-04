@@ -8,7 +8,7 @@ Integration Events carry confirmed facts across service or bounded-context bound
 - Business application inbound subscribers receive typed external facts.
 - Business subscribers interpret the fact, handle idempotency, translate semantics, and delegate to Command or application behavior when state must change.
 - Domain code receives typed business facts only; never callback bodies, transport headers, provider status fields, or protocol envelopes.
-- Business projects use framework Unit of Work and Mediator capabilities. They do not implement Unit of Work or Mediator.
+- Framework Unit of Work and Mediator capabilities are used by business projects; project code must not own those framework mechanisms.
 - Do not require users to handwrite framework transport intake, parser registration, runtime dispatch, or message-consumer plumbing for Integration Events.
 
 ## Inbound Event Rules

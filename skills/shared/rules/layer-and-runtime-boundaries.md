@@ -15,8 +15,8 @@
 
 ## Drift Checks
 
-- Prevent "Repository saves aggregates."
-- Prevent "business code implements Unit of Work."
+- Prevent "Repository owns aggregate persistence."
+- Prevent "project code owns Unit of Work mechanics."
 - Prevent "Mediator is a business engine."
 - Prevent "subscribers own transport parsing and dispatch."
 - Prevent "HTTP/message subscribers own consume/parse/register/dispatch."

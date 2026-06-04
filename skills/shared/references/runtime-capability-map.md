@@ -12,7 +12,7 @@ Agent rule: do not describe Repository as the save owner. Command paths load agg
 
 Unit of Work owns persistence intent, delete intent, commit/save, transaction propagation, and lifecycle interception. It collects entities to persist or remove and coordinates save behavior with runtime interceptors.
 
-Agent rule: application handlers record persistence or delete intent through Unit of Work and call save/commit behavior according to the framework contract. Do not ask business projects to implement Unit of Work.
+Agent rule: application handlers record persistence or delete intent through Unit of Work and call commit behavior according to the framework contract. Do not assign Unit of Work mechanics to business project code.
 
 ## Mediator
 

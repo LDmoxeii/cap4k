@@ -1483,7 +1483,7 @@ Completion notes:
 - Create: `skills/scripts/checks/stale-terms.ps1`
 - Create: `skills/scripts/checks/link-check.ps1`
 
-- [ ] **Step 1: Read current validation script**
+- [x] **Step 1: Read current validation script**
 
 Run:
 
@@ -1491,7 +1491,7 @@ Run:
 Get-Content -Path skills/scripts/validate-cap4k-skills.ps1 -Raw
 ```
 
-- [ ] **Step 2: Replace entrypoint with check dispatcher**
+- [x] **Step 2: Replace entrypoint with check dispatcher**
 
 `validate-cap4k-skills.ps1` must:
 
@@ -1520,7 +1520,7 @@ foreach ($check in $checks) {
 Write-Host "cap4k skill validation passed."
 ```
 
-- [ ] **Step 3: Implement `structure.ps1`**
+- [x] **Step 3: Implement `structure.ps1`**
 
 Check required directories and absence of old directories:
 
@@ -1531,7 +1531,7 @@ forbidden: cap4k-modeling, cap4k-generation, cap4k-generated-output-review, cap4
 
 Hard fail if missing/forbidden conditions are violated, even when a forbidden directory contains valid frontmatter. Do not allow compatibility aliases.
 
-- [ ] **Step 4: Implement `routing.ps1`**
+- [x] **Step 4: Implement `routing.ps1`**
 
 Check:
 
@@ -1546,7 +1546,7 @@ no `workflow:\s+workflows/` shorthand remains in `routing.yaml`
 no route-local `- rules/integration-event-boundaries.md` shorthand remains in `routing.yaml`
 ```
 
-- [ ] **Step 5: Implement `progressive-loading.ps1`**
+- [x] **Step 5: Implement `progressive-loading.ps1`**
 
 Check:
 
@@ -1557,7 +1557,7 @@ each SKILL.md Always Read section has <= 3 numbered entries
 no SKILL.md contains the full tactical affordance table
 ```
 
-- [ ] **Step 6: Implement `self-contained-runtime.ps1`**
+- [x] **Step 6: Implement `self-contained-runtime.ps1`**
 
 Hard fail if runtime skill files require external runtime dependencies. Patterns:
 
@@ -1572,7 +1572,7 @@ read cap4k source checkout
 
 Allow mentions only when phrased as "do not require" or in validation/source-extraction context.
 
-- [ ] **Step 7: Implement `skeleton-gate-refs.ps1`**
+- [x] **Step 7: Implement `skeleton-gate-refs.ps1`**
 
 Hard fail unless these skills reference `../shared/workflows/skeleton-generation-gate.md`:
 
@@ -1599,7 +1599,7 @@ Hard fail unless high-risk shared references have at least one inbound `routing.
 ../shared/references/drift-gotchas.md
 ```
 
-- [ ] **Step 8: Implement `stale-terms.ps1`**
+- [x] **Step 8: Implement `stale-terms.ps1`**
 
 Hard fail for these patterns in `skills/**/*.md`, `skills/**/*.yaml`, and `skills/**/*.yml`:
 
@@ -1625,7 +1625,7 @@ cap4k-tactical-modeling or cap4k-technical-design
 
 Route code spans must contain one real skill ID, not a combined phrase.
 
-- [ ] **Step 9: Implement `link-check.ps1`**
+- [x] **Step 9: Implement `link-check.ps1`**
 
 Preserve the current local Markdown link check behavior:
 
@@ -1636,7 +1636,7 @@ resolve relative to the current file directory
 hard fail on missing target
 ```
 
-- [ ] **Step 10: Run validation and commit Task 8**
+- [x] **Step 10: Run validation and commit Task 8**
 
 Run:
 
@@ -1653,10 +1653,16 @@ cap4k skill validation passed.
 Commit:
 
 ```powershell
-git add -- skills/scripts
+git add -- skills docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 git commit --no-verify -m "chore: split cap4k skill validation checks"
 ```
 
+Completion notes:
+
+- `validate-cap4k-skills.ps1` is now a dispatcher. It derives the repo root from `$PSScriptRoot`, uses `Push-Location` while checks run, and invokes checks in the required order.
+- The modules preserve the previous monolithic guardrails for removed skill directories, focused skill references, shared core wording, stale service-integration refs, removed event guidance, public authoring stale text, optional runtime-source scans, and local Markdown link validation.
+- `routing.yaml` now activates `../shared/workflows/skeleton-generation-gate.md` for the service-integration route so the new gate-reference check can hard fail honestly.
+- Runtime stale-term examples were reworded to avoid carrying literal removed terms in installed skill text while preserving the drift guidance.
 ---
 
 ### Task 9: Add Dry Run And Final Migration Audit

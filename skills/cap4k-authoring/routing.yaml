@@ -194,6 +194,7 @@ routes:
     required_reads:
       - ../shared/rules/layer-and-runtime-boundaries.md
       - ../shared/references/runtime-capability-map.md
+      - ../shared/workflows/skeleton-generation-gate.md
       - ../cap4k-service-integration/rules/integration-event-boundaries.md
     specialist_handoffs:
       - cap4k-technical-design

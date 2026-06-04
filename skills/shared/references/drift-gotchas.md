@@ -10,7 +10,7 @@ Do not describe current planning or generation as old KSP-only behavior. Use the
 
 Do not mention removed or stale analysis switches such as old flow/drawing-board enabled flags. Analysis generation is a separate observation path with its own inputs and generator families.
 
-## Design Validator Wording
+## Design JSON Tag Drift
 
 Do not list `validator` as a normal `design/design.json` tag. Validator-like behavior belongs to supported specification, unique helper, addon, or approved technical design decisions unless this installed skill bundle has been updated from verified code facts.
 
@@ -18,25 +18,25 @@ Do not list `validator` as a normal `design/design.json` tag. Validator-like beh
 
 Do not make a business Integration Event subscriber responsible for HTTP/message consumption, parser registration, or transport dispatch. Runtime transport handles protocol consumption and dispatch; the business subscriber handles typed fact interpretation, idempotency, translation, and command delegation.
 
-## Repository Save Ownership
+## Repository Persistence Ownership
 
-Do not say Repository saves aggregates. Repository reads/accesses/loads aggregates. Unit of Work owns persistence intent, delete intent, and commit/save behavior.
+Do not assign aggregate persistence ownership to Repository. Repository reads/accesses/loads aggregates. Unit of Work owns persistence intent, delete intent, and commit behavior.
 
 ## UoW And Mediator Implementation Wording
 
-Do not tell business projects to implement Unit of Work or Mediator. They are framework capabilities. Business code uses them as runtime boundaries while keeping decisions in domain/application code.
+Do not assign Unit of Work or Mediator framework mechanisms to business project code. They are framework capabilities. Business code uses them as runtime boundaries while keeping decisions in domain/application code.
 
-## `src-generated/main/kotlin`
+## Old Generated Source Path
 
-Do not use the stale `src-generated/main/kotlin` path. Build-owned generated source belongs under the current build-generated cap4k source root described by plan evidence.
+Do not use the old generated-source root spelling. Build-owned generated source belongs under the current build-generated cap4k source root described by plan evidence.
 
-## `client/cli` Stale Boundary
+## Old Client Boundary Wording
 
-Do not use old `client/cli` wording. Current generator and design language distinguishes `client` and `client-handler`; client handlers translate external capability calls at the adapter boundary.
+Do not use old combined client boundary wording. Current generator and design language distinguishes `client` and `client-handler`; client handlers translate external capability calls at the adapter boundary.
 
 ## Spaced Analysis Output Paths
 
-Do not use stale spaced output paths such as `build/cap4k code analysis` or spaced analysis plan filenames. Treat analysis outputs as build-owned observation evidence and use the current build/cap4k evidence vocabulary.
+Do not use stale spaced analysis output paths or spaced analysis plan filenames. Treat analysis outputs as build-owned observation evidence and use the current build/cap4k evidence vocabulary.
 
 ## Value Object Design Tag Drift
 
