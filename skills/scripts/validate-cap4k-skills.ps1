@@ -143,6 +143,13 @@ foreach ($skillName in $requiredSkillRefs.Keys) {
 $skillTextFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File |
   Where-Object { $_.Extension -in '.md', '.yaml', '.yml' }
 
+$rootTextFiles = @()
+if (Test-Path -LiteralPath 'AGENTS.md') {
+  $rootTextFiles += Get-Item -LiteralPath 'AGENTS.md'
+}
+
+$runtimeShellTextFiles = @($skillTextFiles) + @($rootTextFiles)
+
 $removedOutputReviewPhrase = 'generated-' + 'output-' + 'review'
 $removedSkillRefPatterns = @(
   @{
@@ -163,7 +170,7 @@ $removedSkillRefPatterns = @(
   }
 )
 
-foreach ($file in $skillTextFiles) {
+foreach ($file in $runtimeShellTextFiles) {
   $text = Get-Content -LiteralPath $file.FullName -Raw
   foreach ($removedSkillRefPattern in $removedSkillRefPatterns) {
     if ($text -match $removedSkillRefPattern.Pattern) {
@@ -172,12 +179,7 @@ foreach ($file in $skillTextFiles) {
   }
 }
 
-$rootTextFiles = @()
-if (Test-Path -LiteralPath 'AGENTS.md') {
-  $rootTextFiles += Get-Item -LiteralPath 'AGENTS.md'
-}
-
-$staleScanFiles = @($skillTextFiles) + @($rootTextFiles)
+$staleScanFiles = $runtimeShellTextFiles
 
 $allText = $staleScanFiles |
   ForEach-Object {

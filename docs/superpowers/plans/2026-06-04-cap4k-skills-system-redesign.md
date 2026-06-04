@@ -1092,13 +1092,17 @@ addons/options
 template override decisions
 ```
 
+Quality fix: keep `references/input-surfaces.md` compact but include high-risk identity and reference contracts: Strong ID defaults, same-context aggregate references, local external-reference IDs, legacy generated-value compatibility, and rollback to `cap4k-technical-design` before plan review when those facts are unclear.
+
 Create `workflows/project-generator-inputs.md` requiring:
 
 ```text
 read technical design contract
+read ../references/input-surfaces.md before editing generator inputs
 identify required generator input surface
 update input only when design supports it
 return to technical design if a carrier is unclear
+return to cap4k-tactical-modeling if the business concept no longer maps cleanly
 run or request cap4kPlan only after inputs are coherent
 ```
 
@@ -1129,12 +1133,15 @@ Create `workflows/review-plan-and-generate.md` with steps:
 
 ```text
 read technical design and generator inputs
-run or request cap4kPlan when allowed
+read ../references/plan-review-gotchas.md before reviewing plan or output
+run cap4kPlan only when the user instruction and environment policy permit runtime/generation commands
+request permission or report the exact cap4kPlan command instead of executing when not permitted
 review plan.json/bootstrap-plan.json
 classify output ownership
 check conflictPolicy/templateId/module placement/outputKind
-run cap4kGenerate only when allowed
-stop for human review
+run cap4kGenerate only when the user instruction and environment policy permit runtime/generation commands and plan review gate allows it
+request permission or report the exact cap4kGenerate command instead of executing when not permitted
+after cap4kGenerate, stop for human review and do not continue to handwritten implementation
 ```
 
 Create `references/plan-review-gotchas.md` with gotchas from old `cap4k-generated-output-review` and `cap4k-generation`.
@@ -1153,22 +1160,25 @@ skills/cap4k-generated-output-review
 Update `skills/scripts/validate-cap4k-skills.ps1` so:
 
 - it hard-fails if the deleted generation or generated-output review directories are reintroduced;
+- it scans root runtime shell files such as `AGENTS.md` for removed skill references, not only `skills/**`;
 - it validates current references for `cap4k-generator-inputs` and `cap4k-generation-review`;
 - it no longer requires the old generation or generated-output review skill names;
 - it still validates all current skills in the intermediate tree.
 
-Clean stale references under `skills/**` so no runtime skill text points to the removed generation or generated-output review route names. References to `cap4k-generation-review` remain valid.
+Clean stale references under `AGENTS.md` and `skills/**` so no runtime shell or skill text points to the removed generation or generated-output review route names. References to `cap4k-generation-review` remain valid.
 
 - [ ] **Step 6: Verify and commit Task 5**
 
 Run:
 
 ```powershell
-git diff --check -- skills/cap4k-generator-inputs skills/cap4k-generation-review skills/cap4k-generation skills/cap4k-generated-output-review skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
+git diff --check -- AGENTS.md skills/cap4k-generator-inputs skills/cap4k-generation-review skills/cap4k-generation skills/cap4k-generated-output-review skills/scripts/validate-cap4k-skills.ps1 docs/superpowers/plans/2026-06-04-cap4k-skills-system-redesign.md
 Test-Path skills/cap4k-generation
 Test-Path skills/cap4k-generated-output-review
-rg -n "cap4k-generated-output-review|generated-output-review" skills
-rg -n "cap4k-generation($|[^-])" skills
+rg -n "cap4k-generated-output-review|generated-output-review" AGENTS.md skills
+rg -n "cap4k-generation($|[^-])" AGENTS.md skills
+rg -n "references/input-surfaces.md|plan-review-gotchas.md" skills/cap4k-generator-inputs skills/cap4k-generation-review
+rg -n "when allowed" skills/cap4k-generation-review/workflows/review-plan-and-generate.md
 powershell -NoProfile -ExecutionPolicy Bypass -File skills/scripts/validate-cap4k-skills.ps1
 ```
 
@@ -1178,6 +1188,8 @@ Expected:
 git diff --check exits 0
 both Test-Path commands return False
 both rg scans exit 1 with no old skill references
+activation scan exits 0
+ambiguous permission scan exits 1
 validation exits 0 with pass message
 ```
 

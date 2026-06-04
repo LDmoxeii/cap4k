@@ -19,3 +19,11 @@ Use these surfaces as source inputs only when the technical design contract supp
 - Value-object manifests carry JSON-backed value-object source definitions.
 - Enum manifests carry shared enum definitions referenced by schema type annotations.
 - Gradle extension settings, addons/options, and template override decisions are authoring infrastructure; they are not business source truth.
+
+## Identity And Reference Contracts
+
+- Aggregate-root primary-key metadata defaults to generated Strong ID types.
+- Same-context aggregate references use `@RefAggregate=<AggregateName>` and resolve to the referenced aggregate ID type.
+- Local external-reference identities use `@RefId=<TypeName>` when local language maps an upstream or external concept.
+- `@GeneratedValue=identity` and `@GeneratedValue=database-identity` are legacy compatibility signals for explicit database identity semantics, not the default aggregate ID path.
+- If identity, reference, or generated-value facts are missing or unclear, return to `cap4k-technical-design` before plan review.
