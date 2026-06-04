@@ -2,6 +2,15 @@
 
 Later phases test earlier assumptions. Do not continue forward when evidence invalidates an earlier phase.
 
+## Rollback Operation
+
+- Stop forward work.
+- Identify the invalid assumption.
+- Remove or quarantine artifacts created from it.
+- Update the target phase artifact.
+- Rerun the relevant gate.
+- Record resumed evidence.
+
 | Symptom | Roll Back To |
 |---|---|
 | concept mismatch | cap4k-tactical-modeling |

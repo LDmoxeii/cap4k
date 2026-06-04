@@ -13,10 +13,9 @@ Use this when a cap4k business project needs to consume external capabilities, e
 
 ## Always Read
 
-1. `../shared/rules/default-path-and-write-boundaries.md`
+1. `../shared/rules/layer-and-runtime-boundaries.md`
 2. `../shared/rules/naming-layout-and-testing.md`
-3. `rules/service-boundaries.md`
-4. `rules/integration-events.md`
+3. `../shared/workflows/forced-rollback.md`
 
 ## Common Routes
 

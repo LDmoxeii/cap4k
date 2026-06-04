@@ -9,7 +9,7 @@
 - Use Repository for aggregate read, access, and load.
 - Use Unit of Work for persistence intent, delete intent, commit, and save.
 - Treat Mediator as a framework facade.
-- Let framework and runtime integration-event transport consume, parse, register, and dispatch.
+- Let framework/runtime HTTP and message transport handle consume, parse, register, and dispatch.
 - Let business inbound subscribers interpret typed external facts, ensure idempotency, translate semantics, and delegate.
 - Keep runtime guidance self-contained.
 
@@ -19,4 +19,5 @@
 - Prevent "business code implements Unit of Work."
 - Prevent "Mediator is a business engine."
 - Prevent "subscribers own transport parsing and dispatch."
+- Prevent "HTTP/message subscribers own consume/parse/register/dispatch."
 - Prevent "controllers or adapters own domain invariants."

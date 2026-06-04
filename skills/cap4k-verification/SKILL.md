@@ -12,11 +12,9 @@ Use before claiming cap4k authoring work is complete.
 
 ## Always Read
 
-1. `../shared/rules/default-path-and-write-boundaries.md`
-2. `../shared/rules/ownership-and-generation-flow.md`
+1. `../shared/rules/verification-claim-policy.md`
+2. `../shared/rules/generated-skeleton-ownership.md`
 3. `../shared/rules/naming-layout-and-testing.md`
-4. `rules/evidence-contract.md`
-5. `rules/test-strategy.md`
 
 ## Common Routes
 

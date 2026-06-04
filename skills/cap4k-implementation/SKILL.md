@@ -12,11 +12,9 @@ Use this after modeling and generation boundaries are clear.
 
 ## Always Read
 
-1. `../shared/rules/default-path-and-write-boundaries.md`
-2. `../shared/rules/ownership-and-generation-flow.md`
-3. `rules/source-of-truth-and-skeletons.md`
-4. `rules/layering.md`
-5. `rules/mediator-and-uow.md`
+1. `../shared/rules/layer-and-runtime-boundaries.md`
+2. `../shared/rules/generated-skeleton-ownership.md`
+3. `../shared/workflows/skeleton-generation-gate.md`
 
 ## Common Routes
 

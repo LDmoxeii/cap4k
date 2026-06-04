@@ -457,6 +457,7 @@ git commit --no-verify -m "docs: rebuild cap4k authoring router"
 - Delete and recreate: `skills/shared/rules/*.md`
 - Create: `skills/shared/workflows/skeleton-generation-gate.md`
 - Create: `skills/shared/workflows/forced-rollback.md`
+- Transitional quality fix: update still-present old skill consumers and `skills/scripts/validate-cap4k-skills.ps1` so this intermediate state does not point at deleted shared rules before later deletion/rebuild tasks.
 
 - [ ] **Step 1: Read required context and current shared rules**
 
@@ -473,6 +474,41 @@ Expected:
 ```text
 Worker can state that shared/ is aggressively rebuilt as rules/workflows/references.
 ```
+
+- [ ] **Step 1A: Repair intermediate consumers before commit**
+
+Until Tasks 4-8 remove or rebuild the old focused skills and validator, update their `Always Read` lists and current validation expectations to reference the new shared rules/workflows. Do not re-add deleted shared rule files and do not create compatibility aliases.
+
+Required transitional `Always Read` mapping:
+
+```text
+skills/cap4k-modeling/SKILL.md:
+../shared/rules/cap4k-positioning.md
+../shared/rules/layer-and-runtime-boundaries.md
+../shared/workflows/forced-rollback.md
+
+skills/cap4k-generation/SKILL.md:
+../shared/rules/generator-input-source-of-truth.md
+../shared/rules/generated-skeleton-ownership.md
+../shared/workflows/skeleton-generation-gate.md
+
+skills/cap4k-implementation/SKILL.md:
+../shared/rules/layer-and-runtime-boundaries.md
+../shared/rules/generated-skeleton-ownership.md
+../shared/workflows/skeleton-generation-gate.md
+
+skills/cap4k-verification/SKILL.md:
+../shared/rules/verification-claim-policy.md
+../shared/rules/generated-skeleton-ownership.md
+../shared/rules/naming-layout-and-testing.md
+
+skills/cap4k-service-integration/SKILL.md:
+../shared/rules/layer-and-runtime-boundaries.md
+../shared/rules/naming-layout-and-testing.md
+../shared/workflows/forced-rollback.md
+```
+
+Also update the temporary current-state validator so it requires the six new shared rule files, the two shared workflow files, the transitional skill references above, and wording from the rebuilt shared files.
 
 - [ ] **Step 2: Replace shared rules**
 

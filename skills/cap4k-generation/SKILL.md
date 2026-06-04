@@ -12,10 +12,9 @@ Use this before writing or regenerating cap4k generated output.
 
 ## Always Read
 
-1. `../shared/rules/core-positioning.md`
-2. `../shared/rules/ownership-and-generation-flow.md`
-3. `rules/input-contracts.md`
-4. `rules/output-ownership.md`
+1. `../shared/rules/generator-input-source-of-truth.md`
+2. `../shared/rules/generated-skeleton-ownership.md`
+3. `../shared/workflows/skeleton-generation-gate.md`
 
 ## Common Routes
 
