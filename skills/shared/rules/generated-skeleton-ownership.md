@@ -6,9 +6,10 @@
 - Put complex business logic inside approved author-owned surfaces of generated checked-in skeletons.
 - Exclude build-owned generated source from handwritten editing.
 - Exclude generated snapshots from handwritten editing.
+- If generator inputs can express a missing structure, return to generator input or plan review instead of creating a parallel handwritten skeleton.
 - Require an explicit technical design exception before creating parallel handwritten structure.
+- Treat `plan.json`, analysis outputs, drawing-board outputs, and generated snapshots as evidence, not handwritten business logic surfaces.
 - Preserve generated-versus-handwritten ownership in every path decision.
-- Keep runtime guidance self-contained.
 
 ## Drift Checks
 

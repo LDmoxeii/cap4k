@@ -21,7 +21,9 @@ Use this after the technical design contract exists and before plan review.
 | Task | Read | Workflow |
 |---|---|---|
 | Choose the generator input surface | `references/input-surfaces.md` | `workflows/project-generator-inputs.md` |
-| Update DB/schema, design JSON, manifests, Gradle settings, addons, or template decisions | `references/input-surfaces.md` | `workflows/project-generator-inputs.md` |
+| Update `design/design.json` or registered design JSON fragments | `references/input-surfaces.md`, then `references/design-json-contract.md` | `workflows/project-generator-inputs.md` |
+| Update DB/schema DDL comments | `references/input-surfaces.md`, then `references/db-schema-annotations.md` | `workflows/project-generator-inputs.md` |
+| Update enum or value-object manifests | `references/input-surfaces.md`, then `references/manifest-contracts.md` | `workflows/project-generator-inputs.md` |
 
 ## Stop Conditions
 

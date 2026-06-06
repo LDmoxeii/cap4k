@@ -174,7 +174,6 @@ $requiredReadsByRoute = @{
   )
   'generation-review' = @(
     '../shared/references/output-ownership-taxonomy.md',
-    '../shared/references/drift-gotchas.md',
     '../shared/workflows/skeleton-generation-gate.md'
   )
   'handwritten-implementation' = @(
@@ -186,7 +185,6 @@ $requiredReadsByRoute = @{
   'verification-audit' = @(
     '../shared/rules/verification-claim-policy.md',
     '../shared/references/runtime-capability-map.md',
-    '../shared/references/drift-gotchas.md',
     '../shared/workflows/forced-rollback.md'
   )
   'service-integration' = @(

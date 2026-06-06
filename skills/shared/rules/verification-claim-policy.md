@@ -6,7 +6,6 @@
 - Never report static-only evidence as full verification.
 - Disclose skipped checks.
 - State unresolved verification gaps directly.
-- Keep runtime guidance self-contained.
 
 ## Drift Checks
 

@@ -11,7 +11,6 @@
 - Treat Mediator as a framework facade.
 - Let framework/runtime HTTP and message transport handle consume, parse, register, and dispatch.
 - Let business inbound subscribers interpret typed external facts, ensure idempotency, translate semantics, and delegate.
-- Keep runtime guidance self-contained.
 
 ## Drift Checks
 

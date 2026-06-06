@@ -7,7 +7,6 @@
 - Separate adapter mapping tests from runtime wiring tests.
 - Separate generation evidence checks from behavior tests.
 - Keep transport DTOs, external protocol details, query projections, and domain behavior in their proper layers.
-- Keep runtime guidance self-contained.
 
 ## Drift Checks
 

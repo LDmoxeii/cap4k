@@ -6,7 +6,6 @@
 - Reject generic CRUD framing.
 - Use the generator to stabilize structure.
 - Let humans decide business semantics.
-- Keep runtime guidance self-contained.
 
 ## Drift Checks
 

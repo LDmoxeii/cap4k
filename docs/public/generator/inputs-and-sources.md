@@ -2,7 +2,7 @@
 
 generator inputs 是作者已经明确写下的架构和设计事实。它们来自 Gradle extension、DB/schema、`design/design.json`、type manifests 和 source-analysis input，而不是来自一次生成后的猜测。输入越清楚，`cap4kPlan`、`cap4kGenerate` 和 analysis evidence 越容易审查。
 
-本页解释输入类别和它们回答的问题。精确 DSL 字段、JSON schema 和 manifest 格式请查 [Generator DSL](../reference/generator-dsl.md)、[Design JSON](../reference/design-json.md)、[Value Object Manifest](../reference/value-object-manifest.md) 和 [Enum Manifest](../reference/enum-manifest.md)。
+本页解释输入类别和它们回答的问题。精确 DSL 字段、JSON schema、schema comment annotations 和 manifest 格式请查 [Generator DSL](../reference/generator-dsl.md)、[Design JSON](../reference/design-json.md)、[DB Schema Annotations](../reference/db-schema-annotations.md)、[Value Object Manifest](../reference/value-object-manifest.md) 和 [Enum Manifest](../reference/enum-manifest.md)。
 
 ## Gradle Extension
 
@@ -29,6 +29,8 @@ DB/schema 是 persistence surface 输入。它可以表达：
 - `@T=<TypeName>` 这类 enum 或 Value Object type marker。
 
 schema 能帮助 generator 生成 aggregate family、repository、factory、specification、Strong ID、mapping 和 persistence adapter 相关结构。它不能替代 Aggregate 行为，也不能把外键关系变成跨聚合直接修改权限。
+
+DB/schema comments 的 supported annotation closed set、relation metadata 依赖规则和 removed annotations 见 [DB Schema Annotations](../reference/db-schema-annotations.md)。
 
 ## design/design.json
 
@@ -82,6 +84,8 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 读 reference project 时，不要把本地 `build/cap4k/plan.json` 或 `build/cap4k/analysis-plan.json` 当作 committed source truth。它们是在本地运行相关任务后得到的 generated evidence，用来审查输入和输出是否一致。
 
 ## Input Feedback
+
+进入 generation 前，可以用 [Generator Input Validation](../reference/generator-input-validation.md) 对已编写的输入文件做离线预检查。它只给出静态、保守的反馈，不连接数据库、不运行 Gradle、不生成代码、不编译、不运行测试，也不改写输入文件。
 
 这些信号说明输入需要回到 authoring loop：
 

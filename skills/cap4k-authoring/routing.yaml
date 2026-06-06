@@ -124,7 +124,6 @@ routes:
     route_first: cap4k-generation-review
     required_reads:
       - ../shared/references/output-ownership-taxonomy.md
-      - ../shared/references/drift-gotchas.md
       - ../shared/workflows/skeleton-generation-gate.md
     workflow: ../cap4k-generation-review/workflows/review-plan-and-generate.md
     rollback_targets:
@@ -176,7 +175,6 @@ routes:
     required_reads:
       - ../shared/rules/verification-claim-policy.md
       - ../shared/references/runtime-capability-map.md
-      - ../shared/references/drift-gotchas.md
       - ../shared/workflows/forced-rollback.md
     workflow: ../cap4k-verification-audit/workflows/run-verification-audit.md
     verification_mode: static-only

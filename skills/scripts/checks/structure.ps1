@@ -62,8 +62,7 @@ $requiredSharedPaths = @(
   'skills/shared/references/tactical-affordance-map.md',
   'skills/shared/references/generator-supported-skeletons.md',
   'skills/shared/references/output-ownership-taxonomy.md',
-  'skills/shared/references/runtime-capability-map.md',
-  'skills/shared/references/drift-gotchas.md'
+  'skills/shared/references/runtime-capability-map.md'
 )
 
 $missingSharedPaths = $requiredSharedPaths |
