@@ -287,7 +287,6 @@ private class GraphCollector(
     private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
     private val constraintValidatorJavaxFq = FqName("javax.validation.ConstraintValidator")
     private val predicateFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Predicate")
-    private val aggregatePredicateFq = FqName("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate")
 
     override fun visitClassNew(declaration: IrClass): IrStatement {
         val fqcn = declaration.fqNameWhenAvailable?.asString() ?: return super.visitClassNew(declaration)
@@ -718,18 +717,9 @@ private class GraphCollector(
                 val arg = simple.arguments.getOrNull(0) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
                 arg?.type?.let { resolveAggregateRootFromType(it) }
             }
-            fq == aggregatePredicateFq.asString() -> {
-                val arg = simple.arguments.getOrNull(1) as? org.jetbrains.kotlin.ir.types.IrTypeProjection
-                arg?.type?.let { resolveAggregateRootFromType(it) }
-            }
             cls.isOrImplements(predicateFq) -> {
                 val directArg = (simple.arguments.getOrNull(0) as? org.jetbrains.kotlin.ir.types.IrTypeProjection)?.type
                 val superArg = cls.findSuperTypeArgument(predicateFq, 0)
-                (directArg ?: superArg)?.let { resolveAggregateRootFromType(it) }
-            }
-            cls.isOrImplements(aggregatePredicateFq) -> {
-                val directArg = (simple.arguments.getOrNull(1) as? org.jetbrains.kotlin.ir.types.IrTypeProjection)?.type
-                val superArg = cls.findSuperTypeArgument(aggregatePredicateFq, 1)
                 (directArg ?: superArg)?.let { resolveAggregateRootFromType(it) }
             }
             else -> null

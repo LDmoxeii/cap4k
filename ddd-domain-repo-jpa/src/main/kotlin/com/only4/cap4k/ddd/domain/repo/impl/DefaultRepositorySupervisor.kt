@@ -11,8 +11,6 @@ import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.core.share.PageParam.Companion.limit
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -87,10 +85,7 @@ class DefaultRepositorySupervisor(
             throw DomainException("仓储不存在：${entityClass.typeName}")
         }
 
-        val predicateClass = when (predicate) {
-            is JpaAggregatePredicate<*, *> -> JpaAggregatePredicateSupport.getPredicate(predicate).javaClass
-            else -> predicate.javaClass
-        }
+        val predicateClass = predicate.javaClass
 
         if (!repos.containsKey(predicateClass)) {
             throw DomainException("仓储不兼容断言条件：${predicateClass.name}")

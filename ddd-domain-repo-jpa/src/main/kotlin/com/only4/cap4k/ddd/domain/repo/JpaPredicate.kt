@@ -1,10 +1,7 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePredicate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import org.springframework.data.jpa.domain.Specification
 
 /**
@@ -20,11 +17,6 @@ class JpaPredicate<ENTITY : Any>(
     val valueObject: ValueObject<*>? = null
 ) : Predicate<ENTITY> {
 
-    fun <AGGREGATE : Aggregate<ENTITY>> toAggregatePredicate(
-        aggregateClass: Class<AGGREGATE>
-    ): AggregatePredicate<AGGREGATE, ENTITY> = JpaAggregatePredicate.byPredicate(aggregateClass, this)
-
-
     companion object {
         @JvmStatic
         fun <ENTITY : Any> byId(entityClass: Class<ENTITY>, id: Any): JpaPredicate<ENTITY> =
@@ -36,11 +28,7 @@ class JpaPredicate<ENTITY : Any>(
 
         @JvmStatic
         fun <VALUE_OBJECT : ValueObject<*>> byValueObject(valueObject: VALUE_OBJECT): JpaPredicate<VALUE_OBJECT> =
-            JpaPredicate(
-                valueObject.javaClass,
-                ids = listOf(valueObject.hash()),
-                valueObject = valueObject
-            )
+            JpaPredicate(valueObject.javaClass, ids = listOf(valueObject.hash()), valueObject = valueObject)
 
         @JvmStatic
         fun <ENTITY : Any> bySpecification(

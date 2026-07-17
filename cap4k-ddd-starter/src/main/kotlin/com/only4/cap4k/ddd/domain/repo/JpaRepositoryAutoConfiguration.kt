@@ -3,7 +3,10 @@ package com.only4.cap4k.ddd.domain.repo
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.application.UnitOfWorkSupport
-import com.only4.cap4k.ddd.core.domain.aggregate.*
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisorSupport
+import com.only4.cap4k.ddd.core.domain.aggregate.Specification
+import com.only4.cap4k.ddd.core.domain.aggregate.SpecificationManager
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultSpecificationManager
@@ -14,7 +17,6 @@ import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisorSupport
 import com.only4.cap4k.ddd.core.domain.repo.impl.DefaultEntityInlinePersistListener
 import com.only4.cap4k.ddd.core.domain.repo.impl.DefaultPersistListenerManager
-import com.only4.cap4k.ddd.domain.aggregate.impl.DefaultAggregateSupervisor
 import com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
 import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import org.springframework.beans.factory.annotation.Autowired
@@ -43,18 +45,6 @@ class JpaRepositoryAutoConfiguration {
     ): DefaultRepositorySupervisor = DefaultRepositorySupervisor(repositories, unitOfWork).apply {
         init()
         RepositorySupervisorSupport.configure(this)
-    }
-
-
-    @Bean
-    fun defaultAggregateSupervisor(
-        repositorySupervisor: DefaultRepositorySupervisor,
-        jpaUnitOfWork: JpaUnitOfWork,
-    ): DefaultAggregateSupervisor = DefaultAggregateSupervisor(
-        repositorySupervisor,
-        jpaUnitOfWork
-    ).also {
-        AggregateSupervisorSupport.configure(it)
     }
 
 
