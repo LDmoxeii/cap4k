@@ -76,7 +76,7 @@ field item：
 
 `MediaProcessingResultSnapshot` 是 JSON-backed Value Object。参考项目中它持久化在 `media_processing_task.result_snapshot`，converter 生成在 value object class 中。
 
-## 归属、存储方式与已移除字段
+## 归属与存储方式
 
 - `aggregates` 可省略。
 - 省略 `aggregates` 或写成 `aggregates: []` 表示 shared。
@@ -84,7 +84,7 @@ field item：
 - `storage` 当前只支持 `json`；省略 `storage` 时按 `json` 处理。
 - shared Value Object name 不能重复。
 - 同一个 owner 下的 Value Object name 不能重复。
-- `scope` 和 `aggregate` 已移除；使用 `aggregates`。
+- 归属只通过 `aggregates` 表达；manifest entry 不定义 `scope` 或 `aggregate` 字段。
 
 ## 生成输出说明
 
@@ -103,4 +103,4 @@ field item：
 - 同一个 aggregate owner 下的 Value Object name 不能重复。
 - `aggregates` 当前最多声明一个 owner。
 - `storage` 当前只使用 `json`。
-- 不要添加已移除的 `scope` 或 `aggregate` 字段；使用 `aggregates`。
+- `scope` 和 `aggregate` 不属于 manifest entry；归属只通过 `aggregates` 表达。

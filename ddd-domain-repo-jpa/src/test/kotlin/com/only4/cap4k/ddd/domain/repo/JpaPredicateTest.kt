@@ -1,8 +1,6 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
@@ -17,15 +15,6 @@ class JpaPredicateTest {
 
     private class TestValueObject(private val value: String) : ValueObject<String> {
         override fun hash(): String = value.hashCode().toString()
-    }
-
-    private class TestAggregate : Aggregate<TestEntity> {
-        private lateinit var entity: TestEntity
-
-        override fun _unwrap(): TestEntity = entity
-        override fun _wrap(root: TestEntity) {
-            this.entity = root
-        }
     }
 
     @Test
@@ -89,18 +78,6 @@ class JpaPredicateTest {
     }
 
     @Test
-    @DisplayName("转换为聚合谓词")
-    fun `toAggregatePredicate should convert to aggregate predicate`() {
-        val id = 456L
-        val predicate = JpaPredicate.byId(TestEntity::class.java, id)
-        val aggregatePredicate = predicate.toAggregatePredicate(TestAggregate::class.java)
-
-        assertNotNull(aggregatePredicate)
-        assertEquals(TestAggregate::class.java, (aggregatePredicate as JpaAggregatePredicate).aggregateClass)
-        assertEquals(predicate, aggregatePredicate.predicate)
-    }
-
-    @Test
     @DisplayName("多个工厂方法应该创建不同的谓词")
     fun `multiple factory methods should create distinct predicates`() {
         val id = 1L
@@ -161,22 +138,4 @@ class JpaPredicateTest {
         assertEquals(ids, predicate.ids?.toList())
     }
 
-    @Test
-    @DisplayName("转换为聚合谓词应该适用于不同的聚合类型")
-    fun `toAggregatePredicate should work with different aggregate types`() {
-        class AnotherAggregate : Aggregate<TestEntity> {
-            private lateinit var entity: TestEntity
-            override fun _unwrap(): TestEntity = entity
-            override fun _wrap(root: TestEntity) {
-                this.entity = root
-            }
-        }
-
-        val predicate = JpaPredicate.byId(TestEntity::class.java, 1L)
-        val aggregatePredicate1 = predicate.toAggregatePredicate(TestAggregate::class.java)
-        val aggregatePredicate2 = predicate.toAggregatePredicate(AnotherAggregate::class.java)
-
-        assertEquals(TestAggregate::class.java, (aggregatePredicate1 as JpaAggregatePredicate).aggregateClass)
-        assertEquals(AnotherAggregate::class.java, (aggregatePredicate2 as JpaAggregatePredicate).aggregateClass)
-    }
 }

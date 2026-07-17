@@ -106,7 +106,7 @@ class BeanLifecycleTest {
     @Disabled
     fun `should handle concurrent bean access safely`() {
         // 模拟并发访问Bean的场景
-        val beanNames = listOf("defaultMediator", "defaultRepositorySupervisor", "defaultAggregateSupervisor")
+        val beanNames = listOf("defaultMediator", "defaultRepositorySupervisor", "defaultAggregateFactorySupervisor")
         val availableBeans = beanNames.filter { applicationContext.containsBean(it) }
 
         if (availableBeans.isEmpty()) {

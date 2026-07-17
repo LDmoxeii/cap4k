@@ -1,7 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
@@ -117,23 +116,6 @@ class DefaultDomainEventSupervisorTest {
             }
         }
 
-        @Test
-        @DisplayName("应该能够处理聚合根实体")
-        fun `should handle aggregate root entities`() {
-            // given
-            val event = TestDomainEvent("test event")
-            val aggregate = TestAggregate("agg1")
-            val schedule = LocalDateTime.now()
-            aggregate._wrap(TestEntity("agg1"))
-
-            // when
-            supervisor.attach(event, aggregate, schedule)
-
-            // then
-            verify {
-                domainEventInterceptorManager.orderedDomainEventInterceptors
-            }
-        }
     }
 
     @Nested
@@ -706,9 +688,6 @@ class DefaultDomainEventSupervisorTest {
 
     // 测试用的实体类
     data class TestEntity(val id: String)
-
-    // 测试用的聚合根
-    class TestAggregate(private val id: String) : Aggregate.Default<TestEntity>()
 
     // 测试用的Spring聚合根
     class TestSpringAggregateRoot : AbstractAggregateRoot<TestSpringAggregateRoot>() {

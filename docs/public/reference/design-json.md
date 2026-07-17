@@ -8,8 +8,8 @@
 - array 中的每一项必须是 object。
 - `tag` 和 `name` 必须是非空 string。
 - 除 `domain_event` 外，`package` 必填。
-- 当前公开输入字段包括 `tag`、`name`、`package`、`description`、`aggregates`、`fields`、`resultFields`、`eventName`、`persist` 和 `artifacts`。
-- 不使用已移除字段 `desc`、`requestFields`、`responseFields`、`traits`、`role`、`scope` 和 `entity`。
+- 公开输入字段为 `tag`、`name`、`package`、`description`、`aggregates`、`fields`、`resultFields`、`eventName`、`persist` 和 `artifacts`。
+- `desc`、`requestFields`、`responseFields`、`traits`、`role`、`scope` 和 entry-level `entity` 不属于公开输入字段。
 - field 的 `type` 必须写明确类型名，不能写 `self`。
 - `domain_event.fields` 中的 field name `entity` 是保留名。
 - flow 或 drawing-board 片段只有满足这些规则后，才能通过 `sources.designJson.files` 作为普通 design JSON 输入。

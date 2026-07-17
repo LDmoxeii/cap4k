@@ -1,7 +1,6 @@
 package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
@@ -167,21 +166,6 @@ class JpaUnitOfWorkTest {
         // Then
         jpaUnitOfWork.save()
         verify { entityManager.persist(valueObject) }
-    }
-
-    @Test
-    @DisplayName("持久化前应解包聚合对象")
-    fun testPersistAggregateUnwrapping() {
-        // Given
-        val innerEntity = TestEntity(1L, "test")
-        val aggregate = TestAggregate(innerEntity)
-
-        // When
-        jpaUnitOfWork.persist(aggregate)
-
-        // Then
-        jpaUnitOfWork.save()
-        verify { entityManager.persist(innerEntity) }  // Should persist since contains() returns false by default
     }
 
     @Test
@@ -493,34 +477,6 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @Order(1)  // Run this test first to avoid interference from other tests
-    @DisplayName("应处理聚合对象的包装和解包")
-    fun testAggregateWrappingUnwrapping() {
-        // Extra reset to ensure clean state for this specific test
-        JpaUnitOfWork.reset()
-
-        // Given
-        val originalEntity = TestEntity(1L, "original")
-        val aggregate = TestAggregate(originalEntity)
-        val mergedEntity = TestEntity(1L, "merged")
-
-        // Mock the entity as NOT new, so it should use merge path
-        every { mockEntityInfo.isNew(originalEntity) } returns false
-        every { entityManager.merge(originalEntity) } returns mergedEntity
-        // Ensure contains returns false so merge path is taken
-        every { entityManager.contains(originalEntity) } returns false
-
-        // When
-        jpaUnitOfWork.persist(aggregate)
-        jpaUnitOfWork.save()
-
-        // Then
-        verify { entityManager.merge(originalEntity) }
-        // Verify the aggregate was updated with the merged entity
-        assertEquals(mergedEntity, aggregate._unwrap())
-    }
-
-    @Test
     @DisplayName("preassigned application-side id should persist when database row is missing")
     fun preassignedApplicationSideIdShouldPersistWhenDatabaseRowIsMissing() {
         val entity = ApplicationSideLongEntity(id = 100L, name = "new")
@@ -661,13 +617,6 @@ class JpaUnitOfWorkTest {
         private val value: String
     ) : ValueObject<String> {
         override fun hash(): String = value.hashCode().toString()
-    }
-
-    class TestAggregate(private var entity: TestEntity) : Aggregate<TestEntity> {
-        override fun _unwrap(): TestEntity = entity
-        override fun _wrap(entity: TestEntity) {
-            this.entity = entity
-        }
     }
 
     private class FixedLongStrategy : IdStrategy {

@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd
 
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregateSupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.fixture.jpa.StarterJpaTestApplication
 import org.junit.jupiter.api.DisplayName
@@ -72,7 +72,7 @@ class CoreInitializationTest {
     fun testSupervisorAccessInSpringContext() {
         try {
             // 在完整配置的Spring上下文中，这些实例应该能够正常访问
-            val aggregateSupervisor = AggregateSupervisor.instance
+            val aggregateFactorySupervisor = AggregateFactorySupervisor.instance
             val repositorySupervisor = RepositorySupervisor.instance
 
             println("✓ 在Spring上下文中成功访问了Supervisor实例")
