@@ -43,7 +43,7 @@ DB/schema comment 是 persistence surface 和聚合结构的输入事实。gener
 - `@RefAggregate` 不能和 `@Reference` / `@Ref` 同时使用。
 - `@RefAggregate` 不能和 `@RefId` 同时使用。
 
-## 不支持的旧注解
+## 注解边界
 
 - database identity 使用 column `@GeneratedValue=identity` 或 `@GeneratedValue=database-identity`；不要使用 table `@IdGenerator` 或 `@IG`。
 - soft delete 使用 column `@Deleted`；不要使用 table `@SoftDeleteColumn`。

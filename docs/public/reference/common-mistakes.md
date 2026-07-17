@@ -36,9 +36,9 @@
 | --- | --- |
 | 把 `cap4kAnalysisGenerate` 当作 source generation。 | 它导出 analysis/observation artifacts，尤其是 flow 和 drawing-board。 |
 | 期待 `flow` 和 `drawing-board` 创建 source skeletons。 | 它们通过 IR analysis input 观察 existing code structure。 |
-| 使用 stale `sources.irAnalysis.enabled`。 | 使用 `sources.irAnalysis.inputDirs`。 |
-| 使用 stale `generators.flow.enabled`。 | 配置 `sources.irAnalysis.inputDirs`；`flow {}` 没有 enabled switch。 |
-| 使用 stale `generators.drawingBoard.enabled`。 | 配置 `sources.irAnalysis.inputDirs`；`drawingBoard {}` 没有 enabled switch。 |
+| 使用 `sources.irAnalysis.enabled`。 | 使用 `sources.irAnalysis.inputDirs`。 |
+| 使用 `generators.flow.enabled`。 | 配置 `sources.irAnalysis.inputDirs`；`flow {}` 没有 enabled switch。 |
+| 使用 `generators.drawingBoard.enabled`。 | 配置 `sources.irAnalysis.inputDirs`；`drawingBoard {}` 没有 enabled switch。 |
 | `build/cap4k-code-analysis` 下缺少 `nodes.json` 或 `rels.json`。 | IR analysis input 不完整。 |
 
 ## Bootstrap Mistakes

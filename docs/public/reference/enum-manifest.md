@@ -70,7 +70,7 @@ item shape：
 - 当前 `aggregates` 最多只能声明一个 owner。
 - shared enum name 不能重复。
 - 同一个 owner 下的 enum name 不能重复。
-- 已移除的 `generateTranslation` 不是 manifest 字段。
+- `generateTranslation` 不属于 manifest 字段。
 
 ## 生成说明
 
@@ -80,12 +80,12 @@ item shape：
 | Type registry | enum manifest entries 不需要 matching `types.registryFile` entries。 |
 | Schema binding | DB `@T=<EnumName>` 可以把 schema fields 绑定到 enum manifest types。 |
 | Business boundary | enum 让有限选项保持类型化；complex policy 仍属于 domain/application logic。 |
-| Enum translation | translation output 是 addon-owned；`generateTranslation` 已移除，不是 manifest field。 |
+| Enum translation | translation output 是 addon-owned；manifest 不定义 `generateTranslation` field。 |
 
 ## 常见检查
 
 - `items` 必须明确并保持稳定。
 - 数据存在后，不应随意改变 `value`。
 - `name` 应保持 domain language constant，而不是 transport label。
-- 不要向 enum manifest 添加已移除的 translation flags；addon-owned translation artifacts 通过 addon 安装。
+- 不要向 enum manifest 添加 translation flags；addon-owned translation artifacts 通过 addon 安装。
 - 不要添加 `generateTranslation`；它不是当前 manifest 字段。

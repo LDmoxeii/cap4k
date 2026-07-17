@@ -30,7 +30,7 @@ DB/schema 是 persistence surface 输入。它可以表达：
 
 schema 能帮助 generator 生成 aggregate family、repository、factory、specification、Strong ID、mapping 和 persistence adapter 相关结构。它不能替代 Aggregate 行为，也不能把外键关系变成跨聚合直接修改权限。
 
-DB/schema comments 的 supported annotation closed set、relation metadata 依赖规则和 removed annotations 见 [DB Schema Annotations](../reference/db-schema-annotations.md)。
+DB/schema comments 的 supported annotation closed set、relation metadata 依赖规则和 annotation 边界见 [DB Schema Annotations](../reference/db-schema-annotations.md)。
 
 ## design/design.json
 
