@@ -91,6 +91,46 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `parses command result fields as command response payload`() {
+        val tempFile = tempDir.resolve("command-result-fields.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "command",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "description": "submit order",
+                    "aggregates": ["Order"],
+                    "fields": [{ "name": "orderId", "type": "OrderId" }],
+                    "resultFields": [
+                      { "name": "accepted", "type": "Boolean" },
+                      { "name": "receiptId", "type": "String", "nullable": true, "defaultValue": "null" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val entry = snapshot.entries.single()
+
+        assertEquals("command", entry.tag)
+        assertEquals("SubmitOrder", entry.name)
+        assertEquals(listOf("Order"), entry.aggregates)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "OrderId")), entry.fields)
+        assertEquals(
+            listOf(
+                FieldModel(name = "accepted", type = "Boolean"),
+                FieldModel(name = "receiptId", type = "String", nullable = true, defaultValue = "null"),
+            ),
+            entry.resultFields,
+        )
+    }
+
+    @Test
     fun `parses explicit empty artifact selections as authoritative empty list`() {
         val tempFile = tempDir.resolve("empty-artifacts.json")
         Files.writeString(
