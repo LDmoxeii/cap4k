@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import org.springframework.data.jpa.domain.Specification
 
@@ -13,8 +12,7 @@ import org.springframework.data.jpa.domain.Specification
 class JpaPredicate<ENTITY : Any>(
     val entityClass: Class<ENTITY>,
     val spec: Specification<ENTITY>? = null,
-    val ids: Iterable<Any>? = null,
-    val valueObject: ValueObject<*>? = null
+    val ids: Iterable<Any>? = null
 ) : Predicate<ENTITY> {
 
     companion object {
@@ -25,10 +23,6 @@ class JpaPredicate<ENTITY : Any>(
         @JvmStatic
         fun <ENTITY : Any> byIds(entityClass: Class<ENTITY>, ids: Iterable<Any>): JpaPredicate<ENTITY> =
             JpaPredicate(entityClass, ids = ids)
-
-        @JvmStatic
-        fun <VALUE_OBJECT : ValueObject<*>> byValueObject(valueObject: VALUE_OBJECT): JpaPredicate<VALUE_OBJECT> =
-            JpaPredicate(valueObject.javaClass, ids = listOf(valueObject.hash()), valueObject = valueObject)
 
         @JvmStatic
         fun <ENTITY : Any> bySpecification(

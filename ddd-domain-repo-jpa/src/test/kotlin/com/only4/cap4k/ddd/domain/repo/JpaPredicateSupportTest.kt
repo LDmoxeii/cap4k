@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -15,11 +14,6 @@ class JpaPredicateSupportTest {
 
     // 测试实体类
     data class TestEntity(val id: Long, val name: String)
-
-    // 测试值对象
-    class TestValueObject(private val value: String) : ValueObject<String> {
-        override fun hash(): String = value
-    }
 
     // 非JPA断言类用于测试
     class NonJpaPredicate : Predicate<TestEntity>
@@ -208,48 +202,6 @@ class JpaPredicateSupportTest {
         assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
             JpaPredicateSupport.reflectEntityClass(nonJpaPredicate)
         }
-    }
-
-    @Test
-    @DisplayName("测试基于值对象的JpaPredicate的resumeId方法")
-    fun `test resumeId with ValueObject-based JpaPredicate`() {
-        // 准备
-        val valueObject = TestValueObject("test-value")
-        val jpaPredicate = JpaPredicate.byValueObject(valueObject)
-
-        // 执行
-        val result = JpaPredicateSupport.resumeId<TestValueObject, String>(jpaPredicate)
-
-        // 验证
-        assertEquals("test-value", result)
-    }
-
-    @Test
-    @DisplayName("测试基于值对象的JpaPredicate的resumeIds方法")
-    fun `test resumeIds with ValueObject-based JpaPredicate`() {
-        // 准备
-        val valueObject = TestValueObject("test-value")
-        val jpaPredicate = JpaPredicate.byValueObject(valueObject)
-
-        // 执行
-        val result = JpaPredicateSupport.resumeIds<TestValueObject, String>(jpaPredicate)
-
-        // 验证
-        assertEquals(listOf("test-value"), result?.toList())
-    }
-
-    @Test
-    @DisplayName("测试基于值对象的JpaPredicate的reflectEntityClass方法")
-    fun `test reflectEntityClass with ValueObject-based JpaPredicate`() {
-        // 准备
-        val valueObject = TestValueObject("test-value")
-        val jpaPredicate = JpaPredicate.byValueObject(valueObject)
-
-        // 执行
-        val result = JpaPredicateSupport.reflectEntityClass(jpaPredicate)
-
-        // 验证
-        assertEquals(TestValueObject::class.java, result)
     }
 
     @Test

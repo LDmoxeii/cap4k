@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.DisplayName
@@ -13,10 +12,6 @@ class JpaPredicateTest {
 
     private data class TestEntity(val id: Long, val name: String)
 
-    private class TestValueObject(private val value: String) : ValueObject<String> {
-        override fun hash(): String = value.hashCode().toString()
-    }
-
     @Test
     @DisplayName("通过ID创建单个ID的谓词")
     fun `byId should create predicate with single id`() {
@@ -26,7 +21,6 @@ class JpaPredicateTest {
         assertEquals(TestEntity::class.java, predicate.entityClass)
         assertNull(predicate.spec)
         assertEquals(listOf(id), predicate.ids?.toList())
-        assertNull(predicate.valueObject)
     }
 
     @Test
@@ -38,7 +32,6 @@ class JpaPredicateTest {
         assertEquals(TestEntity::class.java, predicate.entityClass)
         assertNull(predicate.spec)
         assertEquals(ids, predicate.ids?.toList())
-        assertNull(predicate.valueObject)
     }
 
     @Test
@@ -50,19 +43,6 @@ class JpaPredicateTest {
         assertEquals(TestEntity::class.java, predicate.entityClass)
         assertNull(predicate.spec)
         assertEquals(emptyList<Long>(), predicate.ids?.toList())
-        assertNull(predicate.valueObject)
-    }
-
-    @Test
-    @DisplayName("通过值对象创建谓词")
-    fun `byValueObject should create predicate with value object`() {
-        val valueObject = TestValueObject("test-value")
-        val predicate = JpaPredicate.byValueObject(valueObject)
-
-        assertEquals(TestValueObject::class.java, predicate.entityClass)
-        assertNull(predicate.spec)
-        assertEquals(listOf(valueObject.hash()), predicate.ids?.toList())
-        assertEquals(valueObject, predicate.valueObject)
     }
 
     @Test
@@ -74,7 +54,6 @@ class JpaPredicateTest {
         assertEquals(TestEntity::class.java, predicate.entityClass)
         assertEquals(specification, predicate.spec)
         assertNull(predicate.ids)
-        assertNull(predicate.valueObject)
     }
 
     @Test
@@ -82,24 +61,15 @@ class JpaPredicateTest {
     fun `multiple factory methods should create distinct predicates`() {
         val id = 1L
         val specification = mockk<Specification<TestEntity>>()
-        val valueObject = TestValueObject("test")
 
         val predicateById = JpaPredicate.byId(TestEntity::class.java, id)
         val predicateBySpec = JpaPredicate.bySpecification(TestEntity::class.java, specification)
-        val predicateByValueObject = JpaPredicate.byValueObject(valueObject)
 
-        // 验证每个断言都有不同的配置
         assertNotNull(predicateById.ids)
         assertNull(predicateById.spec)
-        assertNull(predicateById.valueObject)
 
         assertNull(predicateBySpec.ids)
         assertNotNull(predicateBySpec.spec)
-        assertNull(predicateBySpec.valueObject)
-
-        assertNotNull(predicateByValueObject.ids)
-        assertNull(predicateByValueObject.spec)
-        assertNotNull(predicateByValueObject.valueObject)
     }
 
     @Test
@@ -112,21 +82,6 @@ class JpaPredicateTest {
 
         assertEquals(AnotherEntity::class.java, predicate.entityClass)
         assertEquals(listOf(id), predicate.ids?.toList())
-    }
-
-    @Test
-    @DisplayName("通过值对象应该处理不同的值对象实现")
-    fun `byValueObject should handle different value object implementations`() {
-        class CustomValueObject(private val data: Int) : ValueObject<String> {
-            override fun hash(): String = data.toString()
-        }
-
-        val valueObject = CustomValueObject(42)
-        val predicate = JpaPredicate.byValueObject(valueObject)
-
-        assertEquals(CustomValueObject::class.java, predicate.entityClass)
-        assertEquals(listOf("42"), predicate.ids?.toList())
-        assertEquals(valueObject, predicate.valueObject)
     }
 
     @Test
