@@ -343,10 +343,10 @@ class DefaultCanonicalAssemblerTest {
                     DesignSpecSnapshot(
                         entries = listOf(
                             DesignSpecEntry(
-                                tag = "command",
+                                tag = "domain_service",
                                 packageName = "order",
-                                name = "SubmitOrder",
-                                description = "submit order",
+                                name = "OrderDomainService",
+                                description = "order domain service",
                                 aggregates = emptyList(),
                                 resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
                             ),
@@ -356,7 +356,10 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("design entry SubmitOrder cannot declare resultFields on tag: command", error.message)
+        assertEquals(
+            "design entry OrderDomainService cannot declare resultFields on tag: domain_service",
+            error.message,
+        )
     }
 
     @Test
@@ -374,6 +377,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "CreateOrder",
                             description = "create order",
                             aggregates = emptyList(),
+                            resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -395,6 +399,10 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         assertEquals(listOf("CreateOrder"), model.designBlocks.filter { it.tag == "command" }.map { it.name })
+        assertEquals(
+            listOf(FieldModel(name = "accepted", type = "Boolean")),
+            model.designBlocks.single { it.tag == "command" }.resultFields,
+        )
         assertEquals(listOf("FindOrderList"), model.designBlocks.filter { it.tag == "query" }.map { it.name })
         assertEquals(listOf("SyncStock"), model.designBlocks.filter { it.tag == "client" }.map { it.name })
     }
