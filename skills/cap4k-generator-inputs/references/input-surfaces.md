@@ -17,7 +17,7 @@ Use these surfaces as source inputs only when the technical design contract supp
 - `sources.designJson.files`: see `design-json-contract.md`.
 - DB/schema DDL comments: see `db-schema-annotations.md`.
 - `types.enumManifest.files` and `types.valueObjectManifest.files`: see `manifest-contracts.md`.
-- Gradle extension fields: use the current project Gradle files and approved technical design; this index is not a full Gradle DSL reference.
+- Gradle extension fields: use project Gradle files and approved technical design; this index is not a full Gradle DSL reference.
 
 ## Source Notes
 
@@ -32,7 +32,7 @@ Use these surfaces as source inputs only when the technical design contract supp
 - Aggregate-root primary-key metadata defaults to generated Strong ID types.
 - Same-context aggregate references use `@RefAggregate=<AggregateName>` and resolve to the referenced aggregate ID type.
 - Local external-reference identities use `@RefId=<TypeName>` when local language maps an upstream or external concept.
-- `@GeneratedValue=identity` and `@GeneratedValue=database-identity` are legacy compatibility signals for explicit database identity semantics, not the default aggregate ID path.
+- `@GeneratedValue=identity` and `@GeneratedValue=database-identity` express explicit database identity semantics, not the default aggregate ID path.
 - If identity, reference, or generated-value facts are missing or unclear, return to `cap4k-technical-design` before plan review.
 
 ## Analysis Evidence Boundary

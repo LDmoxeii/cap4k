@@ -1,6 +1,6 @@
 # Query
 
-Query 表达一次读取和观察业务状态的应用层意图。它回答“当前业务事实如何呈现给调用者”，而不是要求系统改变状态。Query 可以为页面、API、CLI 或后台流程提供读取结果，但它不应该偷偷修改 Aggregate、推进流程或释放业务事件。
+Query 表达一次读取和观察业务状态的应用层意图。它回答“业务事实如何呈现给调用者”，而不是要求系统改变状态。Query 可以为页面、API、CLI 或后台流程提供读取结果，但它不应该偷偷修改 Aggregate、推进流程或释放业务事件。
 
 当一个用例只需要查看内容详情、媒体处理状态、paid publication 状态，或把多个读取来源整理成适合展示的结构时，应建模为 Query。Query handler 拥有读取组织权，可以选择合适的 read model、projection、repository read method 或 adapter data source，但必须保持无业务状态 mutation。
 

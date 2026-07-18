@@ -32,7 +32,7 @@
 - `SUCCEEDED`
 - `FAILED`
 
-`MediaProcessingResultSnapshot.resultStatus` 引用这个 enum。`http/media-processing.http` 的成功 callback 使用 `status = "SUCCEEDED"`，进入 application layer 后会形成媒体处理成功的业务事实，并最终让 `processingStatus = SUCCEEDED` 出现在查询观察面。
+`MediaProcessingResultSnapshot.resultStatus` 引用这个 enum。`http/media-processing.http` 的成功 callback 使用 `status = "SUCCEEDED"`，进入 application layer 后会形成媒体处理成功的业务事实，并让查询观察面显示 `processingStatus = SUCCEEDED`。
 
 ## How The Evidence Connects
 

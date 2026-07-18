@@ -12,12 +12,10 @@
 | 手改 `build/generated/cap4k/main/kotlin`。 | `GENERATED_SOURCE` 由 build 拥有；改 inputs、templates 或 checked-in skeletons。 |
 | 把 `build/cap4k/*` 当作 committed source truth。 | `build/cap4k/plan.json`、`bootstrap-plan.json`、`analysis-plan.json` 是 `build/` 下的本地 generated evidence。 |
 
-## Design JSON Mistakes
+## Design JSON Boundaries
 
 | 错误 | 正确合同 |
 | --- | --- |
-| 使用 normal `design.json` tag `value_object`。 | 使用 `types.valueObjectManifest` 和 `design/value-objects.json`。 |
-| 使用 normal `design.json` tag `validator`。 | 使用 aggregate unique helpers 或 addon-owned artifacts；normal supported tags exclude `validator`。 |
 | 把 adapter protocol details 放进 `client` 或 `domain_service` entries。 | `client` 表达 application-facing external capability；protocol mapping 属于 adapter handler。 |
 | 把 `integration_event` 当作 transport runtime configuration。 | `integration_event` 是 published-language contract 和 skeleton signal；transport details 不属于 domain design input。 |
 
@@ -36,9 +34,6 @@
 | --- | --- |
 | 把 `cap4kAnalysisGenerate` 当作 source generation。 | 它导出 analysis/observation artifacts，尤其是 flow 和 drawing-board。 |
 | 期待 `flow` 和 `drawing-board` 创建 source skeletons。 | 它们通过 IR analysis input 观察 existing code structure。 |
-| 使用 `sources.irAnalysis.enabled`。 | 使用 `sources.irAnalysis.inputDirs`。 |
-| 使用 `generators.flow.enabled`。 | 配置 `sources.irAnalysis.inputDirs`；`flow {}` 没有 enabled switch。 |
-| 使用 `generators.drawingBoard.enabled`。 | 配置 `sources.irAnalysis.inputDirs`；`drawingBoard {}` 没有 enabled switch。 |
 | `build/cap4k-code-analysis` 下缺少 `nodes.json` 或 `rels.json`。 | IR analysis input 不完整。 |
 
 ## Bootstrap Mistakes
@@ -57,13 +52,3 @@
 | 把 Domain Event 当作 technical continuation step。 | Domain Event 描述 aggregate state change 之后形成的 business fact。 |
 | 通过 templates 或 addon magic 直接发布 outbound integration event payloads。 | Business code 从 application orchestration points attach outbound facts。 |
 | 把 adapter/protocol concerns 放进 domain。 | Domain keeps business language；adapter 处理 HTTP、messaging、persistence mapping、callback protocol 和 external API details。 |
-
-## Quick Scan Terms
-
-如果这些词出现在 normal source-generation guidance 中，需要审查上下文：
-
-- `sources.irAnalysis.enabled`
-- `generators.flow.enabled`
-- `generators.drawingBoard.enabled`
-- `value_object` in normal `design.json`
-- `validator` in normal `design.json`

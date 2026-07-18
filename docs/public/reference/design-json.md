@@ -9,7 +9,6 @@
 - `tag` 和 `name` 必须是非空 string。
 - 除 `domain_event` 外，`package` 必填。
 - 公开输入字段为 `tag`、`name`、`package`、`description`、`aggregates`、`fields`、`resultFields`、`eventName`、`persist` 和 `artifacts`。
-- `desc`、`requestFields`、`responseFields`、`traits`、`role`、`scope` 和 entry-level `entity` 不属于公开输入字段。
 - field 的 `type` 必须写明确类型名，不能写 `self`。
 - `domain_event.fields` 中的 field name `entity` 是保留名。
 - flow 或 drawing-board 片段只有满足这些规则后，才能通过 `sources.designJson.files` 作为普通 design JSON 输入。
@@ -27,8 +26,6 @@
 | `domain_service` | domain decision anchor | domain service skeleton |
 | `saga` | long-running coordination anchor | Saga skeleton |
 
-Normal `design.json` 不支持 `validator` tag，也不支持 `value_object` tag。Value Object 和 enum 通过 type manifests 输入。
-
 ## 常用 Keys
 
 | Key | Type | 说明 |
@@ -41,7 +38,7 @@ Normal `design.json` 不支持 `validator` tag，也不支持 `value_object` tag
 | `fields` | field array | input fields。 |
 | `resultFields` | field array | 允许用于 `command`、`query`、`client` 和 `api_payload` 的 result shape；在 `command` 上表达 command outcome。 |
 | `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 必填。 |
-| `persist` | boolean/object | 只允许用于 `domain_event`。 |
+| `persist` | boolean | 只允许用于 `domain_event`。 |
 | `artifacts` | artifact array | 部分 tag 用来表达 output family / variant metadata。 |
 
 field item 常见 shape：
@@ -133,27 +130,8 @@ field item 常见 shape：
 | `domain_service` | 用于跨对象领域判断，不放 HTTP、message、database protocol。 |
 | `saga` | 用于可恢复、可补偿或长事务协调；不是每个 callback 的默认形态。 |
 
-## 不应使用的字段与 Analysis 片段边界
+## Analysis 片段边界
 
-| 不应使用的字段 | 说明 |
-| --- | --- |
-| `desc` | 使用 `description`。 |
-| `requestFields` | 使用 `fields`。 |
-| `responseFields` | 使用 `resultFields`；仅 `command`、`query`、`client` 和 `api_payload` 支持结果字段。 |
-| `traits` | 不是公开的 design JSON 字段。 |
-| `role` | 不是公开的 design JSON 字段。 |
-| `scope` | 不是公开的 design JSON 字段。 |
-| `entity` | 不是公开的 design JSON entry 字段；`domain_event.fields[].name = "entity"` 是保留名。 |
+drawing-board JSON 是 analysis evidence。只有内容满足本页字段集合、tag 约束、field shape 和 artifact selection 规则时，才可以通过 `sources.designJson.files` 作为普通 design JSON 输入。
 
-drawing-board JSON 可能和 design JSON 很像，但在满足本页规则之前，它仍然只是 analysis evidence。`command.resultFields` 现在是受支持的 design JSON 字段。
-
-但 copied fragment 中仍包含旧字段 `responseFields`、unsupported tag 或 invalid artifact selection 时，它不能直接作为 design JSON 使用，必须先修正，再放进 `sources.designJson.files`。
-
-## 排除的 Normal Tags
-
-| 不支持的 normal tag | 正确入口 |
-| --- | --- |
-| `value_object` | 通过 [Value Object Manifest](value-object-manifest.md) 和 `types.valueObjectManifest` 输入 |
-| `validator` | aggregate unique helper 或 addon artifact；不是 normal `design.json` tag |
-
-生成出的 Value Object class 可能包含 `@BuildingBlock(tag = "value_object", family = "value-object")`，这是输出元数据，不是 normal design input。
+Value Object 和 enum 使用 type manifests 输入；aggregate unique helper 通过 aggregate generator artifact 配置或 addon artifact 表达。

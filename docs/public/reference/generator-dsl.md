@@ -1,6 +1,6 @@
 # Generator DSL
 
-`cap4k {}` 是 pipeline plugin 的公开 Gradle extension。字段说明以当前公开 block 为准；业务建模解释见 [Generator Input Projection](../authoring/generator-input-projection.md)。
+`cap4k {}` 是 pipeline plugin 的公开 Gradle extension。字段说明以公开 block 为准；业务建模解释见 [Generator Input Projection](../authoring/generator-input-projection.md)。
 
 ## 顶层 Blocks
 
@@ -90,7 +90,7 @@ sources {
 }
 ```
 
-`sources.irAnalysis.inputDirs` 是当前 analysis selection。它不是 ordinary source generation input。
+`sources.irAnalysis.inputDirs` 是 analysis selection。它不是 ordinary source generation input。
 
 ## `generators { }`
 
@@ -122,7 +122,7 @@ generators {
 }
 ```
 
-`aggregate.artifacts.unique` 生成 aggregate unique helper surfaces。它不是 normal `design.json` `validator` tag。
+`aggregate.artifacts.unique` 生成 aggregate unique helper surfaces。
 
 ## `templates { }`
 
@@ -239,4 +239,4 @@ cap4k {
 }
 ```
 
-addon artifacts 会出现在 `cap4kPlan` 中，并使用和 built-in artifacts 相同的 ownership fields：`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy`。
+addon artifacts 会列入 `cap4kPlan`，并使用和 built-in artifacts 相同的 ownership fields：`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy`。

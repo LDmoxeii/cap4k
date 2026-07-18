@@ -45,7 +45,7 @@
 | --- | --- |
 | `CHECKED_IN_SOURCE` | committed source skeleton or type source，通常位于 `<module>/src/main/kotlin`。 |
 | `GENERATED_SOURCE` | build-owned generated source，位于 `<module>/build/generated/cap4k/main/kotlin`。 |
-| `OUTPUT_ARTIFACT` | non-source artifact output kind；当前 built-in planners 常见 source generation items 主要使用前两类，具体以 plan evidence 为准。 |
+| `OUTPUT_ARTIFACT` | non-source artifact output kind；built-in planners 常见 source generation items 主要使用前两类，具体以 plan evidence 为准。 |
 
 ## Conflict Policy Reading
 

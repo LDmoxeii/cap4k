@@ -70,7 +70,7 @@ bootstrap 相关审查见 [Bootstrap Project Structure](bootstrap-project-struct
 
 ## cap4kGenerateSources
 
-`cap4kGenerateSources` 只输出 `GENERATED_SOURCE`。当前 generated Kotlin root 是每个 target module 下的：
+`cap4kGenerateSources` 只输出 `GENERATED_SOURCE`。Generated Kotlin root 是每个 target module 下的：
 
 ```text
 <module>/build/generated/cap4k/main/kotlin
@@ -98,7 +98,7 @@ bootstrap 相关审查见 [Bootstrap Project Structure](bootstrap-project-struct
 - 可以被再次生成覆盖。
 - 不作为长期手写业务区。
 
-`OUTPUT_ARTIFACT` 表示非源码 artifact output kind。当前内置 planner 常见 source 生成项主要落在前两类；具体仍以 `plan.json` 为准。
+`OUTPUT_ARTIFACT` 表示非源码 artifact output kind。内置 planner 常见 source 生成项主要落在前两类；具体仍以 `plan.json` 为准。
 
 ## Analysis Task Boundary
 

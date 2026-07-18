@@ -8,7 +8,7 @@ Domain Service 表达不自然归属于单个 Aggregate、Entity 或 Value Objec
 
 Domain Service 与 Aggregate、Value Object、Business Enum、Domain Event 协作。它可以返回 decision object 或领域结果，由 Command 决定后续事务组织。cap4k 的 `design.json` 支持 `domain_service` tag 来表达生成骨架；generator 生成的是位置和结构，具体决策规则、返回语义和错误边界需要手写。
 
-在 cap4k 中，Specification 更接近聚合持久化前的约束检查，而不是 Domain Service 可以随意组合调用的通用规则库。运行时通过 `SpecificationUnitOfWorkInterceptor` 在 Unit of Work 的 `beforeTransaction` 和 `preInTransaction` 阶段检查待持久化实体，并在规格不通过时拒绝提交。需要显式业务判断时，先确认它应该是 Aggregate 行为、Domain Service decision，还是 UoW 保存前约束。
+在 cap4k 中，Specification 更接近聚合持久化前的约束检查，而不是 Domain Service 可以随意组合调用的通用规则库。运行时通过 `SpecificationUnitOfWorkInterceptor` 在 Unit of Work 的 `beforeTransaction` 和 `preInTransaction` 阶段检查待持久化实体，规格检查失败会拒绝提交。需要显式业务判断时，先确认它应该是 Aggregate 行为、Domain Service decision，还是 UoW 保存前约束。
 
 设计边界是领域决策。Domain Service 不应发送 HTTP 请求、不应访问 Repository 或 Unit of Work 来承担持久化编排、不应承担 command orchestration，也不应变成所有业务逻辑的垃圾桶。常见误用包括把 application command handler 改名为 Domain Service、把外部能力封装放进 domain layer、或把本该属于 Aggregate Root 的不变量移出去。
 

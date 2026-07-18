@@ -8,10 +8,10 @@ DB/schema comment 是 persistence surface 和聚合结构的输入事实。gener
 
 | 注解 | 说明 |
 | --- | --- |
-| `@Parent=<table>` / `@P=<table>` | 标记当前 table 是另一个 table 的 child。 |
+| `@Parent=<table>` / `@P=<table>` | 标记该 table 是另一个 table 的 child。 |
 | `@AggregateRoot=<bool>` / `@Root=<bool>` / `@R=<bool>` | 显式标记 Aggregate Root 状态。 |
 | `@ValueObject` / `@VO` | 标记从 table 推导出的 Value Object shape。 |
-| `@Ignore` / `@I` | 从 generation 中排除当前 table。 |
+| `@Ignore` / `@I` | 从 generation 中排除该 table。 |
 | `@DynamicInsert=<bool>` | 声明 dynamic insert metadata。 |
 | `@DynamicUpdate=<bool>` | 声明 dynamic update metadata。 |
 
@@ -21,7 +21,7 @@ DB/schema comment 是 persistence surface 和聚合结构的输入事实。gener
 | --- | --- |
 | `@T=<TypeName>` / `@TYPE=<TypeName>` | 覆盖或绑定生成字段的类型。 |
 | `@E=<items>` / `@ENUM=<items>` | 声明 enum items；必须同时提供 `@T` / `@TYPE`。 |
-| `@RefId=<TypeName>` | 标记当前上下文中的外部引用身份类型。 |
+| `@RefId=<TypeName>` | 标记所在上下文中的外部引用身份类型。 |
 | `@Deleted` | 标记 soft-delete column。 |
 | `@Version` | 标记 optimistic-lock version column。 |
 | `@GeneratedValue=identity` / `@GeneratedValue=database-identity` | 标记明确的 database identity 语义。 |

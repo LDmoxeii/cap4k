@@ -31,6 +31,6 @@ python scripts/validate-cap4k-generator-inputs.py `
 
 | Level | 含义 | 退出行为 |
 | --- | --- | --- |
-| `ERROR` | 当前输入规则不接受这个文件或字段。 | 只要出现 `ERROR`，脚本以非零状态退出。 |
+| `ERROR` | 输入规则不接受这个文件或字段。 | 只要出现 `ERROR`，脚本以非零状态退出。 |
 | `WARN` | 静态证据可疑或不完整，需要作者复核。 | 单独出现时不让脚本失败。 |
 | `RECOVERY_HINT` | 给相关错误补充修复方向，尤其是误把 analysis 或 drawing-board 片段作为普通输入时。 | 单独出现时不让脚本失败。 |

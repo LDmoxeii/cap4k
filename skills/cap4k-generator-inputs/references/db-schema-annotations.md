@@ -41,7 +41,7 @@ Use these annotations in DB/schema DDL comments when the schema is the selected 
 
 ## Rejected Annotations
 
-These annotations are not valid current input:
+These annotations are outside the supported input set:
 
 - Table: `@IdGenerator` / `@IG`
 - Table: `@SoftDeleteColumn`

@@ -44,7 +44,7 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。bootstrap pl
 
 - `CHECKED_IN_SOURCE`：仓库内的稳定 skeleton 或 type source，通常在 `<module>/src/main/kotlin`。
 - `GENERATED_SOURCE`：build-owned generated source，通常在 `<module>/build/generated/cap4k/main/kotlin`。
-- `OUTPUT_ARTIFACT`：非源码 artifact 的输出类型；当前内置计划常见项主要使用前两类，具体仍以 plan evidence 为准。
+- `OUTPUT_ARTIFACT`：非源码 artifact 的输出类型；内置计划常见项主要使用前两类，具体仍以 plan evidence 为准。
 
 `resolvedOutputRoot` 表示实际输出根。它可以帮助作者检查 source root 是否落在预期 module，而不是只看文件名。
 

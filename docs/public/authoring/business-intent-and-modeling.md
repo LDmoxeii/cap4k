@@ -30,7 +30,7 @@
 - 哪些对象只有值语义，没有独立生命周期。
 - 哪些事实已经发生，应该表达成 Event。
 - 哪些外部系统能力需要通过 application-facing contract 使用。
-- 哪些规则只是当前事务内判断，哪些需要跨步骤持久化协调。
+- 哪些规则只是同一事务内判断，哪些需要跨步骤持久化协调。
 
 这些问题决定 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、Domain Event、Integration Event、Domain Service 和 Saga 是否成立。generator 可以根据输入生成骨架，但它不会替作者决定边界。
 
@@ -56,13 +56,13 @@ Domain Event 表达领域内部已经发生的事实，例如 `ContentPublicatio
 
 外部能力要用业务语言命名，而不是用传输协议命名。`TriggerMediaProcessingCli` 和 `GetMediaProcessingStatusCli` 表达媒体处理能力；paid publication 中的 payout hold 和 entitlement plan client 表达付费发布能力。adapter 负责协议转换，application 只看到能力合同。
 
-如果一个外部能力调用会影响业务状态，作者还要决定它出现在哪个用例边界：Command handler、Subscriber、Scheduled Reaction 或 Saga step。这个决定属于技术设计，但必须以业务意图和模型为基础。
+如果一个外部能力调用会影响业务状态，作者还要决定它落在哪个用例边界：Command handler、Subscriber、Scheduled Reaction 或 Saga step。这个决定属于技术设计，但必须以业务意图和模型为基础。
 
 ## Policies
 
 Policy 是业务规则，不是配置散点。默认发布规则、paid opt-in 规则、审核规则、媒体就绪规则和补偿规则都应该先在业务语言中说清，再决定落在 Aggregate behavior、Domain Service、Command handler、Subscriber 或 Saga 中。
 
-当规则需要的数据都在当前事务内可得，优先放在 Aggregate 或 Domain Service 中表达。当规则需要跨时间等待、恢复、retry 或 compensation，才考虑 Saga。不要因为流程名字听起来高级，就把简单 reaction 建成 Saga。
+当规则需要的数据都在同一事务内可得，优先放在 Aggregate 或 Domain Service 中表达。当规则需要跨时间等待、恢复、retry 或 compensation，才考虑 Saga。不要因为流程名字听起来高级，就把简单 reaction 建成 Saga。
 
 ## Feedback Signals
 
