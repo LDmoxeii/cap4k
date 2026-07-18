@@ -26,7 +26,7 @@ class DesignJsonSourceProvider : SourceProvider {
         "saga",
     )
     private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity")
-    private val resultFieldTags = setOf("query", "client", "api_payload")
+    private val resultFieldTags = setOf("command", "query", "client", "api_payload")
     private val eventNameTags = setOf("domain_event", "integration_event")
     private val selfToken = Regex("""(?<![A-Za-z0-9_.])self(?![A-Za-z0-9_])""", RegexOption.IGNORE_CASE)
 
