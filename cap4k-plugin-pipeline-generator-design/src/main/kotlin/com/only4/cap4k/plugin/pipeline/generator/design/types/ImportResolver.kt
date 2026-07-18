@@ -47,7 +47,7 @@ internal object ImportResolver {
             types.flatMap(::collectExplicitSymbols).forEach(merged::register)
         }
 
-        val rendered = types.map { render(it, registry, innerTypeNames) }
+        val rendered = types.map { render(it, registry, innerTypeNames, aggregateContext) }
 
         return DesignImportPlan(
             renderedTypes = rendered.map { result ->
@@ -69,7 +69,7 @@ internal object ImportResolver {
         val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             collectExplicitSymbols(type).forEach(merged::register)
         }
-        return render(type, registry, innerTypeNames)
+        return render(type, registry, innerTypeNames, aggregateContext)
     }
 
     private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<SymbolIdentity> {
@@ -78,7 +78,7 @@ internal object ImportResolver {
                 SymbolIdentity(
                     packageName = type.rawText.substringBeforeLast('.', missingDelimiterValue = ""),
                     typeName = type.simpleName,
-                    source = "explicit-fqcn",
+                    source = EXPLICIT_FQCN_SOURCE,
                 ),
             )
         } else {
@@ -92,9 +92,10 @@ internal object ImportResolver {
         type: DesignResolvedTypeModel,
         symbolRegistry: DesignSymbolRegistry,
         innerTypeNames: Set<String>,
+        aggregateContext: List<String>,
     ): ImportResolutionResult {
-        val renderedArguments = type.arguments.map { render(it, symbolRegistry, innerTypeNames) }
-        val base = resolveBase(type, symbolRegistry, innerTypeNames)
+        val renderedArguments = type.arguments.map { render(it, symbolRegistry, innerTypeNames, aggregateContext) }
+        val base = resolveBase(type, symbolRegistry, innerTypeNames, aggregateContext)
         val withArguments = if (renderedArguments.isEmpty()) {
             base.renderedType
         } else {
@@ -124,6 +125,7 @@ internal object ImportResolver {
         type: DesignResolvedTypeModel,
         symbolRegistry: DesignSymbolRegistry,
         innerTypeNames: Set<String>,
+        aggregateContext: List<String>,
     ): ImportResolutionResult {
         return when (type.kind) {
             DesignResolvedTypeKind.BUILTIN,
@@ -136,7 +138,7 @@ internal object ImportResolver {
 
             DesignResolvedTypeKind.EXPLICIT_FQCN -> {
                 val candidates = symbolRegistry.findBySimpleName(type.simpleName)
-                val conflictingCandidates = candidates.filterNot { it.source == "project-type-registry" }
+                val conflictingCandidates = candidates.filterNot { it.source == PROJECT_TYPE_REGISTRY_SOURCE }
                 val canImport = type.simpleName !in builtInTypeNames &&
                     type.simpleName !in innerTypeNames &&
                     conflictingCandidates.all { it.fqcn == type.rawText }
@@ -157,16 +159,10 @@ internal object ImportResolver {
             }
 
             DesignResolvedTypeKind.UNRESOLVED -> {
-                val candidates = symbolRegistry.findBySimpleName(type.simpleName)
-                val nonRegistryCandidates = candidates.filterNot { it.source == "project-type-registry" }
-                val registryCandidates = candidates.filter { it.source == "project-type-registry" }
-                val selectedCandidates = when {
-                    nonRegistryCandidates.size == 1 -> nonRegistryCandidates
-                    nonRegistryCandidates.size > 1 -> nonRegistryCandidates
-                    registryCandidates.size == 1 -> registryCandidates
-                    registryCandidates.size > 1 -> registryCandidates
-                    else -> emptyList()
-                }
+                val selectedCandidates = selectShortTypeCandidates(
+                    candidates = symbolRegistry.findBySimpleName(type.simpleName),
+                    aggregateContext = aggregateContext,
+                )
 
                 when (selectedCandidates.size) {
                     0 -> throw UnknownShortTypeFailure(type.rawText)
@@ -184,6 +180,33 @@ internal object ImportResolver {
                 }
             }
         }
+    }
+
+    private fun selectShortTypeCandidates(
+        candidates: List<SymbolIdentity>,
+        aggregateContext: List<String>,
+    ): List<SymbolIdentity> {
+        val uniqueCandidates = candidates.distinctBy { it.fqcn }
+        val singleAggregate = singleAggregateContext(aggregateContext)
+        if (singleAggregate != null) {
+            val localManifestCandidates = uniqueCandidates.filter { candidate ->
+                candidate.manifestOwned &&
+                    !candidate.shared &&
+                    candidate.ownerAggregateName == singleAggregate
+            }
+            if (localManifestCandidates.isNotEmpty()) {
+                return localManifestCandidates
+            }
+        }
+        return uniqueCandidates
+    }
+
+    private fun singleAggregateContext(aggregateContext: List<String>): String? {
+        val names = aggregateContext
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+        return names.singleOrNull()
     }
 
     internal sealed class ShortTypeResolutionFailure(

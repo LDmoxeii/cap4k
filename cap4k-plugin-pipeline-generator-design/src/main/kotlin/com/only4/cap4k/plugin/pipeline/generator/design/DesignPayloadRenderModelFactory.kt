@@ -400,7 +400,9 @@ internal object DesignPayloadRenderModelFactory {
                 } else {
                     ""
                 }
-                "; use a fully qualified name or register it in type-registry.json$siblingAdvisory"
+                "; use a fully qualified name, declare cap4k-owned enum/value-object types in " +
+                    "types.enumManifest or types.valueObjectManifest, or register external handwritten types in " +
+                    "types.registryFile$siblingAdvisory"
             } else {
                 ""
             }
