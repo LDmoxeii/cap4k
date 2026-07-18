@@ -9,11 +9,13 @@ internal object DesignImportPlanner {
         types: List<DesignResolvedTypeModel>,
         innerTypeNames: Set<String> = emptySet(),
         symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        aggregateContext: List<String> = emptyList(),
     ): DesignImportPlan {
         return ImportResolver.plan(
             types = types,
             innerTypeNames = innerTypeNames,
             symbolRegistry = symbolRegistry,
+            aggregateContext = aggregateContext,
         )
     }
 }

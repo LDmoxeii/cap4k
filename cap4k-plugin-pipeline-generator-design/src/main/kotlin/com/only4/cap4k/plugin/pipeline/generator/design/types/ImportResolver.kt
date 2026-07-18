@@ -41,6 +41,7 @@ internal object ImportResolver {
         types: List<DesignResolvedTypeModel>,
         innerTypeNames: Set<String> = emptySet(),
         symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        aggregateContext: List<String> = emptyList(),
     ): DesignImportPlan {
         val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             types.flatMap(::collectExplicitSymbols).forEach(merged::register)
@@ -63,6 +64,7 @@ internal object ImportResolver {
         type: DesignResolvedTypeModel,
         innerTypeNames: Set<String> = emptySet(),
         symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        aggregateContext: List<String> = emptyList(),
     ): ImportResolutionResult {
         val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             collectExplicitSymbols(type).forEach(merged::register)
