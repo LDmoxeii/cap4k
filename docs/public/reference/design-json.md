@@ -39,7 +39,7 @@ Normal `design.json` 不支持 `validator` tag，也不支持 `value_object` tag
 | `description` | string | 可读 description。 |
 | `aggregates` | string array | 关联的 aggregate names；空数组表示不绑定具体 aggregate。 |
 | `fields` | field array | input fields。 |
-| `resultFields` | field array | 只允许用于 `query`、`client` 和 `api_payload` 的 result shape。 |
+| `resultFields` | field array | 允许用于 `command`、`query`、`client` 和 `api_payload` 的 result shape；在 `command` 上表达 command outcome。 |
 | `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 必填。 |
 | `persist` | boolean/object | 只允许用于 `domain_event`。 |
 | `artifacts` | artifact array | 部分 tag 用来表达 output family / variant metadata。 |
@@ -70,6 +70,8 @@ field item 常见 shape：
 ```
 
 `command` 表达写入意图。读取其他 aggregate 或 external fact 可以用于 zero-trust validation，但写入 ownership 仍应收敛到目标 aggregate 和 application command boundary。
+
+`command.fields` 表达 request payload，`command.resultFields` 表达 command outcome payload。`command.resultFields` 与 `query`、`client`、`api_payload` 的 `resultFields` 使用同一 field shape，并应在 design JSON 解析、canonical 保留和模板渲染中保持一致；省略或声明空数组时仍保持无结果 response 形态。
 
 ## 最小 Query
 
@@ -137,13 +139,15 @@ field item 常见 shape：
 | --- | --- |
 | `desc` | 使用 `description`。 |
 | `requestFields` | 使用 `fields`。 |
-| `responseFields` | 只在 `query`、`client` 或 `api_payload` 上使用 `resultFields`。 |
+| `responseFields` | 使用 `resultFields`；仅 `command`、`query`、`client` 和 `api_payload` 支持结果字段。 |
 | `traits` | 不是公开的 design JSON 字段。 |
 | `role` | 不是公开的 design JSON 字段。 |
 | `scope` | 不是公开的 design JSON 字段。 |
 | `entity` | 不是公开的 design JSON entry 字段；`domain_event.fields[].name = "entity"` 是保留名。 |
 
-drawing-board JSON 可能和 design JSON 很像，但在满足本页规则之前，它仍然只是 analysis evidence。比如 copied fragment 中出现 `command.resultFields` 时，它不能直接作为 design JSON 使用；必须先修正，再放进 `sources.designJson.files`。
+drawing-board JSON 可能和 design JSON 很像，但在满足本页规则之前，它仍然只是 analysis evidence。`command.resultFields` 现在是受支持的 design JSON 字段。
+
+但 copied fragment 中仍包含旧字段 `responseFields`、unsupported tag 或 invalid artifact selection 时，它不能直接作为 design JSON 使用，必须先修正，再放进 `sources.designJson.files`。
 
 ## 排除的 Normal Tags
 

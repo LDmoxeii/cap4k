@@ -103,7 +103,9 @@ drawing-board evidence 回答代码中有哪些 anchors。它不说明这些 anc
 
 `cap4kAnalysisGenerate` 不是 source generation。flow 和 drawing-board output 默认是 observation evidence，用来观察已有代码结构。
 
-drawing-board 文件只有在内容满足当前 [Design JSON](design-json.md) 规则时，才可以手动复制或注册为 design JSON input。比如 copied fragment 把 `resultFields` 放在 `command` 上时，它就不是合法的 design JSON；应先修正，再通过 `sources.designJson.files` 使用。
+drawing-board 文件只有在内容满足当前 [Design JSON](design-json.md) 规则时，才可以手动复制或注册为 design JSON input。`command.resultFields` 现在是受支持的 design JSON 字段。
+
+但 copied fragment 仍包含旧字段 `responseFields`、unsupported tag 或 invalid artifact selection 时，它就不是合法的 design JSON，应先修正，再通过 `sources.designJson.files` 使用。
 
 任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。
 
