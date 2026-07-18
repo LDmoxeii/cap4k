@@ -10,20 +10,13 @@ When continuing work in `cap4k`, read this file first, then read:
 
 ## Cap4k Skill Routing
 
-When a task involves cap4k business-project authoring, use the repo-local skill router first:
+When a task involves cap4k business-project authoring, use the repo-local skill router as the only routing source:
 
 - [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md)
+- [skills/cap4k-authoring/routing.yaml](skills/cap4k-authoring/routing.yaml)
 
-Then route to the focused skill:
-
-| Task | Focused skill |
-|---|---|
-| Business modeling, aggregate boundaries, events, value objects | [skills/cap4k-modeling/SKILL.md](skills/cap4k-modeling/SKILL.md) |
-| Bootstrap, DB/design generation, plan review, templates, addons | [skills/cap4k-generation/SKILL.md](skills/cap4k-generation/SKILL.md) |
-| Command/query/subscriber/job/controller implementation | [skills/cap4k-implementation/SKILL.md](skills/cap4k-implementation/SKILL.md) |
-| Service-boundary interaction: read [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) before handling Open Host Service entries, external capability clients, external fact entries, callbacks, message listeners, or integration events. | [skills/cap4k-service-integration/SKILL.md](skills/cap4k-service-integration/SKILL.md) |
-| Tests, compile, analysis, flow/drawing-board, evidence | [skills/cap4k-verification/SKILL.md](skills/cap4k-verification/SKILL.md) |
-| Generated output, ownership, plan.json review | [skills/cap4k-generated-output-review/SKILL.md](skills/cap4k-generated-output-review/SKILL.md) |
+Load the routed focused skill and every `required_reads` entry from `routing.yaml`.
+Do not duplicate per-task route rows in this shell.
 
 Keep this file as a routing shell. Do not duplicate focused skill rules here.
 

@@ -34,7 +34,7 @@ class DesignClientArtifactPlanner : GeneratorProvider {
                 context = DesignPayloadRenderModelFactory.createForClientBlock(
                     packageName = packageName,
                     block = block,
-                    typeRegistry = config.designTypeRegistryFqns(model),
+                    symbolRegistry = config.designSymbolRegistry(model),
                     siblingTypeNames = siblingTypeNames,
                 ).toContextMap() + mapOf("buildingBlock" to block.buildingBlockContext(id)),
                 conflictPolicy = config.templates.conflictPolicy,

@@ -1110,7 +1110,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "domain_service",
             "saga",
         )
-        val ResultFieldTags = setOf("query", "client", "api_payload")
+        val ResultFieldTags = setOf("command", "query", "client", "api_payload")
         val EventNameTags = setOf("domain_event", "integration_event")
         val SupportedArtifactFamilies = linkedMapOf(
             "command" to setOf(""),

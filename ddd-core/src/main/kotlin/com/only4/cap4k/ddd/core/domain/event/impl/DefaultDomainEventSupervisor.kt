@@ -1,7 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.*
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
@@ -47,9 +46,6 @@ open class DefaultDomainEventSupervisor(
         }
     }
 
-    private fun unwrapEntity(entity: Any): Any = (entity as? Aggregate<*>)?._unwrap() ?: entity
-
-
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         domainEventPayload: DOMAIN_EVENT,
         entity: ENTITY,
@@ -59,12 +55,10 @@ open class DefaultDomainEventSupervisor(
             throw DomainException("事件类型不能为集成事件")
         }
 
-        val unwrappedEntity = unwrapEntity(entity)
-
         EventRuntimeContext.currentOrCreateAmbient()
-            .attachDomain(unwrappedEntity, EventAttachment.eager(domainEventPayload, schedule))
+            .attachDomain(entity, EventAttachment.eager(domainEventPayload, schedule))
         domainEventInterceptorManager.orderedDomainEventInterceptors
-            .forEach { interceptor -> interceptor.onAttach(domainEventPayload, unwrappedEntity, schedule) }
+            .forEach { interceptor -> interceptor.onAttach(domainEventPayload, entity, schedule) }
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
@@ -72,15 +66,13 @@ open class DefaultDomainEventSupervisor(
         schedule: LocalDateTime,
         domainEventPayloadSupplier: () -> DOMAIN_EVENT
     ) {
-        val unwrappedEntity = unwrapEntity(entity)
         EventRuntimeContext.currentOrCreateAmbient()
-            .attachDomain(unwrappedEntity, EventAttachment.lazy(schedule, domainEventPayloadSupplier))
+            .attachDomain(entity, EventAttachment.lazy(schedule, domainEventPayloadSupplier))
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
         val domainAttachments = EventRuntimeContext.currentOrNull()?.domainAttachments ?: return
-        val unwrappedEntity = unwrapEntity(entity)
-        val eventPayloads = domainAttachments[unwrappedEntity] ?: return
+        val eventPayloads = domainAttachments[entity] ?: return
 
         val identityIndex = eventPayloads.indexOfFirst { attachment -> attachment.matchesIdentity(domainEventPayload) }
         val removeIndex = if (identityIndex >= 0) {
@@ -92,7 +84,7 @@ open class DefaultDomainEventSupervisor(
 
         eventPayloads.removeAt(removeIndex)
         domainEventInterceptorManager.orderedDomainEventInterceptors
-            .forEach { interceptor -> interceptor.onDetach(domainEventPayload, unwrappedEntity) }
+            .forEach { interceptor -> interceptor.onDetach(domainEventPayload, entity) }
     }
 
     override fun release(entities: Set<Any>) {
@@ -104,7 +96,7 @@ open class DefaultDomainEventSupervisor(
         val springDataEventPayloads = mutableListOf<Any>()
 
         for (entity in entities) {
-            attachments.addAll(popEvents(unwrapEntity(entity)))
+            attachments.addAll(popEvents(entity))
 
             // 处理 Spring Data 的 AbstractAggregateRoot
             if (entity is AbstractAggregateRoot<*>) {

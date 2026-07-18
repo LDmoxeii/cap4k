@@ -23,7 +23,7 @@ class DesignSagaArtifactPlanner : GeneratorProvider {
             val renderModel = DesignSagaRenderModelFactory.create(
                 packageName = packageName,
                 block = block,
-                typeRegistry = config.designTypeRegistryFqns(model),
+                symbolRegistry = config.designSymbolRegistry(model),
             )
             ArtifactPlanItem(
                 generatorId = id,

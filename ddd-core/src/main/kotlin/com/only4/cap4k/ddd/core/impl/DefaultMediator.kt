@@ -5,7 +5,8 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.domain.aggregate.*
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
@@ -159,115 +160,4 @@ class DefaultMediator : Mediator {
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
         IntegrationEventSupervisor.instance.detach(eventPayload)
     }
-
-    // AggregateSupervisor methods
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(
-        clazz: Class<AGGREGATE>,
-        payload: ENTITY_PAYLOAD
-    ): AGGREGATE =
-        AggregateSupervisor.instance.create(clazz, payload)
-
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
-        ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean,
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.getByIds(ids, persist)
-
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY : Any> getByIds(
-        ids: Iterable<Id<AGGREGATE, *>>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.getByIds(ids, persist, loadPlan)
-
-    override fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.find(predicate, orders, persist)
-
-    override fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.find(predicate, orders, persist, loadPlan)
-
-    override fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        pageParam: PageParam,
-        persist: Boolean,
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.find(predicate, pageParam, persist)
-
-    override fun <AGGREGATE : Aggregate<*>> find(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        pageParam: PageParam,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.find(predicate, pageParam, persist, loadPlan)
-
-    override fun <AGGREGATE : Aggregate<*>> findOne(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        persist: Boolean,
-    ): AGGREGATE? =
-        AggregateSupervisor.instance.findOne(predicate, persist)
-
-    override fun <AGGREGATE : Aggregate<*>> findOne(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): AGGREGATE? =
-        AggregateSupervisor.instance.findOne(predicate, persist, loadPlan)
-
-    override fun <AGGREGATE : Aggregate<*>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-    ): AGGREGATE? =
-        AggregateSupervisor.instance.findFirst(predicate, orders, persist)
-
-    override fun <AGGREGATE : Aggregate<*>> findFirst(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): AGGREGATE? =
-        AggregateSupervisor.instance.findFirst(predicate, orders, persist, loadPlan)
-
-    override fun <AGGREGATE : Aggregate<*>> findPage(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        pageParam: PageParam,
-        persist: Boolean,
-    ): PageData<AGGREGATE> =
-        AggregateSupervisor.instance.findPage(predicate, pageParam, persist)
-
-    override fun <AGGREGATE : Aggregate<*>> findPage(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        pageParam: PageParam,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): PageData<AGGREGATE> =
-        AggregateSupervisor.instance.findPage(predicate, pageParam, persist, loadPlan)
-
-    override fun <AGGREGATE : Aggregate<ENTITY>, ENTITY: Any> removeByIds(ids: Iterable<Id<AGGREGATE, *>>): List<AGGREGATE> =
-        AggregateSupervisor.instance.removeByIds(ids)
-
-    override fun <AGGREGATE : Aggregate<*>> remove(predicate: AggregatePredicate<AGGREGATE, *>): List<AGGREGATE> =
-        AggregateSupervisor.instance.remove(predicate)
-
-    override fun <AGGREGATE : Aggregate<*>> remove(
-        predicate: AggregatePredicate<AGGREGATE, *>,
-        limit: Int
-    ): List<AGGREGATE> =
-        AggregateSupervisor.instance.remove(predicate, limit)
-
-    override fun <AGGREGATE : Aggregate<*>> count(predicate: AggregatePredicate<AGGREGATE, *>): Long =
-        AggregateSupervisor.instance.count(predicate)
-
-    override fun <AGGREGATE : Aggregate<*>> exists(predicate: AggregatePredicate<AGGREGATE, *>): Boolean =
-        AggregateSupervisor.instance.exists(predicate)
 }

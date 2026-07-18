@@ -1,38 +1,38 @@
 ---
 name: cap4k-authoring
 description: >
-  Route cap4k business-project AI authoring tasks to focused skills. Use when
-  the user asks to model a cap4k business project, generate cap4k code from DB
-  or design JSON, implement a cap4k project slice, design cap4k service
-  integration, verify cap4k work, or review generated cap4k output.
+  Route cap4k business-authoring work through the self-contained cap4k skill
+  system. Use when the user asks to discover a business slice, model DDD
+  boundaries, write cap4k technical design, author generator inputs, review
+  plan or generated output, implement handwritten business logic, design service
+  integration, or verify cap4k work.
 ---
 
 # Cap4k Authoring Router
 
-This is a router, not the rulebook. Pick the focused skill that matches the current task and read that skill before acting.
+This is the entry router for cap4k business-authoring agents. It is not the rulebook.
 
-If a task matches multiple rows, read `references/route-map.md` before choosing or chaining focused skills.
+## Always Read
 
-## Boundaries
+1. `routing.yaml`
+2. `../shared/workflows/forced-rollback.md`
 
-- Use these skills for business projects built with cap4k.
-- Do not load public docs as runtime instructions unless the user asks for public documentation work.
-- Focused skills carry the shared cap4k constraints; this router only chooses the task path.
+## Session Discipline
 
-## Routes
+- Re-read this file and `routing.yaml` for every new user task.
+- Do not use public docs, analysis maps, issues, Context7, or historical specs as runtime instructions.
+- Route to the current phase skill before acting.
+- For structural creation or modification, make sure the routed workflow loads `../shared/workflows/skeleton-generation-gate.md`.
+- For a spec-level end-to-end example, use the `content-studio-dry-run` route in `routing.yaml`.
 
-| Task | Use Skill |
-|---|---|
-| Clarify business intent, aggregate boundaries, DDD concepts, events | `cap4k-modeling` |
-| Bootstrap or generate from DB/design/enum/value-object/addon inputs | `cap4k-generation` |
-| Implement command/query/subscriber/job/controller project code | `cap4k-implementation` |
-| Design or implement service-boundary interaction | `cap4k-service-integration` |
-| Run tests, compile, analysis, flow/drawing-board, final evidence | `cap4k-verification` |
-| Review generated output, plan output, or ownership | `cap4k-generated-output-review` |
+## Routing Source
+
+`routing.yaml` is the only routing source of truth. Do not maintain a second route table in Markdown.
 
 ## Priority
 
 1. Current user instruction and explicit project scope.
-2. Focused skill rules for the routed task.
-3. Existing project conventions.
-4. Human audit remains required for domain decisions.
+2. `routing.yaml` phase and specialist route.
+3. Routed skill rules and workflows.
+4. Existing business project conventions.
+5. Human audit remains required for domain decisions.

@@ -1,47 +1,222 @@
+version: 1
+default_entry: cap4k-authoring
 routes:
-  - task: modeling
-    skill: cap4k-modeling
-    triggers:
-      - "derive cap4k DDD design"
-      - "clarify aggregate boundaries"
-      - "model value objects or domain events"
-      - "设计 cap4k 业务模型"
-  - task: generation
-    skill: cap4k-generation
-    triggers:
-      - "generate cap4k code from DB"
-      - "generate cap4k code from design JSON"
-      - "cap4kPlan"
-      - "cap4kGenerate"
-  - task: implementation
-    skill: cap4k-implementation
-    triggers:
-      - "implement a cap4k project slice"
-      - "write command handler"
-      - "write query handler"
-      - "实现 cap4k 业务切片"
-  - task: service-integration
-    skill: cap4k-service-integration
-    triggers:
-      - "open host service"
-      - "external capability client"
+  - id: full-authoring-flow
+    trigger_examples:
+      - "build a cap4k project from scratch"
+      - "take this business idea through cap4k authoring"
+      - "model, generate, implement, and verify this cap4k slice"
+    positive_signals:
+      - "from scratch"
+      - "end-to-end"
+      - "full authoring"
+      - "new cap4k project"
+    negative_signals:
+      - "only verify this work"
+      - "review plan.json before generation"
+      - "fill this generated handler"
+    route_first: cap4k-business-discovery
+    then_chain:
+      - cap4k-tactical-modeling
+      - cap4k-technical-design
+      - cap4k-generator-inputs
+      - cap4k-generation-review
+      - cap4k-handwritten-implementation
+      - cap4k-verification-audit
+    required_reads:
+      - ../shared/workflows/forced-rollback.md
+    workflow: ../cap4k-business-discovery/workflows/discover-business-intent.md
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+      - technical-design
+      - generator-inputs
+      - generation-review
+      - handwritten-implementation
+      - verification-audit
+
+  - id: content-studio-dry-run
+    trigger_examples:
+      - "dry run the cap4k skill workflow"
+      - "show the end-to-end Content Studio authoring path"
+    route_first: cap4k-authoring
+    required_reads:
+      - references/content-studio-dry-run.md
+      - ../shared/workflows/forced-rollback.md
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+      - technical-design
+      - generator-inputs
+      - generation-review
+      - handwritten-implementation
+      - verification-audit
+
+  - id: business-discovery
+    trigger_examples:
+      - "clarify this business idea before modeling"
+      - "discover the business slice"
+      - "what are the actors, states, and external facts?"
+    route_first: cap4k-business-discovery
+    required_reads:
+      - ../shared/workflows/forced-rollback.md
+    workflow: ../cap4k-business-discovery/workflows/discover-business-intent.md
+    rollback_targets:
+      - business-discovery
+
+  - id: tactical-modeling
+    trigger_examples:
+      - "model the aggregate boundaries"
+      - "map this business process to cap4k DDD carriers"
+      - "decide Command, Query, Event, Saga, or Value Object"
+    route_first: cap4k-tactical-modeling
+    required_reads:
+      - ../shared/references/tactical-affordance-map.md
+      - ../shared/workflows/forced-rollback.md
+    workflow: ../cap4k-tactical-modeling/workflows/map-tactical-carriers.md
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+
+  - id: technical-design
+    trigger_examples:
+      - "write the cap4k technical design"
+      - "place this model into layers and modules"
+      - "decide skeleton expectations and handwritten slots"
+    route_first: cap4k-technical-design
+    required_reads:
+      - ../shared/rules/layer-and-runtime-boundaries.md
+      - ../shared/references/generator-supported-skeletons.md
+      - ../shared/workflows/skeleton-generation-gate.md
+    workflow: ../cap4k-technical-design/workflows/write-technical-design-contract.md
+    rollback_targets:
+      - tactical-modeling
+      - technical-design
+
+  - id: generator-inputs
+    trigger_examples:
+      - "write design.json"
+      - "project this design into generator inputs"
+      - "author DB schema, manifests, Gradle extension, or addons"
+    route_first: cap4k-generator-inputs
+    required_reads:
+      - ../shared/rules/generator-input-source-of-truth.md
+      - ../shared/references/generator-supported-skeletons.md
+      - ../shared/workflows/skeleton-generation-gate.md
+    workflow: ../cap4k-generator-inputs/workflows/project-generator-inputs.md
+    rollback_targets:
+      - technical-design
+      - generator-inputs
+
+  - id: generation-review
+    trigger_examples:
+      - "review cap4kPlan"
+      - "review generated output ownership"
+      - "run generation after plan review"
+    positive_signals:
+      - "plan.json"
+      - "bootstrap-plan.json"
+      - "conflictPolicy"
+      - "templateId"
+      - "generated output"
+    negative_signals:
+      - "implement business logic before generation review"
+    route_first: cap4k-generation-review
+    required_reads:
+      - ../shared/references/output-ownership-taxonomy.md
+      - ../shared/workflows/skeleton-generation-gate.md
+    workflow: ../cap4k-generation-review/workflows/review-plan-and-generate.md
+    rollback_targets:
+      - technical-design
+      - generator-inputs
+      - generation-review
+
+  - id: handwritten-implementation
+    trigger_examples:
+      - "fill the generated command handler"
+      - "implement handwritten logic inside generated skeletons"
+      - "continue implementation after generated diff review"
+    positive_signals:
+      - "human approved generated output"
+      - "inside generated skeleton"
+      - "handwritten slot"
+    negative_signals:
+      - "missing generated skeleton"
+      - "create handler to fix compile"
+    route_first: cap4k-handwritten-implementation
+    required_reads:
+      - ../shared/rules/generated-skeleton-ownership.md
+      - ../shared/references/generator-supported-skeletons.md
+      - ../shared/references/runtime-capability-map.md
+      - ../shared/workflows/skeleton-generation-gate.md
+    workflow: ../cap4k-handwritten-implementation/workflows/implement-inside-generated-skeletons.md
+    rollback_targets:
+      - technical-design
+      - generator-inputs
+      - generation-review
+
+  - id: verification-audit
+    trigger_examples:
+      - "verify this cap4k work"
+      - "audit generated vs handwritten ownership"
+      - "produce final cap4k evidence"
+    positive_signals:
+      - "final evidence"
+      - "verification claim"
+      - "skipped checks"
+      - "static-only"
+      - "focused-local"
+      - "full-evidence"
+    negative_signals:
+      - "review plan.json before generation"
+      - "inspect generated output before implementation"
+      - "is this generated output safe to edit?"
+    route_first: cap4k-verification-audit
+    required_reads:
+      - ../shared/rules/verification-claim-policy.md
+      - ../shared/references/runtime-capability-map.md
+      - ../shared/workflows/forced-rollback.md
+    workflow: ../cap4k-verification-audit/workflows/run-verification-audit.md
+    verification_mode: static-only
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+      - technical-design
+      - generator-inputs
+      - generation-review
+      - handwritten-implementation
+
+  - id: service-integration
+    trigger_examples:
+      - "design an Open Host Service"
+      - "handle an external callback"
+      - "consume an external capability"
+      - "model an inbound integration event"
+    positive_signals:
+      - "Open Host Service"
+      - "Published Language"
+      - "external fact"
+      - "callback"
+      - "message"
       - "integration event"
-      - "external callback"
-      - "服务交互"
-      - "开放服务入口"
-      - "外部事实入口"
-      - "集成事件"
-  - task: verification
-    skill: cap4k-verification
-    triggers:
-      - "run cap4k analysis"
-      - "verify cap4k project"
-      - "flow review"
-      - "drawing-board"
-  - task: generated-output-review
-    skill: cap4k-generated-output-review
-    triggers:
-      - "review generated output"
-      - "inspect plan.json"
-      - "generated vs handwritten ownership"
-      - "审查生成物"
+    negative_signals:
+      - "internal Domain Event modeling without cross-service publication or external reader contract"
+      - "review plan.json or generated output only"
+      - "implement inside an already approved generated skeleton without service-boundary design"
+      - "local CRUD or application use case with no external service boundary"
+      - "provider SDK wiring or adapter handler mapping only, with no Open Host Service, Published Language, external fact, or Integration Event boundary decision"
+    route_first: cap4k-service-integration
+    required_reads:
+      - ../shared/rules/layer-and-runtime-boundaries.md
+      - ../shared/references/runtime-capability-map.md
+      - ../shared/workflows/skeleton-generation-gate.md
+      - ../cap4k-service-integration/rules/integration-event-boundaries.md
+    specialist_handoffs:
+      - cap4k-technical-design
+      - cap4k-generator-inputs
+      - cap4k-handwritten-implementation
+      - cap4k-verification-audit
+    rollback_targets:
+      - business-discovery
+      - tactical-modeling
+      - technical-design

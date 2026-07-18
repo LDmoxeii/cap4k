@@ -1,95 +1,40 @@
-# Cap4k 编写指南总览
+# Authoring
 
-> 这套文档定义 cap4k 项目的默认编写方式、审计方式，以及选择合适建模概念时的决策入口。
+`authoring/` 说明一个人如何设计、生成、实现并继续演进一个 cap4k business slice。它不是技能执行手册，也不是把某个命令列表照顺序跑完的线性清单；它解释的是 public workflow：业务判断如何被写成可追踪输入，生成骨架如何保护结构，手写逻辑如何表达业务含义，验证证据如何把作者带回更早的设计决定。
 
-默认硬边界是：能生成的骨架先回到 DDL / design / registry 合同与 `cap4kPlan`；如果 generation 还缺 DB、design、manifest 或 IR 输入，就先修对应的 generation / compile / setup 链路；implementation 不手写 generator-capable 替代物。
+本章的运行示例是 [Reference Content Studio](../examples/reference-content-studio.md)。这个 sibling repo 展示内容草稿、审核、媒体处理 callback、默认发布路径，以及显式 opt-in 的 paid publication Saga。authoring 页面不会重新讲完整示例代码，而是把这个项目当作共同锚点，说明从业务想法到可审查代码的作者流程。
 
-## 这套文档解决什么问题
+## Authoring Loop
 
-- 让项目作者知道如何直接开始编写 cap4k 项目
-- 让审阅者知道如何按 Default Happy Path 审核项目
-- 让人类作者在 AI 协作中保留领域决策、路径取舍和最终审计权
+cap4k authoring 是一个螺旋式循环：
 
-## 人类作者与 AI 协作边界
+1. 先说清业务意图、用语和边界。
+2. 再把边界放进 Aggregate、Value Object、Event、external capability 和 policy。
+3. 再设计 Clean Architecture 中的 module、Command、Query、Subscriber、Scheduled Reaction、Saga、adapter 和 persistence 责任。
+4. 再把这些设计投影到 schema、`design/design.json`、`design/value-objects.json`、`design/enums.json`、type manifests 和 Gradle extension configuration。
+5. 再读 generation plan，确认 ownership、module placement、`templateId` 和 `conflictPolicy`。
+6. 再生成骨架，并在预期的 handwritten surface 中实现业务逻辑。
+7. 再用静态审查、focused tests、HTTP examples、generation evidence 和 analysis evidence 复核。
+8. 任何发现都可以把作者带回业务意图、模型、技术设计或生成输入。
 
-这套 authoring 文档是给人类作者使用的决策和审计入口。它回答的是：
+这组动作有推荐阅读顺序，但没有一次通过的承诺。后续证据可能说明一个命令边界过宽、一个 Value Object 命名不准、一个 Saga 其实只是同步反应、一个 adapter 判断混入业务规则，或者一个 plan item 暴露了 ownership 问题。authoring 的目标不是把步骤跑完，而是让这些反馈能回到正确的设计层。
 
-- 当前业务应该放在哪个 DDD 战术对象上
-- 什么时候遵循 Default Happy Path 约定，什么时候引入更具体的建模概念
-- 哪些代码应该生成，哪些代码应该手写
-- AI 交付后，人类应该按什么规则做最终审计
+## Pages
 
-AI 可以辅助梳理方案、实现主要代码，并在最终审计前完成测试、编译、生成和分析验证。但 AI 的结论不能替代人类对领域流程、架构取舍和最终代码形态的判断。
+- [Spiral Authoring Loop](spiral-authoring-loop.md)：核心页面，说明意图、模型、技术设计、生成输入、计划审查、生成、手写实现、验证和反馈如何循环。
+- [Business Intent And Modeling](business-intent-and-modeling.md)：先写业务意图、通用语言、边界、Aggregate、Value Object、Event、external capabilities 和 policies。
+- [Technical Design](technical-design.md)：把模型放进 Clean Architecture、module、Command/Query、events、Saga、Subscriber、Scheduled Reaction、adapter、persistence 和 testing 责任。
+- [Generator Input Projection](generator-input-projection.md)：把设计投影到 schema、`design/design.json`、`types.enumManifest`、`types.valueObjectManifest`、module layout 和 Gradle extension configuration。
+- [Plan Review And Generation](plan-review-and-generation.md)：阅读 `cap4kPlan`、`cap4kBootstrapPlan`、`cap4kGenerate`、`cap4kGenerateSources` 相关证据，判断何时暂停生成。
+- [Implementation Inside Generated Skeletons](implementation-inside-generated-skeletons.md)：在生成骨架提供的合同内写复杂业务逻辑，不和 ownership 对抗。
+- [Verification And Feedback](verification-and-feedback.md)：把静态审查、focused tests、HTTP examples、generation evidence 和 analysis evidence 变成下一轮 authoring 的反馈。
 
-AI 作者规则以独立 skill 维护。authoring 文档不作为 AI skill 的运行时依赖如两者共享项目纪律，但服务对象不同。
+## Reading Anchors
 
-## 阅读路径
+authoring 章节会频繁回链这些已批准页面：
 
-### 项目作者
+- examples：[Reference Content Studio](../examples/reference-content-studio.md)、[Run The Reference Project](../examples/run-the-reference-project.md)、[Generation And Analysis Evidence](../examples/generation-and-analysis-evidence.md)
+- concepts：[Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、[Command Query Separation](../concepts/execution-and-ownership/command-query-separation.md)、[Generated Skeleton And Handwritten Logic](../concepts/execution-and-ownership/generated-skeleton-and-handwritten-logic.md)
+- architecture：[Architecture](../architecture/index.md)、[Application Layer](../architecture/application-layer.md)、[Adapter Layer](../architecture/adapter-layer.md)、[Testing By Layer](../architecture/testing-by-layer.md)
 
-1. [框架定位](framework-positioning.md)
-2. [项目编写工作流](project-authoring-workflow.md)
-3. [快速开始](getting-started.md)
-4. [Default Happy Path](default-happy-path.md)
-5. [示例总览](examples/index.md)
-6. [公开战术模型](tactical-model.md)
-7. [生成器指南](generator/index.md)
-8. [领域层指南](domain.md)
-9. [应用层指南](application.md)
-10. [测试合同](testing-contract.md)
-11. [适配器层指南](adapter.md)
-12. [概念选择指南](advanced/index.md)
-
-### 深度用户 / 框架贡献者
-
-- 先完整阅读本页和 Default Happy Path
-- 再按需阅读横切规范与 generator reference
-
-## 主题入口
-
-- [框架定位](framework-positioning.md)
-- [快速开始](getting-started.md)
-- [项目编写工作流](project-authoring-workflow.md)
-- [Default Happy Path](default-happy-path.md)
-- [示例总览](examples/index.md)
-- [Generator Guide](generator/index.md)
-- [生成输入源](generator/input-sources.md)
-- [Addon 与 SPI 使用](generator/addons-and-spi.md)
-- [公开战术模型](tactical-model.md)
-- [Domain Authoring Guide](domain.md)
-- [Application Authoring Guide](application.md)
-- [Adapter Authoring Guide](adapter.md)
-- [Concept Selection Guide](advanced/index.md)
-
-## 统一示例
-
-所有概念讲解默认回到 [示例总览](examples/index.md) 中的同一套内容发布与媒体处理参考项目。`examples/` 是示例总入口如各层指南、概念选择页和生成边界页只在这套参考项目上补充视角，不另起样例宇宙。
-
-## 横切规范
-
-- [命名与目录规范](naming-and-layout.md)
-- [生成 / 手写边界](generation-boundaries.md)
-- [示例合同](example-contract.md)
-- [测试合同](testing-contract.md)
-
-## 审计重点
-
-人类最终审计时，至少确认这些问题：
-
-- 业务流程是否仍然围绕聚合根、命令、查询、领域事件和编排面表达
-- 写入行为是否收敛在命令处理路径，而不是散落在开放服务入口、外部事实入口或内部触发入口中
-- 生成物、手写物、模板覆盖和生成快照是否清楚分界
-- `domain` / `application` 主链路是否有符合 [测试合同](testing-contract.md) 的行为验证
-- AI 是否给出了可复核的测试、编译、生成、分析或链接检查证据
-- 缺口是否被明确记录，而不是被局部约定伪装成框架能力
-
-## 当前缺口与扩展位
-
-这些主题可以被讨论和示范，但不能在当前文档中被当成完整默认能力：
-
-- 值对象、Saga、Domain Service 的作者定性仍会继续细化
-- 值对象、Saga、Domain Service 的生成器支持仍需要后续切片
-- 分层模型和公开战术模型还会继续收敛
-- design 对 command、query、client、domain_event、integration_event、domain_service、saga 等已支持契约会继续打磨如`value_object` 由 `types.valueObjectManifest` 表达，不是 design tag
-- `drawing_board.json` 面向跨服务集成事件沟通的用法留作后续扩展
-- addon / SPI 面向更深度使用场景的作者规则会在更多真实使用后补强
+如果读者只想理解一个最小路径，可以先读 [Spiral Authoring Loop](spiral-authoring-loop.md)，再打开 [Reference Content Studio](../examples/reference-content-studio.md) 对照。其余页面用于在某一轮反馈中深入检查具体设计面。

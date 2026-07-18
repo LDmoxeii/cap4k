@@ -8,9 +8,6 @@ import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
-import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -264,57 +261,6 @@ class DefaultRepositorySupervisorTest {
         assertThrows<DomainException> {
             supervisor.find(predicate)
         }
-    }
-
-    @Test
-    @DisplayName("应该正确处理JpaAggregatePredicate")
-    fun `should handle JpaAggregatePredicate correctly`() {
-        val jpaPredicate = mockk<JpaPredicate<TestEntity>>()
-        val aggregatePredicate = mockk<JpaAggregatePredicate<*, TestEntity>>()
-
-        // 使用 mockkObject 代替 mockkStatic
-        mockkObject(JpaAggregatePredicateSupport)
-        every { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) } returns jpaPredicate
-
-        DefaultRepositorySupervisor.registerPredicateEntityClassReflector(JpaAggregatePredicate::class.java) {
-            TestEntity::class.java
-        }
-
-        // 创建支持JpaPredicate的仓储
-        val jpaRepository = mockk<Repository<TestEntity>>(relaxed = true)
-        every { jpaRepository.supportPredicateClass() } returns JpaPredicate::class.java
-        every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(jpaRepository, 0, Repository::class.java)
-        } returns TestEntity::class.java
-
-        val supervisorWithJpa = DefaultRepositorySupervisor(
-            repositories = listOf(jpaRepository),
-            unitOfWork = mockUnitOfWork
-        )
-
-        every {
-            jpaRepository.find(
-                aggregatePredicate,
-                any<Collection<OrderInfo>>(),
-                any(),
-                AggregateLoadPlan.WHOLE_AGGREGATE
-            )
-        } returns listOf(TestEntity(1L, "jpa-test"))
-
-        val result = supervisorWithJpa.remove(aggregatePredicate)
-
-        assertEquals(listOf(TestEntity(1L, "jpa-test")), result)
-        verify { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) }
-        verify {
-            jpaRepository.find(
-                aggregatePredicate,
-                any<Collection<OrderInfo>>(),
-                any(),
-                AggregateLoadPlan.WHOLE_AGGREGATE
-            )
-        }
-
-        unmockkObject(JpaAggregatePredicateSupport)
     }
 
     @Test

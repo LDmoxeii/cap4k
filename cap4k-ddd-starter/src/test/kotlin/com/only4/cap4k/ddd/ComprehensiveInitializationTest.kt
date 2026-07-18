@@ -2,7 +2,7 @@ package com.only4.cap4k.ddd
 
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.X
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregateSupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import kotlin.test.assertTrue
@@ -67,8 +67,8 @@ class ComprehensiveInitializationTest {
     fun testAllSupervisorLazyInitialization() {
         try {
             // 尝试访问各个Supervisor实例
-            val aggregateSupervisor = AggregateSupervisor.instance
-            println("✓ AggregateSupervisor延迟初始化工作正常")
+            val aggregateFactorySupervisor = AggregateFactorySupervisor.instance
+            println("Factory supervisor lazy initialization works")
 
         } catch (e: kotlin.UninitializedPropertyAccessException) {
             val stackTrace = e.stackTrace.joinToString("\n") { "${it.className}.${it.methodName}" }

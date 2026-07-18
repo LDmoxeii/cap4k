@@ -30,7 +30,7 @@ class DesignApiPayloadArtifactPlanner : GeneratorProvider {
                     packageName = packageName,
                     block = block,
                     pageRequest = block.pageVariantSelected(id),
-                    typeRegistry = config.designTypeRegistryFqns(model),
+                    symbolRegistry = config.designSymbolRegistry(model),
                 ).toContextMap() + mapOf("buildingBlock" to block.buildingBlockContext(id)),
                 conflictPolicy = config.templates.conflictPolicy,
             )

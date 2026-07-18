@@ -13,19 +13,22 @@ Use this when a cap4k business project needs to consume external capabilities, e
 
 ## Always Read
 
-1. `../shared/rules/default-path-and-write-boundaries.md`
-2. `../shared/rules/naming-layout-and-testing.md`
-3. `rules/service-boundaries.md`
-4. `rules/integration-events.md`
+1. `rules/integration-event-boundaries.md`
+2. `../shared/rules/layer-and-runtime-boundaries.md`
 
 ## Common Routes
 
-| Task | Read | Workflow |
-|---|---|---|
-| Internal code consumes an external capability | `references/gotchas.md` | `workflows/consume-external-capability.md` |
-| External systems or frontend consume internal capability synchronously | `references/gotchas.md` | `workflows/design-open-host-service.md` |
-| External callback, message, or inbound event enters the project | `references/gotchas.md` | `workflows/handle-external-fact.md` |
+| Task | Workflow |
+|---|---|
+| Open Host Service | `workflows/design-open-host-service.md` |
+| external capability consumption | `workflows/consume-external-capability.md` |
+| inbound integration event | `workflows/handle-inbound-integration-event.md` |
+
+## Additional Reads
+
+Read `rules/published-language.md` when designing boundary contracts, Open Host Service payloads, or Integration Event fields.
+Read `references/gotchas.md` before writing technical design, generator inputs, or handwritten slots for service-boundary work.
 
 ## Stop Conditions
 
-Stop when an entry implementation is about to write repository or aggregate state directly, when an external protocol leaks into domain/application contracts, or when a write flow calls client first and command second.
+Stop when transport mechanics are assigned to business code, an entry writes repository or aggregate state directly, provider terms leak into boundary language, or a write flow calls a client before entering the command/application use case.
