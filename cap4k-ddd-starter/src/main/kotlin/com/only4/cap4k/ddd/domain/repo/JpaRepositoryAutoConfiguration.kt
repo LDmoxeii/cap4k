@@ -71,12 +71,10 @@ class JpaRepositoryAutoConfiguration {
         unitOfWorkInterceptors,
         persistListenerManager,
         jpaUnitOfWorkProperties.supportEntityInlinePersistListener,
-        jpaUnitOfWorkProperties.supportValueObjectExistsCheckOnSave,
         idStrategyRegistry,
     ).also {
         UnitOfWorkSupport.configure(it)
         JpaQueryUtils.configure(it, jpaUnitOfWorkProperties.retrieveCountWarnThreshold)
-        Md5HashIdentifierGenerator.configure(jpaUnitOfWorkProperties.generalIdFieldName)
     }
 
 

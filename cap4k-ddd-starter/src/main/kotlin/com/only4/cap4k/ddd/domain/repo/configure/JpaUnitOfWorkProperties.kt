@@ -24,14 +24,4 @@ class JpaUnitOfWorkProperties(
      * 删除 onDelete | onRemove
      */
     var supportEntityInlinePersistListener: Boolean = true,
-
-    /**
-     * 是否在保存时检查值对象是否存在
-     */
-    var supportValueObjectExistsCheckOnSave: Boolean = true,
-
-    /**
-     * 通用主键字段名
-     */
-    var generalIdFieldName: String = "id"
 )
