@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
+import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
 
 internal data class DesignSagaRenderModel(
     val packageName: String,
@@ -24,12 +25,12 @@ internal object DesignSagaRenderModelFactory {
     fun create(
         packageName: String,
         block: DesignBlockModel,
-        typeRegistry: Map<String, String> = emptyMap(),
+        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
     ): DesignSagaRenderModel {
         val renderModel = DesignPayloadRenderModelFactory.createForSagaBlock(
             packageName = packageName,
             block = block,
-            typeRegistry = typeRegistry,
+            symbolRegistry = symbolRegistry,
         )
         return DesignSagaRenderModel(
             packageName = renderModel.packageName,
