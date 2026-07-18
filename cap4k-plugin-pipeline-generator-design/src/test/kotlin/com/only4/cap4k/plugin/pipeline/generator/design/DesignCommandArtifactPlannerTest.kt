@@ -113,6 +113,48 @@ class DesignCommandArtifactPlannerTest {
     }
 
     @Test
+    fun `designCommand passes command result fields into render context`() {
+        val planner = DesignCommandArtifactPlanner()
+
+        val items = planner.plan(
+            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            model = CanonicalModel(
+                designBlocks = listOf(
+                    commandBlock(
+                        packageName = "order.submit",
+                        name = "SubmitOrder",
+                        fields = listOf(FieldModel("orderId", "Long")),
+                        resultFields = listOf(
+                            FieldModel("receipt", "Receipt", nullable = true),
+                            FieldModel("receipt.receiptId", "String"),
+                            FieldModel("accepted", "Boolean", defaultValue = "true"),
+                        ),
+                    )
+                ),
+            ),
+        )
+
+        val command = items.single()
+
+        assertEquals(
+            listOf(
+                DesignRenderFieldModel(name = "receipt", renderedType = "Receipt?", nullable = true),
+                DesignRenderFieldModel(name = "accepted", renderedType = "Boolean", defaultValue = "true"),
+            ),
+            command.context["resultFields"],
+        )
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "Receipt",
+                    fields = listOf(DesignRenderFieldModel(name = "receiptId", renderedType = "String")),
+                ),
+            ),
+            command.context["resultNestedTypes"],
+        )
+    }
+
+    @Test
     fun `designCommand resolves shared manifest value object field imports`() {
         val planner = DesignCommandArtifactPlanner()
 
@@ -569,6 +611,7 @@ class DesignCommandArtifactPlannerTest {
         name: String = "SubmitOrder",
         aggregates: List<String> = listOf("Order"),
         fields: List<FieldModel> = emptyList(),
+        resultFields: List<FieldModel> = emptyList(),
         artifacts: List<ArtifactSelectionModel> = listOf(ArtifactSelectionModel("command")),
     ) = DesignBlockModel(
         tag = "command",
@@ -578,6 +621,7 @@ class DesignCommandArtifactPlannerTest {
         aggregates = aggregates,
         artifacts = artifacts,
         fields = fields,
+        resultFields = resultFields,
     )
 
     private fun queryBlock(
