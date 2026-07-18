@@ -2,7 +2,7 @@
 
 verification 是 authoring 螺旋的反馈面。它不只是证明某个命令执行成功，也不只是证明文件已经生成；它把静态审查、focused tests、HTTP examples、generation evidence 和 analysis evidence 放在一起，检查业务意图、模型、技术设计、生成输入、生成骨架和手写逻辑是否一致。
 
-本页描述 public workflow concepts。它说明读者可以如何理解这些证据面，不要求当前文档编写过程运行 build、test 或 HTTP。
+本页描述 public workflow concepts。它说明读者可以如何理解这些证据面；阅读本文不要求运行 build、test 或 HTTP。
 
 ## Static Review
 

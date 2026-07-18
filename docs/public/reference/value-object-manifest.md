@@ -1,6 +1,6 @@
 # Value Object Manifest
 
-Value Object 输入通过 `types.valueObjectManifest` 配置，不通过 normal `design.json` tag。
+Value Object 输入通过 `types.valueObjectManifest` 配置。
 
 ```kotlin
 cap4k {
@@ -22,8 +22,8 @@ manifest root 必须是 JSON array；array 中每一项声明一个 Value Object
 | --- | --- | --- | --- |
 | `name` | string | yes | Value Object type name。 |
 | `package` | string | yes | generated class package。 |
-| `aggregates` | string array | no | 省略或为空表示 shared；non-empty list 表示 aggregate-owned，当前最多一个 owner。 |
-| `storage` | string | no | 当前支持 `json`；省略时按 `json` 处理。 |
+| `aggregates` | string array | no | 省略或为空表示 shared；non-empty list 表示 aggregate-owned，最多一个 owner。 |
+| `storage` | string | no | 支持 `json`；省略时按 `json` 处理。 |
 | `description` | string | no | description metadata。 |
 | `fields` | field array | no | Value Object fields。 |
 
@@ -80,11 +80,11 @@ field item：
 
 - `aggregates` 可省略。
 - 省略 `aggregates` 或写成 `aggregates: []` 表示 shared。
-- 当前 `aggregates` 最多只能声明一个 owner。
-- `storage` 当前只支持 `json`；省略 `storage` 时按 `json` 处理。
+- `aggregates` 最多只能声明一个 owner。
+- `storage` 只支持 `json`；省略 `storage` 时按 `json` 处理。
 - shared Value Object name 不能重复。
 - 同一个 owner 下的 Value Object name 不能重复。
-- 归属只通过 `aggregates` 表达；manifest entry 不定义 `scope` 或 `aggregate` 字段。
+- 归属通过 `aggregates` 表达。
 
 ## 生成输出说明
 
@@ -92,15 +92,11 @@ field item：
 | --- | --- |
 | Value Object class | checked-in source，通常进入 domain package。 |
 | JSON converter | `storage = "json"` 时生成，用于 persistence conversion。 |
-| Building block metadata | generated class 可包含 `@BuildingBlock(tag = "value_object", family = "value-object")`。 |
-
-`@BuildingBlock(tag = "value_object", family = "value-object")` 是生成结果上的 metadata。不要在 normal `design.json` 中写 `tag = "value_object"`。
 
 ## 常见检查
 
 - 配置 value-object manifest 时，`types.valueObjectManifest.files` 不能为空。
 - 同一个 shared Value Object name 不能重复。
 - 同一个 aggregate owner 下的 Value Object name 不能重复。
-- `aggregates` 当前最多声明一个 owner。
-- `storage` 当前只使用 `json`。
-- `scope` 和 `aggregate` 不属于 manifest entry；归属只通过 `aggregates` 表达。
+- `aggregates` 最多声明一个 owner。
+- `storage` 使用 `json`。

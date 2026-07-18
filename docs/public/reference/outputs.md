@@ -8,7 +8,7 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 | --- | --- | --- |
 | `CHECKED_IN_SOURCE` | `<module>/src/main/kotlin` | committed skeleton 或 type source；可能包含 handwritten slots。 |
 | `GENERATED_SOURCE` | `<module>/build/generated/cap4k/main/kotlin` | build-owned generated source；可被覆盖。 |
-| `OUTPUT_ARTIFACT` | artifact-specific root | non-source artifact output kind；当前 built-in planners 常见 source generation items 主要使用前两类。 |
+| `OUTPUT_ARTIFACT` | artifact-specific root | non-source artifact output kind；built-in planners 常见 source generation items 主要使用前两类。 |
 
 ## Checked-In Source
 
@@ -22,7 +22,7 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 
 ## Generated Source
 
-`cap4kGenerateSources` 只导出 `GENERATED_SOURCE`。当前 generated Kotlin root：
+`cap4kGenerateSources` 只导出 `GENERATED_SOURCE`。Generated Kotlin root：
 
 ```text
 <module>/build/generated/cap4k/main/kotlin

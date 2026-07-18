@@ -1,6 +1,6 @@
 # Command Query Separation
 
-Command Query Separation 是把“改变业务状态的意图”和“观察业务状态的读取”分开表达。它帮助读者从三层架构里常见的 `Service` 类迁移到更清晰的应用层用例边界：写入路径围绕命令、聚合行为、Unit of Work 提交和事件释放展开；读取路径围绕查询意图、read model 和展示所需数据展开。
+Command Query Separation 是把“改变业务状态的意图”和“观察业务状态的读取”分开表达。应用层用例边界应清晰区分写入路径和读取路径：写入路径围绕命令、聚合行为、Unit of Work 提交和事件释放展开；读取路径围绕查询意图、read model 和展示所需数据展开。
 
 cap4k 这样拆分，并不是要求项目引入完整 CQRS 基础设施，也不是要求一定建立独立数据库、消息复制或复杂 read side。它首先是一条代码组织和职责边界：不要把所有 application behavior 都塞进一个传统 service class，再让同一个方法集合同时承担校验、写入、查询、事件反应和外部调用。
 

@@ -115,7 +115,10 @@ $task8StalePatterns = @(
   @{ Name = 'build/cap4k/analysis plan.json'; Pattern = 'build/cap4k/analysis plan\.json' },
   @{ Name = 'business subscriber consumes transport'; Pattern = 'business subscriber.*consume' },
   @{ Name = 'raw callback enters domain'; Pattern = 'raw callback.*domain' },
-  @{ Name = 'combined tactical/design route'; Pattern = 'cap4k-tactical-modeling or cap4k-technical-design' }
+  @{ Name = 'combined tactical/design route'; Pattern = 'cap4k-tactical-modeling or cap4k-technical-design' },
+  @{ Name = 'command resultFields invalid'; Pattern = 'command.*resultFields.*(invalid|not valid|not supported|unsupported|rejected|must.*corrected)' },
+  @{ Name = 'command.resultFields invalid'; Pattern = 'command\.resultFields.*(invalid|not valid|not supported|unsupported|rejected|must.*corrected)' },
+  @{ Name = 'resultFields not allowed on command'; Pattern = 'resultFields.*not allowed.*command|resultFields.*not allowed.*`command`' }
 )
 
 Assert-NoForbiddenPattern `

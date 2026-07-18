@@ -41,24 +41,16 @@ Edit files registered through `sources.designJson.files`, commonly `design/desig
 - On `command`, `fields` describes the request payload and `resultFields` describes the command outcome payload.
 - `command.resultFields` uses the same field object contract, design-json parsing, canonical preservation, and template rendering path as `query`, `client`, and `api_payload` result fields.
 - Empty or omitted `command.resultFields` keeps the no-result response shape.
-- `resultFields` remains rejected on `domain_event`, `integration_event`, `domain_service`, and `saga`.
+- Tags outside the `command`, `query`, `client`, and `api_payload` set do not define a result payload.
 - `integration_event` requires `eventName`.
 - `eventName` is allowed only on `domain_event` and `integration_event`.
 - `persist` is allowed only on `domain_event`.
 - Field `type` values must use explicit type names. Do not use the token `self`.
 - In `domain_event.fields`, field name `entity` is reserved.
 
-## Removed Or Rejected Fields
+## Field Set Boundary
 
-These fields are not valid design JSON input:
-
-- `desc`
-- `requestFields`
-- `responseFields`
-- `traits`
-- `role`
-- `scope`
-- `entity`
+Design JSON input uses only the supported public fields listed above. Keep ownership, request shape, result shape, event naming, persistence intent, and artifact selection on those fields.
 
 ## Analysis Evidence Boundary
 
@@ -66,4 +58,4 @@ Flow and drawing-board output can resemble design JSON, but it is not automatica
 
 Manually copied drawing-board content may be registered only after it satisfies this contract. `command.resultFields` is supported when the rest of the copied content satisfies this contract.
 
-For example, copied content that still contains `responseFields`, an unsupported tag, or an invalid artifact selection must be corrected before registration.
+Copied content must satisfy the supported tag set, field set, field object shape, and artifact selection rules before registration.
