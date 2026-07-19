@@ -175,7 +175,6 @@ class DbSchemaSourceProvider : SourceProvider {
                 uniqueConstraints = uniqueConstraints,
                 parentTable = tableMetadata.parentTable,
                 aggregateRoot = tableMetadata.aggregateRoot,
-                valueObject = tableMetadata.valueObject,
                 dynamicInsert = tableMetadata.dynamicInsert,
                 dynamicUpdate = tableMetadata.dynamicUpdate,
             ),

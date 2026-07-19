@@ -17,5 +17,5 @@ create table user_profile (
 );
 
 comment on table video_post is '@AggregateRoot=true;';
-comment on table video_post_item is '@Parent=video_post;@VO;';
+comment on table video_post_item is '@Parent=video_post;';
 comment on table user_profile is '@AggregateRoot=true;';

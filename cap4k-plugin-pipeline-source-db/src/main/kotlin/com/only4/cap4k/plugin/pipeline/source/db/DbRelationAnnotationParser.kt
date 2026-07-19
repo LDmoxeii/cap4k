@@ -3,38 +3,6 @@ package com.only4.cap4k.plugin.pipeline.source.db
 import java.util.Locale
 
 internal class DbRelationAnnotationParser {
-    fun parseTable(comment: String): TableRelationMetadata {
-        val annotations = parseAnnotations(comment)
-        val parentTable = resolveAnnotationValue(
-            annotations = annotations,
-            aliases = setOf("PARENT", "P"),
-            conflictMessage = "conflicting @Parent/@P annotations on the same table comment.",
-            blankValueMessage = "blank @Parent/@P value is not allowed.",
-            missingValueMessage = "missing value for @Parent/@P annotation.",
-        )
-        val valueObject = resolvePresenceAnnotation(
-            annotations = annotations,
-            aliases = VALUE_OBJECT_ALIASES,
-            invalidValueMessage = "invalid @ValueObject/@VO annotation: explicit values are not supported.",
-        )
-        val aggregateRootAnnotation = resolveBooleanAnnotationValue(
-            annotations = annotations,
-            aliases = setOf("AGGREGATEROOT", "ROOT", "R"),
-            conflictMessage = "conflicting @AggregateRoot/@Root/@R annotations on the same table comment.",
-            invalidMessagePrefix = "invalid @AggregateRoot/@Root/@R boolean value: ",
-        )
-        require(!(parentTable != null && aggregateRootAnnotation.explicit && aggregateRootAnnotation.value == true)) {
-            "conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true."
-        }
-        val aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null)
-        return TableRelationMetadata(
-            parentTable = parentTable,
-            aggregateRoot = aggregateRoot,
-            valueObject = valueObject,
-            cleanedComment = stripRecognizedAnnotations(comment, TABLE_RELATION_ALIASES),
-        )
-    }
-
     fun parseColumn(comment: String): ColumnRelationMetadata {
         val annotations = parseAnnotations(comment)
         val hasRelationAnnotation = annotations.any { it.key in RELATION_ALIASES }
@@ -154,16 +122,6 @@ internal class DbRelationAnnotationParser {
         return values.singleOrNull()
     }
 
-    private fun resolvePresenceAnnotation(
-        annotations: List<RelationParsedAnnotation>,
-        aliases: Set<String>,
-        invalidValueMessage: String,
-    ): Boolean {
-        val matchingAnnotations = annotations.filter { it.key in aliases }
-        require(matchingAnnotations.none { it.hasExplicitValue }) { invalidValueMessage }
-        return matchingAnnotations.isNotEmpty()
-    }
-
     private fun resolveBooleanAnnotationValue(
         annotations: List<RelationParsedAnnotation>,
         aliases: Set<String>,
@@ -216,26 +174,17 @@ internal class DbRelationAnnotationParser {
         private val ANNOTATION_PATTERN = Regex("@([A-Za-z]+)(=([^;]*))?;?")
         private val SUPPORTED_RELATION_TYPES =
             setOf("MANY_TO_ONE", "ONE_TO_ONE", "1:1", "*:1", "MANYTOONE", "ONETOONE")
-        private val VALUE_OBJECT_ALIASES = setOf("VALUEOBJECT", "VO")
         private val REFERENCE_ALIASES = setOf("REFERENCE", "REF")
         private val REF_AGGREGATE_ALIASES = setOf("REFAGGREGATE")
         private val REF_ID_ALIASES = setOf("REFID")
         private val RELATION_ALIASES = setOf("RELATION", "REL")
         private val LAZY_ALIASES = setOf("LAZY", "L")
         private val COUNT_ALIASES = setOf("COUNT", "C")
-        private val TABLE_RELATION_ALIASES = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO")
         private val COLUMN_RELATION_ALIASES =
             REFERENCE_ALIASES + REF_AGGREGATE_ALIASES + REF_ID_ALIASES + RELATION_ALIASES + LAZY_ALIASES + COUNT_ALIASES
         private val MULTI_SPACE_PATTERN = Regex("\\s{2,}")
     }
 }
-
-internal data class TableRelationMetadata(
-    val parentTable: String? = null,
-    val aggregateRoot: Boolean = true,
-    val valueObject: Boolean = false,
-    val cleanedComment: String = "",
-)
 
 internal data class ColumnRelationMetadata(
     val referenceTable: String? = null,

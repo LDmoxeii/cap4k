@@ -2495,7 +2495,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "content",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 ),
@@ -3681,7 +3680,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3703,12 +3701,10 @@ class DefaultCanonicalAssemblerTest {
 
         val root = result.model.entities.first { it.name == "VideoPost" }
         assertEquals(true, root.aggregateRoot)
-        assertEquals(false, root.valueObject)
         assertEquals(null, root.parentEntityName)
 
         val child = result.model.entities.first { it.name == "VideoPostItem" }
         assertEquals(false, child.aggregateRoot)
-        assertEquals(true, child.valueObject)
         assertEquals("VideoPost", child.parentEntityName)
     }
 
@@ -3802,7 +3798,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3847,7 +3842,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3903,7 +3897,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3980,7 +3973,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4020,7 +4012,6 @@ class DefaultCanonicalAssemblerTest {
                     ),
                     idField = childId,
                     aggregateRoot = false,
-                    valueObject = true,
                     parentEntityName = "VideoPost",
                 ),
             ),
@@ -4072,7 +4063,6 @@ class DefaultCanonicalAssemblerTest {
                     uniqueConstraints = emptyList(),
                     parentTable = "video_post",
                     aggregateRoot = false,
-                    valueObject = true,
                 ),
             ),
         )
@@ -4112,7 +4102,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4164,7 +4153,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4196,7 +4184,6 @@ class DefaultCanonicalAssemblerTest {
                         ),
                         idField = childId,
                         aggregateRoot = false,
-                        valueObject = true,
                     )
                 ),
                 relations = listOf(
@@ -4276,7 +4263,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4322,7 +4308,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4623,7 +4608,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "account",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "category",
@@ -4645,7 +4629,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "category",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -4698,7 +4681,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "order",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "category",
@@ -4720,7 +4702,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "category",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -4766,7 +4747,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "tenant",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "warehouse",
@@ -4788,7 +4768,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "warehouse",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "company",
@@ -4810,7 +4789,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "company",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -5277,7 +5255,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -5505,7 +5482,6 @@ class DefaultCanonicalAssemblerTest {
         uniqueConstraints = emptyList(),
         parentTable = parentTable,
         aggregateRoot = aggregateRoot,
-        valueObject = !aggregateRoot,
     )
 
     private fun column(

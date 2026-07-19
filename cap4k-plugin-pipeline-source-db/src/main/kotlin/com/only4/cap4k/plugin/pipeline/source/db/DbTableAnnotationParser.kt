@@ -4,15 +4,20 @@ import java.util.Locale
 
 internal object DbTableAnnotationParser {
     private val annotationPattern = Regex("@([A-Za-z]+)(=([^;]*))?;?")
-    private val tableAliases = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "VALUEOBJECT", "VO", "IGNORE", "I")
+    private val tableAliases = setOf("PARENT", "P", "AGGREGATEROOT", "ROOT", "R", "IGNORE", "I")
     private val providerAliases = setOf("DYNAMICINSERT", "DYNAMICUPDATE")
+    private val supportedAliases = tableAliases + providerAliases
+    private const val supportedTableAnnotationsMessage =
+        "@Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate"
     private val multiSpacePattern = Regex("\\s{2,}")
 
     fun parse(comment: String): DbTableAnnotationParseResult {
         val annotations = annotationPattern.findAll(comment)
             .map { match ->
+                val rawKey = match.groupValues[1]
                 ParsedTableAnnotation(
-                    key = match.groupValues[1].uppercase(Locale.ROOT),
+                    rawKey = rawKey,
+                    key = rawKey.uppercase(Locale.ROOT),
                     value = match.groupValues.getOrElse(3) { "" }.trim(),
                     range = match.range,
                     hasExplicitValue = match.groups[2] != null,
@@ -20,8 +25,7 @@ internal object DbTableAnnotationParser {
             }
             .toList()
 
-        rejectLegacyIdGeneratorAnnotation(annotations)
-        rejectLegacySoftDeleteColumnAnnotation(annotations)
+        rejectUnsupportedAnnotations(annotations)
 
         val parentTable = resolveAnnotationValue(
             annotations = annotations,
@@ -29,11 +33,6 @@ internal object DbTableAnnotationParser {
             conflictMessage = "conflicting @Parent/@P annotations on the same table comment.",
             blankValueMessage = "blank @Parent/@P value is not allowed.",
             missingValueMessage = "missing value for @Parent/@P annotation.",
-        )
-        val valueObject = resolvePresenceAnnotation(
-            annotations = annotations,
-            aliases = setOf("VALUEOBJECT", "VO"),
-            invalidValueMessage = "invalid @ValueObject/@VO annotation: explicit values are not supported.",
         )
         val ignored = resolvePresenceAnnotation(
             annotations = annotations,
@@ -62,33 +61,18 @@ internal object DbTableAnnotationParser {
         return DbTableAnnotationParseResult(
             parentTable = parentTable,
             aggregateRoot = aggregateRootAnnotation.value ?: (parentTable == null),
-            valueObject = valueObject,
             ignored = ignored,
             dynamicInsert = dynamicInsert,
             dynamicUpdate = dynamicUpdate,
-            cleanedComment = stripRecognizedAnnotations(comment, tableAliases + providerAliases),
+            cleanedComment = stripRecognizedAnnotations(comment, supportedAliases),
         )
     }
 
-    private fun rejectLegacyIdGeneratorAnnotation(annotations: List<ParsedTableAnnotation>) {
-        annotations.firstOrNull { it.key == "IDGENERATOR" }?.let {
-            throw IllegalArgumentException(
-                "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead"
-            )
-        }
-        annotations.firstOrNull { it.key == "IG" }?.let {
-            throw IllegalArgumentException(
-                "unsupported table annotation @IG: use @GeneratedValue on the ID column instead"
-            )
-        }
-    }
-
-    private fun rejectLegacySoftDeleteColumnAnnotation(annotations: List<ParsedTableAnnotation>) {
-        annotations.firstOrNull { it.key == "SOFTDELETECOLUMN" }?.let {
-            throw IllegalArgumentException(
-                "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead"
-            )
-        }
+    private fun rejectUnsupportedAnnotations(annotations: List<ParsedTableAnnotation>) {
+        val unsupported = annotations.firstOrNull { it.key !in supportedAliases } ?: return
+        throw IllegalArgumentException(
+            "unsupported table annotation @${unsupported.rawKey}. Supported table annotations: $supportedTableAnnotationsMessage."
+        )
     }
 
     private fun resolveAnnotationValue(
@@ -174,8 +158,10 @@ internal object DbTableAnnotationParser {
         val cleaned = buildString {
             var cursor = 0
             for (annotation in annotationPattern.findAll(comment).map { match ->
+                val rawKey = match.groupValues[1]
                 ParsedTableAnnotation(
-                    key = match.groupValues[1].uppercase(Locale.ROOT),
+                    rawKey = rawKey,
+                    key = rawKey.uppercase(Locale.ROOT),
                     value = match.groupValues.getOrElse(3) { "" }.trim(),
                     range = match.range,
                     hasExplicitValue = match.groups[2] != null,
@@ -196,7 +182,6 @@ internal object DbTableAnnotationParser {
 internal data class DbTableAnnotationParseResult(
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
-    val valueObject: Boolean = false,
     val ignored: Boolean = false,
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
@@ -204,6 +189,7 @@ internal data class DbTableAnnotationParseResult(
 )
 
 private data class ParsedTableAnnotation(
+    val rawKey: String,
     val key: String,
     val value: String,
     val range: IntRange,

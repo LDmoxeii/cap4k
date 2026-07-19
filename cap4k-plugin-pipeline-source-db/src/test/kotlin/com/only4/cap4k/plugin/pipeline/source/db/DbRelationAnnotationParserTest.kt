@@ -7,33 +7,6 @@ import org.junit.jupiter.api.Test
 class DbRelationAnnotationParserTest {
 
     @Test
-    fun `parses table parent and value object annotations`() {
-        val metadata = DbRelationAnnotationParser().parseTable("@Parent=video_post;@VO;")
-
-        assertEquals("video_post", metadata.parentTable)
-        assertEquals(false, metadata.aggregateRoot)
-        assertEquals(true, metadata.valueObject)
-    }
-
-    @Test
-    fun `parses short table aliases and long value object annotation`() {
-        val metadata = DbRelationAnnotationParser().parseTable("@P=video_post;@Root=false;@ValueObject;")
-
-        assertEquals("video_post", metadata.parentTable)
-        assertEquals(false, metadata.aggregateRoot)
-        assertEquals(true, metadata.valueObject)
-    }
-
-    @Test
-    fun `standalone value object keeps default aggregate root semantics`() {
-        val metadata = DbRelationAnnotationParser().parseTable("@VO;")
-
-        assertEquals(null, metadata.parentTable)
-        assertEquals(true, metadata.aggregateRoot)
-        assertEquals(true, metadata.valueObject)
-    }
-
-    @Test
     fun `parses column reference relation and lazy annotations`() {
         val metadata = DbRelationAnnotationParser().parseColumn(
             "@Reference=user_profile;@Relation=OneToOne;@Lazy=true;@Count=single;"
@@ -123,51 +96,6 @@ class DbRelationAnnotationParserTest {
     }
 
     @Test
-    fun `rejects conflicting aggregate root aliases`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbRelationAnnotationParser().parseTable("@AggregateRoot=true;@R=false;")
-        }
-
-        assertEquals("conflicting @AggregateRoot/@Root/@R annotations on the same table comment.", error.message)
-    }
-
-    @Test
-    fun `rejects blank parent value`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbRelationAnnotationParser().parseTable("@Parent=;")
-        }
-
-        assertEquals("blank @Parent/@P value is not allowed.", error.message)
-    }
-
-    @Test
-    fun `rejects valueless parent annotation`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbRelationAnnotationParser().parseTable("@Parent;")
-        }
-
-        assertEquals("missing value for @Parent/@P annotation.", error.message)
-    }
-
-    @Test
-    fun `rejects valued value object annotation`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbRelationAnnotationParser().parseTable("@VO=false;")
-        }
-
-        assertEquals("invalid @ValueObject/@VO annotation: explicit values are not supported.", error.message)
-    }
-
-    @Test
-    fun `rejects parent combined with explicit aggregate root true`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbRelationAnnotationParser().parseTable("@Parent=video_post;@AggregateRoot=true;")
-        }
-
-        assertEquals("conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true.", error.message)
-    }
-
-    @Test
     fun `rejects conflicting reference aliases`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbRelationAnnotationParser().parseColumn("@Reference=user;@Ref=account;")
@@ -237,15 +165,6 @@ class DbRelationAnnotationParserTest {
         }
 
         assertEquals("missing value for @Count/@C annotation.", error.message)
-    }
-
-    @Test
-    fun `rejects malformed aggregate root boolean`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbRelationAnnotationParser().parseTable("@AggregateRoot=maybe;")
-        }
-
-        assertEquals("invalid @AggregateRoot/@Root/@R boolean value: maybe", error.message)
     }
 
     @Test
