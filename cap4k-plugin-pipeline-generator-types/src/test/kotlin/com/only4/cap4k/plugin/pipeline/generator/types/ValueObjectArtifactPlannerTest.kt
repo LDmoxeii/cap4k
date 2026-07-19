@@ -17,6 +17,9 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
+import com.only4.cap4k.plugin.pipeline.generator.common.types.MANIFEST_VALUE_OBJECT_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -614,34 +617,44 @@ class ValueObjectArtifactPlannerTest {
     @Test
     fun `multiple owner contexts do not select a local short type`() {
         val error = assertThrows<AmbiguousValueObjectFieldTypeFailure> {
-            ValueObjectArtifactPlanner().plan(
-                config(),
-                CanonicalModel(
-                    valueObjects = listOf(
-                        ValueObjectModel(
-                            name = "Snapshot",
+            ValueObjectTypeResolver.resolve(
+                type = ValueObjectTypeParser.parse("Snapshot"),
+                symbolRegistry = TypeSymbolRegistry(
+                    listOf(
+                        TypeSymbolIdentity(
                             packageName = "com.acme.demo.domain.aggregates.order.values",
-                            aggregates = listOf("Order"),
-                            fields = listOf(FieldModel("code", "String")),
+                            typeName = "Snapshot",
+                            source = MANIFEST_VALUE_OBJECT_SOURCE,
+                            ownerAggregateName = "Order",
+                            manifestOwned = true,
                         ),
-                        ValueObjectModel(
-                            name = "Snapshot",
+                        TypeSymbolIdentity(
                             packageName = "com.acme.demo.domain.aggregates.customer.values",
-                            aggregates = listOf("Customer"),
-                            fields = listOf(FieldModel("code", "String")),
-                        ),
-                        ValueObjectModel(
-                            name = "CrossAggregateAudit",
-                            packageName = "com.acme.demo.domain.shared.values",
-                            aggregates = listOf("Order", "Customer"),
-                            fields = listOf(FieldModel("snapshot", "Snapshot")),
+                            typeName = "Snapshot",
+                            source = MANIFEST_VALUE_OBJECT_SOURCE,
+                            ownerAggregateName = "Customer",
+                            manifestOwned = true,
                         ),
                     ),
                 ),
+                aggregateContext = listOf("Order", "Customer"),
             )
         }
 
-        assertEquals(true, error.message?.contains("ambiguous value object field type: Snapshot"))
+        assertEquals("Snapshot", error.shortType)
+        assertEquals(
+            listOf(
+                "com.acme.demo.domain.aggregates.order.values.Snapshot",
+                "com.acme.demo.domain.aggregates.customer.values.Snapshot",
+            ),
+            error.candidates,
+        )
+        assertEquals(
+            "ambiguous value object field type: Snapshot -> " +
+                "com.acme.demo.domain.aggregates.order.values.Snapshot, " +
+                "com.acme.demo.domain.aggregates.customer.values.Snapshot",
+            error.message,
+        )
     }
 
     @Test
