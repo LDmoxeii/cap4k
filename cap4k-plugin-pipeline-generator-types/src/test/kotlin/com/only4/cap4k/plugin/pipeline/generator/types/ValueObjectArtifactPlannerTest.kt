@@ -236,37 +236,39 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
-    fun `canonical strong ids override same name registry entries`() {
-        val snapshot = ValueObjectArtifactPlanner().plan(
-            config(
-                typeRegistry = TypeRegistryConfig(
-                    entries = mapOf(
-                        "ContentId" to TypeRegistryEntry("com.acme.external.ContentId"),
+    fun `Strong ID collision with explicit registry fails without matching owner context`() {
+        val error = assertThrows<AmbiguousValueObjectFieldTypeFailure> {
+            ValueObjectArtifactPlanner().plan(
+                config(
+                    typeRegistry = TypeRegistryConfig(
+                        entries = mapOf(
+                            "ContentId" to TypeRegistryEntry("com.acme.external.ContentId"),
+                        ),
                     ),
                 ),
-            ),
-            CanonicalModel(
-                strongIds = listOf(
-                    StrongIdModel(
-                        typeName = "ContentId",
-                        packageName = "com.acme.demo.domain.aggregates.content",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
-                        ownerAggregateName = "Content",
-                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                CanonicalModel(
+                    strongIds = listOf(
+                        StrongIdModel(
+                            typeName = "ContentId",
+                            packageName = "com.acme.demo.domain.aggregates.content",
+                            kind = StrongIdKind.AGGREGATE_ROOT,
+                            ownerAggregateName = "Content",
+                            ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                        ),
+                    ),
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "ContentSnapshot",
+                            packageName = "com.acme.demo.domain.aggregates.audit.values",
+                            aggregates = listOf("Audit"),
+                            fields = listOf(FieldModel("contentId", "ContentId")),
+                        ),
                     ),
                 ),
-                valueObjects = listOf(
-                    ValueObjectModel(
-                        name = "ContentSnapshot",
-                        packageName = "com.acme.demo.domain.aggregates.audit.values",
-                        aggregates = listOf("Audit"),
-                        fields = listOf(FieldModel("contentId", "ContentId")),
-                    ),
-                ),
-            ),
-        ).single()
+            )
+        }
 
-        assertEquals(listOf("com.acme.demo.domain.aggregates.content.ContentId"), snapshot.context["imports"])
+        assertEquals(true, error.message?.contains("ambiguous value object field type: ContentId"))
     }
 
     @Test
@@ -462,7 +464,7 @@ class ValueObjectArtifactPlannerTest {
                         ),
                     ),
                 ),
-            )
+            ).single()
 
         assertEquals(
             listOf("com.acme.demo.domain.aggregates.order.enums.Status"),
@@ -504,7 +506,7 @@ class ValueObjectArtifactPlannerTest {
                         ),
                     ),
                 ),
-            )
+            ).single()
 
         assertEquals(
             listOf("com.acme.demo.domain.aggregates.order.enums.Status"),
@@ -607,6 +609,89 @@ class ValueObjectArtifactPlannerTest {
         }
 
         assertEquals(true, error.message?.contains("ambiguous value object field type: Snapshot"))
+    }
+
+    @Test
+    fun `multiple owner contexts do not select a local short type`() {
+        val error = assertThrows<AmbiguousValueObjectFieldTypeFailure> {
+            ValueObjectArtifactPlanner().plan(
+                config(),
+                CanonicalModel(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "Snapshot",
+                            packageName = "com.acme.demo.domain.aggregates.order.values",
+                            aggregates = listOf("Order"),
+                            fields = listOf(FieldModel("code", "String")),
+                        ),
+                        ValueObjectModel(
+                            name = "Snapshot",
+                            packageName = "com.acme.demo.domain.aggregates.customer.values",
+                            aggregates = listOf("Customer"),
+                            fields = listOf(FieldModel("code", "String")),
+                        ),
+                        ValueObjectModel(
+                            name = "CrossAggregateAudit",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            aggregates = listOf("Order", "Customer"),
+                            fields = listOf(FieldModel("snapshot", "Snapshot")),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(true, error.message?.contains("ambiguous value object field type: Snapshot"))
+    }
+
+    @Test
+    fun `explicit FQCN sibling fields with the same name render fully qualified`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "StatusPair",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        fields = listOf(
+                            FieldModel("fooStatus", "com.foo.Status"),
+                            FieldModel("barStatus", "com.bar.Status"),
+                        ),
+                    ),
+                ),
+            ),
+        ).single()
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(emptyList<String>(), item.context["imports"])
+        assertEquals("com.foo.Status", fields[0]["type"])
+        assertEquals("com.bar.Status", fields[1]["type"])
+    }
+
+    @Test
+    fun `short sibling resolves from value object explicit FQCN registry`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "StatusEnvelope",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        fields = listOf(
+                            FieldModel("explicitStatus", "com.foo.Status"),
+                            FieldModel("shortStatus", "Status"),
+                        ),
+                    ),
+                ),
+            ),
+        ).single()
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(listOf("com.foo.Status"), item.context["imports"])
+        assertEquals("Status", fields[0]["type"])
+        assertEquals("Status", fields[1]["type"])
     }
 
     @Test

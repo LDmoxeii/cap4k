@@ -10,12 +10,7 @@ internal data class ParsedValueObjectType(
     val tokenText: String,
     val nullable: Boolean = false,
     val arguments: List<ParsedValueObjectType> = emptyList(),
-) {
-    fun tokenTexts(): Set<String> = buildSet {
-        add(tokenText)
-        arguments.forEach { argument -> addAll(argument.tokenTexts()) }
-    }
-}
+)
 
 internal data class ResolvedValueObjectType(
     val renderedType: String,
@@ -64,12 +59,15 @@ internal object ValueObjectTypeResolver {
         type: ParsedValueObjectType,
         symbolRegistry: TypeSymbolRegistry,
         aggregateContext: List<String>,
-    ): ResolvedValueObjectType {
-        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
-            collectExplicitSymbols(type).forEach(merged::register)
+    ): ResolvedValueObjectType = render(type, symbolRegistry, aggregateContext)
+
+    fun registryWithExplicitSymbols(
+        symbolRegistry: TypeSymbolRegistry,
+        parsedTypes: Iterable<ParsedValueObjectType>,
+    ): TypeSymbolRegistry =
+        TypeSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
+            parsedTypes.flatMap(::collectExplicitSymbols).forEach(merged::register)
         }
-        return render(type, registry, aggregateContext)
-    }
 
     private fun collectExplicitSymbols(type: ParsedValueObjectType): List<TypeSymbolIdentity> {
         val own = if (type.tokenText.contains('.')) {

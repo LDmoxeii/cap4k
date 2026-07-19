@@ -104,6 +104,52 @@ class CanonicalTypeSymbolRegistryFactoryTest {
         )
     }
 
+    @Test
+    fun `local enum ownership resolves duplicate entity names by package scoped parent`() {
+        val registry = CanonicalTypeSymbolRegistryFactory.from(
+            config = ProjectConfig(basePackage = "com.acme.demo"),
+            model = CanonicalModel(
+                entities = listOf(
+                    entity(
+                        name = "Order",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                    ),
+                    entity(
+                        name = "Item",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                        aggregateRoot = false,
+                        parentEntityName = "Order",
+                    ),
+                    entity(
+                        name = "OrderAdjustment",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                        aggregateRoot = false,
+                        parentEntityName = "Item",
+                    ),
+                    entity(
+                        name = "Customer",
+                        packageName = "com.acme.demo.domain.aggregates.customer",
+                    ),
+                    entity(
+                        name = "Item",
+                        packageName = "com.acme.demo.domain.aggregates.customer",
+                        aggregateRoot = false,
+                        parentEntityName = "Customer",
+                    ),
+                ),
+                sharedEnums = listOf(
+                    enumDefinition("OrderStatus", "order", aggregates = listOf("Order")),
+                ),
+            ),
+            artifactLayout = ArtifactLayoutResolver("com.acme.demo", ArtifactLayoutConfig()),
+        )
+
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.order.enums.OrderStatus"),
+            registry.findBySimpleName("OrderStatus").map { it.fqcn },
+        )
+    }
+
     private fun entity(
         name: String,
         packageName: String,

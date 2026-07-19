@@ -108,11 +108,17 @@ private object ValueObjectRenderModelFactory {
         valueObject: ValueObjectModel,
         typeRegistry: TypeSymbolRegistry,
     ): ValueObjectRenderModel {
-        val plannedFields = valueObject.fields.map { field ->
-            val type = ValueObjectTypeParser.parse(field.type)
+        val parsedFields = valueObject.fields.map { field ->
+            field to ValueObjectTypeParser.parse(field.type)
+        }
+        val valueObjectRegistry = ValueObjectTypeResolver.registryWithExplicitSymbols(
+            symbolRegistry = typeRegistry,
+            parsedTypes = parsedFields.map { (_, type) -> type },
+        )
+        val plannedFields = parsedFields.map { (field, type) ->
             val resolved = ValueObjectTypeResolver.resolve(
                 type = type,
-                symbolRegistry = typeRegistry,
+                symbolRegistry = valueObjectRegistry,
                 aggregateContext = valueObject.aggregates,
             )
             field to resolved.withNullability(field.nullable)
