@@ -6,7 +6,6 @@ plugins {
 
 dependencies {
     implementation(project(":cap4k-plugin-pipeline-api"))
-    implementation(project(":cap4k-plugin-pipeline-generator-common"))
 
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
