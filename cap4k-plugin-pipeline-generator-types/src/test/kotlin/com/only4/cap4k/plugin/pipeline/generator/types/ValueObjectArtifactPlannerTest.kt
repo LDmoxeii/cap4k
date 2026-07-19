@@ -3,12 +3,15 @@ package com.only4.cap4k.plugin.pipeline.generator.types
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
+import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
@@ -267,6 +270,122 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
+    fun `manifest managed value object fields resolve shared enum imports`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            model = CanonicalModel(
+                sharedEnums = listOf(sharedEnum("TransportType", packageName = "shared")),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "DemandSnapshot",
+                        packageName = "booking",
+                        fields = listOf(FieldModel("transportType", "TransportType")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(listOf("com.acme.demo.domain.shared.enums.TransportType"), item.context["imports"])
+        assertEquals("TransportType", fields.single()["type"])
+    }
+
+    @Test
+    fun `manifest managed value object fields resolve shared enum imports inside generics`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            model = CanonicalModel(
+                sharedEnums = listOf(sharedEnum("DocumentType", packageName = "shared")),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "DemandDocumentRequirement",
+                        packageName = "booking",
+                        fields = listOf(FieldModel("requiredDocumentTypes", "List<DocumentType>")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(listOf("com.acme.demo.domain.shared.enums.DocumentType"), item.context["imports"])
+        assertEquals("List<DocumentType>", fields.single()["type"])
+    }
+
+    @Test
+    fun `manifest managed value object fields resolve aggregate owned enum imports`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            model = CanonicalModel(
+                entities = listOf(
+                    aggregateRootEntity(
+                        name = "CarrierResourceConfirmation",
+                        packageName = "com.acme.demo.domain.aggregates.carrier_resource_confirmation",
+                    ),
+                ),
+                sharedEnums = listOf(
+                    sharedEnum(
+                        typeName = "CarrierResourceType",
+                        packageName = "carrier_resource_confirmation",
+                        aggregates = listOf("CarrierResourceConfirmation"),
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "CarrierResourceIdentity",
+                        packageName = "booking",
+                        aggregates = listOf("CarrierResourceConfirmation"),
+                        fields = listOf(FieldModel("resourceType", "CarrierResourceType")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.carrier_resource_confirmation.enums.CarrierResourceType"),
+            item.context["imports"],
+        )
+        assertEquals("CarrierResourceType", fields.single()["type"])
+    }
+
+    @Test
+    fun `aggregate owned enum is not imported without value object owner context`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            model = CanonicalModel(
+                entities = listOf(
+                    aggregateRootEntity(
+                        name = "CarrierResourceConfirmation",
+                        packageName = "com.acme.demo.domain.aggregates.carrier_resource_confirmation",
+                    ),
+                ),
+                sharedEnums = listOf(
+                    sharedEnum(
+                        typeName = "CarrierResourceType",
+                        packageName = "carrier_resource_confirmation",
+                        aggregates = listOf("CarrierResourceConfirmation"),
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "CarrierResourceIdentity",
+                        packageName = "booking",
+                        fields = listOf(FieldModel("resourceType", "CarrierResourceType")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(emptyList<String>(), item.context["imports"])
+        assertEquals("CarrierResourceType", fields.single()["type"])
+    }
+
+    @Test
     fun `json value object requires at least one field`() {
         val error = assertThrows<IllegalArgumentException> {
             ValueObjectArtifactPlanner().plan(
@@ -305,6 +424,30 @@ class ValueObjectArtifactPlannerTest {
 
         assertEquals("domain module is required", error.message)
     }
+
+    private fun sharedEnum(
+        typeName: String,
+        packageName: String,
+        aggregates: List<String> = emptyList(),
+    ): SharedEnumDefinition = SharedEnumDefinition(
+        typeName = typeName,
+        packageName = packageName,
+        items = listOf(EnumItemModel(0, "DEFINED", "Defined")),
+        aggregates = aggregates,
+    )
+
+    private fun aggregateRootEntity(
+        name: String,
+        packageName: String,
+    ): EntityModel = EntityModel(
+        name = name,
+        packageName = packageName,
+        tableName = name.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase(),
+        comment = name,
+        fields = emptyList(),
+        idField = FieldModel("id", "Long"),
+        aggregateRoot = true,
+    )
 
     private fun config(
         modules: Map<String, String> = mapOf("domain" to "demo-domain"),
