@@ -3,15 +3,13 @@ package com.only4.cap4k.plugin.pipeline.generator.types
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
-import com.only4.cap4k.plugin.pipeline.api.CanonicalEnumCatalog
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.EntityModel
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
-import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
+import com.only4.cap4k.plugin.pipeline.generator.common.types.CanonicalTypeSymbolRegistryFactory
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
@@ -25,7 +23,7 @@ class ValueObjectArtifactPlanner : GeneratorProvider {
 
         val domainRoot = requireRelativeModuleRoot(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val typeBindings = ValueObjectTypeBindings.from(config, model, artifactLayout)
+        val typeRegistry = CanonicalTypeSymbolRegistryFactory.from(config, model, artifactLayout)
 
         return model.valueObjects.map { valueObject ->
             require(valueObject.storage == ValueObjectStorage.JSON) {
@@ -34,10 +32,7 @@ class ValueObjectArtifactPlanner : GeneratorProvider {
             require(valueObject.fields.isNotEmpty()) {
                 "value object ${valueObject.name} must declare at least one field"
             }
-            val renderModel = ValueObjectRenderModelFactory.create(
-                valueObject,
-                typeBindings.registryFor(valueObject),
-            )
+            val renderModel = ValueObjectRenderModelFactory.create(valueObject, typeRegistry)
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "domain",
@@ -111,11 +106,15 @@ private data class ValueObjectFieldRenderModel(
 private object ValueObjectRenderModelFactory {
     fun create(
         valueObject: ValueObjectModel,
-        typeRegistry: Map<String, String>,
+        typeRegistry: TypeSymbolRegistry,
     ): ValueObjectRenderModel {
         val plannedFields = valueObject.fields.map { field ->
             val type = ValueObjectTypeParser.parse(field.type)
-            val resolved = ValueObjectTypeResolver.resolve(type, typeRegistry)
+            val resolved = ValueObjectTypeResolver.resolve(
+                type = type,
+                symbolRegistry = typeRegistry,
+                aggregateContext = valueObject.aggregates,
+            )
             field to resolved.withNullability(field.nullable)
         }
 
@@ -135,421 +134,6 @@ private object ValueObjectRenderModelFactory {
                 )
             },
         )
-    }
-}
-
-private class ValueObjectTypeBindings private constructor(
-    private val explicitRegistryFqns: Map<String, String>,
-    private val valueObjectFqns: Map<String, String>,
-    private val sharedValueObjectFqns: Map<String, String>,
-    private val aggregateLocalValueObjectFqns: Map<String, List<String>>,
-    private val strongIdFqns: Map<String, String>,
-    private val sharedEnumFqns: Map<String, String>,
-    private val localEnumFqnCandidatesByAggregate: Map<String, Map<String, List<String>>>,
-) {
-    fun registryFor(valueObject: ValueObjectModel): Map<String, String> {
-        val registry = linkedMapOf<String, String>()
-        registry.putAll(explicitRegistryFqns + valueObjectFqns + strongIdFqns)
-        mergeSharedEnums(registry)
-        mergeReferencedOwnerEnums(registry, valueObject)
-
-        return registry
-    }
-
-    private fun mergeSharedEnums(target: MutableMap<String, String>) {
-        sharedEnumFqns.forEach { (typeName, fqn) ->
-            val explicitFqn = explicitRegistryFqns[typeName]
-            val strongIdFqn = strongIdFqns[typeName]
-            require(explicitFqn == null || explicitFqn == fqn) {
-                "ambiguous value object type binding for $typeName: $explicitFqn, $fqn (shared enum)"
-            }
-            require(strongIdFqn == null || strongIdFqn == fqn) {
-                "ambiguous value object type binding for $typeName: $strongIdFqn, $fqn (shared enum)"
-            }
-
-            val existing = target[typeName]
-            require(existing == null || existing == fqn) {
-                "ambiguous value object type binding for $typeName: $existing, $fqn (shared enum)"
-            }
-            target[typeName] = fqn
-        }
-    }
-
-    private fun mergeReferencedOwnerEnums(
-        target: MutableMap<String, String>,
-        valueObject: ValueObjectModel,
-    ) {
-        val localEnumCandidates = valueObject.ownerAggregate
-            ?.let { aggregateName -> localEnumFqnCandidatesByAggregate[aggregateName].orEmpty() }
-            .orEmpty()
-        val referencedTokenTexts = valueObject.fields
-            .flatMap { field -> ValueObjectTypeParser.parse(field.type).tokenTexts() }
-            .toSet()
-
-        localEnumCandidates
-            .filterKeys { typeName -> typeName in referencedTokenTexts }
-            .forEach { (typeName, candidates) ->
-                val distinctFqns = candidates.distinct()
-                require(distinctFqns.size == 1) {
-                    "ambiguous local enum binding for ${valueObject.name}.$typeName: ${distinctFqns.joinToString()}"
-                }
-                mergeOwnerEnum(target, typeName, distinctFqns.single(), valueObject)
-            }
-    }
-
-    private fun mergeOwnerEnum(
-        target: MutableMap<String, String>,
-        typeName: String,
-        fqn: String,
-        valueObject: ValueObjectModel,
-    ) {
-        val explicitFqn = explicitRegistryFqns[typeName]
-        val strongIdFqn = strongIdFqns[typeName]
-        val aggregateLocalValueObjectCandidates = aggregateLocalValueObjectFqns[typeName].orEmpty()
-        require(explicitFqn == null || explicitFqn == fqn) {
-            "ambiguous value object type binding for ${valueObject.name}.$typeName: $explicitFqn, $fqn"
-        }
-        require(strongIdFqn == null || strongIdFqn == fqn) {
-            "ambiguous value object type binding for ${valueObject.name}.$typeName: $strongIdFqn, $fqn"
-        }
-        require(aggregateLocalValueObjectCandidates.isEmpty() || aggregateLocalValueObjectCandidates.all { it == fqn }) {
-            "ambiguous value object type binding for ${valueObject.name}.$typeName: " +
-                "${aggregateLocalValueObjectCandidates.joinToString()}, $fqn"
-        }
-
-        val existing = target[typeName]
-        val sharedEnumFqn = sharedEnumFqns[typeName]
-        val sharedValueObjectFqn = sharedValueObjectFqns[typeName]
-        require(
-            existing == null ||
-                existing == fqn ||
-                existing == sharedEnumFqn ||
-                existing == sharedValueObjectFqn,
-        ) {
-            "ambiguous value object type binding for ${valueObject.name}.$typeName: $existing, $fqn"
-        }
-        target[typeName] = fqn
-    }
-
-    companion object {
-        fun from(
-            config: ProjectConfig,
-            model: CanonicalModel,
-            artifactLayout: ArtifactLayoutResolver,
-        ): ValueObjectTypeBindings {
-            val sharedDefinitions = model.sharedEnums.filter { it.aggregates.isEmpty() }
-            val localDefinitions = model.sharedEnums.filter { it.aggregates.isNotEmpty() }
-            val sharedCatalog = CanonicalEnumCatalog.from(
-                model.copy(sharedEnums = sharedDefinitions),
-                artifactLayout,
-                emptyMap(),
-            )
-            val localCatalog = CanonicalEnumCatalog.from(
-                model.copy(sharedEnums = localDefinitions),
-                artifactLayout,
-                emptyMap(),
-            )
-
-            return ValueObjectTypeBindings(
-                explicitRegistryFqns = config.typeRegistryFqns(),
-                valueObjectFqns = model.manifestValueObjectTypeLookup(),
-                sharedValueObjectFqns = model.sharedManifestValueObjectTypeLookup(),
-                aggregateLocalValueObjectFqns = model.aggregateLocalManifestValueObjectFqns(),
-                strongIdFqns = model.strongIdTypeLookup(),
-                sharedEnumFqns = sharedCatalog.sharedEnums.associate { descriptor ->
-                    descriptor.typeName to descriptor.fqn
-                },
-                localEnumFqnCandidatesByAggregate = localEnumFqnCandidatesByAggregate(model, localCatalog),
-            )
-        }
-
-        private fun localEnumFqnCandidatesByAggregate(
-            model: CanonicalModel,
-            localCatalog: CanonicalEnumCatalog,
-        ): Map<String, Map<String, List<String>>> {
-            val aggregateRootNameByEntity = buildAggregateRootNameByEntity(model.entities)
-            val entityPackagesByAggregate = model.entities
-                .groupBy { entity -> aggregateRootNameByEntity[entity.key()] ?: entity.name }
-                .mapValues { (_, entities) -> entities.map { entity -> entity.packageName }.distinct() }
-
-            return model.sharedEnums
-                .filter { definition -> definition.aggregates.isNotEmpty() }
-                .flatMap { definition ->
-                    val aggregateName = requireNotNull(definition.aggregates.singleOrNull()) {
-                        "enum ${definition.typeName} may declare at most one aggregate"
-                    }
-                    val ownerPackages = entityPackagesByAggregate[aggregateName].orEmpty()
-                        .ifEmpty { listOf(aggregateName) }
-                    val descriptors = ownerPackages.mapNotNull { ownerPackage ->
-                        localCatalog.localEnums.singleOrNull { descriptor ->
-                            descriptor.ownerPackageName == ownerPackage && descriptor.typeName == definition.typeName
-                        }
-                    }.ifEmpty {
-                        localCatalog.localEnums.filter { descriptor ->
-                            descriptor.ownerScope == aggregateName && descriptor.typeName == definition.typeName
-                        }
-                    }
-                    descriptors.map { descriptor -> aggregateName to (descriptor.typeName to descriptor.fqn) }
-                }
-                .groupBy({ it.first }, { it.second })
-                .mapValues { (_, bindings) ->
-                    bindings
-                        .groupBy({ it.first }, { it.second })
-                        .mapValues { (_, fqns) -> fqns.distinct() }
-                }
-        }
-
-        private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
-            val entitiesByKey = entities.associateBy { entity -> entity.key() }
-            val entitiesByName = entities.groupBy { entity -> entity.name }
-            val resolving = mutableSetOf<EntityKey>()
-            val resolved = linkedMapOf<EntityKey, String>()
-
-            fun resolve(entity: EntityModel): String {
-                val key = entity.key()
-                resolved[key]?.let { return it }
-                if (!resolving.add(key)) {
-                    return entity.name
-                }
-                val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
-                val rootName = when {
-                    entity.aggregateRoot -> entity.name
-                    parentEntityName == null -> entity.name
-                    else -> {
-                        val parent = entitiesByKey[EntityKey(entity.packageName, parentEntityName)]
-                            ?: entitiesByName[parentEntityName]?.singleOrNull()
-                        parent?.let { resolve(it) } ?: entity.name
-                    }
-                }
-                resolving.remove(key)
-                resolved[key] = rootName
-                return rootName
-            }
-
-            entities.forEach { entity -> resolve(entity) }
-            return resolved
-        }
-    }
-}
-
-private data class EntityKey(
-    val packageName: String,
-    val name: String,
-)
-
-private fun EntityModel.key(): EntityKey = EntityKey(packageName = packageName, name = name)
-
-private data class ParsedType(
-    val tokenText: String,
-    val nullable: Boolean = false,
-    val arguments: List<ParsedType> = emptyList(),
-)
-
-private fun ParsedType.tokenTexts(): Set<String> = buildSet {
-    add(tokenText)
-    arguments.forEach { argument -> addAll(argument.tokenTexts()) }
-}
-
-private data class ResolvedType(
-    val renderedType: String,
-    val imports: Set<String> = emptySet(),
-) {
-    fun withNullability(nullable: Boolean): ResolvedType =
-        if (nullable && !renderedType.endsWith("?")) {
-            copy(renderedType = "$renderedType?")
-        } else {
-            this
-        }
-}
-
-private object ValueObjectTypeResolver {
-    private val builtInTypeNames = setOf(
-        "Any",
-        "Array",
-        "Boolean",
-        "Byte",
-        "Char",
-        "Collection",
-        "Double",
-        "Float",
-        "Int",
-        "Iterable",
-        "List",
-        "Long",
-        "Map",
-        "MutableCollection",
-        "MutableIterable",
-        "MutableList",
-        "MutableMap",
-        "MutableSet",
-        "Nothing",
-        "Number",
-        "Pair",
-        "Sequence",
-        "Set",
-        "Short",
-        "String",
-        "Triple",
-        "Unit",
-    )
-
-    fun resolve(type: ParsedType, typeRegistry: Map<String, String>): ResolvedType {
-        val resolvedArguments = type.arguments.map { resolve(it, typeRegistry) }
-        val base = resolveBase(type.tokenText, typeRegistry)
-        val renderedWithArguments = if (resolvedArguments.isEmpty()) {
-            base.renderedType
-        } else {
-            resolvedArguments.joinToString(
-                separator = ", ",
-                prefix = "${base.renderedType}<",
-                postfix = ">",
-            ) { it.renderedType }
-        }
-        val rendered = if (type.nullable && !renderedWithArguments.endsWith("?")) {
-            "$renderedWithArguments?"
-        } else {
-            renderedWithArguments
-        }
-        return ResolvedType(
-            renderedType = rendered,
-            imports = base.imports + resolvedArguments.flatMap { it.imports },
-        )
-    }
-
-    private fun resolveBase(tokenText: String, typeRegistry: Map<String, String>): ResolvedType {
-        if (tokenText in builtInTypeNames) {
-            return ResolvedType(tokenText)
-        }
-
-        if (tokenText.contains('.')) {
-            return ResolvedType(
-                renderedType = tokenText.substringAfterLast('.'),
-                imports = setOf(tokenText),
-            )
-        }
-
-        val registryFqn = typeRegistry[tokenText]
-        if (registryFqn != null) {
-            return ResolvedType(
-                renderedType = tokenText,
-                imports = setOf(registryFqn),
-            )
-        }
-
-        return ResolvedType(tokenText)
-    }
-}
-
-private object ValueObjectTypeParser {
-    fun parse(type: String): ParsedType {
-        val input = type.trim()
-        require(input.isNotEmpty()) { "type must not be blank" }
-
-        val parser = Parser(input)
-        val parsed = parser.parseType()
-        parser.skipWhitespace()
-        if (!parser.isAtEnd()) {
-            parser.failMismatchedAngles()
-        }
-        return parsed
-    }
-
-    private class Parser(
-        private val input: String,
-    ) {
-        private var index = 0
-
-        fun parseType(): ParsedType {
-            skipWhitespace()
-            val tokenText = parseTokenText()
-            skipWhitespace()
-
-            val arguments = if (peek() == '<') {
-                index++
-                parseArguments()
-            } else {
-                emptyList()
-            }
-
-            skipWhitespace()
-            val nullable = if (peek() == '?') {
-                index++
-                true
-            } else {
-                false
-            }
-
-            return ParsedType(
-                tokenText = tokenText,
-                nullable = nullable,
-                arguments = arguments,
-            )
-        }
-
-        private fun parseArguments(): List<ParsedType> {
-            val arguments = mutableListOf<ParsedType>()
-            skipWhitespace()
-            if (peek() == '>') {
-                failEmptyGenericArgument()
-            }
-
-            while (true) {
-                skipWhitespace()
-                if (peek() == ',' || peek() == '>') {
-                    failEmptyGenericArgument()
-                }
-                arguments += parseType()
-                skipWhitespace()
-                when (peek()) {
-                    ',' -> {
-                        index++
-                        skipWhitespace()
-                        if (peek() == ',' || peek() == '>') {
-                            failEmptyGenericArgument()
-                        }
-                    }
-                    '>' -> {
-                        index++
-                        return arguments
-                    }
-                    null -> failMismatchedAngles()
-                    else -> failMismatchedAngles()
-                }
-            }
-        }
-
-        private fun parseTokenText(): String {
-            val start = index
-            while (true) {
-                val char = peek() ?: break
-                if (char == '<' || char == '>' || char == ',' || char == '?' || char.isWhitespace()) {
-                    break
-                }
-                index++
-            }
-            require(index > start) {
-                "expected type token in type: $input"
-            }
-            return input.substring(start, index)
-        }
-
-        fun skipWhitespace() {
-            while (peek()?.isWhitespace() == true) {
-                index++
-            }
-        }
-
-        fun isAtEnd(): Boolean = index >= input.length
-
-        private fun peek(): Char? = input.getOrNull(index)
-
-        fun failMismatchedAngles(): Nothing {
-            throw IllegalArgumentException("mismatched angle brackets in type: $input")
-        }
-
-        private fun failEmptyGenericArgument(): Nothing {
-            throw IllegalArgumentException("empty generic argument in type: $input")
-        }
     }
 }
 
@@ -579,39 +163,3 @@ private fun requireRelativeModuleRoot(config: ProjectConfig, role: String): Stri
 
     return moduleRoot
 }
-
-private fun CanonicalModel.manifestValueObjectTypeLookup(): Map<String, String> =
-    valueObjects
-        .groupBy { it.name }
-        .filterValues { matches -> matches.size == 1 }
-        .mapValues { (_, matches) ->
-            val valueObject = matches.single()
-            "${valueObject.packageName}.${valueObject.name}"
-        }
-
-private fun CanonicalModel.sharedManifestValueObjectTypeLookup(): Map<String, String> =
-    valueObjects
-        .filter { it.aggregates.isEmpty() }
-        .groupBy { it.name }
-        .filterValues { matches -> matches.size == 1 }
-        .mapValues { (_, matches) ->
-            val valueObject = matches.single()
-            "${valueObject.packageName}.${valueObject.name}"
-        }
-
-private fun CanonicalModel.aggregateLocalManifestValueObjectFqns(): Map<String, List<String>> =
-    valueObjects
-        .filter { it.aggregates.isNotEmpty() }
-        .groupBy { it.name }
-        .mapValues { (_, matches) ->
-            matches.map { valueObject -> "${valueObject.packageName}.${valueObject.name}" }.distinct()
-        }
-
-private fun CanonicalModel.strongIdTypeLookup(): Map<String, String> =
-    strongIds
-        .groupBy { it.typeName }
-        .filterValues { matches -> matches.size == 1 }
-        .mapValues { (_, matches) ->
-            val strongId = matches.single()
-            "${strongId.packageName}.${strongId.typeName}"
-        }

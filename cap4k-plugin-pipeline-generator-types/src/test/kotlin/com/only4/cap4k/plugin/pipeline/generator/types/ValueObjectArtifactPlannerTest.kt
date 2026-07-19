@@ -352,7 +352,7 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
-    fun `aggregate owned enum is not imported without value object owner context`() {
+    fun `globally unique aggregate owned enum imports without owner context`() {
         val item = ValueObjectArtifactPlanner().plan(
             config(),
             model = CanonicalModel(
@@ -381,7 +381,10 @@ class ValueObjectArtifactPlannerTest {
 
         val fields = item.context["fields"] as List<Map<*, *>>
 
-        assertEquals(emptyList<String>(), item.context["imports"])
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.carrier_resource_confirmation.enums.CarrierResourceType"),
+            item.context["imports"],
+        )
         assertEquals("CarrierResourceType", fields.single()["type"])
     }
 
@@ -429,9 +432,8 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
-    fun `owner local enum conflicts with explicit registry`() {
-        val error = assertThrows<IllegalArgumentException> {
-            ValueObjectArtifactPlanner().plan(
+    fun `owner local enum wins over explicit registry in matching owner context`() {
+        val item = ValueObjectArtifactPlanner().plan(
                 config(
                     typeRegistry = TypeRegistryConfig(
                         entries = mapOf("Status" to TypeRegistryEntry("com.acme.external.Status")),
@@ -461,15 +463,16 @@ class ValueObjectArtifactPlannerTest {
                     ),
                 ),
             )
-        }
 
-        assertEquals(true, error.message?.contains("ambiguous value object type binding for OrderSnapshot.Status"))
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.order.enums.Status"),
+            item.context["imports"],
+        )
     }
 
     @Test
-    fun `owner local enum conflicts with Strong ID`() {
-        val error = assertThrows<IllegalArgumentException> {
-            ValueObjectArtifactPlanner().plan(
+    fun `owner local enum wins over Strong ID in matching owner context`() {
+        val item = ValueObjectArtifactPlanner().plan(
                 config(),
                 CanonicalModel(
                     entities = listOf(
@@ -502,9 +505,108 @@ class ValueObjectArtifactPlannerTest {
                     ),
                 ),
             )
+
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.order.enums.Status"),
+            item.context["imports"],
+        )
+    }
+
+    @Test
+    fun `unknown short field type fails planning`() {
+        val error = assertThrows<UnknownValueObjectFieldTypeFailure> {
+            ValueObjectArtifactPlanner().plan(
+                config(typeRegistry = TypeRegistryConfig()),
+                CanonicalModel(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "Money",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            fields = listOf(FieldModel("currency", "CurrencyCode")),
+                        ),
+                    ),
+                ),
+            )
         }
 
-        assertEquals(true, error.message?.contains("ambiguous value object type binding for OrderSnapshot.Status"))
+        assertEquals(true, error.message?.contains("unknown value object field type: CurrencyCode"))
+    }
+
+    @Test
+    fun `owner local enum ignores unrelated aggregate local value object`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                entities = listOf(
+                    aggregateRootEntity(
+                        name = "Order",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                    ),
+                    aggregateRootEntity(
+                        name = "Customer",
+                        packageName = "com.acme.demo.domain.aggregates.customer",
+                    ),
+                ),
+                sharedEnums = listOf(
+                    sharedEnum(
+                        typeName = "Status",
+                        packageName = "order",
+                        aggregates = listOf("Order"),
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "Status",
+                        packageName = "com.acme.demo.domain.aggregates.customer.values",
+                        aggregates = listOf("Customer"),
+                        fields = listOf(FieldModel("code", "String")),
+                    ),
+                    ValueObjectModel(
+                        name = "OrderSnapshot",
+                        packageName = "booking",
+                        aggregates = listOf("Order"),
+                        fields = listOf(FieldModel("status", "Status")),
+                    ),
+                ),
+            ),
+        ).single { it.context["typeName"] == "OrderSnapshot" }
+
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.order.enums.Status"),
+            item.context["imports"],
+        )
+    }
+
+    @Test
+    fun `no context duplicate local short type fails ambiguous`() {
+        val error = assertThrows<AmbiguousValueObjectFieldTypeFailure> {
+            ValueObjectArtifactPlanner().plan(
+                config(),
+                CanonicalModel(
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "Snapshot",
+                            packageName = "com.acme.demo.domain.aggregates.order.values",
+                            aggregates = listOf("Order"),
+                            fields = listOf(FieldModel("code", "String")),
+                        ),
+                        ValueObjectModel(
+                            name = "Snapshot",
+                            packageName = "com.acme.demo.domain.aggregates.customer.values",
+                            aggregates = listOf("Customer"),
+                            fields = listOf(FieldModel("code", "String")),
+                        ),
+                        ValueObjectModel(
+                            name = "AuditEntry",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            fields = listOf(FieldModel("snapshot", "Snapshot")),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(true, error.message?.contains("ambiguous value object field type: Snapshot"))
     }
 
     @Test
@@ -535,7 +637,7 @@ class ValueObjectArtifactPlannerTest {
 
     @Test
     fun `matching owner ambiguity fails only when referenced`() {
-        val error = assertThrows<IllegalArgumentException> {
+        val error = assertThrows<AmbiguousValueObjectFieldTypeFailure> {
             ValueObjectArtifactPlanner().plan(
                 config(),
                 CanonicalModel(
@@ -559,7 +661,7 @@ class ValueObjectArtifactPlannerTest {
             )
         }
 
-        assertEquals(true, error.message?.contains("ambiguous local enum binding for OrderSnapshot.OrderStatus"))
+        assertEquals(true, error.message?.contains("ambiguous value object field type: OrderStatus"))
     }
 
     @Test
