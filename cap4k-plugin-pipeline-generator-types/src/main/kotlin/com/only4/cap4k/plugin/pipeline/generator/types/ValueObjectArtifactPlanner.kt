@@ -139,50 +139,96 @@ private object ValueObjectRenderModelFactory {
 }
 
 private class ValueObjectTypeBindings private constructor(
-    private val baseRegistry: Map<String, String>,
+    private val explicitRegistryFqns: Map<String, String>,
+    private val valueObjectFqns: Map<String, String>,
+    private val sharedValueObjectFqns: Map<String, String>,
+    private val aggregateLocalValueObjectFqns: Map<String, List<String>>,
+    private val strongIdFqns: Map<String, String>,
     private val sharedEnumFqns: Map<String, String>,
-    private val localEnumFqnsByAggregate: Map<String, Map<String, String>>,
+    private val localEnumFqnCandidatesByAggregate: Map<String, Map<String, List<String>>>,
 ) {
     fun registryFor(valueObject: ValueObjectModel): Map<String, String> {
         val registry = linkedMapOf<String, String>()
-        registry.putAll(baseRegistry)
-        mergeUnique(registry, sharedEnumFqns, "shared enum")
-
-        val localEnums = valueObject.ownerAggregate
-            ?.let { aggregateName -> localEnumFqnsByAggregate[aggregateName].orEmpty() }
-            .orEmpty()
-        mergeOwnerEnums(registry, localEnums, valueObject)
+        registry.putAll(explicitRegistryFqns + valueObjectFqns + strongIdFqns)
+        mergeSharedEnums(registry)
+        mergeReferencedOwnerEnums(registry, valueObject)
 
         return registry
     }
 
-    private fun mergeUnique(
-        target: MutableMap<String, String>,
-        additions: Map<String, String>,
-        sourceLabel: String,
-    ) {
-        additions.forEach { (typeName, fqn) ->
+    private fun mergeSharedEnums(target: MutableMap<String, String>) {
+        sharedEnumFqns.forEach { (typeName, fqn) ->
+            val explicitFqn = explicitRegistryFqns[typeName]
+            val strongIdFqn = strongIdFqns[typeName]
+            require(explicitFqn == null || explicitFqn == fqn) {
+                "ambiguous value object type binding for $typeName: $explicitFqn, $fqn (shared enum)"
+            }
+            require(strongIdFqn == null || strongIdFqn == fqn) {
+                "ambiguous value object type binding for $typeName: $strongIdFqn, $fqn (shared enum)"
+            }
+
             val existing = target[typeName]
             require(existing == null || existing == fqn) {
-                "ambiguous value object type binding for $typeName: $existing, $fqn ($sourceLabel)"
+                "ambiguous value object type binding for $typeName: $existing, $fqn (shared enum)"
             }
             target[typeName] = fqn
         }
     }
 
-    private fun mergeOwnerEnums(
+    private fun mergeReferencedOwnerEnums(
         target: MutableMap<String, String>,
-        additions: Map<String, String>,
         valueObject: ValueObjectModel,
     ) {
-        additions.forEach { (typeName, fqn) ->
-            val existing = target[typeName]
-            val sharedFqn = sharedEnumFqns[typeName]
-            require(existing == null || existing == fqn || existing == sharedFqn) {
-                "ambiguous value object type binding for ${valueObject.name}.$typeName: $existing, $fqn"
+        val localEnumCandidates = valueObject.ownerAggregate
+            ?.let { aggregateName -> localEnumFqnCandidatesByAggregate[aggregateName].orEmpty() }
+            .orEmpty()
+        val referencedTokenTexts = valueObject.fields
+            .flatMap { field -> ValueObjectTypeParser.parse(field.type).tokenTexts() }
+            .toSet()
+
+        localEnumCandidates
+            .filterKeys { typeName -> typeName in referencedTokenTexts }
+            .forEach { (typeName, candidates) ->
+                val distinctFqns = candidates.distinct()
+                require(distinctFqns.size == 1) {
+                    "ambiguous local enum binding for ${valueObject.name}.$typeName: ${distinctFqns.joinToString()}"
+                }
+                mergeOwnerEnum(target, typeName, distinctFqns.single(), valueObject)
             }
-            target[typeName] = fqn
+    }
+
+    private fun mergeOwnerEnum(
+        target: MutableMap<String, String>,
+        typeName: String,
+        fqn: String,
+        valueObject: ValueObjectModel,
+    ) {
+        val explicitFqn = explicitRegistryFqns[typeName]
+        val strongIdFqn = strongIdFqns[typeName]
+        val aggregateLocalValueObjectCandidates = aggregateLocalValueObjectFqns[typeName].orEmpty()
+        require(explicitFqn == null || explicitFqn == fqn) {
+            "ambiguous value object type binding for ${valueObject.name}.$typeName: $explicitFqn, $fqn"
         }
+        require(strongIdFqn == null || strongIdFqn == fqn) {
+            "ambiguous value object type binding for ${valueObject.name}.$typeName: $strongIdFqn, $fqn"
+        }
+        require(aggregateLocalValueObjectCandidates.isEmpty() || aggregateLocalValueObjectCandidates.all { it == fqn }) {
+            "ambiguous value object type binding for ${valueObject.name}.$typeName: " +
+                "${aggregateLocalValueObjectCandidates.joinToString()}, $fqn"
+        }
+
+        val existing = target[typeName]
+        val sharedEnumFqn = sharedEnumFqns[typeName]
+        val sharedValueObjectFqn = sharedValueObjectFqns[typeName]
+        require(
+            existing == null ||
+                existing == fqn ||
+                existing == sharedEnumFqn ||
+                existing == sharedValueObjectFqn,
+        ) {
+            "ambiguous value object type binding for ${valueObject.name}.$typeName: $existing, $fqn"
+        }
+        target[typeName] = fqn
     }
 
     companion object {
@@ -205,18 +251,22 @@ private class ValueObjectTypeBindings private constructor(
             )
 
             return ValueObjectTypeBindings(
-                baseRegistry = config.valueObjectTypeRegistryFqns(model),
+                explicitRegistryFqns = config.typeRegistryFqns(),
+                valueObjectFqns = model.manifestValueObjectTypeLookup(),
+                sharedValueObjectFqns = model.sharedManifestValueObjectTypeLookup(),
+                aggregateLocalValueObjectFqns = model.aggregateLocalManifestValueObjectFqns(),
+                strongIdFqns = model.strongIdTypeLookup(),
                 sharedEnumFqns = sharedCatalog.sharedEnums.associate { descriptor ->
                     descriptor.typeName to descriptor.fqn
                 },
-                localEnumFqnsByAggregate = localEnumFqnsByAggregate(model, localCatalog),
+                localEnumFqnCandidatesByAggregate = localEnumFqnCandidatesByAggregate(model, localCatalog),
             )
         }
 
-        private fun localEnumFqnsByAggregate(
+        private fun localEnumFqnCandidatesByAggregate(
             model: CanonicalModel,
             localCatalog: CanonicalEnumCatalog,
-        ): Map<String, Map<String, String>> {
+        ): Map<String, Map<String, List<String>>> {
             val aggregateRootNameByEntity = buildAggregateRootNameByEntity(model.entities)
             val entityPackagesByAggregate = model.entities
                 .groupBy { entity -> aggregateRootNameByEntity[entity.key()] ?: entity.name }
@@ -242,18 +292,12 @@ private class ValueObjectTypeBindings private constructor(
                     descriptors.map { descriptor -> aggregateName to (descriptor.typeName to descriptor.fqn) }
                 }
                 .groupBy({ it.first }, { it.second })
-                .mapValues { (_, bindings) -> collapseBindings(bindings) }
-        }
-
-        private fun collapseBindings(bindings: List<Pair<String, String>>): Map<String, String> = bindings
-            .groupBy({ it.first }, { it.second })
-            .mapValues { (typeName, fqns) ->
-                val distinctFqns = fqns.distinct()
-                require(distinctFqns.size == 1) {
-                    "ambiguous local enum binding for $typeName: ${distinctFqns.joinToString()}"
+                .mapValues { (_, bindings) ->
+                    bindings
+                        .groupBy({ it.first }, { it.second })
+                        .mapValues { (_, fqns) -> fqns.distinct() }
                 }
-                distinctFqns.single()
-            }
+        }
 
         private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
             val entitiesByKey = entities.associateBy { entity -> entity.key() }
@@ -300,6 +344,11 @@ private data class ParsedType(
     val nullable: Boolean = false,
     val arguments: List<ParsedType> = emptyList(),
 )
+
+private fun ParsedType.tokenTexts(): Set<String> = buildSet {
+    add(tokenText)
+    arguments.forEach { argument -> addAll(argument.tokenTexts()) }
+}
 
 private data class ResolvedType(
     val renderedType: String,
@@ -531,11 +580,6 @@ private fun requireRelativeModuleRoot(config: ProjectConfig, role: String): Stri
     return moduleRoot
 }
 
-private fun ProjectConfig.valueObjectTypeRegistryFqns(model: CanonicalModel): Map<String, String> =
-    typeRegistryFqns() +
-        model.manifestValueObjectTypeLookup() +
-        model.strongIdTypeLookup()
-
 private fun CanonicalModel.manifestValueObjectTypeLookup(): Map<String, String> =
     valueObjects
         .groupBy { it.name }
@@ -543,6 +587,24 @@ private fun CanonicalModel.manifestValueObjectTypeLookup(): Map<String, String> 
         .mapValues { (_, matches) ->
             val valueObject = matches.single()
             "${valueObject.packageName}.${valueObject.name}"
+        }
+
+private fun CanonicalModel.sharedManifestValueObjectTypeLookup(): Map<String, String> =
+    valueObjects
+        .filter { it.aggregates.isEmpty() }
+        .groupBy { it.name }
+        .filterValues { matches -> matches.size == 1 }
+        .mapValues { (_, matches) ->
+            val valueObject = matches.single()
+            "${valueObject.packageName}.${valueObject.name}"
+        }
+
+private fun CanonicalModel.aggregateLocalManifestValueObjectFqns(): Map<String, List<String>> =
+    valueObjects
+        .filter { it.aggregates.isNotEmpty() }
+        .groupBy { it.name }
+        .mapValues { (_, matches) ->
+            matches.map { valueObject -> "${valueObject.packageName}.${valueObject.name}" }.distinct()
         }
 
 private fun CanonicalModel.strongIdTypeLookup(): Map<String, String> =

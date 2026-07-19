@@ -386,6 +386,183 @@ class ValueObjectArtifactPlannerTest {
     }
 
     @Test
+    fun `owner local enum supersedes shared value object fallback`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                entities = listOf(
+                    aggregateRootEntity(
+                        name = "Order",
+                        packageName = "com.acme.demo.domain.aggregates.order",
+                    ),
+                ),
+                sharedEnums = listOf(
+                    sharedEnum(
+                        typeName = "Status",
+                        packageName = "order",
+                        aggregates = listOf("Order"),
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "Status",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        fields = listOf(FieldModel("code", "String")),
+                    ),
+                    ValueObjectModel(
+                        name = "OrderSnapshot",
+                        packageName = "booking",
+                        aggregates = listOf("Order"),
+                        fields = listOf(FieldModel("status", "Status")),
+                    ),
+                ),
+            ),
+        ).single { it.context["typeName"] == "OrderSnapshot" }
+
+        val fields = item.context["fields"] as List<Map<*, *>>
+
+        assertEquals(
+            listOf("com.acme.demo.domain.aggregates.order.enums.Status"),
+            item.context["imports"],
+        )
+        assertEquals("Status", fields.single()["type"])
+    }
+
+    @Test
+    fun `owner local enum conflicts with explicit registry`() {
+        val error = assertThrows<IllegalArgumentException> {
+            ValueObjectArtifactPlanner().plan(
+                config(
+                    typeRegistry = TypeRegistryConfig(
+                        entries = mapOf("Status" to TypeRegistryEntry("com.acme.external.Status")),
+                    ),
+                ),
+                CanonicalModel(
+                    entities = listOf(
+                        aggregateRootEntity(
+                            name = "Order",
+                            packageName = "com.acme.demo.domain.aggregates.order",
+                        ),
+                    ),
+                    sharedEnums = listOf(
+                        sharedEnum(
+                            typeName = "Status",
+                            packageName = "order",
+                            aggregates = listOf("Order"),
+                        ),
+                    ),
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "OrderSnapshot",
+                            packageName = "booking",
+                            aggregates = listOf("Order"),
+                            fields = listOf(FieldModel("status", "Status")),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(true, error.message?.contains("ambiguous value object type binding for OrderSnapshot.Status"))
+    }
+
+    @Test
+    fun `owner local enum conflicts with Strong ID`() {
+        val error = assertThrows<IllegalArgumentException> {
+            ValueObjectArtifactPlanner().plan(
+                config(),
+                CanonicalModel(
+                    entities = listOf(
+                        aggregateRootEntity(
+                            name = "Order",
+                            packageName = "com.acme.demo.domain.aggregates.order",
+                        ),
+                    ),
+                    sharedEnums = listOf(
+                        sharedEnum(
+                            typeName = "Status",
+                            packageName = "order",
+                            aggregates = listOf("Order"),
+                        ),
+                    ),
+                    strongIds = listOf(
+                        StrongIdModel(
+                            typeName = "Status",
+                            packageName = "com.acme.demo.domain.shared.ids",
+                            kind = StrongIdKind.REFERENCE,
+                        ),
+                    ),
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "OrderSnapshot",
+                            packageName = "booking",
+                            aggregates = listOf("Order"),
+                            fields = listOf(FieldModel("status", "Status")),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(true, error.message?.contains("ambiguous value object type binding for OrderSnapshot.Status"))
+    }
+
+    @Test
+    fun `unrelated aggregate ambiguity does not affect another value object`() {
+        val item = ValueObjectArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                entities = ambiguousOrderEntities(),
+                sharedEnums = listOf(
+                    sharedEnum(
+                        typeName = "OrderStatus",
+                        packageName = "order",
+                        aggregates = listOf("Order"),
+                    ),
+                ),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "Money",
+                        packageName = "com.acme.demo.domain.shared.values",
+                        fields = listOf(FieldModel("amount", "Int")),
+                    ),
+                ),
+            ),
+        ).single()
+
+        assertEquals(emptyList<String>(), item.context["imports"])
+    }
+
+    @Test
+    fun `matching owner ambiguity fails only when referenced`() {
+        val error = assertThrows<IllegalArgumentException> {
+            ValueObjectArtifactPlanner().plan(
+                config(),
+                CanonicalModel(
+                    entities = ambiguousOrderEntities(),
+                    sharedEnums = listOf(
+                        sharedEnum(
+                            typeName = "OrderStatus",
+                            packageName = "order",
+                            aggregates = listOf("Order"),
+                        ),
+                    ),
+                    valueObjects = listOf(
+                        ValueObjectModel(
+                            name = "OrderSnapshot",
+                            packageName = "booking",
+                            aggregates = listOf("Order"),
+                            fields = listOf(FieldModel("status", "OrderStatus")),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(true, error.message?.contains("ambiguous local enum binding for OrderSnapshot.OrderStatus"))
+    }
+
+    @Test
     fun `json value object requires at least one field`() {
         val error = assertThrows<IllegalArgumentException> {
             ValueObjectArtifactPlanner().plan(
@@ -447,6 +624,23 @@ class ValueObjectArtifactPlannerTest {
         fields = emptyList(),
         idField = FieldModel("id", "Long"),
         aggregateRoot = true,
+    )
+
+    private fun ambiguousOrderEntities(): List<EntityModel> = listOf(
+        aggregateRootEntity(
+            name = "Order",
+            packageName = "com.acme.demo.domain.aggregates.order",
+        ),
+        EntityModel(
+            name = "OrderLine",
+            packageName = "com.acme.demo.domain.aggregates.order.lines",
+            tableName = "order_line",
+            comment = "OrderLine",
+            fields = emptyList(),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = "Order",
+        ),
     )
 
     private fun config(
