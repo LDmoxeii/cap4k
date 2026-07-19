@@ -3,12 +3,15 @@ package com.only4.cap4k.plugin.pipeline.generator.types
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.CanonicalEnumCatalog
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
+import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
@@ -22,7 +25,7 @@ class ValueObjectArtifactPlanner : GeneratorProvider {
 
         val domainRoot = requireRelativeModuleRoot(config, "domain")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val typeRegistry = config.valueObjectTypeRegistryFqns(model)
+        val typeBindings = ValueObjectTypeBindings.from(config, model, artifactLayout)
 
         return model.valueObjects.map { valueObject ->
             require(valueObject.storage == ValueObjectStorage.JSON) {
@@ -31,7 +34,10 @@ class ValueObjectArtifactPlanner : GeneratorProvider {
             require(valueObject.fields.isNotEmpty()) {
                 "value object ${valueObject.name} must declare at least one field"
             }
-            val renderModel = ValueObjectRenderModelFactory.create(valueObject, typeRegistry)
+            val renderModel = ValueObjectRenderModelFactory.create(
+                valueObject,
+                typeBindings.registryFor(valueObject),
+            )
             ArtifactPlanItem(
                 generatorId = id,
                 moduleRole = "domain",
@@ -131,6 +137,151 @@ private object ValueObjectRenderModelFactory {
         )
     }
 }
+
+private class ValueObjectTypeBindings private constructor(
+    private val baseRegistry: Map<String, String>,
+    private val sharedEnumFqns: Map<String, String>,
+    private val localEnumFqnsByAggregate: Map<String, Map<String, String>>,
+) {
+    fun registryFor(valueObject: ValueObjectModel): Map<String, String> {
+        val registry = linkedMapOf<String, String>()
+        registry.putAll(baseRegistry)
+        mergeUnique(registry, sharedEnumFqns, "shared enum")
+
+        val localEnums = valueObject.ownerAggregate
+            ?.let { aggregateName -> localEnumFqnsByAggregate[aggregateName].orEmpty() }
+            .orEmpty()
+        mergeOwnerEnums(registry, localEnums, valueObject)
+
+        return registry
+    }
+
+    private fun mergeUnique(
+        target: MutableMap<String, String>,
+        additions: Map<String, String>,
+        sourceLabel: String,
+    ) {
+        additions.forEach { (typeName, fqn) ->
+            val existing = target[typeName]
+            require(existing == null || existing == fqn) {
+                "ambiguous value object type binding for $typeName: $existing, $fqn ($sourceLabel)"
+            }
+            target[typeName] = fqn
+        }
+    }
+
+    private fun mergeOwnerEnums(
+        target: MutableMap<String, String>,
+        additions: Map<String, String>,
+        valueObject: ValueObjectModel,
+    ) {
+        additions.forEach { (typeName, fqn) ->
+            val existing = target[typeName]
+            val sharedFqn = sharedEnumFqns[typeName]
+            require(existing == null || existing == fqn || existing == sharedFqn) {
+                "ambiguous value object type binding for ${valueObject.name}.$typeName: $existing, $fqn"
+            }
+            target[typeName] = fqn
+        }
+    }
+
+    companion object {
+        fun from(
+            config: ProjectConfig,
+            model: CanonicalModel,
+            artifactLayout: ArtifactLayoutResolver,
+        ): ValueObjectTypeBindings {
+            val sharedDefinitions = model.sharedEnums.filter { it.aggregates.isEmpty() }
+            val localDefinitions = model.sharedEnums.filter { it.aggregates.isNotEmpty() }
+            val sharedCatalog = CanonicalEnumCatalog.from(
+                model.copy(sharedEnums = sharedDefinitions),
+                artifactLayout,
+                emptyMap(),
+            )
+            val localCatalog = CanonicalEnumCatalog.from(
+                model.copy(sharedEnums = localDefinitions),
+                artifactLayout,
+                emptyMap(),
+            )
+
+            return ValueObjectTypeBindings(
+                baseRegistry = config.valueObjectTypeRegistryFqns(model),
+                sharedEnumFqns = sharedCatalog.sharedEnums.associate { descriptor ->
+                    descriptor.typeName to descriptor.fqn
+                },
+                localEnumFqnsByAggregate = localEnumFqnsByAggregate(model, localCatalog),
+            )
+        }
+
+        private fun localEnumFqnsByAggregate(
+            model: CanonicalModel,
+            localCatalog: CanonicalEnumCatalog,
+        ): Map<String, Map<String, String>> {
+            val aggregateRootNameByEntity = buildAggregateRootNameByEntity(model.entities)
+            val entityPackagesByAggregate = model.entities
+                .groupBy { entity -> aggregateRootNameByEntity[entity.key()] ?: entity.name }
+                .mapValues { (_, entities) -> entities.map { entity -> entity.packageName }.distinct() }
+
+            return model.sharedEnums
+                .filter { definition -> definition.aggregates.isNotEmpty() }
+                .flatMap { definition ->
+                    val aggregateName = requireNotNull(definition.aggregates.singleOrNull()) {
+                        "enum ${definition.typeName} may declare at most one aggregate"
+                    }
+                    val ownerPackages = entityPackagesByAggregate[aggregateName].orEmpty()
+                        .ifEmpty { listOf(aggregateName) }
+                    val descriptors = ownerPackages.mapNotNull { ownerPackage ->
+                        localCatalog.localEnums.singleOrNull { descriptor ->
+                            descriptor.ownerPackageName == ownerPackage && descriptor.typeName == definition.typeName
+                        }
+                    }.ifEmpty {
+                        localCatalog.localEnums.filter { descriptor ->
+                            descriptor.ownerScope == aggregateName && descriptor.typeName == definition.typeName
+                        }
+                    }
+                    descriptors.map { descriptor -> aggregateName to (descriptor.typeName to descriptor.fqn) }
+                }
+                .groupBy({ it.first }, { it.second })
+                .mapValues { (_, bindings) -> collapseBindings(bindings) }
+        }
+
+        private fun collapseBindings(bindings: List<Pair<String, String>>): Map<String, String> = bindings
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (typeName, fqns) ->
+                val distinctFqns = fqns.distinct()
+                require(distinctFqns.size == 1) {
+                    "ambiguous local enum binding for $typeName: ${distinctFqns.joinToString()}"
+                }
+                distinctFqns.single()
+            }
+
+        private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
+            val byName = entities.associateBy { entity -> entity.name }
+            val result = linkedMapOf<EntityKey, String>()
+
+            fun resolve(entity: EntityModel): String {
+                val key = entity.key()
+                result[key]?.let { return it }
+                val rootName = entity.parentEntityName
+                    ?.let { parentName -> byName[parentName] }
+                    ?.let { parent -> resolve(parent) }
+                    ?: entity.name
+                result[key] = rootName
+                return rootName
+            }
+
+            entities.forEach { entity -> resolve(entity) }
+            return result
+        }
+    }
+}
+
+private data class EntityKey(
+    val packageName: String,
+    val name: String,
+)
+
+private fun EntityModel.key(): EntityKey = EntityKey(packageName = packageName, name = name)
 
 private data class ParsedType(
     val tokenText: String,
