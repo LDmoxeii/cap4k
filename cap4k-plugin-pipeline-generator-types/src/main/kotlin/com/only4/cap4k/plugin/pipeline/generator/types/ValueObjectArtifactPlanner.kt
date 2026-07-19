@@ -256,22 +256,34 @@ private class ValueObjectTypeBindings private constructor(
             }
 
         private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<EntityKey, String> {
-            val byName = entities.associateBy { entity -> entity.name }
-            val result = linkedMapOf<EntityKey, String>()
+            val entitiesByKey = entities.associateBy { entity -> entity.key() }
+            val entitiesByName = entities.groupBy { entity -> entity.name }
+            val resolving = mutableSetOf<EntityKey>()
+            val resolved = linkedMapOf<EntityKey, String>()
 
             fun resolve(entity: EntityModel): String {
                 val key = entity.key()
-                result[key]?.let { return it }
-                val rootName = entity.parentEntityName
-                    ?.let { parentName -> byName[parentName] }
-                    ?.let { parent -> resolve(parent) }
-                    ?: entity.name
-                result[key] = rootName
+                resolved[key]?.let { return it }
+                if (!resolving.add(key)) {
+                    return entity.name
+                }
+                val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
+                val rootName = when {
+                    entity.aggregateRoot -> entity.name
+                    parentEntityName == null -> entity.name
+                    else -> {
+                        val parent = entitiesByKey[EntityKey(entity.packageName, parentEntityName)]
+                            ?: entitiesByName[parentEntityName]?.singleOrNull()
+                        parent?.let { resolve(it) } ?: entity.name
+                    }
+                }
+                resolving.remove(key)
+                resolved[key] = rootName
                 return rootName
             }
 
             entities.forEach { entity -> resolve(entity) }
-            return result
+            return resolved
         }
     }
 }
