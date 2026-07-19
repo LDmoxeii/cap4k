@@ -30,7 +30,7 @@ create table media_processing_task (
 
 comment on table video_post is '@AggregateRoot=true;';
 comment on column video_post.id is '@Id;';
-comment on table video_post_item is '@Parent=video_post;@VO;';
+comment on table video_post_item is '@Parent=video_post;';
 comment on table user_profile is '@AggregateRoot=true;';
 comment on column user_profile.id is '@Id;';
 comment on table content is '@AggregateRoot=true;';

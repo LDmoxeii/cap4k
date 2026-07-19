@@ -35,6 +35,100 @@ class DbTableAnnotationParserTest {
     }
 
     @Test
+    fun `parser rejects unsupported table annotation generically`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("Video post @CustomMarker;")
+        }
+
+        assertEquals(
+            "unsupported table annotation @CustomMarker. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `parser rejects value object table annotations through generic unsupported annotation path`() {
+        val shortError = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@VO;")
+        }
+        val longError = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@ValueObject;")
+        }
+
+        assertEquals(
+            "unsupported table annotation @VO. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
+            shortError.message,
+        )
+        assertEquals(
+            "unsupported table annotation @ValueObject. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
+            longError.message,
+        )
+    }
+
+    @Test
+    fun `parser extracts table parent annotation`() {
+        val metadata = DbTableAnnotationParser.parse("@Parent=video_post;")
+
+        assertEquals("video_post", metadata.parentTable)
+        assertEquals(false, metadata.aggregateRoot)
+        assertEquals("", metadata.cleanedComment)
+    }
+
+    @Test
+    fun `parser extracts short table parent alias with explicit aggregate root false`() {
+        val metadata = DbTableAnnotationParser.parse("@P=video_post;@Root=false;")
+
+        assertEquals("video_post", metadata.parentTable)
+        assertEquals(false, metadata.aggregateRoot)
+        assertEquals("", metadata.cleanedComment)
+    }
+
+    @Test
+    fun `parser rejects conflicting aggregate root aliases`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@AggregateRoot=true;@R=false;")
+        }
+
+        assertEquals("conflicting @AggregateRoot/@Root/@R annotations on the same table comment.", error.message)
+    }
+
+    @Test
+    fun `parser rejects blank parent value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@Parent=;")
+        }
+
+        assertEquals("blank @Parent/@P value is not allowed.", error.message)
+    }
+
+    @Test
+    fun `parser rejects valueless parent annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@Parent;")
+        }
+
+        assertEquals("missing value for @Parent/@P annotation.", error.message)
+    }
+
+    @Test
+    fun `parser rejects parent combined with explicit aggregate root true`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@Parent=video_post;@AggregateRoot=true;")
+        }
+
+        assertEquals("conflicting table relation annotations: @Parent/@P cannot be combined with @AggregateRoot=true.", error.message)
+    }
+
+    @Test
+    fun `parser rejects malformed aggregate root boolean`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@AggregateRoot=maybe;")
+        }
+
+        assertEquals("invalid @AggregateRoot/@Root/@R boolean value: maybe", error.message)
+    }
+
+    @Test
     fun `parser rejects malformed dynamic insert value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@DynamicInsert=maybe;")
@@ -75,37 +169,37 @@ class DbTableAnnotationParserTest {
     }
 
     @Test
-    fun `parser rejects legacy soft delete column annotation with migration message`() {
+    fun `parser rejects unsupported table soft delete marker generically`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@SoftDeleteColumn=deleted;")
         }
 
         assertEquals(
-            "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead",
+            "unsupported table annotation @SoftDeleteColumn. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
             error.message,
         )
     }
 
     @Test
-    fun `parser rejects legacy id generator annotation`() {
+    fun `parser rejects unsupported table id generator marker generically`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;")
         }
 
         assertEquals(
-            "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead",
+            "unsupported table annotation @IdGenerator. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
             error.message,
         )
     }
 
     @Test
-    fun `parser rejects legacy id generator alias annotation`() {
+    fun `parser rejects unsupported table id generator alias marker generically`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("Video post root @AggregateRoot=true;@IG=snowflakeIdGenerator;")
         }
 
         assertEquals(
-            "unsupported table annotation @IG: use @GeneratedValue on the ID column instead",
+            "unsupported table annotation @IG. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
             error.message,
         )
     }

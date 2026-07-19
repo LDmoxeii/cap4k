@@ -70,7 +70,6 @@ data class DbTableSnapshot(
     val uniqueConstraints: List<UniqueConstraintModel>,
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
-    val valueObject: Boolean = false,
     val dynamicInsert: Boolean? = null,
     val dynamicUpdate: Boolean? = null,
 )
@@ -290,7 +289,6 @@ data class EntityModel(
     val idField: FieldModel,
     val uniqueConstraints: List<UniqueConstraintModel> = emptyList(),
     val aggregateRoot: Boolean = true,
-    val valueObject: Boolean = false,
     val parentEntityName: String? = null,
 )
 

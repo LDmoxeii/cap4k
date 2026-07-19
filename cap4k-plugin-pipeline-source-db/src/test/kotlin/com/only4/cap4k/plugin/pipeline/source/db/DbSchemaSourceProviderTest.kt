@@ -129,7 +129,7 @@ class DbSchemaSourceProviderTest {
                     """.trimIndent()
                 )
                 statement.execute("comment on table video_post is 'Video post root @AggregateRoot=true;'")
-                statement.execute("comment on table video_post_item is 'Video post item @Parent=video_post;@VO;'")
+                statement.execute("comment on table video_post_item is 'Video post item @Parent=video_post;'")
             }
         }
 
@@ -161,7 +161,6 @@ class DbSchemaSourceProviderTest {
 
         assertEquals(true, rootTable.aggregateRoot)
         assertEquals("video_post", childTable.parentTable)
-        assertEquals(true, childTable.valueObject)
         assertEquals("Video post root", rootTable.comment)
         assertEquals("Video post item", childTable.comment)
         assertFalse(rootTable.comment.contains("@AggregateRoot"))
@@ -596,7 +595,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `db source rejects legacy soft delete column table annotation`() {
+    fun `db source rejects unsupported table soft delete annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-legacy-soft-delete-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -639,13 +638,13 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead",
+            "unsupported table annotation @SoftDeleteColumn. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
             error.message,
         )
     }
 
     @Test
-    fun `db source rejects legacy table level entity id generator`() {
+    fun `db source rejects unsupported table id generator annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-entity-id-generator;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -688,7 +687,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead",
+            "unsupported table annotation @IdGenerator. Supported table annotations: @Parent/@P, @AggregateRoot/@Root/@R, @Ignore/@I, @DynamicInsert, @DynamicUpdate.",
             error.message,
         )
     }

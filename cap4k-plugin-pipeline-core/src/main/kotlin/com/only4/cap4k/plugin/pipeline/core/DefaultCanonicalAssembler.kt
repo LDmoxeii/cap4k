@@ -198,7 +198,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     idField = idField,
                     uniqueConstraints = table.uniqueConstraints,
                     aggregateRoot = table.aggregateRoot,
-                    valueObject = table.valueObject,
                     parentEntityName = when {
                         parentTable == null -> null
                         aggregatePolicy == UnsupportedTablePolicy.SKIP &&
