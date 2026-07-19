@@ -4,6 +4,11 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignImportPlan
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignRenderedTypeModel
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignResolvedTypeKind
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignResolvedTypeModel
+import com.only4.cap4k.plugin.pipeline.generator.common.types.EXPLICIT_FQCN_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.PROJECT_TYPE_REGISTRY_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolSelector
 
 internal object ImportResolver {
 
@@ -40,10 +45,10 @@ internal object ImportResolver {
     fun plan(
         types: List<DesignResolvedTypeModel>,
         innerTypeNames: Set<String> = emptySet(),
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
         aggregateContext: List<String> = emptyList(),
     ): DesignImportPlan {
-        val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
+        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             types.flatMap(::collectExplicitSymbols).forEach(merged::register)
         }
 
@@ -63,19 +68,19 @@ internal object ImportResolver {
     internal fun resolve(
         type: DesignResolvedTypeModel,
         innerTypeNames: Set<String> = emptySet(),
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
         aggregateContext: List<String> = emptyList(),
     ): ImportResolutionResult {
-        val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
+        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             collectExplicitSymbols(type).forEach(merged::register)
         }
         return render(type, registry, innerTypeNames, aggregateContext)
     }
 
-    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<SymbolIdentity> {
+    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<TypeSymbolIdentity> {
         val own = if (type.kind == DesignResolvedTypeKind.EXPLICIT_FQCN) {
             listOf(
-                SymbolIdentity(
+                TypeSymbolIdentity(
                     packageName = type.rawText.substringBeforeLast('.', missingDelimiterValue = ""),
                     typeName = type.simpleName,
                     source = EXPLICIT_FQCN_SOURCE,
@@ -90,7 +95,7 @@ internal object ImportResolver {
 
     private fun render(
         type: DesignResolvedTypeModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
         aggregateContext: List<String>,
     ): ImportResolutionResult {
@@ -123,7 +128,7 @@ internal object ImportResolver {
 
     private fun resolveBase(
         type: DesignResolvedTypeModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
         aggregateContext: List<String>,
     ): ImportResolutionResult {
@@ -159,7 +164,7 @@ internal object ImportResolver {
             }
 
             DesignResolvedTypeKind.UNRESOLVED -> {
-                val selectedCandidates = selectShortTypeCandidates(
+                val selectedCandidates = TypeSymbolSelector.selectShortNameCandidates(
                     candidates = symbolRegistry.findBySimpleName(type.simpleName),
                     aggregateContext = aggregateContext,
                 )
@@ -180,33 +185,6 @@ internal object ImportResolver {
                 }
             }
         }
-    }
-
-    private fun selectShortTypeCandidates(
-        candidates: List<SymbolIdentity>,
-        aggregateContext: List<String>,
-    ): List<SymbolIdentity> {
-        val uniqueCandidates = candidates.distinctBy { it.fqcn }
-        val singleAggregate = singleAggregateContext(aggregateContext)
-        if (singleAggregate != null) {
-            val localManifestCandidates = uniqueCandidates.filter { candidate ->
-                candidate.manifestOwned &&
-                    !candidate.shared &&
-                    candidate.ownerAggregateName == singleAggregate
-            }
-            if (localManifestCandidates.isNotEmpty()) {
-                return localManifestCandidates
-            }
-        }
-        return uniqueCandidates
-    }
-
-    private fun singleAggregateContext(aggregateContext: List<String>): String? {
-        val names = aggregateContext
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .distinct()
-        return names.singleOrNull()
     }
 
     internal sealed class ShortTypeResolutionFailure(

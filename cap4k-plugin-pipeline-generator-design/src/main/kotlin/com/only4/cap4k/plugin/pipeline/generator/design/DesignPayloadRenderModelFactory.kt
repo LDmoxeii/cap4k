@@ -3,12 +3,12 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
-import com.only4.cap4k.plugin.pipeline.generator.design.types.AGGREGATE_SOURCE
-import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
-import com.only4.cap4k.plugin.pipeline.generator.design.types.EXPLICIT_FQCN_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.AGGREGATE_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.EXPLICIT_FQCN_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
-import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
 internal object DesignPayloadRenderModelFactory {
@@ -55,7 +55,7 @@ internal object DesignPayloadRenderModelFactory {
     fun createForCommandBlock(
         packageName: String,
         block: DesignBlockModel,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
         siblingTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
@@ -72,7 +72,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName: String,
         block: DesignBlockModel,
         pageRequest: Boolean,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
         siblingTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
@@ -89,7 +89,7 @@ internal object DesignPayloadRenderModelFactory {
     fun createForClientBlock(
         packageName: String,
         block: DesignBlockModel,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
         siblingTypeNames: Set<String> = emptySet(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
@@ -106,7 +106,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName: String,
         block: DesignBlockModel,
         pageRequest: Boolean,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
         typeName = block.apiPayloadTypeName(),
@@ -122,7 +122,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName: String,
         block: DesignBlockModel,
         aggregate: EntityModel,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
         typeName = block.domainEventTypeName(),
@@ -138,7 +138,7 @@ internal object DesignPayloadRenderModelFactory {
     fun createForIntegrationEventBlock(
         packageName: String,
         block: DesignBlockModel,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
         typeName = block.integrationEventTypeName(),
@@ -152,7 +152,7 @@ internal object DesignPayloadRenderModelFactory {
     fun createForSagaBlock(
         packageName: String,
         block: DesignBlockModel,
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
         typeName = block.name,
@@ -169,7 +169,7 @@ internal object DesignPayloadRenderModelFactory {
         description: String,
         fields: List<FieldModel>,
         resultFields: List<FieldModel>,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
         pageRequest: Boolean = false,
@@ -201,7 +201,7 @@ internal object DesignPayloadRenderModelFactory {
         aggregatePackageName: String?,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
         pageRequest: Boolean = false,
@@ -325,14 +325,14 @@ internal object DesignPayloadRenderModelFactory {
         aggregatePackageName: String?,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
-        symbolRegistry: DesignSymbolRegistry,
-    ): DesignSymbolRegistry {
-        val registry = DesignSymbolRegistry(symbolRegistry.allSymbols())
+        symbolRegistry: TypeSymbolRegistry,
+    ): TypeSymbolRegistry {
+        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols())
         val resolvedAggregateName = aggregateName?.takeIf { it.isNotBlank() }
         val resolvedAggregatePackageName = aggregatePackageName?.takeIf { it.isNotBlank() }
         if (resolvedAggregateName != null && resolvedAggregatePackageName != null) {
             registry.register(
-                SymbolIdentity(
+                TypeSymbolIdentity(
                     packageName = resolvedAggregatePackageName,
                     typeName = resolvedAggregateName,
                     moduleRole = "domain",
@@ -348,10 +348,10 @@ internal object DesignPayloadRenderModelFactory {
         return registry
     }
 
-    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<SymbolIdentity> {
+    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<TypeSymbolIdentity> {
         val own = if (type.kind == DesignResolvedTypeKind.EXPLICIT_FQCN) {
             listOf(
-                SymbolIdentity(
+                TypeSymbolIdentity(
                     packageName = type.rawText.substringBeforeLast('.', missingDelimiterValue = ""),
                     typeName = type.simpleName,
                     source = EXPLICIT_FQCN_SOURCE,
@@ -367,7 +367,7 @@ internal object DesignPayloadRenderModelFactory {
     private fun validateNamespaceTypes(
         namespace: String,
         model: NamespaceModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
         aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
@@ -380,7 +380,7 @@ internal object DesignPayloadRenderModelFactory {
 
     private fun validateFieldType(
         field: PreparedFieldModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
         aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String>,
