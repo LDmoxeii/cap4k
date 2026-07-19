@@ -105,49 +105,42 @@ class CanonicalTypeSymbolRegistryFactoryTest {
     }
 
     @Test
-    fun `local enum ownership resolves duplicate entity names by package scoped parent`() {
-        val registry = CanonicalTypeSymbolRegistryFactory.from(
-            config = ProjectConfig(basePackage = "com.acme.demo"),
-            model = CanonicalModel(
-                entities = listOf(
-                    entity(
-                        name = "Order",
-                        packageName = "com.acme.demo.domain.aggregates.order",
-                    ),
-                    entity(
-                        name = "Item",
-                        packageName = "com.acme.demo.domain.aggregates.order",
-                        aggregateRoot = false,
-                        parentEntityName = "Order",
-                    ),
-                    entity(
-                        name = "OrderAdjustment",
-                        packageName = "com.acme.demo.domain.aggregates.order",
-                        aggregateRoot = false,
-                        parentEntityName = "Item",
-                    ),
-                    entity(
-                        name = "Customer",
-                        packageName = "com.acme.demo.domain.aggregates.customer",
-                    ),
-                    entity(
-                        name = "Item",
-                        packageName = "com.acme.demo.domain.aggregates.customer",
-                        aggregateRoot = false,
-                        parentEntityName = "Customer",
-                    ),
-                ),
-                sharedEnums = listOf(
-                    enumDefinition("OrderStatus", "order", aggregates = listOf("Order")),
-                ),
-            ),
-            artifactLayout = ArtifactLayoutResolver("com.acme.demo", ArtifactLayoutConfig()),
+    fun `local enum ownership resolves duplicate entity names through package scoped parent lookup`() {
+        val orderPackage = "com.acme.demo.domain.aggregates.order"
+        val customerPackage = "com.acme.demo.domain.aggregates.customer"
+        val order = entity(name = "Order", packageName = orderPackage)
+        val orderItem = entity(
+            name = "Item",
+            packageName = orderPackage,
+            aggregateRoot = false,
+            parentEntityName = "Order",
+        )
+        val orderAdjustment = entity(
+            name = "OrderAdjustment",
+            packageName = orderPackage,
+            aggregateRoot = false,
+            parentEntityName = "Item",
+        )
+        val customer = entity(name = "Customer", packageName = customerPackage)
+        val customerItem = entity(
+            name = "Item",
+            packageName = customerPackage,
+            aggregateRoot = false,
+            parentEntityName = "Customer",
+        )
+        val customerAdjustment = entity(
+            name = "CustomerAdjustment",
+            packageName = customerPackage,
+            aggregateRoot = false,
+            parentEntityName = "Item",
         )
 
-        assertEquals(
-            listOf("com.acme.demo.domain.aggregates.order.enums.OrderStatus"),
-            registry.findBySimpleName("OrderStatus").map { it.fqcn },
+        val aggregateRoots = ManifestEntityAggregateRootResolver.resolve(
+            listOf(order, orderItem, orderAdjustment, customer, customerItem, customerAdjustment),
         )
+
+        assertEquals("Order", aggregateRoots[ManifestEntityKey(orderPackage, orderAdjustment.name)])
+        assertEquals("Customer", aggregateRoots[ManifestEntityKey(customerPackage, customerAdjustment.name)])
     }
 
     private fun entity(

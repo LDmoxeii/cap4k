@@ -140,41 +140,41 @@ private class ManifestEnumCatalogSelection(
                     }
                     .toMap(),
                 entities = model.entities,
-                aggregateRootNameByEntity = buildAggregateRootNameByEntity(model.entities),
+                aggregateRootNameByEntity = ManifestEntityAggregateRootResolver.resolve(model.entities),
             )
+    }
+}
 
-        private fun buildAggregateRootNameByEntity(
-            entities: List<EntityModel>,
-        ): Map<ManifestEntityKey, String> {
-            val entitiesByKey = entities.associateBy { it.key() }
-            val entitiesByName = entities.groupBy { it.name }
-            val resolving = mutableSetOf<ManifestEntityKey>()
-            val resolved = linkedMapOf<ManifestEntityKey, String>()
+internal object ManifestEntityAggregateRootResolver {
+    fun resolve(entities: List<EntityModel>): Map<ManifestEntityKey, String> {
+        val entitiesByKey = entities.associateBy { it.key() }
+        val entitiesByName = entities.groupBy { it.name }
+        val resolving = mutableSetOf<ManifestEntityKey>()
+        val resolved = linkedMapOf<ManifestEntityKey, String>()
 
-            fun resolve(entity: EntityModel): String {
-                val key = entity.key()
-                resolved[key]?.let { return it }
-                if (!resolving.add(key)) {
-                    return entity.name
-                }
-                val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
-                val rootName = when {
-                    entity.aggregateRoot -> entity.name
-                    parentEntityName == null -> entity.name
-                    else -> {
-                        val parent = entitiesByKey[ManifestEntityKey(entity.packageName, parentEntityName)]
-                            ?: entitiesByName[parentEntityName]?.singleOrNull()
-                        parent?.let { resolve(it) } ?: entity.name
-                    }
-                }
-                resolving.remove(key)
-                resolved[key] = rootName
-                return rootName
+        fun resolveEntity(entity: EntityModel): String {
+            val key = entity.key()
+            resolved[key]?.let { return it }
+            if (!resolving.add(key)) {
+                return entity.name
             }
-
-            entities.forEach { resolve(it) }
-            return resolved
+            val parentEntityName = entity.parentEntityName?.takeIf { it.isNotBlank() }
+            val rootName = when {
+                entity.aggregateRoot -> entity.name
+                parentEntityName == null -> entity.name
+                else -> {
+                    val parent = entitiesByKey[ManifestEntityKey(entity.packageName, parentEntityName)]
+                        ?: entitiesByName[parentEntityName]?.singleOrNull()
+                    parent?.let(::resolveEntity) ?: entity.name
+                }
+            }
+            resolving.remove(key)
+            resolved[key] = rootName
+            return rootName
         }
+
+        entities.forEach(::resolveEntity)
+        return resolved
     }
 }
 
@@ -183,7 +183,7 @@ private data class ManifestLocalEnumKey(
     val typeName: String,
 )
 
-private data class ManifestEntityKey(
+internal data class ManifestEntityKey(
     val packageName: String,
     val name: String,
 )
