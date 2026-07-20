@@ -378,6 +378,7 @@ data class ResolvedManagedFieldPolicy(
     val columnName: String,
     val writePolicy: SpecialFieldWritePolicy,
     val source: SpecialFieldSource,
+    val managedRole: DbManagedRole? = null,
 )
 
 data class ResolvedWriteSurfacePolicy(

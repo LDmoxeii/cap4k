@@ -421,7 +421,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val primaryKeyColumn = table.primaryKey.singleOrNull() ?: return null
         val idColumn = table.columns.firstOrNull { it.name.equals(primaryKeyColumn, ignoreCase = true) }
             ?: return null
-        if (idColumn.generatedValueDeclared || idColumn.generatedValueStrategy != null) {
+        if (idColumn.idStrategy != null) {
             return null
         }
         if (!idColumn.refAggregate.isNullOrBlank() || !idColumn.refId.isNullOrBlank()) {

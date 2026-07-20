@@ -16,7 +16,7 @@ internal object AggregatePersistenceProviderInference {
             val table = tableByName[policy.tableName.lowercase(Locale.ROOT)] ?: return@mapNotNull null
             val softDeleteColumn = if (policy.deleted.enabled) policy.deleted.columnName else null
             val versionFieldName = if (policy.version.enabled) policy.version.fieldName else null
-            if (table.dynamicInsert == null && table.dynamicUpdate == null && softDeleteColumn == null && versionFieldName == null) {
+            if (softDeleteColumn == null && versionFieldName == null) {
                 return@mapNotNull null
             }
 
@@ -24,8 +24,6 @@ internal object AggregatePersistenceProviderInference {
                 entityName = policy.entityName,
                 entityPackageName = policy.entityPackageName,
                 tableName = policy.tableName,
-                dynamicInsert = table.dynamicInsert,
-                dynamicUpdate = table.dynamicUpdate,
                 softDeleteColumn = softDeleteColumn,
                 idFieldName = policy.id.fieldName,
                 versionFieldName = versionFieldName,

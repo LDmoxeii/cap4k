@@ -1,6 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
+import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import java.util.Locale
@@ -20,13 +22,9 @@ internal object AggregatePersistenceFieldBehaviorInference {
                 valueTransform = { it.name },
             )
             table.columns.mapNotNull { column ->
-                val hasExplicitControl =
-                    column.generatedValueStrategy != null ||
-                        column.version != null ||
-                        column.managed != null ||
-                        column.exposed != null ||
-                        column.insertable != null ||
-                        column.updatable != null
+                val generatedValueStrategy = column.idStrategy?.toPersistenceStrategy()
+                val version = (column.managedRole == DbManagedRole.VERSION).takeIf { it }
+                val hasExplicitControl = generatedValueStrategy != null || version != null
                 if (!hasExplicitControl) {
                     return@mapNotNull null
                 }
@@ -38,12 +36,14 @@ internal object AggregatePersistenceFieldBehaviorInference {
                         "missing canonical entity field identity for ${entity.name}.${column.name}"
                     },
                     columnName = column.name,
-                    generatedValueStrategy = column.generatedValueStrategy,
-                    version = column.version,
-                    insertable = column.insertable,
-                    updatable = column.updatable,
+                    generatedValueStrategy = generatedValueStrategy,
+                    version = version,
                 )
             }
         }
+    }
+
+    private fun DbIdStrategy.toPersistenceStrategy(): String = when (this) {
+        DbIdStrategy.DB_IDENTITY -> "IDENTITY"
     }
 }
