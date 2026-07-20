@@ -3862,6 +3862,87 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `owned parent binding fails without parent ref`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post_item",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("missing parent reference column for table: video_post_item", error.message)
+    }
+
+    @Test
+    fun `owned parent binding fails with more than one parent ref`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post_item",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                            column("source_video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "ambiguous parent reference columns for table video_post_item: source_video_post_id, video_post_id",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `owned parent binding ignores weak reference metadata without parent ref`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    ),
+                    table(
+                        name = "video_post_item",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, refAggregate = "VideoPost"),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("missing parent reference column for table: video_post_item", error.message)
+    }
+
+    @Test
     fun `assembler keeps owned direct parent ref inside parent owned relation contract`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -5497,6 +5578,7 @@ class DefaultCanonicalAssemblerTest {
         version: Boolean? = null,
         managed: Boolean? = null,
         exposed: Boolean? = null,
+        parentRef: Boolean = false,
         refAggregate: String? = null,
         refId: String? = null,
     ): DbColumnSnapshot = DbColumnSnapshot(
@@ -5505,13 +5587,7 @@ class DefaultCanonicalAssemblerTest {
         kotlinType = kotlinType,
         nullable = nullable,
         isPrimaryKey = primaryKey,
-        referenceTable = referenceTable,
-        generatedValueDeclared = generatedValueDeclared,
-        generatedValueStrategy = generatedValueStrategy,
-        deleted = deleted,
-        version = version,
-        managed = managed,
-        exposed = exposed,
+        parentRef = parentRef,
         refAggregate = refAggregate,
         refId = refId,
     )
