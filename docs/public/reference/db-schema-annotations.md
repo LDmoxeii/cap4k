@@ -13,8 +13,6 @@ The DB comment contract is a strict, exact-name allow-list. Unsupported annotati
 | `@Parent=<table>` | Marks the table as an owned child entity table of another table. |
 | `@Ignore` | Excludes the table from generation. |
 
-Tables without `@Parent` and without `@Ignore` are aggregate-root tables.
-
 ## Column Comment Annotations
 
 | Annotation | Meaning |
@@ -26,7 +24,7 @@ Tables without `@Parent` and without `@Ignore` are aggregate-root tables.
 | `@IdStrategy=db_identity` | Marks explicit database identity semantics on a primary-key column. |
 | `@Managed=system` | Marks a framework-managed system field. |
 | `@Managed=scope` | Marks a framework-managed scope field. |
-| `@Managed=deleted` | Marks the soft-delete discriminator column. |
+| `@Managed=deleted` | Marks a framework-managed deleted field. |
 | `@Managed=version` | Marks the optimistic-lock version column. |
 | `@Inherited` | Marks a managed field that is inherited by the generated concrete entity. |
 

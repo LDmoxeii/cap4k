@@ -9,8 +9,6 @@ The DB comment contract is a strict allow-list. Do not use aliases or removed co
 - `@Parent=<table>`
 - `@Ignore`
 
-Tables without `@Parent` and without `@Ignore` are aggregate-root tables.
-
 ## Column Annotations
 
 - `@ParentRef`
