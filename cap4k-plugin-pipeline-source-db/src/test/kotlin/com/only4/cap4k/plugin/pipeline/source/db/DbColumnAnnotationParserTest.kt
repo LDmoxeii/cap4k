@@ -13,11 +13,18 @@ import kotlin.test.assertFailsWith
 class DbColumnAnnotationParserTest {
 
     @Test
-    fun `column parser accepts parent ref managed role and id strategy`() {
-        val metadata = DbColumnAnnotationParser.parse("@ParentRef;@Managed=scope;@IdStrategy=db_identity;")
+    fun `column parser accepts parent ref managed role`() {
+        val metadata = DbColumnAnnotationParser.parse("@ParentRef;@Managed=scope;")
 
         assertTrue(metadata.parentRef)
         assertEquals(DbManagedRole.SCOPE, metadata.managedRole)
+        assertNull(metadata.idStrategy)
+    }
+
+    @Test
+    fun `column parser accepts db identity id strategy`() {
+        val metadata = DbColumnAnnotationParser.parse("@IdStrategy=db_identity;")
+
         assertEquals(DbIdStrategy.DB_IDENTITY, metadata.idStrategy)
     }
 
@@ -122,6 +129,15 @@ class DbColumnAnnotationParserTest {
     fun `column parser rejects parent ref combinations`() {
         val error = assertFailsWith<IllegalArgumentException> {
             DbColumnAnnotationParser.parse("@ParentRef;@RefAggregate=VideoPost;")
+        }
+
+        assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects parent ref with id strategy`() {
+        val error = assertFailsWith<IllegalArgumentException> {
+            DbColumnAnnotationParser.parse("@ParentRef;@IdStrategy=db_identity;")
         }
 
         assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)

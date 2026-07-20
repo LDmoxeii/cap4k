@@ -53,7 +53,7 @@ internal object DbColumnAnnotationParser {
             invalidValueMessage = "invalid @Inherited annotation: explicit values are not supported.",
         )
 
-        require(!(parentRef && (refAggregate != null || refId != null))) {
+        require(!(parentRef && (refAggregate != null || refId != null || idStrategy != null))) {
             "@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy."
         }
         require(!inherited || managedRole != null) {
