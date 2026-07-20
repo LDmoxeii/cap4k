@@ -1,4 +1,4 @@
-﻿package com.only4.cap4k.plugin.pipeline.gradle
+package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.JsonParser
 import com.google.gson.JsonObject
@@ -1455,14 +1455,15 @@ class PipelinePluginFunctionalTest {
         assertFalse(rootEntityContent.contains("CascadeType.ALL"))
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
-        assertTrue(rootEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(rootEntityContent.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
-        assertTrue(rootEntityContent.contains("lateinit var author: UserProfile"))
-        assertFalse(rootEntityContent.contains("@Column(name = \"author_id\")"))
+        assertTrue(rootEntityContent.contains("import com.acme.demo.domain.aggregates.user_profile.UserProfileId"))
+        assertTrue(rootEntityContent.contains("var authorId: UserProfileId = authorId"))
+        assertTrue(rootEntityContent.contains("var coverProfileId: UserProfileId? = coverProfileId"))
+        assertFalse(rootEntityContent.contains("@JoinColumn(name = \"author_id\""))
+        assertFalse(rootEntityContent.contains("lateinit var author: UserProfile"))
         assertFalse(rootEntityContent.contains("val author_id:"))
-        assertTrue(rootEntityContent.contains("@OneToOne(fetch = FetchType.EAGER)"))
-        assertTrue(rootEntityContent.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
-        assertTrue(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
+        assertFalse(rootEntityContent.contains("@OneToOne(fetch = FetchType.EAGER)"))
+        assertFalse(rootEntityContent.contains("@JoinColumn(name = \"cover_profile_id\""))
+        assertFalse(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
         assertFalse(rootEntityContent.contains("mappedBy ="))
         assertFalse(rootEntityContent.contains("ManyToMany"))
         assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
@@ -1479,25 +1480,54 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate fails fast when owned direct parent binding declares local lazy override`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-direct-parent-lazy-override")
-        copyFixture(projectDir, "aggregate-relation-sample")
-        val schemaFile = projectDir.resolve("schema.sql")
-        schemaFile.writeText(
-            schemaFile.readText().replace(
-                "video_post_id bigint not null comment '@Reference=video_post;',",
-                "video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',",
-            )
+    fun `cap4kGenerate fails fast when parent table has no parent ref`() {
+        val result = runCap4kGenerateWithSchema(
+            """
+            create table video_post (id bigint primary key);
+            create table video_post_item (id bigint primary key, video_post_id bigint not null);
+            comment on table video_post_item is '@Parent=video_post;';
+            """.trimIndent()
         )
 
-        val result = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .buildAndFail()
-
+        assertFalse(result.success)
         assertTrue(
-            result.output.contains(
-                "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id"
-            )
+            result.output.contains("table VIDEO_POST_ITEM declares @Parent=video_post but has no @ParentRef column."),
+            result.output,
+        )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kGenerate rejects removed db annotations through generic path`() {
+        val tableResult = runCap4kGenerateWithSchema(
+            """
+            create table video_post (
+                id bigint primary key,
+                version bigint,
+                deleted boolean
+            );
+            comment on table video_post is '@AggregateRoot=true;';
+            """.trimIndent()
+        )
+        val columnResult = runCap4kGenerateWithSchema(
+            """
+            create table video_post (
+                id bigint primary key,
+                version bigint,
+                deleted boolean
+            );
+            comment on column video_post.version is '@Version;';
+            comment on column video_post.deleted is '@Deleted;';
+            """.trimIndent()
+        )
+
+        assertFalse(tableResult.success)
+        assertFalse(columnResult.success)
+        assertTrue(tableResult.output.contains("unsupported table annotation @AggregateRoot"), tableResult.output)
+        assertTrue(
+            columnResult.output.contains("unsupported column annotation @Version") ||
+                columnResult.output.contains("unsupported column annotation @Deleted"),
+            columnResult.output,
         )
     }
 
@@ -1557,8 +1587,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(applicationBuildFile == "// Functional fixture module.")
         assertTrue(adapterBuildFile == "// Functional fixture module.")
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedVideoPost.contains("@DynamicInsert"))
-        assertTrue(generatedVideoPost.contains("@DynamicUpdate"))
+        assertFalse(generatedVideoPost.contains("@DynamicInsert"))
+        assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
         assertTrue(
             generatedVideoPost.contains(
                 "@SQLDelete(sql = \"update `video_post` set `deleted` = 1 where `id` = ? and `version` = ?\")"
@@ -1585,7 +1615,7 @@ class PipelinePluginFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id bigint primary key,",
             )
         )
@@ -1636,7 +1666,7 @@ class PipelinePluginFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id uuid primary key,",
             )
         )
@@ -1673,15 +1703,13 @@ class PipelinePluginFunctionalTest {
                 id bigint primary key,
                 title varchar(128) not null
             );
-            comment on table video is '@AggregateRoot=true;';
 
             create table audit_log (
-                id bigint primary key comment '@GeneratedValue=IDENTITY;',
-                deleted int not null comment '@Deleted;',
+                id bigint primary key comment '@IdStrategy=db_identity;',
+                deleted int not null comment '@Managed=deleted;',
                 content varchar(128) not null
             );
-            comment on table audit_log is '@AggregateRoot=true;';
-            """.trimIndent()
+                        """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.writeText(
@@ -1969,7 +1997,7 @@ class PipelinePluginFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id bigint primary key,",
             ).replaceFirst(
                 "title varchar(128) not null",
@@ -3177,6 +3205,30 @@ class PipelinePluginFunctionalTest {
 
     private fun generatedSource(relativePath: String): String =
         relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
+
+    private fun runCap4kGenerateWithSchema(schema: String): GenerateResult {
+        val projectDir = Files.createTempDirectory("pipeline-functional-db-comment-contract")
+        copyFixture(projectDir, "aggregate-relation-sample")
+        projectDir.resolve("schema.sql").writeText(schema)
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """includeTables.set(listOf("video_post", "video_post_item", "user_profile"))""",
+                """includeTables.set(listOf("video_post", "video_post_item"))""",
+            )
+        )
+
+        val result = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .buildAndFail()
+
+        return GenerateResult(success = false, output = result.output)
+    }
+
+    private data class GenerateResult(
+        val success: Boolean,
+        val output: String,
+    )
 
     private fun assertAggregateElementContent(
         content: String,

@@ -180,7 +180,7 @@ class DbSchemaSourceProvider : SourceProvider {
 
         if (table.parentTable != null) {
             require(table.columns.count { it.parentRef } == 1) {
-                "table ${table.tableName} with @Parent=${table.parentTable} must declare exactly one @ParentRef"
+                "table ${table.tableName.uppercase(Locale.ROOT)} declares @Parent=${table.parentTable} but has no @ParentRef column."
             }
         }
 

@@ -5,8 +5,8 @@ import com.acme.demo.domain.aggregates.user_profile.UserProfile
 class AggregateRelationCompileSmoke {
     fun touch(entity: VideoPost, child: VideoPostItem, profile: UserProfile) {
         entity.items.forEach { it.label }
-        entity.author.nickname
-        entity.coverProfile?.nickname
+        entity.authorId
+        entity.coverProfileId
         child.videoPost.id
         profile.id
     }
