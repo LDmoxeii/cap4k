@@ -30,6 +30,17 @@ data class TypeRegistryModel(
     }
 }
 
+enum class DbManagedRole {
+    SYSTEM,
+    SCOPE,
+    DELETED,
+    VERSION,
+}
+
+enum class DbIdStrategy {
+    DB_IDENTITY,
+}
+
 data class DbColumnSnapshot(
     val name: String,
     val dbType: String,
@@ -40,20 +51,11 @@ data class DbColumnSnapshot(
     val isPrimaryKey: Boolean = false,
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
-    val referenceTable: String? = null,
-    val explicitRelationType: String? = null,
-    val lazy: Boolean? = null,
-    val countHint: String? = null,
+    val parentRef: Boolean = false,
     val refAggregate: String? = null,
     val refId: String? = null,
-    val generatedValueDeclared: Boolean = false,
-    val generatedValueStrategy: String? = null,
-    val deleted: Boolean? = null,
-    val version: Boolean? = null,
-    val managed: Boolean? = null,
-    val exposed: Boolean? = null,
-    val insertable: Boolean? = null,
-    val updatable: Boolean? = null,
+    val idStrategy: DbIdStrategy? = null,
+    val managedRole: DbManagedRole? = null,
     val inherited: Boolean? = null,
 )
 
@@ -70,8 +72,6 @@ data class DbTableSnapshot(
     val uniqueConstraints: List<UniqueConstraintModel>,
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
-    val dynamicInsert: Boolean? = null,
-    val dynamicUpdate: Boolean? = null,
 )
 
 data class DesignSpecEntry(
@@ -323,8 +323,6 @@ data class AggregatePersistenceProviderControl(
     val entityName: String,
     val entityPackageName: String,
     val tableName: String,
-    val dynamicInsert: Boolean? = null,
-    val dynamicUpdate: Boolean? = null,
     val softDeleteColumn: String? = null,
     val idFieldName: String,
     val versionFieldName: String? = null,
