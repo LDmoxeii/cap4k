@@ -175,6 +175,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeBinding = it.typeBinding,
                     enumItems = it.enumItems,
                     columnName = it.name,
+                    parentRef = it.parentRef,
+                    managedRole = it.managedRole,
                     inherited = it.inherited == true,
                 )
             }

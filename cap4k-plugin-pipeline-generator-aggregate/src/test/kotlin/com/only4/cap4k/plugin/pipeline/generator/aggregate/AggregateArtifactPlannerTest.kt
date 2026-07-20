@@ -15,6 +15,7 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
@@ -2295,7 +2296,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes provider specific persistence contract`() {
+    fun `entity planner exposes soft delete provider persistence contract`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2318,8 +2319,6 @@ class AggregateArtifactPlannerTest {
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        dynamicInsert = true,
-                        dynamicUpdate = true,
                         softDeleteColumn = "deleted",
                         idFieldName = "id",
                         versionFieldName = "version",
@@ -2328,8 +2327,8 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertEquals(true, artifact.context["dynamicInsert"])
-        assertEquals(true, artifact.context["dynamicUpdate"])
+        assertFalse(artifact.context.containsKey("dynamicInsert"))
+        assertFalse(artifact.context.containsKey("dynamicUpdate"))
         assertEquals(
             "update \"video_post\" set \"deleted\" = 1 where \"id\" = ? and \"version\" = ?",
             artifact.context["softDeleteSql"],
@@ -4368,6 +4367,136 @@ class AggregateArtifactPlannerTest {
                     ),
                     factoryContext["imports"],
                 )
+            },
+        )
+    }
+
+    @Test
+    fun `entity planner exposes structural and managed field metadata`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel(
+                    name = "tenantId",
+                    type = "Long",
+                    columnName = "tenant_id",
+                    managedRole = DbManagedRole.SCOPE,
+                ),
+                FieldModel(
+                    name = "parentId",
+                    type = "Long",
+                    columnName = "parent_id",
+                    parentRef = true,
+                ),
+                FieldModel(
+                    name = "createdBy",
+                    type = "String",
+                    columnName = "created_by",
+                    inherited = true,
+                ),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            )
+        )
+
+        val entityContext = planItems.single { it.templateId == "aggregate/entity.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val fields = entityContext["fields"] as List<Map<String, Any?>>
+
+        assertAll(
+            { assertTrue(fields.any { it["parentRef"] == true }) },
+            { assertTrue(fields.any { it["structuralParentRef"] == true }) },
+            { assertTrue(fields.any { it["managed"] == true }) },
+            { assertTrue(fields.any { it["managedRole"] == "SCOPE" }) },
+            { assertTrue(fields.any { it["inherited"] == true }) },
+        )
+    }
+
+    @Test
+    fun `factory planner marks unresolved constructor inputs explicitly`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "VideoPostId", columnName = "id"),
+                FieldModel(
+                    name = "parentId",
+                    type = "Long",
+                    columnName = "parent_id",
+                    parentRef = true,
+                ),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "VideoPostId", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = "VideoPost",
+                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        tableName = "video_post",
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "uuid7",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    ),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "VideoPostId",
+                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "VideoPost",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                    ),
+                ),
+            )
+        )
+
+        val factoryContext = planItems.single { it.templateId == "aggregate/factory.kt.peb" }.context
+
+        assertAll(
+            { assertTrue(factoryContext.containsKey("constructorMappingResolved")) },
+            { assertTrue(factoryContext.containsKey("constructorUnresolvedFields")) },
+            { assertTrue(factoryContext.containsKey("constructorStructuralFields")) },
+            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val unresolvedFields = factoryContext["constructorUnresolvedFields"] as List<Map<String, Any?>>
+                assertEquals(listOf("parentId"), unresolvedFields.map { it["name"] })
+            },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val structuralFields = factoryContext["constructorStructuralFields"] as List<Map<String, Any?>>
+                assertEquals(listOf("parentId"), structuralFields.map { it["name"] })
             },
         )
     }

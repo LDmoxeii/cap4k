@@ -32,12 +32,6 @@ package {{ packageName }}
 {% if hasConverterFields -%}
 {{ use("jakarta.persistence.Convert") -}}
 {% endif -%}
-{% if dynamicInsert -%}
-{{ use("org.hibernate.annotations.DynamicInsert") -}}
-{% endif -%}
-{% if dynamicUpdate -%}
-{{ use("org.hibernate.annotations.DynamicUpdate") -}}
-{% endif -%}
 {% if softDeleteSql -%}
 {{ use("org.hibernate.annotations.SQLDelete") -}}
 {% endif -%}
@@ -74,10 +68,6 @@ import {{ import }}
 {% endif -%}
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
-{% if dynamicInsert %}@DynamicInsert
-{% endif -%}
-{% if dynamicUpdate %}@DynamicUpdate
-{% endif -%}
 {% if softDeleteSql %}@SQLDelete(sql = "{{ softDeleteSql | replace({'"': '\"'}) | raw }}")
 {% endif -%}
 {% if softDeleteWhereClause %}@Where(clause = "{{ softDeleteWhereClause | replace({'"': '\"'}) | raw }}")

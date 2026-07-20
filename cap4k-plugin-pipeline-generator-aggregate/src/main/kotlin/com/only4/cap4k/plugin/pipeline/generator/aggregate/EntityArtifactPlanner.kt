@@ -83,8 +83,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val softDeleteWhereClause = providerControl?.softDeleteColumn?.let { column ->
                 "${quoteIdentifier(column, identifierQuoteStyle)} = 0"
             }
-            val scalarFields = entity.fields
-                .filterNot { it.inherited }
+            val fieldContexts = entity.fields
                 .mapNotNull { field ->
                     val jpa = requireNotNull(scalarJpaByField[field.name]) {
                         "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${field.name}"
@@ -173,6 +172,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "applicationSideIdStrategy" to applicationSideIdStrategy,
                             "isVersion" to isVersionField,
                             "writePolicy" to writePolicy,
+                            "parentRef" to field.parentRef,
+                            "managedRole" to field.managedRole?.name,
+                            "managed" to (field.managedRole != null),
+                            "inherited" to field.inherited,
+                            "structuralParentRef" to field.parentRef,
                             "insertable" to insertable,
                             "updatable" to updatable,
                             "attributeOverrideNullable" to field.nullable,
@@ -185,6 +189,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         )
                     }
                 }
+            val scalarFields = fieldContexts.filterNot { it["inherited"] == true }
             validateScalarTypeImportCollisions(entity, scalarFields)
             val scalarTypeImports = scalarFields.flatMap { field ->
                 (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
@@ -221,13 +226,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         it["strongId"] == true && it["embeddedId"] != true
                     },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
-                    "dynamicInsert" to (providerControl?.dynamicInsert == true),
-                    "dynamicUpdate" to (providerControl?.dynamicUpdate == true),
                     "softDeleteSql" to softDeleteSql,
                     "softDeleteWhereClause" to softDeleteWhereClause,
                     "jpaImports" to relationPlan.jpaImports,
                     "imports" to scalarImports.distinct(),
-                    "fields" to scalarFields,
+                    "fields" to fieldContexts,
                     "scalarFields" to scalarFields,
                     "relationFields" to relationPlan.relationFields,
                 ),

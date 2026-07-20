@@ -8,6 +8,8 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
+    val parentRef: Boolean = false,
+    val managedRole: DbManagedRole? = null,
     val inherited: Boolean = false,
 )
 

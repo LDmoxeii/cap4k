@@ -95,6 +95,8 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "payloadFields" to payloadFields,
                     "constructorMappingResolved" to constructorMapping.resolved,
                     "constructorPayloadFields" to constructorMapping.payloadFields,
+                    "constructorUnresolvedFields" to constructorMapping.unresolvedFields,
+                    "constructorStructuralFields" to constructorMapping.structuralFields,
                     "ownIdFieldName" to ownIdFieldName,
                     "ownIdInitializer" to ownIdInitializer,
                     "ownIdTypeRef" to ownIdTypeRef,
@@ -118,7 +120,18 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         ownStrongId: StrongIdModel?,
         payloadFields: List<Map<String, Any?>>,
     ): ConstructorMapping {
-        if (!resolved) return ConstructorMapping(resolved = false, payloadFields = emptyList())
+        val structuralFields = entity.fields
+            .filter { it.parentRef }
+            .map { field -> constructorFieldContext(entity, model, planning, field) }
+
+        if (!resolved) {
+            return ConstructorMapping(
+                resolved = false,
+                payloadFields = emptyList(),
+                unresolvedFields = emptyList(),
+                structuralFields = structuralFields,
+            )
+        }
 
         val payloadFieldNames = payloadFields.mapNotNull { it["name"] as? String }.toSet()
         val missingRequiredFields = entity.fields
@@ -136,6 +149,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
 
         if (missingRequiredFields.isNotEmpty()) {
             val blockingRequiredFields = missingRequiredFields
+                .filterNot { it.parentRef }
                 .filterNot { field -> canDeferManagedConstructorField(resolvedPolicy, field) }
             if (ownStrongId != null && blockingRequiredFields.isNotEmpty()) {
                 val fieldNames = blockingRequiredFields.joinToString(", ") { it.name }
@@ -144,10 +158,48 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                         "for required fields: $fieldNames"
                 )
             }
-            return ConstructorMapping(resolved = false, payloadFields = emptyList())
+            return ConstructorMapping(
+                resolved = false,
+                payloadFields = emptyList(),
+                unresolvedFields = missingRequiredFields.map { field ->
+                    constructorFieldContext(entity, model, planning, field)
+                },
+                structuralFields = structuralFields,
+            )
         }
 
-        return ConstructorMapping(resolved = true, payloadFields = payloadFields)
+        return ConstructorMapping(
+            resolved = true,
+            payloadFields = payloadFields,
+            unresolvedFields = emptyList(),
+            structuralFields = structuralFields,
+        )
+    }
+
+    private fun constructorFieldContext(
+        entity: EntityModel,
+        model: CanonicalModel,
+        planning: AggregateEnumPlanning,
+        field: FieldModel,
+    ): Map<String, Any?> {
+        val strongId = resolveStrongId(model, field)
+        val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
+        val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
+        return mapOf(
+            "name" to field.name,
+            "type" to fieldType,
+            "typeName" to fieldType,
+            "renderedType" to renderedType.renderedType,
+            "typeImports" to renderedType.imports,
+            "typeRef" to strongId?.fqn(),
+            "strongId" to (strongId != null),
+            "nullable" to field.nullable,
+            "parentRef" to field.parentRef,
+            "managedRole" to field.managedRole?.name,
+            "managed" to (field.managedRole != null),
+            "inherited" to field.inherited,
+            "structuralParentRef" to field.parentRef,
+        )
     }
 
     private fun canDeferManagedConstructorField(
@@ -212,5 +264,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     private data class ConstructorMapping(
         val resolved: Boolean,
         val payloadFields: List<Map<String, Any?>>,
+        val unresolvedFields: List<Map<String, Any?>>,
+        val structuralFields: List<Map<String, Any?>>,
     )
 }
