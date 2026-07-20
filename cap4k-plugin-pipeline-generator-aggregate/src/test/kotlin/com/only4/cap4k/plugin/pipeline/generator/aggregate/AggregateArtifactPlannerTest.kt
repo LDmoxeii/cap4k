@@ -4627,6 +4627,55 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `factory planner preserves unresolved constructor inputs without resolved write surface`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "VideoPostId", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+                FieldModel(
+                    name = "parentId",
+                    type = "Long",
+                    columnName = "parent_id",
+                    parentRef = true,
+                ),
+            ),
+            idField = FieldModel("id", "VideoPostId", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "VideoPostId",
+                        packageName = "com.acme.demo.domain.aggregates.video_post",
+                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        ownerAggregateName = "VideoPost",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                    ),
+                ),
+            )
+        )
+
+        val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+
+        assertAll(
+            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val unresolvedFields = factoryContext["constructorUnresolvedFields"] as List<Map<String, Any?>>
+                assertEquals(listOf("title", "parentId"), unresolvedFields.map { it["name"] })
+            },
+        )
+    }
+
+    @Test
     fun `schema planner fails fast when schema entity is ambiguous`() {
         val config = aggregateConfig()
         val primaryEntity = EntityModel(

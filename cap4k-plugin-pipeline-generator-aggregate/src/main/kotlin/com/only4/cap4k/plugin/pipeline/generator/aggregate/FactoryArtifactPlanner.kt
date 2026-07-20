@@ -124,15 +124,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             .filter { it.parentRef }
             .map { field -> constructorFieldContext(entity, model, planning, field) }
 
-        if (!resolved) {
-            return ConstructorMapping(
-                resolved = false,
-                payloadFields = emptyList(),
-                unresolvedFields = emptyList(),
-                structuralFields = structuralFields,
-            )
-        }
-
         val payloadFieldNames = payloadFields.mapNotNull { it["name"] as? String }.toSet()
         val missingRequiredFields = entity.fields
             .filterNot { ownStrongId != null && it.name == entity.idField.name }
@@ -146,6 +137,17 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     defaultProjector = defaultProjector,
                 )
             }
+
+        if (!resolved) {
+            return ConstructorMapping(
+                resolved = false,
+                payloadFields = emptyList(),
+                unresolvedFields = missingRequiredFields.map { field ->
+                    constructorFieldContext(entity, model, planning, field)
+                },
+                structuralFields = structuralFields,
+            )
+        }
 
         if (missingRequiredFields.isNotEmpty()) {
             val blockingRequiredFields = missingRequiredFields
