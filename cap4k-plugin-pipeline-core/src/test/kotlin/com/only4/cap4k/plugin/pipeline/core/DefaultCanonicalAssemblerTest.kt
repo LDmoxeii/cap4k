@@ -1971,7 +1971,6 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler routes aggregate canonical packages through custom artifact layout`() {
         val result = DefaultCanonicalAssembler().assemble(
             config = baseAggregateConfig(
@@ -2003,13 +2002,6 @@ class DefaultCanonicalAssemblerTest {
                             comment = "",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot(
-                                    name = "author_id",
-                                    dbType = "BIGINT",
-                                    kotlinType = "Long",
-                                    nullable = false,
-                                    referenceTable = "user_profile",
-                                ),
                                 DbColumnSnapshot(
                                     name = "status",
                                     dbType = "INT",
@@ -2050,16 +2042,11 @@ class DefaultCanonicalAssemblerTest {
         val messageEntity = result.entities.single { it.name == "UserMessage" }
         val messageSchema = result.schemas.single { it.name == "SUserMessage" }
         val messageRepository = result.repositories.single { it.name == "UserMessageRepository" }
-        val relation = result.aggregateRelations.single {
-            it.ownerEntityName == "UserMessage" && it.targetEntityName == "UserProfile"
-        }
         val messageJpa = result.aggregateEntityJpa.single { it.entityName == "UserMessage" }
 
         assertEquals("com.acme.demo.domain.model.user_message", messageEntity.packageName)
         assertEquals("com.acme.demo.domain.meta.user_message", messageSchema.packageName)
         assertEquals("com.acme.demo.adapter.persistence.repositories", messageRepository.packageName)
-        assertEquals("com.acme.demo.domain.model.user_message", relation.ownerEntityPackageName)
-        assertEquals("com.acme.demo.domain.model.user_profile", relation.targetEntityPackageName)
         assertEquals(
             "com.acme.demo.domain.model.shared.enums.MessageStatus",
             messageJpa.columns.single { it.fieldName == "status" }.converterTypeFqn,
@@ -5592,6 +5579,8 @@ class DefaultCanonicalAssemblerTest {
         idStrategy: DbIdStrategy? = null,
         managedRole: DbManagedRole? = null,
         inherited: Boolean? = null,
+        // TODO(Task 4 cleanup): these stale relation parameters only keep disabled legacy tests compiling.
+        // Active relation-contract tests should use parentRef/refAggregate/refId directly.
         referenceTable: String? = null,
         explicitRelationType: String? = null,
         lazy: Boolean? = null,
@@ -5620,6 +5609,8 @@ class DefaultCanonicalAssemblerTest {
         kotlinType: String,
         nullable: Boolean,
         primaryKey: Boolean = false,
+        // TODO(Task 4 cleanup): this stale relation alias is compatibility-only for legacy tests.
+        // Active relation-contract tests should use parentRef/refAggregate/refId directly.
         referenceTable: String? = null,
         generatedValueDeclared: Boolean = false,
         generatedValueStrategy: String? = null,
