@@ -12,6 +12,9 @@
 - SQL 文件中的 DB/schema DDL comments。
 - 通过 `types.enumManifest.files` 配置的 enum manifests。
 - 通过 `types.valueObjectManifest.files` 配置的 value-object manifests。
+- 仓库内 live public docs 和 live skill references 是否仍引用已移除的 DB annotation 名称。
+
+DB/schema comments 使用严格、大小写敏感的现行 allow-list。table comments 只接受 `@Parent=<table>` 和 `@Ignore`；column comments 只接受 `@ParentRef`、`@Type=<TypeName>`、`@RefAggregate=<AggregateName>`、`@RefId=<TypeName>`、`@IdStrategy=db_identity`、`@Managed=system|scope|deleted|version` 和 `@Inherited`。
 
 脚本不会连接数据库、运行 Gradle、生成代码、编译、运行测试，也不会改写或整理输入文件。
 

@@ -19,8 +19,8 @@
 
 `cap4k-reference-content-studio-start/src/main/resources/db/schema/content-studio-schema.sql` 是 generator 读取的数据库结构证据。它包含类型标记，例如：
 
-- `release_policy int not null comment '@T=ReleasePolicy;'`
-- `result_snapshot clob comment '@T=MediaProcessingResultSnapshot;'`
+- `release_policy int not null comment '@Type=ReleasePolicy;'`
+- `result_snapshot clob comment '@Type=MediaProcessingResultSnapshot;'`
 
 schema 与 design inputs 一起决定 generated skeleton 如何连接 persistence surface、domain types 和 application contracts。
 

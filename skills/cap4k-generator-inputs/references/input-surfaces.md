@@ -32,7 +32,7 @@ Use these surfaces as source inputs only when the technical design contract supp
 - Aggregate-root primary-key metadata defaults to generated Strong ID types.
 - Same-context aggregate references use `@RefAggregate=<AggregateName>` and resolve to the referenced aggregate ID type.
 - Local external-reference identities use `@RefId=<TypeName>` when local language maps an upstream or external concept.
-- `@GeneratedValue=identity` and `@GeneratedValue=database-identity` express explicit database identity semantics, not the default aggregate ID path.
+- `@IdStrategy=db_identity` expresses explicit database identity semantics, not the default aggregate ID path.
 - If identity, reference, or generated-value facts are missing or unclear, return to `cap4k-technical-design` before plan review.
 
 ## Analysis Evidence Boundary
