@@ -4,11 +4,11 @@ import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
-import kotlin.test.assertFailsWith
 
 class DbColumnAnnotationParserTest {
 
@@ -45,7 +45,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects removed relation annotations through one generic path`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Reference=user_profile;@Relation=ManyToOne;")
         }
 
@@ -78,7 +78,7 @@ class DbColumnAnnotationParserTest {
         "@Updatable=false;",
     ).map { comment ->
         DynamicTest.dynamicTest(comment) {
-            val error = assertFailsWith<IllegalArgumentException> {
+            val error = assertThrows(IllegalArgumentException::class.java) {
                 DbColumnAnnotationParser.parse(comment)
             }
 
@@ -88,7 +88,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects unsupported column annotation generically`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("status @CustomMarker;")
         }
 
@@ -100,7 +100,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects multiple managed annotations`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Managed=system;@Managed=scope;")
         }
 
@@ -109,7 +109,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects valueless managed annotation`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Managed;")
         }
 
@@ -118,7 +118,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects unsupported id strategy value`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@IdStrategy=sequence;")
         }
 
@@ -127,7 +127,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects parent ref combinations`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@ParentRef;@RefAggregate=VideoPost;")
         }
 
@@ -136,7 +136,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects parent ref with id strategy`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@ParentRef;@IdStrategy=db_identity;")
         }
 
@@ -145,7 +145,7 @@ class DbColumnAnnotationParserTest {
 
     @Test
     fun `column parser rejects inherited without managed role`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@Inherited;")
         }
 

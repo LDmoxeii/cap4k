@@ -1,11 +1,11 @@
 package com.only4.cap4k.plugin.pipeline.source.db
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
-import kotlin.test.assertFailsWith
 
 class DbTableAnnotationParserTest {
 
@@ -20,7 +20,7 @@ class DbTableAnnotationParserTest {
 
     @Test
     fun `table parser rejects uppercase alias names`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@P=content;")
         }
 
@@ -39,7 +39,7 @@ class DbTableAnnotationParserTest {
         "@DynamicUpdate=true;",
     ).map { comment ->
         DynamicTest.dynamicTest(comment) {
-            val error = assertFailsWith<IllegalArgumentException> {
+            val error = assertThrows(IllegalArgumentException::class.java) {
                 DbTableAnnotationParser.parse(comment)
             }
 
@@ -49,7 +49,7 @@ class DbTableAnnotationParserTest {
 
     @Test
     fun `table parser rejects unsupported table annotation generically`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("Video post @CustomMarker;")
         }
 
@@ -61,7 +61,7 @@ class DbTableAnnotationParserTest {
 
     @Test
     fun `table parser rejects blank parent value`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@Parent=;")
         }
 
@@ -70,7 +70,7 @@ class DbTableAnnotationParserTest {
 
     @Test
     fun `table parser rejects valueless parent annotation`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@Parent;")
         }
 
@@ -79,7 +79,7 @@ class DbTableAnnotationParserTest {
 
     @Test
     fun `table parser rejects valued ignore marker`() {
-        val error = assertFailsWith<IllegalArgumentException> {
+        val error = assertThrows(IllegalArgumentException::class.java) {
             DbTableAnnotationParser.parse("@Ignore=true;")
         }
 
