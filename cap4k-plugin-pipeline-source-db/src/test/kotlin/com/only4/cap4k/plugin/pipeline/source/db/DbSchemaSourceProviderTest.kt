@@ -219,6 +219,61 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `provider rejects duplicate parent refs on child table`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-duplicate-parent-refs;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key
+                    )
+                    """.trimIndent()
+                )
+                statement.execute(
+                    """
+                    create table video_post_item (
+                        id bigint primary key,
+                        video_post_id bigint not null comment '@ParentRef;',
+                        backup_video_post_id bigint not null comment '@ParentRef;'
+                    )
+                    """.trimIndent()
+                )
+                statement.execute("comment on table video_post_item is '@Parent=video_post;'")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post", "video_post_item"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals(
+            "table VIDEO_POST_ITEM declares @Parent=video_post but must declare exactly one @ParentRef column.",
+            error.message
+        )
+    }
+
+    @Test
     fun `provider rejects db identity id strategy on non primary key columns`() {
         val url = "jdbc:h2:mem:cap4k-db-source-db-identity-non-pk;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->

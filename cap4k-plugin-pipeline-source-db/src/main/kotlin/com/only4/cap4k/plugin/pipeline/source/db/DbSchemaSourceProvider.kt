@@ -179,8 +179,12 @@ class DbSchemaSourceProvider : SourceProvider {
         }
 
         if (table.parentTable != null) {
-            require(table.columns.count { it.parentRef } == 1) {
+            val parentRefCount = table.columns.count { it.parentRef }
+            require(parentRefCount != 0) {
                 "table ${table.tableName.uppercase(Locale.ROOT)} declares @Parent=${table.parentTable} but has no @ParentRef column."
+            }
+            require(parentRefCount == 1) {
+                "table ${table.tableName.uppercase(Locale.ROOT)} declares @Parent=${table.parentTable} but must declare exactly one @ParentRef column."
             }
         }
 
