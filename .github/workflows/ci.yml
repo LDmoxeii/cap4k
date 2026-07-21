@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -17,6 +21,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -27,8 +33,100 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Classify change
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          is_docs_only_path() {
+            case "$1" in
+              docs/*) return 0 ;;
+              README|README.*) return 0 ;;
+              CHANGELOG.md|CONTRIBUTING.md|CODE_OF_CONDUCT.md) return 0 ;;
+              .github/ISSUE_TEMPLATE/*) return 0 ;;
+              .github/PULL_REQUEST_TEMPLATE.md) return 0 ;;
+              .github/pull_request_template.md) return 0 ;;
+              *.md) return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          run_gradle=true
+          docs_only=false
+          publish_promotion=false
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            case "$BASE_REF" in
+              publish/aliyun-private|publish/maven-central)
+                publish_promotion=true
+                run_gradle=false
+
+                if [[ "$HEAD_REF" != "master" ]]; then
+                  echo "Publish branch PRs must use master as the head branch; got ${HEAD_REF}." >&2
+                  exit 1
+                fi
+
+                if [[ "$HEAD_REPOSITORY" != "$REPOSITORY" ]]; then
+                  echo "Publish branch PRs must come from ${REPOSITORY}; got ${HEAD_REPOSITORY}." >&2
+                  exit 1
+                fi
+                ;;
+              master)
+                git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+                changed_files_file="$(mktemp)"
+                git diff --name-only "origin/${BASE_REF}...HEAD" > "$changed_files_file"
+                mapfile -t changed_files < "$changed_files_file"
+
+                docs_only=true
+                for changed_file in "${changed_files[@]}"; do
+                  if ! is_docs_only_path "$changed_file"; then
+                    docs_only=false
+                    break
+                  fi
+                done
+
+                if [[ "$docs_only" == "true" ]]; then
+                  run_gradle=false
+                fi
+                ;;
+            esac
+          fi
+
+          {
+            echo "run_gradle=${run_gradle}"
+            echo "docs_only=${docs_only}"
+            echo "publish_promotion=${publish_promotion}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "run_gradle=${run_gradle}"
+          echo "docs_only=${docs_only}"
+          echo "publish_promotion=${publish_promotion}"
+
       - name: Make Gradle wrapper executable
+        if: steps.classify.outputs.run_gradle == 'true'
         run: chmod +x gradlew
 
+      - name: Test buildSrc
+        if: steps.classify.outputs.run_gradle == 'true'
+        working-directory: buildSrc
+        run: ../gradlew test
+
       - name: Check
+        if: steps.classify.outputs.run_gradle == 'true'
         run: ./gradlew check
+
+      - name: Skip Gradle
+        if: steps.classify.outputs.run_gradle != 'true'
+        run: |
+          if [[ "${{ steps.classify.outputs.publish_promotion }}" == "true" ]]; then
+            echo "Publish promotion PR validated; Gradle check already belongs to master."
+          else
+            echo "Docs-only change detected; Gradle check skipped."
+          fi

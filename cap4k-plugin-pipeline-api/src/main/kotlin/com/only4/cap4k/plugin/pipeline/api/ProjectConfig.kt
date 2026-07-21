@@ -1,22 +1,23 @@
 package com.only4.cap4k.plugin.pipeline.api
 
 data class ProjectConfig(
-    val basePackage: String,
-    val layout: ProjectLayout,
+    val basePackage: String = "",
+    val layout: ProjectLayout = ProjectLayout.SINGLE_MODULE,
     // Module role -> repository-relative filesystem path.
-    val modules: Map<String, String>,
-    val typeRegistry: Map<String, TypeRegistryEntry> = emptyMap(),
-    val sources: Map<String, SourceConfig>,
-    val generators: Map<String, GeneratorConfig>,
-    val templates: TemplateConfig,
+    val modules: Map<String, String> = emptyMap(),
+    val typeRegistry: TypeRegistryConfig = TypeRegistryConfig(),
+    val sources: Map<String, SourceConfig> = emptyMap(),
+    val generators: Map<String, GeneratorConfig> = emptyMap(),
+    val templates: TemplateConfig = TemplateConfig(
+        preset = "ddd-default",
+        overrideDirs = emptyList(),
+        conflictPolicy = ConflictPolicy.SKIP,
+    ),
     val artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
     val aggregateSpecialFieldDefaults: AggregateSpecialFieldDefaultsConfig = AggregateSpecialFieldDefaultsConfig(),
+    val addons: Map<String, AddonProviderConfig> = emptyMap(),
 ) {
-    fun enabledSourceIds(): Set<String> = sources.filterValues { it.enabled }.keys
-
-    fun enabledGeneratorIds(): Set<String> = generators.filterValues { it.enabled }.keys
-
-    fun typeRegistryFqns(): Map<String, String> = typeRegistry.mapValues { it.value.fqn }
+    fun typeRegistryFqns(): Map<String, String> = typeRegistry.entries.mapValues { it.value.fqn }
 }
 
 data class AggregateSpecialFieldDefaultsConfig(
@@ -24,6 +25,13 @@ data class AggregateSpecialFieldDefaultsConfig(
     val deletedDefaultColumn: String = "",
     val versionDefaultColumn: String = "",
     val managedDefaultColumns: List<String> = emptyList(),
+)
+
+data class TypeRegistryConfig(
+    val entries: Map<String, TypeRegistryEntry> = emptyMap(),
+    val registryFile: String = "",
+    val enumManifestFiles: List<String> = emptyList(),
+    val valueObjectManifestFiles: List<String> = emptyList(),
 )
 
 data class TypeRegistryEntry(
@@ -56,6 +64,11 @@ enum class ProjectLayout {
     MULTI_MODULE,
 }
 
+data class AddonProviderConfig(
+    val id: String,
+    val options: Map<String, String> = emptyMap(),
+)
+
 data class ArtifactLayoutConfig(
     val aggregate: PackageLayout = PackageLayout("domain.aggregates"),
     val aggregateSchema: PackageLayout = PackageLayout("domain._share.meta"),
@@ -84,7 +97,6 @@ data class ArtifactLayoutConfig(
     val designClient: PackageLayout = PackageLayout("application.distributed.clients"),
     val designQueryHandler: PackageLayout = PackageLayout("adapter.application.queries"),
     val designClientHandler: PackageLayout = PackageLayout("adapter.application.distributed.clients"),
-    val designValidator: PackageLayout = PackageLayout("application.validators"),
     val designApiPayload: PackageLayout = PackageLayout("adapter.portal.api.payload"),
     val designDomainEvent: PackageLayout = PackageLayout(
         packageRoot = "domain.aggregates",
@@ -102,6 +114,15 @@ data class ArtifactLayoutConfig(
         packageRoot = "application.subscribers.integration",
         packageSuffix = "",
     ),
+    val designDomainServicePackage: PackageLayout = PackageLayout("domain.services"),
+    val designSaga: PackageLayout = PackageLayout("application.sagas"),
+    val designDomainService: ArtifactLayoutRule = ArtifactLayoutRule("design/domain_service.kt.peb"),
+    val designSagaArtifact: ArtifactLayoutRule = ArtifactLayoutRule("design/saga.kt.peb"),
+    val valueObject: ArtifactLayoutRule = ArtifactLayoutRule("types/value-object"),
+)
+
+data class ArtifactLayoutRule(
+    val id: String,
 )
 
 data class PackageLayout(
@@ -115,12 +136,10 @@ data class OutputRootLayout(
 )
 
 data class SourceConfig(
-    val enabled: Boolean,
     val options: Map<String, Any?> = emptyMap(),
 )
 
 data class GeneratorConfig(
-    val enabled: Boolean,
     val options: Map<String, Any?> = emptyMap(),
 )
 

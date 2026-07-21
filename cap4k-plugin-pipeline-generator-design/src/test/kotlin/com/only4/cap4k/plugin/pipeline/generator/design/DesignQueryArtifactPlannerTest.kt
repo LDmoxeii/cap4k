@@ -1,13 +1,12 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.AggregateRef
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -18,14 +17,15 @@ class DesignQueryArtifactPlannerTest {
     @Test
     fun `designQuery plans all queries with query template`() {
         val planner = DesignQueryArtifactPlanner()
+        assertEquals("query", planner.id)
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                queries = listOf(
-                    queryModel(typeName = "FindOrderQry"),
-                    queryModel(typeName = "FindOrderListQry"),
-                    queryModel(typeName = "FindOrderPageQry", traits = setOf(RequestTrait.PAGE)),
+                designBlocks = listOf(
+                    queryModel(name = "FindOrder"),
+                    queryModel(name = "FindOrderList"),
+                    queryModel(name = "FindOrderPage", variant = "page"),
                 ),
             ),
         )
@@ -42,24 +42,21 @@ class DesignQueryArtifactPlannerTest {
             ),
             items.map { it.outputPath },
         )
-        assertEquals(listOf("design-query", "design-query", "design-query"), items.map { it.generatorId })
+        assertEquals(listOf("query", "query", "query"), items.map { it.generatorId })
         assertEquals("com.acme.demo.application.queries.order.read", items[0].context["packageName"])
         assertEquals("FindOrderQry", items[0].context["typeName"])
     }
 
     @Test
-    fun `sets pageRequest context only from page trait`() {
+    fun `sets pageRequest context only from page variant`() {
         val planner = DesignQueryArtifactPlanner()
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                queries = listOf(
-                    queryModel(typeName = "FindOrderQry"),
-                    queryModel(
-                        typeName = "FindOrderPageQry",
-                        traits = setOf(RequestTrait.PAGE),
-                    ),
+                designBlocks = listOf(
+                    queryModel(name = "FindOrder"),
+                    queryModel(name = "FindOrderPage", variant = "page"),
                 ),
             ),
         )
@@ -77,9 +74,9 @@ class DesignQueryArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                queries = listOf(
-                    queryModel(typeName = "FindOrderListQry"),
-                    queryModel(typeName = "FindOrderPageQry"),
+                designBlocks = listOf(
+                    queryModel(name = "FindOrderList"),
+                    queryModel(name = "FindOrderPage"),
                 ),
             ),
         )
@@ -101,7 +98,7 @@ class DesignQueryArtifactPlannerTest {
         val error = assertThrows(IllegalStateException::class.java) {
             planner.plan(
                 config = projectConfig(modules = emptyMap()),
-                model = CanonicalModel(queries = listOf(queryModel())),
+                model = CanonicalModel(designBlocks = listOf(queryModel())),
             )
         }
 
@@ -109,14 +106,15 @@ class DesignQueryArtifactPlannerTest {
     }
 
     private fun queryModel(
-        typeName: String = "FindOrderQry",
-        traits: Set<RequestTrait> = emptySet(),
-    ) = QueryModel(
+        name: String = "FindOrder",
+        variant: String = "",
+    ) = DesignBlockModel(
+        tag = "query",
         packageName = "order.read",
-        typeName = typeName,
+        name = name,
         description = "find order",
-        aggregateRef = AggregateRef("Order", "com.acme.demo.domain.aggregates.order"),
-        traits = traits,
+        aggregates = listOf("Order"),
+        artifacts = listOf(ArtifactSelectionModel("query", variant)),
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
@@ -124,7 +122,7 @@ class DesignQueryArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-query" to GeneratorConfig(enabled = true)),
+        generators = mapOf("query" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

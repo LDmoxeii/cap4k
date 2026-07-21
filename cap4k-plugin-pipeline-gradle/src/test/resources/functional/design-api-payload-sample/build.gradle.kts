@@ -1,5 +1,5 @@
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 cap4k {
@@ -9,13 +9,7 @@ cap4k {
     }
     sources {
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
-        }
-    }
-    generators {
-        designApiPayload {
-            enabled.set(true)
         }
     }
 }

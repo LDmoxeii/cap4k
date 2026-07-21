@@ -30,7 +30,6 @@ include("cap4k-ddd-console", "cap4k-ddd-starter")
 include("cap4k-plugin-code-analysis-core")
 include("cap4k-plugin-code-analysis-compiler")
 include("cap4k-plugin-code-analysis-flow-export")
-include("cap4k-plugin-codegen-ksp")
 include(
     "cap4k-plugin-pipeline-api",
     "cap4k-plugin-pipeline-core",
@@ -40,9 +39,11 @@ include(
     "cap4k-plugin-pipeline-source-design-json",
     "cap4k-plugin-pipeline-source-db",
     "cap4k-plugin-pipeline-source-enum-manifest",
-    "cap4k-plugin-pipeline-source-ksp-metadata",
+    "cap4k-plugin-pipeline-source-value-object-manifest",
     "cap4k-plugin-pipeline-source-ir-analysis",
+    "cap4k-plugin-pipeline-generator-common",
     "cap4k-plugin-pipeline-generator-design",
+    "cap4k-plugin-pipeline-generator-types",
     "cap4k-plugin-pipeline-generator-aggregate",
     "cap4k-plugin-pipeline-generator-flow",
     "cap4k-plugin-pipeline-generator-drawing-board",

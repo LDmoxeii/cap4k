@@ -6,5 +6,13 @@
       { "value": 0, "name": "DRAFT", "desc": "Draft" },
       { "value": 1, "name": "PUBLISHED", "desc": "Published" }
     ]
+  },
+  {
+    "name": "VideoPostVisibility",
+    "package": "com.acme.demo.domain.aggregates.video_post.enums",
+    "items": [
+      { "value": 0, "name": "HIDDEN", "desc": "Hidden" },
+      { "value": 1, "name": "PUBLIC", "desc": "Public" }
+    ]
   }
 ]

@@ -1,8 +1,8 @@
 package com.only4.cap4k.plugin.codeanalysis.compiler
 
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignElement
+import com.only4.cap4k.plugin.codeanalysis.core.model.DesignArtifact
 import com.only4.cap4k.plugin.codeanalysis.core.model.DesignField
-import com.only4.cap4k.plugin.codeanalysis.core.model.DesignParameter
 
 class DesignElementJsonWriter {
     fun write(elements: List<DesignElement>): String {
@@ -14,46 +14,26 @@ class DesignElementJsonWriter {
                 append('{')
                 append("\"tag\":\"").append(escape(element.tag)).append("\",")
                 append("\"package\":\"").append(escape(element.`package`)).append("\",")
-                append("\"name\":\"").append(escape(element.name)).append("\"")
-                element.role?.takeIf { it.isNotBlank() }?.let { value ->
-                    append(",\"role\":\"").append(escape(value)).append("\"")
-                }
-                element.eventName?.takeIf { it.isNotBlank() }?.let { value ->
-                    append(",\"eventName\":\"").append(escape(value)).append("\"")
-                }
-                append(",\"desc\":\"").append(escape(element.desc)).append("\"")
+                append("\"name\":\"").append(escape(element.name)).append("\",")
+                append("\"description\":\"").append(escape(element.description)).append("\"")
                 if (element.aggregates.isNotEmpty()) {
                     append(",\"aggregates\":")
                     appendStringList(element.aggregates)
                 }
-                element.entity?.let { value ->
-                    append(",\"entity\":\"").append(escape(value)).append("\"")
+                element.eventName.takeIf { it.isNotBlank() }?.let { value ->
+                    append(",\"eventName\":\"").append(escape(value)).append("\"")
                 }
                 element.persist?.let { value ->
                     append(",\"persist\":").append(value)
                 }
-                if (element.traits.isNotEmpty()) {
-                    append(",\"traits\":")
-                    appendStringList(element.traits)
+                if (element.artifacts.isNotEmpty()) {
+                    append(",\"artifacts\":")
+                    appendArtifactList(element.artifacts)
                 }
-                element.message?.let { value ->
-                    append(",\"message\":\"").append(escape(value)).append("\"")
-                }
-                if (element.targets.isNotEmpty()) {
-                    append(",\"targets\":")
-                    appendStringList(element.targets)
-                }
-                element.valueType?.let { value ->
-                    append(",\"valueType\":\"").append(escape(value)).append("\"")
-                }
-                if (element.parameters.isNotEmpty()) {
-                    append(",\"parameters\":")
-                    appendParameterList(element.parameters)
-                }
-                append(",\"requestFields\":")
-                appendFieldList(element.requestFields)
-                append(",\"responseFields\":")
-                appendFieldList(element.responseFields)
+                append(",\"fields\":")
+                appendFieldList(element.fields)
+                append(",\"resultFields\":")
+                appendFieldList(element.resultFields)
                 append('}')
             }
             append(']')
@@ -77,17 +57,14 @@ class DesignElementJsonWriter {
         append(']')
     }
 
-    private fun StringBuilder.appendParameterList(parameters: List<DesignParameter>) {
+    private fun StringBuilder.appendArtifactList(artifacts: List<DesignArtifact>) {
         append('[')
-        var firstParameter = true
-        parameters.forEach { parameter ->
-            if (!firstParameter) append(',') else firstParameter = false
-            append("{\"name\":\"").append(escape(parameter.name)).append("\",")
-            append("\"type\":\"").append(escape(parameter.type)).append("\",")
-            append("\"nullable\":").append(parameter.nullable)
-            val defaultValue = parameter.defaultValue
-            if (defaultValue != null) {
-                append(",\"defaultValue\":\"").append(escape(defaultValue)).append("\"")
+        var firstArtifact = true
+        artifacts.forEach { artifact ->
+            if (!firstArtifact) append(',') else firstArtifact = false
+            append("{\"family\":\"").append(escape(artifact.family)).append("\"")
+            if (artifact.variant.isNotBlank()) {
+                append(",\"variant\":\"").append(escape(artifact.variant)).append("\"")
             }
             append('}')
         }

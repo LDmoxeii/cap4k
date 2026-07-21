@@ -1,16 +1,14 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.api.ApiPayloadModel
-import com.only4.cap4k.plugin.pipeline.api.DesignInteractionModel
-import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
-import com.only4.cap4k.plugin.pipeline.api.QueryModel
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
-import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
+import com.only4.cap4k.plugin.pipeline.generator.common.types.AGGREGATE_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.EXPLICIT_FQCN_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver
 import com.only4.cap4k.plugin.pipeline.generator.design.types.ImportResolver.UnknownShortTypeFailure
-import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
 import java.util.ArrayDeque
 
 internal object DesignPayloadRenderModelFactory {
@@ -54,83 +52,144 @@ internal object DesignPayloadRenderModelFactory {
         "Set",
     )
 
-    fun create(
+    fun createForCommandBlock(
         packageName: String,
-        interaction: DesignInteractionModel,
-        typeRegistry: Map<String, String> = emptyMap(),
+        block: DesignBlockModel,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
         siblingTypeNames: Set<String> = emptySet(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(interaction.requestFields, "request")
-        val responseNamespace = buildNamespace(interaction.responseFields, "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = interaction.typeName,
-            description = interaction.description,
-            aggregateName = interaction.aggregateRef?.name,
-            aggregatePackageName = interaction.aggregateRef?.packageName,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-            siblingRequestTypeNames = siblingTypeNames,
-            pageRequest = interaction is QueryModel && RequestTrait.PAGE in interaction.traits,
-        )
-    }
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.commandTypeName(),
+        description = block.description,
+        fields = block.fields,
+        resultFields = block.resultFields,
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+        siblingRequestTypeNames = siblingTypeNames,
+    )
 
-    fun createForApiPayload(
+    fun createForQueryBlock(
         packageName: String,
-        payload: ApiPayloadModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(payload.requestFields, "request")
-        val responseNamespace = buildNamespace(payload.responseFields, "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = payload.typeName,
-            description = payload.description,
-            aggregateName = null,
-            aggregatePackageName = null,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-            pageRequest = RequestTrait.PAGE in payload.traits,
-        )
-    }
+        block: DesignBlockModel,
+        pageRequest: Boolean,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+        siblingTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.queryTypeName(),
+        description = block.description,
+        fields = block.fields,
+        resultFields = block.resultFields,
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+        siblingRequestTypeNames = siblingTypeNames,
+        pageRequest = pageRequest,
+    )
 
-    fun createForDomainEvent(
+    fun createForClientBlock(
         packageName: String,
-        event: DomainEventModel,
-        typeRegistry: Map<String, String> = emptyMap(),
-    ): DesignRenderModel {
-        val requestNamespace = buildNamespace(event.fields, "request")
-        val responseNamespace = buildNamespace(emptyList(), "response")
-        return createRenderModel(
-            packageName = packageName,
-            typeName = event.typeName,
-            description = event.description,
-            aggregateName = event.aggregateName,
-            aggregatePackageName = event.aggregatePackageName,
-            requestNamespace = requestNamespace,
-            responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
-        )
-    }
+        block: DesignBlockModel,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+        siblingTypeNames: Set<String> = emptySet(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.clientTypeName(),
+        description = block.description,
+        fields = block.fields,
+        resultFields = block.resultFields,
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+        siblingRequestTypeNames = siblingTypeNames,
+    )
 
-    fun createForIntegrationEvent(
+    fun createForApiPayloadBlock(
         packageName: String,
-        event: IntegrationEventModel,
-        typeRegistry: Map<String, String> = emptyMap(),
+        block: DesignBlockModel,
+        pageRequest: Boolean,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.apiPayloadTypeName(),
+        description = block.description,
+        fields = block.fields,
+        resultFields = block.resultFields,
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+        pageRequest = pageRequest,
+    )
+
+    fun createForDomainEventBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        aggregate: EntityModel,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.domainEventTypeName(),
+        description = block.description,
+        aggregateName = aggregate.name,
+        aggregatePackageName = aggregate.packageName,
+        fields = block.fields,
+        resultFields = emptyList(),
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+    )
+
+    fun createForIntegrationEventBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.integrationEventTypeName(),
+        description = block.description,
+        fields = block.fields,
+        resultFields = emptyList(),
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+    )
+
+    fun createForSagaBlock(
+        packageName: String,
+        block: DesignBlockModel,
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+    ): DesignRenderModel = createForBlock(
+        packageName = packageName,
+        typeName = block.name,
+        description = block.description,
+        fields = block.fields,
+        resultFields = block.resultFields,
+        symbolRegistry = symbolRegistry,
+        aggregateContext = block.aggregates,
+    )
+
+    private fun createForBlock(
+        packageName: String,
+        typeName: String,
+        description: String,
+        fields: List<FieldModel>,
+        resultFields: List<FieldModel>,
+        symbolRegistry: TypeSymbolRegistry,
+        aggregateContext: List<String>,
+        siblingRequestTypeNames: Set<String> = emptySet(),
+        pageRequest: Boolean = false,
+        aggregateName: String? = null,
+        aggregatePackageName: String? = null,
     ): DesignRenderModel {
-        val requestNamespace = buildNamespace(event.fields, "request")
-        val responseNamespace = buildNamespace(emptyList(), "response")
+        val requestNamespace = buildNamespace(fields, "request")
+        val responseNamespace = buildNamespace(resultFields, "response")
         return createRenderModel(
             packageName = packageName,
-            typeName = event.typeName,
-            description = event.description,
-            aggregateName = null,
-            aggregatePackageName = null,
+            typeName = typeName,
+            description = description,
+            aggregateName = aggregateName,
+            aggregatePackageName = aggregatePackageName,
             requestNamespace = requestNamespace,
             responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
+            symbolRegistry = symbolRegistry,
+            aggregateContext = aggregateContext,
+            siblingRequestTypeNames = siblingRequestTypeNames,
+            pageRequest = pageRequest,
         )
     }
 
@@ -142,47 +201,52 @@ internal object DesignPayloadRenderModelFactory {
         aggregatePackageName: String?,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
-        typeRegistry: Map<String, String>,
+        symbolRegistry: TypeSymbolRegistry,
+        aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
         pageRequest: Boolean = false,
     ): DesignRenderModel {
-        val symbolRegistry = buildSymbolRegistry(
+        val resolvedSymbolRegistry = buildSymbolRegistry(
             aggregateName = aggregateName,
             aggregatePackageName = aggregatePackageName,
             requestNamespace = requestNamespace,
             responseNamespace = responseNamespace,
-            typeRegistry = typeRegistry,
+            symbolRegistry = symbolRegistry,
         )
         validateNamespaceTypes(
             "request",
             requestNamespace,
-            symbolRegistry,
+            resolvedSymbolRegistry,
             requestNamespace.nestedTypeNames,
+            aggregateContext,
             siblingRequestTypeNames,
         )
         validateNamespaceTypes(
             "response",
             responseNamespace,
-            symbolRegistry,
+            resolvedSymbolRegistry,
             responseNamespace.nestedTypeNames,
+            aggregateContext,
             siblingRequestTypeNames,
         )
         val requestImportPlan = DesignImportPlanner.plan(
             types = requestNamespace.resolvedTypes,
             innerTypeNames = requestNamespace.nestedTypeNames,
-            symbolRegistry = symbolRegistry,
+            symbolRegistry = resolvedSymbolRegistry,
+            aggregateContext = aggregateContext,
         )
         val responseImportPlan = DesignImportPlanner.plan(
             types = responseNamespace.resolvedTypes,
             innerTypeNames = responseNamespace.nestedTypeNames,
-            symbolRegistry = symbolRegistry,
+            symbolRegistry = resolvedSymbolRegistry,
+            aggregateContext = aggregateContext,
         )
         val requestRenderedTypes = ArrayDeque(requestImportPlan.renderedTypes)
         val responseRenderedTypes = ArrayDeque(responseImportPlan.renderedTypes)
-        val requestFields = renderFields(requestNamespace.fields, requestRenderedTypes)
-        val requestNestedTypes = renderNestedTypes(requestNamespace.nestedTypes, requestRenderedTypes)
-        val responseFields = renderFields(responseNamespace.fields, responseRenderedTypes)
-        val responseNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, responseRenderedTypes)
+        val fields = renderFields(requestNamespace.fields, requestRenderedTypes)
+        val nestedTypes = renderNestedTypes(requestNamespace.nestedTypes, requestRenderedTypes)
+        val resultFields = renderFields(responseNamespace.fields, responseRenderedTypes)
+        val resultNestedTypes = renderNestedTypes(responseNamespace.nestedTypes, responseRenderedTypes)
 
         return DesignRenderModel(
             packageName = packageName,
@@ -193,10 +257,10 @@ internal object DesignPayloadRenderModelFactory {
             descriptionKotlinStringLiteral = description.toKotlinStringLiteral(),
             aggregateName = aggregateName,
             imports = (requestImportPlan.imports + responseImportPlan.imports).distinct().sorted(),
-            requestFields = requestFields,
-            responseFields = responseFields,
-            requestNestedTypes = requestNestedTypes,
-            responseNestedTypes = responseNestedTypes,
+            fields = fields,
+            resultFields = resultFields,
+            nestedTypes = nestedTypes,
+            resultNestedTypes = resultNestedTypes,
             pageRequest = pageRequest,
         )
     }
@@ -261,28 +325,18 @@ internal object DesignPayloadRenderModelFactory {
         aggregatePackageName: String?,
         requestNamespace: NamespaceModel,
         responseNamespace: NamespaceModel,
-        typeRegistry: Map<String, String>,
-    ): DesignSymbolRegistry {
-        val registry = DesignSymbolRegistry()
+        symbolRegistry: TypeSymbolRegistry,
+    ): TypeSymbolRegistry {
+        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols())
         val resolvedAggregateName = aggregateName?.takeIf { it.isNotBlank() }
         val resolvedAggregatePackageName = aggregatePackageName?.takeIf { it.isNotBlank() }
         if (resolvedAggregateName != null && resolvedAggregatePackageName != null) {
             registry.register(
-                SymbolIdentity(
+                TypeSymbolIdentity(
                     packageName = resolvedAggregatePackageName,
                     typeName = resolvedAggregateName,
                     moduleRole = "domain",
-                    source = "aggregate",
-                ),
-            )
-        }
-
-        typeRegistry.forEach { (simpleName, fqcn) ->
-            registry.register(
-                SymbolIdentity(
-                    packageName = fqcn.substringBeforeLast('.', missingDelimiterValue = ""),
-                    typeName = simpleName,
-                    source = "project-type-registry",
+                    source = AGGREGATE_SOURCE,
                 ),
             )
         }
@@ -294,13 +348,13 @@ internal object DesignPayloadRenderModelFactory {
         return registry
     }
 
-    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<SymbolIdentity> {
+    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<TypeSymbolIdentity> {
         val own = if (type.kind == DesignResolvedTypeKind.EXPLICIT_FQCN) {
             listOf(
-                SymbolIdentity(
+                TypeSymbolIdentity(
                     packageName = type.rawText.substringBeforeLast('.', missingDelimiterValue = ""),
                     typeName = type.simpleName,
-                    source = "explicit-fqcn",
+                    source = EXPLICIT_FQCN_SOURCE,
                 ),
             )
         } else {
@@ -313,20 +367,22 @@ internal object DesignPayloadRenderModelFactory {
     private fun validateNamespaceTypes(
         namespace: String,
         model: NamespaceModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
+        aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String> = emptySet(),
     ) {
-        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, siblingRequestTypeNames) }
+        model.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, aggregateContext, siblingRequestTypeNames) }
         model.nestedTypes.forEach { nestedType ->
-            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, siblingRequestTypeNames) }
+            nestedType.fields.forEach { validateFieldType(it, symbolRegistry, innerTypeNames, aggregateContext, siblingRequestTypeNames) }
         }
     }
 
     private fun validateFieldType(
         field: PreparedFieldModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
+        aggregateContext: List<String>,
         siblingRequestTypeNames: Set<String>,
     ) {
         try {
@@ -334,6 +390,7 @@ internal object DesignPayloadRenderModelFactory {
                 type = field.resolvedType,
                 innerTypeNames = innerTypeNames,
                 symbolRegistry = symbolRegistry,
+                aggregateContext = aggregateContext,
             )
         } catch (ex: IllegalArgumentException) {
             val advisory = if (ex is UnknownShortTypeFailure) {
@@ -343,7 +400,9 @@ internal object DesignPayloadRenderModelFactory {
                 } else {
                     ""
                 }
-                "; use a fully qualified name or register it in type-registry.json$siblingAdvisory"
+                "; use a fully qualified name, declare cap4k-owned enum/value-object types in " +
+                    "types.enumManifest or types.valueObjectManifest, or register external handwritten types in " +
+                    "types.registryFile$siblingAdvisory"
             } else {
                 ""
             }

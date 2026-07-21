@@ -1,46 +1,38 @@
 ---
 name: cap4k-authoring
 description: >
-  Use this for AI authors implementing business projects using cap4k, including
-  requests such as "build a cap4k project", "derive cap4k DDD design", "generate
-  cap4k code from DB or design", "implement a cap4k project slice", "review cap4k
-  generated output", or "run cap4k analysis". Activate when the task is business
-  project authoring with cap4k, not cap4k framework maintenance.
+  Route cap4k business-authoring work through the self-contained cap4k skill
+  system. Use when the user asks to discover a business slice, model DDD
+  boundaries, write cap4k technical design, author generator inputs, review
+  plan or generated output, implement handwritten business logic, design service
+  integration, or verify cap4k work.
 ---
 
-# Cap4k Business Project Authoring
+# Cap4k Authoring Router
 
-This skill is for AI authors implementing business projects using cap4k. It helps turn agreed business intent, DDL, design JSON, and generated skeletons into runnable project code with evidence for human audit.
-
-## Boundaries
-
-- Use this for business-project modeling, generation, implementation, review, testing, and analysis.
-- Do not use it to govern cap4k framework issue lifecycle or maintain cap4k runtime/generator internals unless the user explicitly changes scope.
-- Human users own domain decisions and final audit; AI authors assist, implement, verify, and report evidence.
+This is the entry router for cap4k business-authoring agents. It is not the rulebook.
 
 ## Always Read
 
-1. [rules/role-boundary.md](rules/role-boundary.md)
-2. [rules/layering-and-tactical-model.md](rules/layering-and-tactical-model.md)
-3. [rules/generator-ownership.md](rules/generator-ownership.md)
+1. `routing.yaml`
+2. `../shared/workflows/forced-rollback.md`
 
-## Common Routes
+## Session Discipline
 
-| Task | Read | Workflow |
-|---|---|---|
-| Clarify domain/design before code | `rules/role-boundary.md`, `references/capability-index.md`, `references/known-gaps.md` | `workflows/clarify-domain-design.md` |
-| Bootstrap a minimal project | `rules/generator-ownership.md`, `rules/testing-and-verification.md` | `workflows/bootstrap-minimal-project.md` |
-| Generate from DB | `rules/generator-ownership.md`, `references/gotchas.md` | `workflows/generate-from-db.md` |
-| Generate from design | `rules/generator-ownership.md`, `references/known-gaps.md` | `workflows/generate-from-design.md` |
-| Implement a project slice | `rules/layering-and-tactical-model.md`, `rules/runtime-tactical-contract.md`, `rules/testing-and-verification.md` | `workflows/implement-project-slice.md` |
-| Review generated output | `rules/generator-ownership.md`, `rules/testing-and-verification.md`, `references/gotchas.md` | `workflows/review-generated-output.md` |
-| Run analysis and flow review | `rules/testing-and-verification.md`, `references/capability-index.md` | `workflows/run-analysis-and-flow-review.md` |
+- Re-read this file and `routing.yaml` for every new user task.
+- Do not use public docs, analysis maps, issues, Context7, or historical specs as runtime instructions.
+- Route to the current phase skill before acting.
+- For structural creation or modification, make sure the routed workflow loads `../shared/workflows/skeleton-generation-gate.md`.
+- For a spec-level end-to-end example, use the `content-studio-dry-run` route in `routing.yaml`.
+
+## Routing Source
+
+`routing.yaml` is the only routing source of truth. Do not maintain a second route table in Markdown.
 
 ## Priority
 
-1. Current user instruction and project scope.
-2. Agreed business model, DDL, design JSON, spec, or plan.
-3. This skill's rules and workflows.
-4. Existing project conventions.
-
-When cap4k does not support a requested authoring capability, call it a gap and offer a local project choice instead of implying framework support.
+1. Current user instruction and explicit project scope.
+2. `routing.yaml` phase and specialist route.
+3. Routed skill rules and workflows.
+4. Existing business project conventions.
+5. Human audit remains required for domain decisions.

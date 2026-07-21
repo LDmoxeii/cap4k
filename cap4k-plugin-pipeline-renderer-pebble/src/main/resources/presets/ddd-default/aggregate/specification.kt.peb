@@ -2,7 +2,9 @@ package {{ packageName }}
 
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.Specification") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result") -}}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use(entityTypeFqn) -}}
 {% for import in imports(imports) -%}
@@ -10,12 +12,16 @@ import {{ import }}
 {% endfor %}
 
 @Service
-@Aggregate(
-    aggregate = "{{ aggregateName }}",
-    name = "{{ typeName }}",
-    type = Aggregate.TYPE_SPECIFICATION,
-    description = ""
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
 )
+{% endif -%}
 class {{ typeName }} : Specification<{{ entityName }}> {
 
     override fun specify(entity: {{ entityName }}): Result {

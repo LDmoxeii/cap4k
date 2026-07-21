@@ -1,0 +1,54 @@
+package {{ packageName }}
+
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
+{{ use("com.fasterxml.jackson.annotation.JsonCreator") -}}
+{{ use("com.fasterxml.jackson.annotation.JsonValue") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.id.StrongId") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.id.StrongIds") -}}
+{{ use("jakarta.persistence.Column") -}}
+{{ use("jakarta.persistence.Embeddable") -}}
+{{ use("java.io.Serializable") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
+@Embeddable
+class {{ typeName }} protected constructor() : StrongId, Serializable {
+    @Column(name = "value", nullable = false, updatable = false, length = 36)
+    override lateinit var value: String
+        protected set
+
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+    constructor(value: String) : this() {
+        this.value = StrongIds.requireUuidV7(value, "{{ typeName }}")
+    }
+
+    @JsonValue
+    fun jsonValue(): String = value
+
+    override fun toString(): String = value
+
+    companion object {
+        fun parse(value: String): {{ typeName }} = {{ typeName }}(value)
+{% if canGenerateNew %}
+        fun new(): {{ typeName }} = {{ typeName }}(StrongIds.newUuidV7String())
+{% endif %}
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is {{ typeName }} && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
+}

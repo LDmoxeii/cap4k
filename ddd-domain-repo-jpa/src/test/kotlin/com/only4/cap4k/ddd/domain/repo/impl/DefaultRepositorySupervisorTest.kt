@@ -8,9 +8,6 @@ import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicate
-import com.only4.cap4k.ddd.domain.aggregate.JpaAggregatePredicateSupport
-import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
@@ -63,8 +60,8 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
-    @DisplayName("查找应该从正确的仓储返回实体")
-    fun `find should return entities from correct repository`() {
+    @DisplayName("查找默认应该使用非持久化读取")
+    fun `find should default to non persistent reads`() {
         val predicate = TestPredicate()
         val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
 
@@ -72,21 +69,21 @@ class DefaultRepositorySupervisorTest {
             mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE)
         } returns expectedEntities
 
-        val result = supervisor.find(predicate, emptyList(), false)
+        val result = supervisor.find(predicate)
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE) }
     }
 
     @Test
-    @DisplayName("查找单个实体应该返回实体")
-    fun `findOne should return nullable entity`() {
+    @DisplayName("查找单个实体默认应该使用非持久化读取")
+    fun `findOne should default to non persistent reads`() {
         val predicate = TestPredicate()
         val expectedEntity = TestEntity(1L, "test")
 
         every { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns expectedEntity
 
-        val result = supervisor.findOne(predicate, false)
+        val result = supervisor.findOne(predicate)
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
@@ -151,8 +148,8 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
-    @DisplayName("查找分页应该返回分页数据")
-    fun `findPage should return page data`() {
+    @DisplayName("查找分页默认应该使用非持久化读取")
+    fun `findPage should default to non persistent reads`() {
         val predicate = TestPredicate()
         val pageParam = PageParam.of(1, 10)
         val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
@@ -160,7 +157,7 @@ class DefaultRepositorySupervisorTest {
 
         every { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns pageData
 
-        val result = supervisor.findPage(predicate, pageParam, false)
+        val result = supervisor.findPage(predicate, pageParam)
 
         assertEquals(pageData, result)
         verify { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
@@ -264,57 +261,6 @@ class DefaultRepositorySupervisorTest {
         assertThrows<DomainException> {
             supervisor.find(predicate)
         }
-    }
-
-    @Test
-    @DisplayName("应该正确处理JpaAggregatePredicate")
-    fun `should handle JpaAggregatePredicate correctly`() {
-        val jpaPredicate = mockk<JpaPredicate<TestEntity>>()
-        val aggregatePredicate = mockk<JpaAggregatePredicate<*, TestEntity>>()
-
-        // 使用 mockkObject 代替 mockkStatic
-        mockkObject(JpaAggregatePredicateSupport)
-        every { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) } returns jpaPredicate
-
-        DefaultRepositorySupervisor.registerPredicateEntityClassReflector(JpaAggregatePredicate::class.java) {
-            TestEntity::class.java
-        }
-
-        // 创建支持JpaPredicate的仓储
-        val jpaRepository = mockk<Repository<TestEntity>>(relaxed = true)
-        every { jpaRepository.supportPredicateClass() } returns JpaPredicate::class.java
-        every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(jpaRepository, 0, Repository::class.java)
-        } returns TestEntity::class.java
-
-        val supervisorWithJpa = DefaultRepositorySupervisor(
-            repositories = listOf(jpaRepository),
-            unitOfWork = mockUnitOfWork
-        )
-
-        every {
-            jpaRepository.find(
-                aggregatePredicate,
-                any<Collection<OrderInfo>>(),
-                any(),
-                AggregateLoadPlan.WHOLE_AGGREGATE
-            )
-        } returns listOf(TestEntity(1L, "jpa-test"))
-
-        val result = supervisorWithJpa.remove(aggregatePredicate)
-
-        assertEquals(listOf(TestEntity(1L, "jpa-test")), result)
-        verify { JpaAggregatePredicateSupport.getPredicate(aggregatePredicate) }
-        verify {
-            jpaRepository.find(
-                aggregatePredicate,
-                any<Collection<OrderInfo>>(),
-                any(),
-                AggregateLoadPlan.WHOLE_AGGREGATE
-            )
-        }
-
-        unmockkObject(JpaAggregatePredicateSupport)
     }
 
     @Test

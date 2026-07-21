@@ -1,5 +1,5 @@
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 cap4k {
@@ -8,7 +8,6 @@ cap4k {
     }
     sources {
         irAnalysis {
-            enabled.set(true)
             inputDirs.from("analysis/app/build/cap4k-code-analysis")
         }
     }
@@ -19,7 +18,6 @@ cap4k {
     }
     generators {
         flow {
-            enabled.set(true)
         }
     }
     templates {

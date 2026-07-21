@@ -2,6 +2,8 @@
 package buildsrc.convention
 
 import org.gradle.api.GradleException
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.testing.Test
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import java.time.Duration
 
@@ -97,4 +99,3 @@ tasks.withType<Test>().configureEach {
         )
     }
 }
-

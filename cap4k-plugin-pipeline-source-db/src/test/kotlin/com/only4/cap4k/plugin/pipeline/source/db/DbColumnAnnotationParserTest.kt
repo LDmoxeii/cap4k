@@ -1,159 +1,194 @@
 package com.only4.cap4k.plugin.pipeline.source.db
 
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
+import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 
 class DbColumnAnnotationParserTest {
 
     @Test
-    fun `parser extracts type binding and enum items from comment`() {
+    fun `column parser accepts parent ref managed role`() {
+        val metadata = DbColumnAnnotationParser.parse("@ParentRef;@Managed=scope;")
+
+        assertTrue(metadata.parentRef)
+        assertEquals(DbManagedRole.SCOPE, metadata.managedRole)
+        assertNull(metadata.idStrategy)
+    }
+
+    @Test
+    fun `column parser accepts db identity id strategy`() {
+        val metadata = DbColumnAnnotationParser.parse("@IdStrategy=db_identity;")
+
+        assertEquals(DbIdStrategy.DB_IDENTITY, metadata.idStrategy)
+    }
+
+    @Test
+    fun `column parser accepts type ref aggregate managed and inherited`() {
         val metadata = DbColumnAnnotationParser.parse(
-            "status field @T=VideoPostVisibility;@E=0:HIDDEN:Hidden|1:PUBLIC:Public;"
+            "status @Type=VideoPostVisibility;@RefAggregate=VideoPost;@Managed=system;@Inherited;"
         )
 
         assertEquals("VideoPostVisibility", metadata.typeBinding)
-        assertEquals(listOf("HIDDEN", "PUBLIC"), metadata.enumItems.map { it.name })
-        assertEquals(listOf(0, 1), metadata.enumItems.map { it.value })
+        assertTrue(metadata.enumItems.isEmpty())
+        assertEquals("VideoPost", metadata.refAggregate)
+        assertNull(metadata.refId)
+        assertEquals(DbManagedRole.SYSTEM, metadata.managedRole)
+        assertEquals(true, metadata.inherited)
+        assertEquals("status", metadata.cleanedComment)
     }
 
     @Test
-    fun `parser keeps type-only binding without enum generation`() {
-        val metadata = DbColumnAnnotationParser.parse("shared status @T=Status;")
+    fun `column parser accepts ref id`() {
+        val metadata = DbColumnAnnotationParser.parse("@RefId=VideoPostId;")
 
-        assertEquals("Status", metadata.typeBinding)
-        assertEquals(emptyList<Any>(), metadata.enumItems)
+        assertNull(metadata.refAggregate)
+        assertEquals("VideoPostId", metadata.refId)
     }
 
     @Test
-    fun `enum definition without type binding fails`() {
+    fun `column parser rejects removed relation annotations through one generic path`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@E=0:DRAFT:Draft|1:PUBLISHED:Published;")
+            DbColumnAnnotationParser.parse("@Reference=user_profile;@Relation=ManyToOne;")
         }
 
-        assertEquals("@E requires @T on the same column comment.", error.message)
-    }
-
-    @Test
-    fun `conflicting type annotations fail fast`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@T=Status;@TYPE=VideoPostStatus;")
-        }
-
-        assertEquals("conflicting @T/@TYPE annotations on the same column comment.", error.message)
-    }
-
-    @Test
-    fun `conflicting enum annotations fail fast`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@T=Status;@E=0:DRAFT:Draft;@ENUM=1:PUBLISHED:Published;")
-        }
-
-        assertEquals("conflicting @E/@ENUM annotations on the same column comment.", error.message)
-    }
-
-    @Test
-    fun `parser extracts generated value marker deleted version and write controls from comment`() {
-        val metadata = DbColumnAnnotationParser.parse(
-            "audit field @GeneratedValue;@Deleted;@Version;@Insertable=false;@Updatable=false;"
+        assertEquals(
+            "unsupported column annotation @Reference. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            error.message,
         )
+    }
 
-        assertEquals(true, metadata.generatedValueDeclared)
-        assertEquals(null, metadata.generatedValueStrategy)
-        assertEquals(true, metadata.deleted)
-        assertEquals(true, metadata.version)
-        assertEquals(false, metadata.insertable)
-        assertEquals(false, metadata.updatable)
+    @TestFactory
+    fun `rejects old column annotations through generic path`() = listOf(
+        "@T=Status;",
+        "@TYPE=Status;",
+        "@E=0:A:a;",
+        "@ENUM=0:A:a;",
+        "@Deleted;",
+        "@Version;",
+        "@GeneratedValue=identity;",
+        "@Reference=video_post;",
+        "@Ref=video_post;",
+        "@Relation=ManyToOne;",
+        "@Rel=*:1;",
+        "@Lazy=true;",
+        "@L=true;",
+        "@Count=one;",
+        "@C=one;",
+        "@One;",
+        "@Exposed;",
+        "@Insertable=false;",
+        "@Updatable=false;",
+    ).map { comment ->
+        DynamicTest.dynamicTest(comment) {
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DbColumnAnnotationParser.parse(comment)
+            }
+
+            assertTrue(error.message!!.startsWith("unsupported column annotation @"))
+        }
     }
 
     @Test
-    fun `parser supports explicit generated value strategies and alias`() {
-        val uuid7 = DbColumnAnnotationParser.parse("@GeneratedValue=uuid7;")
-        val snowflake = DbColumnAnnotationParser.parse("@GeneratedValue=SNOWFLAKE-LONG;")
-        val identity = DbColumnAnnotationParser.parse("@GeneratedValue=IDENTITY;")
-        val databaseIdentity = DbColumnAnnotationParser.parse("@GeneratedValue=database-identity;")
-
-        assertEquals("uuid7", uuid7.generatedValueStrategy)
-        assertEquals("snowflake-long", snowflake.generatedValueStrategy)
-        assertEquals("identity", identity.generatedValueStrategy)
-        assertEquals("identity", databaseIdentity.generatedValueStrategy)
-    }
-
-    @Test
-    fun `parser rejects unsupported generated value strategy`() {
+    fun `column parser rejects unsupported column annotation generically`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@GeneratedValue=SEQUENCE;")
+            DbColumnAnnotationParser.parse("status @CustomMarker;")
         }
 
-        assertEquals("unsupported @GeneratedValue strategy in this slice: SEQUENCE", error.message)
+        assertEquals(
+            "unsupported column annotation @CustomMarker. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            error.message,
+        )
     }
 
     @Test
-    fun `parser keeps deleted and version null when source is silent`() {
+    fun `column parser rejects multiple managed annotations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Managed=system;@Managed=scope;")
+        }
+
+        assertEquals("multiple @Managed annotations are not allowed.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects valueless managed annotation`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Managed;")
+        }
+
+        assertEquals("invalid @Managed annotation: value is required.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects unsupported id strategy value`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@IdStrategy=sequence;")
+        }
+
+        assertEquals("unsupported @IdStrategy value: sequence", error.message)
+    }
+
+    @Test
+    fun `column parser rejects parent ref combinations`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@ParentRef;@RefAggregate=VideoPost;")
+        }
+
+        assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects parent ref with ref id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@ParentRef;@RefId=VideoPostId;")
+        }
+
+        assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects parent ref with id strategy`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@ParentRef;@IdStrategy=db_identity;")
+        }
+
+        assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects ref aggregate with ref id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@RefAggregate=VideoPost;@RefId=VideoPostId;")
+        }
+
+        assertEquals("conflicting @RefAggregate and @RefId annotations on the same column comment.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects inherited without managed role`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Inherited;")
+        }
+
+        assertEquals(
+            "@Inherited is valid only with @Managed=system, @Managed=scope, @Managed=deleted, or @Managed=version.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `column parser keeps nullable metadata empty when source is silent`() {
         val metadata = DbColumnAnnotationParser.parse("plain comment")
 
-        assertEquals(null, metadata.version)
-        assertEquals(null, metadata.deleted)
-        assertEquals(null, metadata.managed)
-        assertEquals(null, metadata.exposed)
-        assertEquals(false, metadata.generatedValueDeclared)
-    }
-
-    @Test
-    fun `parser rejects valued deleted and version markers`() {
-        val versionError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Version=true;")
-        }
-        val deletedError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Deleted=false;")
-        }
-
-        assertEquals("invalid @Version annotation: explicit values are not supported.", versionError.message)
-        assertEquals("invalid @Deleted annotation: explicit values are not supported.", deletedError.message)
-    }
-
-    @Test
-    fun `parser supports managed and exposed markers`() {
-        val managed = DbColumnAnnotationParser.parse("@Managed;")
-        val exposed = DbColumnAnnotationParser.parse("@Exposed;")
-
-        assertEquals(true, managed.managed)
-        assertEquals(null, managed.exposed)
-        assertEquals(null, exposed.managed)
-        assertEquals(true, exposed.exposed)
-    }
-
-    @Test
-    fun `parser rejects valued managed exposed and mutual exclusion`() {
-        val managedError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Managed=true;")
-        }
-        val exposedBooleanError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Exposed=false;")
-        }
-        val exposedNumericError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Exposed=1;")
-        }
-        val conflictError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Managed;@Exposed;")
-        }
-
-        assertEquals("invalid @Managed annotation: explicit values are not supported.", managedError.message)
-        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedBooleanError.message)
-        assertEquals("invalid @Exposed annotation: explicit values are not supported.", exposedNumericError.message)
-        assertEquals("conflicting @Managed/@Exposed annotations on the same column comment.", conflictError.message)
-    }
-
-    @Test
-    fun `parser rejects invalid insertable updatable boolean annotation values`() {
-        val insertableError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Insertable=maybe;")
-        }
-        val updatableError = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@Updatable=maybe;")
-        }
-
-        assertEquals("invalid @Insertable boolean value in this slice: maybe", insertableError.message)
-        assertEquals("invalid @Updatable boolean value in this slice: maybe", updatableError.message)
+        assertNull(metadata.typeBinding)
+        assertTrue(metadata.enumItems.isEmpty())
+        assertNull(metadata.managedRole)
+        assertNull(metadata.idStrategy)
+        assertEquals("plain comment", metadata.cleanedComment)
     }
 }

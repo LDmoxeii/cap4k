@@ -2,7 +2,9 @@ package {{ packageName }}
 
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload") -}}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
 {{ use(entityTypeFqn) -}}
 {% for import in imports(imports) -%}
@@ -10,34 +12,42 @@ import {{ import }}
 {% endfor %}
 
 @Service
-@Aggregate(
-    aggregate = "{{ aggregateName }}",
-    name = "{{ typeName }}",
-    type = Aggregate.TYPE_FACTORY,
-    description = ""
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
 )
+{% endif -%}
 class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{ entityName }}> {
 
-    override fun create(payload: {{ payloadTypeName }}): {{ entityName }} {
-        TODO("Implement aggregate construction")
-    }
+    override fun create(entityPayload: {{ payloadTypeName }}): {{ entityName }} =
+{% if constructorMappingResolved -%}
+{{ "        " }}{{ entityName }}(
+{% if ownIdInitializer is not null -%}
+{{ "            " }}{{ ownIdFieldName }} = {{ ownIdInitializer }}{% if constructorPayloadFields|length > 0 %},{% endif %}
+{% endif -%}
+{% for field in constructorPayloadFields -%}
+{{ "            " }}{{ field.name }} = entityPayload.{{ field.name }}{% if not loop.last %},{% endif %}
+{% endfor -%}
+{{ "        " }})
+{% else -%}
+{{ "        " }}TODO("Implement aggregate construction")
+{% endif %}
 
-    @Aggregate(
-        aggregate = "{{ aggregateName }}",
-        name = "{{ payloadMetadataName }}",
-        type = Aggregate.TYPE_FACTORY_PAYLOAD,
-        description = ""
-    )
-{% if payloadWriteSurfaceResolved and payloadFields|length == 0 %}
-    class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
-{% elseif payloadWriteSurfaceResolved %}
-    data class {{ payloadTypeName }}(
-{% for field in payloadFields %}
-        val {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
-{% endfor %}
-    ) : AggregatePayload<{{ entityName }}>
-{% else %}
-    data class {{ payloadTypeName }}(
+{% if payloadWriteSurfaceResolved and payloadFields|length == 0 -%}
+{{ "    " }}class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
+{% elseif payloadWriteSurfaceResolved -%}
+{{ "    " }}data class {{ payloadTypeName }}(
+{% for field in payloadFields -%}
+{{ "        " }}val {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{% endfor -%}
+{{ "    " }}) : AggregatePayload<{{ entityName }}>
+{% else -%}
+{{ "    " }}data class {{ payloadTypeName }}(
         val name: String
     ) : AggregatePayload<{{ entityName }}>
 {% endif %}

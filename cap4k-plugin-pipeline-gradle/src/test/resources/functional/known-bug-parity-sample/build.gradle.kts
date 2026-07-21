@@ -1,5 +1,5 @@
-plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+﻿plugins {
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
@@ -25,46 +25,17 @@ cap4k {
             excludeTables.set(emptyList())
         }
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
         }
     }
     generators {
         aggregate {
-            enabled.set(true)
             specialFields {
-                idDefaultStrategy.set("snowflake-long")
+                idDefaultStrategy.set("identity")
             }
             artifacts {
                 unique.set(true)
             }
-        }
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-        designQueryHandler {
-            enabled.set(true)
-        }
-        designClient {
-            enabled.set(true)
-        }
-        designClientHandler {
-            enabled.set(true)
-        }
-        designValidator {
-            enabled.set(true)
-        }
-        designApiPayload {
-            enabled.set(true)
-        }
-        designDomainEvent {
-            enabled.set(true)
-        }
-        designDomainEventHandler {
-            enabled.set(true)
         }
     }
 }

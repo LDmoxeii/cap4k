@@ -2,111 +2,87 @@ package com.only4.cap4k.plugin.pipeline.source.db
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 
 class DbTableAnnotationParserTest {
 
     @Test
-    fun `parser extracts provider specific table controls from comment`() {
-        val metadata = DbTableAnnotationParser.parse(
-            "@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;"
-        )
+    fun `table parser accepts only parent and ignore`() {
+        val metadata = DbTableAnnotationParser.parse("video_post @Parent=content; @Ignore;")
 
-        assertEquals(true, metadata.aggregateRoot)
-        assertEquals(true, metadata.dynamicInsert)
-        assertEquals(true, metadata.dynamicUpdate)
+        assertEquals("content", metadata.parentTable)
+        assertTrue(metadata.ignored)
+        assertEquals("video_post", metadata.cleanedComment)
     }
 
     @Test
-    fun `parser extracts table ignore marker from comment`() {
-        val metadata = DbTableAnnotationParser.parse("Framework table @I;")
-
-        assertEquals(true, metadata.ignored)
-        assertEquals("Framework table", metadata.cleanedComment)
-    }
-
-    @Test
-    fun `parser rejects valued table ignore marker`() {
+    fun `table parser rejects uppercase alias names`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@I=true;")
-        }
-
-        assertEquals("invalid @Ignore/@I annotation: explicit values are not supported.", error.message)
-    }
-
-    @Test
-    fun `parser rejects malformed dynamic insert value`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@DynamicInsert=maybe;")
-        }
-
-        assertEquals("invalid @DynamicInsert value: maybe", error.message)
-    }
-
-    @Test
-    fun `parser rejects non strict provider boolean casing`() {
-        val insertError = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@DynamicInsert=TRUE;")
-        }
-        val updateError = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@DynamicUpdate=FALSE;")
-        }
-
-        assertEquals("invalid @DynamicInsert value: TRUE", insertError.message)
-        assertEquals("invalid @DynamicUpdate value: FALSE", updateError.message)
-    }
-
-    @Test
-    fun `parser rejects conflicting duplicate dynamic insert annotations`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@DynamicInsert=true;@DynamicInsert=false;")
-        }
-
-        assertEquals("conflicting @DynamicInsert annotations on the same table comment.", error.message)
-    }
-
-    @Test
-    fun `parser rejects conflicting duplicate dynamic update annotations`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@DynamicUpdate=true;@DynamicUpdate=false;")
-        }
-
-        assertEquals("conflicting @DynamicUpdate annotations on the same table comment.", error.message)
-    }
-
-    @Test
-    fun `parser rejects legacy soft delete column annotation with migration message`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("@SoftDeleteColumn=deleted;")
+            DbTableAnnotationParser.parse("@P=content;")
         }
 
         assertEquals(
-            "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead",
+            "unsupported table annotation @P. Supported table annotations: @Parent=<table>, @Ignore.",
+            error.message,
+        )
+    }
+
+    @TestFactory
+    fun `rejects old table annotations through generic path`() = listOf(
+        "@AggregateRoot=true;",
+        "@Root=true;",
+        "@R=true;",
+        "@DynamicInsert=true;",
+        "@DynamicUpdate=true;",
+    ).map { comment ->
+        DynamicTest.dynamicTest(comment) {
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DbTableAnnotationParser.parse(comment)
+            }
+
+            assertTrue(error.message!!.startsWith("unsupported table annotation @"))
+        }
+    }
+
+    @Test
+    fun `table parser rejects unsupported table annotation generically`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("Video post @CustomMarker;")
+        }
+
+        assertEquals(
+            "unsupported table annotation @CustomMarker. Supported table annotations: @Parent=<table>, @Ignore.",
             error.message,
         )
     }
 
     @Test
-    fun `parser rejects legacy id generator annotation`() {
+    fun `table parser rejects blank parent value`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;")
+            DbTableAnnotationParser.parse("@Parent=;")
         }
 
-        assertEquals(
-            "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead",
-            error.message,
-        )
+        assertEquals("blank @Parent value is not allowed.", error.message)
     }
 
     @Test
-    fun `parser rejects legacy id generator alias annotation`() {
+    fun `table parser rejects valueless parent annotation`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DbTableAnnotationParser.parse("Video post root @AggregateRoot=true;@IG=snowflakeIdGenerator;")
+            DbTableAnnotationParser.parse("@Parent;")
         }
 
-        assertEquals(
-            "unsupported table annotation @IG: use @GeneratedValue on the ID column instead",
-            error.message,
-        )
+        assertEquals("missing value for @Parent annotation.", error.message)
+    }
+
+    @Test
+    fun `table parser rejects valued ignore marker`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbTableAnnotationParser.parse("@Ignore=true;")
+        }
+
+        assertEquals("invalid @Ignore annotation: explicit values are not supported.", error.message)
     }
 }

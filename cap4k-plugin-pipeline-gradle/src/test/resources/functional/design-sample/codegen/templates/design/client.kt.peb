@@ -6,14 +6,14 @@ import {{ import }}
 {% endfor %}
 
 object {{ typeName }} {
-{% if requestFields|length > 0 %}
-{% if requestNestedTypes|length > 0 %}
+{% if fields|length > 0 %}
+{% if nestedTypes|length > 0 %}
     data class Request(
-{% for field in requestFields %}
+{% for field in fields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
     ) : RequestParam<Response> {
-{% for nestedType in requestNestedTypes %}
+{% for nestedType in nestedTypes %}
 
         data class {{ nestedType.name }}(
 {% for field in nestedType.fields %}
@@ -24,7 +24,7 @@ object {{ typeName }} {
     }
 {% else %}
     data class Request(
-{% for field in requestFields %}
+{% for field in fields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
     ) : RequestParam<Response>
@@ -33,14 +33,14 @@ object {{ typeName }} {
     class Request : RequestParam<Response>
 {% endif %}
 
-{% if responseFields|length > 0 %}
-{% if responseNestedTypes|length > 0 %}
+{% if resultFields|length > 0 %}
+{% if resultNestedTypes|length > 0 %}
     data class Response(
-{% for field in responseFields %}
+{% for field in resultFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
     ) {
-{% for nestedType in responseNestedTypes %}
+{% for nestedType in resultNestedTypes %}
 
         data class {{ nestedType.name }}(
 {% for field in nestedType.fields %}
@@ -51,7 +51,7 @@ object {{ typeName }} {
     }
 {% else %}
     data class Response(
-{% for field in responseFields %}
+{% for field in resultFields %}
         val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor %}
     )

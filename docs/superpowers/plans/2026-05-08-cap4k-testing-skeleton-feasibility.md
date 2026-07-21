@@ -4,7 +4,7 @@
 
 **Goal:** Publish the first-version public testing contract for `cap4k` as a docs-first surface, wire it into the existing Chinese authoring entry points, and keep the implementation strictly limited to `domain` / `application` default testing guidance.
 
-**Architecture:** Implement the accepted `#18` design as one new standalone Chinese authoring page plus two small discoverability edits in `authoring/index.zh-CN.md` and `getting-started.zh-CN.md`. Reuse the `#21` shared reference project and default-path language, make `ApproveContentCmd -> StartMediaProcessingCmd` the default application-level testing seam, and explicitly keep bootstrap, generated artifacts, runtime test-support libraries, and infrastructure-first tests out of the first-version contract.
+**Architecture:** Implement the accepted `#18` design as one new standalone Chinese authoring page plus two small discoverability edits in `authoring/index.md` and `getting-started.md`. Reuse the `#21` shared reference project and default-path language, make `ApproveContentCmd -> StartMediaProcessingCmd` the default application-level testing seam, and explicitly keep bootstrap, generated artifacts, runtime test-support libraries, and infrastructure-first tests out of the first-version contract.
 
 **Tech Stack:** Markdown docs, existing public authoring navigation, repository-internal Markdown links, manual doc regression checks with `rg`, `git diff`, and `git diff --check`.
 
@@ -12,16 +12,16 @@
 
 ## File Map
 
-- Create: `docs/public/authoring/testing-contract.zh-CN.md`
+- Create: `docs/public/authoring/testing-contract.md`
   - Standalone Chinese testing contract page that answers what the official default testing boundary is, where it lives, what helper shape is allowed, what is intentionally out of scope, and how `#27` should consume the contract.
-- Modify: `docs/public/authoring/index.zh-CN.md`
+- Modify: `docs/public/authoring/index.md`
   - Surface the new testing contract in the authoring overview so project authors and reviewers can discover it without scanning the whole docs tree.
-- Modify: `docs/public/getting-started.zh-CN.md`
+- Modify: `docs/public/getting-started.md`
   - Add the minimal “write domain/application behavior tests before broader infrastructure tests” guidance and link to the new testing contract.
 
 ## Content Contract For The New Page
 
-The new `testing-contract.zh-CN.md` page should explicitly answer the four required issue questions.
+The new `testing-contract.md` page should explicitly answer the four required issue questions.
 
 1. If a testing skeleton exists, it belongs to:
    - framework-authored guidance
@@ -55,17 +55,17 @@ The page should also explicitly state that these tests are allowed but not part 
 ## Task 1: Create the standalone testing contract page
 
 **Files:**
-- Create: `docs/public/authoring/testing-contract.zh-CN.md`
+- Create: `docs/public/authoring/testing-contract.md`
 
 - [ ] **Step 1: Re-read the current shared reference anchors before writing**
 
 Run:
 
 ```powershell
-Get-Content docs/public/authoring/examples/reference-project-overview.zh-CN.md
-Get-Content docs/public/authoring/examples/content-draft-to-publish.zh-CN.md
-Get-Content docs/public/authoring/examples/media-processing-callback.zh-CN.md
-Get-Content docs/public/authoring/examples/advanced-concepts-overview.zh-CN.md
+Get-Content docs/public/authoring/examples/reference-project-overview.md
+Get-Content docs/public/authoring/examples/content-draft-to-publish.md
+Get-Content docs/public/authoring/examples/media-processing-callback.md
+Get-Content docs/public/authoring/examples/advanced-concepts-overview.md
 ```
 
 Expected:
@@ -74,7 +74,7 @@ Expected:
 - `ApproveContentCmd -> StartMediaProcessingCmd` is clearly established as the shared default handoff
 - no alternate sample universe needs to be invented for the testing contract
 
-- [ ] **Step 2: Create `testing-contract.zh-CN.md` with the final heading structure**
+- [ ] **Step 2: Create `testing-contract.md` with the final heading structure**
 
 Write this exact top-level skeleton:
 
@@ -169,10 +169,10 @@ Expected:
 
 In prose, link the new page back to these existing docs:
 
-- `default-happy-path.zh-CN.md`
-- `examples/reference-project-overview.zh-CN.md`
-- `examples/content-draft-to-publish.zh-CN.md`
-- `examples/media-processing-callback.zh-CN.md`
+- `default-happy-path.md`
+- `examples/reference-project-overview.md`
+- `examples/content-draft-to-publish.md`
+- `examples/media-processing-callback.md`
 
 Expected:
 
@@ -184,7 +184,7 @@ Expected:
 Run:
 
 ```powershell
-rg -n 'Content|MediaProcessingTask|MediaProcessingCli|ApproveContentCmd|StartMediaProcessingCmd|callback|polling|@SpringBootTest|JPA|fake port|builder|审计' docs/public/authoring/testing-contract.zh-CN.md
+rg -n 'Content|MediaProcessingTask|MediaProcessingCli|ApproveContentCmd|StartMediaProcessingCmd|callback|polling|@SpringBootTest|JPA|fake port|builder|审计' docs/public/authoring/testing-contract.md
 ```
 
 Expected:
@@ -199,7 +199,7 @@ Expected:
 Run:
 
 ```powershell
-git add docs/public/authoring/testing-contract.zh-CN.md
+git add docs/public/authoring/testing-contract.md
 git commit -m "docs: add testing contract"
 ```
 
@@ -210,14 +210,14 @@ Expected:
 ## Task 2: Wire the testing contract into the authoring overview
 
 **Files:**
-- Modify: `docs/public/authoring/index.zh-CN.md`
+- Modify: `docs/public/authoring/index.md`
 
 - [ ] **Step 1: Re-read the current authoring overview before editing**
 
 Run:
 
 ```powershell
-Get-Content docs/public/authoring/index.zh-CN.md
+Get-Content docs/public/authoring/index.md
 ```
 
 Expected:
@@ -230,13 +230,13 @@ Expected:
 Update the `## 阅读路径` section so the `### 项目作者` list becomes:
 
 ```markdown
-1. [Default Happy Path](default-happy-path.zh-CN.md)
-2. [生成器指南](generator/index.zh-CN.md)
-3. [领域层指南](domain.zh-CN.md)
-4. [应用层指南](application.zh-CN.md)
-5. [测试合同](testing-contract.zh-CN.md)
-6. [适配器层指南](adapter.zh-CN.md)
-7. [高级概念指南](advanced/index.zh-CN.md)
+1. [Default Happy Path](default-happy-path.md)
+2. [生成器指南](generator/index.md)
+3. [领域层指南](domain.md)
+4. [应用层指南](application.md)
+5. [测试合同](testing-contract.md)
+6. [适配器层指南](adapter.md)
+7. [高级概念指南](advanced/index.md)
 ```
 
 Expected:
@@ -249,10 +249,10 @@ Expected:
 Update the cross-cutting list so it contains:
 
 ```markdown
-- [命名与目录规范](naming-and-layout.zh-CN.md)
-- [生成 / 手写边界](generation-boundaries.zh-CN.md)
-- [示例合同](example-contract.zh-CN.md)
-- [测试合同](testing-contract.zh-CN.md)
+- [命名与目录规范](naming-and-layout.md)
+- [生成 / 手写边界](generation-boundaries.md)
+- [示例合同](example-contract.md)
+- [测试合同](testing-contract.md)
 ```
 
 Expected:
@@ -264,7 +264,7 @@ Expected:
 Run:
 
 ```powershell
-git diff -- docs/public/authoring/index.zh-CN.md
+git diff -- docs/public/authoring/index.md
 ```
 
 Expected:
@@ -277,7 +277,7 @@ Expected:
 Run:
 
 ```powershell
-git add docs/public/authoring/index.zh-CN.md
+git add docs/public/authoring/index.md
 git commit -m "docs: surface testing contract in authoring index"
 ```
 
@@ -288,14 +288,14 @@ Expected:
 ## Task 3: Add the minimal getting-started testing guidance
 
 **Files:**
-- Modify: `docs/public/getting-started.zh-CN.md`
+- Modify: `docs/public/getting-started.md`
 
 - [ ] **Step 1: Re-read the current getting-started flow**
 
 Run:
 
 ```powershell
-Get-Content docs/public/getting-started.zh-CN.md
+Get-Content docs/public/getting-started.md
 ```
 
 Expected:
@@ -320,10 +320,10 @@ Expected:
 Update the section so it contains:
 
 ```markdown
-- [框架定位](framework-positioning.zh-CN.md)
-- [编写指南总览](authoring/index.zh-CN.md)
-- [Default Happy Path](authoring/default-happy-path.zh-CN.md)
-- [测试合同](authoring/testing-contract.zh-CN.md)
+- [框架定位](framework-positioning.md)
+- [编写指南总览](authoring/index.md)
+- [Default Happy Path](authoring/default-happy-path.md)
+- [测试合同](authoring/testing-contract.md)
 ```
 
 Expected:
@@ -335,7 +335,7 @@ Expected:
 Run:
 
 ```powershell
-rg -n '测试|test|bootstrap|生成|DSL|runtime|SpringBootTest' docs/public/getting-started.zh-CN.md
+rg -n '测试|test|bootstrap|生成|DSL|runtime|SpringBootTest' docs/public/getting-started.md
 ```
 
 Expected:
@@ -348,7 +348,7 @@ Expected:
 Run:
 
 ```powershell
-git add docs/public/getting-started.zh-CN.md
+git add docs/public/getting-started.md
 git commit -m "docs: add default testing path to getting started"
 ```
 
@@ -359,16 +359,16 @@ Expected:
 ## Task 4: Run docs regression checks and verify the implementation stayed inside the approved boundary
 
 **Files:**
-- Verify: `docs/public/authoring/testing-contract.zh-CN.md`
-- Verify: `docs/public/authoring/index.zh-CN.md`
-- Verify: `docs/public/getting-started.zh-CN.md`
+- Verify: `docs/public/authoring/testing-contract.md`
+- Verify: `docs/public/authoring/index.md`
+- Verify: `docs/public/getting-started.md`
 
 - [ ] **Step 1: Run a focused reference-anchor check across all changed files**
 
 Run:
 
 ```powershell
-rg -n 'Content|MediaProcessingTask|ApproveContentCmd|StartMediaProcessingCmd|callback|polling|测试合同' docs/public/authoring/testing-contract.zh-CN.md docs/public/authoring/index.zh-CN.md docs/public/getting-started.zh-CN.md
+rg -n 'Content|MediaProcessingTask|ApproveContentCmd|StartMediaProcessingCmd|callback|polling|测试合同' docs/public/authoring/testing-contract.md docs/public/authoring/index.md docs/public/getting-started.md
 ```
 
 Expected:
@@ -381,7 +381,7 @@ Expected:
 Run:
 
 ```powershell
-rg -n 'cap4k-test|generated test|bootstrap.*test|runtime test-support|test-support artifact|JUnit extension|Kotest extension' docs/public/authoring/testing-contract.zh-CN.md docs/public/authoring/index.zh-CN.md docs/public/getting-started.zh-CN.md
+rg -n 'cap4k-test|generated test|bootstrap.*test|runtime test-support|test-support artifact|JUnit extension|Kotest extension' docs/public/authoring/testing-contract.md docs/public/authoring/index.md docs/public/getting-started.md
 ```
 
 Expected:
@@ -394,7 +394,7 @@ Expected:
 Run:
 
 ```powershell
-git diff -- docs/public/authoring/testing-contract.zh-CN.md docs/public/authoring/index.zh-CN.md docs/public/getting-started.zh-CN.md
+git diff -- docs/public/authoring/testing-contract.md docs/public/authoring/index.md docs/public/getting-started.md
 git diff --check
 ```
 

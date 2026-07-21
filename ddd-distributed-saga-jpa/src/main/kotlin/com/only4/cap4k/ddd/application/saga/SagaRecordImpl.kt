@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application.saga
 import com.only4.cap4k.ddd.application.saga.persistence.Saga
 import com.only4.cap4k.ddd.application.saga.persistence.SagaProcess
 import com.only4.cap4k.ddd.core.application.RequestParam
+import com.only4.cap4k.ddd.core.application.saga.SagaCompensationRequestedBy
 import com.only4.cap4k.ddd.core.application.saga.SagaParam
 import com.only4.cap4k.ddd.core.application.saga.SagaRecord
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -49,6 +50,21 @@ class SagaRecordImpl : SagaRecord {
         get() = saga.sagaParam!!
 
     override fun <R : Any> getResult(): R? {
+        if (saga.sagaState in setOf(
+                Saga.SagaState.COMPENSATION_REQUESTED,
+                Saga.SagaState.COMPENSATING,
+                Saga.SagaState.MANUAL_REPAIR_REQUIRED,
+                Saga.SagaState.COMPENSATED
+            )
+        ) {
+            throw DomainException(
+                buildString {
+                    append("Saga compensation recorded: ")
+                    append("code=").append(saga.compensationRequestCode)
+                    append(", reason=").append(saga.compensationRequestReason)
+                }
+            )
+        }
         @Suppress("UNCHECKED_CAST")
         val result = saga.sagaResult as? R
         if (result == null && !saga.exception.isNullOrEmpty()) {
@@ -99,6 +115,10 @@ class SagaRecordImpl : SagaRecord {
         saga.endSagaProcess(now, processCode, result)
     }
 
+    override fun registerSagaProcessCompensation(processCode: String, compensationCode: String, param: RequestParam<*>) {
+        saga.getSagaProcess(processCode)!!.registerCompensation(compensationCode, param)
+    }
+
     override fun sagaProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable) {
         saga.getSagaProcess(processCode)!!.occurredException(now, throwable)
     }
@@ -116,5 +136,55 @@ class SagaRecordImpl : SagaRecord {
             throw DomainException(sagaProcess.exception!!)
         }
         return result
+    }
+
+    override fun requestCompensation(
+        now: LocalDateTime,
+        code: String,
+        reason: String,
+        requestedBy: SagaCompensationRequestedBy,
+        sourceProcessCode: String?
+    ) {
+        saga.requestCompensation(now, code, reason, requestedBy, sourceProcessCode)
+    }
+
+    override fun beginCompensation(now: LocalDateTime): Boolean {
+        return saga.beginCompensation(now)
+    }
+
+    override fun endCompensation(now: LocalDateTime) {
+        saga.endCompensation(now)
+    }
+
+    override fun markManualRepairRequired(now: LocalDateTime) {
+        saga.markManualRepairRequired(now)
+    }
+
+    override fun compensationProcessCodesToRun(): List<String> {
+        val processes = saga.sagaProcesses
+            .filter { it.processState == SagaProcess.SagaProcessState.EXECUTED }
+            .sortedWith(
+                compareByDescending<SagaProcess> { it.executedAt ?: LocalDateTime.MIN }
+                    .thenByDescending { it.createAt }
+                    .thenByDescending { it.id ?: Long.MIN_VALUE }
+            )
+            .filterNot { it.compensationState == SagaProcess.SagaCompensationState.COMPENSATED }
+        return processes.map { it.processCode }
+    }
+
+    override fun getSagaProcessCompensationRequest(processCode: String): RequestParam<*>? {
+        return saga.getSagaProcess(processCode)?.compensationRequestParam
+    }
+
+    override fun beginSagaCompensationProcess(now: LocalDateTime, processCode: String) {
+        saga.getSagaProcess(processCode)!!.beginCompensation(now)
+    }
+
+    override fun endSagaCompensationProcess(now: LocalDateTime, processCode: String, result: Any) {
+        saga.getSagaProcess(processCode)!!.endCompensation(now, result)
+    }
+
+    override fun sagaCompensationProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable) {
+        saga.getSagaProcess(processCode)!!.occurredCompensationException(now, throwable)
     }
 }

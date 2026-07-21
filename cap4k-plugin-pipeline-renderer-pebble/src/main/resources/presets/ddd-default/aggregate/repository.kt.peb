@@ -3,11 +3,16 @@ package {{ packageName }}
 {{ use("org.springframework.data.jpa.repository.JpaRepository") -}}
 {{ use("org.springframework.data.jpa.repository.JpaSpecificationExecutor") -}}
 {{ use("org.springframework.stereotype.Repository") -}}
-{{ use("com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate") -}}
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") -}}
 {{ use("org.springframework.stereotype.Component") -}}
 {%- if entityTypeFqn %}
 {{ use(entityTypeFqn) -}}
+{%- endif %}
+{%- if idTypeFqn %}
+{{ use(idTypeFqn) -}}
 {%- endif %}
 {%- if supportQuerydsl %}
 {{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") -}}
@@ -18,6 +23,16 @@ import {{ import }}
 {% endfor %}
 
 @Repository
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 {%- if supportQuerydsl %}
 interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpecificationExecutor<{{ entityName }}>,
     QuerydslPredicateExecutor<{{ entityName }}> {
@@ -26,7 +41,6 @@ interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpe
 {%- endif %}
 
     @Component
-    @Aggregate(aggregate = "{{ aggregateName }}", name = "{{ aggregateName }}Repo", type = Aggregate.TYPE_REPOSITORY, description = "")
     class {{ entityName }}JpaRepositoryAdapter(
         jpaSpecificationExecutor: JpaSpecificationExecutor<{{ entityName }}>,
         jpaRepository: JpaRepository<{{ entityName }}, {{ idType }}>
@@ -37,7 +51,6 @@ interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpe
 
 {%- if supportQuerydsl %}
     @Component
-    @Aggregate(aggregate = "{{ aggregateName }}", name = "{{ aggregateName }}QuerydslRepo", type = Aggregate.TYPE_REPOSITORY, description = "")
     class {{ entityName }}QuerydslRepositoryAdapter(
         querydslPredicateExecutor: QuerydslPredicateExecutor<{{ entityName }}>
     ) : AbstractQuerydslRepository<{{ entityName }}>(

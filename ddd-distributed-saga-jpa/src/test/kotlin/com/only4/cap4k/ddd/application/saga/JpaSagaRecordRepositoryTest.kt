@@ -6,6 +6,11 @@ import com.only4.cap4k.ddd.application.saga.persistence.Saga
 import com.only4.cap4k.ddd.application.saga.persistence.SagaJpaRepository
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.*
+import jakarta.persistence.criteria.CriteriaBuilder
+import jakarta.persistence.criteria.CriteriaQuery
+import jakarta.persistence.criteria.Path
+import jakarta.persistence.criteria.Predicate
+import jakarta.persistence.criteria.Root
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -204,8 +209,8 @@ class JpaSagaRecordRepositoryTest {
 
             val mockSagas = listOf(
                 createMockSaga("saga1", Saga.SagaState.INIT),
-                createMockSaga("saga2", Saga.SagaState.EXECUTING),
-                createMockSaga("saga3", Saga.SagaState.EXCEPTION)
+                createMockSaga("saga2", Saga.SagaState.EXECUTING_FORWARD),
+                createMockSaga("saga3", Saga.SagaState.COMPENSATION_REQUESTED)
             )
             val mockPage = PageImpl(mockSagas)
 
@@ -231,6 +236,25 @@ class JpaSagaRecordRepositoryTest {
                     PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, Saga.F_NEXT_TRY_TIME))
                 )
             }
+        }
+
+        @Test
+        @DisplayName("可运行Saga查询应该包含前向和补偿恢复状态")
+        fun `should include forward and compensation runnable states in retry query`() {
+            val capturedStates = captureQueriedSagaStates {
+                repository.getByNextTryTime("test-service", testTime.plusMinutes(30), 10)
+            }
+
+            assertEquals(
+                setOf(
+                    Saga.SagaState.INIT,
+                    Saga.SagaState.EXECUTING_FORWARD,
+                    Saga.SagaState.EXCEPTION,
+                    Saga.SagaState.COMPENSATION_REQUESTED,
+                    Saga.SagaState.COMPENSATING
+                ),
+                capturedStates
+            )
         }
 
         @Test
@@ -299,7 +323,7 @@ class JpaSagaRecordRepositoryTest {
 
             val mockSagas = listOf(
                 createMockSaga("saga1", Saga.SagaState.EXECUTED),
-                createMockSaga("saga2", Saga.SagaState.CANCEL),
+                createMockSaga("saga2", Saga.SagaState.CANCELLED),
                 createMockSaga("saga3", Saga.SagaState.EXPIRED)
             )
             val mockPage = PageImpl(mockSagas)
@@ -378,6 +402,26 @@ class JpaSagaRecordRepositoryTest {
                 )
             }
         }
+
+        @Test
+        @DisplayName("归档查询应该包含全部终态")
+        fun `should include all terminal saga states in archive query`() {
+            val capturedStates = captureQueriedSagaStates {
+                repository.archiveByExpireAt("test-service", testTime.minusDays(1), 10)
+            }
+
+            assertEquals(
+                setOf(
+                    Saga.SagaState.CANCELLED,
+                    Saga.SagaState.EXPIRED,
+                    Saga.SagaState.EXHAUSTED,
+                    Saga.SagaState.EXECUTED,
+                    Saga.SagaState.COMPENSATED,
+                    Saga.SagaState.MANUAL_REPAIR_REQUIRED
+                ),
+                capturedStates
+            )
+        }
     }
 
     @Nested
@@ -390,7 +434,7 @@ class JpaSagaRecordRepositoryTest {
             // Given
             val sagas = listOf(
                 createMockSaga("saga1", Saga.SagaState.EXECUTED),
-                createMockSaga("saga2", Saga.SagaState.CANCEL)
+                createMockSaga("saga2", Saga.SagaState.CANCELLED)
             )
             val archivedSagas = listOf(mockk<ArchivedSaga>(), mockk<ArchivedSaga>())
 
@@ -660,6 +704,11 @@ class JpaSagaRecordRepositoryTest {
             every { result } returns """{"success":true,"message":"completed"}"""
             every { resultType } returns "TestSagaResult"
             every { exception } returns null
+            every { compensationRequestCode } returns ""
+            every { compensationRequestReason } returns ""
+            every { compensationRequestedAt } returns null
+            every { compensationRequestedBy } returns ""
+            every { compensationSourceProcessCode } returns ""
             every { expireAt } returns testTime.plusHours(1)
             every { createAt } returns testTime.minusHours(1)
             every { tryTimes } returns 3
@@ -668,5 +717,48 @@ class JpaSagaRecordRepositoryTest {
             every { version } returns 1
             every { sagaProcesses } returns mutableListOf()
         }
+    }
+
+    private fun captureQueriedSagaStates(queryAction: () -> Unit): Set<Saga.SagaState> {
+        val specificationSlot = slot<Specification<Saga>>()
+        every {
+            sagaJpaRepository.findAll(capture(specificationSlot), any<PageRequest>())
+        } returns PageImpl(emptyList())
+
+        queryAction()
+
+        return evaluateSagaStateSpecification(specificationSlot.captured)
+    }
+
+    private fun evaluateSagaStateSpecification(specification: Specification<Saga>): Set<Saga.SagaState> {
+        val root = mockk<Root<Saga>>()
+        val query = mockk<CriteriaQuery<*>>(relaxed = true)
+        val criteriaBuilder = mockk<CriteriaBuilder>()
+        val statePath = mockk<Path<Saga.SagaState>>()
+        val svcNamePath = mockk<Path<String>>()
+        val nextTryTimePath = mockk<Path<LocalDateTime>>()
+        val expireAtPath = mockk<Path<LocalDateTime>>()
+        val predicate = mockk<Predicate>(relaxed = true)
+        val capturedStates = linkedSetOf<Saga.SagaState>()
+
+        every { root.get<Saga.SagaState>(Saga.F_SAGA_STATE) } returns statePath
+        every { root.get<String>(Saga.F_SVC_NAME) } returns svcNamePath
+        every { root.get<LocalDateTime>(Saga.F_NEXT_TRY_TIME) } returns nextTryTimePath
+        every { root.get<LocalDateTime>(Saga.F_EXPIRE_AT) } returns expireAtPath
+
+        every { criteriaBuilder.equal(statePath, any<Saga.SagaState>()) } answers {
+            capturedStates += secondArg<Saga.SagaState>()
+            predicate
+        }
+        every { criteriaBuilder.equal(svcNamePath, any<String>()) } returns predicate
+        every { criteriaBuilder.lessThan(nextTryTimePath, any<LocalDateTime>()) } returns predicate
+        every { criteriaBuilder.lessThan(expireAtPath, any<LocalDateTime>()) } returns predicate
+        every { criteriaBuilder.and(*anyVararg()) } returns predicate
+        every { criteriaBuilder.or(*anyVararg()) } returns predicate
+        every { query.where(any<Predicate>()) } returns query
+
+        specification.toPredicate(root, query, criteriaBuilder)
+
+        return capturedStates
     }
 }

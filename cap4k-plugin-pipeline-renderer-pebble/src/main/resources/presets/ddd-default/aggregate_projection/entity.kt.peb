@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {% if entityJpa.entityEnabled -%}
 {{ use("jakarta.persistence.Column") -}}
 {{ use("jakarta.persistence.Entity") -}}
@@ -15,16 +18,35 @@ package {{ packageName }}
 {% for import in imports -%}
 {{ use(import) -}}
 {% endfor -%}
+{% for field in scalarFields -%}
+{% if field.converterClassRef -%}
+{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" -%}
+{{ use(field.converterTypeRef) -}}
+{% else -%}
+{{ use(field.converterClassRef) -}}
+{% endif -%}
+{% endif -%}
+{% endfor -%}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 {% if entityJpa.entityEnabled %}
 @Entity
 @Table(name = "{{ entityJpa.tableName }}")
 {% endif -%}
 class {{ typeName }}(
 {% for field in scalarFields -%}
-{{ "    " }}{{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
@@ -36,11 +58,15 @@ class {{ typeName }}(
     @Version
 {% endif %}
     @Column(name = "{{ field.columnName }}")
-{% if field.converterClassRef %}
-    @Convert(converter = {{ field.converterClassRef }}::class)
-{% endif %}
-{% endif %}
-    var {{ field.name }}: {{ field.type }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+{% if field.converterClassRef -%}
+{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" -%}
+{{ "    " }}@Convert(converter = {{ type(field.converterTypeRef) | raw }}.Converter::class)
+{% else -%}
+{{ "    " }}@Convert(converter = {{ type(field.converterClassRef) | raw }}::class)
+{% endif -%}
+{% endif -%}
+{% endif -%}
+{{ "    " }}var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
         internal set
 
 {% endfor -%}

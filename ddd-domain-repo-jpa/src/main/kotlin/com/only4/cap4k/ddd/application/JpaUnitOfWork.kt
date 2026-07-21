@@ -2,8 +2,6 @@ package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
@@ -28,7 +26,6 @@ open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
-    private val supportValueObjectExistsCheckOnSave: Boolean,
     idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
 ) : UnitOfWork {
 
@@ -36,12 +33,10 @@ open class JpaUnitOfWork(
         uowInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
-        supportValueObjectExistsCheckOnSave: Boolean,
     ) : this(
         uowInterceptors,
         persistListenerManager,
         supportEntityInlinePersistListener,
-        supportValueObjectExistsCheckOnSave,
         MapBackedIdStrategyRegistry(emptyList()),
     )
 
@@ -62,7 +57,6 @@ open class JpaUnitOfWork(
         private val persistEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
         private val removeEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
         private val processingEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
-        private val wrapperMapThreadLocal = ThreadLocal.withInitial { HashMap<Any, Aggregate<*>>() }
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
@@ -71,7 +65,6 @@ open class JpaUnitOfWork(
             persistEntitiesThreadLocal.remove()
             removeEntitiesThreadLocal.remove()
             processingEntitiesThreadLocal.remove()
-            wrapperMapThreadLocal.remove()
         }
     }
 
@@ -81,22 +74,10 @@ open class JpaUnitOfWork(
             JpaEntityInformationSupport.getEntityInformation(it, entityManager)
         } as EntityInformation<Any, Any>
 
-    private fun isValueObjectAndExists(entity: Any): Boolean {
-        val valueObject = entity as? ValueObject<*> ?: return false
-        val id = valueObject.hash()
-        return entityManager.find(entity.javaClass, id) != null
-    }
-
     private fun isExists(entity: Any): Boolean {
-        val id = when (entity) {
-            is ValueObject<*> -> entity.hash()
-            else -> {
-                val entityInformation = getEntityInformation(entity.javaClass)
-                if (entityInformation.isNew(entity)) return false
-                entityInformation.getId(entity)
-            }
-        }
-
+        val entityInformation = getEntityInformation(entity.javaClass)
+        if (entityInformation.isNew(entity)) return false
+        val id = entityInformation.getId(entity)
         return entityManager.find(entity.javaClass, id) != null
     }
 
@@ -126,38 +107,17 @@ open class JpaUnitOfWork(
         deletedEntities.forEach { persistListenerManager.onChange(it, PersistType.DELETE) }
     }
 
-    private fun unwrapEntity(entity: Any): Any {
-        if (entity !is Aggregate<*>) return entity
-
-        val unwrappedEntity = entity._unwrap()
-        wrapperMapThreadLocal.get()[unwrappedEntity] = entity
-        return unwrappedEntity
-    }
-
-    private fun updateWrappedEntity(entity: Any, updatedEntity: Any) {
-        val wrapperMap = wrapperMapThreadLocal.get()
-        val aggregate = wrapperMap.remove(entity) ?: return
-
-        @Suppress("UNCHECKED_CAST")
-        (aggregate as Aggregate<Any>)._wrap(updatedEntity)
-        wrapperMap[updatedEntity] = aggregate
-    }
-
     override fun persist(entity: Any) {
-        val unwrappedEntity = unwrapEntity(entity)
-        if (isValueObjectAndExists(unwrappedEntity)) return
-        persistEntitiesThreadLocal.get().add(unwrappedEntity)
+        persistEntitiesThreadLocal.get().add(entity)
     }
 
     override fun persistIfNotExist(entity: Any): Boolean {
-        val unwrappedEntity = unwrapEntity(entity)
-        if (isExists(unwrappedEntity)) return false
-        return persistEntitiesThreadLocal.get().add(unwrappedEntity)
+        if (isExists(entity)) return false
+        return persistEntitiesThreadLocal.get().add(entity)
     }
 
     override fun remove(entity: Any) {
-        val unwrappedEntity = unwrapEntity(entity)
-        removeEntitiesThreadLocal.get().add(unwrappedEntity)
+        removeEntitiesThreadLocal.get().add(entity)
     }
 
     private fun pushProcessingEntity(
@@ -210,13 +170,6 @@ open class JpaUnitOfWork(
                     entities.forEach { entity ->
                         val applicationSideIdMember = applicationSideIdSupport.findApplicationSideId(entity)
                         when {
-                            // ValueObject 存在性检查
-                            supportValueObjectExistsCheckOnSave && entity is ValueObject<*> -> {
-                                if (!isExists(entity)) {
-                                    entityManager.persist(entity)
-                                    results.created.add(entity)
-                                }
-                            }
                             // 应用侧ID实体处理
                             applicationSideIdMember != null -> {
                                 check(!applicationSideIdSupport.isDefaultId(applicationSideIdMember, entity)) {
@@ -231,7 +184,7 @@ open class JpaUnitOfWork(
                                         results.created.add(entity)
                                     }
                                     else -> {
-                                        entityManager.merge(entity).also { merged -> updateWrappedEntity(entity, merged) }
+                                        entityManager.merge(entity)
                                         results.updated.add(entity)
                                     }
                                 }
@@ -247,7 +200,7 @@ open class JpaUnitOfWork(
                             // 现有实体处理
                             else -> {
                                 if (!entityManager.contains(entity)) {
-                                    entityManager.merge(entity).also { merged -> updateWrappedEntity(entity, merged) }
+                                    entityManager.merge(entity)
                                 }
                                 results.updated.add(entity)
                             }
@@ -263,7 +216,6 @@ open class JpaUnitOfWork(
                             entityManager.contains(entity) -> entityManager.remove(entity)
                             else -> {
                                 entityManager.merge(entity).also { merged ->
-                                    updateWrappedEntity(entity, merged)
                                     entityManager.remove(merged)
                                 }
                             }

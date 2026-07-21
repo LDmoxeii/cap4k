@@ -1,6 +1,9 @@
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
+
+val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
+val dbFilePath = layout.buildDirectory.file("h2/demo").get().asFile.absolutePath.replace("\\", "/")
 
 cap4k {
     project {
@@ -10,20 +13,18 @@ cap4k {
     }
     sources {
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
         }
-        kspMetadata {
+        db {
             enabled.set(true)
-            inputDir.set("demo-domain/build/generated/ksp/main/resources/metadata")
-        }
-    }
-    generators {
-        designDomainEvent {
-            enabled.set(true)
-        }
-        designDomainEventHandler {
-            enabled.set(true)
+            url.set(
+                "jdbc:h2:file:$dbFilePath;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false;INIT=RUNSCRIPT FROM '$schemaScriptPath'"
+            )
+            username.set("sa")
+            password.set("secret")
+            schema.set("PUBLIC")
+            includeTables.set(listOf("order"))
+            excludeTables.set(emptyList())
         }
     }
 }

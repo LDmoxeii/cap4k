@@ -1,8 +1,6 @@
 package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
-import com.only4.cap4k.ddd.core.domain.aggregate.ValueObject
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
 import com.only4.cap4k.ddd.core.domain.id.IdStrategy
@@ -36,14 +34,12 @@ class JpaUnitOfWorkTest {
         uowInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
-        supportValueObjectExistsCheckOnSave: Boolean,
         private val overridePersistenceContextEntities: Boolean = true,
         idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
     ) : JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
         supportEntityInlinePersistListener,
-        supportValueObjectExistsCheckOnSave,
         idStrategyRegistry
     ) {
 
@@ -76,7 +72,6 @@ class JpaUnitOfWorkTest {
             uowInterceptors = uowInterceptors,
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            supportValueObjectExistsCheckOnSave = true,
             idStrategyRegistry = MapBackedIdStrategyRegistry(listOf(FixedLongStrategy())),
         )
 
@@ -137,51 +132,6 @@ class JpaUnitOfWorkTest {
         // Then
         jpaUnitOfWork.save()
         verify { entityManager.persist(entity) }
-    }
-
-    @Test
-    @DisplayName("如果值对象已存在则不应持久化")
-    fun testPersistValueObjectAlreadyExists() {
-        // Given
-        val valueObject = TestValueObject("test")
-        every { entityManager.find(valueObject.javaClass, valueObject.hash()) } returns valueObject
-
-        // When
-        jpaUnitOfWork.persist(valueObject)
-
-        // Then
-        jpaUnitOfWork.save()
-        verify(exactly = 0) { entityManager.persist(valueObject) }
-    }
-
-    @Test
-    @DisplayName("如果值对象不存在则应持久化")
-    fun testPersistValueObjectNotExists() {
-        // Given
-        val valueObject = TestValueObject("test")
-        every { entityManager.find(valueObject.javaClass, valueObject.hash()) } returns null
-
-        // When
-        jpaUnitOfWork.persist(valueObject)
-
-        // Then
-        jpaUnitOfWork.save()
-        verify { entityManager.persist(valueObject) }
-    }
-
-    @Test
-    @DisplayName("持久化前应解包聚合对象")
-    fun testPersistAggregateUnwrapping() {
-        // Given
-        val innerEntity = TestEntity(1L, "test")
-        val aggregate = TestAggregate(innerEntity)
-
-        // When
-        jpaUnitOfWork.persist(aggregate)
-
-        // Then
-        jpaUnitOfWork.save()
-        verify { entityManager.persist(innerEntity) }  // Should persist since contains() returns false by default
     }
 
     @Test
@@ -444,7 +394,6 @@ class JpaUnitOfWorkTest {
             uowInterceptors = emptyList(),
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = false,
-            supportValueObjectExistsCheckOnSave = false
         )
         unitOfWork.setTestEntityManager(entityManager)
         JpaUnitOfWork.fixAopWrapper(unitOfWork)
@@ -467,7 +416,6 @@ class JpaUnitOfWorkTest {
             uowInterceptors = emptyList(),
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = false,
-            supportValueObjectExistsCheckOnSave = false
         )
 
         // When
@@ -475,49 +423,6 @@ class JpaUnitOfWorkTest {
 
         // Then
         assertSame(newUnitOfWork, JpaUnitOfWork.instance)
-    }
-
-    @Test
-    @DisplayName("应处理带存在性检查的值对象持久化")
-    fun testValueObjectPersistenceWithExistsCheck() {
-        // Given
-        val valueObject = TestValueObject("test")
-        every { entityManager.find(valueObject.javaClass, valueObject.hash()) } returns null
-
-        // When
-        jpaUnitOfWork.persist(valueObject)
-        jpaUnitOfWork.save()
-
-        // Then
-        verify { entityManager.persist(valueObject) }
-    }
-
-    @Test
-    @Order(1)  // Run this test first to avoid interference from other tests
-    @DisplayName("应处理聚合对象的包装和解包")
-    fun testAggregateWrappingUnwrapping() {
-        // Extra reset to ensure clean state for this specific test
-        JpaUnitOfWork.reset()
-
-        // Given
-        val originalEntity = TestEntity(1L, "original")
-        val aggregate = TestAggregate(originalEntity)
-        val mergedEntity = TestEntity(1L, "merged")
-
-        // Mock the entity as NOT new, so it should use merge path
-        every { mockEntityInfo.isNew(originalEntity) } returns false
-        every { entityManager.merge(originalEntity) } returns mergedEntity
-        // Ensure contains returns false so merge path is taken
-        every { entityManager.contains(originalEntity) } returns false
-
-        // When
-        jpaUnitOfWork.persist(aggregate)
-        jpaUnitOfWork.save()
-
-        // Then
-        verify { entityManager.merge(originalEntity) }
-        // Verify the aggregate was updated with the merged entity
-        assertEquals(mergedEntity, aggregate._unwrap())
     }
 
     @Test
@@ -582,18 +487,16 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("four argument JpaUnitOfWork constructor should remain callable")
-    fun fourArgumentJpaUnitOfWorkConstructorShouldRemainCallable() {
+    @DisplayName("three argument JpaUnitOfWork constructor should remain callable")
+    fun threeArgumentJpaUnitOfWorkConstructorShouldRemainCallable() {
         val unitOfWork = JpaUnitOfWork(
             uowInterceptors,
             persistListenerManager,
             supportEntityInlinePersistListener = true,
-            supportValueObjectExistsCheckOnSave = true,
         )
         val constructor = JpaUnitOfWork::class.java.getConstructor(
             List::class.java,
             PersistListenerManager::class.java,
-            Boolean::class.javaPrimitiveType,
             Boolean::class.javaPrimitiveType,
         )
 
@@ -606,7 +509,6 @@ class JpaUnitOfWorkTest {
             uowInterceptors = emptyList(),
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            supportValueObjectExistsCheckOnSave = true,
             overridePersistenceContextEntities = false,
         ).also {
             it.setTestEntityManager(entityManager)
@@ -654,21 +556,6 @@ class JpaUnitOfWorkTest {
         val id: Long?,
         val name: String
     )
-
-    @jakarta.persistence.Entity
-    data class TestValueObject(
-        @jakarta.persistence.Id
-        private val value: String
-    ) : ValueObject<String> {
-        override fun hash(): String = value.hashCode().toString()
-    }
-
-    class TestAggregate(private var entity: TestEntity) : Aggregate<TestEntity> {
-        override fun _unwrap(): TestEntity = entity
-        override fun _wrap(entity: TestEntity) {
-            this.entity = entity
-        }
-    }
 
     private class FixedLongStrategy : IdStrategy {
         override val name: String = "snowflake-long"

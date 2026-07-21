@@ -45,7 +45,7 @@ If we keep everything in one file, the first screen becomes too long and unstabl
 1. Replace the current boilerplate README with a real public entry for `cap4k`.
 2. Provide bilingual public documentation:
    - `README.md`
-   - `README.zh-CN.md`
+   - `README.md`
 3. Keep README as the entry point rather than the full documentation corpus.
 4. Split only a small amount of supporting public documentation under `docs/public/`.
 5. Make README align strictly with the capability and positioning audit from `#15`.
@@ -82,7 +82,7 @@ The first screen should visibly optimize for the first audience. Technical landi
 Two entry documents must exist:
 
 - `README.md` (English)
-- `README.zh-CN.md` (Chinese)
+- `README.md` (Chinese)
 
 These two files should keep the same structure and roughly equivalent information density.
 
@@ -93,9 +93,9 @@ They do not need to be literal line-by-line translations, but they must stay sem
 Create a small public-doc split under `docs/public/`:
 
 - `docs/public/getting-started.md`
-- `docs/public/getting-started.zh-CN.md`
+- `docs/public/getting-started.md`
 - `docs/public/framework-positioning.md`
-- `docs/public/framework-positioning.zh-CN.md`
+- `docs/public/framework-positioning.md`
 
 This is the minimum public split needed for maintainability. Do not expand into a large public-doc tree in this slice.
 
@@ -292,7 +292,7 @@ To keep the bilingual docs stable:
 
 This slice is complete when:
 
-1. `README.md` and `README.zh-CN.md` are real public entry documents rather than boilerplate
+1. `README.md` and `README.md` are real public entry documents rather than boilerplate
 2. `docs/public/getting-started.*` and `docs/public/framework-positioning.*` exist as the minimum support split
 3. README first-screen positioning is aligned with `#15`
 4. `What cap4k is not` is explicitly documented

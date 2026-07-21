@@ -14,27 +14,11 @@ import org.junit.jupiter.api.Test
 class Cap4kProjectConfigFactoryTest {
 
     @Test
-    fun `nested cap4k extension exposes explicit disabled defaults`() {
+    fun `nested cap4k extension exposes explicit gate defaults`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
-        assertFalse(extension.sources.designJson.enabled.get())
-        assertFalse(extension.sources.kspMetadata.enabled.get())
         assertFalse(extension.sources.db.enabled.get())
-        assertFalse(extension.sources.irAnalysis.enabled.get())
-        assertFalse(extension.generators.designCommand.enabled.get())
-        assertFalse(extension.generators.designQuery.enabled.get())
-        assertFalse(extension.generators.designQueryHandler.enabled.get())
-        assertFalse(extension.generators.designClient.enabled.get())
-        assertFalse(extension.generators.designClientHandler.enabled.get())
-        assertFalse(extension.generators.designValidator.enabled.get())
-        assertFalse(extension.generators.designApiPayload.enabled.get())
-        assertFalse(extension.generators.designDomainEvent.enabled.get())
-        assertFalse(extension.generators.designDomainEventHandler.enabled.get())
-        assertFalse(extension.generators.designIntegrationEvent.enabled.get())
-        assertFalse(extension.generators.designIntegrationEventSubscriber.enabled.get())
-        assertFalse(extension.generators.aggregate.enabled.get())
-        assertFalse(extension.generators.aggregateProjection.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
         assertEquals("uuid7", extension.generators.aggregate.specialFields.idDefaultStrategy.get())
         assertEquals("", extension.generators.aggregate.specialFields.deletedDefaultColumn.get())
@@ -42,8 +26,6 @@ class Cap4kProjectConfigFactoryTest {
         assertFalse(extension.generators.aggregate.artifacts.factory.get())
         assertFalse(extension.generators.aggregate.artifacts.specification.get())
         assertFalse(extension.generators.aggregate.artifacts.unique.get())
-        assertFalse(extension.generators.drawingBoard.enabled.get())
-        assertFalse(extension.generators.flow.enabled.get())
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
         assertTrue(extension.templates.templateConflictPolicies.get().isEmpty())
@@ -92,6 +74,17 @@ class Cap4kProjectConfigFactoryTest {
 
         extension.project {
             basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.sources {
+            db {
+                enabled.set(true)
+                url.set("jdbc:h2:mem:test")
+                username.set("sa")
+                password.set("secret")
+            }
         }
         extension.generators {
             aggregate {
@@ -108,6 +101,145 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("uuid7", config.aggregateSpecialFieldDefaults.idDefaultStrategy)
         assertEquals("deleted", config.aggregateSpecialFieldDefaults.deletedDefaultColumn)
         assertEquals("version", config.aggregateSpecialFieldDefaults.versionDefaultColumn)
+    }
+
+    @Test
+    fun `types block owns enum and value object manifests`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+        val registryFile = project.file("design/type-registry.json")
+        registryFile.parentFile.mkdirs()
+        registryFile.writeText("{}")
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.types {
+            this.registryFile.set("design/type-registry.json")
+            enumManifest {
+                files.from("design/enums.json")
+            }
+            valueObjectManifest {
+                files.from("design/value-objects.json")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals("design/type-registry.json", config.typeRegistry.registryFile)
+        assertEquals(listOf("design/enums.json"), config.typeRegistry.enumManifestFiles)
+        assertEquals(listOf("design/value-objects.json"), config.typeRegistry.valueObjectManifestFiles)
+        assertEquals(
+            mapOf("files" to listOf(project.file("design/value-objects.json").absolutePath)),
+            config.sources.getValue("value-object-manifest").options,
+        )
+        assertFalse("types-value-object" in config.generators)
+    }
+
+    @Test
+    fun `value object manifest only config carries domain module and source options`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        extension.types {
+            valueObjectManifest {
+                files.from("design/value-objects.json")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("domain" to "demo-domain"), config.modules)
+        assertEquals(
+            mapOf("files" to listOf(project.file("design/value-objects.json").absolutePath)),
+            config.sources.getValue("value-object-manifest").options,
+        )
+        assertFalse("types-value-object" in config.generators)
+    }
+
+    @Test
+    fun `enum manifest only config carries domain module and source options`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        extension.types {
+            enumManifest {
+                files.from("design/enums.json")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("domain" to "demo-domain"), config.modules)
+        assertEquals(setOf("enum-manifest"), config.sources.keys)
+        assertEquals(
+            mapOf("files" to listOf(project.file("design/enums.json").absolutePath)),
+            config.sources.getValue("enum-manifest").options,
+        )
+        assertEquals(listOf("design/enums.json"), config.typeRegistry.enumManifestFiles)
+        assertTrue(config.generators.isEmpty())
+    }
+
+    @Test
+    fun `addons block maps provider scoped options`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+        extension.addons {
+            provider("only-engine-validator") {
+                option("manifestFile", "validation/validators.json")
+                option("strict", "true")
+            }
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            mapOf("manifestFile" to "validation/validators.json", "strict" to "true"),
+            config.addons.getValue("only-engine-validator").options,
+        )
+    }
+
+    @Test
+    fun `generators extension exposes only explicit non design switches`() {
+        val methodNames = Cap4kGeneratorsExtension::class.java.methods.map { it.name }.toSet()
+
+        assertTrue("aggregate" in methodNames)
+        assertTrue("aggregateProjection" in methodNames)
+        assertTrue("flow" in methodNames)
+        assertTrue("drawingBoard" in methodNames)
+        listOf(
+            "designCommand",
+            "designQuery",
+            "designQueryHandler",
+            "designClient",
+            "designClientHandler",
+            "designValidator",
+            "designApiPayload",
+            "designDomainEvent",
+            "designDomainEventHandler",
+            "designIntegrationEvent",
+            "designIntegrationEventSubscriber",
+        ).forEach { removedMethod ->
+            assertFalse(removedMethod in methodNames)
+        }
     }
 
     @Test
@@ -291,90 +423,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory includes application and adapter modules and design client generators when enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designClient { enabled.set(true) }
-            designClientHandler { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(
-            mapOf(
-                "application" to "demo-application",
-                "adapter" to "demo-adapter",
-            ),
-            config.modules,
-        )
-        assertEquals(setOf("design-client", "design-client-handler"), config.enabledGeneratorIds())
-    }
-
-    @Test
-    fun `factory includes application module and design validator generator when enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designValidator { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(mapOf("application" to "demo-application"), config.modules)
-        assertEquals(setOf("design-validator"), config.enabledGeneratorIds())
-    }
-
-    @Test
-    fun `factory includes adapter module and design api payload generator when enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designApiPayload { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(mapOf("adapter" to "demo-adapter"), config.modules)
-        assertEquals(setOf("design-api-payload"), config.enabledGeneratorIds())
-    }
-
-    @Test
-    fun `factory includes domain and application modules and domain event family generators when enabled`() {
+    fun `factory preserves template override dir order and maps input driven sources only`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -382,570 +431,10 @@ class Cap4kProjectConfigFactoryTest {
             basePackage.set("com.acme.demo")
             domainModulePath.set("demo-domain")
             applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-            kspMetadata {
-                enabled.set(true)
-                inputDir.set("build/generated/ksp/main/resources/metadata")
-            }
-        }
-        extension.generators {
-            designDomainEvent { enabled.set(true) }
-            designDomainEventHandler { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(
-            mapOf(
-                "domain" to "demo-domain",
-                "application" to "demo-application",
-            ),
-            config.modules,
-        )
-        assertEquals(setOf("design-domain-event", "design-domain-event-handler"), config.enabledGeneratorIds())
-    }
-
-    @Test
-    fun `build includes design integration event generator`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designIntegrationEvent { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(mapOf("application" to "demo-application"), config.modules)
-        assertEquals(setOf("design-integration-event"), config.enabledGeneratorIds())
-        assertEquals("application.subscribers.integration", config.artifactLayout.designIntegrationEvent.packageRoot)
-    }
-
-    @Test
-    fun `build includes design integration event subscriber generator when both enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designIntegrationEvent { enabled.set(true) }
-            designIntegrationEventSubscriber { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(mapOf("application" to "demo-application"), config.modules)
-        assertEquals(
-            setOf("design-integration-event", "design-integration-event-subscriber"),
-            config.enabledGeneratorIds(),
-        )
-        assertEquals(
-            "application.subscribers.integration",
-            config.artifactLayout.designIntegrationEventSubscriber.packageRoot,
-        )
-    }
-
-    @Test
-    fun `design validator generator requires application module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designValidator { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.applicationModulePath is required when designValidator is enabled.", error.message)
-    }
-
-    @Test
-    fun `design validator generator requires enabled design json source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.generators {
-            designValidator { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designValidator generator requires enabled designJson source.", error.message)
-    }
-
-    @Test
-    fun `design api payload generator requires adapter module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designApiPayload { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.adapterModulePath is required when designApiPayload is enabled.", error.message)
-    }
-
-    @Test
-    fun `design api payload generator requires enabled design json source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.generators {
-            designApiPayload { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designApiPayload generator requires enabled designJson source.", error.message)
-    }
-
-    @Test
-    fun `design domain event generator requires domain module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designDomainEvent { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.domainModulePath is required when designDomainEvent is enabled.", error.message)
-    }
-
-    @Test
-    fun `design domain event handler generator requires application module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            domainModulePath.set("demo-domain")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designDomainEvent { enabled.set(true) }
-            designDomainEventHandler { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.applicationModulePath is required when designDomainEventHandler is enabled.", error.message)
-    }
-
-    @Test
-    fun `design domain event generator requires enabled design json source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            domainModulePath.set("demo-domain")
-        }
-        extension.generators {
-            designDomainEvent { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designDomainEvent generator requires enabled designJson source.", error.message)
-    }
-
-    @Test
-    fun `design domain event generator does not require enabled ksp metadata source`() {
-        val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
-        val extension = project.extensions.getByType(Cap4kExtension::class.java)
-
-        extension.project.basePackage.set("com.acme.demo")
-        extension.project.domainModulePath.set("demo-domain")
-        extension.sources.designJson.enabled.set(true)
-        extension.sources.designJson.files.from(project.file("design/design.json"))
-        extension.generators.designDomainEvent.enabled.set(true)
-        extension.sources.kspMetadata.enabled.set(false)
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-        assertTrue(config.generators.containsKey("design-domain-event"))
-        assertFalse(config.sources.containsKey("ksp-metadata"))
-    }
-
-    @Test
-    fun `design domain event handler generator requires enabled design domain event generator`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designDomainEventHandler { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designDomainEventHandler generator requires enabled designDomainEvent generator.", error.message)
-    }
-
-    @Test
-    fun `design integration event generator requires application module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designIntegrationEvent { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.applicationModulePath is required when designIntegrationEvent is enabled.", error.message)
-    }
-
-    @Test
-    fun `design integration event generator requires enabled design json source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.generators {
-            designIntegrationEvent { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designIntegrationEvent generator requires enabled designJson source.", error.message)
-    }
-
-    @Test
-    fun `design integration event subscriber requires design integration event`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designIntegrationEventSubscriber { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals(
-            "designIntegrationEventSubscriber generator requires enabled designIntegrationEvent generator.",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `design client generator requires application module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designClient { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.applicationModulePath is required when designClient is enabled.", error.message)
-    }
-
-    @Test
-    fun `design client handler generator requires adapter module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designClient { enabled.set(true) }
-            designClientHandler { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.adapterModulePath is required when designClientHandler is enabled.", error.message)
-    }
-
-    @Test
-    fun `design client generator requires enabled design json source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.generators {
-            designClient { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designClient generator requires enabled designJson source.", error.message)
-    }
-
-    @Test
-    fun `design client handler generator requires enabled design client generator`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
             adapterModulePath.set("demo-adapter")
         }
         extension.sources {
             designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designClientHandler { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designClientHandler generator requires enabled designClient generator.", error.message)
-    }
-
-    @Test
-    fun `factory includes adapter module and design query handler generator when enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designCommand { enabled.set(true) }
-            designQuery { enabled.set(true) }
-            designQueryHandler { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(
-            mapOf(
-                "application" to "demo-application",
-                "adapter" to "demo-adapter",
-            ),
-            config.modules,
-        )
-        assertEquals(setOf("design-command", "design-query", "design-query-handler"), config.enabledGeneratorIds())
-    }
-
-    @Test
-    fun `design query handler generator requires adapter module path`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designQuery { enabled.set(true) }
-            designQueryHandler { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("project.adapterModulePath is required when designQueryHandler is enabled.", error.message)
-    }
-
-    @Test
-    fun `design query handler generator requires enabled design query generator`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
-                files.from(project.file("design/design.json"))
-            }
-        }
-        extension.generators {
-            designQueryHandler { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designQueryHandler generator requires enabled designQuery generator.", error.message)
-    }
-
-    @Test
-    fun `factory preserves template override dir order and keeps only enabled blocks`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.sources {
-            designJson {
-                enabled.set(true)
                 files.from(project.file("design/design.json"))
             }
             db {
@@ -955,10 +444,6 @@ class Cap4kProjectConfigFactoryTest {
                 password.set("secret")
             }
         }
-        extension.generators {
-            designCommand { enabled.set(true) }
-            aggregate { enabled.set(false) }
-        }
         extension.templates {
             overrideDirs.from("z-templates", project.file("a-templates"))
             templateOverrideDir.set("bridge/templates")
@@ -967,9 +452,16 @@ class Cap4kProjectConfigFactoryTest {
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals("com.acme.demo", config.basePackage)
-        assertEquals(mapOf("application" to "demo-application"), config.modules)
-        assertEquals(setOf("design-json"), config.enabledSourceIds())
-        assertEquals(setOf("design-command"), config.enabledGeneratorIds())
+        assertEquals(
+            mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            config.modules,
+        )
+        assertEquals(setOf("design-json"), config.sources.keys)
+        assertEquals(emptySet<String>(), config.generators.keys)
         assertEquals("ddd-default", config.templates.preset)
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
         assertEquals(
@@ -1092,8 +584,9 @@ class Cap4kProjectConfigFactoryTest {
                     converter = TypeRegistryConverter.explicit("com.acme.external.ExternalValueConverter"),
                 ),
             ),
-            config.typeRegistry
+            config.typeRegistry.entries
         )
+        assertEquals("config/project-types.json", config.typeRegistry.registryFile)
     }
 
     @Test
@@ -1114,7 +607,7 @@ class Cap4kProjectConfigFactoryTest {
 
         assertEquals(
             "types.registryFile does not exist: ${project.file("config/missing-project-types.json").absoluteFile.path}",
-            error.message
+            error.message,
         )
     }
 
@@ -1441,7 +934,6 @@ class Cap4kProjectConfigFactoryTest {
         }
         extension.generators {
             aggregate {
-                enabled.set(true)
                 unsupportedTablePolicy.set("SKIP")
             }
         }
@@ -1475,7 +967,6 @@ class Cap4kProjectConfigFactoryTest {
         }
         extension.generators {
             aggregate {
-                enabled.set(true)
                 artifacts {
                     factory.set(true)
                     specification.set(true)
@@ -1514,7 +1005,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregate { enabled.set(true) }
+            aggregate { }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
@@ -1527,7 +1018,7 @@ class Cap4kProjectConfigFactoryTest {
             ),
             config.modules
         )
-        assertEquals(setOf("aggregate"), config.enabledGeneratorIds())
+        assertEquals(setOf("aggregate"), config.generators.keys)
     }
 
     @Test
@@ -1548,13 +1039,13 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregateProjection { enabled.set(true) }
+            aggregateProjection { }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(mapOf("adapter" to "demo-adapter"), config.modules)
-        assertEquals(setOf("aggregate-projection"), config.enabledGeneratorIds())
+        assertEquals(setOf("aggregate-projection"), config.generators.keys)
     }
 
     @Test
@@ -1574,7 +1065,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregateProjection { enabled.set(true) }
+            aggregateProjection { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -1594,18 +1085,18 @@ class Cap4kProjectConfigFactoryTest {
             adapterModulePath.set("demo-adapter")
         }
         extension.generators {
-            aggregateProjection { enabled.set(true) }
+            aggregateProjection { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
             Cap4kProjectConfigFactory().build(project, extension)
         }
 
-        assertEquals("aggregateProjection generator requires enabled db source.", error.message)
+        assertEquals("aggregateProjection generator requires db source.", error.message)
     }
 
     @Test
-    fun `factory includes enum manifest source when enabled`() {
+    fun `factory maps enum manifest from types block`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
         val manifest = project.file("shared-enums.json")
@@ -1624,60 +1115,17 @@ class Cap4kProjectConfigFactoryTest {
             adapterModulePath.set("demo-adapter")
         }
         extension.sources {
-            db {
-                enabled.set(true)
-                url.set("jdbc:h2:mem:test")
-                username.set("sa")
-                password.set("secret")
-            }
+        }
+        extension.types {
             enumManifest {
-                enabled.set(true)
-                files.from(manifest)
-            }
-        }
-        extension.generators {
-            aggregate { enabled.set(true) }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-
-        assertEquals(setOf("db", "enum-manifest"), config.enabledSourceIds())
-        assertEquals(
-            listOf(manifest.absolutePath),
-            config.sources.getValue("enum-manifest").options["files"]
-        )
-    }
-
-    @Test
-    fun `runner collects enum manifest source when enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-        val manifest = project.file("shared-enums.json")
-        manifest.writeText(
-            """
-            [
-              { "name": "Status", "package": "shared", "items": [ { "value": 0, "name": "DRAFT", "desc": "Draft" } ] },
-              { "name": "Status", "package": "shared", "items": [ { "value": 1, "name": "PUBLISHED", "desc": "Published" } ] }
-            ]
-            """.trimIndent()
-        )
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            enumManifest {
-                enabled.set(true)
                 files.from(manifest)
             }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            buildRunner(project, config, exportEnabled = false).run(config)
-        }
 
-        assertEquals("duplicate shared enum definition: Status", error.message)
+        assertEquals(setOf("enum-manifest"), config.sources.keys)
+        assertEquals(listOf("shared-enums.json"), config.typeRegistry.enumManifestFiles)
     }
 
     @Test
@@ -1688,10 +1136,12 @@ class Cap4kProjectConfigFactoryTest {
 
         extension.project {
             basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
         }
         extension.sources {
             designJson {
-                enabled.set(true)
                 manifestFile.set(manifest.path)
                 files.from(project.file("design/ignored-1.json"), project.file("design/ignored-2.json"))
             }
@@ -1706,7 +1156,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `disabled blocks do not trigger validation`() {
+    fun `absent inputs and disabled explicit gates do not trigger validation`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -1714,27 +1164,17 @@ class Cap4kProjectConfigFactoryTest {
             basePackage.set("com.acme.demo")
         }
         extension.sources {
-            designJson { enabled.set(false) }
-            kspMetadata { enabled.set(false) }
             db {
                 enabled.set(false)
                 url.set("jdbc:h2:mem:test")
             }
-            irAnalysis { enabled.set(false) }
-        }
-        extension.generators {
-            designCommand { enabled.set(false) }
-            designQuery { enabled.set(false) }
-            aggregate { enabled.set(false) }
-            flow { enabled.set(false) }
-            drawingBoard { enabled.set(false) }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(emptyMap<String, String>(), config.modules)
-        assertEquals(emptySet<String>(), config.enabledSourceIds())
-        assertEquals(emptySet<String>(), config.enabledGeneratorIds())
+        assertEquals(emptySet<String>(), config.sources.keys)
+        assertEquals(emptySet<String>(), config.generators.keys)
     }
 
     @Test
@@ -1750,28 +1190,23 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `design command generator requires application module path`() {
+    fun `design json source keeps only explicitly configured module paths`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
         }
         extension.sources {
             designJson {
-                enabled.set(true)
                 files.from(project.file("design/design.json"))
             }
         }
-        extension.generators {
-            designCommand { enabled.set(true) }
-        }
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
+        val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        assertEquals("project.applicationModulePath is required when designCommand is enabled.", error.message)
+        assertEquals(mapOf("domain" to "demo-domain"), config.modules)
     }
 
     @Test
@@ -1791,7 +1226,7 @@ class Cap4kProjectConfigFactoryTest {
             }
         }
         extension.generators {
-            aggregate { enabled.set(true) }
+            aggregate { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
@@ -1799,47 +1234,25 @@ class Cap4kProjectConfigFactoryTest {
         }
 
         assertEquals(
-            "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is enabled.",
+            "project.domainModulePath, project.applicationModulePath, and project.adapterModulePath are required when aggregate is configured.",
             error.message
         )
     }
 
     @Test
-    fun `enabled design json source requires files`() {
+    fun `design json source is absent when no manifest or files are configured`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
         }
-        extension.sources {
-            designJson { enabled.set(true) }
-        }
+        val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("sources.designJson.files must not be empty when designJson is enabled.", error.message)
-    }
-
-    @Test
-    fun `enabled ksp metadata source requires input dir`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.sources {
-            kspMetadata { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("sources.kspMetadata.inputDir is required when kspMetadata is enabled.", error.message)
+        assertFalse("design-json" in config.sources)
     }
 
     @Test
@@ -1910,42 +1323,16 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `enabled ir analysis source requires input dirs`() {
+    fun `ir analysis source is absent when no input dirs are configured`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
         }
-        extension.sources {
-            irAnalysis { enabled.set(true) }
-        }
+        val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("sources.irAnalysis.inputDirs must not be empty when irAnalysis is enabled.", error.message)
-    }
-
-    @Test
-    fun `design command generator requires enabled design json source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            applicationModulePath.set("demo-application")
-        }
-        extension.generators {
-            designCommand { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("designCommand generator requires enabled designJson source.", error.message)
+        assertFalse("ir-analysis" in config.sources)
     }
 
     @Test
@@ -1960,51 +1347,36 @@ class Cap4kProjectConfigFactoryTest {
             adapterModulePath.set("demo-adapter")
         }
         extension.generators {
-            aggregate { enabled.set(true) }
+            aggregate { }
         }
 
         val error = assertThrows(IllegalArgumentException::class.java) {
             Cap4kProjectConfigFactory().build(project, extension)
         }
 
-        assertEquals("aggregate generator requires enabled db source.", error.message)
+        assertEquals("aggregate generator requires db source.", error.message)
     }
 
     @Test
-    fun `flow generator requires enabled ir analysis source`() {
+    fun `ir analysis input dirs create source without flow or drawing board generator keys`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
         }
-        extension.generators {
-            flow { enabled.set(true) }
+        extension.sources {
+            irAnalysis {
+                inputDirs.from(project.file("build/cap4k-code-analysis"))
+            }
         }
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
+        val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        assertEquals("flow generator requires enabled irAnalysis source.", error.message)
-    }
-
-    @Test
-    fun `drawing board generator requires enabled ir analysis source`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-        }
-        extension.generators {
-            drawingBoard { enabled.set(true) }
-        }
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            Cap4kProjectConfigFactory().build(project, extension)
-        }
-
-        assertEquals("drawingBoard generator requires enabled irAnalysis source.", error.message)
+        assertEquals(
+            mapOf("inputDirs" to listOf(project.file("build/cap4k-code-analysis").absolutePath)),
+            config.sources.getValue("ir-analysis").options,
+        )
+        assertEquals(emptySet<String>(), config.generators.keys)
     }
 }

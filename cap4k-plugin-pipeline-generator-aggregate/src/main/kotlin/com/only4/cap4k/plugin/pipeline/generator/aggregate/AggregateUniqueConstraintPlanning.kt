@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
@@ -25,10 +26,11 @@ internal object AggregateUniqueConstraintPlanning {
     fun from(
         entity: EntityModel,
         providerControl: AggregatePersistenceProviderControl? = null,
+        resolvedPolicy: AggregateSpecialFieldResolvedPolicy? = null,
     ): List<AggregateUniqueConstraintSelection> {
         val selections = entity.uniqueConstraints.map { constraint ->
             val resolvedFields = selectConstraintFields(entity, constraint.columns)
-            val controlColumnNames = controlColumnNames(entity, providerControl)
+            val controlColumnNames = controlColumnNames(entity, providerControl, resolvedPolicy)
             val filteredControlFields = resolvedFields.filter { field ->
                 (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
             }
@@ -65,11 +67,15 @@ internal object AggregateUniqueConstraintPlanning {
         val providerControlsByEntity = model.aggregatePersistenceProviderControls.associateBy {
             it.entityPackageName to it.entityName
         }
+        val resolvedPoliciesByEntity = model.aggregateSpecialFieldResolvedPolicies.associateBy {
+            it.entityPackageName to it.entityName
+        }
         return model.entities
             .map { entity ->
                 entity to from(
                     entity = entity,
                     providerControl = providerControlsByEntity[entity.packageName to entity.name],
+                    resolvedPolicy = resolvedPoliciesByEntity[entity.packageName to entity.name],
                 )
             }
             .filter { (_, selections) -> selections.isNotEmpty() }
@@ -105,16 +111,22 @@ internal object AggregateUniqueConstraintPlanning {
     private fun controlColumnNames(
         entity: EntityModel,
         providerControl: AggregatePersistenceProviderControl?,
+        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
     ): Set<String> = buildSet {
-        providerControl?.softDeleteColumn
+        (resolvedPolicy?.deleted?.takeIf { it.enabled }?.columnName ?: providerControl?.softDeleteColumn)
             ?.lowercase(Locale.ROOT)
             ?.let(::add)
 
-        providerControl?.versionFieldName?.let { versionFieldName ->
-            entity.fields
-                .firstOrNull { field -> field.name.equals(versionFieldName, ignoreCase = true) }
-                ?.let { field -> (field.columnName ?: field.name).lowercase(Locale.ROOT) }
-                ?.let(::add)
+        val resolvedVersionColumnName = resolvedPolicy?.version?.takeIf { it.enabled }?.columnName
+        if (resolvedVersionColumnName != null) {
+            add(resolvedVersionColumnName.lowercase(Locale.ROOT))
+        } else {
+            providerControl?.versionFieldName?.let { versionFieldName ->
+                entity.fields
+                    .firstOrNull { field -> field.name.equals(versionFieldName, ignoreCase = true) }
+                    ?.let { field -> (field.columnName ?: field.name).lowercase(Locale.ROOT) }
+                    ?.let(::add)
+            }
         }
     }
 

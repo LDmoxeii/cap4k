@@ -45,22 +45,22 @@ Do not tell the final AI skill to load these analysis files during normal busine
 
 ### Human authoring docs
 
-- Create: `docs/public/authoring/project-authoring-workflow.zh-CN.md`
-- Create: `docs/public/authoring/tactical-model.zh-CN.md`
-- Create: `docs/public/authoring/generator/input-sources.zh-CN.md`
-- Create: `docs/public/authoring/generator/addons-and-spi.zh-CN.md`
-- Modify: `docs/public/authoring/index.zh-CN.md`
-- Modify: `docs/public/authoring/getting-started.zh-CN.md`
-- Modify: `docs/public/authoring/framework-positioning.zh-CN.md`
-- Modify: `docs/public/authoring/domain.zh-CN.md`
-- Modify: `docs/public/authoring/application.zh-CN.md`
-- Modify: `docs/public/authoring/adapter.zh-CN.md`
-- Modify: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Modify: `docs/public/authoring/testing-contract.zh-CN.md`
-- Modify: `docs/public/authoring/generator/index.zh-CN.md`
-- Modify: `docs/public/authoring/generator/bootstrap.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-generation.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-analysis.zh-CN.md`
+- Create: `docs/public/authoring/project-authoring-workflow.md`
+- Create: `docs/public/authoring/tactical-model.md`
+- Create: `docs/public/authoring/generator/input-sources.md`
+- Create: `docs/public/authoring/generator/addons-and-spi.md`
+- Modify: `docs/public/authoring/index.md`
+- Modify: `docs/public/authoring/getting-started.md`
+- Modify: `docs/public/authoring/framework-positioning.md`
+- Modify: `docs/public/authoring/domain.md`
+- Modify: `docs/public/authoring/application.md`
+- Modify: `docs/public/authoring/adapter.md`
+- Modify: `docs/public/authoring/generation-boundaries.md`
+- Modify: `docs/public/authoring/testing-contract.md`
+- Modify: `docs/public/authoring/generator/index.md`
+- Modify: `docs/public/authoring/generator/bootstrap.md`
+- Modify: `docs/public/authoring/generator/code-generation.md`
+- Modify: `docs/public/authoring/generator/code-analysis.md`
 
 ### AI business author skill
 
@@ -98,12 +98,12 @@ Do not tell the final AI skill to load these analysis files during normal busine
 ### Task 1: Add Human Authoring Capability Pages
 
 **Files:**
-- Create: `docs/public/authoring/project-authoring-workflow.zh-CN.md`
-- Create: `docs/public/authoring/tactical-model.zh-CN.md`
-- Create: `docs/public/authoring/generator/input-sources.zh-CN.md`
-- Create: `docs/public/authoring/generator/addons-and-spi.zh-CN.md`
+- Create: `docs/public/authoring/project-authoring-workflow.md`
+- Create: `docs/public/authoring/tactical-model.md`
+- Create: `docs/public/authoring/generator/input-sources.md`
+- Create: `docs/public/authoring/generator/addons-and-spi.md`
 
-- [ ] **Step 1: Create `project-authoring-workflow.zh-CN.md`**
+- [ ] **Step 1: Create `project-authoring-workflow.md`**
 
 Write a human-facing workflow page with these sections:
 
@@ -140,7 +140,7 @@ Required facts:
 - complex DDD flow should have a readable technical方案 before implementation;
 - `src-generated/main/kotlin` is a copied audit snapshot, not active generator output.
 
-- [ ] **Step 2: Create `tactical-model.zh-CN.md`**
+- [ ] **Step 2: Create `tactical-model.md`**
 
 Write a tactical-model page with these sections:
 
@@ -183,7 +183,7 @@ Required facts:
 - lifecycle hooks are `onCreate`, `onUpdate`, `onDelete`;
 - only aggregate roots should have factories.
 
-- [ ] **Step 3: Create `generator/input-sources.zh-CN.md`**
+- [ ] **Step 3: Create `generator/input-sources.md`**
 
 Write a generator input page covering:
 
@@ -206,7 +206,7 @@ value_object
 domain_service
 ```
 
-- [ ] **Step 4: Create `generator/addons-and-spi.zh-CN.md`**
+- [ ] **Step 4: Create `generator/addons-and-spi.md`**
 
 Write an addon page from the business-project user perspective:
 
@@ -222,9 +222,9 @@ Write an addon page from the business-project user perspective:
 Run:
 
 ```powershell
-rg -n "Mediator|工作单元|内置仓储|工厂|生命周期|规约|领域服务|集成事件" docs/public/authoring/tactical-model.zh-CN.md
-rg -n "integration_event|value_object|domain_service|@GeneratedValue|@Reference|@Enum|唯一|enum manifest|KSP|IR" docs/public/authoring/generator/input-sources.zh-CN.md
-rg -n "cap4kAddon|addon|templateConflictPolicies|enum translation|覆盖" docs/public/authoring/generator/addons-and-spi.zh-CN.md
+rg -n "Mediator|工作单元|内置仓储|工厂|生命周期|规约|领域服务|集成事件" docs/public/authoring/tactical-model.md
+rg -n "integration_event|value_object|domain_service|@GeneratedValue|@Reference|@Enum|唯一|enum manifest|KSP|IR" docs/public/authoring/generator/input-sources.md
+rg -n "cap4kAddon|addon|templateConflictPolicies|enum translation|覆盖" docs/public/authoring/generator/addons-and-spi.md
 ```
 
 Expected: all commands return matches.
@@ -232,55 +232,55 @@ Expected: all commands return matches.
 ### Task 2: Wire Human Authoring Navigation
 
 **Files:**
-- Modify: `docs/public/authoring/index.zh-CN.md`
-- Modify: `docs/public/authoring/getting-started.zh-CN.md`
-- Modify: `docs/public/authoring/framework-positioning.zh-CN.md`
-- Modify: `docs/public/authoring/domain.zh-CN.md`
-- Modify: `docs/public/authoring/application.zh-CN.md`
-- Modify: `docs/public/authoring/adapter.zh-CN.md`
-- Modify: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Modify: `docs/public/authoring/testing-contract.zh-CN.md`
-- Modify: `docs/public/authoring/generator/index.zh-CN.md`
-- Modify: `docs/public/authoring/generator/bootstrap.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-generation.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-analysis.zh-CN.md`
+- Modify: `docs/public/authoring/index.md`
+- Modify: `docs/public/authoring/getting-started.md`
+- Modify: `docs/public/authoring/framework-positioning.md`
+- Modify: `docs/public/authoring/domain.md`
+- Modify: `docs/public/authoring/application.md`
+- Modify: `docs/public/authoring/adapter.md`
+- Modify: `docs/public/authoring/generation-boundaries.md`
+- Modify: `docs/public/authoring/testing-contract.md`
+- Modify: `docs/public/authoring/generator/index.md`
+- Modify: `docs/public/authoring/generator/bootstrap.md`
+- Modify: `docs/public/authoring/generator/code-generation.md`
+- Modify: `docs/public/authoring/generator/code-analysis.md`
 
-- [ ] **Step 1: Update `index.zh-CN.md`**
+- [ ] **Step 1: Update `index.md`**
 
 Add the new pages into the primary authoring route:
 
 ```markdown
-- [项目编写工作流](project-authoring-workflow.zh-CN.md)
-- [公开战术模型](tactical-model.zh-CN.md)
-- [生成输入源](generator/input-sources.zh-CN.md)
-- [Addon 与 SPI 使用](generator/addons-and-spi.zh-CN.md)
+- [项目编写工作流](project-authoring-workflow.md)
+- [公开战术模型](tactical-model.md)
+- [生成输入源](generator/input-sources.md)
+- [Addon 与 SPI 使用](generator/addons-and-spi.md)
 ```
 
-Keep `index.zh-CN.md` navigational; do not paste the full content of the new pages into it.
+Keep `index.md` navigational; do not paste the full content of the new pages into it.
 
 - [ ] **Step 2: Update generator index**
 
-In `docs/public/authoring/generator/index.zh-CN.md`, add links to:
+In `docs/public/authoring/generator/index.md`, add links to:
 
 ```markdown
-- [输入源：DB / design / enum manifest / KSP / IR](input-sources.zh-CN.md)
-- [Addon 与 SPI 使用](addons-and-spi.zh-CN.md)
+- [输入源：DB / design / enum manifest / KSP / IR](input-sources.md)
+- [Addon 与 SPI 使用](addons-and-spi.md)
 ```
 
 - [ ] **Step 3: Add cross-links from existing pages**
 
 Add targeted links:
 
-- `getting-started.zh-CN.md`: link to project workflow and bootstrap page.
-- `framework-positioning.zh-CN.md`: link to tactical model and known gaps in relevant wording.
-- `domain.zh-CN.md`: link to tactical model sections for aggregate behavior, factories, lifecycle, specs, and domain services.
-- `application.zh-CN.md`: link to tactical model sections for command handler, orchestration, subscribers, and request dispatch.
-- `adapter.zh-CN.md`: link to tactical model sections for query/client handlers and adapter boundaries.
-- `generation-boundaries.zh-CN.md`: link to generated-output ownership and input-sources page.
-- `testing-contract.zh-CN.md`: link to project workflow test/analysis steps.
-- `bootstrap.zh-CN.md`: link to project workflow and generator ownership.
-- `code-generation.zh-CN.md`: link to input sources and generated-output ownership.
-- `code-analysis.zh-CN.md`: link to project workflow analysis step.
+- `getting-started.md`: link to project workflow and bootstrap page.
+- `framework-positioning.md`: link to tactical model and known gaps in relevant wording.
+- `domain.md`: link to tactical model sections for aggregate behavior, factories, lifecycle, specs, and domain services.
+- `application.md`: link to tactical model sections for command handler, orchestration, subscribers, and request dispatch.
+- `adapter.md`: link to tactical model sections for query/client handlers and adapter boundaries.
+- `generation-boundaries.md`: link to generated-output ownership and input-sources page.
+- `testing-contract.md`: link to project workflow test/analysis steps.
+- `bootstrap.md`: link to project workflow and generator ownership.
+- `code-generation.md`: link to input sources and generated-output ownership.
+- `code-analysis.md`: link to project workflow analysis step.
 
 - [ ] **Step 4: Validate public navigation**
 
@@ -288,7 +288,7 @@ Run:
 
 ```powershell
 rg -n "project-authoring-workflow|tactical-model|input-sources|addons-and-spi" docs/public/authoring -g "*.md"
-rg -n "docs/public/authoring/project-authoring-workflow|docs/public/authoring/tactical-model" README.md README.zh-CN.md docs/public/authoring -g "*.md"
+rg -n "docs/public/authoring/project-authoring-workflow|docs/public/authoring/tactical-model" README.md README.md docs/public/authoring -g "*.md"
 ```
 
 Expected:

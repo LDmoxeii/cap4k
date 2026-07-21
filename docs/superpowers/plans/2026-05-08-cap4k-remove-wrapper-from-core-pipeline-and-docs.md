@@ -55,9 +55,9 @@ Test and fixture files expected to change:
 
 Live docs expected to change:
 
-- Modify: `docs/public/reference/generator-dsl.zh-CN.md`
-- Modify: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-generation.zh-CN.md`
+- Modify: `docs/public/reference/generator-dsl.md`
+- Modify: `docs/public/authoring/generation-boundaries.md`
+- Modify: `docs/public/authoring/generator/code-generation.md`
 - Modify: `docs/superpowers/capability-matrix.md`
 
 Audit-only target unless a hidden stale mention appears:
@@ -435,15 +435,15 @@ git commit -m "test: remove wrapper aggregate fixtures"
 ### Task 5: Remove Wrapper From Live Docs And Re-Verify The Slice
 
 **Files:**
-- Modify: `docs/public/reference/generator-dsl.zh-CN.md`
-- Modify: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-generation.zh-CN.md`
+- Modify: `docs/public/reference/generator-dsl.md`
+- Modify: `docs/public/authoring/generation-boundaries.md`
+- Modify: `docs/public/authoring/generator/code-generation.md`
 - Modify: `docs/superpowers/capability-matrix.md`
 - Audit: `AGENTS.md`
 
 - [ ] **Step 1: Update the live docs to the post-wrapper contract**
 
-In `generator-dsl.zh-CN.md`, change the aggregate artifact example from:
+In `generator-dsl.md`, change the aggregate artifact example from:
 
 ```kotlin
 artifacts {
@@ -468,7 +468,7 @@ artifacts {
 
 Delete the `artifacts.wrapper` row from the reference table.
 
-In `generation-boundaries.zh-CN.md` and `code-generation.zh-CN.md`, remove wrapper from checked-in artifact lists and from any prose that still treats it as a normal author-facing aggregate capability.
+In `generation-boundaries.md` and `code-generation.md`, remove wrapper from checked-in artifact lists and from any prose that still treats it as a normal author-facing aggregate capability.
 
 In `capability-matrix.md`, delete the entire `aggregate.wrapper` row.
 
@@ -502,7 +502,7 @@ Expected: PASS.
 Run:
 
 ```powershell
-git add docs/public/reference/generator-dsl.zh-CN.md docs/public/authoring/generation-boundaries.zh-CN.md docs/public/authoring/generator/code-generation.zh-CN.md docs/superpowers/capability-matrix.md
+git add docs/public/reference/generator-dsl.md docs/public/authoring/generation-boundaries.md docs/public/authoring/generator/code-generation.md docs/superpowers/capability-matrix.md
 git commit -m "docs: remove wrapper from core capability docs"
 ```
 

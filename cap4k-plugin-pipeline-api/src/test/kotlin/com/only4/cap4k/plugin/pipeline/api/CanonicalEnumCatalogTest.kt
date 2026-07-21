@@ -89,6 +89,82 @@ class CanonicalEnumCatalogTest {
     }
 
     @Test
+    fun `resolves aggregate local value object for root and child sharing owner package`() {
+        val field = FieldModel("publishWindow", "String", typeBinding = "PublishWindow")
+        val root = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = true,
+        )
+        val child = EntityModel(
+            name = "ContentSchedule",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content_schedule",
+            comment = "",
+            fields = listOf(field),
+            idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = "Content",
+        )
+        val catalog = CanonicalEnumCatalog.from(
+            CanonicalModel(
+                entities = listOf(root, child),
+                valueObjects = listOf(
+                    ValueObjectModel(
+                        name = "PublishWindow",
+                        packageName = "com.acme.demo.domain.aggregates.content.values",
+                        aggregates = listOf("Content"),
+                    )
+                ),
+            ),
+            basePackage = "com.acme.demo",
+            typeRegistry = emptyMap(),
+        )
+
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindow",
+            catalog.resolveFieldType(child.packageName, field),
+        )
+    }
+
+    @Test
+    fun `resolves aggregate owned enum manifest using owner package name`() {
+        val enumItems = listOf(EnumItemModel(0, "DRAFT", "Draft"))
+        val field = FieldModel("status", "Int", typeBinding = "Status")
+        val entity = videoPostEntity(fields = listOf(field))
+        val catalog = CanonicalEnumCatalog.from(
+            CanonicalModel(
+                entities = listOf(entity),
+                sharedEnums = listOf(sharedEnum("Status", "ignored", enumItems, aggregates = listOf("VideoPost"))),
+            ),
+            basePackage = "com.acme.demo",
+            typeRegistry = emptyMap(),
+        )
+
+        assertEquals(emptyList<CanonicalEnumDescriptor>(), catalog.sharedEnums)
+        assertEquals(
+            CanonicalEnumDescriptor(
+                ownerPackageName = entity.packageName,
+                ownerScope = "video_post",
+                typeName = "Status",
+                fqn = "com.acme.demo.domain.aggregates.video_post.enums.Status",
+                items = enumItems,
+                shared = false,
+            ),
+            catalog.localEnums.single(),
+        )
+        assertEquals(
+            "com.acme.demo.domain.aggregates.video_post.enums.Status",
+            catalog.resolveFieldType(entity.packageName, field),
+        )
+        assertEquals(enumItems, catalog.resolveEnumItems(entity.packageName, field))
+    }
+
+    @Test
     fun `returns field enum items directly when present`() {
         val directItems = listOf(EnumItemModel(0, "HIDDEN", "Hidden"))
         val field = FieldModel("visibility", "Int", enumItems = directItems)
@@ -179,11 +255,13 @@ class CanonicalEnumCatalogTest {
         typeName: String,
         packageName: String,
         items: List<EnumItemModel>,
+        aggregates: List<String> = emptyList(),
     ): SharedEnumDefinition =
         SharedEnumDefinition(
             typeName = typeName,
             packageName = packageName,
             items = items,
+            aggregates = aggregates,
         )
 
     private fun videoPostEntity(fields: List<FieldModel>): EntityModel =

@@ -66,9 +66,9 @@ Modify code analysis:
 
 Modify documentation:
 
-- `docs/public/reference/generator-dsl.zh-CN.md`
-- `docs/public/authoring/generator/input-sources.zh-CN.md`
-- `docs/public/authoring/tactical-model.zh-CN.md`
+- `docs/public/reference/generator-dsl.md`
+- `docs/public/authoring/generator/input-sources.md`
+- `docs/public/authoring/tactical-model.md`
 
 Tests:
 
@@ -1518,13 +1518,13 @@ git commit -m "test: cover integration event generation"
 ### Task 9: Documentation Updates
 
 **Files:**
-- Modify: `docs/public/reference/generator-dsl.zh-CN.md`
-- Modify: `docs/public/authoring/generator/input-sources.zh-CN.md`
-- Modify: `docs/public/authoring/tactical-model.zh-CN.md`
+- Modify: `docs/public/reference/generator-dsl.md`
+- Modify: `docs/public/authoring/generator/input-sources.md`
+- Modify: `docs/public/authoring/tactical-model.md`
 
 - [ ] **Step 1: Update generator DSL reference**
 
-In `generator-dsl.zh-CN.md`, add the two generator families to the design family table:
+In `generator-dsl.md`, add the two generator families to the design family table:
 
 ```markdown
 | `designIntegrationEvent` | 设计驱动集成事件契约 | `cap4kPlan` / `cap4kGenerate` |
@@ -1540,7 +1540,7 @@ Add layout entries:
 
 - [ ] **Step 2: Update input source docs**
 
-In `input-sources.zh-CN.md`, add:
+In `input-sources.md`, add:
 
 ```markdown
 `integration_event` 用于集成事件契约。它必须声明 `role` 和 `eventName`：
@@ -1555,7 +1555,7 @@ Include the JSON sample from the spec.
 
 - [ ] **Step 3: Update tactical model docs**
 
-In `tactical-model.zh-CN.md`, clarify:
+In `tactical-model.md`, clarify:
 
 ```markdown
 集成事件订阅者的标准作者入口是 Spring `@EventListener` 方法。`EventSubscriber<T>` 是运行时 SPI，不是生成器默认产物。生成器会把 inbound 集成事件契约放到 `application.subscribers.integration.inbound`，把 outbound 集成事件契约放到 `application.subscribers.integration.outbound`；inbound subscriber 骨架直接放到 `application.subscribers.integration`。
@@ -1564,7 +1564,7 @@ In `tactical-model.zh-CN.md`, clarify:
 - [ ] **Step 4: Commit**
 
 ```powershell
-git add docs/public/reference/generator-dsl.zh-CN.md docs/public/authoring/generator/input-sources.zh-CN.md docs/public/authoring/tactical-model.zh-CN.md
+git add docs/public/reference/generator-dsl.md docs/public/authoring/generator/input-sources.md docs/public/authoring/tactical-model.md
 git commit -m "docs: document integration event generation"
 ```
 

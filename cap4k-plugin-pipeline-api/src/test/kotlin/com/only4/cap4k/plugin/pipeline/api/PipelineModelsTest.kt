@@ -1,573 +1,103 @@
 package com.only4.cap4k.plugin.pipeline.api
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
-
     @Test
-    fun `artifact addon provider can create plan items from canonical context`() {
-        val provider = object : ArtifactAddonProvider {
-            override val id: String = "sample-addon"
-
-            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> =
-                listOf(
-                    ArtifactPlanItem(
-                        generatorId = id,
-                        moduleRole = "adapter",
-                        templateId = "addons/sample-addon/sample.kt.peb",
-                        outputPath = "demo-adapter/src/main/kotlin/com/acme/Sample.kt",
-                        context = mapOf(
-                            "basePackage" to context.config.basePackage,
-                            "enumTypeName" to context.model.sharedEnums.single().typeName,
-                            "featureName" to context.options["featureName"],
-                        ),
-                        conflictPolicy = ConflictPolicy.SKIP,
-                    )
-                )
-        }
-
-        val config = ProjectConfig(
-            basePackage = "com.acme.demo",
-            layout = ProjectLayout.MULTI_MODULE,
-            modules = mapOf("adapter" to "demo-adapter"),
-            sources = emptyMap(),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "ddd-default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
+    fun `db column snapshot carries parent ref managed role and id strategy`() {
+        val column = DbColumnSnapshot(
+            name = "parent_id",
+            dbType = "BIGINT",
+            kotlinType = "Long",
+            nullable = false,
+            parentRef = true,
+            managedRole = DbManagedRole.SCOPE,
+            idStrategy = DbIdStrategy.DB_IDENTITY,
         )
 
-        val model = CanonicalModel(
-            sharedEnums = listOf(
-                SharedEnumDefinition(
-                    typeName = "SampleStatus",
-                    packageName = "com.acme.demo.shared.enums",
-                    items = emptyList(),
-                )
-            )
-        )
-
-        val items = provider.plan(
-            ArtifactAddonContext(
-                config = config,
-                model = model,
-                options = mapOf("featureName" to "sample-feature"),
-            )
-        )
-        val item = items.single()
-
-        assertEquals("sample-addon", provider.id)
-        assertEquals("sample-addon", item.generatorId)
-        assertEquals("addons/sample-addon/sample.kt.peb", item.templateId)
-        assertEquals("com.acme.demo", item.context["basePackage"])
-        assertEquals("SampleStatus", item.context["enumTypeName"])
-        assertEquals("sample-feature", item.context["featureName"])
+        assertTrue(column.parentRef)
+        assertEquals(DbManagedRole.SCOPE, column.managedRole)
+        assertEquals(DbIdStrategy.DB_IDENTITY, column.idStrategy)
     }
 
     @Test
-    fun `artifact plan item defaults to checked in source ownership`() {
-        val item = ArtifactPlanItem(
-            generatorId = "aggregate",
-            moduleRole = "domain",
-            templateId = "aggregate/entity.kt.peb",
-            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/Category.kt",
-            conflictPolicy = ConflictPolicy.SKIP,
-        )
-
-        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, item.outputKind)
-        assertEquals("", item.resolvedOutputRoot)
-    }
-
-    @Test
-    fun `artifact plan item can carry generated source ownership`() {
-        val item = ArtifactPlanItem(
-            generatorId = "aggregate",
-            moduleRole = "domain",
-            templateId = "aggregate/entity.kt.peb",
-            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/Category.kt",
-            conflictPolicy = ConflictPolicy.OVERWRITE,
-            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
-            resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
-        )
-
-        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, item.outputKind)
-        assertEquals("demo-domain/build/generated/cap4k/main/kotlin", item.resolvedOutputRoot)
-    }
-
-    @Test
-    fun `rendered artifact can carry output ownership`() {
-        val artifact = RenderedArtifact(
-            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/Category.kt",
-            content = "class Category",
-            conflictPolicy = ConflictPolicy.SKIP,
-            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
-            resolvedOutputRoot = "demo-domain/build/generated/cap4k/main/kotlin",
-        )
-
-        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, artifact.outputKind)
-        assertEquals("demo-domain/build/generated/cap4k/main/kotlin", artifact.resolvedOutputRoot)
-    }
-
-    @Test
-    fun `canonical model stores commands queries api payloads and clients separately`() {
-        val model = CanonicalModel(
-            commands = listOf(
-                CommandModel(
-                    packageName = "orders",
-                    typeName = "CreateOrderCmd",
-                    description = "create order",
-                    aggregateRef = AggregateRef(
-                        name = "Order",
-                        packageName = "com.acme.demo.domain.aggregates.order",
-                    ),
-                    requestFields = listOf(FieldModel(name = "id", type = "Long")),
-                    responseFields = emptyList(),
-                    variant = CommandVariant.DEFAULT,
-                )
-            ),
-            queries = listOf(
-                QueryModel(
-                    packageName = "orders",
-                    typeName = "FindOrderPageQry",
-                    description = "find order page",
-                    aggregateRef = AggregateRef(
-                        name = "Order",
-                        packageName = "com.acme.demo.domain.aggregates.order",
-                    ),
-                    requestFields = emptyList(),
-                    responseFields = emptyList(),
-                    traits = setOf(RequestTrait.PAGE),
-                )
-            ),
-            apiPayloads = listOf(
-                ApiPayloadModel(
-                    packageName = "orders",
-                    typeName = "FindOrderPage",
-                    description = "find order page payload",
-                    traits = setOf(RequestTrait.PAGE),
-                )
-            ),
-            clients = listOf(
-                ClientModel(
-                    packageName = "remote",
-                    typeName = "SyncStockCli",
-                    description = "sync stock",
-                    aggregateRef = null,
-                    requestFields = emptyList(),
-                    responseFields = emptyList(),
-                )
-            ),
-        )
-
-        assertEquals(1, model.commands.size)
-        assertEquals(setOf(RequestTrait.PAGE), model.queries.single().traits)
-        assertEquals(setOf(RequestTrait.PAGE), model.apiPayloads.single().traits)
-        assertEquals(1, model.clients.size)
-    }
-
-    @Test
-    fun `ir analysis snapshot preserves input dirs nodes edges and design elements`() {
-        val snapshot = IrAnalysisSnapshot(
-            inputDirs = listOf("app/build/cap4k-code-analysis"),
-            nodes = listOf(
-                IrNodeSnapshot(
-                    id = "OrderController::submit",
-                    name = "OrderController::submit",
-                    fullName = "com.acme.demo.adapter.web.OrderController::submit",
-                    type = "controllermethod",
-                )
-            ),
-            edges = listOf(
-                IrEdgeSnapshot(
-                    fromId = "OrderController::submit",
-                    toId = "SubmitOrderCmd",
-                    type = "ControllerMethodToCommand",
-                    label = null,
-                )
-            ),
-            designElements = listOf(
-                DesignElementSnapshot(
-                    tag = "cmd",
-                    packageName = "com.acme.demo.app.command",
-                    name = "SubmitOrderCmd",
-                    description = "submit order",
-                    aggregates = listOf("Order"),
-                    entity = "Order",
-                    persist = true,
-                    requestFields = listOf(
-                        DesignFieldSnapshot(name = "id", type = "Long")
-                    ),
-                    responseFields = listOf(
-                        DesignFieldSnapshot(name = "success", type = "Boolean", nullable = false)
-                    ),
-                )
-            ),
-        )
-
-        assertEquals("ir-analysis", snapshot.id)
-        assertEquals(listOf("app/build/cap4k-code-analysis"), snapshot.inputDirs)
-        assertEquals("OrderController::submit", snapshot.nodes.single().id)
-        assertEquals("ControllerMethodToCommand", snapshot.edges.single().type)
-        assertEquals("cmd", snapshot.designElements.single().tag)
-        assertEquals("SubmitOrderCmd", snapshot.designElements.single().name)
-    }
-
-    @Test
-    fun `canonical model keeps optional analysis graph alongside existing slices`() {
-        val graph = AnalysisGraphModel(
-            inputDirs = listOf("app/build/cap4k-code-analysis"),
-            nodes = listOf(
-                AnalysisNodeModel(
-                    id = "OrderController::submit",
-                    name = "OrderController::submit",
-                    fullName = "com.acme.demo.adapter.web.OrderController::submit",
-                    type = "controllermethod",
-                )
-            ),
-            edges = listOf(
-                AnalysisEdgeModel(
-                    fromId = "OrderController::submit",
-                    toId = "SubmitOrderCmd",
-                    type = "ControllerMethodToCommand",
-                    label = null,
-                )
-            ),
-        )
-
-        val model = CanonicalModel(
-            commands = listOf(
-                CommandModel(
-                    packageName = "order.submit",
-                    typeName = "SubmitOrderCmd",
-                    description = "submit order",
-                    aggregateRef = null,
-                    variant = CommandVariant.DEFAULT,
-                )
-            ),
-            analysisGraph = graph,
-        )
-
-        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
-        assertEquals("OrderController::submit", model.analysisGraph!!.nodes.single().id)
-        assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
-    }
-
-    @Test
-    fun `canonical model defaults analysis graph to null`() {
-        val model = CanonicalModel()
-        assertNull(model.analysisGraph)
-    }
-
-    @Test
-    fun `canonical model keeps optional drawing board alongside existing slices`() {
-        val element = DrawingBoardElementModel(
-            tag = "cmd",
-            packageName = "com.acme.demo.app.command",
-            name = "SubmitOrderCmd",
-            description = "submit order",
+    fun `design block stores artifact selections`() {
+        val block = DesignBlockModel(
+            tag = "query",
+            packageName = "order.read",
+            name = "FindOrderPage",
+            description = "Find order page",
             aggregates = listOf("Order"),
-            entity = "Order",
-            persist = true,
-            requestFields = listOf(
-                DrawingBoardFieldModel(name = "id", type = "Long")
+            artifacts = listOf(
+                ArtifactSelectionModel(family = "query", variant = "page"),
+                ArtifactSelectionModel(family = "query-handler"),
             ),
-            responseFields = listOf(
-                DrawingBoardFieldModel(name = "success", type = "Boolean", nullable = false)
-            ),
-        )
-        val board = DrawingBoardModel(elements = listOf(element))
-
-        val model = CanonicalModel(
-            commands = listOf(
-                CommandModel(
-                    packageName = "order.submit",
-                    typeName = "SubmitOrderCmd",
-                    description = "submit order",
-                    aggregateRef = null,
-                    variant = CommandVariant.DEFAULT,
-                )
-            ),
-            drawingBoard = board,
+            fields = listOf(FieldModel(name = "keyword", type = "String", nullable = true)),
+            resultFields = listOf(FieldModel(name = "orderNo", type = "String")),
         )
 
-        assertEquals("SubmitOrderCmd", model.commands.single().typeName)
-        assertEquals("cmd", model.drawingBoard!!.elements.single().tag)
-        assertEquals("SubmitOrderCmd", model.drawingBoard!!.elementsByTag["cmd"]!!.single().name)
+        assertEquals("query", block.tag)
+        assertEquals(listOf("Order"), block.aggregates)
+        assertEquals("page", block.artifacts.first().variant)
+        assertEquals("query-handler", block.artifacts.last().family)
+        assertEquals("keyword", block.fields.single().name)
+        assertEquals("orderNo", block.resultFields.single().name)
     }
 
     @Test
-    fun `drawing board model rejects mismatched elements by tag`() {
-        val element = DrawingBoardElementModel(
-            tag = "cmd",
-            packageName = "com.acme.demo.app.command",
-            name = "SubmitOrderCmd",
-            description = "submit order",
+    fun `design block preserves explicit empty artifacts for drawing board output`() {
+        val omittedArtifacts = DesignBlockModel(
+            tag = "query",
+            packageName = "order.read",
+            name = "FindOrder",
+            artifacts = listOf(
+                ArtifactSelectionModel(family = "query"),
+                ArtifactSelectionModel(family = "query-handler"),
+            ),
+            artifactsDeclared = false,
+        )
+        val explicitEmptyArtifacts = DesignBlockModel(
+            tag = "query",
+            packageName = "order.read",
+            name = "FindOrder",
+            artifacts = emptyList(),
+            artifactsDeclared = true,
         )
 
-        val exception = assertThrows(IllegalArgumentException::class.java) {
-            DrawingBoardModel(
-                elements = listOf(element),
-                elementsByTag = emptyMap(),
-            )
-        }
-
-        assertEquals("elementsByTag must match elements grouped by tag", exception.message)
+        assertFalse(omittedArtifacts.includeDesignJsonArtifacts)
+        assertTrue(explicitEmptyArtifacts.includeDesignJsonArtifacts)
+        assertEquals(emptyList<ArtifactSelectionModel>(), explicitEmptyArtifacts.designJsonArtifacts)
     }
 
     @Test
-    fun `canonical model defaults drawing board to null`() {
+    fun `design spec entry exposes public v2 fields and nullable artifact selections`() {
+        val requestFields = listOf(FieldModel(name = "keyword", type = "String", nullable = true))
+        val responseFields = listOf(FieldModel(name = "orderNo", type = "String"))
+        val entryWithOmittedArtifacts = DesignSpecEntry(
+            tag = "query",
+            packageName = "order.read",
+            name = "FindOrderPage",
+            description = "find order page",
+            aggregates = listOf("Order"),
+            fields = requestFields,
+            resultFields = responseFields,
+        )
+        val entryWithExplicitEmptyArtifacts = entryWithOmittedArtifacts.copy(artifacts = emptyList())
+
+        assertNull(entryWithOmittedArtifacts.artifacts)
+        assertEquals(requestFields, entryWithOmittedArtifacts.fields)
+        assertEquals(responseFields, entryWithOmittedArtifacts.resultFields)
+        assertEquals(emptyList<ArtifactSelectionModel>(), entryWithExplicitEmptyArtifacts.artifacts)
+    }
+
+    @Test
+    fun `canonical model defaults design blocks to empty list`() {
         val model = CanonicalModel()
-        assertNull(model.drawingBoard)
-    }
 
-    @Test
-    fun `canonical model keeps aggregate slices`() {
-        val schema = SchemaModel(
-            name = "SVideoPost",
-            packageName = "com.acme.demo.domain._share.meta.video_post",
-            entityName = "VideoPost",
-            comment = "Video post schema",
-            fields = listOf(FieldModel(name = "id", type = "Long")),
-        )
-        val entity = EntityModel(
-            name = "VideoPost",
-            packageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "video_post",
-            comment = "Video post",
-            fields = listOf(FieldModel(name = "id", type = "Long")),
-            idField = FieldModel(name = "id", type = "Long"),
-        )
-        val repository = RepositoryModel(
-            name = "VideoPostRepository",
-            packageName = "com.acme.demo.adapter.domain.repositories",
-            entityName = "VideoPost",
-            idType = "Long",
-        )
-
-        val model = CanonicalModel(
-            schemas = listOf(schema),
-            entities = listOf(entity),
-            repositories = listOf(repository),
-        )
-
-        assertEquals(listOf(schema), model.schemas)
-        assertEquals(listOf(entity), model.entities)
-        assertEquals(listOf(repository), model.repositories)
-    }
-
-    @Test
-    fun `canonical model keeps dedicated validators slice alongside commands`() {
-        val command = CommandModel(
-            packageName = "order.submit",
-            typeName = "SubmitOrderCmd",
-            description = "submit order",
-            aggregateRef = null,
-            variant = CommandVariant.DEFAULT,
-        )
-        val validator = ValidatorModel(
-            packageName = "auth.validator",
-            typeName = "IssueToken",
-            description = "issue token validator",
-            message = "校验未通过",
-            targets = listOf("FIELD", "VALUE_PARAMETER"),
-            valueType = "Long",
-        )
-
-        val model = CanonicalModel(
-            commands = listOf(command),
-            validators = listOf(validator),
-        )
-
-        assertEquals(listOf(command), model.commands)
-        assertEquals(listOf(validator), model.validators)
-    }
-
-    @Test
-    fun `canonical model keeps dedicated api payload slice alongside commands validators and aggregate slices`() {
-        val payload = ApiPayloadModel(
-            packageName = "auth.payload",
-            typeName = "BatchSaveAccountList",
-            description = "batch save account payload",
-            requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>")),
-            responseFields = listOf(FieldModel(name = "saved", type = "Int")),
-        )
-        val command = CommandModel(
-            packageName = "order.submit",
-            typeName = "SubmitOrderCmd",
-            description = "submit order",
-            aggregateRef = null,
-            variant = CommandVariant.DEFAULT,
-        )
-        val validator = ValidatorModel(
-            packageName = "auth.validator",
-            typeName = "IssueToken",
-            description = "issue token validator",
-            message = "校验未通过",
-            targets = listOf("FIELD", "VALUE_PARAMETER"),
-            valueType = "Long",
-        )
-        val schema = SchemaModel(
-            name = "SVideoPost",
-            packageName = "com.acme.demo.domain._share.meta.video_post",
-            entityName = "VideoPost",
-            comment = "Video post schema",
-            fields = listOf(FieldModel(name = "id", type = "Long")),
-        )
-        val entity = EntityModel(
-            name = "VideoPost",
-            packageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "video_post",
-            comment = "Video post",
-            fields = listOf(FieldModel(name = "id", type = "Long")),
-            idField = FieldModel(name = "id", type = "Long"),
-        )
-        val repository = RepositoryModel(
-            name = "VideoPostRepository",
-            packageName = "com.acme.demo.adapter.domain.repositories",
-            entityName = "VideoPost",
-            idType = "Long",
-        )
-
-        val model = CanonicalModel(
-            commands = listOf(command),
-            validators = listOf(validator),
-            apiPayloads = listOf(payload),
-            schemas = listOf(schema),
-            entities = listOf(entity),
-            repositories = listOf(repository),
-        )
-
-        assertEquals(listOf(command), model.commands)
-        assertEquals(listOf(validator), model.validators)
-        assertEquals(listOf(payload), model.apiPayloads)
-        assertEquals(listOf(schema), model.schemas)
-        assertEquals(listOf(entity), model.entities)
-        assertEquals(listOf(repository), model.repositories)
-    }
-
-    @Test
-    fun `plan report and pipeline result carry aggregate special field defaults and resolved policies`() {
-        val defaults = AggregateSpecialFieldDefaultsConfig(
-            idDefaultStrategy = "snowflake-long",
-            deletedDefaultColumn = "deleted",
-            versionDefaultColumn = "version",
-            managedDefaultColumns = listOf("created_at", "updated_at"),
-        )
-        val resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
-            entityName = "VideoPost",
-            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "video_post",
-            id = ResolvedIdPolicy(
-                fieldName = "id",
-                columnName = "id",
-                strategy = "uuid7",
-                kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                source = SpecialFieldSource.DSL_DEFAULT,
-                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-            ),
-            deleted = ResolvedMarkerPolicy(
-                enabled = true,
-                fieldName = "deleted",
-                columnName = "deleted",
-                source = SpecialFieldSource.DB_EXPLICIT,
-                writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-            ),
-            version = ResolvedMarkerPolicy(
-                enabled = true,
-                fieldName = "version",
-                columnName = "version",
-                source = SpecialFieldSource.DB_EXPLICIT,
-                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-            ),
-            managedFields = listOf(
-                ResolvedManagedFieldPolicy(
-                    fieldName = "createdAt",
-                    columnName = "created_at",
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                    source = SpecialFieldSource.DSL_DEFAULT,
-                ),
-                ResolvedManagedFieldPolicy(
-                    fieldName = "updatedAt",
-                    columnName = "updated_at",
-                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-                    source = SpecialFieldSource.DSL_DEFAULT,
-                )
-            ),
-            writeSurface = ResolvedWriteSurfacePolicy(
-                createAllowedFields = listOf("id", "title"),
-                updateAllowedFields = listOf("title"),
-            ),
-        )
-
-        val report = PlanReport(
-            items = emptyList(),
-            aggregateSpecialFieldDefaults = defaults,
-            aggregateSpecialFieldResolvedPolicies = listOf(resolvedPolicy),
-        )
-        val result = PipelineResult(
-            aggregateSpecialFieldResolvedPolicies = listOf(resolvedPolicy),
-        )
-        val model = CanonicalModel(
-            aggregateSpecialFieldResolvedPolicies = listOf(resolvedPolicy),
-        )
-
-        assertEquals(defaults, report.aggregateSpecialFieldDefaults)
-        assertEquals(listOf("created_at", "updated_at"), report.aggregateSpecialFieldDefaults!!.managedDefaultColumns)
-        assertEquals(listOf(resolvedPolicy), report.aggregateSpecialFieldResolvedPolicies)
-        assertEquals(listOf(resolvedPolicy), result.aggregateSpecialFieldResolvedPolicies)
-        assertEquals(listOf(resolvedPolicy), model.aggregateSpecialFieldResolvedPolicies)
-        assertEquals(
-            SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-            report.aggregateSpecialFieldResolvedPolicies.single().managedFields[1].writePolicy,
-        )
-        assertEquals(
-            listOf("title"),
-            model.aggregateSpecialFieldResolvedPolicies.single().writeSurface.updateAllowedFields,
-        )
-    }
-
-    @Test
-    fun `db schema snapshot preserves normalized table metadata`() {
-        val snapshot = DbSchemaSnapshot(
-            tables = listOf(
-                DbTableSnapshot(
-                    tableName = "video_post",
-                    comment = "Video posts",
-                    columns = listOf(
-                        DbColumnSnapshot(
-                            name = "id",
-                            dbType = "BIGINT",
-                            kotlinType = "Long",
-                            nullable = false,
-                            defaultValue = null,
-                            comment = "primary key",
-                            isPrimaryKey = true,
-                            managed = false,
-                            exposed = true,
-                        )
-                    ),
-                    primaryKey = listOf("id"),
-                    uniqueConstraints = listOf(
-                        UniqueConstraintModel(
-                            physicalName = "uk_v_id",
-                            columns = listOf("id"),
-                        )
-                    ),
-                )
-            )
-        )
-
-        assertEquals("video_post", snapshot.tables.single().tableName)
-        assertEquals(listOf("id"), snapshot.tables.single().primaryKey)
-        assertEquals("uk_v_id", snapshot.tables.single().uniqueConstraints.single().physicalName)
-        assertEquals(listOf("id"), snapshot.tables.single().uniqueConstraints.single().columns)
-        assertEquals("Long", snapshot.tables.single().columns.single().kotlinType)
-        assertEquals(false, snapshot.tables.single().columns.single().managed)
-        assertEquals(true, snapshot.tables.single().columns.single().exposed)
+        assertEquals(emptyList<DesignBlockModel>(), model.designBlocks)
     }
 }

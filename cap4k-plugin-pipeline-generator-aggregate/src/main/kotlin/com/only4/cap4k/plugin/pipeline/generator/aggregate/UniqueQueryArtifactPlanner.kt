@@ -12,11 +12,14 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
+            val aggregateName = aggregateRootName(entity, model.entities)
             val packageKey = aggregatePackageKey(config, entity.packageName)
             val packageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             selections.map { selection ->
+                val requestTypes = listOf(selection.idType) + selection.requestProps.map { it.type }
                 val imports = aggregateTypeImports(selection.idType) +
-                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) }
+                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) } +
+                    aggregateStrongIdImports(model, requestTypes)
                 generatedKotlinArtifact(
                     config = config,
                     artifactLayout = artifactLayout,
@@ -27,6 +30,13 @@ internal class UniqueQueryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     context = mapOf(
                         "packageName" to packageName,
                         "typeName" to selection.queryTypeName,
+                        "aggregateElement" to aggregateElementContext(
+                            aggregate = aggregateName,
+                            name = selection.queryTypeName,
+                            packageName = packageName,
+                            description = "",
+                            type = "unique-query",
+                        ),
                         "entityName" to entity.name,
                         "requestProps" to selection.requestProps,
                         "idType" to selection.idType,

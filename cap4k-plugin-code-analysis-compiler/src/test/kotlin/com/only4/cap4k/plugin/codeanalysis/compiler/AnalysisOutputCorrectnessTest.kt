@@ -77,6 +77,89 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `aggregate element fails fast for blank type`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElement(
+                        aggregate = "Category",
+                        type = " ",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            messages.contains("AggregateElement annotation on demo.domain.aggregates.category.Category must declare non-blank type"),
+        )
+    }
+
+    @Test
+    fun `aggregate element fails fast for unknown type`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElement(
+                        aggregate = "Category",
+                        type = "unknown",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            messages.contains("AggregateElement annotation on demo.domain.aggregates.category.Category has unsupported type: unknown"),
+        )
+    }
+
+    @Test
+    fun `aggregate element accepts projection type without aggregate node`() {
+        val rels = compileRelationships(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElement(
+                        aggregate = "Category",
+                        type = "projection",
+                        name = "CategoryView",
+                        packageName = "demo.domain.aggregates.category",
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            rels.none { it.fromId == "demo.domain.aggregates.category.Category" || it.toId == "demo.domain.aggregates.category.Category" },
+        )
+    }
+
+    @Test
     fun `top level behavior on generated style entity keeps exact domain event edge`() {
         val rels = compileRelationships(
             categorySources(
@@ -128,11 +211,92 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `top level behavior on aggregate annotated generated style entity without application side id keeps exact domain event edge`() {
+        val rels = compileRelationships(
+            categorySources(
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            eventId = "demo.domain.aggregates.category.events.CategorySortChanged",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
+    fun `command handler calling cross module top level behavior extension on aggregate annotated generated style entity without application side id emits exact entity method edges`() {
+        val domainOutput = compileLibrary(
+            categoryDomainLibrarySources(
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
+            )
+        )
+
+        val rels = compileRelationships(
+            categoryAppSources(useTopLevelBehavior = true),
+            classpaths = listOf(domainOutput),
+        )
+
+        assertCrossModuleMethodEdgeShape(
+            rels = rels,
+            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
+            aggregateId = "demo.domain.aggregates.category.Category",
+            methodId = "demo.domain.aggregates.category.Category::changeSort",
+            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
+        )
+    }
+
+    @Test
+    fun `non aggregate annotated jpa entity in aggregate package is not inferred as aggregate entity`() {
+        val rels = compileRelationships(
+            categorySources(
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY_WITHOUT_AGGREGATE_ANNOTATION,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        assertEquals(
+            0,
+            rels.count { it.type == "CommandHandlerToEntityMethod" && it.toId == "demo.domain.aggregates.category.Category::changeSort" },
+        )
+        assertEquals(
+            0,
+            rels.count { it.type == "AggregateToEntityMethod" && it.toId == "demo.domain.aggregates.category.Category::changeSort" },
+        )
+    }
+
+    @Test
     fun `command handler calling aggregate member method keeps exact entity method edges`() {
         val rels = compileRelationships(
             categorySources(
                 categoryBody = """
-                    @Aggregate(aggregate = "Category", type = "entity", root = true)
+                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(
+                        aggregate = "Category",
+                        type = "entity",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
                     class Category {
                         fun changeSort(sort: Int) {
                             CategorySortChanged(sort)
@@ -155,7 +319,7 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
-    fun `supported stable defaults survive request projection into design-elements json`() {
+    fun `supported stable defaults survive building block projection into design-elements json`() {
         val json = compileDesignElements(
             stableDefaultSources(
                 channelsType = "Set<CaptchaChannel>",
@@ -192,9 +356,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field channels",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field channels"),
         )
     }
 
@@ -209,9 +371,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field referenceTitle"),
         )
     }
 
@@ -226,9 +386,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field privateReferenceTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field privateReferenceTitle"),
         )
     }
 
@@ -243,9 +401,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field referenceTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field referenceTitle"),
         )
     }
 
@@ -262,9 +418,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field privatePolicy",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field privatePolicy"),
         )
     }
 
@@ -281,15 +435,13 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field privatePreferredChannel",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field privatePreferredChannel"),
         )
     }
 
     @Test
     fun `multi statement composite defaults fail request projection explicitly`() {
-        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val collector = DesignElementCollector(Cap4kOptions())
         val param = irValueParameterWithDefault(
             name = "smuggledTitle",
             expression = irCompositeExpression(
@@ -314,7 +466,7 @@ class AnalysisOutputCorrectnessTest {
 
     @Test
     fun `multi statement block defaults fail request projection explicitly`() {
-        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val collector = DesignElementCollector(Cap4kOptions())
         val param = irValueParameterWithDefault(
             name = "smuggledBlockTitle",
             expression = irBlockExpression(
@@ -339,7 +491,7 @@ class AnalysisOutputCorrectnessTest {
 
     @Test
     fun `multi statement composite backed field initializers are not treated as stable constants`() {
-        val collector = DesignElementCollector(Cap4kOptions(), emptyMap())
+        val collector = DesignElementCollector(Cap4kOptions())
         val field = irFieldWithInitializer(
             irCompositeExpression(
                 irIntConst(1),
@@ -363,9 +515,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field dynamicTopLevelFieldTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field dynamicTopLevelFieldTitle"),
         )
     }
 
@@ -382,9 +532,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains(
-                "unsupported defaultValue expression for command IssueCaptcha request field dynamicJavaFieldTitle",
-            ),
+            messages.contains("unsupported defaultValue expression for command IssueCaptcha field dynamicJavaFieldTitle"),
         )
     }
 
@@ -596,13 +744,15 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "Aggregate.kt",
+                "AggregateElement.kt",
                 """
-                    package com.only4.cap4k.ddd.core.domain.aggregate.annotation
+                    package com.only4.cap4k.ddd.core.annotation
 
-                    annotation class Aggregate(
+                    annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
+                        val name: String = "",
+                        val packageName: String = "",
                         val root: Boolean = false
                     )
                 """.trimIndent()
@@ -623,6 +773,7 @@ class AnalysisOutputCorrectnessTest {
                     annotation class Entity
                     annotation class Table(val name: String = "")
                     annotation class Id
+                    annotation class EmbeddedId
                     annotation class Column(
                         val name: String = "",
                         val insertable: Boolean = true,
@@ -643,7 +794,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.domain.aggregates.category
 
-                    import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+                    import com.only4.cap4k.ddd.core.annotation.AggregateElement
                     import demo.domain.aggregates.category.events.CategorySortChanged
 
                     $categoryBody
@@ -707,13 +858,15 @@ class AnalysisOutputCorrectnessTest {
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
-                "Aggregate.kt",
+                "AggregateElement.kt",
                 """
-                    package com.only4.cap4k.ddd.core.domain.aggregate.annotation
+                    package com.only4.cap4k.ddd.core.annotation
 
-                    annotation class Aggregate(
+                    annotation class AggregateElement(
                         val aggregate: String = "",
                         val type: String = "",
+                        val name: String = "",
+                        val packageName: String = "",
                         val root: Boolean = false
                     )
                 """.trimIndent()
@@ -734,6 +887,7 @@ class AnalysisOutputCorrectnessTest {
                     annotation class Entity
                     annotation class Table(val name: String = "")
                     annotation class Id
+                    annotation class EmbeddedId
                     annotation class Column(
                         val name: String = "",
                         val insertable: Boolean = true,
@@ -754,7 +908,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.domain.aggregates.category
 
-                    import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
+                    import com.only4.cap4k.ddd.core.annotation.AggregateElement
 
                     $categoryBody
                 """.trimIndent()
@@ -912,10 +1066,28 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent(),
             ),
             SourceFile.kotlin(
+                "BuildingBlock.kt",
+                """
+                    package com.only4.cap4k.ddd.core.annotation
+
+                    annotation class BuildingBlock(
+                        val tag: String,
+                        val name: String,
+                        val packageName: String,
+                        val description: String = "",
+                        val aggregates: Array<String> = [],
+                        val eventName: String = "",
+                        val family: String = "",
+                        val variant: String = "",
+                    )
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
                 "IssueCaptchaCmd.kt",
                 """
                     package demo.application.commands.auth
 
+                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
                     import com.only4.cap4k.ddd.core.application.RequestParam
                     import demo.application.shared.defaults.CaptchaStableDefaults
                     import demo.application.shared.defaults.SharedCaptchaChannel
@@ -954,6 +1126,13 @@ class AnalysisOutputCorrectnessTest {
                     object CaptchaPolicy
 
                     object IssueCaptchaCmd {
+                        @BuildingBlock(
+                            tag = "command",
+                            packageName = "auth",
+                            name = "IssueCaptcha",
+                            description = "issue captcha",
+                            family = "command",
+                        )
                         data class Request(
                             val note: String? = null,
                             val title: String = "inline",
@@ -972,7 +1151,9 @@ class AnalysisOutputCorrectnessTest {
                             val objectGetterReferenceTitle: String = SharedGetterDefaults.OBJECT_DEFAULT_TITLE,
                             val privateReferenceTitle: String = $privateReferenceTitleDefaultExpression,
                             $extraRequestFields
-                        ) : RequestParam<Response>
+                        ) : RequestParam<IssueCaptchaCmd.Response> {
+                            data class Response(val issued: Boolean)
+                        }
 
                         data class Response(val issued: Boolean)
                     }
@@ -1106,19 +1287,41 @@ class AnalysisOutputCorrectnessTest {
     companion object {
         private const val UNDEFINED_OFFSET = -1
         private const val DEFAULT_CATEGORY_BODY = """
-            @Aggregate(aggregate = "Category", type = "entity", root = true)
+            @AggregateElement(
+                aggregate = "Category",
+                type = "entity",
+                name = "Category",
+                packageName = "demo.domain.aggregates.category",
+                root = true,
+            )
             class Category
         """
         private const val GENERATED_STYLE_CATEGORY_BODY = """
-            import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
             import jakarta.persistence.Entity
-            import java.util.UUID
+            import jakarta.persistence.Table
+
+            @AggregateElement(
+                aggregate = "Category",
+                type = "entity",
+                name = "Category",
+                packageName = "demo.domain.aggregates.category",
+                root = true,
+            )
+            @Entity
+            @Table(name = "category")
+            class Category()
+        """
+        private const val GENERATED_STYLE_CATEGORY_BODY_WITHOUT_AGGREGATE_ANNOTATION = """
+            import jakarta.persistence.Entity
+            import jakarta.persistence.EmbeddedId
+            import jakarta.persistence.Table
 
             @Entity
-            class Category(
-                @field:ApplicationSideId(strategy = "uuid7")
-                var id: UUID = UUID(0L, 0L)
-            )
+            @Table(name = "category")
+            class Category {
+                @EmbeddedId
+                var id: String = ""
+            }
         """
     }
 }

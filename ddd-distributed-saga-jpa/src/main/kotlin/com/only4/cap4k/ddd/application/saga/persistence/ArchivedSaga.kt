@@ -4,19 +4,11 @@ import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
 import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.application.saga.persistence.Saga.SagaState
-import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
 
-@Aggregate(
-    aggregate = "archived_saga",
-    name = "ArchivedSaga",
-    root = true,
-    type = Aggregate.TYPE_ENTITY,
-    description = "SAGA事务(存档)"
-)
 @Entity
 @Table(name = "`__archived_saga`")
 @DynamicInsert
@@ -82,6 +74,41 @@ class ArchivedSaga(
      */
     @Column(name = "`exception`")
     var exception: String? = null,
+
+    /**
+     * 补偿请求代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_request_code`", nullable = false)
+    var compensationRequestCode: String = "",
+
+    /**
+     * 补偿请求原因
+     * text (nullable)
+     */
+    @Column(name = "`compensation_request_reason`")
+    var compensationRequestReason: String = "",
+
+    /**
+     * 补偿请求时间
+     * datetime (nullable)
+     */
+    @Column(name = "`compensation_requested_at`")
+    var compensationRequestedAt: LocalDateTime? = null,
+
+    /**
+     * 补偿请求来源
+     * varchar(32) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_requested_by`", nullable = false, length = 32)
+    var compensationRequestedBy: String = "",
+
+    /**
+     * 触发补偿的流程代码
+     * varchar(255) NOT NULL DEFAULT ''
+     */
+    @Column(name = "`compensation_source_process_code`", nullable = false)
+    var compensationSourceProcessCode: String = "",
 
     /**
      * 过期时间
@@ -170,6 +197,11 @@ class ArchivedSaga(
         this.result = saga.result
         this.resultType = saga.resultType
         this.exception = saga.exception
+        this.compensationRequestCode = saga.compensationRequestCode
+        this.compensationRequestReason = saga.compensationRequestReason
+        this.compensationRequestedAt = saga.compensationRequestedAt
+        this.compensationRequestedBy = saga.compensationRequestedBy
+        this.compensationSourceProcessCode = saga.compensationSourceProcessCode
         this.expireAt = saga.expireAt
         this.createAt = saga.createAt
         this.sagaState = saga.sagaState
@@ -179,18 +211,7 @@ class ArchivedSaga(
         this.tryTimes = saga.tryTimes
         this.version = saga.version
         this.sagaProcesses = saga.sagaProcesses.map { p ->
-            ArchivedSagaProcess().apply {
-                processCode = p.processCode
-                param = p.param
-                paramType = p.paramType
-                result = p.result
-                resultType = p.resultType
-                exception = p.exception
-                processState = p.processState
-                createAt = p.createAt
-                triedTimes = p.triedTimes
-                lastTryTime = p.lastTryTime
-            }
+            ArchivedSagaProcess().archiveFrom(p)
         }.toMutableList()
     }
 

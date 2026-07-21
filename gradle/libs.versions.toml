@@ -6,7 +6,6 @@
 # Kotlin ecosystem
 kotlin = "2.2.20"
 publish-plugin = "2.0.0"
-ksp = "2.2.20-2.0.2"
 
 # Spring framework
 spring-boot = "3.5.6"
@@ -51,8 +50,6 @@ slf4j = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 
 # Spring framework
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
-ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
-ksp-symbol-processing = { module = "com.google.devtools.ksp:symbol-processing", version.ref = "ksp" }
 kotlin-logging = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlin-logging" }
 
 spring-context = { module = "org.springframework:spring-context" }
@@ -109,5 +106,4 @@ kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
 kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
 kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }

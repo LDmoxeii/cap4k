@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Bean
 @AutoConfiguration
 class IdPolicyAutoConfiguration {
 
+    // Compatibility runtime registry for manually allocated IDs; generated Strong IDs do not depend on it.
     @Bean
     @ConditionalOnMissingBean
     fun idStrategyRegistry(

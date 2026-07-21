@@ -4,7 +4,6 @@ import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregateSupervisor
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.domain.service.DomainServiceSupervisor
 import org.springframework.context.ApplicationContext
@@ -17,7 +16,6 @@ import org.springframework.context.ApplicationContext
  */
 interface Mediator : AggregateFactorySupervisor,
     RepositorySupervisor,
-    AggregateSupervisor,
     DomainServiceSupervisor,
     UnitOfWork,
     IntegrationEventSupervisor,
@@ -31,9 +29,6 @@ interface Mediator : AggregateFactorySupervisor,
 
     val repositorySupervisor: RepositorySupervisor
         get() = RepositorySupervisor.instance
-
-    val aggregateSupervisor: AggregateSupervisor
-        get() = AggregateSupervisor.instance
 
     val unitOfWork: UnitOfWork
         get() = UnitOfWork.instance
@@ -58,9 +53,6 @@ interface Mediator : AggregateFactorySupervisor,
         val repositories: RepositorySupervisor by lazy { RepositorySupervisor.instance }
 
         @JvmStatic
-        val aggregates: AggregateSupervisor by lazy { AggregateSupervisor.instance }
-
-        @JvmStatic
         val services: DomainServiceSupervisor by lazy { DomainServiceSupervisor.instance }
 
         @JvmStatic
@@ -81,9 +73,6 @@ interface Mediator : AggregateFactorySupervisor,
 
         @JvmStatic
         val repo: RepositorySupervisor by lazy { repositories }
-
-        @JvmStatic
-        val agg: AggregateSupervisor by lazy { aggregates }
 
         @JvmStatic
         val svc: DomainServiceSupervisor by lazy { services }

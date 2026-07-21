@@ -117,6 +117,31 @@ class PebbleBootstrapRendererTest {
     }
 
     @Test
+    fun `render default domain module build with value object json converter dependencies`() {
+        val item = BootstrapPlanItem(
+            presetId = "ddd-multi-module",
+            templateId = "bootstrap/module/domain-build.gradle.kts.peb",
+            outputPath = "only-danmuku/only-danmuku-domain/build.gradle.kts",
+            conflictPolicy = ConflictPolicy.FAIL,
+            context = mapOf(
+                "basePackage" to "edu.only4.danmuku",
+            ),
+        )
+
+        val renderer = PebbleBootstrapRenderer(
+            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+        )
+
+        val artifact = renderer.render(listOf(item)).single()
+
+        assertTrue(artifact.content.contains("implementation(\"jakarta.persistence:jakarta.persistence-api:3.1.0\")"))
+        assertTrue(artifact.content.contains("implementation(\"com.only4:ddd-core:0.6.1-SNAPSHOT\")"))
+        assertTrue(artifact.content.contains("implementation(\"com.only4:ddd-domain-repo-jpa:0.6.1-SNAPSHOT\")"))
+        assertTrue(artifact.content.contains("implementation(\"com.fasterxml.jackson.core:jackson-databind:2.17.2\")"))
+        assertTrue(artifact.content.contains("implementation(\"com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2\")"))
+    }
+
+    @Test
     fun `render default start module build with spring boot dependency platform`() {
         val item = BootstrapPlanItem(
             presetId = "ddd-multi-module",
