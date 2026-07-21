@@ -24,7 +24,7 @@ The DB comment contract is a strict, exact-name allow-list. Unsupported annotati
 | `@IdStrategy=db_identity` | Marks explicit database identity semantics on a primary-key column. |
 | `@Managed=system` | Marks a framework-managed system field. |
 | `@Managed=scope` | Marks a framework-managed scope field. |
-| `@Managed=deleted` | Marks a framework-managed deleted field. |
+| `@Managed=deleted` | Marks a framework-managed self-id soft-delete discriminator. Active rows use `0`; deleted rows store the row id. |
 | `@Managed=version` | Marks the optimistic-lock version column. |
 | `@Inherited` | Marks a managed field that is inherited by the generated concrete entity. |
 
@@ -41,3 +41,7 @@ The DB comment contract is a strict, exact-name allow-list. Unsupported annotati
 - `@IdStrategy` currently supports only `db_identity` and is valid only on a primary-key column.
 - `@Managed` supports only `system`, `scope`, `deleted`, and `version`.
 - `@Inherited` is valid only with `@Managed=system`, `@Managed=scope`, `@Managed=deleted`, or `@Managed=version`.
+- `@Managed=deleted` requires a numeric, non-null column with a DB default compatible with `0`.
+- For the `SELF_ID` tombstone strategy, the deleted column must be wide enough to store the id column value.
+- Generated constructors do not initialize deleted fields to `0`; the schema default is the contract source.
+- Aggregate projections do not inherit the active soft-delete filter in this iteration.
