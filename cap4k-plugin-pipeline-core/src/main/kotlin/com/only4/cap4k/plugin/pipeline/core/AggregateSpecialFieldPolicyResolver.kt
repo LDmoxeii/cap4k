@@ -5,6 +5,8 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
+import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -24,6 +26,7 @@ internal data class AggregateSpecialFieldResolutionResult(
 
 internal object AggregateSpecialFieldPolicyResolver {
     private const val DefaultIdStrategy = "uuid7"
+    private const val NonStrongIdDefaultStrategy = "identity"
 
     fun resolve(
         config: ProjectConfig,
@@ -41,7 +44,7 @@ internal object AggregateSpecialFieldPolicyResolver {
             )
         }
 
-        val idControls = resolvedPolicies.map { policy ->
+        val idControls = resolvedPolicies.filter { it.id.source == SpecialFieldSource.DB_EXPLICIT }.map { policy ->
             val entity = requireNotNull(entityByKey[policy.entityPackageName to policy.entityName]) {
                 "missing canonical entity metadata for ${policy.entityPackageName}.${policy.entityName}"
             }
@@ -75,25 +78,27 @@ internal object AggregateSpecialFieldPolicyResolver {
             .trim()
             .takeIf { it.isNotBlank() }
             ?: DefaultIdStrategy
-        val generatedValueStrategy = idColumn.generatedValueStrategy
+        val generatedValueStrategy = idColumn.idStrategy?.toAggregateStrategy()
         val (idStrategy, idSource) = when {
             generatedValueStrategy != null ->
                 AggregateIdPolicyResolver.normalizeStrategy(generatedValueStrategy) to SpecialFieldSource.DB_EXPLICIT
-            idColumn.generatedValueDeclared ->
-                AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DB_EXPLICIT
+            isGeneratedAggregateRootStrongId(entity) ->
+                DefaultIdStrategy to SpecialFieldSource.DSL_DEFAULT
             else ->
-                AggregateIdPolicyResolver.normalizeStrategy(defaultStrategy) to SpecialFieldSource.DSL_DEFAULT
+                NonStrongIdDefaultStrategy to SpecialFieldSource.DSL_DEFAULT
         }
 
-        AggregateIdPolicyResolver.validateType(
-            config = config,
-            entity = entity,
-            strategy = idStrategy,
-        )
+        if (idSource == SpecialFieldSource.DB_EXPLICIT) {
+            AggregateIdPolicyResolver.validateType(
+                config = config,
+                entity = entity,
+                strategy = idStrategy,
+            )
+        }
         val idKind = AggregateIdPolicyResolver.resolveKind(idStrategy)
         val deletedPolicy = resolveMarkerPolicy(
             markerName = "deleted",
-            explicitColumns = table.columns.filter { it.deleted == true },
+            explicitColumns = table.columns.filter { it.managedRole == DbManagedRole.DELETED },
             defaultColumnName = config.aggregateSpecialFieldDefaults.deletedDefaultColumn,
             table = table,
             entity = entity,
@@ -101,7 +106,7 @@ internal object AggregateSpecialFieldPolicyResolver {
         )
         val versionPolicy = resolveMarkerPolicy(
             markerName = "version",
-            explicitColumns = table.columns.filter { it.version == true },
+            explicitColumns = table.columns.filter { it.managedRole == DbManagedRole.VERSION },
             defaultColumnName = config.aggregateSpecialFieldDefaults.versionDefaultColumn,
             table = table,
             entity = entity,
@@ -137,12 +142,19 @@ internal object AggregateSpecialFieldPolicyResolver {
         )
     }
 
+    private fun DbIdStrategy.toAggregateStrategy(): String = when (this) {
+        DbIdStrategy.DB_IDENTITY -> "identity"
+    }
+
     private fun idWritePolicy(kind: AggregateIdPolicyKind): SpecialFieldWritePolicy =
         if (kind == AggregateIdPolicyKind.APPLICATION_SIDE) {
             SpecialFieldWritePolicy.CREATE_ONLY
         } else {
             SpecialFieldWritePolicy.READ_ONLY
         }
+
+    private fun isGeneratedAggregateRootStrongId(entity: EntityModel): Boolean =
+        entity.aggregateRoot && entity.idField.type == "${entity.name}Id"
 
     private fun markerWritePolicy(markerName: String, enabled: Boolean): SpecialFieldWritePolicy = when {
         !enabled -> SpecialFieldWritePolicy.READ_WRITE
@@ -162,7 +174,7 @@ internal object AggregateSpecialFieldPolicyResolver {
         idColumn: DbColumnSnapshot,
     ) {
         table.columns
-            .filter { (it.generatedValueDeclared || it.generatedValueStrategy != null) && !it.name.equals(idColumn.name, ignoreCase = true) }
+            .filter { it.idStrategy != null && !it.name.equals(idColumn.name, ignoreCase = true) }
             .firstOrNull()
             ?.let { nonIdColumn ->
                 throw IllegalArgumentException(
@@ -245,8 +257,8 @@ internal object AggregateSpecialFieldPolicyResolver {
                 source = id.source,
             )
         )
-        registerMarkerManagedField(deleted)?.let(::registerProtected)
-        registerMarkerManagedField(version)?.let(::registerProtected)
+        registerMarkerManagedField(deleted, DbManagedRole.DELETED)?.let(::registerProtected)
+        registerMarkerManagedField(version, DbManagedRole.VERSION)?.let(::registerProtected)
 
         val columnsByName = table.columns.associateBy { it.name.lowercase(Locale.ROOT) }
         config.aggregateSpecialFieldDefaults.managedDefaultColumns
@@ -271,32 +283,27 @@ internal object AggregateSpecialFieldPolicyResolver {
 
         table.columns.forEach { column ->
             val columnKey = column.name.lowercase(Locale.ROOT)
-            if (column.exposed == true) {
-                require(columnKey !in protectedByColumnName) {
-                    "@Exposed cannot be applied to protected special field: ${table.tableName}.${column.name}"
-                }
-                managedByColumnName.remove(columnKey)
+            val managedRole = column.managedRole ?: return@forEach
+            if (columnKey in protectedByColumnName) {
                 return@forEach
             }
-
-            if (column.managed == true) {
-                if (columnKey in protectedByColumnName) {
-                    return@forEach
-                }
-                val fieldName = fieldByColumnName[columnKey] ?: return@forEach
-                managedByColumnName[columnKey] = ResolvedManagedFieldPolicy(
-                    fieldName = fieldName,
-                    columnName = column.name,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                )
+            if (managedRole != DbManagedRole.SYSTEM && managedRole != DbManagedRole.SCOPE) {
+                return@forEach
             }
+            val fieldName = fieldByColumnName[columnKey] ?: return@forEach
+            managedByColumnName[columnKey] = ResolvedManagedFieldPolicy(
+                fieldName = fieldName,
+                columnName = column.name,
+                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                source = SpecialFieldSource.DB_EXPLICIT,
+                managedRole = managedRole,
+            )
         }
 
         return managedByColumnName.values.toList()
     }
 
-    private fun registerMarkerManagedField(policy: ResolvedMarkerPolicy): ResolvedManagedFieldPolicy? {
+    private fun registerMarkerManagedField(policy: ResolvedMarkerPolicy, managedRole: DbManagedRole): ResolvedManagedFieldPolicy? {
         if (!policy.enabled) {
             return null
         }
@@ -305,6 +312,7 @@ internal object AggregateSpecialFieldPolicyResolver {
             columnName = requireNotNull(policy.columnName),
             writePolicy = policy.writePolicy,
             source = policy.source,
+            managedRole = managedRole,
         )
     }
 

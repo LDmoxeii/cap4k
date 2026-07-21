@@ -1,0 +1,42 @@
+package {{ packageName }}
+
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
+{{ use("com.fasterxml.jackson.databind.ObjectMapper") -}}
+{{ use("com.fasterxml.jackson.module.kotlin.readValue") -}}
+{{ use("jakarta.persistence.AttributeConverter") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = {{ buildingBlock.tagKotlinStringLiteral | raw }},
+    name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
+    packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
+    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]{% if buildingBlock.eventName is not empty %},
+    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }}{% endif %},
+    family = {{ buildingBlock.familyKotlinStringLiteral | raw }}{% if buildingBlock.variant is not empty %},
+    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}{% endif %}
+)
+{% endif -%}
+data class {{ typeName }}(
+{%- for field in fields %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+{%- endfor %}
+) {
+    @jakarta.persistence.Converter(autoApply = false)
+    class Converter : AttributeConverter<{{ typeName }}, String> {
+        override fun convertToDatabaseColumn(attribute: {{ typeName }}?): String? =
+            if (attribute == null) null else mapper.writeValueAsString(attribute)
+
+        override fun convertToEntityAttribute(dbData: String?): {{ typeName }}? =
+            dbData?.let { mapper.readValue<{{ typeName }}>(it) }
+    }
+
+    companion object {
+        private val mapper: ObjectMapper = ObjectMapper().findAndRegisterModules()
+    }
+}

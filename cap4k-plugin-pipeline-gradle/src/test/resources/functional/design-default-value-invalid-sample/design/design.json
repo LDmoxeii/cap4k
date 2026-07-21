@@ -3,10 +3,13 @@
     "tag": "command",
     "package": "video.post",
     "name": "InvalidVideoPost",
-    "desc": "invalid video post command",
-    "requestFields": [
-      { "name": "enabled", "type": "Boolean", "defaultValue": "yes" }
-    ],
-    "responseFields": []
+    "description": "invalid video post command",
+    "fields": [
+      {
+        "name": "enabled",
+        "type": "Boolean",
+        "defaultValue": "yes"
+      }
+    ]
   }
 ]

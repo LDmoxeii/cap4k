@@ -20,7 +20,7 @@ dependencies {
 gradlePlugin {
     plugins {
         create("cap4kFlowExport") {
-            id = "com.only4.cap4k.plugin.codeanalysis.flow-export"
+            id = "io.github.ldmoxeii.cap4k.codeanalysis.flow-export"
             implementationClass = "com.only4.cap4k.plugin.codeanalysis.flow.Cap4kFlowExportPlugin"
             displayName = "Cap4k Code Analysis Flow Export Plugin"
             description = "Exports Cap4k processing flows from code analysis metadata."

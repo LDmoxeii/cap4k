@@ -19,6 +19,7 @@ internal class PipelinePebbleExtension(
     override fun getFunctions(): Map<String, Function> = mapOf(
         "type" to TypeFunction(),
         "imports" to ImportsFunction(sessionProvider),
+        "required" to RequiredFunction(),
     ) + if (enableUseHelper) {
         mapOf("use" to UseFunction(sessionProvider))
     } else {
@@ -91,9 +92,25 @@ private class TypeFunction : Function {
     }
 
     private fun extractRenderedType(value: Any): String? = when (value) {
-        is String -> value
+        is String -> renderTypeString(value)
         is Map<*, *> -> value["renderedType"] as? String
+            ?: (value["type"] as? String)?.let(::renderTypeString)
         else -> readStringProperty(value, "renderedType")
+            ?: readStringProperty(value, "type")?.let(::renderTypeString)
+    }
+
+    private fun renderTypeString(value: String): String {
+        val normalized = value.removeSuffix("?").trim()
+        val rawType = normalized.substringBefore("<")
+        val genericSuffix = normalized.removePrefix(rawType)
+        val shortType = rawType.substringAfterLast(".")
+        return when {
+            rawType == "UUID" -> "UUID"
+            rawType == "java.util.UUID" -> rawType
+            "." !in rawType -> normalized
+            rawType.startsWith("kotlin.") || rawType.startsWith("java.lang.") -> shortType + genericSuffix
+            else -> shortType + genericSuffix
+        }
     }
 }
 
@@ -137,6 +154,24 @@ private class ImportsFunction : Function {
         else -> throw IllegalArgumentException(
             "imports() requires a List<String> or a map exposing imports."
         )
+    }
+}
+
+private class RequiredFunction : Function {
+    override fun getArgumentNames(): List<String> = listOf("value", "name")
+
+    override fun execute(
+        args: Map<String, Any?>,
+        self: PebbleTemplate,
+        context: EvaluationContext,
+        lineNumber: Int,
+    ): Any {
+        val name = args["name"] as? String ?: "value"
+        val value = args["value"] ?: throw IllegalArgumentException("required() missing value: $name")
+        if (value is String && value.isBlank()) {
+            throw IllegalArgumentException("required() blank value: $name")
+        }
+        return value
     }
 }
 

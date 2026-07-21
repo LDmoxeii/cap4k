@@ -35,6 +35,15 @@ interface SagaManager {
     fun retry(uuid: String)
 
     /**
+     * 请求指定Saga进入补偿流程
+     *
+     * @param sagaId Saga ID
+     * @param code 补偿代码
+     * @param reason 补偿原因
+     */
+    fun requestCompensation(sagaId: String, code: String, reason: String)
+
+    /**
      * 获取指定时间前需重试的请求
      *
      * @param maxNextTryTime 指定时间

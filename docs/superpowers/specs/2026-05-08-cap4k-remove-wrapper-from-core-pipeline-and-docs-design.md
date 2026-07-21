@@ -83,9 +83,9 @@ These are still part of the current active contract and must be removed, not mer
    - aggregate sample fixtures that still set `wrapper.set(true)` or compile against `Agg*`
 
 6. Live docs and capability truth sources
-   - `docs/public/reference/generator-dsl.zh-CN.md`
-   - `docs/public/authoring/generation-boundaries.zh-CN.md`
-   - `docs/public/authoring/generator/code-generation.zh-CN.md`
+   - `docs/public/reference/generator-dsl.md`
+   - `docs/public/authoring/generation-boundaries.md`
+   - `docs/public/authoring/generator/code-generation.md`
    - `docs/superpowers/capability-matrix.md`
 
 These are the core issue surface.
@@ -106,8 +106,8 @@ These are not part of the core removal target for this issue and should stay out
 
 3. Docs that already position wrapper as non-core or as a cautionary smell
    - `docs/public/framework-positioning.md`
-   - `docs/public/framework-positioning.zh-CN.md`
-   - `docs/public/authoring/advanced/strong-id.zh-CN.md`
+   - `docs/public/framework-positioning.md`
+   - `docs/public/authoring/advanced/strong-id.md`
 
 4. `AGENTS.md`
    - current audit does not show wrapper being presented as an active supported capability
@@ -263,9 +263,9 @@ Expected test and fixture work:
 
 Expected live docs work:
 
-- Modify: `docs/public/reference/generator-dsl.zh-CN.md`
-- Modify: `docs/public/authoring/generation-boundaries.zh-CN.md`
-- Modify: `docs/public/authoring/generator/code-generation.zh-CN.md`
+- Modify: `docs/public/reference/generator-dsl.md`
+- Modify: `docs/public/authoring/generation-boundaries.md`
+- Modify: `docs/public/authoring/generator/code-generation.md`
 - Modify: `docs/superpowers/capability-matrix.md`
 
 Likely no-op audit target:

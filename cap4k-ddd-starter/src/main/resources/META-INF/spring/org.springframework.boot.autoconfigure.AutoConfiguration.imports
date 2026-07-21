@@ -20,5 +20,3 @@ com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
 com.only4.cap4k.ddd.domain.repo.JpaRepositoryAutoConfiguration
 com.only4.cap4k.ddd.domain.service.DomainServiceAutoConfiguration
 com.only4.cap4k.ddd.domain.web.ClearDomainContextInterceptor
-com.only4.cap4k.ddd.archinfo.configure.ArchInfoProperties
-com.only4.cap4k.ddd.archinfo.ArchInfoAutoConfiguration

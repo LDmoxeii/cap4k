@@ -1,5 +1,8 @@
 package {{ packageName }}
 
+{% if aggregateElement is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{% endif -%}
 {{ use("org.springframework.data.jpa.domain.Specification") -}}
 {{ use("jakarta.persistence.criteria.CriteriaBuilder") -}}
 {{ use("jakarta.persistence.criteria.CriteriaQuery") -}}
@@ -22,6 +25,16 @@ package {{ packageName }}
 import {{ import }}
 {% endfor %}
 
+{% if aggregateElement is defined -%}
+@AggregateElement(
+    aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
+    name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
+    packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},
+    description = {{ aggregateElement.descriptionKotlinStringLiteral | raw }},
+    type = {{ aggregateElement.typeKotlinStringLiteral | raw }},
+    root = {{ aggregateElement.root }}
+)
+{% endif -%}
 class {{ typeName }}(
     private val root: Path<{{ entityName }}>,
     private val criteriaBuilder: CriteriaBuilder,
@@ -162,7 +175,7 @@ class {{ typeName }}(
      * {{ field.comment }}
      */
 {%- endif %}
-    val {{ field.fieldName }}: Field<{{ type(field.fieldType) }}> by lazy {
+    val {{ field.fieldName }}: Field<{{ type(field) | raw }}> by lazy {
         Field(root.get("{{ field.fieldName }}"), criteriaBuilder)
     }
 

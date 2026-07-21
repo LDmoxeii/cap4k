@@ -8,19 +8,17 @@ When continuing work in `cap4k`, read this file first, then read:
 - the relevant GitHub issue that now acts as backlog source of truth
 - the most recent relevant spec or plan under `docs/superpowers/`
 
-## AI Authoring Skill
+## Cap4k Skill Routing
 
-When a task involves cap4k business-project authoring, AI-assisted DDD implementation, generated-vs-handwritten ownership, tactical model placement, or testing/analysis evidence for project-authoring work, route through the repo-local formal skill.
+When a task involves cap4k business-project authoring, use the repo-local skill router as the only routing source:
 
-| Task | Read | Workflow |
-|---|---|---|
-| Clarify domain/design before code | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/role-boundary.md](skills/cap4k-authoring/rules/role-boundary.md) | [skills/cap4k-authoring/workflows/clarify-domain-design.md](skills/cap4k-authoring/workflows/clarify-domain-design.md) |
-| Bootstrap a minimal project | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/generator-ownership.md](skills/cap4k-authoring/rules/generator-ownership.md) | [skills/cap4k-authoring/workflows/bootstrap-minimal-project.md](skills/cap4k-authoring/workflows/bootstrap-minimal-project.md) |
-| Generate from DB or design | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/generator-ownership.md](skills/cap4k-authoring/rules/generator-ownership.md) | [skills/cap4k-authoring/workflows/generate-from-db.md](skills/cap4k-authoring/workflows/generate-from-db.md) or [skills/cap4k-authoring/workflows/generate-from-design.md](skills/cap4k-authoring/workflows/generate-from-design.md) |
-| Implement a cap4k project slice | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/layering-and-tactical-model.md](skills/cap4k-authoring/rules/layering-and-tactical-model.md), [skills/cap4k-authoring/rules/runtime-tactical-contract.md](skills/cap4k-authoring/rules/runtime-tactical-contract.md) | [skills/cap4k-authoring/workflows/implement-project-slice.md](skills/cap4k-authoring/workflows/implement-project-slice.md) |
-| Review generated output or analysis | [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md), [skills/cap4k-authoring/rules/testing-and-verification.md](skills/cap4k-authoring/rules/testing-and-verification.md) | [skills/cap4k-authoring/workflows/review-generated-output.md](skills/cap4k-authoring/workflows/review-generated-output.md) or [skills/cap4k-authoring/workflows/run-analysis-and-flow-review.md](skills/cap4k-authoring/workflows/run-analysis-and-flow-review.md) |
+- [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md)
+- [skills/cap4k-authoring/routing.yaml](skills/cap4k-authoring/routing.yaml)
 
-Keep this file as a routing shell. Do not duplicate the skill's rules here.
+Load the routed focused skill and every `required_reads` entry from `routing.yaml`.
+Do not duplicate per-task route rows in this shell.
+
+Keep this file as a routing shell. Do not duplicate focused skill rules here.
 
 ## What This Project Is Doing
 
@@ -56,6 +54,8 @@ There are three kinds of work in this repo now:
 
 `cap4k` does not use a long-lived `develop` branch as a standard integration stage. Do not introduce or revive a `feature -> develop -> master -> publish` flow for normal work.
 
+`cap4k` also does not use `release/vX.Y.Z` or other intermediate release-promotion branches as the normal path from `master` to Maven Central. If a release needs ordinary framework code that already landed on `master`, promote `master` directly to `publish/maven-central` through the defined PR flow below.
+
 Use these branch roles instead:
 
 - `feature/*`: short-lived implementation branches for normal code changes
@@ -70,11 +70,22 @@ Expected promotion flow:
 2. `master -> publish/maven-central`
 3. `publish/maven-central` commit -> `v*` tag -> Maven Central release
 
+Direct-development rules:
+
+- do not implement normal work directly on `master`; start from a `feature/*` branch
+- do not commit directly on `master`; land mainline code through `feature/* -> master` pull requests
+- do not implement normal work directly on `publish/maven-central`; that branch is a release channel, not a feature branch
+- do not commit directly on `publish/maven-central`; release-channel updates should come through the allowed PR paths below
+- if a branch is an issue branch, ad-hoc branch, docs branch, or any other non-`verify/*` working branch, treat it like `feature/*`: it must land on `master`, not directly on `publish/maven-central`
+
 Pull request policy:
 
-- `feature/* -> master`: use a pull request by default
-- `verify/* -> publish/*`: use a pull request by default
-- `master -> publish/maven-central`: a pull request is optional when this is only a clean promotion of already-verified code and does not change release-pipeline behavior
+- `feature/* -> master`: required
+- `master -> publish/maven-central`: required, even when this is only a clean promotion of already-verified code
+- `verify/* -> publish/*`: allowed only for release-pipeline or publication-flow changes, and required by pull request
+- do not open `feature/* -> publish/maven-central` pull requests
+- do not open issue-branch, ad-hoc-branch, docs-branch, or other ordinary iteration pull requests into `publish/maven-central`
+- if work is not specifically a release-pipeline fix, it belongs on `master` first
 
 Release safety rules:
 

@@ -1,10 +1,11 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
+import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -19,30 +20,18 @@ class DesignDomainEventHandlerArtifactPlannerTest {
     @Test
     fun `plans domain event subscriber artifacts into application subscribers domain path`() {
         val planner = DesignDomainEventHandlerArtifactPlanner()
+        assertEquals("domain-subscriber", planner.id)
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                domainEvents = listOf(
-                    DomainEventModel(
-                        packageName = "order",
-                        typeName = "OrderCreatedDomainEvent",
-                        description = "order */ created event",
-                        aggregateName = "Order",
-                        aggregatePackageName = "com.acme.demo.domain.order",
-                        persist = false,
-                        fields = listOf(
-                            FieldModel("reason", "String"),
-                            FieldModel("snapshot", "Snapshot", nullable = true),
-                            FieldModel("snapshot.traceId", "UUID"),
-                        ),
-                    ),
-                ),
+                designBlocks = listOf(domainEventBlock()),
+                entities = listOf(entityModel()),
             ),
         )
 
         val handler = items.single()
-        assertEquals("design-domain-event-handler", handler.generatorId)
+        assertEquals("domain-subscriber", handler.generatorId)
         assertEquals("design/domain_event_handler.kt.peb", handler.templateId)
         assertEquals(
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
@@ -70,14 +59,18 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                domainEvents = listOf(
-                    DomainEventModel(
+                designBlocks = listOf(
+                    domainEventBlock(
                         packageName = "user_message",
-                        typeName = "UserMessageCreatedDomainEvent",
+                        name = "UserMessageCreated",
                         description = "user message created",
-                        aggregateName = "UserMessage",
-                        aggregatePackageName = "com.acme.demo.domain.aggregates.user_message",
-                        persist = false,
+                        aggregates = listOf("UserMessage"),
+                    ),
+                ),
+                entities = listOf(
+                    entityModel(
+                        name = "UserMessage",
+                        packageName = "com.acme.demo.domain.aggregates.user_message",
                     ),
                 ),
             ),
@@ -118,16 +111,13 @@ class DesignDomainEventHandlerArtifactPlannerTest {
                 ),
             ),
             model = CanonicalModel(
-                domainEvents = listOf(
-                    DomainEventModel(
-                        packageName = "order",
-                        typeName = "OrderCreatedDomainEvent",
+                designBlocks = listOf(
+                    domainEventBlock(
+                        name = "OrderCreated",
                         description = "order created event",
-                        aggregateName = "Order",
-                        aggregatePackageName = "com.acme.demo.domain.order",
-                        persist = false,
                     ),
                 ),
+                entities = listOf(entityModel()),
             ),
         )
 
@@ -155,8 +145,36 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        generators = mapOf("design-domain-event-handler" to GeneratorConfig(enabled = true)),
+        generators = mapOf("domain-subscriber" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         artifactLayout = artifactLayout,
+    )
+
+    private fun domainEventBlock(
+        packageName: String = "order",
+        name: String = "OrderCreated",
+        description: String = "order */ created event",
+        aggregates: List<String> = listOf("Order"),
+    ) = DesignBlockModel(
+        tag = "domain_event",
+        packageName = packageName,
+        name = name,
+        description = description,
+        aggregates = aggregates,
+        persist = false,
+        artifacts = listOf(ArtifactSelectionModel("domain-subscriber")),
+    )
+
+    private fun entityModel(
+        name: String = "Order",
+        packageName: String = "com.acme.demo.domain.order",
+    ) = EntityModel(
+        name = name,
+        packageName = packageName,
+        tableName = name.lowercase(),
+        comment = "",
+        fields = emptyList(),
+        idField = com.only4.cap4k.plugin.pipeline.api.FieldModel("id", "Long"),
+        aggregateRoot = true,
     )
 }

@@ -4,6 +4,11 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignImportPlan
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignRenderedTypeModel
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignResolvedTypeKind
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignResolvedTypeModel
+import com.only4.cap4k.plugin.pipeline.generator.common.types.EXPLICIT_FQCN_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.PROJECT_TYPE_REGISTRY_SOURCE
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolSelector
 
 internal object ImportResolver {
 
@@ -40,13 +45,14 @@ internal object ImportResolver {
     fun plan(
         types: List<DesignResolvedTypeModel>,
         innerTypeNames: Set<String> = emptySet(),
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+        aggregateContext: List<String> = emptyList(),
     ): DesignImportPlan {
-        val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
+        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             types.flatMap(::collectExplicitSymbols).forEach(merged::register)
         }
 
-        val rendered = types.map { render(it, registry, innerTypeNames) }
+        val rendered = types.map { render(it, registry, innerTypeNames, aggregateContext) }
 
         return DesignImportPlan(
             renderedTypes = rendered.map { result ->
@@ -62,21 +68,22 @@ internal object ImportResolver {
     internal fun resolve(
         type: DesignResolvedTypeModel,
         innerTypeNames: Set<String> = emptySet(),
-        symbolRegistry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        symbolRegistry: TypeSymbolRegistry = TypeSymbolRegistry(),
+        aggregateContext: List<String> = emptyList(),
     ): ImportResolutionResult {
-        val registry = DesignSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
+        val registry = TypeSymbolRegistry(symbolRegistry.allSymbols()).also { merged ->
             collectExplicitSymbols(type).forEach(merged::register)
         }
-        return render(type, registry, innerTypeNames)
+        return render(type, registry, innerTypeNames, aggregateContext)
     }
 
-    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<SymbolIdentity> {
+    private fun collectExplicitSymbols(type: DesignResolvedTypeModel): List<TypeSymbolIdentity> {
         val own = if (type.kind == DesignResolvedTypeKind.EXPLICIT_FQCN) {
             listOf(
-                SymbolIdentity(
+                TypeSymbolIdentity(
                     packageName = type.rawText.substringBeforeLast('.', missingDelimiterValue = ""),
                     typeName = type.simpleName,
-                    source = "explicit-fqcn",
+                    source = EXPLICIT_FQCN_SOURCE,
                 ),
             )
         } else {
@@ -88,11 +95,12 @@ internal object ImportResolver {
 
     private fun render(
         type: DesignResolvedTypeModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
+        aggregateContext: List<String>,
     ): ImportResolutionResult {
-        val renderedArguments = type.arguments.map { render(it, symbolRegistry, innerTypeNames) }
-        val base = resolveBase(type, symbolRegistry, innerTypeNames)
+        val renderedArguments = type.arguments.map { render(it, symbolRegistry, innerTypeNames, aggregateContext) }
+        val base = resolveBase(type, symbolRegistry, innerTypeNames, aggregateContext)
         val withArguments = if (renderedArguments.isEmpty()) {
             base.renderedType
         } else {
@@ -120,8 +128,9 @@ internal object ImportResolver {
 
     private fun resolveBase(
         type: DesignResolvedTypeModel,
-        symbolRegistry: DesignSymbolRegistry,
+        symbolRegistry: TypeSymbolRegistry,
         innerTypeNames: Set<String>,
+        aggregateContext: List<String>,
     ): ImportResolutionResult {
         return when (type.kind) {
             DesignResolvedTypeKind.BUILTIN,
@@ -134,7 +143,7 @@ internal object ImportResolver {
 
             DesignResolvedTypeKind.EXPLICIT_FQCN -> {
                 val candidates = symbolRegistry.findBySimpleName(type.simpleName)
-                val conflictingCandidates = candidates.filterNot { it.source == "project-type-registry" }
+                val conflictingCandidates = candidates.filterNot { it.source == PROJECT_TYPE_REGISTRY_SOURCE }
                 val canImport = type.simpleName !in builtInTypeNames &&
                     type.simpleName !in innerTypeNames &&
                     conflictingCandidates.all { it.fqcn == type.rawText }
@@ -155,16 +164,10 @@ internal object ImportResolver {
             }
 
             DesignResolvedTypeKind.UNRESOLVED -> {
-                val candidates = symbolRegistry.findBySimpleName(type.simpleName)
-                val nonRegistryCandidates = candidates.filterNot { it.source == "project-type-registry" }
-                val registryCandidates = candidates.filter { it.source == "project-type-registry" }
-                val selectedCandidates = when {
-                    nonRegistryCandidates.size == 1 -> nonRegistryCandidates
-                    nonRegistryCandidates.size > 1 -> nonRegistryCandidates
-                    registryCandidates.size == 1 -> registryCandidates
-                    registryCandidates.size > 1 -> registryCandidates
-                    else -> emptyList()
-                }
+                val selectedCandidates = TypeSymbolSelector.selectShortNameCandidates(
+                    candidates = symbolRegistry.findBySimpleName(type.simpleName),
+                    aggregateContext = aggregateContext,
+                )
 
                 when (selectedCandidates.size) {
                     0 -> throw UnknownShortTypeFailure(type.rawText)

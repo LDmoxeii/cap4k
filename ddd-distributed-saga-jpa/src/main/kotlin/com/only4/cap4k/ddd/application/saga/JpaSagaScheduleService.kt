@@ -63,6 +63,7 @@ class JpaSagaScheduleService(
             }
 
             try {
+                // The scheduler intentionally uses the same fetch-and-resume path for forward retries and compensation resumes.
                 val sagaRecords = sagaManager.getByNextTryTime(nextTryTime, batchSize)
 
                 if (sagaRecords.isEmpty()) {

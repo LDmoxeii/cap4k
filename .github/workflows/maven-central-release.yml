@@ -1,0 +1,79 @@
+name: Maven Central Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Derive release version
+        shell: bash
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME}"
+          if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected tag format v<major>.<minor>.<patch>, got ${TAG_NAME}" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
+
+      - name: Verify tagged commit is on publish branch
+        shell: bash
+        run: |
+          git fetch --no-tags origin publish/maven-central:refs/remotes/origin/publish/maven-central
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "origin/publish/maven-central"; then
+            echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/publish/maven-central." >&2
+            exit 1
+          fi
+
+      - name: Publish
+        run: ./gradlew publish -Prelease.version="${RELEASE_VERSION}"
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+
+      - name: Upload staging repository to Central Portal
+        run: |
+          set -euo pipefail
+
+          central_bearer_token="$(printf '%s:%s' "${CENTRAL_USERNAME}" "${CENTRAL_PASSWORD}" | base64 | tr -d '\n')"
+
+          curl --fail-with-body --silent --show-error --request POST \
+            --header "Authorization: Bearer ${central_bearer_token}" \
+            "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/io.github.ldmoxeii?publishing_type=automatic"
+        env:
+          CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

@@ -4,59 +4,26 @@
     "tag": {{ element.tag | json | raw }},
     "package": {{ element.packageName | json | raw }},
     "name": {{ element.name | json | raw }},
-    "desc": {{ element.description | json | raw }},
+    "description": {{ element.description | json | raw }},
     "aggregates": [{% for aggregate in element.aggregates %}{{ aggregate | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
-{%- if element.entity is not null and element.tag != "domain_event" %},
-    "entity": {{ element.entity | json | raw }}
+{%- if element.includeDesignJsonArtifacts %},
+    "artifacts": [{% for artifact in element.designJsonArtifacts %}{
+      "family": {{ artifact.family | json | raw }}{% if artifact.variant is not empty %},
+      "variant": {{ artifact.variant | json | raw }}{% endif %}
+    }{% if not loop.last %}, {% endif %}{% endfor %}]
 {%- endif %}
 {%- if element.persist is not null %},
     "persist": {{ element.persist }}
-{%- endif %}
-{%- if element.designJsonTraits|length > 0 %},
-    "traits": [{% for trait in element.designJsonTraits %}{{ trait | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
-{%- endif %}
-{%- if element.message is not null %},
-    "message": {{ element.message | json | raw }}
-{%- endif %}
-{%- if element.targets|length > 0 %},
-    "targets": [{% for target in element.targets %}{{ target | json | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]
-{%- endif %}
-{%- if element.valueType is not null %},
-    "valueType": {{ element.valueType | json | raw }}
-{%- endif %}
-{%- if element.parameters|length > 0 %},
-    "parameters": [{% for parameter in element.parameters %}
-      {
-        "name": {{ parameter.name | json | raw }},
-        "type": {{ parameter.type | json | raw }},
-        "nullable": {{ parameter.nullable }}{% if parameter.defaultValue is not null %},
-        "defaultValue": {{ parameter.defaultValue | json | raw }}{% endif %}
-      }{% if not loop.last %}, {% endif %}{% endfor %}
-    ]
 {%- endif %},
-{%- if element.role is not null %}
-    "role": {{ element.role | json | raw }},
-{%- endif %}
-{%- if element.eventName is not null %}
+{%- if element.eventName is not empty %}
     "eventName": {{ element.eventName | json | raw }},
 {%- endif %}
-    "requestFields": [{% for field in element.designJsonRequestFields %}
-      {
-        "name": {{ field.name | json | raw }},
-        "type": {{ field.type | json | raw }},
-        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
-        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
-      }{% if not loop.last %}, {% endif %}
-{% endfor %}
-    ],
-    "responseFields": [{% for field in element.responseFields %}
-      {
-        "name": {{ field.name | json | raw }},
-        "type": {{ field.type | json | raw }},
-        "nullable": {{ field.nullable }}{% if field.defaultValue is not null %},
-        "defaultValue": {{ field.defaultValue | json | raw }}{% endif %}
-      }{% if not loop.last %}, {% endif %}{% endfor %}
-    ]
+    "fields": [
+{% for field in element.designJsonFields %}      { "name": {{ field.name | json | raw }}, "type": {{ field.type | json | raw }}, "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": {{ field.defaultValue | json | raw }}{% endif %} }{% if not loop.last %},{% endif %}
+{% endfor %}    ],
+    "resultFields": [
+{% for field in element.resultFields %}      { "name": {{ field.name | json | raw }}, "type": {{ field.type | json | raw }}, "nullable": {{ field.nullable }}{% if field.defaultValue is not null %}, "defaultValue": {{ field.defaultValue | json | raw }}{% endif %} }{% if not loop.last %},{% endif %}
+{% endfor %}    ]
   }{% if not loop.last %},{% endif %}
 {%- endfor %}
 ]

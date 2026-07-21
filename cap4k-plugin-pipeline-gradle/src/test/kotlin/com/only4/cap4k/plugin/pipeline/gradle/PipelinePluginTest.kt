@@ -13,10 +13,12 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.api.file.FileCollection
@@ -250,31 +252,30 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `pipeline dependency inference is enabled when regular pipeline source or generator is enabled`() {
-        val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply(PipelinePlugin::class.java)
-        val extension = project.extensions.getByType(Cap4kExtension::class.java)
+    fun `pipeline dependency inference is enabled by input presence or configured generator blocks`() {
+        val irProject = ProjectBuilder.builder().build()
+        irProject.pluginManager.apply(PipelinePlugin::class.java)
+        val irExtension = irProject.extensions.getByType(Cap4kExtension::class.java)
+        irExtension.sources.irAnalysis.inputDirs.from(irProject.file("build/cap4k-code-analysis"))
+        assertTrue(shouldInferPipelineDependencies(irExtension))
 
-        extension.sources.irAnalysis.enabled.set(true)
-        assertTrue(shouldInferPipelineDependencies(extension))
+        val aggregateProjectionProject = ProjectBuilder.builder().build()
+        aggregateProjectionProject.pluginManager.apply(PipelinePlugin::class.java)
+        val aggregateProjectionExtension = aggregateProjectionProject.extensions.getByType(Cap4kExtension::class.java)
+        aggregateProjectionExtension.generators.aggregateProjection { }
+        assertTrue(shouldInferPipelineDependencies(aggregateProjectionExtension))
 
-        extension.sources.irAnalysis.enabled.set(false)
-        extension.generators.flow.enabled.set(true)
-        assertTrue(shouldInferPipelineDependencies(extension))
-
-        extension.generators.flow.enabled.set(false)
-        extension.generators.aggregateProjection.enabled.set(true)
-        assertTrue(shouldInferPipelineDependencies(extension))
-
-        extension.generators.aggregateProjection.enabled.set(false)
-        extension.generators.designIntegrationEvent.enabled.set(true)
-        assertTrue(shouldInferPipelineDependencies(extension))
+        val designProject = ProjectBuilder.builder().build()
+        designProject.pluginManager.apply(PipelinePlugin::class.java)
+        val designExtension = designProject.extensions.getByType(Cap4kExtension::class.java)
+        designExtension.sources.designJson.files.from(designProject.file("design/design.json"))
+        assertTrue(shouldInferPipelineDependencies(designExtension))
     }
 
     @Test
     fun `plugin registers bootstrap tasks`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
         assertNotNull(project.tasks.findByName("cap4kBootstrapPlan"))
         assertNotNull(project.tasks.findByName("cap4kBootstrap"))
@@ -283,7 +284,7 @@ class PipelinePluginTest {
     @Test
     fun `plugin registers source and analysis task families`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
         assertNotNull(project.tasks.findByName("cap4kPlan"))
         assertNotNull(project.tasks.findByName("cap4kGenerate"))
@@ -295,7 +296,7 @@ class PipelinePluginTest {
     @Test
     fun `analysis tasks use dedicated task classes`() {
         val project = ProjectBuilder.builder().build()
-        project.pluginManager.apply("com.only4.cap4k.plugin.pipeline")
+        project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
         assertTrue(project.tasks.named("cap4kAnalysisPlan").get() is Cap4kAnalysisPlanTask)
         assertTrue(project.tasks.named("cap4kAnalysisGenerate").get() is Cap4kAnalysisGenerateTask)
@@ -308,10 +309,9 @@ class PipelinePluginTest {
             generatedSourceModuleRoles(
                 projectConfig(
                     modules = mapOf("domain" to "demo-domain", "application" to "demo-application", "adapter" to "demo-adapter"),
-                    sources = mapOf("db" to SourceConfig(enabled = true)),
+                    sources = mapOf("db" to SourceConfig()),
                     generators = mapOf(
                         "aggregate" to GeneratorConfig(
-                            enabled = true,
                             options = mapOf(
                                 "artifact.unique" to false,
                             ),
@@ -325,10 +325,9 @@ class PipelinePluginTest {
             generatedSourceModuleRoles(
                 projectConfig(
                     modules = mapOf("domain" to "demo-domain", "application" to "demo-application", "adapter" to "demo-adapter"),
-                    sources = mapOf("db" to SourceConfig(enabled = true)),
+                    sources = mapOf("db" to SourceConfig()),
                     generators = mapOf(
                         "aggregate" to GeneratorConfig(
-                            enabled = true,
                             options = mapOf(
                                 "artifact.unique" to true,
                             ),
@@ -342,8 +341,8 @@ class PipelinePluginTest {
             generatedSourceModuleRoles(
                 projectConfig(
                     modules = mapOf("application" to "demo-application"),
-                    sources = mapOf("design-json" to SourceConfig(enabled = true)),
-                    generators = mapOf("design-query" to GeneratorConfig(enabled = true)),
+                    sources = mapOf("design-json" to SourceConfig()),
+                    generators = mapOf("query" to GeneratorConfig()),
                 )
             )
         )
@@ -352,8 +351,22 @@ class PipelinePluginTest {
             generatedSourceModuleRoles(
                 projectConfig(
                     modules = mapOf("adapter" to "demo-adapter"),
-                    sources = mapOf("db" to SourceConfig(enabled = true)),
-                    generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+                    sources = mapOf("db" to SourceConfig()),
+                    generators = mapOf("aggregate-projection" to GeneratorConfig()),
+                )
+            )
+        )
+    }
+
+    @Test
+    fun `generated source module roles include domain for enum manifest only`() {
+        assertEquals(
+            setOf("domain"),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "demo-domain"),
+                    sources = mapOf("enum-manifest" to SourceConfig()),
+                    generators = emptyMap(),
                 )
             )
         )
@@ -363,21 +376,20 @@ class PipelinePluginTest {
     fun `generated source task config keeps only generated source generation inputs`() {
         val config = projectConfig(
             sources = mapOf(
-                "db" to SourceConfig(enabled = true),
-                "enum-manifest" to SourceConfig(enabled = true),
-                "design-json" to SourceConfig(enabled = true),
-                "ksp-metadata" to SourceConfig(enabled = true),
-                "ir-analysis" to SourceConfig(enabled = true),
+                "db" to SourceConfig(),
+                "enum-manifest" to SourceConfig(),
+                "design-json" to SourceConfig(),
+                "ir-analysis" to SourceConfig(),
             ),
             generators = mapOf(
-                "aggregate" to GeneratorConfig(enabled = true),
-                "aggregate-projection" to GeneratorConfig(enabled = true),
-                "design-query" to GeneratorConfig(enabled = true),
-                "design-query-handler" to GeneratorConfig(enabled = true),
-                "design-integration-event" to GeneratorConfig(enabled = true),
-                "design-integration-event-subscriber" to GeneratorConfig(enabled = true),
-                "drawing-board" to GeneratorConfig(enabled = true),
-                "flow" to GeneratorConfig(enabled = true),
+                "aggregate" to GeneratorConfig(),
+                "aggregate-projection" to GeneratorConfig(),
+                "query" to GeneratorConfig(),
+                "query-handler" to GeneratorConfig(),
+                "integration-event" to GeneratorConfig(),
+                "integration-subscriber" to GeneratorConfig(),
+                "drawing-board" to GeneratorConfig(),
+                "flow" to GeneratorConfig(),
             ),
         )
 
@@ -388,26 +400,27 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `source task config keeps checked in source design integration event generators`() {
+    fun `source task config keeps checked in source generation inputs`() {
         val config = projectConfig(
             sources = mapOf(
-                "design-json" to SourceConfig(enabled = true),
-                "ksp-metadata" to SourceConfig(enabled = true),
-                "ir-analysis" to SourceConfig(enabled = true),
+                "design-json" to SourceConfig(),
+                "value-object-manifest" to SourceConfig(),
+                "ir-analysis" to SourceConfig(),
             ),
             generators = mapOf(
-                "design-integration-event" to GeneratorConfig(enabled = true),
-                "design-integration-event-subscriber" to GeneratorConfig(enabled = true),
-                "drawing-board" to GeneratorConfig(enabled = true),
-                "flow" to GeneratorConfig(enabled = true),
+                "integration-event" to GeneratorConfig(),
+                "integration-subscriber" to GeneratorConfig(),
+                "types-value-object" to GeneratorConfig(),
+                "drawing-board" to GeneratorConfig(),
+                "flow" to GeneratorConfig(),
             ),
         )
 
         val sourceConfig = sourceTaskConfig(config)
 
-        assertEquals(setOf("design-json", "ksp-metadata"), sourceConfig.sources.keys)
+        assertEquals(setOf("design-json", "value-object-manifest"), sourceConfig.sources.keys)
         assertEquals(
-            setOf("design-integration-event", "design-integration-event-subscriber"),
+            setOf("integration-event", "integration-subscriber", "types-value-object"),
             sourceConfig.generators.keys,
         )
     }
@@ -420,46 +433,15 @@ class PipelinePluginTest {
 
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventSubscriberArtifactPlanner::class.java))
-    }
-
-    @Test
-    fun `generated source dependency inference ignores design ksp metadata`() {
-        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-ksp-root")
-        val rootProject = ProjectBuilder.builder()
-            .withProjectDir(rootProjectDir)
-            .build()
-        val domainProject = ProjectBuilder.builder()
-            .withName("domain")
-            .withProjectDir(rootProjectDir.resolve("domain"))
-            .withParent(rootProject)
-            .build()
-        domainProject.tasks.register("kspKotlin")
-
-        val config = projectConfig(
-            sources = mapOf(
-                "db" to SourceConfig(enabled = true),
-                "ksp-metadata" to SourceConfig(
-                    enabled = true,
-                    options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
-                ),
-            ),
-            generators = mapOf(
-                "aggregate" to GeneratorConfig(enabled = true),
-                "design-query" to GeneratorConfig(enabled = true),
-            ),
-        )
-
-        val dependencies = inferSourceDependencies(rootProject, generatedSourceTaskConfig(config))
-
-        assertEquals(emptyList<String>(), dependencies.map { it.path })
+        assertTrue(generatorProviderTypes(runner).contains(ValueObjectArtifactPlanner::class.java))
     }
 
     @Test
     fun `generated kotlin source root is module local`() {
         val config = projectConfig(
             modules = mapOf("domain" to "demo-domain"),
-            sources = mapOf("db" to SourceConfig(enabled = true)),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            sources = mapOf("db" to SourceConfig()),
+            generators = mapOf("aggregate" to GeneratorConfig()),
         )
 
         assertEquals(
@@ -562,8 +544,7 @@ class PipelinePluginTest {
             "jdbc:h2:file:./build/h2/demo;MODE=MySQL;INIT=RUNSCRIPT FROM '${schemaFile.absolutePath.replace("\\", "/")}'"
         )
         extension.types.registryFile.set(typeRegistry.name)
-        extension.sources.enumManifest.enabled.set(true)
-        extension.sources.enumManifest.files.from(enumManifest)
+        extension.types.enumManifest.files.from(enumManifest)
         extension.templates.overrideDirs.from(templateOverride)
 
         val task = rootProject.tasks.named("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java).get()
@@ -605,7 +586,6 @@ class PipelinePluginTest {
             ),
             sources = mapOf(
                 "db" to SourceConfig(
-                    enabled = true,
                     options = mapOf(
                         "url" to "jdbc:mysql://localhost:3306/demo",
                         "username" to "cap4k",
@@ -616,22 +596,22 @@ class PipelinePluginTest {
                     ),
                 ),
                 "enum-manifest" to SourceConfig(
-                    enabled = true,
                     options = mapOf("files" to listOf("enums.json")),
                 ),
             ),
             generators = mapOf(
                 "aggregate" to GeneratorConfig(
-                    enabled = true,
                     options = mapOf(
                         "unsupportedTablePolicy" to "FAIL",
                         "artifact.unique" to true,
                     ),
                 ),
-                "aggregate-projection" to GeneratorConfig(enabled = true),
+                "aggregate-projection" to GeneratorConfig(),
             ),
         ).copy(
-            typeRegistry = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+            typeRegistry = TypeRegistryConfig(
+                entries = mapOf("Money" to TypeRegistryEntry("com.acme.Money")),
+            ),
         )
 
         val snapshot = generatedSourceTaskInputSnapshot(rootProject, config)
@@ -645,6 +625,7 @@ class PipelinePluginTest {
         assertTrue(snapshot.contains("artifact.unique"))
         assertTrue(snapshot.contains("aggregateProjection"))
         assertTrue(snapshot.contains("demo-domain/build/generated/cap4k/main/kotlin"))
+        assertFalse(snapshot.contains("\"enabled\""))
     }
 
     @Test
@@ -655,11 +636,10 @@ class PipelinePluginTest {
         val config = projectConfig(
             sources = mapOf(
                 "db" to SourceConfig(
-                    enabled = true,
                     options = mapOf("url" to "jdbc:mysql://localhost:3306/demo"),
                 ),
             ),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate" to GeneratorConfig()),
         )
 
         assertTrue(generatedSourceTaskHasUntrackedLiveDbInput(rootProject, config))
@@ -675,13 +655,12 @@ class PipelinePluginTest {
         val config = projectConfig(
             sources = mapOf(
                 "db" to SourceConfig(
-                    enabled = true,
                     options = mapOf(
                         "url" to "jdbc:h2:file:./build/h2/demo;INIT=RUNSCRIPT FROM '${schemaFile.absolutePath.replace("\\", "/")}'"
                     ),
                 ),
             ),
-            generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            generators = mapOf("aggregate" to GeneratorConfig()),
         )
 
         assertFalse(generatedSourceTaskHasUntrackedLiveDbInput(rootProject, config))
@@ -811,66 +790,6 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `design command with ksp metadata depends on relevant ksp task only`() {
-        val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-root")
-        val rootProject = ProjectBuilder.builder()
-            .withProjectDir(rootProjectDir)
-            .build()
-        val domainProject = ProjectBuilder.builder()
-            .withName("domain")
-            .withParent(rootProject)
-            .withProjectDir(rootProjectDir.resolve("domain"))
-            .build()
-        domainProject.tasks.register("kspKotlin")
-        rootProject.tasks.register("kspKotlin")
-
-        val dependencies = inferDependencies(
-            rootProject,
-            projectConfig(
-                sources = mapOf(
-                    "ksp-metadata" to SourceConfig(
-                        enabled = true,
-                        options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
-                    )
-                ),
-                generators = mapOf("design-command" to GeneratorConfig(enabled = true)),
-            )
-        )
-
-        assertEquals(listOf(":domain:kspKotlin"), dependencies.map { it.path })
-    }
-
-    @Test
-    fun `design domain event with ksp metadata depends on relevant ksp task only`() {
-        val rootProjectDir = tempProjectDir("pipeline-plugin-ksp-domain-event-root")
-        val rootProject = ProjectBuilder.builder()
-            .withProjectDir(rootProjectDir)
-            .build()
-        val domainProject = ProjectBuilder.builder()
-            .withName("domain")
-            .withParent(rootProject)
-            .withProjectDir(rootProjectDir.resolve("domain"))
-            .build()
-        domainProject.tasks.register("kspKotlin")
-        rootProject.tasks.register("kspKotlin")
-
-        val dependencies = inferDependencies(
-            rootProject,
-            projectConfig(
-                sources = mapOf(
-                    "ksp-metadata" to SourceConfig(
-                        enabled = true,
-                        options = mapOf("inputDir" to domainProject.layout.buildDirectory.dir("generated/ksp/main").get().asFile.absolutePath),
-                    )
-                ),
-                generators = mapOf("design-domain-event" to GeneratorConfig(enabled = true)),
-            )
-        )
-
-        assertEquals(listOf(":domain:kspKotlin"), dependencies.map { it.path })
-    }
-
-    @Test
     fun `flow with ir analysis depends on relevant compile task only`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-flow-root")
         val rootProject = ProjectBuilder.builder()
@@ -889,7 +808,6 @@ class PipelinePluginTest {
             projectConfig(
                 sources = mapOf(
                     "ir-analysis" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "inputDirs" to listOf(
                                 analysisProject.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath
@@ -897,7 +815,7 @@ class PipelinePluginTest {
                         ),
                     )
                 ),
-                generators = mapOf("flow" to GeneratorConfig(enabled = true)),
+                generators = mapOf("flow" to GeneratorConfig()),
             )
         )
 
@@ -923,7 +841,6 @@ class PipelinePluginTest {
             projectConfig(
                 sources = mapOf(
                     "ir-analysis" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "inputDirs" to listOf(
                                 analysisProject.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath
@@ -931,7 +848,7 @@ class PipelinePluginTest {
                         ),
                     )
                 ),
-                generators = mapOf("flow" to GeneratorConfig(enabled = true)),
+                generators = mapOf("flow" to GeneratorConfig()),
             )
         )
 
@@ -951,13 +868,12 @@ class PipelinePluginTest {
             projectConfig(
                 sources = mapOf(
                     "ir-analysis" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "inputDirs" to listOf(project.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath)
                         ),
                     )
                 ),
-                generators = mapOf("drawing-board" to GeneratorConfig(enabled = true)),
+                generators = mapOf("drawing-board" to GeneratorConfig()),
             )
         )
 
@@ -971,13 +887,12 @@ class PipelinePluginTest {
             .withProjectDir(projectDir)
             .build()
         project.tasks.register("compileKotlin")
-        project.tasks.register("kspKotlin")
 
         val dependencies = inferDependencies(
             project,
             projectConfig(
-                sources = mapOf("db" to SourceConfig(enabled = true)),
-                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+                sources = mapOf("db" to SourceConfig()),
+                generators = mapOf("aggregate" to GeneratorConfig()),
             )
         )
 
@@ -1001,8 +916,8 @@ class PipelinePluginTest {
             rootProject,
             projectConfig(
                 modules = mapOf("domain" to "demo-domain"),
-                sources = mapOf("db" to SourceConfig(enabled = true)),
-                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+                sources = mapOf("db" to SourceConfig()),
+                generators = mapOf("aggregate" to GeneratorConfig()),
             )
         )
 
@@ -1011,6 +926,122 @@ class PipelinePluginTest {
             implementationDependencies.any { dependency ->
                 dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
             }
+        )
+    }
+
+    @Test
+    fun `value object generation wires json converter dependencies into resolved domain module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("value-object-manifest" to SourceConfig()),
+                generators = emptyMap(),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            }
+        )
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            }
+        )
+    }
+
+    @Test
+    fun `enum manifest generation wires jakarta persistence api into resolved domain module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-enum-manifest-domain-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureEnumManifestDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("enum-manifest" to SourceConfig()),
+                generators = emptyMap(),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+    }
+
+    @Test
+    fun `value object generation does not duplicate json converter dependencies`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-dedup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        domainProject.dependencies.add("implementation", "jakarta.persistence:jakarta.persistence-api:3.1.0")
+        domainProject.dependencies.add("implementation", "com.fasterxml.jackson.core:jackson-databind:2.17.2")
+        domainProject.dependencies.add("implementation", "com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("value-object-manifest" to SourceConfig()),
+                generators = emptyMap(),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            },
+        )
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            },
+        )
+        assertEquals(
+            1,
+            implementationDependencies.count { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            },
         )
     }
 
@@ -1032,8 +1063,37 @@ class PipelinePluginTest {
             rootProject,
             projectConfig(
                 modules = mapOf("domain" to "demo-domain"),
-                sources = mapOf("db" to SourceConfig(enabled = true)),
-                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+                sources = mapOf("db" to SourceConfig()),
+                generators = mapOf("aggregate" to GeneratorConfig()),
+            )
+        )
+
+        val dependencyCount = domainProject.configurations.getByName("implementation").dependencies.count { dependency ->
+            dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+        }
+        assertEquals(1, dependencyCount)
+    }
+
+    @Test
+    fun `enum manifest generation does not duplicate jakarta persistence api dependency`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-enum-manifest-domain-dependency-dedup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        domainProject.dependencies.add("implementation", "jakarta.persistence:jakarta.persistence-api:3.1.0")
+
+        ensureEnumManifestDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf("enum-manifest" to SourceConfig()),
+                generators = emptyMap(),
             )
         )
 
@@ -1060,8 +1120,8 @@ class PipelinePluginTest {
             rootProject,
             projectConfig(
                 modules = mapOf("adapter" to "demo-adapter"),
-                sources = mapOf("db" to SourceConfig(enabled = true)),
-                generators = mapOf("aggregate-projection" to GeneratorConfig(enabled = true)),
+                sources = mapOf("db" to SourceConfig()),
+                generators = mapOf("aggregate-projection" to GeneratorConfig()),
             )
         )
 
@@ -1099,7 +1159,6 @@ class PipelinePluginTest {
             projectConfig(
                 sources = mapOf(
                     "ir-analysis" to SourceConfig(
-                        enabled = true,
                         options = mapOf(
                             "inputDirs" to listOf(
                                 appCopyProject.layout.buildDirectory.dir("cap4k-code-analysis").get().asFile.absolutePath
@@ -1107,7 +1166,7 @@ class PipelinePluginTest {
                         ),
                     )
                 ),
-                generators = mapOf("flow" to GeneratorConfig(enabled = true)),
+                generators = mapOf("flow" to GeneratorConfig()),
             )
         )
 
@@ -1127,8 +1186,27 @@ class PipelinePluginTest {
         throw NoSuchFieldException(name)
     }
 
+    private fun hasInternalProperty(target: Any, name: String): Boolean {
+        var type: Class<*>? = target.javaClass
+        while (type != null) {
+            if (type.declaredFields.any { it.name == name }) {
+                return true
+            }
+            type = type.superclass
+        }
+        return false
+    }
+
+    private fun runnerWithInternalProperty(runner: Any, name: String): Any {
+        var current = runner
+        while (!hasInternalProperty(current, name)) {
+            current = readInternalProperty(current, "delegate") ?: throw NoSuchFieldException(name)
+        }
+        return current
+    }
+
     private fun addonProviderIds(runner: Any): List<String> {
-        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val effectiveRunner = runnerWithInternalProperty(runner, "addonProviders")
         val providers = readInternalProperty(effectiveRunner, "addonProviders") as List<*>
         return providers.map { provider ->
             readInternalProperty(provider!!, "id").toString()
@@ -1136,7 +1214,7 @@ class PipelinePluginTest {
     }
 
     private fun generatorProviderTypes(runner: Any): Set<Class<*>> {
-        val effectiveRunner = runCatching { readInternalProperty(runner, "delegate") }.getOrNull() ?: runner
+        val effectiveRunner = runnerWithInternalProperty(runner, "generators")
         val providers = readInternalProperty(effectiveRunner, "generators") as List<*>
         return providers.map { it!!::class.java }.toSet()
     }
@@ -1239,9 +1317,7 @@ class PipelinePluginTest {
             }
         }
         extension.generators {
-            aggregate {
-                enabled.set(true)
-            }
+            aggregate { }
         }
     }
 
@@ -1259,9 +1335,7 @@ class PipelinePluginTest {
             }
         }
         extension.generators {
-            aggregateProjection {
-                enabled.set(true)
-            }
+            aggregateProjection { }
         }
     }
 
@@ -1269,7 +1343,7 @@ class PipelinePluginTest {
         projectDir.resolve("build.gradle.kts").writeText(
             """
                 plugins {
-                    id("com.only4.cap4k.plugin.pipeline")
+                    id("io.github.ldmoxeii.cap4k.pipeline")
                 }
 
                 // [cap4k-bootstrap:managed-begin:root-host]

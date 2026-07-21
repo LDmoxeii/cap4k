@@ -4,7 +4,6 @@ import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
-import com.only4.cap4k.ddd.core.domain.aggregate.AggregateSupervisor
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.domain.service.DomainServiceSupervisor
 import org.springframework.context.ApplicationContext
@@ -20,7 +19,6 @@ interface X {
         val ioc: ApplicationContext by lazy { Mediator.ioc }
         val factories: AggregateFactorySupervisor by lazy { Mediator.factories }
         val repositories: RepositorySupervisor by lazy { Mediator.repositories }
-        val aggregates: AggregateSupervisor by lazy { Mediator.aggregates }
         val services: DomainServiceSupervisor by lazy { Mediator.services }
         val unitOfWork: UnitOfWork by lazy { Mediator.uow }
         val events: IntegrationEventSupervisor by lazy { Mediator.events }
@@ -29,7 +27,6 @@ interface X {
         val queries: RequestSupervisor by lazy { Mediator.queries }
         val fac: AggregateFactorySupervisor by lazy { Mediator.fac }
         val repo: RepositorySupervisor by lazy { Mediator.repo }
-        val agg: AggregateSupervisor by lazy { Mediator.agg }
         val svc: DomainServiceSupervisor by lazy { Mediator.svc }
         val uow: UnitOfWork by lazy { Mediator.uow }
         val req: RequestSupervisor by lazy { Mediator.req }

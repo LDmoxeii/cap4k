@@ -82,7 +82,7 @@ Use separate worktrees or separate commits per repository. The cap4k issue `#33`
   - `cap4k-plugin-pipeline-gradle/src/test/resources/functional/aggregate-enum-sample`
   - `cap4k-plugin-pipeline-gradle/src/test/resources/functional/aggregate-enum-compile-sample`
 - Modify public docs:
-  - `docs/public/reference/generator-dsl.zh-CN.md`
+  - `docs/public/reference/generator-dsl.md`
   - docs that describe aggregate enum translation as core behavior
 
 ### only-engine Addon
@@ -1623,7 +1623,7 @@ git commit -m "test: verify artifact addon generation path"
 ### Task 9: Update Public Docs
 
 **Files:**
-- Modify: `docs/public/reference/generator-dsl.zh-CN.md`
+- Modify: `docs/public/reference/generator-dsl.md`
 - Modify: any public authoring docs found by the search command
 
 - [ ] **Step 1: Scan public docs for stale enum translation claims**
@@ -1636,7 +1636,7 @@ rg -n "enumTranslation|aggregateEnumTranslation|generateTranslation|only-engine|
 
 Expected: live public docs identify only stale enum translation claims.
 
-- [ ] **Step 2: Update `generator-dsl.zh-CN.md`**
+- [ ] **Step 2: Update `generator-dsl.md`**
 
 Remove the `artifacts.enumTranslation` DSL row and examples.
 

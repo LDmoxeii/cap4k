@@ -8,7 +8,40 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
+    val parentRef: Boolean = false,
+    val managedRole: DbManagedRole? = null,
+    val inherited: Boolean = false,
 )
+
+data class ProjectModel(
+    val group: String = "",
+    val name: String = "",
+)
+
+data class AggregateModel(
+    val name: String,
+    val packageName: String = "",
+    val description: String? = null,
+)
+
+data class TypeRegistryModel(
+    val entries: Map<String, TypeRegistryEntry> = emptyMap(),
+) {
+    companion object {
+        fun empty(): TypeRegistryModel = TypeRegistryModel()
+    }
+}
+
+enum class DbManagedRole {
+    SYSTEM,
+    SCOPE,
+    DELETED,
+    VERSION,
+}
+
+enum class DbIdStrategy {
+    DB_IDENTITY,
+}
 
 data class DbColumnSnapshot(
     val name: String,
@@ -20,18 +53,12 @@ data class DbColumnSnapshot(
     val isPrimaryKey: Boolean = false,
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
-    val referenceTable: String? = null,
-    val explicitRelationType: String? = null,
-    val lazy: Boolean? = null,
-    val countHint: String? = null,
-    val generatedValueDeclared: Boolean = false,
-    val generatedValueStrategy: String? = null,
-    val deleted: Boolean? = null,
-    val version: Boolean? = null,
-    val managed: Boolean? = null,
-    val exposed: Boolean? = null,
-    val insertable: Boolean? = null,
-    val updatable: Boolean? = null,
+    val parentRef: Boolean = false,
+    val refAggregate: String? = null,
+    val refId: String? = null,
+    val idStrategy: DbIdStrategy? = null,
+    val managedRole: DbManagedRole? = null,
+    val inherited: Boolean? = null,
 )
 
 data class UniqueConstraintModel(
@@ -47,9 +74,6 @@ data class DbTableSnapshot(
     val uniqueConstraints: List<UniqueConstraintModel>,
     val parentTable: String? = null,
     val aggregateRoot: Boolean = true,
-    val valueObject: Boolean = false,
-    val dynamicInsert: Boolean? = null,
-    val dynamicUpdate: Boolean? = null,
 )
 
 data class DesignSpecEntry(
@@ -59,25 +83,39 @@ data class DesignSpecEntry(
     val description: String,
     val aggregates: List<String>,
     val persist: Boolean? = null,
-    val traits: Set<RequestTrait> = emptySet(),
-    val requestFields: List<FieldModel>,
-    val responseFields: List<FieldModel>,
-    val message: String? = null,
-    val targets: List<String> = emptyList(),
-    val valueType: String? = null,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
-    val role: String? = null,
+    val artifacts: List<ArtifactSelectionModel>? = null,
+    val fields: List<FieldModel> = emptyList(),
+    val resultFields: List<FieldModel> = emptyList(),
     val eventName: String? = null,
 )
 
-data class DesignFieldSnapshot(
-    val name: String,
-    val type: String,
-    val nullable: Boolean = false,
-    val defaultValue: String? = null,
+data class ArtifactSelectionModel(
+    val family: String,
+    val variant: String = "",
 )
 
-data class ValidatorParameterModel(
+data class DesignBlockModel(
+    val tag: String,
+    val packageName: String,
+    val name: String,
+    val description: String = "",
+    val aggregates: List<String> = emptyList(),
+    val eventName: String = "",
+    val persist: Boolean? = null,
+    val artifacts: List<ArtifactSelectionModel>,
+    val artifactsDeclared: Boolean = true,
+    val fields: List<FieldModel> = emptyList(),
+    val resultFields: List<FieldModel> = emptyList(),
+) {
+    val designJsonArtifacts: List<ArtifactSelectionModel>
+        get() = normalizedArtifactSelections(artifacts)
+
+    val includeDesignJsonArtifacts: Boolean
+        get() = artifactsDeclared &&
+            designJsonArtifacts != normalizedArtifactSelections(defaultDrawingBoardArtifactsFor(tag))
+}
+
+data class DesignFieldSnapshot(
     val name: String,
     val type: String,
     val nullable: Boolean = false,
@@ -90,16 +128,11 @@ data class DesignElementSnapshot(
     val name: String,
     val description: String,
     val aggregates: List<String> = emptyList(),
-    val entity: String? = null,
+    val artifacts: List<ArtifactSelectionModel> = emptyList(),
+    val artifactsDeclared: Boolean = artifacts.isNotEmpty(),
     val persist: Boolean? = null,
-    val traits: Set<RequestTrait> = emptySet(),
-    val requestFields: List<DesignFieldSnapshot> = emptyList(),
-    val responseFields: List<DesignFieldSnapshot> = emptyList(),
-    val message: String? = null,
-    val targets: List<String> = emptyList(),
-    val valueType: String? = null,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
-    val role: String? = null,
+    val fields: List<DesignFieldSnapshot> = emptyList(),
+    val resultFields: List<DesignFieldSnapshot> = emptyList(),
     val eventName: String? = null,
 )
 
@@ -134,6 +167,30 @@ data class SharedEnumDefinition(
     val typeName: String,
     val packageName: String,
     val items: List<EnumItemModel>,
+    val aggregates: List<String> = emptyList(),
+)
+
+enum class ValueObjectStorage {
+    JSON,
+}
+
+data class ValueObjectModel(
+    val name: String,
+    val packageName: String,
+    val aggregates: List<String> = emptyList(),
+    val storage: ValueObjectStorage = ValueObjectStorage.JSON,
+    val fields: List<FieldModel> = emptyList(),
+    val description: String? = null,
+)
+
+val ValueObjectModel.ownerAggregate: String?
+    get() = aggregates.singleOrNull()
+
+data class DomainServiceModel(
+    val name: String,
+    val packageName: String,
+    val description: String? = null,
+    val aggregates: List<String> = emptyList(),
 )
 
 sealed interface SourceSnapshot {
@@ -153,11 +210,6 @@ data class DesignSpecSnapshot(
     val entries: List<DesignSpecEntry>,
 ) : SourceSnapshot
 
-data class KspMetadataSnapshot(
-    override val id: String = "ksp-metadata",
-    val aggregates: List<AggregateMetadataRecord>,
-) : SourceSnapshot
-
 data class IrAnalysisSnapshot(
     override val id: String = "ir-analysis",
     val inputDirs: List<String>,
@@ -169,6 +221,11 @@ data class IrAnalysisSnapshot(
 data class EnumManifestSnapshot(
     override val id: String = "enum-manifest",
     val definitions: List<SharedEnumDefinition>,
+) : SourceSnapshot
+
+data class ValueObjectManifestSnapshot(
+    override val id: String = "value-object-manifest",
+    val valueObjects: List<ValueObjectModel>,
 ) : SourceSnapshot
 
 data class SchemaModel(
@@ -234,7 +291,6 @@ data class EntityModel(
     val idField: FieldModel,
     val uniqueConstraints: List<UniqueConstraintModel> = emptyList(),
     val aggregateRoot: Boolean = true,
-    val valueObject: Boolean = false,
     val parentEntityName: String? = null,
 )
 
@@ -269,8 +325,6 @@ data class AggregatePersistenceProviderControl(
     val entityName: String,
     val entityPackageName: String,
     val tableName: String,
-    val dynamicInsert: Boolean? = null,
-    val dynamicUpdate: Boolean? = null,
     val softDeleteColumn: String? = null,
     val idFieldName: String,
     val versionFieldName: String? = null,
@@ -326,6 +380,7 @@ data class ResolvedManagedFieldPolicy(
     val columnName: String,
     val writePolicy: SpecialFieldWritePolicy,
     val source: SpecialFieldSource,
+    val managedRole: DbManagedRole? = null,
 )
 
 data class ResolvedWriteSurfacePolicy(
@@ -378,28 +433,54 @@ data class DrawingBoardElementModel(
     val name: String,
     val description: String,
     val aggregates: List<String> = emptyList(),
-    val entity: String? = null,
+    val artifacts: List<ArtifactSelectionModel> = emptyList(),
+    val artifactsDeclared: Boolean = artifacts.isNotEmpty(),
     val persist: Boolean? = null,
-    val traits: Set<RequestTrait> = emptySet(),
-    val requestFields: List<DrawingBoardFieldModel> = emptyList(),
-    val responseFields: List<DrawingBoardFieldModel> = emptyList(),
-    val message: String? = null,
-    val targets: List<String> = emptyList(),
-    val valueType: String? = null,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
-    val role: String? = null,
+    val fields: List<DrawingBoardFieldModel> = emptyList(),
+    val resultFields: List<DrawingBoardFieldModel> = emptyList(),
     val eventName: String? = null,
 ) {
-    val designJsonRequestFields: List<DrawingBoardFieldModel>
-        get() = if (tag == "domain_event") {
-            requestFields.filterNot { it.name.equals("entity", ignoreCase = true) }
-        } else {
-            requestFields
-        }
+    val designJsonArtifacts: List<ArtifactSelectionModel>
+        get() = normalizedArtifactSelections(artifacts)
 
-    val designJsonTraits: List<String>
-        get() = traits.map { it.name.lowercase() }
+    val includeDesignJsonArtifacts: Boolean
+        get() = artifactsDeclared &&
+            designJsonArtifacts != normalizedArtifactSelections(defaultDrawingBoardArtifactsFor(tag))
+
+    val designJsonFields: List<DrawingBoardFieldModel>
+        get() = if (tag == "domain_event") {
+            fields.filterNot { field -> field.name.equals("entity", ignoreCase = true) }
+        } else {
+            fields
+        }
 }
+
+private val DrawingBoardFieldComparator =
+    compareBy<DrawingBoardFieldModel> { it.name }
+        .thenBy { it.type }
+        .thenBy { it.nullable }
+        .thenBy { it.defaultValue.orEmpty() }
+
+private val ArtifactSelectionComparator =
+    compareBy<ArtifactSelectionModel> { it.family }.thenBy { it.variant }
+
+private fun normalizedArtifactSelections(
+    artifacts: List<ArtifactSelectionModel>,
+): List<ArtifactSelectionModel> =
+    artifacts.sortedWith(ArtifactSelectionComparator)
+
+private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelectionModel> =
+    when (tag) {
+        "command" -> listOf(ArtifactSelectionModel("command"))
+        "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
+        "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+        "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
+        "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
+        "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
+        "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
+        "saga" -> listOf(ArtifactSelectionModel("saga"))
+        else -> emptyList()
+    }
 
 data class DrawingBoardModel(
     val elements: List<DrawingBoardElementModel>,
@@ -423,76 +504,10 @@ data class AggregateRef(
     val packageName: String,
 )
 
-sealed interface DesignInteractionModel {
-    val packageName: String
-    val typeName: String
-    val description: String
-    val aggregateRef: AggregateRef?
-    val requestFields: List<FieldModel>
-    val responseFields: List<FieldModel>
-}
-
-enum class CommandVariant {
-    DEFAULT,
-    VOID,
-}
-
-enum class RequestTrait {
-    PAGE,
-}
-
-data class CommandModel(
-    override val packageName: String,
-    override val typeName: String,
-    override val description: String,
-    override val aggregateRef: AggregateRef? = null,
-    override val requestFields: List<FieldModel> = emptyList(),
-    override val responseFields: List<FieldModel> = emptyList(),
-    val variant: CommandVariant,
-) : DesignInteractionModel
-
-data class QueryModel(
-    override val packageName: String,
-    override val typeName: String,
-    override val description: String,
-    override val aggregateRef: AggregateRef? = null,
-    override val requestFields: List<FieldModel> = emptyList(),
-    override val responseFields: List<FieldModel> = emptyList(),
-    val traits: Set<RequestTrait> = emptySet(),
-) : DesignInteractionModel
-
-data class ClientModel(
-    override val packageName: String,
-    override val typeName: String,
-    override val description: String,
-    override val aggregateRef: AggregateRef? = null,
-    override val requestFields: List<FieldModel> = emptyList(),
-    override val responseFields: List<FieldModel> = emptyList(),
-) : DesignInteractionModel
-
 enum class UnsupportedTablePolicy {
     FAIL,
     SKIP,
 }
-
-data class ValidatorModel(
-    val packageName: String,
-    val typeName: String,
-    val description: String,
-    val message: String,
-    val targets: List<String>,
-    val valueType: String,
-    val parameters: List<ValidatorParameterModel> = emptyList(),
-)
-
-data class ApiPayloadModel(
-    val packageName: String,
-    val typeName: String,
-    val description: String,
-    val requestFields: List<FieldModel> = emptyList(),
-    val responseFields: List<FieldModel> = emptyList(),
-    val traits: Set<RequestTrait> = emptySet(),
-)
 
 data class DomainEventModel(
     val packageName: String,
@@ -504,32 +519,31 @@ data class DomainEventModel(
     val fields: List<FieldModel> = emptyList(),
 )
 
-enum class IntegrationEventRole {
-    INBOUND,
-    OUTBOUND,
+enum class StrongIdKind {
+    AGGREGATE_ROOT,
+    AGGREGATE_REFERENCE,
+    REFERENCE,
 }
 
-data class IntegrationEventModel(
-    val packageName: String,
+data class StrongIdModel(
     val typeName: String,
-    val description: String,
-    val role: IntegrationEventRole,
-    val eventName: String,
-    val fields: List<FieldModel> = emptyList(),
+    val packageName: String,
+    val valueType: String = "String",
+    val kind: StrongIdKind,
+    val ownerAggregateName: String? = null,
+    val ownerAggregatePackageName: String? = null,
 )
 
 data class CanonicalModel(
-    val commands: List<CommandModel> = emptyList(),
-    val queries: List<QueryModel> = emptyList(),
-    val clients: List<ClientModel> = emptyList(),
-    val validators: List<ValidatorModel> = emptyList(),
+    val project: ProjectModel = ProjectModel(),
+    val aggregates: List<AggregateModel> = emptyList(),
+    val designBlocks: List<DesignBlockModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),
     val repositories: List<RepositoryModel> = emptyList(),
     val analysisGraph: AnalysisGraphModel? = null,
     val drawingBoard: DrawingBoardModel? = null,
-    val apiPayloads: List<ApiPayloadModel> = emptyList(),
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
     val aggregateInverseRelations: List<AggregateInverseRelationModel> = emptyList(),
@@ -538,7 +552,10 @@ data class CanonicalModel(
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
     val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
     val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
-    val integrationEvents: List<IntegrationEventModel> = emptyList(),
+    val strongIds: List<StrongIdModel> = emptyList(),
+    val valueObjects: List<ValueObjectModel> = emptyList(),
+    val domainServices: List<DomainServiceModel> = emptyList(),
+    val typeRegistry: TypeRegistryModel = TypeRegistryModel.empty(),
 )
 
 data class UnsupportedAggregateTable(

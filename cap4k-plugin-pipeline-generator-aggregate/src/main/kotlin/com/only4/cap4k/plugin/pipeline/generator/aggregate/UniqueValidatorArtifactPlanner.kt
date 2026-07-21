@@ -12,13 +12,16 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return plannedSelections.flatMap { (entity, selections) ->
+            val aggregateName = aggregateRootName(entity, model.entities)
             val packageKey = aggregatePackageKey(config, entity.packageName)
             val packageName = artifactLayout.aggregateUniqueValidatorPackage(packageKey)
             val queryPackageName = artifactLayout.aggregateUniqueQueryPackage(packageKey)
             val entityCamel = entity.name.replaceFirstChar { it.lowercase() }
             selections.map { selection ->
+                val requestTypes = listOf(selection.idType) + selection.requestProps.map { it.type }
                 val imports = aggregateTypeImports(selection.idType) +
-                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) }
+                    selection.requestProps.flatMap { field -> aggregateTypeImports(field.type) } +
+                    aggregateStrongIdImports(model, requestTypes)
                 val requestProps = selection.requestProps.map { field ->
                     val simpleType = uniqueSimpleType(field.type)
                     mapOf(
@@ -39,6 +42,13 @@ internal class UniqueValidatorArtifactPlanner : AggregateArtifactFamilyPlanner {
                     context = mapOf(
                         "packageName" to packageName,
                         "typeName" to selection.validatorTypeName,
+                        "aggregateElement" to aggregateElementContext(
+                            aggregate = aggregateName,
+                            name = selection.validatorTypeName,
+                            packageName = packageName,
+                            description = "",
+                            type = "unique-validator",
+                        ),
                         "queryTypeName" to selection.queryTypeName,
                         "queryTypeFqn" to "$queryPackageName.${selection.queryTypeName}",
                         "requestProps" to requestProps,

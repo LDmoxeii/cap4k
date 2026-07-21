@@ -1,0 +1,29 @@
+name: Release or publish
+description: Track a release promotion or publish-lane task.
+title: "[Release]: "
+labels:
+  - release
+body:
+  - type: dropdown
+    id: lane
+    attributes:
+      label: Publish lane
+      options:
+        - publish/aliyun-private
+        - publish/maven-central
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Source
+      description: Master commit, PR, tag, or version involved in the release.
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Required checks
+      description: List the master CI evidence and publish-specific checks needed before promotion.
+    validations:
+      required: true

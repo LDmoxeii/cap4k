@@ -1,35 +1,24 @@
 package com.only4.cap4k.ddd.core.domain.repo.impl
 
-import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
-import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.repo.PersistListener
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import com.only4.cap4k.ddd.core.share.misc.findDomainEventClasses
-import com.only4.cap4k.ddd.core.share.misc.newConverterInstance
-import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.core.annotation.OrderUtils
-import org.springframework.core.convert.converter.Converter
-import java.time.Duration
 
 @DisplayName("DefaultPersistListenerManager 测试")
 class DefaultPersistListenerManagerTest {
 
     private lateinit var manager: DefaultPersistListenerManager
-    private lateinit var mockDomainEventSupervisor: DomainEventSupervisor
-    private lateinit var mockDomainEventManager: DomainEventManager
 
     @AfterEach
     fun tearDown() {
         // 清理所有Mock
         unmockkStatic(::findDomainEventClasses)
-        unmockkStatic(::resolveGenericTypeClass)
-        unmockkStatic(::newConverterInstance)
-        unmockkObject(DomainEventSupervisor.Companion)
         clearAllMocks()
     }
 
@@ -38,25 +27,9 @@ class DefaultPersistListenerManagerTest {
         // 清理调用记录
         TestPersistListenerBase.callOrder.clear()
 
-        mockDomainEventSupervisor = mockk()
-        mockDomainEventManager = mockk()
-
-        // Mock静态访问
-        mockkObject(DomainEventSupervisor.Companion)
-        every { DomainEventSupervisor.instance } returns mockDomainEventSupervisor
-        every { DomainEventSupervisor.manager } returns mockDomainEventManager
-
-        every { mockDomainEventSupervisor.attach<Any, Any>(any(), any(), any<Duration>()) } just Runs
-        every { mockDomainEventManager.release(any()) } just Runs
-
         // Mock扫描方法
         mockkStatic(::findDomainEventClasses)
         every { findDomainEventClasses(any()) } returns emptySet()
-
-        // Mock转换器创建
-        mockkStatic(::resolveGenericTypeClass)
-        mockkStatic(::newConverterInstance)
-        every { resolveGenericTypeClass(any(), any(), any(), any()) } returns TestEntity::class.java
     }
 
     @Nested
@@ -80,10 +53,7 @@ class DefaultPersistListenerManagerTest {
             // 清理之前的调用记录
             TestPersistListenerBase.callOrder.clear()
 
-            manager = DefaultPersistListenerManager(
-                listOf(listener1, listener2, listener3),
-                "com.test"
-            )
+            manager = DefaultPersistListenerManager(listOf(listener1, listener2, listener3))
 
             val entity = TestEntity()
 
@@ -98,11 +68,11 @@ class DefaultPersistListenerManagerTest {
         }
 
         @Test
-        @DisplayName("应该只初始化一次")
-        fun `should initialize only once`() {
+        @DisplayName("初始化不应该扫描领域事件类")
+        fun `initialization should not scan domain event classes`() {
             // given
             val listener = TestPersistListenerWithOrder1()
-            manager = DefaultPersistListenerManager(listOf(listener), "com.test")
+            manager = DefaultPersistListenerManager(listOf(listener))
 
             // when
             manager.init()
@@ -110,8 +80,7 @@ class DefaultPersistListenerManagerTest {
             manager.init()
 
             // then
-            // 验证lazy初始化只执行一次
-            verify(exactly = 1) { findDomainEventClasses("com.test") }
+            verify(exactly = 0) { findDomainEventClasses(any()) }
         }
     }
 
@@ -126,10 +95,7 @@ class DefaultPersistListenerManagerTest {
             val listener1 = TestPersistListenerWithOrder1()
             val listener2 = TestPersistListenerWithOrder2()
 
-            manager = DefaultPersistListenerManager(
-                listOf(listener1, listener2),
-                "com.test"
-            )
+            manager = DefaultPersistListenerManager(listOf(listener1, listener2))
 
             // when
             manager.onChange(TestEntity(), PersistType.CREATE)
@@ -142,24 +108,27 @@ class DefaultPersistListenerManagerTest {
         @Test
         @DisplayName("应该调用Any类型的通用监听器")
         fun `should call Object type generic listeners`() {
-            // given - 创建一个Any类型的监听器
+            // given - 混合具体实体监听器和Any监听器，Any会注册到JVM Object/Any类型
+            val concreteListener = TestPersistListenerWithOrder1()
+            val genericCalls = mutableListOf<Class<*>>()
             val genericListener = object : PersistListener<Any> {
-                var called = false
                 override fun onChange(aggregate: Any, type: PersistType) {
-                    called = true
+                    genericCalls.add(aggregate.javaClass)
                 }
             }
 
-            manager = DefaultPersistListenerManager(
-                listOf(genericListener),
-                "com.test"
-            )
+            manager = DefaultPersistListenerManager(listOf(concreteListener, genericListener))
 
-            // when
+            // when - TestEntity hits both the concrete listener and the Any/Object fallback.
             manager.onChange(TestEntity(), PersistType.CREATE)
+            manager.onChange(OtherEntity(), PersistType.UPDATE)
 
             // then
-            assertEquals(true, genericListener.called)
+            assertEquals(listOf(1), TestPersistListenerBase.callOrder)
+            assertEquals(
+                listOf(TestEntity::class.java, OtherEntity::class.java),
+                genericCalls
+            )
         }
 
         @Test
@@ -178,68 +147,13 @@ class DefaultPersistListenerManagerTest {
                 }
             }
 
-            every { resolveGenericTypeClass(faultyListener, 0, any(), any()) } returns Object::class.java
-
-            manager = DefaultPersistListenerManager(listOf(faultyListener), "com.test")
+            manager = DefaultPersistListenerManager(listOf(faultyListener))
 
             // when
             manager.onChange(TestEntity(), PersistType.CREATE)
 
             // then
             assertEquals(true, faultyListener.exceptionCalled)
-        }
-    }
-
-    @Nested
-    @DisplayName("AutoAttach注解处理测试")
-    inner class AutoAttachTests {
-
-        @Test
-        @DisplayName("应该处理AutoAttach注解的领域事件")
-        fun `should process AutoAttach annotated domain events`() {
-            // given - 简化测试，不需要复杂的注解mock
-            every { findDomainEventClasses("com.test") } returns emptySet() // 返回空集合
-
-            manager = DefaultPersistListenerManager(emptyList(), "com.test")
-            val entity = TestEntity()
-
-            // when - 直接测试onChange不会崩溃
-            manager.onChange(entity, PersistType.CREATE)
-
-            // then - 验证没有异常抛出即可
-            verify { findDomainEventClasses("com.test") }
-        }
-
-        @Test
-        @DisplayName("应该只在匹配的持久化类型时触发AutoAttach")
-        fun `should only trigger AutoAttach for matching persist types`() {
-            // given
-            every { findDomainEventClasses("com.test") } returns emptySet()
-
-            manager = DefaultPersistListenerManager(emptyList(), "com.test")
-            val entity = TestEntity()
-
-            // when
-            manager.onChange(entity, PersistType.CREATE)
-            manager.onChange(entity, PersistType.UPDATE)
-
-            // then - 验证扫描只执行一次（lazy初始化）
-            verify(exactly = 1) { findDomainEventClasses("com.test") }
-        }
-
-        @Test
-        @DisplayName("应该使用领域事件类作为转换器当其实现了Converter接口")
-        fun `should use domain event class as converter when it implements Converter`() {
-            // given
-            every { findDomainEventClasses("com.test") } returns emptySet()
-
-            manager = DefaultPersistListenerManager(emptyList(), "com.test")
-
-            // when
-            manager.onChange(TestEntity(), PersistType.CREATE)
-
-            // then
-            verify { findDomainEventClasses("com.test") }
         }
     }
 
@@ -252,7 +166,7 @@ class DefaultPersistListenerManagerTest {
         fun `multiple onChange calls should initialize only once`() {
             // given
             val listener = TestPersistListenerWithOrder1()
-            manager = DefaultPersistListenerManager(listOf(listener), "com.test")
+            manager = DefaultPersistListenerManager(listOf(listener))
 
             // when
             manager.onChange(TestEntity(), PersistType.CREATE)
@@ -260,23 +174,19 @@ class DefaultPersistListenerManagerTest {
             manager.onChange(TestEntity(), PersistType.DELETE)
 
             // then
-            verify(exactly = 1) { findDomainEventClasses("com.test") }
+            verify(exactly = 0) { findDomainEventClasses(any()) }
         }
     }
 
     // 测试用的类
     class TestEntity
 
+    class OtherEntity
+
     class TestDomainEvent
 
-    class TestDomainEventConverter : Converter<TestEntity, TestDomainEvent> {
-        override fun convert(source: TestEntity): TestDomainEvent {
-            return TestDomainEvent()
-        }
-    }
-
     // 测试持久化监听器基类，用于记录调用顺序
-    abstract class TestPersistListenerBase : PersistListener<TestEntity> {
+    abstract class TestPersistListenerBase {
         companion object {
             @JvmStatic
             val callOrder = mutableListOf<Int>()
@@ -284,24 +194,36 @@ class DefaultPersistListenerManagerTest {
 
         abstract val orderValue: Int
 
-        override fun onChange(aggregate: TestEntity, type: PersistType) {
+        fun recordCall() {
             callOrder.add(orderValue)
         }
     }
 
     // 使用@Order注解的测试监听器
     @Order(1)
-    class TestPersistListenerWithOrder1 : TestPersistListenerBase() {
+    class TestPersistListenerWithOrder1 : TestPersistListenerBase(), PersistListener<TestEntity> {
         override val orderValue = 1
+
+        override fun onChange(aggregate: TestEntity, type: PersistType) {
+            recordCall()
+        }
     }
 
     @Order(2)
-    class TestPersistListenerWithOrder2 : TestPersistListenerBase() {
+    class TestPersistListenerWithOrder2 : TestPersistListenerBase(), PersistListener<TestEntity> {
         override val orderValue = 2
+
+        override fun onChange(aggregate: TestEntity, type: PersistType) {
+            recordCall()
+        }
     }
 
     @Order(3)
-    class TestPersistListenerWithOrder3 : TestPersistListenerBase() {
+    class TestPersistListenerWithOrder3 : TestPersistListenerBase(), PersistListener<TestEntity> {
         override val orderValue = 3
+
+        override fun onChange(aggregate: TestEntity, type: PersistType) {
+            recordCall()
+        }
     }
 }

@@ -46,7 +46,6 @@ class ArtifactLayoutResolverTest {
             "com.acme.demo.adapter.application.distributed.clients.message.delivery",
             resolver.designClientHandlerPackage("message.delivery"),
         )
-        assertEquals("com.acme.demo.application.validators.message", resolver.designValidatorPackage("message"))
         assertEquals("com.acme.demo.adapter.portal.api.payload.message", resolver.designApiPayloadPackage("message"))
         assertEquals("com.acme.demo.domain.aggregates.message.events", resolver.designDomainEventPackage("message"))
         assertEquals(
@@ -56,16 +55,16 @@ class ArtifactLayoutResolverTest {
     }
 
     @Test
-    fun `resolves integration event packages with lowercase role segments`() {
+    fun `resolves integration event packages with artifact variants`() {
         val resolver = ArtifactLayoutResolver("com.acme")
 
         assertEquals(
             "com.acme.application.subscribers.integration.inbound.media.processing",
-            resolver.designIntegrationEventPackage(IntegrationEventRole.INBOUND, "media.processing"),
+            resolver.designIntegrationEventPackage("inbound", "media.processing"),
         )
         assertEquals(
             "com.acme.application.subscribers.integration.outbound.content",
-            resolver.designIntegrationEventPackage(IntegrationEventRole.OUTBOUND, "content"),
+            resolver.designIntegrationEventPackage("outbound", "content"),
         )
         assertEquals(
             "com.acme.application.subscribers.integration",

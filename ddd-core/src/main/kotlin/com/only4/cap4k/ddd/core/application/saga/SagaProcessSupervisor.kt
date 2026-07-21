@@ -32,4 +32,28 @@ interface SagaProcessSupervisor {
         processCode: String,
         request: REQUEST
     ): RESPONSE
+
+    /**
+     * 执行可补偿的Saga子环节
+     *
+     * @param processCode 子流程标识
+     * @param request 正向请求参数
+     * @param compensationCode 补偿流程标识
+     * @param compensationRequest 根据正向结果构造补偿请求
+     * @return 处理结果
+     */
+    fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any, COMPENSATION_REQUEST : RequestParam<*>> sendCompensableProcess(
+        processCode: String,
+        request: REQUEST,
+        compensationCode: String,
+        compensationRequest: (RESPONSE) -> COMPENSATION_REQUEST
+    ): RESPONSE
+
+    /**
+     * 请求当前Saga进入补偿流程
+     *
+     * @param code 补偿代码
+     * @param reason 补偿原因
+     */
+    fun requestCompensation(code: String, reason: String): Nothing
 }

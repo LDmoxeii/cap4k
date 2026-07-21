@@ -3,6 +3,10 @@ package com.only4.cap4k.ddd.core.domain.id
 import kotlin.reflect.KClass
 import kotlin.jvm.javaObjectType
 
+/**
+ * Compatibility API for manually requested ID allocation.
+ * Generated Strong ID aggregate roots should call their generated ID factories instead.
+ */
 interface IdAllocator {
     fun <T : Any> next(strategy: String, type: KClass<T>): T
 }

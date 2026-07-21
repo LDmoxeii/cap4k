@@ -24,7 +24,6 @@ internal object AggregateRelationInference {
         val columnNamesByFieldName: Map<String, String>,
     )
 
-    private val underscoredRelationIdSuffixRegex = Regex("_id$", RegexOption.IGNORE_CASE)
     private val tableTokenSplitRegex = Regex("_+|(?<=[a-z0-9])(?=[A-Z])")
     private val fieldTokenSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 
@@ -34,7 +33,6 @@ internal object AggregateRelationInference {
         skippedTableNames: Set<String> = emptySet(),
         outOfScopeTableNames: Set<String> = emptySet(),
     ): List<AggregateRelationModel> {
-        val allowedMissingTableNames = (skippedTableNames + outOfScopeTableNames).map(::tableKey).toSet()
         val tablesByName = tables.associateBy { tableKey(it.tableName) }
         val entityLookup = tables.associateBy(
             keySelector = { tableKey(it.tableName) },
@@ -52,30 +50,27 @@ internal object AggregateRelationInference {
             AggregateNaming.entityName(table.tableName) to ScalarFields(
                 tableName = table.tableName,
                 columnNamesByFieldName = table.columns
-                    .filter { it.referenceTable == null }
                     .associate { column -> lowerCamelIdentifier(column.name) to column.name },
             )
         }
 
-        val parentChildRelations = tables
-            .filter { it.parentTable != null }
-            .mapNotNull { child ->
-                val parentTable = requireNotNull(child.parentTable)
+        val parentBindings = OwnedParentBindingResolver.resolve(
+            tables = tables,
+            skippedTableNames = skippedTableNames,
+            outOfScopeTableNames = outOfScopeTableNames,
+        )
+
+        val parentChildRelations = parentBindings
+            .map { binding ->
+                val child = binding.childTable
+                val parentTable = binding.parentTable
                 val parentKey = tableKey(parentTable)
-                val parent = entityLookup[parentKey]
-                if (parent == null && parentKey in allowedMissingTableNames) {
-                    return@mapNotNull null
-                }
-                val resolvedParent = requireNotNull(parent) {
+                val resolvedParent = requireNotNull(entityLookup[parentKey]) {
                     "unknown parent table: ${child.parentTable}"
                 }
                 val target = requireNotNull(entityLookup[tableKey(child.tableName)]) {
                     "unknown child table: ${child.tableName}"
                 }
-                val joinColumn = resolveOwnedParentAnchorColumn(
-                    child = child,
-                    parentTable = parentTable,
-                ).name
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
                     ownerEntityPackageName = resolvedParent.packageName,
@@ -83,7 +78,7 @@ internal object AggregateRelationInference {
                     targetEntityName = target.entityName,
                     targetEntityPackageName = target.packageName,
                     relationType = AggregateRelationType.ONE_TO_MANY,
-                    joinColumn = joinColumn,
+                    joinColumn = binding.parentRefColumn.name,
                     fetchType = AggregateFetchType.LAZY,
                     nullable = false,
                     cascadeTypes = listOf(
@@ -96,42 +91,7 @@ internal object AggregateRelationInference {
                 )
             }
 
-        val explicitRelations = tables.flatMap { table ->
-            val owner = requireNotNull(entityLookup[tableKey(table.tableName)]) {
-                "unknown owner table: ${table.tableName}"
-            }
-            table.columns
-                .mapNotNull { column ->
-                    val referenceTable = column.referenceTable ?: return@mapNotNull null
-                    if (isOwnedDirectParentReference(table, column)) {
-                        return@mapNotNull null
-                    }
-                    val relationType = resolveRelationType(column.explicitRelationType)
-                    val referenceKey = tableKey(referenceTable)
-                    val target = entityLookup[referenceKey]
-                    if (target == null && referenceKey in allowedMissingTableNames) {
-                        return@mapNotNull null
-                    }
-                    val resolvedTarget = requireNotNull(target) {
-                        "unknown reference table: ${column.referenceTable}"
-                    }
-                    AggregateRelationModel(
-                        ownerEntityName = owner.entityName,
-                        ownerEntityPackageName = owner.packageName,
-                        fieldName = relationFieldName(column.name, resolvedTarget.entityName),
-                        targetEntityName = resolvedTarget.entityName,
-                        targetEntityPackageName = resolvedTarget.packageName,
-                        relationType = relationType,
-                        joinColumn = column.name,
-                        fetchType = if (column.lazy == true) AggregateFetchType.LAZY else AggregateFetchType.EAGER,
-                        nullable = column.nullable,
-                        orphanRemoval = false,
-                        joinColumnNullable = column.nullable,
-                    )
-                }
-        }
-
-        val relations = parentChildRelations + explicitRelations
+        val relations = parentChildRelations
         val collision = relations
             .groupBy { RelationCollisionKey(it.ownerEntityName, it.fieldName) }
             .entries
@@ -168,58 +128,6 @@ internal object AggregateRelationInference {
         return relations
     }
 
-    private fun resolveOwnedParentAnchorColumn(
-        child: DbTableSnapshot,
-        parentTable: String,
-    ) = resolveSingleDirectParentColumn(
-        child = child,
-        parentTable = parentTable,
-        candidates = directParentReferenceColumns(child, parentTable).ifEmpty {
-            child.columns
-                .filter { it.name.equals("${parentTable}_id", ignoreCase = true) }
-                .sortedBy { it.name }
-        },
-    )
-
-    private fun resolveSingleDirectParentColumn(
-        child: DbTableSnapshot,
-        parentTable: String,
-        candidates: List<com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot>,
-    ): com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot {
-        candidates
-            .firstOrNull { it.lazy != null }
-            ?.let { column ->
-                throw IllegalArgumentException(
-                    "owned parent-child direct parent binding does not allow local lazy override: ${child.tableName}.${column.name}"
-                )
-            }
-        candidates
-            .firstOrNull { it.explicitRelationType != null && it.explicitRelationType != "MANY_TO_ONE" }
-            ?.let { column ->
-                throw IllegalArgumentException(
-                    "parent reference relation type must be MANY_TO_ONE in first slice: ${child.tableName}.${column.name} -> $parentTable = ${column.explicitRelationType}"
-                )
-            }
-        val joinColumns = candidates
-            .map { it.name }
-            .sorted()
-        return when (joinColumns.size) {
-            0 -> throw IllegalArgumentException("missing parent reference column for table: ${child.tableName}")
-            1 -> candidates.single()
-            else -> throw IllegalArgumentException(
-                "ambiguous parent reference columns for table ${child.tableName} -> $parentTable: ${joinColumns.joinToString(", ")}"
-            )
-        }
-    }
-
-    private fun resolveRelationType(explicitRelationType: String?): AggregateRelationType {
-        return when (explicitRelationType) {
-            "ONE_TO_ONE" -> AggregateRelationType.ONE_TO_ONE
-            null, "MANY_TO_ONE" -> AggregateRelationType.MANY_TO_ONE
-            else -> throw IllegalArgumentException("unsupported aggregate relation type in first slice: $explicitRelationType")
-        }
-    }
-
     private fun parentChildFieldName(parentTableName: String, childTableName: String): String {
         val parentTokens = tableNameTokens(parentTableName)
         val childTokens = tableNameTokens(childTableName)
@@ -232,25 +140,6 @@ internal object AggregateRelationInference {
             childTokens
         }
         return tokensToLowerCamel(stemTokens.dropLast(1) + RelationInflector.pluralizeStable(stemTokens.last()))
-    }
-
-    private fun relationFieldName(columnName: String, targetEntityName: String): String {
-        val stem = stripRelationIdSuffix(columnName)
-        return if (stem.isNotBlank()) {
-            if (stem.contains('_')) {
-                stem.split("_")
-                    .joinToString("") { part ->
-                        upperFirst(part.lowercase(Locale.ROOT))
-                    }
-                    .let(::lowerFirst)
-            } else if (stem.all { !it.isLetter() || it.isUpperCase() }) {
-                stem.lowercase(Locale.ROOT)
-            } else {
-                lowerFirst(stem)
-            }
-        } else {
-            lowerFirst(targetEntityName)
-        }
     }
 
     private fun tableNameTokens(tableName: String): List<String> =
@@ -267,16 +156,6 @@ internal object AggregateRelationInference {
                 upperFirst(token)
             }
         }.joinToString("")
-    }
-
-    private fun stripRelationIdSuffix(columnName: String): String {
-        return when {
-            underscoredRelationIdSuffixRegex.containsMatchIn(columnName) ->
-                columnName.replaceFirst(underscoredRelationIdSuffixRegex, "")
-            columnName.endsWith("Id") || columnName.endsWith("ID") ->
-                columnName.dropLast(2)
-            else -> columnName
-        }
     }
 
     private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)
@@ -314,26 +193,8 @@ internal object AggregateRelationInference {
         return head + tail
     }
 
-    private fun lowerFirst(value: String): String =
-        if (value.isEmpty()) value else value.substring(0, 1).lowercase(Locale.ROOT) + value.substring(1)
-
     private fun upperFirst(value: String): String =
         if (value.isEmpty()) value else value.substring(0, 1).uppercase(Locale.ROOT) + value.substring(1)
-
-    private fun directParentReferenceColumns(
-        table: DbTableSnapshot,
-        parentTable: String,
-    ) = table.columns
-        .filter { it.referenceTable?.equals(parentTable, ignoreCase = true) == true }
-        .sortedBy { it.name }
-
-    private fun isOwnedDirectParentReference(
-        table: DbTableSnapshot,
-        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
-    ): Boolean {
-        val parentTable = table.parentTable ?: return false
-        return column.referenceTable?.equals(parentTable, ignoreCase = true) == true
-    }
 
     private object RelationInflector {
         private data class Rule(

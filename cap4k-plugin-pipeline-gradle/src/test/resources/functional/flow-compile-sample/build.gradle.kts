@@ -1,5 +1,5 @@
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 val analysisDir = layout.buildDirectory.dir("cap4k-code-analysis")
@@ -58,7 +58,6 @@ cap4k {
     }
     sources {
         irAnalysis {
-            enabled.set(true)
             inputDirs.from(analysisDir)
         }
     }
@@ -69,7 +68,6 @@ cap4k {
     }
     generators {
         flow {
-            enabled.set(true)
         }
     }
     templates {

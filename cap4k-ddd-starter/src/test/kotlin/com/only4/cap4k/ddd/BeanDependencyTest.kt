@@ -93,7 +93,7 @@ class BeanDependencyTest {
         val coreBeansToCheck = listOf(
             "defaultMediator",
             "defaultRepositorySupervisor",
-            "defaultAggregateSupervisor",
+            "defaultAggregateFactorySupervisor",
             "defaultDomainEventSupervisor"
         )
 

@@ -1,14 +1,15 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventModel
-import com.only4.cap4k.plugin.pipeline.api.IntegrationEventRole
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
+import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -19,16 +20,17 @@ class DesignIntegrationEventArtifactPlannerTest {
     @Test
     fun `plans inbound and outbound integration event contracts into application integration event paths`() {
         val planner = DesignIntegrationEventArtifactPlanner()
+        assertEquals("integration-event", planner.id)
 
         val items = planner.plan(
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
-                integrationEvents = listOf(
-                    integrationEvent(role = IntegrationEventRole.INBOUND),
+                designBlocks = listOf(
+                    integrationEvent(variant = "inbound"),
                     integrationEvent(
-                        role = IntegrationEventRole.OUTBOUND,
+                        variant = "outbound",
                         packageName = "billing",
-                        typeName = "InvoicePaidIntegrationEvent",
+                        name = "InvoicePaid",
                         eventName = "invoice.\$paid\\completed",
                         fields = listOf(FieldModel("invoiceId", "java.util.UUID")),
                     ),
@@ -39,7 +41,7 @@ class DesignIntegrationEventArtifactPlannerTest {
         assertEquals(2, items.size)
 
         val inbound = items[0]
-        assertEquals("design-integration-event", inbound.generatorId)
+        assertEquals("integration-event", inbound.generatorId)
         assertEquals("design/integration_event.kt.peb", inbound.templateId)
         assertEquals(
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderCreatedIntegrationEvent.kt",
@@ -51,7 +53,7 @@ class DesignIntegrationEventArtifactPlannerTest {
         assertEquals("OrderCreatedIntegrationEvent", inbound.context["typeName"])
         assertEquals("order.created", inbound.context["eventName"])
         assertEquals("\"order.created\"", inbound.context["eventNameKotlinStringLiteral"])
-        assertEquals("inbound", inbound.context["role"])
+        assertEquals("inbound", inbound.context["variant"])
         assertEquals(true, inbound.context["inbound"])
         assertEquals(false, inbound.context["outbound"])
         assertEquals("order * / \"created\" event", inbound.context["descriptionCommentText"])
@@ -70,23 +72,28 @@ class DesignIntegrationEventArtifactPlannerTest {
         assertEquals("com.acme.demo.application.subscribers.integration.outbound.billing", outbound.context["packageName"])
         assertEquals("invoice.\$paid\\completed", outbound.context["eventName"])
         assertEquals("\"invoice.\\\$paid\\\\completed\"", outbound.context["eventNameKotlinStringLiteral"])
-        assertEquals("outbound", outbound.context["role"])
+        assertEquals("outbound", outbound.context["variant"])
         assertEquals(false, outbound.context["inbound"])
         assertEquals(true, outbound.context["outbound"])
+        @Suppress("UNCHECKED_CAST")
+        val buildingBlock = outbound.context["buildingBlock"] as Map<String, Any?>
+        assertEquals("integration-event", buildingBlock["family"])
+        assertEquals("outbound", buildingBlock["variant"])
     }
 
     private fun integrationEvent(
-        role: IntegrationEventRole,
+        variant: String,
         packageName: String = "order",
-        typeName: String = "OrderCreatedIntegrationEvent",
+        name: String = "OrderCreated",
         eventName: String = "order.created",
         fields: List<FieldModel> = listOf(FieldModel("orderId", "UUID")),
-    ) = IntegrationEventModel(
+    ) = DesignBlockModel(
+        tag = "integration_event",
         packageName = packageName,
-        typeName = typeName,
+        name = name,
         description = "order */ \"created\" event",
-        role = role,
         eventName = eventName,
+        artifacts = listOf(ArtifactSelectionModel("integration-event", variant)),
         fields = fields,
     )
 
@@ -95,8 +102,8 @@ class DesignIntegrationEventArtifactPlannerTest {
         layout = ProjectLayout.MULTI_MODULE,
         modules = modules,
         sources = emptyMap(),
-        typeRegistry = mapOf("UUID" to TypeRegistryEntry("java.util.UUID")),
-        generators = mapOf("design-integration-event" to GeneratorConfig(enabled = true)),
+        typeRegistry = TypeRegistryConfig(entries = mapOf("UUID" to TypeRegistryEntry("java.util.UUID"))),
+        generators = mapOf("integration-event" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 }

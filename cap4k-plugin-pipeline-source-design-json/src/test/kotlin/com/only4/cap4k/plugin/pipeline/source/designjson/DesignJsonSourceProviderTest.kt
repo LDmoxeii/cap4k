@@ -1,10 +1,11 @@
 package com.only4.cap4k.plugin.pipeline.source.designjson
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
-import com.only4.cap4k.plugin.pipeline.api.RequestTrait
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.io.File
@@ -12,6 +13,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -24,236 +26,31 @@ class DesignJsonSourceProviderTest {
     @Test
     fun `loads canonical command and query entries from configured files`() {
         val fixture = File("src/test/resources/fixtures/design/design.json").path
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf("files" to listOf(fixture)),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
 
-        val provider = DesignJsonSourceProvider()
-        val snapshot = provider.collect(config) as DesignSpecSnapshot
+        val snapshot = DesignJsonSourceProvider().collect(configFor(fixture)) as DesignSpecSnapshot
 
         assertEquals(2, snapshot.entries.size)
         assertEquals("command", snapshot.entries.first().tag)
         assertEquals("order.submit", snapshot.entries.first().packageName)
         assertEquals("submit order command", snapshot.entries.first().description)
         assertEquals(listOf("Order"), snapshot.entries.first().aggregates)
-        assertEquals(1, snapshot.entries.first().requestFields.size)
-        assertEquals("orderId", snapshot.entries.first().requestFields.first().name)
-        assertEquals("Long", snapshot.entries.first().requestFields.first().type)
-        assertEquals(1, snapshot.entries.first().responseFields.size)
-        assertEquals("accepted", snapshot.entries.first().responseFields.first().name)
-        assertEquals("Boolean", snapshot.entries.first().responseFields.first().type)
+        assertEquals(null, snapshot.entries.first().artifacts)
+        assertEquals(1, snapshot.entries.first().fields.size)
+        assertEquals("orderId", snapshot.entries.first().fields.first().name)
+        assertEquals("Long", snapshot.entries.first().fields.first().type)
+        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().resultFields)
         assertEquals("query", snapshot.entries.last().tag)
         assertEquals("FindOrder", snapshot.entries.last().name)
-        assertEquals("orderId", snapshot.entries.last().requestFields.first().name)
-        assertEquals("Long", snapshot.entries.last().requestFields.first().type)
-        assertEquals("status", snapshot.entries.last().responseFields.first().name)
-        assertEquals("String", snapshot.entries.last().responseFields.first().type)
+        assertEquals(null, snapshot.entries.last().artifacts)
+        assertEquals("orderId", snapshot.entries.last().fields.first().name)
+        assertEquals("Long", snapshot.entries.last().fields.first().type)
+        assertEquals("status", snapshot.entries.last().resultFields.first().name)
+        assertEquals("String", snapshot.entries.last().resultFields.first().type)
     }
 
     @Test
-    fun `defaults missing field type to kotlin String`() {
-        val tempFile = tempDir.resolve("default-type-design.json")
-        val content = """
-            [
-              {
-                "tag": "command",
-                "package": "order.submit",
-                "name": "CreateOrder",
-                "desc": "中文描述",
-                "aggregates": ["Order"],
-                "requestFields": [
-                  { "name": "note" }
-                ],
-                "responseFields": []
-              }
-            ]
-        """.trimIndent()
-        Files.writeString(tempFile, content, StandardCharsets.UTF_8)
-
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf("files" to listOf(tempFile.toString())),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
-        val provider = DesignJsonSourceProvider()
-        val snapshot = provider.collect(config) as DesignSpecSnapshot
-
-        assertEquals("中文描述", snapshot.entries.first().description)
-        assertEquals("kotlin.String", snapshot.entries.first().requestFields.first().type)
-    }
-
-    @Test
-    fun `reads optional persist boolean for domain event entries`() {
-        val tempFile = tempDir.resolve("domain-event-persist.json")
-        val content = """
-            [
-              {
-                "tag": "domain_event",
-                "package": "order",
-                "name": "OrderCreated",
-                "desc": "order created event",
-                "aggregates": ["Order"],
-                "persist": true,
-                "requestFields": [],
-                "responseFields": []
-              },
-              {
-                "tag": "domain_event",
-                "package": "order",
-                "name": "OrderArchived",
-                "desc": "order archived event",
-                "aggregates": ["Order"],
-                "persist": false,
-                "requestFields": [],
-                "responseFields": []
-              }
-            ]
-        """.trimIndent()
-        Files.writeString(tempFile, content, StandardCharsets.UTF_8)
-
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf("files" to listOf(tempFile.toString())),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
-        val snapshot = DesignJsonSourceProvider().collect(config) as DesignSpecSnapshot
-
-        assertEquals(listOf(true, false), snapshot.entries.map { it.persist })
-    }
-
-    @Test
-    fun `allows domain event entry without package`() {
-        val tempFile = tempDir.resolve("domain-event-without-package.json")
-        val content = """
-            [
-              {
-                "tag": "domain_event",
-                "name": "OrderCreated",
-                "desc": "order created event",
-                "aggregates": ["Order"],
-                "persist": false,
-                "requestFields": [],
-                "responseFields": []
-              }
-            ]
-        """.trimIndent()
-        Files.writeString(tempFile, content, StandardCharsets.UTF_8)
-
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf("files" to listOf(tempFile.toString())),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
-        val snapshot = DesignJsonSourceProvider().collect(config) as DesignSpecSnapshot
-
-        assertEquals("", snapshot.entries.single().packageName)
-        assertEquals(listOf("Order"), snapshot.entries.single().aggregates)
-    }
-
-    @Test
-    fun `rejects domain event request field named entity`() {
-        val tempFile = tempDir.resolve("domain-event-reserved-entity.json")
-        val content = """
-            [
-              {
-                "tag": "domain_event",
-                "name": "OrderCreated",
-                "desc": "order created event",
-                "aggregates": ["Order"],
-                "requestFields": [
-                  { "name": "entity", "type": "Order" },
-                  { "name": "reason", "type": "String" }
-                ],
-                "responseFields": []
-              }
-            ]
-        """.trimIndent()
-        Files.writeString(tempFile, content, StandardCharsets.UTF_8)
-
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf("files" to listOf(tempFile.toString())),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(config)
-        }
-
-        assertEquals(
-            "domain_event OrderCreated request field 'entity' is reserved and derived from aggregates[0].",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `reads page traits for query and api payload entries`() {
-        val tempFile = tempDir.resolve("page-traits.json")
+    fun `parses new public field names and explicit artifact selections`() {
+        val tempFile = tempDir.resolve("new-design-block.json")
         Files.writeString(
             tempFile,
             """
@@ -262,24 +59,54 @@ class DesignJsonSourceProviderTest {
                     "tag": "query",
                     "package": "order.read",
                     "name": "FindOrderPage",
-                    "desc": "find order page",
-                    "traits": ["page"],
-                    "requestFields": [],
-                    "responseFields": [
-                      { "name": "page", "type": "com.only4.cap4k.ddd.core.share.PageData<Item>" },
-                      { "name": "page.list[].orderId", "type": "Long" }
-                    ]
-                  },
+                    "description": "Find order page",
+                    "aggregates": ["Order"],
+                    "artifacts": [
+                      { "family": "query", "variant": "page" },
+                      { "family": "query-handler" }
+                    ],
+                    "fields": [{ "name": "keyword", "type": "String", "nullable": true }],
+                    "resultFields": [{ "name": "orderNo", "type": "String" }]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val entry = snapshot.entries.single()
+
+        assertEquals("Find order page", entry.description)
+        assertEquals(listOf("Order"), entry.aggregates)
+        assertEquals("keyword", entry.fields.single().name)
+        assertEquals(true, entry.fields.single().nullable)
+        assertEquals("orderNo", entry.resultFields.single().name)
+        assertEquals(
+            listOf(
+                ArtifactSelectionModel("query", "page"),
+                ArtifactSelectionModel("query-handler"),
+            ),
+            entry.artifacts,
+        )
+    }
+
+    @Test
+    fun `parses command result fields as command response payload`() {
+        val tempFile = tempDir.resolve("command-result-fields.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
                   {
-                    "tag": "api_payload",
-                    "package": "order.read",
-                    "name": "FindOrderPage",
-                    "desc": "find order page payload",
-                    "traits": ["PAGE"],
-                    "requestFields": [],
-                    "responseFields": [
-                      { "name": "page", "type": "com.only4.cap4k.ddd.core.share.PageData<Item>" },
-                      { "name": "page.list[].orderId", "type": "Long" }
+                    "tag": "command",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "description": "submit order",
+                    "aggregates": ["Order"],
+                    "fields": [{ "name": "orderId", "type": "OrderId" }],
+                    "resultFields": [
+                      { "name": "accepted", "type": "Boolean" },
+                      { "name": "receiptId", "type": "String", "nullable": true, "defaultValue": "null" }
                     ]
                   }
                 ]
@@ -288,13 +115,286 @@ class DesignJsonSourceProviderTest {
         )
 
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val entry = snapshot.entries.single()
 
-        assertEquals(setOf(RequestTrait.PAGE), snapshot.entries[0].traits)
-        assertEquals(setOf(RequestTrait.PAGE), snapshot.entries[1].traits)
+        assertEquals("command", entry.tag)
+        assertEquals("SubmitOrder", entry.name)
+        assertEquals(listOf("Order"), entry.aggregates)
+        assertEquals(listOf(FieldModel(name = "orderId", type = "OrderId")), entry.fields)
+        assertEquals(
+            listOf(
+                FieldModel(name = "accepted", type = "Boolean"),
+                FieldModel(name = "receiptId", type = "String", nullable = true, defaultValue = "null"),
+            ),
+            entry.resultFields,
+        )
     }
 
     @Test
-    fun `reads integration event role and event name`() {
+    fun `parses explicit empty artifact selections as authoritative empty list`() {
+        val tempFile = tempDir.resolve("empty-artifacts.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "artifacts": [],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+
+        assertEquals(emptyList<ArtifactSelectionModel>(), snapshot.entries.single().artifacts)
+    }
+
+    @Test
+    fun `rejects malformed artifact selection shape with stable entry scoped message`() {
+        val tempFile = tempDir.resolve("malformed-artifacts.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "artifacts": [
+                      "query"
+                    ],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertTrue(error.message?.contains("design entry FindOrder") == true)
+        assertTrue(error.message?.contains("artifacts[0]") == true)
+    }
+
+    @Test
+    fun `rejects malformed artifact family values with stable entry scoped message`() {
+        val tempFile = tempDir.resolve("malformed-artifact-family.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "artifacts": [
+                      { "family": " " }
+                    ],
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertTrue(error.message?.contains("design entry FindOrder") == true)
+        assertTrue(error.message?.contains("artifact family") == true)
+    }
+
+    @Test
+    fun `rejects removed public fields with stable entry message`() {
+        val tempFile = tempDir.resolve("old-fields.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "desc": "old",
+                    "requestFields": [],
+                    "responseFields": [],
+                    "traits": ["page"],
+                    "entity": "Order"
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "design entry FindOrder uses removed fields: desc, requestFields, responseFields, traits, entity",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects malformed top level design json shape with stable message`() {
+        val rootObject = tempDir.resolve("root-object.json")
+        Files.writeString(rootObject, """{"tag":"query"}""", StandardCharsets.UTF_8)
+
+        val rootError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(rootObject.toString()))
+        }
+
+        assertTrue(rootError.message!!.contains("root must be an array"))
+
+        val entryString = tempDir.resolve("entry-string.json")
+        Files.writeString(entryString, """["query"]""", StandardCharsets.UTF_8)
+
+        val entryError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(entryString.toString()))
+        }
+
+        assertTrue(entryError.message!!.contains("design entry[0] must be an object"))
+    }
+
+    @Test
+    fun `rejects missing field type`() {
+        val tempFile = tempDir.resolve("default-type-design.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "command",
+                    "package": "order.submit",
+                    "name": "CreateOrder",
+                    "description": "create order",
+                    "aggregates": ["Order"],
+                    "fields": [
+                      { "name": "note" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "design entry CreateOrder fields[0] field type must be a nonblank string.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `reads optional persist boolean for domain event entries`() {
+        val tempFile = tempDir.resolve("domain-event-persist.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "domain_event",
+                    "package": "order",
+                    "name": "OrderCreated",
+                    "description": "order created event",
+                    "aggregates": ["Order"],
+                    "persist": true,
+                    "fields": []
+                  },
+                  {
+                    "tag": "domain_event",
+                    "package": "order",
+                    "name": "OrderArchived",
+                    "description": "order archived event",
+                    "aggregates": ["Order"],
+                    "persist": false,
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+
+        assertEquals(listOf(true, false), snapshot.entries.map { it.persist })
+    }
+
+    @Test
+    fun `allows domain event entry without package`() {
+        val tempFile = tempDir.resolve("domain-event-without-package.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "domain_event",
+                    "name": "OrderCreated",
+                    "description": "order created event",
+                    "aggregates": ["Order"],
+                    "persist": false,
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+
+        assertEquals("", snapshot.entries.single().packageName)
+        assertEquals(listOf("Order"), snapshot.entries.single().aggregates)
+    }
+
+    @Test
+    fun `rejects domain event field named entity`() {
+        val tempFile = tempDir.resolve("domain-event-reserved-entity.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "domain_event",
+                    "name": "OrderCreated",
+                    "description": "order created event",
+                    "aggregates": ["Order"],
+                    "fields": [
+                      { "name": "entity", "type": "Order" },
+                      { "name": "reason", "type": "String" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "domain_event OrderCreated field 'entity' is reserved and derived from aggregates[0].",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `reads integration event event name without role`() {
         val tempFile = tempDir.resolve("integration-event.json")
         Files.writeString(
             tempFile,
@@ -304,13 +404,11 @@ class DesignJsonSourceProviderTest {
                     "tag": "integration_event",
                     "package": "content",
                     "name": "ContentPublishedIntegrationEvent",
-                    "desc": "content published integration event",
-                    "role": "OUTBOUND",
+                    "description": "content published integration event",
                     "eventName": "content.published",
-                    "requestFields": [
+                    "fields": [
                       { "name": "contentId", "type": "Long" }
-                    ],
-                    "responseFields": []
+                    ]
                   }
                 ]
             """.trimIndent(),
@@ -321,72 +419,8 @@ class DesignJsonSourceProviderTest {
         val entry = snapshot.entries.single()
 
         assertEquals("integration_event", entry.tag)
-        assertEquals("outbound", entry.role)
         assertEquals("content.published", entry.eventName)
-        assertEquals("contentId", entry.requestFields.single().name)
-    }
-
-    @Test
-    fun `rejects integration event missing role`() {
-        val tempFile = tempDir.resolve("integration-event-missing-role.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "integration_event",
-                    "package": "content",
-                    "name": "ContentPublishedIntegrationEvent",
-                    "desc": "content published integration event",
-                    "eventName": "content.published",
-                    "requestFields": [],
-                    "responseFields": []
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals(
-            "integration_event ContentPublishedIntegrationEvent must declare role inbound or outbound.",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `rejects integration event unsupported role`() {
-        val tempFile = tempDir.resolve("integration-event-unsupported-role.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "integration_event",
-                    "package": "content",
-                    "name": "ContentPublishedIntegrationEvent",
-                    "desc": "content published integration event",
-                    "role": "producer",
-                    "eventName": "content.published",
-                    "requestFields": [],
-                    "responseFields": []
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals(
-            "integration_event ContentPublishedIntegrationEvent has unsupported role: producer",
-            error.message,
-        )
+        assertEquals("contentId", entry.fields.single().name)
     }
 
     @Test
@@ -400,10 +434,8 @@ class DesignJsonSourceProviderTest {
                     "tag": "integration_event",
                     "package": "content",
                     "name": "ContentPublishedIntegrationEvent",
-                    "desc": "content published integration event",
-                    "role": "inbound",
-                    "requestFields": [],
-                    "responseFields": []
+                    "description": "content published integration event",
+                    "fields": []
                   }
                 ]
             """.trimIndent(),
@@ -421,8 +453,8 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `rejects integration event response fields`() {
-        val tempFile = tempDir.resolve("integration-event-response-fields.json")
+    fun `rejects integration event result fields`() {
+        val tempFile = tempDir.resolve("integration-event-result-fields.json")
         Files.writeString(
             tempFile,
             """
@@ -431,11 +463,10 @@ class DesignJsonSourceProviderTest {
                     "tag": "integration_event",
                     "package": "content",
                     "name": "ContentPublishedIntegrationEvent",
-                    "desc": "content published integration event",
-                    "role": "outbound",
+                    "description": "content published integration event",
                     "eventName": "content.published",
-                    "requestFields": [],
-                    "responseFields": [
+                    "fields": [],
+                    "resultFields": [
                       { "name": "accepted", "type": "Boolean" }
                     ]
                   }
@@ -449,30 +480,50 @@ class DesignJsonSourceProviderTest {
         }
 
         assertEquals(
-            "integration_event ContentPublishedIntegrationEvent must not declare responseFields.",
+            "integration_event ContentPublishedIntegrationEvent must not declare resultFields.",
             error.message,
         )
     }
 
     @Test
-    fun `reads expanded validator structural fields`() {
-        val tempFile = tempDir.resolve("validator-expanded.json")
+    fun `rejects event name and persist on unsupported tags`() {
+        val cases = listOf(
+            "eventName" to """{ "tag": "query", "package": "order.read", "name": "FindOrder", "eventName": "order.find" }""",
+            "persist" to """{ "tag": "query", "package": "order.read", "name": "FindOrder", "persist": true }""",
+        )
+
+        cases.forEach { (field, json) ->
+            val tempFile = tempDir.resolve("unsupported-${field}.json")
+            Files.writeString(tempFile, "[$json]", StandardCharsets.UTF_8)
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals("design entry FindOrder cannot declare $field on tag: query", error.message)
+        }
+    }
+
+    @Test
+    fun `parses domain service and saga entries`() {
+        val tempFile = tempDir.resolve("design.json")
         Files.writeString(
             tempFile,
             """
                 [
                   {
-                    "tag": "validator",
-                    "package": "danmuku",
-                    "name": "DanmukuDeletePermission",
-                    "desc": "delete permission",
-                    "message": "no permission",
-                    "targets": ["CLASS"],
-                    "valueType": "Any",
-                    "parameters": [
-                      { "name": "danmukuIdField", "type": "String", "defaultValue": "danmukuId" },
-                      { "name": "operatorIdField", "type": "String", "defaultValue": "operatorId" }
-                    ]
+                    "tag": "domain_service",
+                    "package": "content.domain",
+                    "name": "ContentPublicationPolicy",
+                    "description": "publication policy",
+                    "aggregates": ["Content"]
+                  },
+                  {
+                    "tag": "saga",
+                    "package": "content.workflow",
+                    "name": "PublishContentSaga",
+                    "description": "publish content",
+                    "fields": [{ "name": "contentId", "type": "ContentId" }]
                   }
                 ]
             """.trimIndent(),
@@ -480,104 +531,26 @@ class DesignJsonSourceProviderTest {
         )
 
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
-        val entry = snapshot.entries.single()
 
-        assertEquals("validator", entry.tag)
-        assertEquals("danmuku", entry.packageName)
-        assertEquals("DanmukuDeletePermission", entry.name)
-        assertEquals("delete permission", entry.description)
-        assertEquals("no permission", entry.message)
-        assertEquals(listOf("CLASS"), entry.targets)
-        assertEquals("Any", entry.valueType)
-        assertEquals(2, entry.parameters.size)
-        assertEquals("danmukuIdField", entry.parameters.first().name)
-        assertEquals("String", entry.parameters.first().type)
-        assertEquals(false, entry.parameters.first().nullable)
-        assertEquals("danmukuId", entry.parameters.first().defaultValue)
+        assertEquals(listOf("domain_service", "saga"), snapshot.entries.map { it.tag })
+        assertEquals(listOf("Content"), snapshot.entries[0].aggregates)
+        assertEquals("contentId", snapshot.entries[1].fields.single().name)
     }
 
     @Test
-    fun `defaults validator message targets and value type`() {
-        val tempFile = tempDir.resolve("validator-defaults.json")
+    fun `rejects saga result fields`() {
+        val tempFile = tempDir.resolve("saga-result-fields.json")
         Files.writeString(
             tempFile,
             """
                 [
                   {
-                    "tag": "validator",
-                    "package": "category",
-                    "name": "CategoryMustExist",
-                    "desc": "category must exist"
-                  },
-                  {
-                    "tag": "validator",
-                    "package": "danmuku",
-                    "name": "DanmukuDeletePermission",
-                    "desc": "delete permission",
-                    "targets": ["CLASS"]
-                  },
-                  {
-                    "tag": "validator",
-                    "package": "shared",
-                    "name": "SharedAnyValidator",
-                    "desc": "shared validator",
-                    "targets": ["FIELD", "CLASS"]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val entries = (DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot).entries
-
-        assertEquals("校验未通过", entries.first().message)
-        assertEquals(listOf("FIELD", "VALUE_PARAMETER"), entries.first().targets)
-        assertEquals("Long", entries.first().valueType)
-        assertEquals("Any", entries[1].valueType)
-        assertEquals(listOf("CLASS", "FIELD"), entries[2].targets)
-        assertEquals("Any", entries[2].valueType)
-    }
-
-    @Test
-    fun `rejects invalid validator target`() {
-        val tempFile = tempDir.resolve("validator-invalid-target.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "category",
-                    "name": "CategoryMustExist",
-                    "desc": "category must exist",
-                    "targets": ["METHOD"]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals("validator CategoryMustExist has unsupported target: METHOD", error.message)
-    }
-
-    @Test
-    fun `rejects invalid validator value type`() {
-        val tempFile = tempDir.resolve("validator-invalid-type.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "video",
-                    "name": "VideoDeletePermission",
-                    "desc": "video delete permission",
-                    "targets": ["CLASS"],
-                    "valueType": "DeleteVideoPostCmd.Request"
+                    "tag": "saga",
+                    "package": "content.workflow",
+                    "name": "PublishContentSaga",
+                    "description": "publish content",
+                    "fields": [{ "name": "contentId", "type": "ContentId" }],
+                    "resultFields": [{ "name": "accepted", "type": "Boolean" }]
                   }
                 ]
             """.trimIndent(),
@@ -589,28 +562,17 @@ class DesignJsonSourceProviderTest {
         }
 
         assertEquals(
-            "validator VideoDeletePermission has unsupported valueType: DeleteVideoPostCmd.Request",
+            "design entry PublishContentSaga cannot declare resultFields on tag: saga",
             error.message,
         )
     }
 
     @Test
-    fun `rejects class target with scalar validator value type`() {
-        val tempFile = tempDir.resolve("validator-class-scalar-type.json")
+    fun `validator tag is unsupported as a normal design tag`() {
+        val tempFile = tempDir.resolve("design.json")
         Files.writeString(
             tempFile,
-            """
-                [
-                  {
-                    "tag": "validator",
-                    "package": "shared",
-                    "name": "SharedValidator",
-                    "desc": "shared validator",
-                    "targets": ["CLASS", "FIELD"],
-                    "valueType": "Long"
-                  }
-                ]
-            """.trimIndent(),
+            """[{ "tag": "validator", "package": "content.validation", "name": "ValidAuthor" }]""",
             StandardCharsets.UTF_8,
         )
 
@@ -618,81 +580,9 @@ class DesignJsonSourceProviderTest {
             DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
         }
 
-        assertEquals("validator SharedValidator cannot target CLASS with valueType: Long", error.message)
-    }
-
-    @Test
-    fun `rejects invalid validator parameters`() {
-        val cases = listOf(
-            Triple(
-                "reserved",
-                """{ "name": "message", "type": "String" }""",
-                "validator DanmukuDeletePermission parameter name is reserved: message",
-            ),
-            Triple(
-                "nullable",
-                """{ "name": "operatorIdField", "type": "String", "nullable": true }""",
-                "validator DanmukuDeletePermission parameter operatorIdField cannot be nullable",
-            ),
-            Triple(
-                "unsupported-type",
-                """{ "name": "roles", "type": "Array<String>" }""",
-                "validator DanmukuDeletePermission parameter roles has unsupported type: Array<String>",
-            ),
-            Triple(
-                "invalid-name",
-                """{ "name": "operator-id", "type": "String" }""",
-                "validator DanmukuDeletePermission parameter name is not a valid Kotlin identifier: operator-id",
-            ),
-            Triple(
-                "keyword-name",
-                """{ "name": "class", "type": "String" }""",
-                "validator DanmukuDeletePermission parameter name is not a valid Kotlin identifier: class",
-            ),
-            Triple(
-                "invalid-int-default",
-                """{ "name": "retryCount", "type": "Int", "defaultValue": "abc" }""",
-                "validator DanmukuDeletePermission parameter retryCount has invalid Int defaultValue: abc",
-            ),
-            Triple(
-                "invalid-boolean-default",
-                """{ "name": "enabled", "type": "Boolean", "defaultValue": "yes" }""",
-                "validator DanmukuDeletePermission parameter enabled has invalid Boolean defaultValue: yes",
-            ),
-            Triple(
-                "expression-default",
-                """{ "name": "maxCount", "type": "Long", "defaultValue": "SomeObject.VALUE" }""",
-                "validator DanmukuDeletePermission parameter maxCount has invalid Long defaultValue: SomeObject.VALUE",
-            ),
-        )
-
-        cases.forEach { (suffix, parameter, expectedMessage) ->
-            val tempFile = tempDir.resolve("validator-invalid-parameter-$suffix.json")
-            Files.writeString(
-                tempFile,
-                """
-                    [
-                      {
-                        "tag": "validator",
-                        "package": "danmuku",
-                        "name": "DanmukuDeletePermission",
-                        "desc": "delete permission",
-                        "targets": ["CLASS"],
-                        "parameters": [
-                          $parameter
-                        ]
-                      }
-                    ]
-                """.trimIndent(),
-                StandardCharsets.UTF_8,
-            )
-
-            val error = assertThrows(IllegalArgumentException::class.java) {
-                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-            }
-
-            assertEquals(expectedMessage, error.message)
-        }
+        assertTrue(error.message!!.contains("Unsupported design tag: validator"))
+        assertFalse(error.message!!.contains("migration"))
+        assertFalse(error.message!!.contains("deprecated"))
     }
 
     @Test
@@ -709,9 +599,7 @@ class DesignJsonSourceProviderTest {
                         "tag": "$legacyTag",
                         "package": "order.read",
                         "name": "LegacyTag",
-                        "desc": "legacy tag",
-                        "requestFields": [],
-                        "responseFields": []
+                        "description": "legacy tag"
                       }
                     ]
                 """.trimIndent(),
@@ -722,15 +610,15 @@ class DesignJsonSourceProviderTest {
                 DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
             }
 
-            assertEquals("unsupported design tag for LegacyTag: $legacyTag", error.message)
+            assertEquals("Unsupported design tag: $legacyTag", error.message)
         }
     }
 
     @Test
     fun `rejects non-canonical design tags exactly`() {
         val cases = listOf(
-            Triple("Query", "FindOrder", "unsupported design tag for FindOrder: Query"),
-            Triple(" command ", "SubmitOrder", "unsupported design tag for SubmitOrder:  command "),
+            Triple("Query", "FindOrder", "Unsupported design tag: Query"),
+            Triple(" command ", "SubmitOrder", "Unsupported design tag:  command "),
         )
 
         cases.forEach { (tag, name, expectedMessage) ->
@@ -743,9 +631,7 @@ class DesignJsonSourceProviderTest {
                         "tag": "$tag",
                         "package": "order",
                         "name": "$name",
-                        "desc": "non canonical tag",
-                        "requestFields": [],
-                        "responseFields": []
+                        "description": "non canonical tag"
                       }
                     ]
                 """.trimIndent(),
@@ -761,90 +647,6 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `rejects unknown request trait`() {
-        val tempFile = tempDir.resolve("unknown-trait.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "query",
-                    "package": "order.read",
-                    "name": "FindOrder",
-                    "desc": "find order",
-                    "traits": ["cursor"],
-                    "requestFields": [],
-                    "responseFields": []
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals("design entry FindOrder has unsupported trait: cursor", error.message)
-    }
-
-    @Test
-    fun `rejects request traits on unsupported tags`() {
-        val tempFile = tempDir.resolve("trait-on-command.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "command",
-                    "package": "order.submit",
-                    "name": "SubmitOrder",
-                    "desc": "submit order",
-                    "traits": ["page"],
-                    "requestFields": [],
-                    "responseFields": []
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals("design entry SubmitOrder cannot use request traits on tag: command", error.message)
-    }
-
-    @Test
-    fun `rejects unsupported request traits on unsupported tags before parsing trait values`() {
-        val tempFile = tempDir.resolve("unsupported-trait-on-command.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "command",
-                    "package": "order.submit",
-                    "name": "SubmitOrder",
-                    "desc": "submit order",
-                    "traits": ["cursor"],
-                    "requestFields": [],
-                    "responseFields": []
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals("design entry SubmitOrder cannot use request traits on tag: command", error.message)
-    }
-
-    @Test
     fun `rejects self in design field types`() {
         val tempFile = tempDir.resolve("self-recursion.json")
         Files.writeString(
@@ -855,9 +657,9 @@ class DesignJsonSourceProviderTest {
                     "tag": "api_payload",
                     "package": "category",
                     "name": "GetCategoryTree",
-                    "desc": "get category tree",
-                    "requestFields": [],
-                    "responseFields": [
+                    "description": "get category tree",
+                    "fields": [],
+                    "resultFields": [
                       { "name": "nodes", "type": "List<Node>" },
                       { "name": "nodes[].children", "type": "List<self>" }
                     ]
@@ -878,45 +680,6 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `rejects self in generic design field types regardless of case`() {
-        val cases = listOf(
-            "Map<String, Self>",
-            "SELF",
-        )
-
-        cases.forEachIndexed { index, type ->
-            val tempFile = tempDir.resolve("self-recursion-${index}.json")
-            Files.writeString(
-                tempFile,
-                """
-                    [
-                      {
-                        "tag": "api_payload",
-                        "package": "category",
-                        "name": "GetCategoryTree",
-                        "desc": "get category tree",
-                        "requestFields": [],
-                        "responseFields": [
-                          { "name": "nodes", "type": "$type" }
-                        ]
-                      }
-                    ]
-                """.trimIndent(),
-                StandardCharsets.UTF_8,
-            )
-
-            val error = assertThrows(IllegalArgumentException::class.java) {
-                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-            }
-
-            assertEquals(
-                "design entry GetCategoryTree field nodes must use an explicit type name instead of self",
-                error.message,
-            )
-        }
-    }
-
-    @Test
     fun `allows self text embedded in explicit design field type names`() {
         val tempFile = tempDir.resolve("embedded-self-names.json")
         Files.writeString(
@@ -927,11 +690,11 @@ class DesignJsonSourceProviderTest {
                     "tag": "api_payload",
                     "package": "category",
                     "name": "GetCategoryTree",
-                    "desc": "get category tree",
-                    "requestFields": [
+                    "description": "get category tree",
+                    "fields": [
                       { "name": "owner", "type": "myself" }
                     ],
-                    "responseFields": [
+                    "resultFields": [
                       { "name": "image", "type": "Selfie" }
                     ]
                   }
@@ -942,8 +705,8 @@ class DesignJsonSourceProviderTest {
 
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
 
-        assertEquals("myself", snapshot.entries.single().requestFields.single().type)
-        assertEquals("Selfie", snapshot.entries.single().responseFields.single().type)
+        assertEquals("myself", snapshot.entries.single().fields.single().type)
+        assertEquals("Selfie", snapshot.entries.single().resultFields.single().type)
     }
 
     @Test
@@ -970,9 +733,7 @@ class DesignJsonSourceProviderTest {
                     "tag": "command",
                     "package": "order.submit",
                     "name": "SubmitOrder",
-                    "desc": "submit order",
-                    "requestFields": [],
-                    "responseFields": []
+                    "description": "submit order"
                   }
                 ]
             """.trimIndent(),
@@ -988,9 +749,7 @@ class DesignJsonSourceProviderTest {
                     "tag": "query",
                     "package": "order.query",
                     "name": "FindOrder",
-                    "desc": "find order",
-                    "requestFields": [],
-                    "responseFields": []
+                    "description": "find order"
                   }
                 ]
             """.trimIndent(),
@@ -1009,28 +768,7 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "manifestFile" to manifestFile.toString(),
-                        "projectDir" to projectDir.toString(),
-                    ),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
-        val snapshot = DesignJsonSourceProvider().collect(config) as DesignSpecSnapshot
+        val snapshot = DesignJsonSourceProvider().collect(configForManifest(manifestFile, projectDir)) as DesignSpecSnapshot
 
         assertEquals(2, snapshot.entries.size)
         assertEquals("SubmitOrder", snapshot.entries.first().name)
@@ -1052,9 +790,7 @@ class DesignJsonSourceProviderTest {
                     "tag": "command",
                     "package": "order.submit",
                     "name": "SubmitOrder",
-                    "desc": "submit order",
-                    "requestFields": [],
-                    "responseFields": []
+                    "description": "submit order"
                   }
                 ]
             """.trimIndent(),
@@ -1073,29 +809,8 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "manifestFile" to manifestFile.toString(),
-                        "projectDir" to projectDir.toString(),
-                    ),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(config)
+            DesignJsonSourceProvider().collect(configForManifest(manifestFile, projectDir))
         }
 
         assertTrue(error.message?.contains("duplicate design manifest entry") == true)
@@ -1110,7 +825,6 @@ class DesignJsonSourceProviderTest {
             modules = emptyMap(),
             sources = mapOf(
                 "design-json" to SourceConfig(
-                    enabled = true,
                     options = mapOf(
                         "manifestFile" to "   ",
                         "projectDir" to tempDir.toString(),
@@ -1148,9 +862,7 @@ class DesignJsonSourceProviderTest {
                     "tag": "command",
                     "package": "order.submit",
                     "name": "Outside",
-                    "desc": "outside",
-                    "requestFields": [],
-                    "responseFields": []
+                    "description": "outside"
                   }
                 ]
             """.trimIndent(),
@@ -1168,29 +880,8 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "manifestFile" to manifestFile.toString(),
-                        "projectDir" to projectDir.toString(),
-                    ),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(config)
+            DesignJsonSourceProvider().collect(configForManifest(manifestFile, projectDir))
         }
 
         assertTrue(error.message?.contains("escapes projectDir") == true)
@@ -1212,29 +903,8 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val config = ProjectConfig(
-            basePackage = "com.only4.cap4k",
-            layout = ProjectLayout.SINGLE_MODULE,
-            modules = emptyMap(),
-            sources = mapOf(
-                "design-json" to SourceConfig(
-                    enabled = true,
-                    options = mapOf(
-                        "manifestFile" to manifestFile.toString(),
-                        "projectDir" to projectDir.toString(),
-                    ),
-                ),
-            ),
-            generators = emptyMap(),
-            templates = TemplateConfig(
-                preset = "default",
-                overrideDirs = emptyList(),
-                conflictPolicy = ConflictPolicy.SKIP,
-            ),
-        )
-
         val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(config)
+            DesignJsonSourceProvider().collect(configForManifest(manifestFile, projectDir))
         }
 
         assertTrue(error.message?.contains("blank design manifest entry") == true)
@@ -1247,8 +917,28 @@ class DesignJsonSourceProviderTest {
             modules = emptyMap(),
             sources = mapOf(
                 "design-json" to SourceConfig(
-                    enabled = true,
                     options = mapOf("files" to files.toList()),
+                ),
+            ),
+            generators = emptyMap(),
+            templates = TemplateConfig(
+                preset = "default",
+                overrideDirs = emptyList(),
+                conflictPolicy = ConflictPolicy.SKIP,
+            ),
+        )
+
+    private fun configForManifest(manifestFile: Path, projectDir: Path): ProjectConfig =
+        ProjectConfig(
+            basePackage = "com.only4.cap4k",
+            layout = ProjectLayout.SINGLE_MODULE,
+            modules = emptyMap(),
+            sources = mapOf(
+                "design-json" to SourceConfig(
+                    options = mapOf(
+                        "manifestFile" to manifestFile.toString(),
+                        "projectDir" to projectDir.toString(),
+                    ),
                 ),
             ),
             generators = emptyMap(),

@@ -318,9 +318,9 @@ If this design is accepted, the intended public contract page should be a standa
 
 Recommended target:
 
-- `docs/public/authoring/testing-contract.zh-CN.md`
+- `docs/public/authoring/testing-contract.md`
 
-This page should be separate from `example-contract.zh-CN.md`.
+This page should be separate from `example-contract.md`.
 
 Reason:
 

@@ -1,7 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.aggregate.Aggregate
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
@@ -117,23 +116,6 @@ class DefaultDomainEventSupervisorTest {
             }
         }
 
-        @Test
-        @DisplayName("应该能够处理聚合根实体")
-        fun `should handle aggregate root entities`() {
-            // given
-            val event = TestDomainEvent("test event")
-            val aggregate = TestAggregate("agg1")
-            val schedule = LocalDateTime.now()
-            aggregate._wrap(TestEntity("agg1"))
-
-            // when
-            supervisor.attach(event, aggregate, schedule)
-
-            // then
-            verify {
-                domainEventInterceptorManager.orderedDomainEventInterceptors
-            }
-        }
     }
 
     @Nested
@@ -200,6 +182,159 @@ class DefaultDomainEventSupervisorTest {
             verify(exactly = 2) { eventRecordRepository.create() }
             verify(exactly = 2) { eventPublisher.publish(any()) }
             verify(exactly = 2) { applicationEventPublisher.publishEvent(any()) }
+        }
+
+        @Test
+        @DisplayName("供应商附加的领域事件应该在release时解析且不把lambda当作payload")
+        fun `supplier attached domain event should resolve during release instead of using lambda as payload`() {
+            // given
+            val entity = TestEntity("entity1")
+            val schedule = LocalDateTime.of(2026, 1, 1, 12, 0)
+            val actualEvent = TestDomainEvent("supplier event")
+            val capturedPayloads = mutableListOf<Any>()
+
+            every { eventRecordRepository.create() } answers {
+                mockk<EventRecord>().also { eventRecord ->
+                    every { eventRecord.init(any(), any(), any(), any(), any()) } answers {
+                        capturedPayloads.add(firstArg())
+                    }
+                    every { eventRecord.markPersist(any()) } just Runs
+                }
+            }
+
+            supervisor.attach(entity, schedule) { actualEvent }
+
+            // when
+            supervisor.release(setOf(entity))
+
+            // then
+            assertEquals(listOf(actualEvent), capturedPayloads)
+            assertFalse(capturedPayloads.single() is Function0<*>)
+        }
+
+        @Test
+        @DisplayName("同一实体上相等的领域事件payload不应该被去重")
+        fun `equal domain event payloads attached to one entity should not be deduplicated`() {
+            // given
+            val entity = TestEntity("entity1")
+            val schedule = LocalDateTime.now()
+            val event1 = TestDomainEvent("same")
+            val event2 = TestDomainEvent("same")
+
+            val mockEventRecord = mockk<EventRecord>()
+            every { eventRecordRepository.create() } returns mockEventRecord
+            every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
+            every { mockEventRecord.markPersist(any()) } just Runs
+
+            supervisor.attach(event1, entity, schedule)
+            supervisor.attach(event2, entity, schedule)
+
+            // when
+            supervisor.release(setOf(entity))
+
+            // then
+            verify(exactly = 2) { eventRecordRepository.create() }
+            verify(exactly = 2) { eventPublisher.publish(any()) }
+        }
+
+        @Test
+        @DisplayName("detach相等payload时只移除指定的一个附件")
+        fun `detach should remove only one equal domain event attachment`() {
+            // given
+            val entity = TestEntity("entity1")
+            val schedule = LocalDateTime.now()
+            val event1 = TestDomainEvent("same")
+            val event2 = TestDomainEvent("same")
+
+            val mockEventRecord = mockk<EventRecord>()
+            every { eventRecordRepository.create() } returns mockEventRecord
+            every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
+            every { mockEventRecord.markPersist(any()) } just Runs
+
+            supervisor.attach(event1, entity, schedule)
+            supervisor.attach(event2, entity, schedule)
+
+            // when
+            supervisor.detach(event1, entity)
+            supervisor.release(setOf(entity))
+
+            // then
+            verify(exactly = 1) { eventRecordRepository.create() }
+            verify(exactly = 1) { eventPublisher.publish(any()) }
+        }
+
+        @Test
+        @DisplayName("release只释放当前scope中指定实体的领域事件")
+        fun `release should only release domain attachments for supplied entities in current scope`() {
+            // given
+            val entity1 = TestEntity("entity1")
+            val entity2 = TestEntity("entity2")
+            val schedule = LocalDateTime.now()
+
+            val mockEventRecord = mockk<EventRecord>()
+            every { eventRecordRepository.create() } returns mockEventRecord
+            every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
+            every { mockEventRecord.markPersist(any()) } just Runs
+
+            supervisor.attach(TestDomainEvent("event1"), entity1, schedule)
+            supervisor.attach(TestDomainEvent("event2"), entity2, schedule)
+
+            // when
+            supervisor.release(setOf(entity1))
+
+            // then
+            verify(exactly = 1) { eventRecordRepository.create() }
+            verify(exactly = 1) { eventPublisher.publish(any()) }
+
+            clearMocks(eventRecordRepository, eventPublisher, answers = false)
+
+            // when
+            supervisor.release(setOf(entity2))
+
+            // then
+            verify(exactly = 1) { eventRecordRepository.create() }
+            verify(exactly = 1) { eventPublisher.publish(any()) }
+        }
+
+        @Test
+        @DisplayName("供应商解析出的集成事件应该在release时被拒绝")
+        fun `supplier produced integration event should be rejected during release`() {
+            // given
+            val entity = TestEntity("entity1")
+            supervisor.attach(entity, LocalDateTime.now()) { TestIntegrationEvent("integration event") }
+
+            // when & then
+            assertThrows<DomainException> {
+                supervisor.release(setOf(entity))
+            }
+        }
+
+        @Test
+        @DisplayName("独立ambient scope中供应商抛异常时release应该清理scope")
+        fun `release should clear standalone ambient scope when lazy supplier throws`() {
+            // given
+            val entity = TestEntity("entity1")
+            supervisor.attach(entity, LocalDateTime.now()) { throw IllegalStateException("supplier failed") }
+
+            // when & then
+            assertThrows<IllegalStateException> {
+                supervisor.release(setOf(entity))
+            }
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
+        }
+
+        @Test
+        @DisplayName("独立ambient scope中供应商产出集成事件校验失败时release应该清理scope")
+        fun `release should clear standalone ambient scope when supplier produces integration event`() {
+            // given
+            val entity = TestEntity("entity1")
+            supervisor.attach(entity, LocalDateTime.now()) { TestIntegrationEvent("integration event") }
+
+            // when & then
+            assertThrows<DomainException> {
+                supervisor.release(setOf(entity))
+            }
+            assertTrue(EventRuntimeContext.currentOrNull() == null)
         }
 
         @Test
@@ -424,122 +559,89 @@ class DefaultDomainEventSupervisorTest {
     inner class Function0EventSupplierTests {
 
         @Test
-        @DisplayName("popEvents应该正确调用Function0事件供应商")
-        fun `popEvents should correctly invoke Function0 event suppliers`() {
+        @DisplayName("release应该正确调用Function0事件供应商")
+        fun `release should correctly invoke Function0 event suppliers`() {
             // given
             val actualEvent = TestDomainEvent("supplier event")
-            val eventSupplier: () -> TestDomainEvent = { actualEvent }
             val entity = TestEntity("entity1")
-
-            // Manually add supplier to thread local using reflection to simulate the supplier scenario
-            val entityEventPayloadsField =
-                DefaultDomainEventSupervisor::class.java.getDeclaredField("TL_ENTITY_EVENT_PAYLOADS")
-            entityEventPayloadsField.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            val threadLocal = entityEventPayloadsField.get(null) as ThreadLocal<MutableMap<Any, MutableSet<Any>>>
-
-            val eventMap = mutableMapOf<Any, MutableSet<Any>>()
-            val eventSet = mutableSetOf<Any>()
-            eventSet.add(eventSupplier)
-            eventMap[entity] = eventSet
-            threadLocal.set(eventMap)
-
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
-            popEventsMethod.isAccessible = true
+            val payloads = mutableListOf<Any>()
+            every { eventRecordRepository.create() } answers {
+                mockk<EventRecord>().also { eventRecord ->
+                    every { eventRecord.init(any(), any(), any(), any(), any()) } answers {
+                        payloads.add(firstArg())
+                    }
+                    every { eventRecord.markPersist(any()) } just Runs
+                }
+            }
+            supervisor.attach(entity, LocalDateTime.now()) { actualEvent }
 
             // when
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+            supervisor.release(setOf(entity))
 
             // then
-            assertEquals(1, result.size)
-            assertTrue(result.contains(actualEvent))
-            assertFalse(result.contains(eventSupplier))
+            assertEquals(listOf(actualEvent), payloads)
         }
 
         @Test
-        @DisplayName("popEvents应该处理混合的常规事件和Function0事件")
-        fun `popEvents should handle mixed regular events and Function0 events`() {
+        @DisplayName("release应该处理混合的常规事件和Function0事件")
+        fun `release should handle mixed regular events and Function0 events`() {
             // given
             val regularEvent = TestDomainEvent("regular event")
             val supplierEvent = TestDomainEvent("supplier event")
-            val eventSupplier: () -> TestDomainEvent = { supplierEvent }
             val entity = TestEntity("entity1")
-
-            // Manually set up thread local with mixed events
-            val entityEventPayloadsField =
-                DefaultDomainEventSupervisor::class.java.getDeclaredField("TL_ENTITY_EVENT_PAYLOADS")
-            entityEventPayloadsField.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            val threadLocal = entityEventPayloadsField.get(null) as ThreadLocal<MutableMap<Any, MutableSet<Any>>>
-
-            val eventMap = mutableMapOf<Any, MutableSet<Any>>()
-            val eventSet = mutableSetOf<Any>()
-            eventSet.add(regularEvent)
-            eventSet.add(eventSupplier)
-            eventMap[entity] = eventSet
-            threadLocal.set(eventMap)
-
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
-            popEventsMethod.isAccessible = true
+            val payloads = mutableListOf<Any>()
+            every { eventRecordRepository.create() } answers {
+                mockk<EventRecord>().also { eventRecord ->
+                    every { eventRecord.init(any(), any(), any(), any(), any()) } answers {
+                        payloads.add(firstArg())
+                    }
+                    every { eventRecord.markPersist(any()) } just Runs
+                }
+            }
+            supervisor.attach(regularEvent, entity, LocalDateTime.now())
+            supervisor.attach(entity, LocalDateTime.now()) { supplierEvent }
 
             // when
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+            supervisor.release(setOf(entity))
 
             // then
-            assertEquals(2, result.size)
-            assertTrue(result.contains(regularEvent))
-            assertTrue(result.contains(supplierEvent))
-            assertFalse(result.contains(eventSupplier))
+            assertEquals(listOf(regularEvent, supplierEvent), payloads)
         }
 
         @Test
-        @DisplayName("popEvents应该在没有事件时返回空集合")
-        fun `popEvents should return empty set when no events exist`() {
+        @DisplayName("release应该在没有事件时不创建事件记录")
+        fun `release should not create records when no events exist`() {
             // given
             val entity = TestEntity("entity1")
 
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
-            popEventsMethod.isAccessible = true
-
             // when
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+            supervisor.release(setOf(entity))
 
             // then
-            assertTrue(result.isEmpty())
+            verify(exactly = 0) { eventRecordRepository.create() }
         }
 
         @Test
-        @DisplayName("popEvents应该移除实体的事件映射")
-        fun `popEvents should remove entity event mapping`() {
+        @DisplayName("release应该移除实体的事件映射")
+        fun `release should remove entity event mapping`() {
             // given
             val event = TestDomainEvent("test event")
             val entity = TestEntity("entity1")
             val schedule = LocalDateTime.now()
 
+            val mockEventRecord = mockk<EventRecord>()
+            every { eventRecordRepository.create() } returns mockEventRecord
+            every { mockEventRecord.init(any(), any(), any(), any(), any()) } just Runs
+            every { mockEventRecord.markPersist(any()) } just Runs
+
             supervisor.attach(event, entity, schedule)
 
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
-            popEventsMethod.isAccessible = true
-
-            // when - first call should return events
-            @Suppress("UNCHECKED_CAST")
-            val firstResult = popEventsMethod.invoke(supervisor, entity) as Set<Any>
-
-            // when - second call should return empty
-            @Suppress("UNCHECKED_CAST")
-            val secondResult = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+            // when
+            supervisor.release(setOf(entity))
+            supervisor.release(setOf(entity))
 
             // then
-            assertEquals(1, firstResult.size)
-            assertTrue(firstResult.contains(event))
-            assertTrue(secondResult.isEmpty())
+            verify(exactly = 1) { eventRecordRepository.create() }
         }
 
         @Test
@@ -553,31 +655,23 @@ class DefaultDomainEventSupervisorTest {
             }
             val entity = TestEntity("entity1")
 
-            // Manually set up thread local
-            val entityEventPayloadsField =
-                DefaultDomainEventSupervisor::class.java.getDeclaredField("TL_ENTITY_EVENT_PAYLOADS")
-            entityEventPayloadsField.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            val threadLocal = entityEventPayloadsField.get(null) as ThreadLocal<MutableMap<Any, MutableSet<Any>>>
-
-            val eventMap = mutableMapOf<Any, MutableSet<Any>>()
-            val eventSet = mutableSetOf<Any>()
-            eventSet.add(complexEventSupplier)
-            eventMap[entity] = eventSet
-            threadLocal.set(eventMap)
-
-            // Use reflection to access protected method
-            val popEventsMethod = supervisor::class.java.getDeclaredMethod("popEvents", Any::class.java)
-            popEventsMethod.isAccessible = true
+            val payloads = mutableListOf<TestDomainEvent>()
+            every { eventRecordRepository.create() } answers {
+                mockk<EventRecord>().also { eventRecord ->
+                    every { eventRecord.init(any(), any(), any(), any(), any()) } answers {
+                        payloads.add(firstArg())
+                    }
+                    every { eventRecord.markPersist(any()) } just Runs
+                }
+            }
+            supervisor.attach(entity, LocalDateTime.now(), complexEventSupplier)
 
             // when
-            @Suppress("UNCHECKED_CAST")
-            val result = popEventsMethod.invoke(supervisor, entity) as Set<Any>
+            supervisor.release(setOf(entity))
 
             // then
-            assertEquals(1, result.size)
-            val resultEvent = result.first() as TestDomainEvent
-            assertEquals("complex event #1", resultEvent.message)
+            assertEquals(1, payloads.size)
+            assertEquals("complex event #1", payloads.single().message)
             assertEquals(1, counter) // Should only be invoked once
         }
     }
@@ -594,9 +688,6 @@ class DefaultDomainEventSupervisorTest {
 
     // 测试用的实体类
     data class TestEntity(val id: String)
-
-    // 测试用的聚合根
-    class TestAggregate(private val id: String) : Aggregate.Default<TestEntity>()
 
     // 测试用的Spring聚合根
     class TestSpringAggregateRoot : AbstractAggregateRoot<TestSpringAggregateRoot>() {

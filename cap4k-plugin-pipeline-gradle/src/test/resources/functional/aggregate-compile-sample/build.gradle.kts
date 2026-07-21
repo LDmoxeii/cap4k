@@ -1,5 +1,5 @@
-plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+﻿plugins {
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
@@ -21,15 +21,19 @@ cap4k {
             username.set("sa")
             password.set("secret")
             schema.set("PUBLIC")
-            includeTables.set(listOf("video_post"))
+            includeTables.set(listOf("video_post", "content", "media_processing_task"))
             excludeTables.set(emptyList())
+        }
+    }
+    types {
+        valueObjectManifest {
+            files.from("design/value-objects.json")
         }
     }
     generators {
         aggregate {
-            enabled.set(true)
             specialFields {
-                idDefaultStrategy.set("snowflake-long")
+                idDefaultStrategy.set("identity")
             }
             artifacts {
                 factory.set(true)

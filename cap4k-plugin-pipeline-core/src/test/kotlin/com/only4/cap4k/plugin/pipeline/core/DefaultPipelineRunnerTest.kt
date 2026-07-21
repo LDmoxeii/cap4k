@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
+import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
@@ -33,9 +34,205 @@ import java.nio.file.Path
 class DefaultPipelineRunnerTest {
 
     @Test
+    fun `collects source provider when source config key is present`() {
+        var receivedSourceConfig: SourceConfig? = null
+        var receivedSnapshots: List<SourceSnapshot> = emptyList()
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot {
+                receivedSourceConfig = config.sources.getValue(id)
+                return DesignSpecSnapshot(entries = emptyList())
+            }
+        }
+
+        DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = emptyList(),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                    receivedSnapshots = snapshots
+                    return CanonicalAssemblyResult(CanonicalModel())
+                }
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
+                    emptyList()
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            configuredConfig(
+                generators = emptyMap(),
+            )
+        )
+
+        assertEquals(SourceConfig(options = emptyMap()), receivedSourceConfig)
+        assertEquals(listOf("design-json"), receivedSnapshots.map { it.id })
+    }
+
+    @Test
+    fun `does not collect source provider when source config key is absent`() {
+        var collected = false
+        var receivedSnapshots: List<SourceSnapshot> = listOf(DesignSpecSnapshot(entries = emptyList()))
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot {
+                collected = true
+                return DesignSpecSnapshot(entries = emptyList())
+            }
+        }
+
+        DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = emptyList(),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                    receivedSnapshots = snapshots
+                    return CanonicalAssemblyResult(CanonicalModel())
+                }
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> =
+                    emptyList()
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            configuredConfig(
+                generators = emptyMap(),
+            ).copy(sources = emptyMap())
+        )
+
+        assertEquals(false, collected)
+        assertEquals(emptyList<SourceSnapshot>(), receivedSnapshots)
+    }
+
+    @Test
+    fun `model driven built in planner runs without generator config key`() {
+        val plannedItem = ArtifactPlanItem(
+            generatorId = "command",
+            moduleRole = "app",
+            templateId = "design/command.kt.peb",
+            outputPath = "generated/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        var rendererReceivedPlanItems: List<ArtifactPlanItem> = emptyList()
+        val generatorProvider = object : GeneratorProvider {
+            override val id: String = "command"
+
+            override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+                listOf(plannedItem)
+        }
+
+        val result = DefaultPipelineRunner(
+            sources = emptyList(),
+            generators = listOf(generatorProvider),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
+                    CanonicalAssemblyResult(CanonicalModel())
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                    rendererReceivedPlanItems = planItems
+                    return emptyList()
+                }
+            },
+            exporter = NoopArtifactExporter(),
+        ).run(
+            configuredConfig(
+                generators = emptyMap(),
+            ).copy(sources = emptyMap())
+        )
+
+        assertEquals(listOf(plannedItem), rendererReceivedPlanItems)
+        assertEquals(listOf(plannedItem), result.planItems)
+    }
+
+    @Test
+    fun `observation generators run without generator config keys and keep overwrite policy`() {
+        val drawingBoardItem = ArtifactPlanItem(
+            generatorId = "drawing-board",
+            moduleRole = "project",
+            templateId = "drawing-board/document.json.peb",
+            outputPath = "design/drawing_board_query.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val flowItem = ArtifactPlanItem(
+            generatorId = "flow",
+            moduleRole = "project",
+            templateId = "flow/entry.json.peb",
+            outputPath = "flows/entry.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val sourceProvider = object : SourceProvider {
+            override val id: String = "design-json"
+
+            override fun collect(config: ProjectConfig): SourceSnapshot = DesignSpecSnapshot(entries = emptyList())
+        }
+        val assembly = CanonicalAssemblyResult(
+            CanonicalModel(
+                drawingBoard = com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel(
+                    elements = emptyList(),
+                ),
+                analysisGraph = com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel(
+                    inputDirs = listOf("app/build/cap4k-code-analysis"),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                ),
+            ),
+        )
+
+        var rendererReceivedPlanItems: List<ArtifactPlanItem> = emptyList()
+        val runner = DefaultPipelineRunner(
+            sources = listOf(sourceProvider),
+            generators = listOf(
+                object : GeneratorProvider {
+                    override val id: String = "drawing-board"
+
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+                        listOf(drawingBoardItem)
+                },
+                object : GeneratorProvider {
+                    override val id: String = "flow"
+
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+                        listOf(flowItem)
+                },
+            ),
+            assembler = object : CanonicalAssembler {
+                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult = assembly
+            },
+            renderer = object : ArtifactRenderer {
+                override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                    rendererReceivedPlanItems = planItems
+                    return emptyList()
+                }
+            },
+            exporter = NoopArtifactExporter(),
+        )
+
+        val result = runner.run(
+            configuredConfig(
+                generators = emptyMap(),
+            ).copy(
+                sources = mapOf("design-json" to SourceConfig()),
+            )
+        )
+
+        val expectedItems = listOf(
+            drawingBoardItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE),
+            flowItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE),
+        )
+
+        assertEquals(expectedItems, rendererReceivedPlanItems)
+        assertEquals(expectedItems, result.planItems)
+        assertTrue(result.planItems.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
+    }
+
+    @Test
     fun `addon provider contributes plan item after built-in generator item`() {
         val builtInItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "app",
             templateId = "design/command.kt.peb",
             outputPath = "generated/CreateOrderCmd.kt",
@@ -52,7 +249,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(builtInItem),
             addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
-            config = enabledConfig(),
+            config = configuredConfig(),
         )
 
         assertEquals(listOf(builtInItem, addonItem), result.rendererReceivedPlanItems)
@@ -60,9 +257,113 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `template conflict override forces overwrite for observation outputs`() {
+        val drawingBoardItem = ArtifactPlanItem(
+            generatorId = "drawing-board",
+            moduleRole = "project",
+            templateId = "drawing-board/document.json.peb",
+            outputPath = "design/drawing_board_query.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val flowItem = ArtifactPlanItem(
+            generatorId = "flow",
+            moduleRole = "project",
+            templateId = "flow/entry.json.peb",
+            outputPath = "flows/entry.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(drawingBoardItem, flowItem),
+            config = configuredConfig(
+                generators = mapOf(
+                    "drawing-board" to GeneratorConfig(),
+                ),
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "drawing-board/document.json.peb" to ConflictPolicy.FAIL,
+                        "flow/entry.json.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+            transformPlanItem = {
+                when (it.templateId) {
+                    "drawing-board/document.json.peb" -> it.copy(conflictPolicy = ConflictPolicy.SKIP)
+                    "flow/entry.json.peb" -> it.copy(conflictPolicy = ConflictPolicy.SKIP)
+                    else -> it
+                }
+            },
+        )
+
+        assertEquals(ConflictPolicy.OVERWRITE, result.rendererReceivedPlanItems[0].conflictPolicy)
+        assertEquals(ConflictPolicy.OVERWRITE, result.rendererReceivedPlanItems[1].conflictPolicy)
+    }
+
+    @Test
+    fun `addon item using observation generator id is not forced to overwrite`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "flow",
+            moduleRole = "project",
+            templateId = "addons/sample-addon/flow-observation.json.peb",
+            outputPath = "flows/addon.json",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+            config = configuredConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "addons/sample-addon/flow-observation.json.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(ConflictPolicy.FAIL, result.rendererReceivedPlanItems.single().conflictPolicy)
+    }
+
+    @Test
+    fun `transformed non observation item using observation generator id is not forced to overwrite`() {
+        val checkedInItem = ArtifactPlanItem(
+            generatorId = "command",
+            moduleRole = "application",
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val transformedItem = checkedInItem.copy(generatorId = "drawing-board")
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(checkedInItem),
+            config = configuredConfig(
+                templates = TemplateConfig(
+                    preset = "default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.FAIL,
+                    templateConflictPolicies = mapOf(
+                        "design/command.kt.peb" to ConflictPolicy.FAIL,
+                    ),
+                ),
+            ),
+            transformPlanItem = { transformedItem },
+        )
+
+        assertEquals(ConflictPolicy.FAIL, result.rendererReceivedPlanItems.single().conflictPolicy)
+        assertEquals(ConflictPolicy.FAIL, result.pipelineResult.planItems.single().conflictPolicy)
+    }
+
+    @Test
     fun `addon receives assembled canonical model and project config`() {
         val assembledModel = CanonicalModel()
-        val config = enabledConfig()
+        val config = configuredConfig()
         var receivedContext: ArtifactAddonContext? = null
         val addon = object : ArtifactAddonProvider {
             override val id: String = "sample-addon"
@@ -86,6 +387,125 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `passes provider scoped options to matching addon`() {
+        var receivedOptions: Map<String, Any?>? = null
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                receivedOptions = context.options
+                return emptyList()
+            }
+        }
+
+        runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            addonProviders = listOf(addon),
+            config = configuredConfig(
+                addons = mapOf(
+                    "sample-addon" to AddonProviderConfig(
+                        id = "sample-addon",
+                        options = mapOf("enumPackage" to "domain.enums"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(mapOf("enumPackage" to "domain.enums"), receivedOptions)
+    }
+
+    @Test
+    fun `fails when addon config key does not match provider id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", emptyList())),
+                config = configuredConfig(
+                    addons = mapOf(
+                        "sample-addon" to AddonProviderConfig(
+                            id = "other-addon",
+                            options = mapOf("enabled" to "true"),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "Configured addon provider key does not match provider id: sample-addon != other-addon",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `fails when addon options reference unloaded provider`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = emptyList(),
+                config = configuredConfig(
+                    addons = mapOf(
+                        "missing-addon" to AddonProviderConfig(
+                            id = "missing-addon",
+                            options = mapOf("enabled" to "true"),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message?.contains("Configured addon provider is not loaded: missing-addon") == true)
+    }
+
+    @Test
+    fun `rejects addon template id outside provider namespace`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/other-addon/sample.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+                config = configuredConfig(),
+            )
+        }
+
+        assertTrue(
+            error.message?.contains(
+                "Addon sample-addon produced template id outside addons/sample-addon/: addons/other-addon/sample.kt.peb",
+            ) == true,
+        )
+    }
+
+    @Test
+    fun `wraps addon provider planning exceptions`() {
+        val failure = IllegalArgumentException("bad addon state")
+        val addon = object : ArtifactAddonProvider {
+            override val id: String = "sample-addon"
+
+            override fun plan(context: ArtifactAddonContext): List<ArtifactPlanItem> {
+                throw failure
+            }
+        }
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addon),
+                config = configuredConfig(),
+            )
+        }
+
+        assertTrue(error.message?.contains("Addon provider sample-addon failed while planning artifacts") == true)
+        assertEquals(failure, error.cause)
+    }
+
+    @Test
     fun `addon plan item passes through transform include and conflict policy`() {
         val includedAddonItem = ArtifactPlanItem(
             generatorId = "sample-addon",
@@ -104,7 +524,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = emptyList(),
             addonProviders = listOf(addonProvider("sample-addon", listOf(includedAddonItem, excludedAddonItem))),
-            config = enabledConfig(
+            config = configuredConfig(
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -128,6 +548,61 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
+    fun `rejects transformed addon template id outside provider namespace`() {
+        val addonItem = ArtifactPlanItem(
+            generatorId = "sample-addon",
+            moduleRole = "adapter",
+            templateId = "addons/sample-addon/original.kt.peb",
+            outputPath = "generated/SampleAddon.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runWithCapturedPlanItems(
+                plannedItems = emptyList(),
+                addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
+                config = configuredConfig(),
+                transformPlanItem = {
+                    it.copy(
+                        generatorId = "command",
+                        templateId = "design/command.kt.peb",
+                    )
+                },
+            )
+        }
+
+        assertTrue(
+            error.message?.contains(
+                "Addon sample-addon produced template id outside addons/sample-addon/: design/command.kt.peb",
+            ) == true,
+        )
+    }
+
+    @Test
+    fun `does not validate built-in item as addon item when transformed generator id matches addon provider id`() {
+        val builtInItem = ArtifactPlanItem(
+            generatorId = "command",
+            moduleRole = "app",
+            templateId = "design/command.kt.peb",
+            outputPath = "generated/CreateOrderCmd.kt",
+            conflictPolicy = ConflictPolicy.SKIP,
+        )
+        val transformedBuiltInItem = builtInItem.copy(generatorId = "sample-addon")
+
+        val result = runWithCapturedPlanItems(
+            plannedItems = listOf(builtInItem),
+            addonProviders = listOf(addonProvider("sample-addon", emptyList())),
+            config = configuredConfig(),
+            transformPlanItem = {
+                if (it.generatorId == "command") transformedBuiltInItem else it
+            },
+        )
+
+        assertEquals(listOf(transformedBuiltInItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(transformedBuiltInItem), result.pipelineResult.planItems)
+    }
+
+    @Test
     fun `duplicate addon provider ids fail fast`() {
         val first = addonProvider("duplicate-addon", emptyList())
         val second = addonProvider("duplicate-addon", emptyList())
@@ -136,7 +611,7 @@ class DefaultPipelineRunnerTest {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(first, second),
-                config = enabledConfig(),
+                config = configuredConfig(),
             )
         }
 
@@ -156,7 +631,7 @@ class DefaultPipelineRunnerTest {
         val result = runWithCapturedPlanItems(
             plannedItems = emptyList(),
             addonProviders = listOf(addonProvider("sample-addon", listOf(addonItem))),
-            config = enabledConfig(generators = emptyMap()),
+            config = configuredConfig(generators = emptyMap()),
         )
 
         assertEquals(listOf(addonItem), result.rendererReceivedPlanItems)
@@ -166,7 +641,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `template conflict override beats planner default for checked-in source items`() {
         val plannedItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "application",
             templateId = "design/command.kt.peb",
             outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
@@ -175,7 +650,7 @@ class DefaultPipelineRunnerTest {
 
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(plannedItem),
-            config = enabledConfig(
+            config = configuredConfig(
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -194,7 +669,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `generated source items keep overwrite even when template override conflicts`() {
+    fun `generated source items honor template conflict overrides when not observation outputs`() {
         val plannedItem = ArtifactPlanItem(
             generatorId = "aggregate",
             moduleRole = "domain",
@@ -206,8 +681,8 @@ class DefaultPipelineRunnerTest {
 
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(plannedItem),
-            config = enabledConfig(
-                generators = mapOf("aggregate" to GeneratorConfig(enabled = true)),
+            config = configuredConfig(
+                generators = mapOf("aggregate" to GeneratorConfig()),
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -219,7 +694,7 @@ class DefaultPipelineRunnerTest {
             ),
         )
 
-        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
+        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.FAIL)
 
         assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
         assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
@@ -228,7 +703,7 @@ class DefaultPipelineRunnerTest {
     @Test
     fun `include plan item hook observes pre resolution conflict policy`() {
         val plannedItem = ArtifactPlanItem(
-            generatorId = "design-command",
+            generatorId = "command",
             moduleRole = "application",
             templateId = "design/command.kt.peb",
             outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/CreateOrderCmd.kt",
@@ -237,7 +712,7 @@ class DefaultPipelineRunnerTest {
 
         val result = runWithCapturedPlanItems(
             plannedItems = listOf(plannedItem),
-            config = enabledConfig(
+            config = configuredConfig(
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -257,14 +732,14 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `run executes enabled providers in order and returns expected pipeline result`() {
+    fun `run executes configured providers in order and returns expected pipeline result`() {
         val callOrder = mutableListOf<String>()
         val tempRoot = Files.createTempDirectory("pipeline-runner-test")
         val skippedPath = tempRoot.resolve("generated/Skipped.kt")
         Files.createDirectories(skippedPath.parent)
         Files.writeString(skippedPath, "existing-content")
 
-        val enabledSourceProvider = object : SourceProvider {
+        val configuredSourceProvider = object : SourceProvider {
             override val id: String = "design-json"
 
             override fun collect(config: ProjectConfig): SourceSnapshot {
@@ -272,25 +747,25 @@ class DefaultPipelineRunnerTest {
                 return DesignSpecSnapshot(entries = emptyList())
             }
         }
-        val disabledSourceProvider = object : SourceProvider {
-            override val id: String = "disabled-source"
+        val unconfiguredSourceProvider = object : SourceProvider {
+            override val id: String = "unconfigured-source"
 
             override fun collect(config: ProjectConfig): SourceSnapshot {
-                callOrder += "collect-disabled"
-                return DesignSpecSnapshot(id = "disabled-source", entries = emptyList())
+                callOrder += "collect-unconfigured"
+                return DesignSpecSnapshot(id = "unconfigured-source", entries = emptyList())
             }
         }
 
         val expectedPlanItems = listOf(
             ArtifactPlanItem(
-                generatorId = "design-command",
+                generatorId = "command",
                 moduleRole = "app",
                 templateId = "template-overwrite",
                 outputPath = "generated/Request.kt",
                 conflictPolicy = ConflictPolicy.OVERWRITE,
             ),
             ArtifactPlanItem(
-                generatorId = "design-command",
+                generatorId = "command",
                 moduleRole = "app",
                 templateId = "template-skip",
                 outputPath = "generated/Skipped.kt",
@@ -298,19 +773,19 @@ class DefaultPipelineRunnerTest {
             ),
         )
 
-        val enabledGeneratorProvider = object : GeneratorProvider {
-            override val id: String = "design-command"
+        val configuredGeneratorProvider = object : GeneratorProvider {
+            override val id: String = "command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 callOrder += "plan"
                 return expectedPlanItems
             }
         }
-        val disabledGeneratorProvider = object : GeneratorProvider {
-            override val id: String = "disabled-generator"
+        val configKeyRequiredGeneratorProvider = object : GeneratorProvider {
+            override val id: String = "aggregate"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-                callOrder += "plan-disabled"
+                callOrder += "plan-aggregate"
                 return emptyList()
             }
         }
@@ -346,8 +821,8 @@ class DefaultPipelineRunnerTest {
         val exporter = FilesystemArtifactExporter(tempRoot)
 
         val runner = DefaultPipelineRunner(
-            sources = listOf(enabledSourceProvider, disabledSourceProvider),
-            generators = listOf(enabledGeneratorProvider, disabledGeneratorProvider),
+            sources = listOf(configuredSourceProvider, unconfiguredSourceProvider),
+            generators = listOf(configuredGeneratorProvider, configKeyRequiredGeneratorProvider),
             assembler = assembler,
             renderer = renderer,
             exporter = exporter,
@@ -358,14 +833,8 @@ class DefaultPipelineRunnerTest {
                 basePackage = "com.only4.cap4k.sample",
                 layout = ProjectLayout.SINGLE_MODULE,
                 modules = mapOf("app" to "sample-app"),
-                sources = mapOf(
-                    "design-json" to SourceConfig(enabled = true),
-                    "disabled-source" to SourceConfig(enabled = false),
-                ),
-                generators = mapOf(
-                    "design-command" to GeneratorConfig(enabled = true),
-                    "disabled-generator" to GeneratorConfig(enabled = false),
-                ),
+                sources = mapOf("design-json" to SourceConfig()),
+                generators = mapOf("command" to GeneratorConfig()),
                 templates = TemplateConfig(
                     preset = "default",
                     overrideDirs = emptyList(),
@@ -388,7 +857,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `run fails fast when enabled generator has no registered provider`() {
+    fun `run fails fast when configured generator has no registered provider`() {
         val callOrder = mutableListOf<String>()
         val sourceProvider = object : SourceProvider {
             override val id: String = "design-json"
@@ -425,8 +894,8 @@ class DefaultPipelineRunnerTest {
                     basePackage = "com.only4.cap4k.sample",
                     layout = ProjectLayout.SINGLE_MODULE,
                     modules = mapOf("app" to "sample-app"),
-                    sources = mapOf("design-json" to SourceConfig(enabled = true)),
-                    generators = mapOf("missing-generator" to GeneratorConfig(enabled = true)),
+                    sources = mapOf("design-json" to SourceConfig()),
+                    generators = mapOf("missing-generator" to GeneratorConfig()),
                     templates = TemplateConfig(
                         preset = "default",
                         overrideDirs = emptyList(),
@@ -436,7 +905,52 @@ class DefaultPipelineRunnerTest {
             )
         }
 
-        assertEquals("enabled generators have no registered providers: missing-generator", error.message)
+        assertEquals("configured generators have no registered providers: missing-generator", error.message)
+        assertEquals(emptyList<String>(), callOrder)
+    }
+
+    @Test
+    fun `run fails fast when configured source has no registered provider`() {
+        val callOrder = mutableListOf<String>()
+        val assembler = object : CanonicalAssembler {
+            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                callOrder += "normalize"
+                return CanonicalAssemblyResult(CanonicalModel())
+            }
+        }
+        val renderer = object : ArtifactRenderer {
+            override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
+                callOrder += "render"
+                return emptyList()
+            }
+        }
+
+        val runner = DefaultPipelineRunner(
+            sources = emptyList(),
+            generators = emptyList(),
+            assembler = assembler,
+            renderer = renderer,
+            exporter = NoopArtifactExporter(),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            runner.run(
+                ProjectConfig(
+                    basePackage = "com.only4.cap4k.sample",
+                    layout = ProjectLayout.SINGLE_MODULE,
+                    modules = mapOf("app" to "sample-app"),
+                    sources = mapOf("unknown-source" to SourceConfig()),
+                    generators = emptyMap(),
+                    templates = TemplateConfig(
+                        preset = "default",
+                        overrideDirs = emptyList(),
+                        conflictPolicy = ConflictPolicy.OVERWRITE,
+                    ),
+                )
+            )
+        }
+
+        assertEquals("configured sources have no registered providers: unknown-source", error.message)
         assertEquals(emptyList<String>(), callOrder)
     }
 
@@ -451,7 +965,7 @@ class DefaultPipelineRunnerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            runner.run(enabledConfig())
+            runner.run(configuredConfig())
         }
 
         assertTrue(error.message?.contains("outside") == true)
@@ -474,7 +988,7 @@ class DefaultPipelineRunnerTest {
         )
 
         assertThrows(IllegalStateException::class.java) {
-            runner.run(enabledConfig())
+            runner.run(configuredConfig())
         }
     }
 
@@ -532,10 +1046,9 @@ class DefaultPipelineRunnerTest {
                 basePackage = "com.acme.demo",
                 layout = ProjectLayout.MULTI_MODULE,
                 modules = mapOf("domain" to "demo-domain", "adapter" to "demo-adapter"),
-                sources = mapOf("db" to SourceConfig(enabled = true)),
+                sources = mapOf("db" to SourceConfig()),
                 generators = mapOf(
                     "aggregate" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("unsupportedTablePolicy" to "SKIP"),
                     )
                 ),
@@ -570,7 +1083,7 @@ class DefaultPipelineRunnerTest {
         }
 
         val generatorProvider = object : GeneratorProvider {
-            override val id: String = "design-command"
+            override val id: String = "command"
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 return listOf(
@@ -623,7 +1136,7 @@ class DefaultPipelineRunnerTest {
             ),
             generators = listOf(
                 object : GeneratorProvider {
-                    override val id: String = config.generators.keys.firstOrNull() ?: "design-command"
+                    override val id: String = config.generators.keys.firstOrNull() ?: "command"
 
                     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> = plannedItems
                 }
@@ -650,21 +1163,23 @@ class DefaultPipelineRunnerTest {
         )
     }
 
-    private fun enabledConfig(
-        generators: Map<String, GeneratorConfig> = mapOf("design-command" to GeneratorConfig(enabled = true)),
+    private fun configuredConfig(
+        generators: Map<String, GeneratorConfig> = mapOf("command" to GeneratorConfig()),
         templates: TemplateConfig = TemplateConfig(
             preset = "default",
             overrideDirs = emptyList(),
             conflictPolicy = ConflictPolicy.OVERWRITE,
         ),
+        addons: Map<String, AddonProviderConfig> = emptyMap(),
     ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.only4.cap4k.sample",
             layout = ProjectLayout.SINGLE_MODULE,
             modules = mapOf("app" to "sample-app"),
-            sources = mapOf("design-json" to SourceConfig(enabled = true)),
+            sources = mapOf("design-json" to SourceConfig()),
             generators = generators,
             templates = templates,
+            addons = addons,
         )
     }
 

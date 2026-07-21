@@ -11,7 +11,7 @@ import java.nio.file.Files
 class FilesystemArtifactExporterTest {
 
     @Test
-    fun `generated source overwrites existing file regardless of artifact conflict policy`() {
+    fun `generated source keeps existing file when conflict policy is skip`() {
         val root = Files.createTempDirectory("cap4k-export-generated-source")
         val target = root.resolve("demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/Category.kt")
         Files.createDirectories(target.parent)
@@ -29,8 +29,8 @@ class FilesystemArtifactExporterTest {
             )
         )
 
-        assertEquals(listOf(target.toString()), written)
-        assertEquals("new", Files.readString(target))
+        assertEquals(emptyList<String>(), written)
+        assertEquals("old", Files.readString(target))
     }
 
     @Test

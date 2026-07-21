@@ -16,22 +16,34 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
-        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry)
+        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
         val entitiesByName = model.entities
             .groupBy { it.name }
 
         return model.schemas.map { schema ->
             val entity = requireUniqueSchemaEntity(schema.name, schema.entityName, entitiesByName[schema.entityName].orEmpty())
+            val aggregateElement = aggregateRootNameOrNull(entity, model.entities)?.let { aggregateName ->
+                aggregateElementContext(
+                    aggregate = aggregateName,
+                    name = schema.name,
+                    packageName = schema.packageName,
+                    description = schema.comment,
+                    type = "schema",
+                )
+            }
             val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
             val ownerPackage = entity.packageName
             val fields = schema.fields.map { field ->
                 val fieldType = planning.resolveFieldType(ownerPackage, field)
+                val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
                 mapOf(
                     "name" to field.name,
                     "fieldName" to field.name,
                     "columnName" to (field.columnName ?: field.name),
                     "fieldType" to fieldType,
                     "type" to fieldType,
+                    "renderedType" to renderedType.renderedType,
+                    "typeImports" to renderedType.imports,
                     "nullable" to field.nullable,
                     "defaultValue" to field.defaultValue,
                     "typeBinding" to field.typeBinding,
@@ -40,11 +52,8 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                 )
             }
             val imports = fields
-                .mapNotNull { field ->
-                    when (field["fieldType"]) {
-                        "UUID" -> "java.util.UUID"
-                        else -> null
-                    }
+                .flatMap { field ->
+                    (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
                 }
                 .distinct()
 
@@ -65,7 +74,7 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "entityTypeFqn" to entityTypeFqn,
                     "imports" to imports,
                     "fields" to fields,
-                ),
+                ) + listOfNotNull(aggregateElement?.let { "aggregateElement" to it }),
             )
         }
     }

@@ -1,5 +1,5 @@
 plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 cap4k {
@@ -10,29 +10,7 @@ cap4k {
     }
     sources {
         designJson {
-            enabled.set(true)
             files.from("design/design.json")
-        }
-        kspMetadata {
-            enabled.set(true)
-            inputDir.set("domain/build/generated/ksp/main/resources/metadata")
-        }
-    }
-    generators {
-        designCommand {
-            enabled.set(true)
-        }
-        designQuery {
-            enabled.set(true)
-        }
-        designQueryHandler {
-            enabled.set(true)
-        }
-        designClient {
-            enabled.set(true)
-        }
-        designClientHandler {
-            enabled.set(true)
         }
     }
 }

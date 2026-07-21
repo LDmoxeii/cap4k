@@ -12,6 +12,10 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
 class PebbleArtifactRendererTest {
+    private val legacyAggregateAnnotationFq =
+        listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
+    private val legacyAggregateCall = "@" + "Aggregate("
+
 
     private fun assertReadableKotlin(content: String) {
         assertFalse(Regex("""(?m)[ \t]+$""").containsMatchIn(content), "Generated Kotlin must not contain trailing whitespace.")
@@ -53,7 +57,14 @@ class PebbleArtifactRendererTest {
                     moduleRole = "domain",
                     templateId = templateId,
                     outputPath = outputPath,
-                    context = context,
+                    context = if (templateId == "aggregate/entity.kt.peb") {
+                        mapOf(
+                            "aggregateName" to context["typeName"],
+                            "aggregateRoot" to true,
+                        ) + context
+                    } else {
+                        context
+                    },
                     conflictPolicy = ConflictPolicy.SKIP,
                 )
             ),
@@ -67,6 +78,205 @@ class PebbleArtifactRendererTest {
             ),
         ).single().content
 
+    private fun aggregateElementContext(
+        aggregate: String,
+        name: String,
+        type: String,
+        root: Boolean = false,
+        packageName: String = "",
+        description: String = "",
+    ): Map<String, Any?> =
+        mapOf(
+            "aggregate" to aggregate,
+            "aggregateKotlinStringLiteral" to aggregate.toTestKotlinStringLiteral(),
+            "name" to name,
+            "nameKotlinStringLiteral" to name.toTestKotlinStringLiteral(),
+            "packageName" to packageName,
+            "packageNameKotlinStringLiteral" to packageName.toTestKotlinStringLiteral(),
+            "description" to description,
+            "descriptionKotlinStringLiteral" to description.toTestKotlinStringLiteral(),
+            "type" to type,
+            "typeKotlinStringLiteral" to type.toTestKotlinStringLiteral(),
+            "root" to root,
+        )
+
+    private fun buildingBlockContext(
+        tag: String,
+        name: String,
+        family: String,
+        packageName: String = "",
+        description: String = "",
+        aggregates: List<String> = emptyList(),
+        eventName: String = "",
+        variant: String = "",
+    ): Map<String, Any?> =
+        mapOf(
+            "tag" to tag,
+            "tagKotlinStringLiteral" to tag.toTestKotlinStringLiteral(),
+            "name" to name,
+            "nameKotlinStringLiteral" to name.toTestKotlinStringLiteral(),
+            "packageName" to packageName,
+            "packageNameKotlinStringLiteral" to packageName.toTestKotlinStringLiteral(),
+            "description" to description,
+            "descriptionKotlinStringLiteral" to description.toTestKotlinStringLiteral(),
+            "aggregates" to aggregates,
+            "aggregateKotlinStringLiterals" to aggregates.map { it.toTestKotlinStringLiteral() },
+            "eventName" to eventName,
+            "eventNameKotlinStringLiteral" to eventName.toTestKotlinStringLiteral(),
+            "family" to family,
+            "familyKotlinStringLiteral" to family.toTestKotlinStringLiteral(),
+            "variant" to variant,
+            "variantKotlinStringLiteral" to variant.toTestKotlinStringLiteral(),
+        )
+
+    private fun assertBuildingBlockAnnotation(
+        content: String,
+        tag: String,
+        name: String,
+        family: String,
+        variant: String = "",
+        aggregates: List<String> = listOf("Order"),
+    ) {
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("tag = \"$tag\""))
+        assertTrue(content.contains("name = \"$name\""))
+        assertTrue(content.contains("aggregates = [${aggregates.joinToString(", ") { "\"$it\"" }}]"))
+        assertTrue(content.contains("family = \"$family\""))
+        assertFalse(content.contains("eventName = "))
+        if (variant.isBlank()) {
+            assertFalse(content.contains("variant = \"\""))
+        } else {
+            assertTrue(content.contains("variant = \"$variant\""))
+        }
+    }
+
+    private fun String.toTestKotlinStringLiteral(): String {
+        val escaped = buildString {
+            this@toTestKotlinStringLiteral.forEach { char ->
+                when (char) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '\b' -> append("\\b")
+                    '\u000C' -> append("\\f")
+                    '$' -> append("\\$")
+                    else -> {
+                        if (char.code in 0x00..0x1F) {
+                            append("\\u")
+                            append(char.code.toString(16).padStart(4, '0'))
+                        } else {
+                            append(char)
+                        }
+                    }
+                }
+            }
+        }
+        return "\"$escaped\""
+    }
+
+    @Test
+    fun `value object template renders json converter skeleton with normalized field types`() {
+        val content = renderTemplate(
+            templateId = ProjectConfig().artifactLayout.valueObject.id,
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.values",
+                "typeName" to "Money",
+                "name" to "Money",
+                "buildingBlock" to buildingBlockContext(
+                    tag = "value_object",
+                    name = "Money",
+                    packageName = "com.acme.demo.domain.shared.values",
+                    description = "money */ \"amount\" \\value ${'$'}currency",
+                    aggregates = listOf("Order"),
+                    family = "value-object",
+                ),
+                "imports" to listOf(
+                    "com.acme.demo.domain.shared.types.CurrencyCode",
+                    "java.math.BigDecimal",
+                ),
+                "fields" to listOf(
+                    mapOf("name" to "amount", "renderedType" to "BigDecimal", "nullable" to false),
+                    mapOf("name" to "currency", "renderedType" to "CurrencyCode?", "nullable" to true),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("package com.acme.demo.domain.shared.values"))
+        assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
+        assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
+        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertFalse(content.contains("import jakarta.persistence.Converter"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
+        assertTrue(content.contains("import java.math.BigDecimal"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("tag = \"value_object\""))
+        assertTrue(content.contains("name = \"Money\""))
+        assertTrue(content.contains("packageName = \"com.acme.demo.domain.shared.values\""))
+        assertTrue(content.contains("description = \"money */ \\\"amount\\\" \\\\value \\${'$'}currency\""))
+        assertTrue(content.contains("aggregates = [\"Order\"]"))
+        assertFalse(content.contains("eventName = "))
+        assertTrue(content.contains("family = \"value-object\""))
+        assertFalse(content.contains("variant = \"\""))
+        assertTrue(content.contains("data class Money("))
+        assertTrue(content.contains("val amount: BigDecimal,"))
+        assertTrue(content.contains("val currency: CurrencyCode?"))
+        assertTrue(content.contains("@jakarta.persistence.Converter(autoApply = false)"))
+        assertTrue(content.contains("class Converter : AttributeConverter<Money, String>"))
+        assertTrue(content.contains("ObjectMapper().findAndRegisterModules()"))
+        assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
+        assertTrue(content.contains("mapper.readValue<Money>(it)"))
+        assertFalse(content.contains("val amount: java.math.BigDecimal"))
+    }
+
+    @Test
+    fun `design domain service and saga skeleton template ids resolve through default preset`() {
+        val config = ProjectConfig()
+
+        val domainService = renderTemplate(
+            templateId = config.artifactLayout.designDomainService.id,
+            outputPath = "demo-domain/src/main/kotlin/content/domain/ContentPublicationPolicy.kt",
+            context = mapOf(
+                "packageName" to "content.domain",
+                "name" to "ContentPublicationPolicy",
+                "description" to "publication policy",
+                "aggregates" to listOf("Content"),
+            ),
+        )
+        assertTrue(domainService.contains("import com.only4.cap4k.ddd.core.domain.service.annotation.DomainService"))
+        assertTrue(domainService.contains("class ContentPublicationPolicy"))
+        assertReadableKotlin(domainService)
+
+        val saga = renderTemplate(
+            templateId = config.artifactLayout.designSagaArtifact.id,
+            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSaga.kt",
+            context = mapOf(
+                "packageName" to "content.workflow",
+                "name" to "PublishContentSaga",
+                "fields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
+                "resultFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
+                "imports" to emptyList<String>(),
+            ),
+        )
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
+        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
+        assertTrue(saga.contains("import org.springframework.stereotype.Service"))
+        assertTrue(saga.contains("object PublishContentSaga"))
+        assertTrue(saga.contains("@Service"))
+        assertTrue(saga.contains("class Handler : SagaHandler<Request, Response>"))
+        assertTrue(saga.contains("override fun exec(request: Request): Response"))
+        assertTrue(saga.contains("data class Request("))
+        assertTrue(saga.contains(": SagaParam<Response>"))
+        assertTrue(saga.contains("data class Response("))
+        assertTrue(saga.contains("val accepted: Boolean"))
+        assertReadableKotlin(saga)
+    }
+
     @Test
     fun `aggregate factory template renders semantic payload metadata and filtered payload fields`() {
         val content = renderTemplate(
@@ -79,7 +289,6 @@ class PebbleArtifactRendererTest {
                 "payloadMetadataName" to "VideoPostPayload",
                 "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to listOf(
-                    mapOf("name" to "id", "type" to "Long", "nullable" to false),
                     mapOf("name" to "title", "type" to "String", "nullable" to true),
                 ),
                 "entityName" to "VideoPost",
@@ -88,11 +297,366 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("data class Payload("))
-        assertTrue(content.contains("val id: Long"))
         assertTrue(content.contains("val title: String?"))
+        assertFalse(content.contains("val id: Long"))
         assertFalse(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate templates render aggregate element only when context is present`() {
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                "typeName" to "VideoPost",
+                "comment" to "video post",
+                "aggregateRoot" to true,
+                "aggregateElement" to aggregateElementContext(
+                    aggregate = "VideoPost",
+                    name = "VideoPost",
+                    type = "entity",
+                    root = true,
+                    packageName = "video_post",
+                    description = "video post",
+                ),
+                "entityJpa" to mapOf("entityEnabled" to false),
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasVersionFields" to false,
+                "hasConverterFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+        val factoryContent = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to false,
+                "payloadFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+                "imports" to emptyList<String>(),
+                "aggregateElement" to aggregateElementContext(
+                    aggregate = "VideoPost",
+                    name = "VideoPostFactory",
+                    type = "factory",
+                ),
+            ),
+        )
+
+        assertTrue(entityContent.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
+        assertTrue(entityContent.contains("@AggregateElement("))
+        assertTrue(entityContent.contains("""aggregate = "VideoPost""""))
+        assertTrue(entityContent.contains("""packageName = "video_post""""))
+        assertTrue(entityContent.contains("""type = "entity""""))
+        assertTrue(entityContent.contains("root = true"))
+        assertTrue(factoryContent.contains("@AggregateElement("))
+        assertTrue(factoryContent.contains("""type = "factory""""))
+        assertFalse(factoryContent.contains("""name = "VideoPostPayload""""))
+        assertFalse(factoryContent.contains("factory-payload"))
+        assertFalse(entityContent.contains(legacyAggregateCall))
+        assertFalse(factoryContent.contains(legacyAggregateCall))
+    }
+
+    @Test
+    fun `aggregate factory template renders strong id constructor mapping`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/factory/ContentFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content.factory",
+                "typeName" to "ContentFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "ContentPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to true,
+                "payloadFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false),
+                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false),
+                ),
+                "constructorPayloadFields" to listOf(
+                    mapOf("name" to "title"),
+                    mapOf("name" to "authorId"),
+                ),
+                "ownIdFieldName" to "id",
+                "ownIdInitializer" to "ContentId.new()",
+                "ownIdTypeRef" to "com.acme.demo.domain.aggregates.content.ContentId",
+                "entityName" to "Content",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
+                "aggregateName" to "Content",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("override fun create(entityPayload: Payload): Content ="))
+        assertTrue(content.contains("Content("))
+        assertTrue(
+            content.normalizedLineEndings().contains(
+                "override fun create(entityPayload: Payload): Content =\n        Content("
+            )
+        )
+        assertTrue(content.contains("id = ContentId.new()"))
+        assertTrue(content.contains("title = entityPayload.title"))
+        assertTrue(content.contains("authorId = entityPayload.authorId"))
+        assertTrue(content.contains("data class Payload("))
+        assertTrue(content.contains("val title: String,"))
+        assertTrue(content.contains("val authorId: AuthorId"))
+        assertTrue(content.contains(") : AggregatePayload<Content>"))
+        assertFalse(Regex("""data class Payload\(\n\n""").containsMatchIn(content))
+        assertFalse(Regex("""val title: String,\n\n\s*val authorId""").containsMatchIn(content))
+        assertFalse(content.normalizedLineEndings().contains("    )\n\n\n    data class Payload("))
+        assertFalse(content.normalizedLineEndings().contains("=\nContent("))
+        assertFalse(content.contains("AuthorId.new()"))
+        assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
+        assertFalse(content.contains("val id: ContentId"))
+    }
+
+    @Test
+    fun `aggregate factory template renders normalized payload types with stable indentation`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "payloadFields" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "nullable" to false,
+                    ),
+                    mapOf(
+                        "name" to "snapshot",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot",
+                        "renderedType" to "VideoPostSnapshot",
+                        "nullable" to true,
+                    ),
+                    mapOf(
+                        "name" to "updatedAt",
+                        "type" to "java.time.LocalDateTime",
+                        "renderedType" to "LocalDateTime",
+                        "nullable" to false,
+                    ),
+                ),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                    "com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot",
+                    "java.time.LocalDateTime",
+                ),
+            ),
+        )
+
+        val normalized = content.normalizedLineEndings()
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot"))
+        assertTrue(content.contains("import java.time.LocalDateTime"))
+        assertTrue(
+            normalized.contains(
+                """
+                |    data class Payload(
+                |        val status: VideoPostStatus,
+                |        val snapshot: VideoPostSnapshot?,
+                |        val updatedAt: LocalDateTime
+                |    ) : AggregatePayload<VideoPost>
+                """.trimMargin()
+            )
+        )
+        assertFalse(content.contains("val status: com.acme.demo"))
+        assertFalse(content.contains("\nval status:"))
+    }
+
+    @Test
+    fun `aggregate projection schema and unique templates render normalized field-like types`() {
+        val projectionContent = renderTemplate(
+            templateId = "aggregate_projection/entity.kt.peb",
+            outputPath = "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/application/projections/video_post/VideoPostProjection.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.adapter.application.projections.video_post",
+                "typeName" to "VideoPostProjection",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "video_post",
+                ),
+                "hasConverterFields" to false,
+                "hasVersionFields" to false,
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "nullable" to false,
+                        "columnName" to "status",
+                        "isId" to false,
+                        "isVersion" to false,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+        val schemaContent = renderTemplate(
+            templateId = "aggregate/schema.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain._share.meta.video_post",
+                "typeName" to "SVideoPost",
+                "entityName" to "VideoPost",
+                "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "isAggregateRoot" to true,
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"),
+                "fields" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "fieldName" to "status",
+                        "fieldType" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "comment" to "",
+                    ),
+                ),
+            ),
+        )
+        val uniqueQueryContent = renderTemplate(
+            templateId = "aggregate/unique_query.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostStatusQry.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.queries.video_post.unique",
+                "typeName" to "UniqueVideoPostStatusQry",
+                "entityName" to "VideoPost",
+                "requestProps" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "nullable" to false,
+                    ),
+                ),
+                "idType" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                "excludeIdType" to mapOf(
+                    "type" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "renderedType" to "VideoPostId",
+                ),
+                "excludeIdParamName" to "excludeVideoPostId",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                ),
+            ),
+        )
+        val uniqueValidatorContent = renderTemplate(
+            templateId = "aggregate/unique_validator.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostStatus.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.validators.video_post.unique",
+                "typeName" to "UniqueVideoPostStatus",
+                "queryTypeName" to "UniqueVideoPostStatusQry",
+                "queryTypeFqn" to "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostStatusQry",
+                "requestProps" to listOf(
+                    mapOf(
+                        "name" to "status",
+                        "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                        "renderedType" to "VideoPostStatus",
+                        "isString" to false,
+                        "param" to "statusField",
+                        "varName" to "statusProperty",
+                    ),
+                ),
+                "fieldParams" to listOf(mapOf("param" to "statusField", "default" to "status")),
+                "idType" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                "excludeIdType" to mapOf(
+                    "type" to "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "renderedType" to "VideoPostId",
+                ),
+                "excludeIdParamName" to "excludeVideoPostId",
+                "entityIdParam" to "videoPostIdField",
+                "entityIdDefault" to "videoPostId",
+                "entityIdVar" to "videoPostIdProperty",
+                "entityName" to "VideoPost",
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPostId",
+                    "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
+                ),
+            ),
+        )
+
+        assertReadableKotlin(projectionContent)
+        assertReadableKotlin(schemaContent)
+        assertReadableKotlin(uniqueQueryContent)
+        assertReadableKotlin(uniqueValidatorContent)
+        assertTrue(projectionContent.contains("status: VideoPostStatus"))
+        assertTrue(projectionContent.contains("var status: VideoPostStatus = status"))
+        assertTrue(schemaContent.contains("val status: Field<VideoPostStatus>"))
+        assertTrue(uniqueQueryContent.contains("val status: VideoPostStatus,"))
+        assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: VideoPostId?"))
+        assertTrue(uniqueValidatorContent.contains("as? VideoPostStatus"))
+        assertTrue(uniqueValidatorContent.contains("as? VideoPostId"))
+        assertFalse(projectionContent.contains("status: com.acme.demo"))
+        assertFalse(schemaContent.contains("Field<com.acme.demo"))
+        assertFalse(uniqueQueryContent.contains(": com.acme.demo"))
+        assertFalse(uniqueValidatorContent.contains("as? com.acme.demo"))
+    }
+
+    @Test
+    fun `design command template renders strong id request field imports`() {
+        val content = renderTemplate(
+            templateId = "design/command.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/content/CreateContentCmd.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.commands.content",
+                "typeName" to "CreateContentCmd",
+                "description" to "create content",
+                "descriptionText" to "create content",
+                "descriptionCommentText" to "create content",
+                "descriptionKotlinStringLiteral" to "\"create content\"",
+                "aggregateName" to null,
+                "imports" to listOf("com.acme.demo.domain.shared.ids.AuthorId"),
+                "fields" to listOf(
+                    mapOf("name" to "authorId", "renderedType" to "AuthorId", "nullable" to false),
+                ),
+                "resultFields" to emptyList<Map<String, Any?>>(),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+                "resultNestedTypes" to emptyList<Map<String, Any?>>(),
+                "pageRequest" to false,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("val authorId: AuthorId"))
     }
 
     @Test
@@ -113,7 +677,7 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("class Payload : AggregatePayload<VideoPost>"))
         assertFalse(content.contains("data class Payload("))
         assertFalse(content.contains("val name: String"))
@@ -137,8 +701,55 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("""name = "VideoPostPayload""""))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("val name: String"))
+    }
+
+    @Test
+    fun `aggregate strong id template renders embeddable validated wrapper`() {
+        val content = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "ContentId",
+                "kind" to "AGGREGATE_ROOT",
+                "canGenerateNew" to true,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+        assertTrue(content.contains("@Embeddable"))
+        assertTrue(content.contains("class ContentId protected constructor() : StrongId, Serializable"))
+        assertTrue(content.contains("""@Column(name = "value", nullable = false, updatable = false, length = 36)"""))
+        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
+        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
+        assertTrue(content.contains("fun parse(value: String): ContentId = ContentId(value)"))
+        assertTrue(content.contains("fun new(): ContentId = ContentId(StrongIds.newUuidV7String())"))
+    }
+
+    @Test
+    fun `reference strong id template renders parse without new factory`() {
+        val content = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.ids",
+                "typeName" to "AuthorId",
+                "kind" to "REFERENCE",
+                "canGenerateNew" to false,
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+        assertTrue(content.contains("@Embeddable"))
+        assertTrue(content.contains("class AuthorId protected constructor() : StrongId, Serializable"))
+        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
+        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "AuthorId")"""))
+        assertTrue(content.contains("fun parse(value: String): AuthorId = AuthorId(value)"))
+        assertFalse(content.contains("fun new(): AuthorId"))
     }
 
     @Test
@@ -265,6 +876,42 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity template omits aggregate element when metadata context is missing`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/category/Category.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.category",
+                "typeName" to "Category",
+                "comment" to "category",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "category",
+                ),
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "fields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertTrue(content.contains("@Entity"))
+        assertFalse(content.contains("@AggregateElement("))
+        assertFalse(content.contains(legacyAggregateCall))
+    }
+
+    @Test
     fun `aggregate projection template renders scalar jpa projection without relation graph`() {
         val content = renderTemplate(
             templateId = "aggregate_projection/entity.kt.peb",
@@ -287,6 +934,7 @@ class PebbleArtifactRendererTest {
                         "columnName" to "id",
                         "isId" to true,
                         "isVersion" to false,
+                        "converterTypeRef" to null,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -296,6 +944,7 @@ class PebbleArtifactRendererTest {
                         "columnName" to "name",
                         "isId" to false,
                         "isVersion" to false,
+                        "converterTypeRef" to null,
                         "converterClassRef" to "com.acme.demo.NameConverter",
                     ),
                     mapOf(
@@ -305,6 +954,7 @@ class PebbleArtifactRendererTest {
                         "columnName" to "version",
                         "isId" to false,
                         "isVersion" to true,
+                        "converterTypeRef" to null,
                         "converterClassRef" to null,
                     ),
                 ),
@@ -325,7 +975,17 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Id"))
         assertTrue(content.contains("@Version"))
         assertTrue(content.contains("""@Column(name = "name")"""))
-        assertTrue(content.contains("@Convert(converter = com.acme.demo.NameConverter::class)"))
+        assertTrue(content.contains("import com.acme.demo.NameConverter"))
+        assertTrue(content.contains("@Convert(converter = NameConverter::class)"))
+        assertTrue(
+            content.contains(
+                """@Column(name = "name")
+    @Convert(converter = NameConverter::class)
+    var name: String = name"""
+            ),
+            "Projection converter annotation should stay adjacent to the column and property declaration."
+        )
+        assertFalse(content.contains("@Convert(converter = com.acme.demo.NameConverter::class)"))
         assertTrue(content.contains("var name: String = name"))
         assertFalse(content.contains("ManyToOne"))
         assertFalse(content.contains("OneToMany"))
@@ -399,6 +1059,7 @@ class PebbleArtifactRendererTest {
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
                 "hasApplicationSideIdFields" to true,
+                "hasEmbeddedIdFields" to false,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
                 "dynamicUpdate" to false,
@@ -411,7 +1072,7 @@ class PebbleArtifactRendererTest {
                         "name" to "id",
                         "type" to "java.util.UUID",
                         "nullable" to false,
-                        "defaultValue" to "java.util.UUID(0L, 0L)",
+                        "defaultValue" to null,
                         "columnName" to "id",
                         "isId" to true,
                         "applicationSideIdStrategy" to "uuid7",
@@ -426,8 +1087,237 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
+        assertFalse(content.contains("ApplicationSideId"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
+    }
+
+    @Test
+    fun `aggregate entity template renders aggregate root strong id as embedded id`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "Content",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "content",
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to true,
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to true,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                    "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
+                ),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "ContentId",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to true,
+                        "embeddedId" to true,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "CREATE_ONLY",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to false,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "title",
+                        "type" to "String",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "title",
+                        "isId" to false,
+                        "strongId" to false,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "authorId",
+                        "type" to "AuthorId",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "author_id",
+                        "isId" to false,
+                        "strongId" to true,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to true,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "mediaProcessingTaskId",
+                        "type" to "MediaProcessingTaskId",
+                        "nullable" to true,
+                        "defaultValue" to null,
+                        "columnName" to "media_processing_task_id",
+                        "isId" to false,
+                        "strongId" to true,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to true,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to true,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import jakarta.persistence.AttributeOverride"))
+        assertTrue(content.contains("import jakarta.persistence.Embedded"))
+        assertTrue(content.contains("import jakarta.persistence.EmbeddedId"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
+        assertTrue(content.contains("id: ContentId"))
+        assertTrue(
+            content.contains(
+                """@EmbeddedId
+    @AttributeOverride(name = "value", column = Column(name = "id", nullable = false, updatable = false, length = 36))
+    var id: ContentId = id"""
+            )
+        )
+        assertTrue(
+            content.contains(
+                """@Embedded
+    @AttributeOverride(name = "value", column = Column(name = "author_id", nullable = false, updatable = true, length = 36))
+    var authorId: AuthorId = authorId"""
+            )
+        )
+        assertTrue(
+            content.contains(
+                """@Embedded
+    @AttributeOverride(name = "value", column = Column(name = "media_processing_task_id", nullable = true, updatable = true, length = 36))
+    var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"""
+            )
+        )
+        assertFalse(content.contains("@Id"))
+        assertFalse(content.contains("ApplicationSideId"))
+        assertFalse(content.contains("UUID(" + "0L, 0L)"))
+        assertFalse(content.contains("@Column(name = \"id\")"))
+        assertFalse(content.contains("@Column(name = \"author_id\")"))
+        assertFalse(content.contains("@Column(name = \"media_processing_task_id\")"))
+    }
+
+    @Test
+    fun `aggregate entity template renders imported scalar types with short names`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "Content",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "content",
+                ),
+                "hasConverterFields" to true,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf("com.acme.demo.domain.aggregates.content.enums.ReviewStatus"),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "Long",
+                        "renderedType" to "Long",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to false,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "CREATE_ONLY",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterTypeRef" to null,
+                        "converterClassRef" to null,
+                    ),
+                    mapOf(
+                        "name" to "reviewStatus",
+                        "type" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus",
+                        "renderedType" to "ReviewStatus",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "review_status",
+                        "isId" to false,
+                        "strongId" to false,
+                        "embeddedId" to false,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "converterTypeRef" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus",
+                        "converterClassRef" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter",
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
+        assertTrue(content.contains("reviewStatus: ReviewStatus"))
+        assertTrue(content.contains("var reviewStatus: ReviewStatus = reviewStatus"))
+        assertTrue(content.contains("@Convert(converter = ReviewStatus.Converter::class)"))
+        assertTrue(
+            content.contains(
+                """@Column(name = "review_status")
+    @Convert(converter = ReviewStatus.Converter::class)
+    var reviewStatus: ReviewStatus = reviewStatus"""
+            )
+        )
+        assertFalse(content.contains("@Convert(converter = com.acme.demo.domain.aggregates.content.enums.ReviewStatus.Converter::class)"))
+        assertFalse(content.contains("reviewStatus: com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
+        assertFalse(content.contains("var reviewStatus: com.acme.demo.domain.aggregates.content.enums.ReviewStatus"))
     }
 
     @Test
@@ -468,7 +1358,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query",
+                    generatorId = "query",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Demo.kt",
@@ -499,6 +1389,36 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate repository template imports and uses strong id type`() {
+        val content = renderTemplate(
+            templateId = "aggregate/repository.kt.peb",
+            outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/domain/repositories/ContentRepository.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.adapter.domain.repositories",
+                "typeName" to "ContentRepository",
+                "entityName" to "Content",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
+                "aggregateName" to "Content",
+                "idType" to "ContentId",
+                "idTypeFqn" to "com.acme.demo.domain.aggregates.content.ContentId",
+                "supportQuerydsl" to false,
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.Content"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(
+            content.contains(
+                "interface ContentRepository : JpaRepository<Content, ContentId>, JpaSpecificationExecutor<Content>"
+            )
+        )
+        assertTrue(content.contains("jpaRepository: JpaRepository<Content, ContentId>"))
+        assertTrue(content.contains("AbstractJpaRepository<Content, ContentId>"))
+    }
+
+    @Test
     fun `renderer keeps non kotlin artifacts free from kotlin specific whitespace cleanup`() {
         val overrideDir = Files.createTempDirectory("cap4k-renderer-non-kotlin-hygiene")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
@@ -514,7 +1434,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query",
+                    generatorId = "query",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/resources/demo.json",
@@ -765,7 +1685,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -817,7 +1737,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -874,7 +1794,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -934,7 +1854,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -978,7 +1898,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -1025,7 +1945,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -1072,7 +1992,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -1125,7 +2045,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1133,14 +2053,14 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries",
                         "typeName" to "FindOrderQry",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "orderId", "type" to "Long", "nullable" to false),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "status", "type" to "String", "nullable" to false),
                         ),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -1175,7 +2095,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1218,7 +2138,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
@@ -1226,13 +2146,13 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.commands.order.submit",
                         "typeName" to "SubmitOrderCmd",
                         "imports" to listOf("java.time.LocalDateTime", "java.util.UUID"),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "orderId", "renderedType" to "Long", "nullable" to false),
                             mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
                             mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Address",
                                 "fields" to listOf(
@@ -1241,11 +2161,11 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "item", "renderedType" to "Item?", "nullable" to true),
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
@@ -1314,16 +2234,16 @@ class PebbleArtifactRendererTest {
         )
         val commonFields = mapOf(
             "imports" to emptyList<String>(),
-            "requestFields" to commonRequestFields,
-            "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-            "responseFields" to commonResponseFields,
-            "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+            "fields" to commonRequestFields,
+            "nestedTypes" to emptyList<Map<String, Any?>>(),
+            "resultFields" to commonResponseFields,
+            "resultNestedTypes" to emptyList<Map<String, Any?>>(),
         )
 
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query",
+                    generatorId = "query",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/queries/message/read/FindUserMessageQry.kt",
@@ -1334,7 +2254,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/commands/message/create/CreateUserMessageCmd.kt",
@@ -1364,11 +2284,11 @@ class PebbleArtifactRendererTest {
                         "packageName" to "edu.only4.danmaku.adapter.portal.api.payload.message",
                         "typeName" to "CreateUserMessagePayload",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "messageKey", "renderedType" to "String", "nullable" to false),
                             mapOf("name" to "body", "renderedType" to "Body?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Body",
                                 "fields" to listOf(
@@ -1376,10 +2296,10 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "receipt", "renderedType" to "Receipt?", "nullable" to true),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Receipt",
                                 "fields" to listOf(
@@ -1453,7 +2373,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `renders field default values in preset command design template`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-command-defaults")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-command-defaults")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -1464,7 +2384,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
@@ -1472,11 +2392,11 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.commands.order.submit",
                         "typeName" to "SubmitOrderCmd",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "title", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
                             mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Metadata",
                                 "fields" to listOf(
@@ -1484,10 +2404,10 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Result",
                                 "fields" to listOf(
@@ -1523,7 +2443,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `renders field default values in preset query design template`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-defaults")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-defaults")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -1534,7 +2454,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1542,10 +2462,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries",
                         "typeName" to "FindOrderQry",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "status", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ACTIVE\""),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Criteria",
                                 "fields" to listOf(
@@ -1553,10 +2473,10 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "fallback", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "false"),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Result",
                                 "fields" to listOf(
@@ -1591,7 +2511,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `default query preset uses request param contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-contract")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -1602,7 +2522,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -1613,16 +2533,16 @@ class PebbleArtifactRendererTest {
                             "java.time.LocalDateTime",
                             "java.util.UUID",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "lookupId", "renderedType" to "UUID", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                             mapOf("name" to "createdAfter", "renderedType" to "LocalDateTime", "nullable" to false),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                         ),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -1657,7 +2577,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `renders query page request with complete response envelope`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-page-contract")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-page-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -1668,7 +2588,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderPageQry.kt",
@@ -1679,14 +2599,14 @@ class PebbleArtifactRendererTest {
                             "com.only4.cap4k.ddd.core.share.PageData",
                         ),
                         "pageRequest" to true,
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "page", "renderedType" to "PageData<Item>", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
@@ -1757,14 +2677,14 @@ class PebbleArtifactRendererTest {
                         "typeName" to "FindOrderPage",
                         "imports" to listOf("com.only4.cap4k.ddd.core.share.PageData"),
                         "pageRequest" to true,
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to listOf(
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to listOf(
                             mapOf("name" to "page", "renderedType" to "PageData<Item>", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Item",
                                 "fields" to listOf(
@@ -1824,7 +2744,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
@@ -1832,10 +2752,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.queries.order.read",
                         "typeName" to "FindOrderQry",
                         "imports" to emptyList<String>(),
-                        "requestFields" to emptyList<Map<String, Any?>>(),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -1915,6 +2835,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.order",
                         "typeName" to "Order",
                         "comment" to "Order aggregate",
+                        "aggregateName" to "Order",
+                        "aggregateRoot" to true,
                         "idField" to FieldModel("id", "Long"),
                         "jpaImports" to emptyList<String>(),
                         "imports" to emptyList<String>(),
@@ -2105,27 +3027,21 @@ class PebbleArtifactRendererTest {
         assertTrue(repositoryContent.contains("interface OrderRepository : JpaRepository<Order, Long>, JpaSpecificationExecutor<Order>"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
-        assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertFalse(factoryContent.contains(legacyAggregateAnnotationFq))
+        assertFalse(factoryContent.contains(legacyAggregateCall))
         assertTrue(factoryContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(factoryContent.contains("class OrderFactory : AggregateFactory<OrderFactory.Payload, Order>"))
-        assertTrue(factoryContent.contains("""aggregate = "Order""""))
-        assertTrue(factoryContent.contains("""name = "OrderFactory""""))
-        assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY"))
-        assertTrue(factoryContent.contains("""name = "OrderPayload""""))
-        assertTrue(factoryContent.contains("type = Aggregate.TYPE_FACTORY_PAYLOAD"))
         assertTrue(factoryContent.contains("""TODO("Implement aggregate construction")"""))
         assertTrue(factoryContent.contains("data class Payload("))
         assertTrue(factoryContent.contains("val name: String"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification"))
         assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.Specification.Result"))
-        assertTrue(specificationContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.annotation.Aggregate"))
+        assertFalse(specificationContent.contains(legacyAggregateAnnotationFq))
+        assertFalse(specificationContent.contains(legacyAggregateCall))
         assertTrue(specificationContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(specificationContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(specificationContent.contains("class OrderSpecification : Specification<Order>"))
-        assertTrue(specificationContent.contains("""aggregate = "Order""""))
-        assertTrue(specificationContent.contains("""name = "OrderSpecification""""))
-        assertTrue(specificationContent.contains("type = Aggregate.TYPE_SPECIFICATION"))
         assertTrue(specificationContent.contains("return Result.pass()"))
         assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<Order>"))
         assertTrue(schemaContent.contains("fun predicate(builder: PredicateBuilder<SOrder>): JpaPredicate<Order>"))
@@ -2192,6 +3108,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2332,6 +3250,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post_item",
                         "typeName" to "VideoPostItem",
                         "comment" to "video post item",
+                        "aggregateName" to "VideoPostItem",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post_item",
@@ -2438,6 +3358,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2538,6 +3460,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2624,6 +3548,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2717,6 +3643,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2810,6 +3738,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "tableName" to "video_post",
                         "jpaImports" to emptyList<String>(),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
@@ -2874,6 +3804,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -2928,7 +3860,9 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@Column(name = \"id\")"))
         assertTrue(content.contains("@Column(name = \"status\")"))
         assertTrue(content.contains("import jakarta.persistence.Convert"))
-        assertTrue(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
+        assertTrue(content.contains("import com.acme.demo.domain.shared.enums.Status"))
+        assertTrue(content.contains("@Convert(converter = Status.Converter::class)"))
+        assertFalse(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
         assertTrue(content.contains("class VideoPost("))
         assertFalse(content.contains("data class VideoPost("))
         assertFalse(content.contains("@GeneratedValue"))
@@ -2961,6 +3895,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3046,7 +3982,9 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\n\n\n"), content)
         assertFalse(Regex("(?m)^\\s+$").containsMatchIn(content), content)
         assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.video_post\n\nimport "))
-        assertTrue(content.contains("\n\n@Entity"), content)
+        assertFalse(content.contains(legacyAggregateCall), content)
+        assertFalse(content.contains(legacyAggregateAnnotationFq), content)
+        assertTrue(content.contains("\n@Entity"), content)
         assertTrue(content.contains("import jakarta.persistence.GeneratedValue"))
         assertTrue(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
@@ -3063,7 +4001,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template renders application side id annotation and sentinel default`() {
+    fun `aggregate entity template omits application side id annotation and sentinel default`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-application-side-id")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -3083,6 +4021,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3090,6 +4030,7 @@ class PebbleArtifactRendererTest {
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
                         "hasApplicationSideIdFields" to true,
+                        "hasEmbeddedIdFields" to false,
                         "hasVersionFields" to false,
                         "scalarFields" to listOf(
                             mapOf(
@@ -3097,7 +4038,7 @@ class PebbleArtifactRendererTest {
                                 "fieldType" to "UUID",
                                 "name" to "id",
                                 "type" to "UUID",
-                                "defaultValue" to "UUID(0L, 0L)",
+                                "defaultValue" to null,
                                 "columnName" to "id",
                                 "isId" to true,
                                 "applicationSideIdStrategy" to "uuid7",
@@ -3140,16 +4081,15 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
 
         assertTrue(content.contains("import java.util.UUID"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
+        assertFalse(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
         assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
         assertFalse(content.contains("import jakarta.persistence.GenerationType"))
         assertFalse(content.contains("@GeneratedValue(" + "generator ="))
         assertFalse(content.contains("@Generic" + "Generator("))
         assertFalse(content.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
-        assertTrue(content.contains("@field:ApplicationSideId(strategy = \"uuid7\")"))
-        assertFalse(content.contains("@ApplicationSideId(strategy = \"uuid7\")"))
-        assertTrue(content.contains("id: UUID = UUID(0L, 0L)"))
+        assertFalse(content.contains("UUID(" + "0L, 0L)"))
+        assertTrue(content.contains("id: UUID"))
         assertTrue(content.contains("@Id"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
     }
@@ -3175,6 +4115,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3239,7 +4181,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template renders provider specific persistence controls`() {
+    fun `aggregate entity template ignores soft delete sql context`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-provider-persistence")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -3259,6 +4201,8 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.aggregates.video_post",
                         "typeName" to "VideoPost",
                         "comment" to "video post",
+                        "aggregateName" to "VideoPost",
+                        "aggregateRoot" to true,
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
@@ -3266,8 +4210,6 @@ class PebbleArtifactRendererTest {
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
                         "hasVersionFields" to false,
-                        "dynamicInsert" to true,
-                        "dynamicUpdate" to true,
                         "softDeleteSql" to "update \"video_post\" set \"deleted\" = 1 where \"id\" = ? and \"version\" = ?",
                         "softDeleteWhereClause" to "\"deleted\" = 0",
                         "scalarFields" to emptyList<Map<String, Any?>>(),
@@ -3295,14 +4237,14 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
-        assertTrue(content.contains("import org.hibernate.annotations.DynamicInsert"))
-        assertTrue(content.contains("import org.hibernate.annotations.DynamicUpdate"))
-        assertTrue(content.contains("import org.hibernate.annotations.SQLDelete"))
-        assertTrue(content.contains("import org.hibernate.annotations.Where"))
-        assertTrue(content.contains("@DynamicInsert"))
-        assertTrue(content.contains("@DynamicUpdate"))
-        assertTrue(content.contains("@SQLDelete(sql = \"update \\\"video_post\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ? and \\\"version\\\" = ?\")"))
-        assertTrue(content.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertFalse(content.contains("import org.hibernate.annotations.DynamicInsert"))
+        assertFalse(content.contains("import org.hibernate.annotations.DynamicUpdate"))
+        assertFalse(content.contains("import org.hibernate.annotations.SQLDelete"))
+        assertFalse(content.contains("import org.hibernate.annotations.Where"))
+        assertFalse(content.contains("@DynamicInsert"))
+        assertFalse(content.contains("@DynamicUpdate"))
+        assertFalse(content.contains("@SQLDelete"))
+        assertFalse(content.contains("@Where"))
     }
 
     @Test
@@ -3416,7 +4358,6 @@ class PebbleArtifactRendererTest {
                 sources = emptyMap(),
                 generators = mapOf(
                     "flow" to GeneratorConfig(
-                        enabled = true,
                         options = mapOf("outputDir" to "flows"),
                     ),
                 ),
@@ -3466,9 +4407,8 @@ class PebbleArtifactRendererTest {
                                 name = "Submit\"Order",
                                 description = "line1\nline2",
                                 aggregates = listOf("Order", "Ops\\Audit"),
-                                entity = "OrderEntity",
                                 persist = true,
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "remark",
                                         type = "String",
@@ -3476,7 +4416,7 @@ class PebbleArtifactRendererTest {
                                         defaultValue = "say \"hi\""
                                     )
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "status",
                                         type = "String",
@@ -3508,11 +4448,11 @@ class PebbleArtifactRendererTest {
         assertEquals("cmd", element["tag"].asString)
         assertEquals("orders.api", element["package"].asString)
         assertEquals("Submit\"Order", element["name"].asString)
-        assertEquals("line1\nline2", element["desc"].asString)
+        assertEquals("line1\nline2", element["description"].asString)
         assertEquals("Ops\\Audit", element["aggregates"].asJsonArray[1].asString)
         assertEquals(true, element["persist"].asBoolean)
-        assertEquals("say \"hi\"", element["requestFields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
-        assertEquals("status", element["responseFields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals("say \"hi\"", element["fields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
+        assertEquals("status", element["resultFields"].asJsonArray[0].asJsonObject["name"].asString)
     }
 
     @Test
@@ -3548,7 +4488,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = outputPath,
@@ -3601,9 +4541,8 @@ class PebbleArtifactRendererTest {
                                 name = "SubmitOrder",
                                 description = "submit order",
                                 aggregates = listOf("Order"),
-                                entity = "Order",
                                 persist = true,
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "id",
                                         type = "Long",
@@ -3611,7 +4550,7 @@ class PebbleArtifactRendererTest {
                                         defaultValue = null
                                     )
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "accepted",
                                         type = "Boolean",
@@ -3626,8 +4565,8 @@ class PebbleArtifactRendererTest {
                                 name = "FindOrder",
                                 description = "find order",
                                 aggregates = emptyList(),
-                                requestFields = emptyList(),
-                                responseFields = emptyList()
+                                fields = emptyList(),
+                                resultFields = emptyList()
                             )
                         )
                     ),
@@ -3657,24 +4596,41 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("\"tag\": \"cmd\""))
         assertTrue(content.contains("\"package\": \"orders\""))
         assertTrue(content.contains("\"name\": \"SubmitOrder\""))
-        assertTrue(content.contains("\"desc\": \"submit order\""))
+        assertTrue(content.contains("\"description\": \"submit order\""))
         assertTrue(content.contains("\"aggregates\": [\"Order\"]"))
-        assertTrue(content.contains("\"entity\": \"Order\""))
         assertTrue(content.contains("\"persist\": true"))
-        assertTrue(content.contains("\"requestFields\": ["))
+        assertTrue(content.contains("\"fields\": ["))
         assertTrue(content.contains("\"name\": \"id\""))
         assertTrue(content.contains("\"nullable\": false"))
-        assertTrue(content.contains("\"responseFields\": ["))
+        assertTrue(content.contains("\"resultFields\": ["))
         assertTrue(content.contains("\"name\": \"accepted\""))
         assertTrue(content.contains("\"nullable\": true"))
         assertTrue(content.contains("\"defaultValue\": \"false\""))
+        assertTrue(
+            content.contains(
+                """
+                |    "fields": [
+                |      { "name": "id", "type": "Long", "nullable": false }
+                |    ],
+                """.trimMargin()
+            )
+        )
+        assertTrue(
+            content.contains(
+                """
+                |    "resultFields": [
+                |      { "name": "accepted", "type": "Boolean", "nullable": true, "defaultValue": "false" }
+                |    ]
+                """.trimMargin()
+            )
+        )
         assertTrue(!content.contains("\"entity\": null"))
         assertTrue(!content.contains("\"persist\": null"))
         assertTrue(!content.contains("\"defaultValue\": null"))
     }
 
     @Test
-    fun `renders drawing board json without html escaping and preserves defaultValue expressions`() {
+    fun `renders drawing board json with formal block keys and default artifact omission`() {
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -3688,29 +4644,152 @@ class PebbleArtifactRendererTest {
                     generatorId = "drawing-board",
                     moduleRole = "project",
                     templateId = "drawing-board/document.json.peb",
-                    outputPath = "design/validator.json",
+                    outputPath = "design/drawing_board_query.json",
                     context = mapOf(
                         "elements" to listOf(
                             DrawingBoardElementModel(
-                                tag = "validator",
-                                packageName = "demo.application.shared",
-                                name = "SharedDefaultsValidator",
-                                description = "Map<String, String> <raw> & stable",
-                                message = "use <raw> & keep",
-                                targets = listOf("CLASS"),
-                                valueType = "Map<String, String>",
-                                parameters = listOf(
-                                    ValidatorParameterModel(
-                                        name = "metadata",
-                                        type = "Map<String, String>",
-                                        defaultValue = "emptyMap()",
-                                    ),
-                                    ValidatorParameterModel(
-                                        name = "title",
-                                        type = "String",
-                                        defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-                                    )
+                                tag = "query",
+                                packageName = "orders.queries",
+                                name = "ReadOrder",
+                                description = "read order",
+                                fields = listOf(
+                                    DrawingBoardFieldModel(name = "orderId", type = "Long"),
                                 ),
+                                resultFields = listOf(
+                                    DrawingBoardFieldModel(name = "status", type = "String"),
+                                ),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "query",
+                                packageName = "orders.queries",
+                                name = "PageOrders",
+                                description = "page orders",
+                                artifacts = listOf(
+                                    ArtifactSelectionModel(family = "query", variant = "page"),
+                                ),
+                                fields = emptyList(),
+                                resultFields = emptyList(),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "integration_event",
+                                packageName = "orders.events",
+                                name = "OrderCreated",
+                                description = "order created",
+                                fields = listOf(
+                                    DrawingBoardFieldModel(name = "orderId", type = "Long"),
+                                ),
+                                resultFields = emptyList(),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "integration_event",
+                                packageName = "orders.events",
+                                name = "OrderSynced",
+                                description = "order synced",
+                                artifacts = listOf(
+                                    ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
+                                    ArtifactSelectionModel(family = "integration-subscriber"),
+                                ),
+                                fields = listOf(
+                                    DrawingBoardFieldModel(name = "orderId", type = "Long"),
+                                ),
+                                resultFields = emptyList(),
+                            ),
+                            DrawingBoardElementModel(
+                                tag = "query",
+                                packageName = "orders.queries",
+                                name = "QueryWithoutArtifacts",
+                                description = "query without generated artifacts",
+                                artifacts = emptyList(),
+                                artifactsDeclared = true,
+                                fields = emptyList(),
+                                resultFields = emptyList(),
+                            ),
+                        )
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = emptyList(),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        val elements = JsonParser.parseString(content).asJsonArray
+
+        assertEquals("query", elements[0].asJsonObject["tag"].asString)
+        assertEquals("orders.queries", elements[0].asJsonObject["package"].asString)
+        assertEquals("ReadOrder", elements[0].asJsonObject["name"].asString)
+        assertEquals("read order", elements[0].asJsonObject["description"].asString)
+        assertTrue(elements[0].asJsonObject["fields"].asJsonArray.size() == 1)
+        assertTrue(elements[0].asJsonObject["resultFields"].asJsonArray.size() == 1)
+        assertFalse(elements[0].asJsonObject.has("desc"))
+        assertFalse(elements[0].asJsonObject.has("requestFields"))
+        assertFalse(elements[0].asJsonObject.has("responseFields"))
+        assertFalse(elements[0].asJsonObject.has("traits"))
+        assertFalse(elements[0].asJsonObject.has("role"))
+        assertFalse(elements[0].asJsonObject.has("eventName"))
+        assertFalse(elements[0].asJsonObject.has("entity"))
+        assertFalse(elements[0].asJsonObject.has("message"))
+        assertFalse(elements[0].asJsonObject.has("targets"))
+        assertFalse(elements[0].asJsonObject.has("valueType"))
+        assertFalse(elements[0].asJsonObject.has("artifacts"))
+
+        val pageQuery = elements[1].asJsonObject
+        assertEquals("PageOrders", pageQuery["name"].asString)
+        assertTrue(pageQuery.has("artifacts"))
+        assertEquals("query", pageQuery["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
+        assertEquals("page", pageQuery["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
+
+        val inboundIntegration = elements[2].asJsonObject
+        assertFalse(inboundIntegration.has("artifacts"))
+
+        val explicitIntegration = elements[3].asJsonObject
+        assertEquals(2, explicitIntegration["artifacts"].asJsonArray.size())
+        assertEquals("integration-event", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
+        assertEquals("inbound", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
+        assertEquals("integration-subscriber", explicitIntegration["artifacts"].asJsonArray[1].asJsonObject["family"].asString)
+        assertFalse(explicitIntegration["artifacts"].asJsonArray[1].asJsonObject.has("variant"))
+
+        val explicitEmptyArtifacts = elements[4].asJsonObject
+        assertEquals("QueryWithoutArtifacts", explicitEmptyArtifacts["name"].asString)
+        assertTrue(explicitEmptyArtifacts.has("artifacts"))
+        assertEquals(0, explicitEmptyArtifacts["artifacts"].asJsonArray.size())
+    }
+
+    @Test
+    fun `renders drawing board json without html escaping`() {
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = emptyList()
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "drawing-board",
+                    moduleRole = "project",
+                    templateId = "drawing-board/document.json.peb",
+                    outputPath = "design/command.json",
+                    context = mapOf(
+                        "elements" to listOf(
+                            DrawingBoardElementModel(
+                                tag = "command",
+                                packageName = "demo.application.workflow",
+                                name = "SubmitDefaults",
+                                description = "Map<String, String> <raw> & stable",
+                                aggregates = listOf("Content"),
                             )
                         )
                     ),
@@ -3737,17 +4816,8 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\\u0026"))
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
-        assertEquals("Map<String, String> <raw> & stable", element["desc"].asString)
-        assertEquals("use <raw> & keep", element["message"].asString)
-        assertEquals("Map<String, String>", element["valueType"].asString)
-        assertEquals(
-            "emptyMap()",
-            element["parameters"].asJsonArray[0].asJsonObject["defaultValue"].asString,
-        )
-        assertEquals(
-            "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            element["parameters"].asJsonArray[1].asJsonObject["defaultValue"].asString,
-        )
+        assertEquals("Map<String, String> <raw> & stable", element["description"].asString)
+        assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
     }
 
     @Test
@@ -3773,7 +4843,7 @@ class PebbleArtifactRendererTest {
                                 packageName = "demo.application.shared",
                                 name = "IssueCaptcha",
                                 description = "issue captcha",
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "channels",
                                         type = "Set<String>",
@@ -3787,7 +4857,7 @@ class PebbleArtifactRendererTest {
                                         defaultValue = "null",
                                     ),
                                 ),
-                                responseFields = listOf(
+                                resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "channel",
                                         type = "SharedCaptchaChannel",
@@ -3822,18 +4892,18 @@ class PebbleArtifactRendererTest {
         )
 
         val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
-        val requestFields = element["requestFields"].asJsonArray
-        val responseFields = element["responseFields"].asJsonArray
+        val fields = element["fields"].asJsonArray
+        val resultFields = element["resultFields"].asJsonArray
 
-        assertEquals("emptySet()", requestFields[0].asJsonObject["defaultValue"].asString)
-        assertEquals("null", requestFields[1].asJsonObject["defaultValue"].asString)
+        assertEquals("emptySet()", fields[0].asJsonObject["defaultValue"].asString)
+        assertEquals("null", fields[1].asJsonObject["defaultValue"].asString)
         assertEquals(
             "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
-            responseFields[0].asJsonObject["defaultValue"].asString,
+            resultFields[0].asJsonObject["defaultValue"].asString,
         )
         assertEquals(
             "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            responseFields[1].asJsonObject["defaultValue"].asString,
+            resultFields[1].asJsonObject["defaultValue"].asString,
         )
     }
 
@@ -3861,13 +4931,12 @@ class PebbleArtifactRendererTest {
                                 name = "OrderCreated",
                                 description = "order created",
                                 aggregates = listOf("Order"),
-                                entity = "Order",
                                 persist = false,
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "entity", type = "Order"),
                                     DrawingBoardFieldModel(name = "reason", type = "String"),
                                 ),
-                                responseFields = emptyList(),
+                                resultFields = emptyList(),
                             )
                         )
                     ),
@@ -3890,8 +4959,8 @@ class PebbleArtifactRendererTest {
 
         val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
         assertTrue(!element.has("entity"))
-        assertEquals(1, element["requestFields"].asJsonArray.size())
-        assertEquals("reason", element["requestFields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals(1, element["fields"].asJsonArray.size())
+        assertEquals("reason", element["fields"].asJsonArray[0].asJsonObject["name"].asString)
     }
 
     @Test
@@ -3917,11 +4986,11 @@ class PebbleArtifactRendererTest {
                                 packageName = "contentstudio.events",
                                 name = "MediaProcessingSucceeded",
                                 description = "media processing succeeded",
-                                requestFields = listOf(
+                                fields = listOf(
                                     DrawingBoardFieldModel(name = "mediaId", type = "Long"),
                                 ),
-                                responseFields = emptyList(),
-                                role = "inbound",
+                                resultFields = emptyList(),
+                                artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                                 eventName = "cap4k.reference.contentstudio.media-processing.succeeded",
                             )
                         )
@@ -3944,11 +5013,10 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        assertTrue(content.contains("\"role\": \"inbound\""))
         assertTrue(content.contains("\"eventName\": \"cap4k.reference.contentstudio.media-processing.succeeded\""))
 
         val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
-        assertEquals("inbound", element["role"].asString)
+        assertTrue(!element.has("role"))
         assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asString)
     }
 
@@ -3974,7 +5042,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -4023,7 +5091,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -4075,7 +5143,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/first.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/First.kt",
@@ -4083,7 +5151,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/second.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Second.kt",
@@ -4426,7 +5494,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -4475,7 +5543,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/query.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/FindOrderQry.kt",
@@ -4513,7 +5581,7 @@ class PebbleArtifactRendererTest {
                 {% for importValue in imports(imports) %}
                 import {{ importValue }}
                 {% endfor %}
-                {% for field in requestFields %}
+                {% for field in fields %}
                 val {{ field.name }}: {{ type(field) | raw }} = {{ field.defaultValue }}
                 {% endfor %}
                 """.trimIndent()
@@ -4529,7 +5597,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-command",
+                    generatorId = "command",
                     moduleRole = "application",
                     templateId = "design/command.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/commands/SubmitOrderCmd.kt",
@@ -4538,7 +5606,7 @@ class PebbleArtifactRendererTest {
                             "java.time.LocalDateTime",
                             "java.util.UUID",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "retryCount", "renderedType" to "Long", "nullable" to false, "defaultValue" to "1L"),
                             mapOf("name" to "createdAt", "renderedType" to "LocalDateTime", "nullable" to false, "defaultValue" to "java.time.LocalDateTime.MIN"),
                             mapOf("name" to "enabled", "renderedType" to "Boolean", "nullable" to false, "defaultValue" to "true"),
@@ -4592,7 +5660,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4639,7 +5707,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4686,7 +5754,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4733,7 +5801,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4780,7 +5848,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4832,7 +5900,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4887,7 +5955,7 @@ class PebbleArtifactRendererTest {
             ).render(
                 planItems = listOf(
                     ArtifactPlanItem(
-                        generatorId = "design-command",
+                        generatorId = "command",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
                         outputPath = "demo.kt",
@@ -4922,7 +5990,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `default query handler preset renders service stub`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-contract")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-handler-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -4933,7 +6001,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
@@ -4943,7 +6011,7 @@ class PebbleArtifactRendererTest {
                         "description" to "find order query",
                         "queryTypeName" to "FindOrderQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus"),
                             mapOf("name" to "snapshot"),
                         ),
@@ -4989,7 +6057,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `query handler preset renders unified contracts for collection shaped responses`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-unified-contracts")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-handler-unified-contracts")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -5000,7 +6068,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
@@ -5010,14 +6078,14 @@ class PebbleArtifactRendererTest {
                         "description" to "find order list query",
                         "queryTypeName" to "FindOrderListQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderListQry"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus"),
                         ),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
@@ -5027,7 +6095,7 @@ class PebbleArtifactRendererTest {
                         "description" to "find order page query",
                         "queryTypeName" to "FindOrderPageQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderPageQry"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "responseStatus"),
                         ),
                     ),
@@ -5083,7 +6151,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `query handler presets return object response when response fields are empty`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-query-handler-empty-response")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-handler-empty-response")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -5094,7 +6162,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderQryHandler.kt",
@@ -5104,12 +6172,12 @@ class PebbleArtifactRendererTest {
                         "description" to "find order query",
                         "queryTypeName" to "FindOrderQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderQry"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderListQryHandler.kt",
@@ -5119,12 +6187,12 @@ class PebbleArtifactRendererTest {
                         "description" to "find order list query",
                         "queryTypeName" to "FindOrderListQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderListQry"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-query-handler",
+                    generatorId = "query-handler",
                     moduleRole = "adapter",
                     templateId = "design/query_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/order/read/FindOrderPageQryHandler.kt",
@@ -5134,7 +6202,7 @@ class PebbleArtifactRendererTest {
                         "description" to "find order page query",
                         "queryTypeName" to "FindOrderPageQry",
                         "imports" to listOf("com.acme.demo.application.queries.order.read.FindOrderPageQry"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -5190,13 +6258,13 @@ class PebbleArtifactRendererTest {
                             "java.time.LocalDateTime",
                             "java.util.UUID",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "account", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"guest\""),
                             mapOf("name" to "issuedAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "requestStatus", "renderedType" to "com.foo.Status", "nullable" to false),
                             mapOf("name" to "profile", "renderedType" to "Profile?", "nullable" to true),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Profile",
                                 "fields" to listOf(
@@ -5205,13 +6273,13 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "token", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo-token\""),
                             mapOf("name" to "expiresAt", "renderedType" to "LocalDateTime", "nullable" to false),
                             mapOf("name" to "responseStatus", "renderedType" to "com.bar.Status", "nullable" to false),
                             mapOf("name" to "payload", "renderedType" to "Payload?", "nullable" to true),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Payload",
                                 "fields" to listOf(
@@ -5284,7 +6352,7 @@ class PebbleArtifactRendererTest {
                         "typeName" to "IssueTokenCliHandler",
                         "clientTypeName" to "IssueTokenCli",
                         "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "token"),
                             mapOf("name" to "expiresAt"),
                         ),
@@ -5349,12 +6417,12 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.application.distributed.clients.authorize",
                         "typeName" to "IssueTokenCli",
                         "imports" to emptyList<String>(),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "account", "renderedType" to "String", "nullable" to false),
                         ),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -5368,7 +6436,7 @@ class PebbleArtifactRendererTest {
                         "typeName" to "IssueTokenCliHandler",
                         "clientTypeName" to "IssueTokenCli",
                         "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -5424,12 +6492,12 @@ class PebbleArtifactRendererTest {
                             "java.util.UUID  ",
                             "  ",
                         ),
-                        "requestFields" to listOf(
+                        "fields" to listOf(
                             mapOf("name" to "address", "renderedType" to "Address?", "nullable" to true),
                             mapOf("name" to "note", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"demo\""),
                             mapOf("name" to "requestedAt", "renderedType" to "LocalDateTime", "nullable" to false),
                         ),
-                        "requestNestedTypes" to listOf(
+                        "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Address",
                                 "fields" to listOf(
@@ -5438,12 +6506,12 @@ class PebbleArtifactRendererTest {
                                 ),
                             ),
                         ),
-                        "responseFields" to listOf(
+                        "resultFields" to listOf(
                             mapOf("name" to "result", "renderedType" to "Result?", "nullable" to true),
                             mapOf("name" to "code", "renderedType" to "String", "nullable" to false, "defaultValue" to "\"ok\""),
                             mapOf("name" to "responseId", "renderedType" to "UUID", "nullable" to false),
                         ),
-                        "responseNestedTypes" to listOf(
+                        "resultNestedTypes" to listOf(
                             mapOf(
                                 "name" to "Result",
                                 "fields" to listOf(
@@ -5543,10 +6611,10 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.adapter.portal.api.payload.account",
                         "typeName" to "BatchSaveAccountList",
                         "imports" to emptyList<String>(),
-                        "requestFields" to emptyList<Map<String, Any?>>(),
-                        "requestNestedTypes" to emptyList<Map<String, Any?>>(),
-                        "responseFields" to emptyList<Map<String, Any?>>(),
-                        "responseNestedTypes" to emptyList<Map<String, Any?>>(),
+                        "fields" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "resultFields" to emptyList<Map<String, Any?>>(),
+                        "resultNestedTypes" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 )
@@ -5631,10 +6699,11 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@DomainEvent"))
-        assertTrue(content.contains("@Aggregate"))
+        assertFalse(content.contains("@BuildingBlock("))
+        assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("* order * / \"created\" event"))
         assertFalse(content.contains("* order */ \"created\" event"))
-        assertTrue(content.contains("description = \"order */ \\\"created\\\" event\""))
+        assertFalse(content.contains("description = "))
         assertFalse(content.contains("&quot;"))
         assertTrue(content.contains("class OrderCreatedDomainEvent("))
         assertTrue(content.contains("val entity: Order"))
@@ -5656,7 +6725,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `domain event preset resolves domain event handler template and renders event listener contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-domain-event-handler")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-domain-subscriber")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -5667,7 +6736,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event-handler",
+                    generatorId = "domain-subscriber",
                     moduleRole = "application",
                     templateId = "design/domain_event_handler.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
@@ -5717,7 +6786,269 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `integration event preset renders event annotation with literal event name and role subscribers`() {
+    fun `domain event preset renders building block metadata when provided`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-building-block-design-domain-event")
+        val renderer = PebbleArtifactRenderer(
+            templateResolver = PresetTemplateResolver(
+                preset = "ddd-default",
+                overrideDirs = listOf(overrideDir.toString())
+            )
+        )
+
+        val rendered = renderer.render(
+            planItems = listOf(
+                ArtifactPlanItem(
+                    generatorId = "design-domain-event",
+                    moduleRole = "domain",
+                    templateId = "design/domain_event.kt.peb",
+                    outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
+                    context = mapOf(
+                        "packageName" to "com.acme.demo.domain.order.events",
+                        "typeName" to "OrderCreatedDomainEvent",
+                        "buildingBlock" to buildingBlockContext(
+                            tag = "domain_event",
+                            name = "OrderCreatedDomainEvent",
+                            family = "domain-event",
+                            packageName = "or\"der\\pkg ${'$'}status",
+                            description = "order */ \"created\" \\event ${'$'}status",
+                            aggregates = listOf("Or\"der\\${'$'}status"),
+                            eventName = "order.\"created\"\\${'$'}event",
+                        ),
+                        "description" to "order */ \"created\" \\event ${'$'}status",
+                        "descriptionText" to "order */ \"created\" \\event ${'$'}status",
+                        "descriptionCommentText" to "order * / \"created\" \\event ${'$'}status",
+                        "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" \\\\event \\${'$'}status\"",
+                        "aggregateName" to "Order",
+                        "aggregateType" to "com.acme.demo.domain.order.Order",
+                        "persist" to true,
+                        "imports" to listOf("java.util.UUID"),
+                        "fields" to listOf(
+                            mapOf("name" to "reason", "renderedType" to "String", "nullable" to false),
+                        ),
+                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                    ),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            ),
+            config = ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = emptyMap(),
+                generators = emptyMap(),
+                templates = TemplateConfig(
+                    preset = "ddd-default",
+                    overrideDirs = listOf(overrideDir.toString()),
+                    conflictPolicy = ConflictPolicy.SKIP
+                )
+            )
+        )
+
+        val content = rendered.single().content
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("tag = \"domain_event\""))
+        assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
+        assertTrue(content.contains("packageName = ${"or\"der\\pkg ${'$'}status".toTestKotlinStringLiteral()}"))
+        assertTrue(content.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
+        assertTrue(content.contains("aggregates = [${"Or\"der\\${'$'}status".toTestKotlinStringLiteral()}]"))
+        assertTrue(content.contains("eventName = ${"order.\"created\"\\${'$'}event".toTestKotlinStringLiteral()}"))
+        assertTrue(content.contains("family = \"domain-event\""))
+        assertFalse(content.contains("variant = \"\""))
+        assertFalse(content.contains("&quot;"))
+    }
+
+    @Test
+    fun `design authoring templates render building block metadata when provided`() {
+        val payload = renderTemplate(
+            templateId = "design/api_payload.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/api/order/OrderPayload.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.api.order",
+                "typeName" to "OrderPayload",
+                "pageRequest" to true,
+                "fields" to listOf(mapOf("name" to "keyword", "renderedType" to "String?", "nullable" to true)),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+                "resultFields" to listOf(mapOf("name" to "orderNo", "renderedType" to "String", "nullable" to false)),
+                "resultNestedTypes" to emptyList<Map<String, Any?>>(),
+                "imports" to emptyList<String>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "api_payload",
+                    name = "OrderPayload",
+                    packageName = "order",
+                    family = "api-payload",
+                    variant = "page",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(payload, tag = "api_payload", name = "OrderPayload", family = "api-payload", variant = "page")
+
+        val domainSubscriber = renderTemplate(
+            templateId = "design/domain_event_handler.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.subscribers.domain.order",
+                "typeName" to "OrderCreatedDomainEventSubscriber",
+                "domainEventTypeName" to "OrderCreatedDomainEvent",
+                "domainEventType" to "com.acme.demo.domain.order.events.OrderCreatedDomainEvent",
+                "descriptionCommentText" to "order created",
+                "imports" to listOf("com.acme.demo.domain.order.events.OrderCreatedDomainEvent"),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "domain_event",
+                    name = "OrderCreatedDomainEvent",
+                    packageName = "order",
+                    family = "domain-subscriber",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(
+            domainSubscriber,
+            tag = "domain_event",
+            name = "OrderCreatedDomainEvent",
+            family = "domain-subscriber",
+        )
+
+        val integrationEvent = renderTemplate(
+            templateId = "design/integration_event.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/inbound/order/OrderAcceptedIntegrationEvent.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.events.integration.inbound.order",
+                "typeName" to "OrderAcceptedIntegrationEvent",
+                "descriptionCommentText" to "order accepted",
+                "eventName" to "order.accepted",
+                "eventNameKotlinStringLiteral" to "\"order.accepted\"",
+                "inbound" to true,
+                "outbound" to false,
+                "imports" to emptyList<String>(),
+                "fields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "integration_event",
+                    name = "OrderAcceptedIntegrationEvent",
+                    packageName = "order",
+                    eventName = "order.accepted",
+                    family = "integration-event",
+                    variant = "inbound",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(
+            integrationEvent,
+            tag = "integration_event",
+            name = "OrderAcceptedIntegrationEvent",
+            family = "integration-event",
+            variant = "inbound",
+        )
+
+        val integrationSubscriber = renderTemplate(
+            templateId = "design/integration_event_subscriber.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderAcceptedIntegrationEventSubscriber.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.subscribers.integration.inbound.order",
+                "typeName" to "OrderAcceptedIntegrationEventSubscriber",
+                "eventTypeName" to "OrderAcceptedIntegrationEvent",
+                "eventType" to "com.acme.demo.application.events.integration.inbound.order.OrderAcceptedIntegrationEvent",
+                "descriptionCommentText" to "order accepted",
+                "imports" to listOf("com.acme.demo.application.events.integration.inbound.order.OrderAcceptedIntegrationEvent"),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "integration_event",
+                    name = "OrderAcceptedIntegrationEvent",
+                    packageName = "order",
+                    eventName = "order.accepted",
+                    family = "integration-subscriber",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(
+            integrationSubscriber,
+            tag = "integration_event",
+            name = "OrderAcceptedIntegrationEvent",
+            family = "integration-subscriber",
+        )
+
+        val domainService = renderTemplate(
+            templateId = "design/domain_service.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/OrderPublicationPolicy.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.order",
+                "name" to "OrderPublicationPolicy",
+                "imports" to emptyList<String>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "domain_service",
+                    name = "OrderPublicationPolicy",
+                    packageName = "order",
+                    family = "domain-service",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(domainService, tag = "domain_service", name = "OrderPublicationPolicy", family = "domain-service")
+
+        val saga = renderTemplate(
+            templateId = "design/saga.kt.peb",
+            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/OrderFulfillmentSaga.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.application.sagas.order",
+                "name" to "OrderFulfillmentSaga",
+                "fields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
+                "resultFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean", "nullable" to false)),
+                "imports" to emptyList<String>(),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "saga",
+                    name = "OrderFulfillmentSaga",
+                    packageName = "order",
+                    family = "saga",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(saga, tag = "saga", name = "OrderFulfillmentSaga", family = "saga")
+    }
+
+    @Test
+    fun `enum template renders building block only when manifest context is supplied`() {
+        val manifestEnum = renderTemplate(
+            templateId = "aggregate/enum.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/enums/OrderStatus.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.order.enums",
+                "typeName" to "OrderStatus",
+                "imports" to emptyList<String>(),
+                "items" to listOf(
+                    mapOf("value" to 0, "name" to "DRAFT", "description" to "Draft"),
+                    mapOf("value" to 1, "name" to "SUBMITTED", "description" to "Submitted"),
+                ),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "enum",
+                    name = "OrderStatus",
+                    packageName = "order",
+                    family = "enum",
+                    aggregates = listOf("Order"),
+                ),
+            ),
+        )
+        assertBuildingBlockAnnotation(manifestEnum, tag = "enum", name = "OrderStatus", family = "enum")
+
+        val dbDerivedEnum = renderTemplate(
+            templateId = "aggregate/enum.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/enums/Visibility.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.order.enums",
+                "typeName" to "Visibility",
+                "imports" to emptyList<String>(),
+                "items" to listOf(mapOf("value" to 0, "name" to "HIDDEN", "description" to "Hidden")),
+            ),
+        )
+        assertFalse(dbDerivedEnum.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertFalse(dbDerivedEnum.contains("@BuildingBlock("))
+    }
+
+    @Test
+    fun `integration event preset renders event annotation with literal event name and variant subscribers`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -5740,7 +7071,7 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" event",
                         "descriptionCommentText" to "order * / \"created\" event",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
-                        "role" to "inbound",
+                        "variant" to "inbound",
                         "eventName" to "order.created",
                         "eventNameKotlinStringLiteral" to "\"order.created\"",
                         "inbound" to true,
@@ -5765,7 +7096,7 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "invoice paid event",
                         "descriptionCommentText" to "invoice paid event",
                         "descriptionKotlinStringLiteral" to "\"invoice paid event\"",
-                        "role" to "outbound",
+                        "variant" to "outbound",
                         "eventName" to "invoice.\$paid\\completed",
                         "eventNameKotlinStringLiteral" to "\"invoice.\\\$paid\\\\completed\"",
                         "inbound" to false,
@@ -5815,7 +7146,7 @@ class PebbleArtifactRendererTest {
 
     @Test
     fun `integration event subscriber preset renders spring event listener without EventSubscriber contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event-subscriber")
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-integration-subscriber")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -5826,7 +7157,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-integration-event-subscriber",
+                    generatorId = "integration-subscriber",
                     moduleRole = "application",
                     templateId = "design/integration_event_subscriber.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderCreatedIntegrationEventSubscriber.kt",
@@ -5836,7 +7167,7 @@ class PebbleArtifactRendererTest {
                         "eventTypeName" to "OrderCreatedIntegrationEvent",
                         "eventType" to "com.acme.demo.application.events.integration.inbound.order.OrderCreatedIntegrationEvent",
                         "eventName" to "order.created",
-                        "role" to "inbound",
+                        "variant" to "inbound",
                         "inbound" to true,
                         "outbound" to false,
                         "description" to "order */ created event",
@@ -5918,7 +7249,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event-handler",
+                    generatorId = "domain-subscriber",
                     moduleRole = "application",
                     templateId = "design/domain_event_handler.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
@@ -5954,135 +7285,6 @@ class PebbleArtifactRendererTest {
         assertTrue(eventContent.contains("class OrderCreatedDomainEventOverride"))
         assertTrue(handlerContent.contains("// override: renderer domain event handler template"))
         assertTrue(handlerContent.contains("class OrderCreatedDomainEventSubscriberOverride"))
-    }
-
-    @Test
-    fun `validator preset resolves design validator template and renders constraint contract`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-validator")
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-validator",
-                    moduleRole = "application",
-                    templateId = "design/validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.validators.authorize",
-                        "typeName" to "IssueToken",
-                        "description" to "issue */ token validator",
-                        "descriptionCommentText" to "issue * / token validator",
-                        "message" to "token rejected ${'$'}reason",
-                        "messageLiteral" to "\"token rejected \\${'$'}reason\"",
-                        "targets" to listOf("FIELD", "VALUE_PARAMETER"),
-                        "valueType" to "Long",
-                        "parameters" to listOf(
-                            mapOf(
-                                "name" to "userIdField",
-                                "type" to "String",
-                                "defaultValueLiteral" to "\"user\\${'$'}id\"",
-                            ),
-                        ),
-                        "imports" to listOf("java.util.UUID"),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val content = rendered.single().content
-        val normalizedContent = content.replace("\r\n", "\n")
-        assertTrue(content.contains("package com.acme.demo.application.validators.authorize"))
-        assertTrue(content.contains("import java.util.UUID"))
-        assertFalse(Regex("^import .+\n\nimport ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("* issue * / token validator"))
-        assertFalse(content.contains("* issue */ token validator"))
-        assertTrue(content.contains("@Constraint"))
-        assertTrue(content.contains("@Target(AnnotationTarget.FIELD, AnnotationTarget.VALUE_PARAMETER)"))
-        assertTrue(content.contains("annotation class IssueToken("))
-        assertTrue(content.contains("val message: String = \"token rejected \\${'$'}reason\""))
-        assertTrue(content.contains("val groups: Array<KClass<*>>"))
-        assertTrue(content.contains("val payload: Array<KClass<out Payload>>"))
-        assertTrue(content.contains("    val userIdField: String = \"user\\${'$'}id\""))
-        assertFalse(Regex("^val userIdField", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertFalse(Regex("^    val .+\n\n    val ", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("class Validator : ConstraintValidator<IssueToken, Long>"))
-        assertTrue(content.contains("    class Validator : ConstraintValidator<IssueToken, Long>"))
-        assertFalse(Regex("^class Validator", RegexOption.MULTILINE).containsMatchIn(normalizedContent))
-        assertTrue(content.contains("override fun isValid(value: Long?, context: ConstraintValidatorContext): Boolean = true"))
-    }
-
-    @Test
-    fun `validator preset supports override template resolution for design validator`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-design-validator")
-        val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))
-        overrideDesignDir.resolve("validator.kt.peb").writeText(
-            """
-            // override: renderer validator template
-            package {{ packageName }}
-            annotation class {{ typeName }}
-            """.trimIndent()
-        )
-
-        val renderer = PebbleArtifactRenderer(
-            templateResolver = PresetTemplateResolver(
-                preset = "ddd-default",
-                overrideDirs = listOf(overrideDir.toString())
-            )
-        )
-
-        val rendered = renderer.render(
-            planItems = listOf(
-                ArtifactPlanItem(
-                    generatorId = "design-validator",
-                    moduleRole = "application",
-                    templateId = "design/validator.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/validators/authorize/IssueToken.kt",
-                    context = mapOf(
-                        "packageName" to "com.acme.demo.application.validators.authorize",
-                        "typeName" to "IssueToken",
-                        "description" to "issue token validator",
-                        "valueType" to "Long",
-                        "imports" to emptyList<String>(),
-                    ),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            ),
-            config = ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = emptyMap(),
-                generators = emptyMap(),
-                templates = TemplateConfig(
-                    preset = "ddd-default",
-                    overrideDirs = listOf(overrideDir.toString()),
-                    conflictPolicy = ConflictPolicy.SKIP
-                )
-            )
-        )
-
-        val content = rendered.single().content
-        assertTrue(content.contains("// override: renderer validator template"))
-        assertTrue(content.contains("annotation class IssueToken"))
     }
 
     @Test

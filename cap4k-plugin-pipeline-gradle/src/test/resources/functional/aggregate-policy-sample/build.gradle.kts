@@ -1,5 +1,5 @@
-plugins {
-    id("com.only4.cap4k.plugin.pipeline")
+﻿plugins {
+    id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
 val schemaScriptPath = layout.projectDirectory.file("schema.sql").asFile.absolutePath.replace("\\", "/")
@@ -25,10 +25,9 @@ cap4k {
     }
     generators {
         aggregate {
-            enabled.set(true)
             unsupportedTablePolicy.set("SKIP")
             specialFields {
-                idDefaultStrategy.set("snowflake-long")
+                idDefaultStrategy.set("identity")
             }
         }
     }

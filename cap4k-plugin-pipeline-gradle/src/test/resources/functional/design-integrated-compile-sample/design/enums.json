@@ -1,0 +1,21 @@
+[
+  {
+    "name": "OrderStage",
+    "package": "com.acme.demo.domain.shared.enums",
+    "items": [
+      { "value": 0, "name": "NEW", "desc": "New" },
+      { "value": 1, "name": "CONFIRMED", "desc": "Confirmed" }
+    ]
+  },
+  {
+    "name": "OrderSignal",
+    "package": "order",
+    "aggregates": [
+      "Order"
+    ],
+    "items": [
+      { "value": 0, "name": "READY", "desc": "Ready" },
+      { "value": 1, "name": "HELD", "desc": "Held" }
+    ]
+  }
+]

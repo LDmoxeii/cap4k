@@ -77,6 +77,21 @@ interface SagaRecord {
     fun endSagaProcess(now: LocalDateTime, processCode: String, result: Any)
 
     /**
+     * 注册Saga子流程对应的补偿流程请求
+     *
+     * @param processCode 正向流程代码
+     * @param compensationCode 补偿流程代码
+     * @param param 补偿请求参数
+     */
+    fun registerSagaProcessCompensation(
+        processCode: String,
+        compensationCode: String,
+        param: RequestParam<*>
+    ) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
      * Saga流程子环节发生异常
      *
      * @param now 当前时间
@@ -174,4 +189,102 @@ interface SagaRecord {
      * @param throwable 异常信息
      */
     fun occurredException(now: LocalDateTime, throwable: Throwable)
+
+    /**
+     * 记录补偿请求
+     *
+     * @param now 当前时间
+     * @param code 补偿代码
+     * @param reason 补偿原因
+     * @param requestedBy 发起方
+     * @param sourceProcessCode 来源流程代码
+     */
+    fun requestCompensation(
+        now: LocalDateTime,
+        code: String,
+        reason: String,
+        requestedBy: SagaCompensationRequestedBy,
+        sourceProcessCode: String? = null
+    ) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 开始补偿流程
+     *
+     * @param now 当前时间
+     * @return 是否成功开始
+     */
+    fun beginCompensation(now: LocalDateTime): Boolean {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 结束补偿流程
+     *
+     * @param now 当前时间
+     */
+    fun endCompensation(now: LocalDateTime) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 标记需要人工修复
+     *
+     * @param now 当前时间
+     */
+    fun markManualRepairRequired(now: LocalDateTime) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 获取需要执行的补偿流程代码列表
+     *
+     * @return 补偿流程代码列表
+     */
+    fun compensationProcessCodesToRun(): List<String> {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 获取子流程对应的补偿请求
+     *
+     * @param processCode 流程代码
+     * @return 补偿请求参数
+     */
+    fun getSagaProcessCompensationRequest(processCode: String): RequestParam<*>? {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 开始执行Saga补偿子流程
+     *
+     * @param now 当前时间
+     * @param processCode 子流程代码
+     */
+    fun beginSagaCompensationProcess(now: LocalDateTime, processCode: String) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * 结束Saga补偿子流程
+     *
+     * @param now 当前时间
+     * @param processCode 子流程代码
+     * @param result 执行结果
+     */
+    fun endSagaCompensationProcess(now: LocalDateTime, processCode: String, result: Any = Unit) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
+
+    /**
+     * Saga补偿子流程发生异常
+     *
+     * @param now 当前时间
+     * @param processCode 子流程代码
+     * @param throwable 异常信息
+     */
+    fun sagaCompensationProcessOccurredException(now: LocalDateTime, processCode: String, throwable: Throwable) {
+        throw UnsupportedOperationException("Saga compensation not implemented for this record")
+    }
 }

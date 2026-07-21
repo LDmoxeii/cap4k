@@ -61,9 +61,6 @@ class ArtifactLayoutResolver(
     fun designClientHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designClientHandler, designPackage)
 
-    fun designValidatorPackage(designPackage: String): String =
-        packageFromLayout(artifactLayout.designValidator, designPackage)
-
     fun designApiPayloadPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designApiPayload, designPackage)
 
@@ -73,11 +70,21 @@ class ArtifactLayoutResolver(
     fun designDomainEventHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designDomainEventHandler, designPackage)
 
-    fun designIntegrationEventPackage(role: IntegrationEventRole, designPackage: String): String =
-        packageFromLayout(artifactLayout.designIntegrationEvent, joinPackage(role.packageSegment(), designPackage))
+    fun designIntegrationEventPackage(variant: String, designPackage: String): String {
+        require(variant == "inbound" || variant == "outbound") {
+            "integration-event variant must be inbound or outbound: $variant"
+        }
+        return packageFromLayout(artifactLayout.designIntegrationEvent, joinPackage(variant, designPackage))
+    }
 
     fun designIntegrationEventSubscriberPackage(): String =
         packageFromLayout(artifactLayout.designIntegrationEventSubscriber, "")
+
+    fun designDomainServicePackage(designPackage: String): String =
+        packageFromLayout(artifactLayout.designDomainServicePackage, designPackage)
+
+    fun designSagaPackage(designPackage: String): String =
+        packageFromLayout(artifactLayout.designSaga, designPackage)
 
     fun flowOutputRoot(): String =
         normalizeOutputRoot(artifactLayout.flow.outputRoot, "flow")
@@ -116,8 +123,6 @@ class ArtifactLayoutResolver(
             layout.packageSuffix,
         )
 
-    private fun IntegrationEventRole.packageSegment(): String = name.lowercase()
-
     private fun validatePackageLayouts() {
         validatePackageFragment(basePackage, "basePackage", allowBlank = false)
         packageLayouts().forEach { (name, layout) ->
@@ -146,12 +151,13 @@ class ArtifactLayoutResolver(
         "designClient" to artifactLayout.designClient,
         "designQueryHandler" to artifactLayout.designQueryHandler,
         "designClientHandler" to artifactLayout.designClientHandler,
-        "designValidator" to artifactLayout.designValidator,
         "designApiPayload" to artifactLayout.designApiPayload,
         "designDomainEvent" to artifactLayout.designDomainEvent,
         "designDomainEventHandler" to artifactLayout.designDomainEventHandler,
         "designIntegrationEvent" to artifactLayout.designIntegrationEvent,
         "designIntegrationEventSubscriber" to artifactLayout.designIntegrationEventSubscriber,
+        "designDomainServicePackage" to artifactLayout.designDomainServicePackage,
+        "designSaga" to artifactLayout.designSaga,
     )
 
     private fun outputRootLayouts(): List<Pair<String, OutputRootLayout>> = listOf(

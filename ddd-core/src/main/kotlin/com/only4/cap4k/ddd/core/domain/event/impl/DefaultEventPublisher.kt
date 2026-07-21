@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.*
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
@@ -30,12 +31,22 @@ open class DefaultEventPublisher(
     private val eventMessageInterceptorManager: EventMessageInterceptorManager,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
+    private val integrationEventManager: IntegrationEventManager,
     private val integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
     private val threadPoolSize: Int
 ) : EventPublisher {
 
     companion object {
         private val log = LoggerFactory.getLogger(DefaultEventPublisher::class.java)
+
+        private fun delayMillis(delay: Duration): Long {
+            val millis = delay.toMillis()
+            return if (delay == Duration.ofMillis(millis)) {
+                millis.coerceAtLeast(1)
+            } else {
+                (millis + 1).coerceAtLeast(1)
+            }
+        }
     }
 
     private val executor: ScheduledExecutorService by lazy {
@@ -66,7 +77,7 @@ open class DefaultEventPublisher(
                 ZoneOffset.UTC
             )
             if (scheduleAt != null) {
-                delay = Duration.between(LocalDateTime.now(), scheduleAt)
+                delay = Duration.between(now(), scheduleAt)
             }
         }
 
@@ -76,9 +87,9 @@ open class DefaultEventPublisher(
                 if (delay.isNegative || delay.isZero) {
                     internalPublish4IntegrationEvent(event)
                 } else {
-                    executor.schedule({
+                    schedule({
                         internalPublish4IntegrationEvent(event)
-                    }, delay.seconds, TimeUnit.SECONDS)
+                    }, delayMillis(delay), TimeUnit.MILLISECONDS)
                 }
             }
 
@@ -93,13 +104,19 @@ open class DefaultEventPublisher(
                         internalPublish4DomainEvent(event)
                     }
                 } else {
-                    executor.schedule({
+                    schedule({
                         internalPublish4DomainEvent(event)
-                    }, delay.seconds, TimeUnit.SECONDS)
+                    }, delayMillis(delay), TimeUnit.MILLISECONDS)
                 }
             }
         }
     }
+
+    protected open fun schedule(command: Runnable, delay: Long, unit: TimeUnit) {
+        executor.schedule(command, delay, unit)
+    }
+
+    protected open fun now(): LocalDateTime = LocalDateTime.now()
 
     override fun resume(eventRecord: EventRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
@@ -136,6 +153,7 @@ open class DefaultEventPublisher(
      * 内部发布实现 - 领域事件
      */
     protected open fun internalPublish4DomainEvent(event: EventRecord) {
+        var scope: EventRuntimeScope? = null
         try {
             val message = event.message
             val persist = message.headers[HEADER_KEY_CAP4K_PERSIST] as? Boolean ?: false
@@ -147,7 +165,9 @@ open class DefaultEventPublisher(
 
             // 进程内消息
             val now = LocalDateTime.now()
+            scope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
             eventSubscriberManager.dispatch(event.payload)
+            integrationEventManager.release()
             event.endDelivery(now)
 
             if (persist) {
@@ -164,10 +184,17 @@ open class DefaultEventPublisher(
                 .forEach { interceptor -> interceptor.postRelease(event) }
 
         } catch (ex: Exception) {
+            scope?.let(EventRuntimeContext::discard)
             domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
                 .forEach { interceptor -> interceptor.onException(ex, event) }
             log.error("领域事件发布失败：${event.id}", ex)
             throw DomainException("领域事件发布失败：${event.id}", ex)
+        } finally {
+            scope?.let {
+                if (EventRuntimeContext.currentOrNull() === it) {
+                    EventRuntimeContext.pop(it)
+                }
+            }
         }
     }
 

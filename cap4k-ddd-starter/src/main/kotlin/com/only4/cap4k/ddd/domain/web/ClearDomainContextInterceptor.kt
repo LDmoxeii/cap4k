@@ -1,8 +1,7 @@
 package com.only4.cap4k.ddd.domain.web
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
-import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
+import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
@@ -27,7 +26,6 @@ class ClearDomainContextInterceptor : HandlerInterceptor {
         @Nullable ex: Exception?
     ) {
         JpaUnitOfWork.reset()
-        DefaultDomainEventSupervisor.reset()
-        DefaultIntegrationEventSupervisor.reset()
+        EventRuntimeContextManager.reset()
     }
 }
