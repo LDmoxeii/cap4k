@@ -321,11 +321,24 @@ data class AggregatePersistenceFieldControl(
     val updatable: Boolean? = null,
 )
 
+enum class SoftDeleteTombstoneStrategy {
+    SELF_ID,
+}
+
+data class AggregateSoftDeletePolicy(
+    val fieldName: String,
+    val columnName: String,
+    val activeValue: String,
+    val tombstoneStrategy: SoftDeleteTombstoneStrategy,
+    val activePredicateSql: String,
+    val deleteAssignmentSql: String,
+)
+
 data class AggregatePersistenceProviderControl(
     val entityName: String,
     val entityPackageName: String,
     val tableName: String,
-    val softDeleteColumn: String? = null,
+    val softDelete: AggregateSoftDeletePolicy? = null,
     val idFieldName: String,
     val versionFieldName: String? = null,
 )
