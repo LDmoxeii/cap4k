@@ -113,7 +113,7 @@ internal object AggregateUniqueConstraintPlanning {
         providerControl: AggregatePersistenceProviderControl?,
         resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
     ): Set<String> = buildSet {
-        (providerControl?.softDelete?.columnName ?: resolvedPolicy?.deleted?.takeIf { it.enabled }?.columnName)
+        providerControl?.softDelete?.columnName
             ?.lowercase(Locale.ROOT)
             ?.let(::add)
 

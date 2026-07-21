@@ -361,8 +361,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
 
     private fun quoteIdentifier(value: String, style: IdentifierQuoteStyle): String =
         when (style) {
-            IdentifierQuoteStyle.DOUBLE_QUOTE -> "\"$value\""
-            IdentifierQuoteStyle.BACKTICK -> "`$value`"
+            IdentifierQuoteStyle.DOUBLE_QUOTE -> "\"${value.replace("\"", "\"\"")}\""
+            IdentifierQuoteStyle.BACKTICK -> "`${value.replace("`", "``")}`"
         }
 
     private enum class IdentifierQuoteStyle {

@@ -59,35 +59,24 @@ internal object AggregateSoftDeletePolicyResolver {
         idColumn: DbColumnSnapshot,
         deletedColumn: DbColumnSnapshot,
     ) {
-        val idRank = numericRank(idColumn)
-        val deletedRank = numericRank(deletedColumn)
-        require(idRank != null && deletedRank != null && deletedRank >= idRank) {
+        val idCapacity = numericCapacity(idColumn.dbType)
+        val deletedCapacity = numericCapacity(deletedColumn.dbType)
+        require(idCapacity != null && deletedCapacity != null && deletedCapacity.canStore(idCapacity)) {
             "soft delete column ${table.tableName}.${deletedColumn.name} cannot store id column ${idColumn.name} value for SELF_ID tombstone strategy"
         }
     }
 
-    private fun numericRank(column: DbColumnSnapshot): Int? {
-        val kotlinType = column.kotlinType.substringAfterLast('.').removeSuffix("?")
-        return when (kotlinType) {
-            "Byte" -> 1
-            "Short" -> 2
-            "Int" -> 3
-            "Long" -> 4
-            else -> numericRankFromDbType(column.dbType)
+    private fun numericCapacity(dbType: String): NumericCapacity? {
+        val match = NUMERIC_DB_TYPE_REGEX.matchEntire(dbType.trim().uppercase(Locale.ROOT)) ?: return null
+        val bits = when (match.groupValues[1]) {
+            "TINYINT" -> 8
+            "SMALLINT" -> 16
+            "MEDIUMINT" -> 24
+            "INT", "INTEGER" -> 32
+            "BIGINT" -> 64
+            else -> return null
         }
-    }
-
-    private fun numericRankFromDbType(dbType: String): Int? {
-        val normalized = dbType.trim().uppercase(Locale.ROOT)
-        return when {
-            normalized.startsWith("TINYINT") -> 1
-            normalized.startsWith("SMALLINT") -> 2
-            normalized.startsWith("MEDIUMINT") -> 3
-            normalized.startsWith("INT") -> 3
-            normalized.startsWith("INTEGER") -> 3
-            normalized.startsWith("BIGINT") -> 4
-            else -> null
-        }
+        return NumericCapacity(bits = bits, unsigned = match.groupValues[2].isNotEmpty())
     }
 
     private fun isDefaultZero(defaultValue: String?): Boolean {
@@ -98,4 +87,19 @@ internal object AggregateSoftDeletePolicyResolver {
         value = value.removeSurrounding("'").removeSurrounding("\"")
         return value == ActiveValue
     }
+
+    private data class NumericCapacity(
+        val bits: Int,
+        val unsigned: Boolean,
+    ) {
+        fun canStore(source: NumericCapacity): Boolean = when {
+            source.unsigned == unsigned -> bits >= source.bits
+            !source.unsigned && unsigned -> false
+            else -> bits > source.bits
+        }
+    }
+
+    private val NUMERIC_DB_TYPE_REGEX = Regex(
+        "^(TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT)\\s*(?:\\(\\s*\\d+\\s*\\))?\\s*(UNSIGNED)?\\s*$"
+    )
 }

@@ -1664,7 +1664,7 @@ class PipelinePluginFunctionalTest {
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id uuid primary key,",
-            )
+            ).replaceFirst("@Managed=deleted;", "")
         )
 
         val result = GradleRunner.create()
@@ -1685,6 +1685,8 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertFalse(generatedVideoPost.contains("@SQLDelete"))
+        assertFalse(generatedVideoPost.contains("@Where"))
     }
 
     @OptIn(ExperimentalPathApi::class)

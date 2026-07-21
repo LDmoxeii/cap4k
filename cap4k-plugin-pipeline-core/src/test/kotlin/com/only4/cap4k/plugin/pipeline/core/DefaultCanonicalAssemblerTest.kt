@@ -3488,6 +3488,150 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `soft delete policy uses integer storage range instead of mapped Kotlin type`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column(
+                                name = "id",
+                                dbType = "INTEGER",
+                                kotlinType = "Int",
+                                nullable = false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                            ),
+                            column(
+                                name = "deleted",
+                                dbType = "SMALLINT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                defaultValue = "0",
+                                managedRole = DbManagedRole.DELETED,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
+    }
+
+    @Test
+    fun `soft delete policy rejects smallint id stored in tinyint discriminator`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column(
+                                name = "id",
+                                dbType = "SMALLINT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                            ),
+                            column(
+                                name = "deleted",
+                                dbType = "TINYINT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                defaultValue = "0",
+                                managedRole = DbManagedRole.DELETED,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
+    }
+
+    @Test
+    fun `soft delete policy rejects unsigned id stored in same width signed discriminator`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column(
+                                name = "id",
+                                dbType = "INT(11) UNSIGNED",
+                                kotlinType = "Long",
+                                nullable = false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                            ),
+                            column(
+                                name = "deleted",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                defaultValue = "0",
+                                managedRole = DbManagedRole.DELETED,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
+    }
+
+    @Test
+    fun `soft delete policy allows unsigned int id stored in signed bigint discriminator`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "INT UNSIGNED",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                        ),
+                        column(
+                            name = "deleted",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            defaultValue = "0",
+                            managedRole = DbManagedRole.DELETED,
+                        ),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val softDelete = requireNotNull(result.model.aggregatePersistenceProviderControls.single().softDelete)
+        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, softDelete.tombstoneStrategy)
+        assertEquals("deleted = id", softDelete.deleteAssignmentSql)
+    }
+
+    @Test
     fun `inherited managed fields remain visible to canonical policy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),

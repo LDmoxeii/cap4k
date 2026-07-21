@@ -2511,6 +2511,61 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner escapes double quote delimiters in soft delete identifiers`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video\"post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "i\"d"),
+                FieldModel("deleted", "Long", columnName = "de\"leted"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "i\"d"),
+        )
+        val artifact = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("id", "i\"d", true, null),
+                            AggregateColumnJpaModel("deleted", "de\"leted", false, null),
+                        ),
+                    )
+                ),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        softDelete = AggregateSoftDeletePolicy(
+                            fieldName = "deleted",
+                            columnName = "de\"leted",
+                            activeValue = "0",
+                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                            activePredicateSql = "de\"leted = 0",
+                            deleteAssignmentSql = "de\"leted = i\"d",
+                        ),
+                        idFieldName = "id",
+                    )
+                ),
+            )
+        ).single { it.templateId == "aggregate/entity.kt.peb" }
+
+        assertEquals(
+            "update \"video\"\"post\" set \"de\"\"leted\" = \"i\"\"d\" where \"i\"\"d\" = ?",
+            artifact.context["softDeleteSql"],
+        )
+        assertEquals("\"de\"\"leted\" = 0", artifact.context["softDeleteWhereClause"])
+    }
+
+    @Test
     fun `entity planner keeps scalar fields when one to many join column matches owner column name`() {
         val entity = EntityModel(
             name = "VideoPost",
@@ -4124,6 +4179,53 @@ class AggregateArtifactPlannerTest {
         assertEquals("MessageKey", selection.suffix)
         assertEquals(listOf("messageKey"), selection.requestProps.map { it.name })
         assertEquals(listOf("lockVersion"), selection.filteredControlFields.map { it.name })
+    }
+
+    @Test
+    fun `unique planning keeps resolved deleted marker without semantic soft delete control`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "Category",
+                packageName = "com.acme.demo.domain.aggregates.category",
+                tableName = "category",
+                comment = "Category",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("code", "String", columnName = "code"),
+                    FieldModel("deleted", "Long", columnName = "deleted"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(uniqueConstraint("uq_code_deleted", "code", "deleted")),
+            ),
+            resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+                entityName = "Category",
+                entityPackageName = "com.acme.demo.domain.aggregates.category",
+                tableName = "category",
+                id = ResolvedIdPolicy(
+                    fieldName = "id",
+                    columnName = "id",
+                    strategy = "identity",
+                    kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                    source = SpecialFieldSource.NONE,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                ),
+                deleted = ResolvedMarkerPolicy(
+                    enabled = true,
+                    fieldName = "deleted",
+                    columnName = "deleted",
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                ),
+                version = ResolvedMarkerPolicy(
+                    enabled = false,
+                    source = SpecialFieldSource.NONE,
+                ),
+            ),
+        )
+
+        val selection = planning.single()
+        assertEquals(listOf("code", "deleted"), selection.requestProps.map { it.name })
+        assertEquals(emptyList<String>(), selection.filteredControlFields.map { it.name })
     }
 
     @Test

@@ -710,7 +710,7 @@ class PipelinePluginCompileFunctionalTest {
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id uuid primary key,",
-            )
+            ).replaceFirst("@Managed=deleted;", "")
         )
 
         val compileResult = FunctionalFixtureSupport
@@ -728,6 +728,8 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertFalse(generatedVideoPost.contains("@SQLDelete"))
+        assertFalse(generatedVideoPost.contains("@Where"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }

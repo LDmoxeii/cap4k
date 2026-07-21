@@ -115,8 +115,6 @@ data class AggregatePersistenceProviderControl(
     val entityName: String,
     val entityPackageName: String,
     val tableName: String,
-    val dynamicInsert: Boolean? = null,
-    val dynamicUpdate: Boolean? = null,
     val softDelete: AggregateSoftDeletePolicy? = null,
     val idFieldName: String,
     val versionFieldName: String? = null,
@@ -139,7 +137,10 @@ The pipeline must fail fast when:
 
 Type compatibility should be conservative:
 
-- `Long`/`Int` id requires a numeric deleted column wide enough for the id.
+- DB storage range is the primary assignability evidence; mapped Kotlin types must not override a narrower DB column.
+- Signed ids cannot target unsigned deleted columns without an explicit non-negative schema fact, which this iteration does not have.
+- Unsigned ids can target signed deleted columns only when the signed target range is strictly wider enough to contain the unsigned source range.
+- Same-signedness numeric mappings require the deleted column width to be at least the id column width.
 - strong-id fields compare by their underlying DB column type, not by the wrapper type name.
 - string/uuid self-id soft delete is out of scope for the first implementation because `activeValue = 0` is a numeric discriminator contract.
 
@@ -155,7 +156,7 @@ unique(parent_id, deleted)
 
 the generated unique request should include `parentId` only. The deleted discriminator is supplied by the active-row filter, not by user input.
 
-Existing unique-query planning already filters the soft-delete column. The implementation should keep that behavior, but source it from `AggregateSoftDeletePolicy` rather than a raw `softDeleteColumn` string.
+Unique-query planning filters the soft-delete column only when semantic `providerControl.softDelete` exists. A resolved deleted marker alone must not hide a request field because it does not prove that active-row filtering is enabled. The semantic policy is the only source of truth.
 
 ## Downstream Relation Input
 
@@ -216,8 +217,8 @@ Tests and docs that assert `deleted = 1` should be updated to assert `deleted = 
 
 ## Resolved Decisions
 
-1. The active default is enforced through schema validation only. Generated constructors do not initialize deleted fields to `0` when the DB default is absent.
-2. `SELF_ID` requires assignability, not exact DB type equality. Numeric widening from id to deleted is accepted; narrowing, non-numeric, or unproven mappings are rejected.
+1. The active default is enforced through schema validation. Generated constructors may mirror an actual DB default discovered from schema, but must not synthesize `deleted = 0` when the DB default is absent.
+2. `SELF_ID` requires DB-storage-range assignability, not exact DB type equality or Kotlin-type ranking. Proven widening is accepted; narrowing, unsafe signedness changes, non-numeric, and unproven mappings are rejected.
 3. Aggregate projections do not inherit the active filter in this iteration. Projection filtering remains a read-model decision for a later design.
 
 ## Implementation Notes
