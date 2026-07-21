@@ -2755,7 +2755,7 @@ class DefaultCanonicalAssemblerTest {
         val control = result.model.aggregatePersistenceProviderControls.single()
 
         assertEquals("VideoPost", control.entityName)
-        assertEquals("deleted", control.softDeleteColumn)
+        assertNull(control.softDeleteColumn)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
     }
@@ -2812,7 +2812,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("VideoPost", control.entityName)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
-        assertEquals(null, control.softDeleteColumn)
+        assertNull(control.softDeleteColumn)
     }
 
     @Test
@@ -3504,13 +3504,12 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
-        val providerControl = result.model.aggregatePersistenceProviderControls.single()
 
         assertEquals(true, policy.deleted.enabled)
         assertEquals("isDeleted", policy.deleted.fieldName)
         assertEquals("is_deleted", policy.deleted.columnName)
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.deleted.source)
-        assertEquals("is_deleted", providerControl.softDeleteColumn)
+        assertTrue(result.model.aggregatePersistenceProviderControls.isEmpty())
     }
 
     @Test

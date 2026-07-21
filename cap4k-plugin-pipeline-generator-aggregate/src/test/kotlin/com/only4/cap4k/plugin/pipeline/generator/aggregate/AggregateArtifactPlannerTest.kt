@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -2296,7 +2297,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes soft delete provider persistence contract`() {
+    fun `entity planner leaves soft delete sql unset`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2329,15 +2330,12 @@ class AggregateArtifactPlannerTest {
 
         assertFalse(artifact.context.containsKey("dynamicInsert"))
         assertFalse(artifact.context.containsKey("dynamicUpdate"))
-        assertEquals(
-            "update \"video_post\" set \"deleted\" = 1 where \"id\" = ? and \"version\" = ?",
-            artifact.context["softDeleteSql"],
-        )
-        assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
+        assertNull(artifact.context["softDeleteSql"])
+        assertNull(artifact.context["softDeleteWhereClause"])
     }
 
     @Test
-    fun `entity planner composes soft delete sql with physical id and version column names`() {
+    fun `entity planner leaves soft delete sql unset with physical id and version column names`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2380,14 +2378,11 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertEquals(
-            "update \"video_post\" set \"deleted\" = 1 where \"video_post_id\" = ? and \"lock_version\" = ?",
-            artifact.context["softDeleteSql"],
-        )
+        assertNull(artifact.context["softDeleteSql"])
     }
 
     @Test
-    fun `entity planner composes versionless soft delete sql with physical id column only`() {
+    fun `entity planner leaves versionless soft delete sql unset with physical id column only`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2428,15 +2423,12 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertEquals(
-            "update \"video_post\" set \"deleted\" = 1 where \"video_post_id\" = ?",
-            artifact.context["softDeleteSql"],
-        )
-        assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
+        assertNull(artifact.context["softDeleteSql"])
+        assertNull(artifact.context["softDeleteWhereClause"])
     }
 
     @Test
-    fun `entity planner uses backticks for soft delete sql and where clause in mysql mode`() {
+    fun `entity planner leaves mysql soft delete sql unset`() {
         val entity = EntityModel(
             name = "Category",
             packageName = "com.acme.demo.domain.aggregates.category",
@@ -2475,11 +2467,8 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertEquals(
-            "update `category` set `deleted` = 1 where `id` = ? and `version` = ?",
-            artifact.context["softDeleteSql"],
-        )
-        assertEquals("`deleted` = 0", artifact.context["softDeleteWhereClause"])
+        assertNull(artifact.context["softDeleteSql"])
+        assertNull(artifact.context["softDeleteWhereClause"])
     }
 
     @Test
@@ -4034,6 +4023,54 @@ class AggregateArtifactPlannerTest {
         assertEquals("MessageKey", selection.suffix)
         assertEquals(listOf("messageKey"), selection.requestProps.map { it.name })
         assertEquals(listOf("version"), selection.filteredControlFields.map { it.name })
+    }
+
+    @Test
+    fun `unique planning filters version fields from resolved policy without provider control`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "UserMessage",
+                packageName = "com.acme.demo.domain.aggregates.user_message",
+                tableName = "user_message",
+                comment = "User message",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("messageKey", "String", columnName = "message_key"),
+                    FieldModel("lockVersion", "Long", columnName = "lock_version"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(uniqueConstraint("uq_message_version", "message_key", "lock_version")),
+            ),
+            resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+                entityName = "UserMessage",
+                entityPackageName = "com.acme.demo.domain.aggregates.user_message",
+                tableName = "user_message",
+                id = ResolvedIdPolicy(
+                    fieldName = "id",
+                    columnName = "id",
+                    strategy = "identity",
+                    kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                    source = SpecialFieldSource.NONE,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                ),
+                deleted = ResolvedMarkerPolicy(
+                    enabled = false,
+                    source = SpecialFieldSource.NONE,
+                ),
+                version = ResolvedMarkerPolicy(
+                    enabled = true,
+                    fieldName = "lockVersion",
+                    columnName = "lock_version",
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                ),
+            ),
+        )
+
+        val selection = planning.single()
+        assertEquals("MessageKey", selection.suffix)
+        assertEquals(listOf("messageKey"), selection.requestProps.map { it.name })
+        assertEquals(listOf("lockVersion"), selection.filteredControlFields.map { it.name })
     }
 
     @Test

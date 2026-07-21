@@ -56,6 +56,9 @@ internal object DbColumnAnnotationParser {
         require(!(parentRef && (refAggregate != null || refId != null || idStrategy != null))) {
             "@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy."
         }
+        require(refAggregate == null || refId == null) {
+            "conflicting @RefAggregate and @RefId annotations on the same column comment."
+        }
         require(!inherited || managedRole != null) {
             "@Inherited is valid only with @Managed=system, @Managed=scope, @Managed=deleted, or @Managed=version."
         }

@@ -12,6 +12,7 @@ import java.sql.DriverManager
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -317,7 +318,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `db source records ref aggregate and ref id column metadata from comments`() {
+    fun `db source records ref aggregate and ref id column metadata from separate comments`() {
         val url = "jdbc:h2:mem:cap4k-db-source-strong-id-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -325,7 +326,8 @@ class DbSchemaSourceProviderTest {
                     """
                     create table media_file (
                         id bigint primary key comment 'pk',
-                        task_id bigint not null comment 'Task strong id @RefAggregate=MediaProcessingTask;@RefId=MediaProcessingTaskId;'
+                        task_id bigint not null comment 'Task strong id @RefAggregate=MediaProcessingTask;',
+                        owner_id bigint not null comment 'Owner strong id @RefId=UserId;'
                     )
                     """.trimIndent()
                 )
@@ -354,10 +356,14 @@ class DbSchemaSourceProviderTest {
             )
         ) as DbSchemaSnapshot
         val taskId = snapshot.tables.single().columns.single { it.name.equals("TASK_ID", true) }
+        val ownerId = snapshot.tables.single().columns.single { it.name.equals("OWNER_ID", true) }
 
         assertEquals("MediaProcessingTask", taskId.refAggregate)
-        assertEquals("MediaProcessingTaskId", taskId.refId)
+        assertNull(taskId.refId)
         assertEquals("Task strong id", taskId.comment)
+        assertNull(ownerId.refAggregate)
+        assertEquals("UserId", ownerId.refId)
+        assertEquals("Owner strong id", ownerId.comment)
     }
 
     @Test

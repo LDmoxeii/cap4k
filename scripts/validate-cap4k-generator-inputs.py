@@ -685,6 +685,14 @@ def validate_annotation_values(
                 path,
                 "@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy",
             )
+        if "RefAggregate" in names and "RefId" in names:
+            add_issue(
+                issues,
+                ERROR,
+                file,
+                path,
+                "conflicting @RefAggregate and @RefId annotations on the same column comment",
+            )
         if "Inherited" in names and "Managed" not in names:
             add_issue(
                 issues,

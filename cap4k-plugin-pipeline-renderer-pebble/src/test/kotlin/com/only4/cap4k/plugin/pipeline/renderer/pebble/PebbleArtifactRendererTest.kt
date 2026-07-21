@@ -4181,7 +4181,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template renders provider specific persistence controls`() {
+    fun `aggregate entity template ignores soft delete sql context`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-provider-persistence")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -4239,12 +4239,12 @@ class PebbleArtifactRendererTest {
 
         assertFalse(content.contains("import org.hibernate.annotations.DynamicInsert"))
         assertFalse(content.contains("import org.hibernate.annotations.DynamicUpdate"))
-        assertTrue(content.contains("import org.hibernate.annotations.SQLDelete"))
-        assertTrue(content.contains("import org.hibernate.annotations.Where"))
+        assertFalse(content.contains("import org.hibernate.annotations.SQLDelete"))
+        assertFalse(content.contains("import org.hibernate.annotations.Where"))
         assertFalse(content.contains("@DynamicInsert"))
         assertFalse(content.contains("@DynamicUpdate"))
-        assertTrue(content.contains("@SQLDelete(sql = \"update \\\"video_post\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ? and \\\"version\\\" = ?\")"))
-        assertTrue(content.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertFalse(content.contains("@SQLDelete"))
+        assertFalse(content.contains("@Where"))
     }
 
     @Test

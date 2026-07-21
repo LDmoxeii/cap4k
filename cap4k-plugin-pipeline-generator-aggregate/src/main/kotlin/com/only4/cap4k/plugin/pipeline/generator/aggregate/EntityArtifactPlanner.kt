@@ -10,14 +10,12 @@ import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
-import java.util.Locale
 
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
         val defaultProjector = AggregateEntityDefaultProjector()
-        val identifierQuoteStyle = resolveIdentifierQuoteStyle(config)
 
         return model.entities.map { entity ->
             val aggregateName = aggregateRootName(entity, model.entities)
@@ -33,9 +31,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 .associateBy { it.fieldName }
             val managedByField = resolvedPolicy?.managedFields.orEmpty().associateBy { it.fieldName }
             val idPolicyControl = model.aggregateIdPolicyControls.firstOrNull {
-                it.entityName == entity.name && it.entityPackageName == entity.packageName
-            }
-            val providerControl = model.aggregatePersistenceProviderControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val relationPlan = AggregateRelationPlanning.planFor(
@@ -61,28 +56,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 }
                 .mapNotNull { it["joinColumn"] as? String }
                 .toSet()
-            val idColumnName = providerControl?.let { control ->
-                requireNotNull(scalarJpaByField[control.idFieldName]) {
-                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${control.idFieldName}"
-                }.columnName
-            }
-            val versionColumnName = providerControl?.versionFieldName?.let { versionFieldName ->
-                requireNotNull(scalarJpaByField[versionFieldName]) {
-                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${versionFieldName}"
-                }.columnName
-            }
-            val softDeleteSql = providerControl?.softDeleteColumn?.let { column ->
-                buildSoftDeleteSql(
-                    tableName = providerControl.tableName,
-                    softDeleteColumn = column,
-                    idColumnName = requireNotNull(idColumnName),
-                    versionColumnName = versionColumnName,
-                    identifierQuoteStyle = identifierQuoteStyle,
-                )
-            }
-            val softDeleteWhereClause = providerControl?.softDeleteColumn?.let { column ->
-                "${quoteIdentifier(column, identifierQuoteStyle)} = 0"
-            }
             val fieldContexts = entity.fields
                 .mapNotNull { field ->
                     val jpa = requireNotNull(scalarJpaByField[field.name]) {
@@ -226,8 +199,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         it["strongId"] == true && it["embeddedId"] != true
                     },
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
-                    "softDeleteSql" to softDeleteSql,
-                    "softDeleteWhereClause" to softDeleteWhereClause,
+                    "softDeleteSql" to null,
+                    "softDeleteWhereClause" to null,
                     "jpaImports" to relationPlan.jpaImports,
                     "imports" to scalarImports.distinct(),
                     "fields" to fieldContexts,
@@ -309,41 +282,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
 
     private fun String.shortTypeName(): String = removeSuffix("?").substringAfterLast('.')
-
-    private fun buildSoftDeleteSql(
-        tableName: String,
-        softDeleteColumn: String,
-        idColumnName: String,
-        versionColumnName: String?,
-        identifierQuoteStyle: IdentifierQuoteStyle,
-    ): String =
-        if (versionColumnName != null) {
-            "update ${quoteIdentifier(tableName, identifierQuoteStyle)} set ${quoteIdentifier(softDeleteColumn, identifierQuoteStyle)} = 1 where ${quoteIdentifier(idColumnName, identifierQuoteStyle)} = ? and ${quoteIdentifier(versionColumnName, identifierQuoteStyle)} = ?"
-        } else {
-            "update ${quoteIdentifier(tableName, identifierQuoteStyle)} set ${quoteIdentifier(softDeleteColumn, identifierQuoteStyle)} = 1 where ${quoteIdentifier(idColumnName, identifierQuoteStyle)} = ?"
-        }
-
-    private fun resolveIdentifierQuoteStyle(config: ProjectConfig): IdentifierQuoteStyle {
-        val dbUrl = config.sources["db"]
-            ?.options
-            ?.get("url")
-            ?.toString()
-            ?.lowercase(Locale.ROOT)
-            ?: return IdentifierQuoteStyle.DOUBLE_QUOTE
-
-        return when {
-            dbUrl.startsWith("jdbc:mysql:") -> IdentifierQuoteStyle.BACKTICK
-            dbUrl.startsWith("jdbc:mariadb:") -> IdentifierQuoteStyle.BACKTICK
-            dbUrl.startsWith("jdbc:h2:") && dbUrl.contains("mode=mysql") -> IdentifierQuoteStyle.BACKTICK
-            else -> IdentifierQuoteStyle.DOUBLE_QUOTE
-        }
-    }
-
-    private fun quoteIdentifier(value: String, style: IdentifierQuoteStyle): String =
-        when (style) {
-            IdentifierQuoteStyle.DOUBLE_QUOTE -> "\"$value\""
-            IdentifierQuoteStyle.BACKTICK -> "`$value`"
-        }
 }
 
 private data class ScalarImportCandidate(
@@ -351,8 +289,3 @@ private data class ScalarImportCandidate(
     val simpleName: String,
     val imports: List<String>,
 )
-
-private enum class IdentifierQuoteStyle {
-    DOUBLE_QUOTE,
-    BACKTICK,
-}

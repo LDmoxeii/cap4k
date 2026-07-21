@@ -21,6 +21,10 @@ internal object OwnedParentBindingResolver {
         return tables
             .mapNotNull { table ->
                 val parentTable = table.parentTable ?: return@mapNotNull null
+                if (tableKey(table.tableName) in ignoredTableNames || tableKey(parentTable) in ignoredTableNames) {
+                    return@mapNotNull null
+                }
+
                 val parentRefColumns = table.columns
                     .filter { it.parentRef }
                     .sortedBy { it.name }
@@ -31,10 +35,6 @@ internal object OwnedParentBindingResolver {
                     else -> throw IllegalArgumentException(
                         "ambiguous parent reference columns for table ${table.tableName}: ${parentRefColumns.joinToString(", ") { it.name }}"
                     )
-                }
-
-                if (tableKey(table.tableName) in ignoredTableNames || tableKey(parentTable) in ignoredTableNames) {
-                    return@mapNotNull null
                 }
 
                 OwnedParentBinding(

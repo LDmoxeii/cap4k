@@ -37,6 +37,7 @@ The DB comment contract is a strict, exact-name allow-list. Unsupported annotati
 - A table with `@Parent=<table>` must declare exactly one `@ParentRef` column.
 - `@ParentRef` is valid only on child tables with `@Parent=<table>`.
 - `@ParentRef` cannot combine with `@RefAggregate`, `@RefId`, or `@IdStrategy`.
+- `@RefAggregate` and `@RefId` cannot be declared on the same column.
 - `@IdStrategy` currently supports only `db_identity` and is valid only on a primary-key column.
 - `@Managed` supports only `system`, `scope`, `deleted`, and `version`.
 - `@Inherited` is valid only with `@Managed=system`, `@Managed=scope`, `@Managed=deleted`, or `@Managed=version`.

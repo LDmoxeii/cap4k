@@ -29,18 +29,26 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
-    fun `column parser accepts type ref aggregate ref id managed and inherited`() {
+    fun `column parser accepts type ref aggregate managed and inherited`() {
         val metadata = DbColumnAnnotationParser.parse(
-            "status @Type=VideoPostVisibility;@RefAggregate=VideoPost;@RefId=VideoPostId;@Managed=system;@Inherited;"
+            "status @Type=VideoPostVisibility;@RefAggregate=VideoPost;@Managed=system;@Inherited;"
         )
 
         assertEquals("VideoPostVisibility", metadata.typeBinding)
         assertTrue(metadata.enumItems.isEmpty())
         assertEquals("VideoPost", metadata.refAggregate)
-        assertEquals("VideoPostId", metadata.refId)
+        assertNull(metadata.refId)
         assertEquals(DbManagedRole.SYSTEM, metadata.managedRole)
         assertEquals(true, metadata.inherited)
         assertEquals("status", metadata.cleanedComment)
+    }
+
+    @Test
+    fun `column parser accepts ref id`() {
+        val metadata = DbColumnAnnotationParser.parse("@RefId=VideoPostId;")
+
+        assertNull(metadata.refAggregate)
+        assertEquals("VideoPostId", metadata.refId)
     }
 
     @Test
@@ -135,12 +143,30 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
+    fun `column parser rejects parent ref with ref id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@ParentRef;@RefId=VideoPostId;")
+        }
+
+        assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)
+    }
+
+    @Test
     fun `column parser rejects parent ref with id strategy`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DbColumnAnnotationParser.parse("@ParentRef;@IdStrategy=db_identity;")
         }
 
         assertEquals("@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy.", error.message)
+    }
+
+    @Test
+    fun `column parser rejects ref aggregate with ref id`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@RefAggregate=VideoPost;@RefId=VideoPostId;")
+        }
+
+        assertEquals("conflicting @RefAggregate and @RefId annotations on the same column comment.", error.message)
     }
 
     @Test

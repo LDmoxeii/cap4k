@@ -13,10 +13,11 @@ internal object AggregatePersistenceProviderInference {
         val tableByName = tables.associateBy { it.tableName.lowercase(Locale.ROOT) }
 
         return resolvedPolicies.mapNotNull { policy ->
-            val table = tableByName[policy.tableName.lowercase(Locale.ROOT)] ?: return@mapNotNull null
-            val softDeleteColumn = if (policy.deleted.enabled) policy.deleted.columnName else null
+            if (tableByName[policy.tableName.lowercase(Locale.ROOT)] == null) {
+                return@mapNotNull null
+            }
             val versionFieldName = if (policy.version.enabled) policy.version.fieldName else null
-            if (softDeleteColumn == null && versionFieldName == null) {
+            if (versionFieldName == null) {
                 return@mapNotNull null
             }
 
@@ -24,7 +25,7 @@ internal object AggregatePersistenceProviderInference {
                 entityName = policy.entityName,
                 entityPackageName = policy.entityPackageName,
                 tableName = policy.tableName,
-                softDeleteColumn = softDeleteColumn,
+                softDeleteColumn = null,
                 idFieldName = policy.id.fieldName,
                 versionFieldName = versionFieldName,
             )

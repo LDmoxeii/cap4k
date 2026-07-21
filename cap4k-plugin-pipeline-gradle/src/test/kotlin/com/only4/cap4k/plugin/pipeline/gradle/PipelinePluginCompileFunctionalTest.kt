@@ -639,11 +639,11 @@ class PipelinePluginCompileFunctionalTest {
 
         assertFalse(generatedVideoPost.contains("@DynamicInsert"))
         assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
-        assertTrue(generatedVideoPost.contains("@SQLDelete"))
-        assertTrue(generatedVideoPost.contains("@Where"))
+        assertFalse(generatedVideoPost.contains("@SQLDelete"))
+        assertFalse(generatedVideoPost.contains("@Where"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertTrue(generatedAuditLog.contains("@SQLDelete"))
-        assertTrue(generatedAuditLog.contains("@Where"))
+        assertFalse(generatedAuditLog.contains("@SQLDelete"))
+        assertFalse(generatedAuditLog.contains("@Where"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
