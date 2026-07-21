@@ -192,7 +192,7 @@ REQUIRED_VALUE_ANNOTATIONS = {
     "Managed",
 }
 MANAGED_ROLES = {"system", "scope", "deleted", "version"}
-LIVE_REFERENCE_ROOTS = ("docs/public", "skills", ".agents/skills")
+LIVE_REFERENCE_ROOTS = ("docs/public", "skills")
 LIVE_REFERENCE_SUFFIXES = {".md", ".mdx", ".txt", ".yaml", ".yml"}
 REMOVED_DB_REFERENCE_PATTERNS = {
     "@AggregateRoot": re.compile(r"@AggregateRoot(?:=|\b)"),
