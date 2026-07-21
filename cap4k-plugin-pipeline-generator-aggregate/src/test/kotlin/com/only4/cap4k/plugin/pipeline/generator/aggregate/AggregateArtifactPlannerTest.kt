@@ -22,6 +22,8 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -2622,6 +2624,119 @@ class AggregateArtifactPlannerTest {
         assertEquals(listOf("id", "video_post_id", "title"), scalarFields.map { it["columnName"] })
         assertEquals("ONE_TO_MANY", relationFields.single()["relationType"])
         assertEquals("video_post_id", relationFields.single()["joinColumn"])
+    }
+
+    @Test
+    fun `entity planner exposes owned one relation metadata while keeping one to many relation type`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "files",
+                        targetEntityName = "VideoPostFile",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        cascadeTypes = listOf(AggregateCascadeType.PERSIST, AggregateCascadeType.MERGE, AggregateCascadeType.REMOVE),
+                        orphanRemoval = true,
+                        joinColumnNullable = false,
+                        owned = true,
+                        parentRefColumn = "video_post_id",
+                        ownedCardinality = OwnedRelationCardinality.ONE,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "files",
+                        singleAccessorName = "file",
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val jpaImports = entityItem.context["jpaImports"] as List<String>
+        val relation = relationFields.single()
+
+        assertEquals("ONE_TO_MANY", relation["relationType"])
+        assertEquals(true, relation["owned"])
+        assertEquals("video_post_id", relation["parentRefColumn"])
+        assertEquals("ONE", relation["ownedCardinality"])
+        assertEquals("ONE_TO_MANY_JOIN_COLUMN", relation["persistenceShape"])
+        assertEquals("files", relation["backingCollectionName"])
+        assertEquals("file", relation["singleAccessorName"])
+        assertTrue(jpaImports.contains("jakarta.persistence.OneToMany"))
+        assertTrue(jpaImports.contains("jakarta.persistence.JoinColumn"))
+        assertTrue(jpaImports.contains("jakarta.persistence.Transient"))
+        assertFalse(jpaImports.contains("jakarta.persistence.OneToOne"))
+    }
+
+    @Test
+    fun `entity planner keeps owned many relation public collection metadata`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "items",
+                        targetEntityName = "VideoPostItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        owned = true,
+                        parentRefColumn = "video_post_id",
+                        ownedCardinality = OwnedRelationCardinality.MANY,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "items",
+                    )
+                )
+            )
+        )
+
+        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val jpaImports = entityItem.context["jpaImports"] as List<String>
+        val relation = relationFields.single()
+
+        assertEquals(true, relation["owned"])
+        assertEquals("MANY", relation["ownedCardinality"])
+        assertEquals("items", relation["backingCollectionName"])
+        assertEquals(null, relation["singleAccessorName"])
+        assertFalse(jpaImports.contains("jakarta.persistence.Transient"))
     }
 
     @Test

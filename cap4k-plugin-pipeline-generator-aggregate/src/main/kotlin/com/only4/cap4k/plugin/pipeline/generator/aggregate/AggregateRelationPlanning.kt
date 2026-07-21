@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
 
 internal data class AggregateRelationRenderPlan(
     val relationFields: List<Map<String, Any?>>,
@@ -58,6 +59,12 @@ internal object AggregateRelationPlanning {
                 "cascadeTypes" to relation.cascadeTypes.map { it.name },
                 "orphanRemoval" to relation.orphanRemoval,
                 "joinColumnNullable" to relation.joinColumnNullable,
+                "owned" to relation.owned,
+                "parentRefColumn" to relation.parentRefColumn,
+                "ownedCardinality" to relation.ownedCardinality?.name,
+                "persistenceShape" to relation.persistenceShape?.name,
+                "backingCollectionName" to relation.backingCollectionName,
+                "singleAccessorName" to relation.singleAccessorName,
             )
         }
         val inverseRelationFields = entityInverseRelations.map { relation ->
@@ -82,6 +89,12 @@ internal object AggregateRelationPlanning {
                 "cascadeTypes" to emptyList<String>(),
                 "orphanRemoval" to false,
                 "joinColumnNullable" to null,
+                "owned" to false,
+                "parentRefColumn" to null,
+                "ownedCardinality" to null,
+                "persistenceShape" to null,
+                "backingCollectionName" to null,
+                "singleAccessorName" to null,
             )
         }
         val relationFields = ownerRelationFields + inverseRelationFields
@@ -103,6 +116,9 @@ internal object AggregateRelationPlanning {
             .distinct()
         val relationTypes = (entityRelations.map { it.relationType } + entityInverseRelations.map { it.relationType }).toSet()
         val hasCascadeTypes = entityRelations.any { it.cascadeTypes.isNotEmpty() }
+        val hasOwnedOneRelations = entityRelations.any {
+            it.ownedCardinality == OwnedRelationCardinality.ONE
+        }
         val jpaImports = buildList {
             if (relationTypes.isNotEmpty()) {
                 add("jakarta.persistence.FetchType")
@@ -119,6 +135,9 @@ internal object AggregateRelationPlanning {
             }
             if (AggregateRelationType.ONE_TO_MANY in relationTypes) {
                 add("jakarta.persistence.OneToMany")
+            }
+            if (hasOwnedOneRelations) {
+                add("jakarta.persistence.Transient")
             }
         }
 
