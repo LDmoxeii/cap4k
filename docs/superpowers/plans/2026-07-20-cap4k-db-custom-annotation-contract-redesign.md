@@ -68,8 +68,6 @@
   - Public contract reference that defines the live annotation set.
 - `skills/cap4k-generator-inputs/references/db-schema-annotations.md`
   - Skill reference that mirrors the public contract.
-- `.agents/skills/cap4k-generator-inputs/references/db-schema-annotations.md`
-  - Workspace skill reference that mirrors the public contract.
 - `docs/public/reference/generator-input-validation.md`
   - Public validation guidance for allowed generator inputs.
 - `docs/public/generator/inputs-and-sources.md`
@@ -861,7 +859,6 @@ git commit -m "test: refresh db comment functional fixtures"
 - Modify: `docs/public/reference/generator-input-validation.md`
 - Modify: `docs/public/generator/inputs-and-sources.md`
 - Modify: `skills/cap4k-generator-inputs/references/db-schema-annotations.md`
-- Modify: `.agents/skills/cap4k-generator-inputs/references/db-schema-annotations.md`
 - Modify: `scripts/validate-cap4k-generator-inputs.py`
 - Test: `scripts/validate-cap4k-generator-inputs.py`
 
@@ -872,7 +869,7 @@ git commit -m "test: refresh db comment functional fixtures"
 - [ ] **Step 1: Write a doc scan test that proves old names are gone from the active references**
 
 ```powershell
-rg -n "@Count|@C=|countHint|@Reference|@Ref=|@Relation|@Rel=|@Lazy|@L=|@AggregateRoot|@Root|@R|@DynamicInsert|@DynamicUpdate" docs/public skills .agents/skills
+rg -n "@Count|@C=|countHint|@Reference|@Ref=|@Relation|@Rel=|@Lazy|@L=|@AggregateRoot|@Root|@R|@DynamicInsert|@DynamicUpdate" docs/public skills
 ```
 
 Expected after the doc update: only historical specs and review notes match, not the live reference pages or live skill references.
@@ -891,7 +888,6 @@ The page must not mention aliases, compatibility notes, or old relation/provider
 Mirror the same supported set in:
 
 - `skills/cap4k-generator-inputs/references/db-schema-annotations.md`
-- `.agents/skills/cap4k-generator-inputs/references/db-schema-annotations.md`
 - `docs/public/reference/generator-input-validation.md`
 - `docs/public/generator/inputs-and-sources.md`
 
@@ -909,7 +905,7 @@ Run:
 
 ```powershell
 python scripts/validate-cap4k-generator-inputs.py
-rg -n "@Count|@C=|countHint|@Reference|@Ref=|@Relation|@Rel=|@Lazy|@L=|@AggregateRoot|@Root|@R|@DynamicInsert|@DynamicUpdate" docs/public skills .agents/skills
+rg -n "@Count|@C=|countHint|@Reference|@Ref=|@Relation|@Rel=|@Lazy|@L=|@AggregateRoot|@Root|@R|@DynamicInsert|@DynamicUpdate" docs/public skills
 ```
 
 Expected: the validator passes and the scan only finds historical references outside the active contract pages.
@@ -921,7 +917,6 @@ git add docs/public/reference/db-schema-annotations.md
 git add docs/public/reference/generator-input-validation.md
 git add docs/public/generator/inputs-and-sources.md
 git add skills/cap4k-generator-inputs/references/db-schema-annotations.md
-git add .agents/skills/cap4k-generator-inputs/references/db-schema-annotations.md
 git add scripts/validate-cap4k-generator-inputs.py
 git commit -m "docs: publish strict db comment contract"
 ```

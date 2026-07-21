@@ -237,7 +237,7 @@ Parser cleanup should use a strict allow-list model:
 
 The parser should not carry removed annotations as no-op metadata.
 
-The validator and active skill/public docs must use the same supported annotation set. Stale docs in `.agents/skills`, `cap4k/skills`, and `docs/public` should be treated as contract drift.
+The validator and active skill/public docs must use the same supported annotation set. Stale docs in `skills` and `docs/public` should be treated as contract drift.
 
 ## Model Changes
 
@@ -263,7 +263,6 @@ Required documentation surfaces:
 
 - `docs/public/reference/db-schema-annotations.md`
 - `skills/cap4k-generator-inputs/references/db-schema-annotations.md`
-- synchronized `.agents/skills/cap4k-generator-inputs/references/db-schema-annotations.md`
 - generator input validator scripts, if present
 
 Documentation should be present-tense:
@@ -280,7 +279,7 @@ Documentation should be present-tense:
 Static scans:
 
 ```powershell
-rg -n "@Count|@C=|countHint|@Reference|@Ref=|@Relation|@Rel=|@Lazy|@L=|@One\\b" cap4k-plugin-pipeline-source-db cap4k-plugin-pipeline-core cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-renderer-pebble docs/public skills .agents/skills --glob "!**/build/**"
+rg -n "@Count|@C=|countHint|@Reference|@Ref=|@Relation|@Rel=|@Lazy|@L=|@One\\b" cap4k-plugin-pipeline-source-db cap4k-plugin-pipeline-core cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-renderer-pebble docs/public skills --glob "!**/build/**"
 ```
 
 Expected after implementation:
