@@ -8,6 +8,20 @@ When continuing work in `cap4k`, read this file first, then read:
 - the relevant GitHub issue that now acts as backlog source of truth
 - the most recent relevant spec or plan under `docs/superpowers/`
 
+## Repository Entry Guard
+
+Before modifying files, committing, pushing, or opening a pull request, check the current branch and worktree state:
+
+- run `git status --short --branch`
+- run `git branch --show-current`
+- if the current branch is `master`, `publish/aliyun-private`, or `publish/maven-central`, stop and create or switch to an isolated worktree before editing
+- normal implementation and documentation work starts from `origin/master`
+- use a short-lived branch such as `feature/*`, `fix/*`, or `docs/*`; docs/spec/plan edits are not an exception to this rule
+- use the existing `.worktrees/` directory for project-local worktrees when it is available and ignored
+- do not reuse a worktree that is currently checked out on a publish branch for mainline work
+
+Reading, searching, and review-only commands may run on `master`. Any repository mutation must happen on a non-protected working branch.
+
 ## Cap4k Skill Routing
 
 When a task involves cap4k business-project authoring, use the repo-local skill router as the only routing source:
@@ -52,45 +66,62 @@ There are three kinds of work in this repo now:
 
 ## Branch And Release Policy
 
-`cap4k` does not use a long-lived `develop` branch as a standard integration stage. Do not introduce or revive a `feature -> develop -> master -> publish` flow for normal work.
+`cap4k` has three long-lived branches:
 
-`cap4k` also does not use `release/vX.Y.Z` or other intermediate release-promotion branches as the normal path from `master` to Maven Central. If a release needs ordinary framework code that already landed on `master`, promote `master` directly to `publish/maven-central` through the defined PR flow below.
+- `master`
+- `publish/aliyun-private`
+- `publish/maven-central`
+
+`cap4k` does not use a long-lived `develop` branch, `release/vX.Y.Z` branch, or `verify/* -> publish/*` lane as a normal integration or release-promotion path.
 
 Use these branch roles instead:
 
-- `feature/*`: short-lived implementation branches for normal code changes
+- `feature/*`, `fix/*`, `docs/*`: short-lived working branches for normal changes
 - `master`: the main integration branch for framework development
-- `publish/maven-central`: the Central release channel branch
-- `publish/aliyun-private`: optional self-use private-repository release branch
-- `verify/*`: temporary verification branches for release-pipeline or publication-flow changes
+- `publish/aliyun-private`: private Aliyun snapshot publish channel
+- `publish/maven-central`: Maven Central release channel
 
 Expected promotion flow:
 
 1. `feature/* -> master`
-2. `master -> publish/maven-central`
-3. `publish/maven-central` commit -> `v*` tag -> Maven Central release
+2. `master -> publish/aliyun-private` when the Aliyun snapshot channel needs the accepted master content
+3. `master -> publish/maven-central` when the Central release channel needs the accepted master content
+4. `publish/aliyun-private` push -> Aliyun snapshot publish
+5. `publish/maven-central` commit -> `v*` tag -> Maven Central release
 
 Direct-development rules:
 
-- do not implement normal work directly on `master`; start from a `feature/*` branch
+- do not implement normal work directly on `master`; start from a short-lived branch in an isolated worktree
 - do not commit directly on `master`; land mainline code through `feature/* -> master` pull requests
-- do not implement normal work directly on `publish/maven-central`; that branch is a release channel, not a feature branch
-- do not commit directly on `publish/maven-central`; release-channel updates should come through the allowed PR paths below
-- if a branch is an issue branch, ad-hoc branch, docs branch, or any other non-`verify/*` working branch, treat it like `feature/*`: it must land on `master`, not directly on `publish/maven-central`
+- do not implement normal work directly on either publish branch; publish branches are release channels, not feature branches
+- do not commit directly on either publish branch; publish-channel updates must come from `master` by pull request
+- if a branch is an issue branch, ad-hoc branch, docs branch, or any other working branch, treat it like `feature/*`: it must land on `master`, not directly on a publish branch
 
 Pull request policy:
 
-- `feature/* -> master`: required
-- `master -> publish/maven-central`: required, even when this is only a clean promotion of already-verified code
-- `verify/* -> publish/*`: allowed only for release-pipeline or publication-flow changes, and required by pull request
-- do not open `feature/* -> publish/maven-central` pull requests
-- do not open issue-branch, ad-hoc-branch, docs-branch, or other ordinary iteration pull requests into `publish/maven-central`
-- if work is not specifically a release-pipeline fix, it belongs on `master` first
+- working branch -> `master`: required
+- `master -> publish/aliyun-private`: required for Aliyun promotion
+- `master -> publish/maven-central`: required for Central promotion
+- do not open working-branch, issue-branch, ad-hoc-branch, docs-branch, or `verify/*` pull requests into either publish branch
+- publish-branch pull requests must use same-repository `master` as the head branch
+
+CI and branch protection contract:
+
+- the required status check context is `check`
+- `master`, `publish/aliyun-private`, and `publish/maven-central` are protected by required PRs, strict `check`, and admin enforcement
+- PRs into `master` run Gradle only when the change can affect code, build, scripts, workflows, tests, fixtures, or template resources
+- docs-only PRs into `master` skip Gradle but still complete the required `check` job
+- docs-only includes `docs/**`, `README*`, root Markdown files, `.github/ISSUE_TEMPLATE/**`, and `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/workflows/**`, `scripts/**`, `buildSrc/**`, `gradle/**`, Gradle files, source files, test files, fixtures, and template resources are not docs-only
+- PRs into publish branches only validate that the head is same-repository `master`; they do not run Gradle because `master` already carried the full check
+- if GitHub rejects a publish PR because the head is not `master`, do not bypass protection; land the work on `master` first and promote `master`
 
 Release safety rules:
 
 - `master` should stay free of mandatory Central or private-repository publishing credentials
-- Central release workflow changes belong on `verify/maven-central` first, then promote into `publish/maven-central`
+- publish workflow changes are normal mainline changes: working branch -> `master`, then `master -> publish/*`
+- publish workflows do not run duplicate Gradle `check`
+- Aliyun snapshot publish is branch-push-driven from `publish/aliyun-private`
 - Maven Central release is tag-driven, not branch-push-driven
 - only push release tags for commits that are contained in `origin/publish/maven-central`
 - do not use `develop` as the default base branch for new work, release prep, or issue execution
@@ -109,12 +140,7 @@ GitHub issues are now the backlog source of truth. Repository docs remain design
 - specs and plans track design and implementation detail
 - before starting implementation, re-read the target issue plus the newest relevant spec/plan against current `master`
 
-Current high-signal issues include:
-
-- `#15` framework capability audit
-- `#16` README rewrite after capability positioning stabilizes
-- `#17` DDD + cap4k + AI collaboration guide
-- other open issues only when their boundaries are still current after reading the latest specs/plans
+Do not rely on a static issue list in this file. Query the current issue state or use the issue/spec/plan explicitly named by the user.
 
 Do not execute an old historical plan just because it exists. Re-read the relevant spec and plan against current `master`, update them if the repository or user's latest decisions changed the boundary, and then execute from the refreshed plan.
 
