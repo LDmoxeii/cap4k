@@ -61,7 +61,7 @@ This iteration consumes inputs established by prior specs:
 | scope discriminator | child column comment `@Managed=scope` |
 | soft-delete discriminator | child column comment `@Managed=deleted` and resolved soft-delete policy |
 | primary key | JDBC table primary-key metadata |
-| unique constraints | JDBC unique index metadata copied into `UniqueConstraintModel` |
+| unique constraints | JDBC unique index metadata copied into `UniqueConstraintModel` with completeness, filter, and physical-column qualification preserved |
 
 Physical DB foreign keys are not inputs.
 
@@ -98,7 +98,10 @@ neutralColumns = {parentRef} + scopeColumns + {deletedColumn if present}
 if primaryKey == [parentRef]:
     ownedCardinality = ONE
 else if exists unique constraint U where:
-    U contains parentRef
+    U metadata is complete
+    and U is unconditional (has no filter predicate)
+    and every U term resolves case-insensitively to a physical child-table column
+    and U contains parentRef
     and U minus neutralColumns is empty
     and all scope/deleted columns in U are non-null:
         ownedCardinality = ONE
@@ -107,6 +110,8 @@ else:
 ```
 
 Column comparison must be case-insensitive and use physical column names.
+
+Lossy JDBC metadata, null index terms, non-column expression terms such as `lower(slug)`, and filtered/conditional unique indexes must not prove `ONE`. They conservatively infer `MANY` unless the primary key alone is exactly `[parentRef]`. Such metadata must remain incomplete or conditional so cardinality inference and unique-artifact planning skip it.
 
 `U minus neutralColumns` means set-like subtraction after column-name normalization. Constraint column order must not matter for cardinality.
 
@@ -132,6 +137,7 @@ The non-null rule is conservative. A nullable scope or delete discriminator in a
 | `unique(tenant_id, parent_id, code, deleted)` | `tenant_id=@Managed=scope`, `deleted=@Managed=deleted` | `MANY` | `code` remains after neutral filtering |
 | `unique(parent_id, version)` | `version=@Managed=version` | `MANY` | version is not neutral |
 | `unique(owner_id, parent_id, deleted)` | `deleted=@Managed=deleted` only | `MANY` | `owner_id` is not neutral unless explicitly `@Managed=scope` |
+| expression or filtered unique index involving `parent_id` | any | `MANY` | metadata is not complete, unconditional, physical-column-only uniqueness |
 
 ## Persistence Shape
 

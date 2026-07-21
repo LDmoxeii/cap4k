@@ -1214,12 +1214,12 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `unique index rows preserve filters and mark expression metadata incomplete`() {
+    fun `unique index rows preserve filters and mark null terms incomplete`() {
         val constraints = uniqueConstraintsFromIndexRows(
             rows = listOf(
                 UniqueIndexMetadataRow(
                     indexName = "uk_video_post_parent_active",
-                    columnName = "video_post_id",
+                    columnName = "VIDEO_POST_ID",
                     ordinalPosition = 1,
                     metadataSequence = 0,
                     filterCondition = " deleted = 0 ",
@@ -1233,6 +1233,7 @@ class DbSchemaSourceProviderTest {
                 ),
             ),
             primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "deleted"),
         )
 
         val unique = constraints.single()
@@ -1240,6 +1241,36 @@ class DbSchemaSourceProviderTest {
         assertEquals(listOf("video_post_id"), unique.columns)
         assertFalse(unique.complete)
         assertEquals("deleted = 0", unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows mark non physical expression terms incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_slug_expression",
+                    columnName = "video_post_id",
+                    ordinalPosition = 1,
+                    metadataSequence = 0,
+                    filterCondition = null,
+                ),
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_slug_expression",
+                    columnName = "lower(slug)",
+                    ordinalPosition = 2,
+                    metadataSequence = 1,
+                    filterCondition = null,
+                ),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        val unique = constraints.single()
+        assertEquals("uk_video_post_slug_expression", unique.physicalName)
+        assertEquals(listOf("video_post_id"), unique.columns)
+        assertFalse(unique.complete)
+        assertNull(unique.filterCondition)
     }
 
     @Test

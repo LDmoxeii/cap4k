@@ -16,6 +16,7 @@
 - Owned cardinality inference must not use physical database foreign-key metadata.
 - Do not introduce `@One`, `@Count`, `@Relation`, `@ParentCardinality`, or any removed annotation alias.
 - `@Managed=scope` and `@Managed=deleted` are cardinality-neutral only when they are explicitly declared and the participating unique-constraint columns are non-null.
+- Only complete, unconditional unique metadata whose every term resolves case-insensitively to a physical table column may prove `ONE` or reach aggregate unique-artifact planning. Null, lossy, expression, and filtered index metadata must be skipped; PK-only proof remains valid.
 - `@Managed=system` and `@Managed=version` are not cardinality-neutral.
 - In the first implementation, both `ownedCardinality=ONE` and `ownedCardinality=MANY` keep `relationType = ONE_TO_MANY` and `persistenceShape = ONE_TO_MANY_JOIN_COLUMN`.
 - For `ownedCardinality=ONE`, the generated entity exposes a nullable single-child property in generated entity code, not in checked-in `*Behavior.kt`.
@@ -29,9 +30,14 @@
 - Modify `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
   - Add `OwnedRelationCardinality`.
   - Add `OwnedRelationPersistenceShape`.
-  - Extend `AggregateRelationModel` with owned metadata and generated API names using default values for compatibility.
+  - Extend `AggregateRelationModel` with owned metadata and generated API names using defaults only for in-repository Kotlin source compatibility; do not claim Java constructor or cross-version JVM binary compatibility.
+  - Extend `UniqueConstraintModel` with complete/conditional metadata under the same source-only compatibility scope.
 - Modify `cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt`
   - Lock the public canonical relation contract.
+- Modify `cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProvider.kt`
+  - Resolve index terms case-insensitively against the table's physical columns and mark null, lossy, or expression terms incomplete.
+- Modify `cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProviderTest.kt`
+  - Preserve normal H2 unique metadata while covering null and non-null expression index terms.
 - Create `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt`
   - Infer `ONE` or `MANY` from one `@ParentRef`, primary key, unique constraints, and managed-role metadata.
 - Create `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInferenceTest.kt`
@@ -435,7 +441,9 @@ internal object OwnedRelationCardinalityInference {
 
         val hasOneProvingUniqueConstraint = child.uniqueConstraints.any { constraint ->
             val constraintColumnKeys = constraint.columns.mapTo(linkedSetOf(), ::columnKey)
-            parentRefKey in constraintColumnKeys &&
+            constraint.complete &&
+                constraint.filterCondition.isNullOrBlank() &&
+                parentRefKey in constraintColumnKeys &&
                 constraintColumnKeys.minus(neutralColumnKeys).isEmpty() &&
                 constraintColumnKeys
                     .filter { it in scopeColumnKeys || it in deletedColumnKeys }
@@ -714,7 +722,7 @@ Replace the current `parentChildRelations` mapping with this version:
                     "unknown child table: ${child.tableName}"
                 }
                 val cardinality = OwnedRelationCardinalityInference.infer(binding)
-                val fieldNames = parentChildFieldNames(parentTable, child.tableName)
+                val fieldNames = parentChildFieldNames(parentTable, child.tableName, cardinality)
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
                     ownerEntityPackageName = resolvedParent.packageName,
@@ -745,7 +753,11 @@ Replace the current `parentChildRelations` mapping with this version:
 Replace `private fun parentChildFieldName(...)` with this version:
 
 ```kotlin
-    private fun parentChildFieldNames(parentTableName: String, childTableName: String): OwnedRelationFieldNames {
+    private fun parentChildFieldNames(
+        parentTableName: String,
+        childTableName: String,
+        cardinality: OwnedRelationCardinality,
+    ): OwnedRelationFieldNames {
         val parentTokens = tableNameTokens(parentTableName)
         val childTokens = tableNameTokens(childTableName)
         val stemTokens = if (
@@ -757,16 +769,26 @@ Replace `private fun parentChildFieldName(...)` with this version:
             childTokens
         }
         val nonEmptyStemTokens = stemTokens.ifEmpty { childTokens }
-        val singleName = tokensToLowerCamel(nonEmptyStemTokens)
+        val singleName = tokensToLowerCamel(
+            nonEmptyStemTokens.dropLast(1) + RelationInflector.singularizeStable(nonEmptyStemTokens.last())
+        )
         val collectionName = tokensToLowerCamel(
             nonEmptyStemTokens.dropLast(1) + RelationInflector.pluralizeStable(nonEmptyStemTokens.last())
         )
         return OwnedRelationFieldNames(
-            collectionName = collectionName,
+            collectionName = if (
+                cardinality == OwnedRelationCardinality.ONE && collectionName == singleName
+            ) {
+                "${collectionName}Items"
+            } else {
+                collectionName
+            },
             singleName = singleName,
         )
     }
 ```
+
+The stable inflector must singularize already-plural stems (`files` -> `file`) before deriving the single accessor. If singular and collection names are equal for an uncountable stem, owned `ONE` uses a deterministic backing fallback such as `fishItems` while keeping the public accessor `fish`.
 
 Then insert this validation before the final `return relations`:
 

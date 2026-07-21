@@ -136,7 +136,11 @@ class DbSchemaSourceProvider : SourceProvider {
                     )
                 }
             }
-            uniqueConstraintsFromIndexRows(indexRows, primaryKeySet)
+            uniqueConstraintsFromIndexRows(
+                rows = indexRows,
+                primaryKey = primaryKeySet,
+                physicalColumns = columns.mapTo(linkedSetOf()) { it.name },
+            )
         }
 
         val table = DbTableSnapshot(
@@ -273,28 +277,35 @@ internal data class UniqueIndexMetadataRow(
 internal fun uniqueConstraintsFromIndexRows(
     rows: List<UniqueIndexMetadataRow>,
     primaryKey: Set<String>,
+    physicalColumns: Set<String>,
 ): List<UniqueConstraintModel> = rows
     .groupByTo(linkedMapOf(), UniqueIndexMetadataRow::indexName)
     .map { (physicalName, indexRows) ->
+        val physicalColumnsByKey = physicalColumns.associateBy { it.lowercase(Locale.ROOT) }
+        val sortedRows = indexRows.sortedWith(
+            compareBy<UniqueIndexMetadataRow> {
+                if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
+            }.thenBy { it.metadataSequence }
+        )
+        val resolvedColumns = sortedRows.map { row ->
+            row.columnName?.let { columnName ->
+                physicalColumnsByKey[columnName.lowercase(Locale.ROOT)]
+            }
+        }
         val filterCondition = indexRows
             .asSequence()
             .mapNotNull { row -> row.filterCondition?.trim()?.takeIf(String::isNotEmpty) }
             .firstOrNull()
         UniqueConstraintModel(
             physicalName = physicalName,
-            columns = indexRows
-                .sortedWith(
-                    compareBy<UniqueIndexMetadataRow> {
-                        if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
-                    }.thenBy { it.metadataSequence }
-                )
-                .mapNotNull { it.columnName },
-            complete = indexRows.all { it.columnName != null },
+            columns = resolvedColumns.filterNotNull(),
+            complete = resolvedColumns.all { it != null },
             filterCondition = filterCondition,
         )
     }
     .filterNot { constraint ->
         constraint.complete &&
             constraint.filterCondition.isNullOrBlank() &&
-            constraint.columns.toSet() == primaryKey
+            constraint.columns.mapTo(linkedSetOf()) { it.lowercase(Locale.ROOT) } ==
+            primaryKey.mapTo(linkedSetOf()) { it.lowercase(Locale.ROOT) }
     }
