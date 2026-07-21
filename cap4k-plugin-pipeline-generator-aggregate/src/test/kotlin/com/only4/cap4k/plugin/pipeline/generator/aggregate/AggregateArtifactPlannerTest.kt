@@ -11,6 +11,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.AggregateSoftDeletePolicy
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
@@ -32,6 +33,7 @@ import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
+import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
@@ -2297,16 +2299,16 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner leaves soft delete sql unset`() {
+    fun `entity planner renders self id soft delete sql`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
             tableName = "video_post",
             comment = "video post",
             fields = listOf(
-                FieldModel("id", "Long"),
-                FieldModel("version", "Long"),
-                FieldModel("deleted", "Int"),
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("version", "Long", columnName = "version"),
+                FieldModel("deleted", "Long", columnName = "deleted", managedRole = DbManagedRole.DELETED),
             ),
             idField = FieldModel("id", "Long"),
         )
@@ -2316,11 +2318,18 @@ class AggregateArtifactPlannerTest {
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
                 aggregatePersistenceProviderControls = listOf(
-                    com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl(
+                    AggregatePersistenceProviderControl(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        softDeleteColumn = "deleted",
+                        softDelete = AggregateSoftDeletePolicy(
+                            fieldName = "deleted",
+                            columnName = "deleted",
+                            activeValue = "0",
+                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                            activePredicateSql = "deleted = 0",
+                            deleteAssignmentSql = "deleted = id",
+                        ),
                         idFieldName = "id",
                         versionFieldName = "version",
                     )
@@ -2328,14 +2337,23 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertFalse(artifact.context.containsKey("dynamicInsert"))
-        assertFalse(artifact.context.containsKey("dynamicUpdate"))
-        assertNull(artifact.context["softDeleteSql"])
-        assertNull(artifact.context["softDeleteWhereClause"])
+        @Suppress("UNCHECKED_CAST")
+        val softDelete = artifact.context["softDelete"] as Map<String, Any?>
+
+        assertEquals("update \"video_post\" set \"deleted\" = \"id\" where \"id\" = ? and \"version\" = ?", artifact.context["softDeleteSql"])
+        assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
+        assertEquals((artifact.context["softDeleteSql"] as String).toKotlinStringLiteral(), artifact.context["softDeleteSqlKotlinStringLiteral"])
+        assertEquals((artifact.context["softDeleteWhereClause"] as String).toKotlinStringLiteral(), artifact.context["softDeleteWhereClauseKotlinStringLiteral"])
+        assertEquals(true, softDelete["enabled"])
+        assertEquals("deleted", softDelete["columnName"])
+        assertEquals("0", softDelete["activeValue"])
+        assertEquals("SELF_ID", softDelete["tombstoneStrategy"])
+        assertEquals("\"deleted\" = 0", softDelete["activePredicateSql"])
+        assertEquals("\"deleted\" = \"id\"", softDelete["deleteAssignmentSql"])
     }
 
     @Test
-    fun `entity planner leaves soft delete sql unset with physical id and version column names`() {
+    fun `entity planner renders soft delete sql with physical id and version column names`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2366,11 +2384,18 @@ class AggregateArtifactPlannerTest {
                     )
                 ),
                 aggregatePersistenceProviderControls = listOf(
-                    com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl(
+                    AggregatePersistenceProviderControl(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        softDeleteColumn = "deleted",
+                        softDelete = AggregateSoftDeletePolicy(
+                            fieldName = "deleted",
+                            columnName = "deleted",
+                            activeValue = "0",
+                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                            activePredicateSql = "deleted = 0",
+                            deleteAssignmentSql = "deleted = video_post_id",
+                        ),
                         idFieldName = "id",
                         versionFieldName = "lockVersion",
                     )
@@ -2378,11 +2403,11 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertNull(artifact.context["softDeleteSql"])
+        assertEquals("update \"video_post\" set \"deleted\" = \"video_post_id\" where \"video_post_id\" = ? and \"lock_version\" = ?", artifact.context["softDeleteSql"])
     }
 
     @Test
-    fun `entity planner leaves versionless soft delete sql unset with physical id column only`() {
+    fun `entity planner renders versionless self id soft delete sql`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2411,11 +2436,18 @@ class AggregateArtifactPlannerTest {
                     )
                 ),
                 aggregatePersistenceProviderControls = listOf(
-                    com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl(
+                    AggregatePersistenceProviderControl(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        softDeleteColumn = "deleted",
+                        softDelete = AggregateSoftDeletePolicy(
+                            fieldName = "deleted",
+                            columnName = "deleted",
+                            activeValue = "0",
+                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                            activePredicateSql = "deleted = 0",
+                            deleteAssignmentSql = "deleted = video_post_id",
+                        ),
                         idFieldName = "aggregateId",
                         versionFieldName = null,
                     )
@@ -2423,12 +2455,12 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertNull(artifact.context["softDeleteSql"])
-        assertNull(artifact.context["softDeleteWhereClause"])
+        assertEquals("update \"video_post\" set \"deleted\" = \"video_post_id\" where \"video_post_id\" = ?", artifact.context["softDeleteSql"])
+        assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
     }
 
     @Test
-    fun `entity planner leaves mysql soft delete sql unset`() {
+    fun `entity planner renders mysql self id soft delete sql with backticks`() {
         val entity = EntityModel(
             name = "Category",
             packageName = "com.acme.demo.domain.aggregates.category",
@@ -2459,7 +2491,14 @@ class AggregateArtifactPlannerTest {
                         entityName = "Category",
                         entityPackageName = "com.acme.demo.domain.aggregates.category",
                         tableName = "category",
-                        softDeleteColumn = "deleted",
+                        softDelete = AggregateSoftDeletePolicy(
+                            fieldName = "deleted",
+                            columnName = "deleted",
+                            activeValue = "0",
+                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                            activePredicateSql = "deleted = 0",
+                            deleteAssignmentSql = "deleted = id",
+                        ),
                         idFieldName = "id",
                         versionFieldName = "version",
                     )
@@ -2467,8 +2506,8 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertNull(artifact.context["softDeleteSql"])
-        assertNull(artifact.context["softDeleteWhereClause"])
+        assertEquals("update `category` set `deleted` = `id` where `id` = ? and `version` = ?", artifact.context["softDeleteSql"])
+        assertEquals("`deleted` = 0", artifact.context["softDeleteWhereClause"])
     }
 
     @Test
@@ -3239,7 +3278,14 @@ class AggregateArtifactPlannerTest {
                         entityName = "Category",
                         entityPackageName = "com.acme.demo.domain.aggregates.category",
                         tableName = "category",
-                        softDeleteColumn = "deleted",
+                        softDelete = AggregateSoftDeletePolicy(
+                            fieldName = "deleted",
+                            columnName = "deleted",
+                            activeValue = "0",
+                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                            activePredicateSql = "deleted = 0",
+                            deleteAssignmentSql = "deleted = id",
+                        ),
                         idFieldName = "id",
                     )
                 ),
@@ -3837,7 +3883,14 @@ class AggregateArtifactPlannerTest {
                 entityName = "Category",
                 entityPackageName = "com.acme.demo.domain.aggregates.category",
                 tableName = "category",
-                softDeleteColumn = "deleted",
+                softDelete = AggregateSoftDeletePolicy(
+                    fieldName = "deleted",
+                    columnName = "deleted",
+                    activeValue = "0",
+                    tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                    activePredicateSql = "deleted = 0",
+                    deleteAssignmentSql = "deleted = id",
+                ),
                 idFieldName = "id",
             ),
         )
@@ -4093,7 +4146,14 @@ class AggregateArtifactPlannerTest {
                     entityName = "Category",
                     entityPackageName = "com.acme.demo.domain.aggregates.category",
                     tableName = "category",
-                    softDeleteColumn = "deleted",
+                    softDelete = AggregateSoftDeletePolicy(
+                        fieldName = "deleted",
+                        columnName = "deleted",
+                        activeValue = "0",
+                        tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                        activePredicateSql = "deleted = 0",
+                        deleteAssignmentSql = "deleted = id",
+                    ),
                     idFieldName = "id",
                 ),
             )
@@ -4125,7 +4185,14 @@ class AggregateArtifactPlannerTest {
                     entityName = "Category",
                     entityPackageName = "com.acme.demo.domain.aggregates.category",
                     tableName = "category",
-                    softDeleteColumn = "deleted",
+                    softDelete = AggregateSoftDeletePolicy(
+                        fieldName = "deleted",
+                        columnName = "deleted",
+                        activeValue = "0",
+                        tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+                        activePredicateSql = "deleted = 0",
+                        deleteAssignmentSql = "deleted = id",
+                    ),
                     idFieldName = "id",
                 ),
             )
