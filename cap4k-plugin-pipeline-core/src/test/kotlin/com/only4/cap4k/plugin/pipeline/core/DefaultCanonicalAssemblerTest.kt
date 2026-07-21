@@ -35,6 +35,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
@@ -48,6 +49,7 @@ import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -2742,7 +2744,7 @@ class DefaultCanonicalAssemblerTest {
                                     idStrategy = DbIdStrategy.DB_IDENTITY
                                 ),
                                 DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
-                                DbColumnSnapshot("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                                DbColumnSnapshot("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2755,7 +2757,7 @@ class DefaultCanonicalAssemblerTest {
         val control = result.model.aggregatePersistenceProviderControls.single()
 
         assertEquals("VideoPost", control.entityName)
-        assertNull(control.softDeleteColumn)
+        assertEquals("deleted", control.softDelete?.columnName)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
     }
@@ -2812,7 +2814,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("VideoPost", control.entityName)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
-        assertNull(control.softDeleteColumn)
+        assertNull(control.softDelete)
     }
 
     @Test
@@ -3308,7 +3310,7 @@ class DefaultCanonicalAssemblerTest {
                     columns = listOf(
                         column("id", "BIGINT", "Long", false, primaryKey = true),
                         column("tenant_id", "BIGINT", "Long", false, managedRole = DbManagedRole.SCOPE),
-                        column("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                        column("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3321,6 +3323,168 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("tenantId", policy.managedFields.single { it.columnName == "tenant_id" }.fieldName)
         assertEquals(DbManagedRole.SCOPE, policy.managedFields.single { it.columnName == "tenant_id" }.managedRole)
         assertEquals("deleted", policy.deleted.columnName)
+    }
+
+    @Test
+    fun `deleted marker resolves self id soft delete policy and provider control without version`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(
+                idDefaultStrategy = "identity",
+                deletedDefaultColumn = "",
+            ),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column(
+                            name = "id",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            primaryKey = true,
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                        ),
+                        column(
+                            name = "deleted",
+                            dbType = "BIGINT",
+                            kotlinType = "Long",
+                            nullable = false,
+                            defaultValue = "0",
+                            managedRole = DbManagedRole.DELETED,
+                        ),
+                        column("title", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val control = result.model.aggregatePersistenceProviderControls.single()
+        assertNotNull(control.softDelete)
+        val softDelete = requireNotNull(control.softDelete)
+
+        assertEquals(true, resolved.deleted.enabled)
+        assertEquals("deleted", resolved.deleted.fieldName)
+        assertEquals(SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY, resolved.deleted.writePolicy)
+        assertEquals(listOf("title"), resolved.writeSurface.createAllowedFields)
+        assertEquals(listOf("title"), resolved.writeSurface.updateAllowedFields)
+        assertEquals("id", control.idFieldName)
+        assertEquals(null, control.versionFieldName)
+        assertEquals("deleted", softDelete.fieldName)
+        assertEquals("deleted", softDelete.columnName)
+        assertEquals("0", softDelete.activeValue)
+        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, softDelete.tombstoneStrategy)
+        assertEquals("deleted = 0", softDelete.activePredicateSql)
+        assertEquals("deleted = id", softDelete.deleteAssignmentSql)
+    }
+
+    @Test
+    fun `soft delete policy requires deleted column default zero`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column(
+                                name = "id",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                            ),
+                            column(
+                                name = "deleted",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                managedRole = DbManagedRole.DELETED,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("soft delete column video_post.deleted must declare default 0 for active value 0", error.message)
+    }
+
+    @Test
+    fun `soft delete policy rejects nullable deleted column`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column(
+                                name = "id",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                            ),
+                            column(
+                                name = "deleted",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = true,
+                                defaultValue = "0",
+                                managedRole = DbManagedRole.DELETED,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("soft delete column video_post.deleted must be non-null for active value 0", error.message)
+    }
+
+    @Test
+    fun `soft delete policy rejects id values wider than deleted discriminator`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column(
+                                name = "id",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                            ),
+                            column(
+                                name = "deleted",
+                                dbType = "INT",
+                                kotlinType = "Int",
+                                nullable = false,
+                                defaultValue = "0",
+                                managedRole = DbManagedRole.DELETED,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
     }
 
     @Test
@@ -3494,8 +3658,8 @@ class DefaultCanonicalAssemblerTest {
                     name = "video_post",
                     columns = listOf(
                         column(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, primaryKey = true),
-                        column(name = "is_deleted", dbType = "INT", kotlinType = "Int", nullable = false, managedRole = DbManagedRole.DELETED),
-                        column(name = "deleted", dbType = "INT", kotlinType = "Int", nullable = false),
+                        column(name = "is_deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
+                        column(name = "deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3509,7 +3673,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("isDeleted", policy.deleted.fieldName)
         assertEquals("is_deleted", policy.deleted.columnName)
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.deleted.source)
-        assertTrue(result.model.aggregatePersistenceProviderControls.isEmpty())
+        assertEquals("is_deleted", result.model.aggregatePersistenceProviderControls.single().softDelete?.columnName)
     }
 
     @Test
@@ -5607,6 +5771,7 @@ class DefaultCanonicalAssemblerTest {
         dbType: String,
         kotlinType: String,
         nullable: Boolean,
+        defaultValue: String? = null,
         primaryKey: Boolean = false,
         // TODO(Task 4 cleanup): this stale relation alias is compatibility-only for legacy tests.
         // Active relation-contract tests should use parentRef/refAggregate/refId directly.
@@ -5628,6 +5793,7 @@ class DefaultCanonicalAssemblerTest {
         dbType = dbType,
         kotlinType = kotlinType,
         nullable = nullable,
+        defaultValue = defaultValue,
         isPrimaryKey = primaryKey,
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
