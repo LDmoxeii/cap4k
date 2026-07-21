@@ -1274,6 +1274,34 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
+    fun `unique index rows mark ordinal gaps incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow("uk_video_post_parent", "video_post_id", 1, 0, null),
+                UniqueIndexMetadataRow("uk_video_post_parent", "slug", 3, 1, null),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        assertFalse(constraints.single().complete)
+    }
+
+    @Test
+    fun `unique index rows mark duplicate ordinals incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow("uk_video_post_parent", "video_post_id", 1, 0, null),
+                UniqueIndexMetadataRow("uk_video_post_parent", "slug", 1, 1, null),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        assertFalse(constraints.single().complete)
+    }
+
+    @Test
     fun `db source records discovered included and excluded table diagnostics`() {
         val dbFile = Files.createTempDirectory("db-source-diagnostics").resolve("demo").toAbsolutePath().toString()
         DriverManager.getConnection(

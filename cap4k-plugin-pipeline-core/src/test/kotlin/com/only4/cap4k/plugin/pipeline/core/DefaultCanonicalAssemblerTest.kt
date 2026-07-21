@@ -4827,6 +4827,44 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `inverse inference fails fast when derived inverse field collides with owned one accessor`() {
+        val orderId = FieldModel(name = "id", type = "Long")
+        val orderLineId = FieldModel(name = "id", type = "Long")
+        val orderLineOrderId = FieldModel(name = "id", type = "Long")
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateInverseRelationInference.infer(
+                entities = listOf(
+                    EntityModel("Order", "com.acme.demo.domain.aggregates.order", "order", "", listOf(orderId), orderId),
+                    EntityModel("OrderLine", "com.acme.demo.domain.aggregates.order", "order_line", "", listOf(orderLineId), orderLineId),
+                    EntityModel("OrderLineOrder", "com.acme.demo.domain.aggregates.order", "order_line_order", "", listOf(orderLineOrderId), orderLineOrderId),
+                ),
+                relations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "Order", ownerEntityPackageName = "com.acme.demo.domain.aggregates.order",
+                        fieldName = "lines", targetEntityName = "OrderLine", targetEntityPackageName = "com.acme.demo.domain.aggregates.order",
+                        relationType = AggregateRelationType.ONE_TO_MANY, joinColumn = "order_id", fetchType = AggregateFetchType.LAZY,
+                        nullable = false, cascadeTypes = emptyList(), orphanRemoval = true, joinColumnNullable = false,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = "OrderLine", ownerEntityPackageName = "com.acme.demo.domain.aggregates.order",
+                        fieldName = "orderLineOrders", targetEntityName = "OrderLineOrder", targetEntityPackageName = "com.acme.demo.domain.aggregates.order",
+                        relationType = AggregateRelationType.ONE_TO_MANY, joinColumn = "order_line_id", fetchType = AggregateFetchType.LAZY,
+                        nullable = true, cascadeTypes = emptyList(), orphanRemoval = true, joinColumnNullable = true,
+                        owned = true, ownedCardinality = OwnedRelationCardinality.ONE, singleAccessorName = "order",
+                    ),
+                ),
+                tables = emptyList(),
+            )
+        }
+
+        assertEquals(
+            "aggregate inverse relation field collides with owned one single accessor: com.acme.demo.domain.aggregates.order.OrderLine.order",
+            error.message,
+        )
+    }
+
+    @Test
     @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects ambiguous parent child join columns`() {
         val error = assertThrows(IllegalArgumentException::class.java) {

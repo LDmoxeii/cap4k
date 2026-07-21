@@ -6,6 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
 import java.util.Locale
 
 internal object AggregateInverseRelationInference {
@@ -31,6 +32,16 @@ internal object AggregateInverseRelationInference {
         val ownerRelationFieldNamesByEntity = relations
             .groupBy { EntityKey(it.ownerEntityPackageName, it.ownerEntityName) }
             .mapValues { (_, entityRelations) -> entityRelations.map { it.fieldName }.toSet() }
+        val ownedOneSingleAccessorNamesByEntity = relations
+            .asSequence()
+            .filter { it.owned && it.ownedCardinality == OwnedRelationCardinality.ONE }
+            .mapNotNull { relation ->
+                relation.singleAccessorName?.let { accessorName ->
+                    EntityKey(relation.ownerEntityPackageName, relation.ownerEntityName) to accessorName
+                }
+            }
+            .groupBy({ it.first }, { it.second })
+            .mapValues { (_, accessors) -> accessors.toSet() }
         val derivedFieldKeys = mutableSetOf<DerivedFieldKey>()
 
         return relations
@@ -46,6 +57,9 @@ internal object AggregateInverseRelationInference {
                 }
                 require(fieldName !in scalarFieldsByEntity.getValue(childKey)) {
                     "aggregate inverse relation field collides with scalar field: ${childEntity.packageName}.${childEntity.name}.$fieldName"
+                }
+                require(fieldName !in ownedOneSingleAccessorNamesByEntity[childKey].orEmpty()) {
+                    "aggregate inverse relation field collides with owned one single accessor: ${childEntity.packageName}.${childEntity.name}.$fieldName"
                 }
                 require(derivedFieldKeys.add(DerivedFieldKey(childKey, fieldName))) {
                     "aggregate inverse relation field collision: ${childEntity.packageName}.${childEntity.name}.$fieldName"

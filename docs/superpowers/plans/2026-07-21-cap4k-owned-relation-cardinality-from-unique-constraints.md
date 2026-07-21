@@ -33,11 +33,11 @@
   - Extend `AggregateRelationModel` with owned metadata and generated API names using defaults only for in-repository Kotlin source compatibility; do not claim Java constructor or cross-version JVM binary compatibility.
   - Extend `UniqueConstraintModel` with complete/conditional metadata under the same source-only compatibility scope.
 - Modify `cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt`
-  - Lock the public canonical relation contract.
+  - Lock the public canonical relation contract plus unique metadata defaults and explicit incomplete/filtered values.
 - Modify `cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProvider.kt`
   - Resolve index terms case-insensitively against the table's physical columns and mark null, lossy, or expression terms incomplete.
 - Modify `cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProviderTest.kt`
-  - Preserve normal H2 unique metadata while covering null and non-null expression index terms.
+  - Preserve normal H2 unique metadata while covering null, expression, filtered, ordinal-gap, and duplicate-ordinal index terms.
 - Create `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt`
   - Infer `ONE` or `MANY` from one `@ParentRef`, primary key, unique constraints, and managed-role metadata.
 - Create `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInferenceTest.kt`
@@ -51,6 +51,8 @@
 - Modify `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateRelationPlanning.kt`
   - Project owned metadata into `relationFields`.
   - Add `jakarta.persistence.Transient` import when a one-child owned relation is present.
+- Modify `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateUniqueConstraintPlanning.kt`
+  - Exclude incomplete or filtered unique metadata from generated aggregate unique artifacts.
 - Modify `cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt`
   - Assert relation context contains `owned`, `parentRefColumn`, `ownedCardinality`, `persistenceShape`, `backingCollectionName`, and `singleAccessorName`.
 - Modify `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/entity.kt.peb`
@@ -74,6 +76,8 @@
 - Modify: `cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt`
 - Create: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt`
 - Create: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInferenceTest.kt`
+- Modify: `cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProvider.kt`
+- Modify: `cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProviderTest.kt`
 
 **Interfaces:**
 - Consumes:
@@ -92,6 +96,8 @@
   - `AggregateRelationModel.persistenceShape: OwnedRelationPersistenceShape?`
   - `AggregateRelationModel.backingCollectionName: String?`
   - `AggregateRelationModel.singleAccessorName: String?`
+  - `UniqueConstraintModel.complete: Boolean`
+  - `UniqueConstraintModel.filterCondition: String?`
   - `OwnedRelationCardinalityInference.infer(binding: OwnedParentBinding): OwnedRelationCardinality`
 
 - [ ] **Step 1: Write the failing API model test**
@@ -129,67 +135,11 @@ Append this test to `PipelineModelsTest` before the final closing brace:
     }
 ```
 
-- [ ] **Step 2: Run the API test and verify it fails for missing symbols**
+- [ ] **Step 1a: Lock unique metadata model semantics**
 
-Run:
+In `PipelineModelsTest`, add one test asserting the defaults (`complete == true`, `filterCondition == null`) and one asserting explicit `complete = false, filterCondition = "deleted = 0"` values are retained.
 
-```powershell
-./gradlew.bat :cap4k-plugin-pipeline-api:test --tests "com.only4.cap4k.plugin.pipeline.api.PipelineModelsTest.aggregate relation model carries owned cardinality separately from persistence type" --console=plain
-```
-
-Expected: FAIL to compile with unresolved references for `OwnedRelationCardinality`, `OwnedRelationPersistenceShape`, and/or unknown named arguments on `AggregateRelationModel`.
-
-- [ ] **Step 3: Add the API model fields**
-
-In `PipelineModels.kt`, insert these enums immediately before `data class AggregateRelationModel`:
-
-```kotlin
-enum class OwnedRelationCardinality {
-    ONE,
-    MANY,
-}
-
-enum class OwnedRelationPersistenceShape {
-    ONE_TO_MANY_JOIN_COLUMN,
-}
-```
-
-Then replace the current `AggregateRelationModel` declaration with this version:
-
-```kotlin
-data class AggregateRelationModel(
-    val ownerEntityName: String,
-    val ownerEntityPackageName: String,
-    val fieldName: String,
-    val targetEntityName: String,
-    val targetEntityPackageName: String,
-    val relationType: AggregateRelationType,
-    val joinColumn: String,
-    val fetchType: AggregateFetchType,
-    val nullable: Boolean,
-    val cascadeTypes: List<AggregateCascadeType> = emptyList(),
-    val orphanRemoval: Boolean = false,
-    val joinColumnNullable: Boolean? = null,
-    val owned: Boolean = false,
-    val parentRefColumn: String? = null,
-    val ownedCardinality: OwnedRelationCardinality? = null,
-    val persistenceShape: OwnedRelationPersistenceShape? = null,
-    val backingCollectionName: String? = null,
-    val singleAccessorName: String? = null,
-)
-```
-
-- [ ] **Step 4: Run the API tests and verify the model contract passes**
-
-Run:
-
-```powershell
-./gradlew.bat :cap4k-plugin-pipeline-api:test --tests "com.only4.cap4k.plugin.pipeline.api.PipelineModelsTest" --console=plain
-```
-
-Expected: PASS for `PipelineModelsTest`.
-
-- [ ] **Step 5: Write focused cardinality inference tests**
+- [ ] **Step 2: Write focused cardinality inference tests**
 
 Create `OwnedRelationCardinalityInferenceTest.kt` with this content:
 
@@ -396,17 +346,69 @@ class OwnedRelationCardinalityInferenceTest {
 }
 ```
 
-- [ ] **Step 6: Run the new core test and verify it fails for missing inferencer**
+- [ ] **Step 2a: Write source-provider metadata regression tests**
+
+In `DbSchemaSourceProviderTest`, test `uniqueConstraintsFromIndexRows` with physical columns resolved case-insensitively. Cover null terms and nonphysical/expression terms as incomplete, preserve a nonblank filter condition, and add separate ordinal-gap (`1, 3`) and duplicate-ordinal (`1, 1`) cases that assert `complete == false`.
+
+- [ ] **Step 3: Run the new API, source-provider, and core tests and verify they fail before implementation**
 
 Run:
 
 ```powershell
+./gradlew.bat :cap4k-plugin-pipeline-api:test --tests "com.only4.cap4k.plugin.pipeline.api.PipelineModelsTest" --console=plain
+./gradlew.bat :cap4k-plugin-pipeline-source-db:test --tests "com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProviderTest" --console=plain
 ./gradlew.bat :cap4k-plugin-pipeline-core:test --tests "com.only4.cap4k.plugin.pipeline.core.OwnedRelationCardinalityInferenceTest" --console=plain
 ```
 
-Expected: FAIL to compile with unresolved reference `OwnedRelationCardinalityInference`.
+Expected: the API test FAILs to compile for the missing model symbols or fields; the source-provider unique metadata aggregation tests FAIL before the aggregation implementation; and the core test FAILs to compile with unresolved references for the API symbols and `OwnedRelationCardinalityInference`.
 
-- [ ] **Step 7: Implement the inferencer**
+- [ ] **Step 4: Add the API model fields**
+
+In `PipelineModels.kt`, insert these enums immediately before `data class AggregateRelationModel`:
+
+```kotlin
+enum class OwnedRelationCardinality {
+    ONE,
+    MANY,
+}
+
+enum class OwnedRelationPersistenceShape {
+    ONE_TO_MANY_JOIN_COLUMN,
+}
+```
+
+Then replace the current `AggregateRelationModel` declaration with this version:
+
+```kotlin
+data class AggregateRelationModel(
+    val ownerEntityName: String,
+    val ownerEntityPackageName: String,
+    val fieldName: String,
+    val targetEntityName: String,
+    val targetEntityPackageName: String,
+    val relationType: AggregateRelationType,
+    val joinColumn: String,
+    val fetchType: AggregateFetchType,
+    val nullable: Boolean,
+    val cascadeTypes: List<AggregateCascadeType> = emptyList(),
+    val orphanRemoval: Boolean = false,
+    val joinColumnNullable: Boolean? = null,
+    val owned: Boolean = false,
+    val parentRefColumn: String? = null,
+    val ownedCardinality: OwnedRelationCardinality? = null,
+    val persistenceShape: OwnedRelationPersistenceShape? = null,
+    val backingCollectionName: String? = null,
+    val singleAccessorName: String? = null,
+)
+```
+
+Extend `UniqueConstraintModel` with `complete: Boolean = true` and `filterCondition: String? = null`. Add KDoc stating that these defaulted parameters preserve Kotlin in-repository source compatibility only; they make no Java source-constructor or cross-version JVM binary compatibility guarantee.
+
+- [ ] **Step 4a: Implement complete source-provider unique metadata aggregation**
+
+In `DbSchemaSourceProvider`, keep ordinary complete H2 index metadata intact while preserving the first normalized filter condition. Mark metadata incomplete when any term is null or nonphysical, or when ordinal positions are non-positive, duplicate, or do not equal the sorted contiguous sequence `1..rowCount`. Do not let incomplete or filtered constraints be removed by primary-key duplicate filtering unless they are complete and unconditional.
+
+- [ ] **Step 5: Implement the inferencer**
 
 Create `OwnedRelationCardinalityInference.kt` with this content:
 
@@ -461,27 +463,31 @@ internal object OwnedRelationCardinalityInference {
 }
 ```
 
-- [ ] **Step 8: Run the focused API and inferencer tests**
+The one-proving predicate must require `constraint.complete && constraint.filterCondition.isNullOrBlank()` before it considers parent-ref and managed-role columns. Add inference cases showing an otherwise matching incomplete or filtered constraint remains `MANY`.
+
+- [ ] **Step 6: Run the focused API, source-provider, and inferencer tests**
 
 Run:
 
 ```powershell
 ./gradlew.bat :cap4k-plugin-pipeline-api:test --tests "com.only4.cap4k.plugin.pipeline.api.PipelineModelsTest" --console=plain
+./gradlew.bat :cap4k-plugin-pipeline-source-db:test --tests "com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProviderTest" --console=plain
 ./gradlew.bat :cap4k-plugin-pipeline-core:test --tests "com.only4.cap4k.plugin.pipeline.core.OwnedRelationCardinalityInferenceTest" --console=plain
 ```
 
-Expected: both commands PASS.
+Expected: all commands PASS.
 
-- [ ] **Step 9: Commit Task 1**
+- [ ] **Step 7: Commit Task 1**
 
 ```powershell
-git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInferenceTest.kt
+git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProvider.kt cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProviderTest.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInferenceTest.kt
 git commit -m "feat: infer owned relation cardinality"
 ```
 ### Task 2: Canonical Owned Relation Wiring
 
 **Files:**
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateRelationInference.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateInverseRelationInference.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt`
 
 **Interfaces:**
@@ -847,6 +853,10 @@ Add this helper near the other private helpers:
     }
 ```
 
+- [ ] **Step 4a: Protect inverse relation field names from owned ONE accessors**
+
+In `AggregateInverseRelationInference`, build a per-entity forbidden-property set from owned relations with `ownedCardinality == ONE` and non-null `singleAccessorName`. Before emitting each derived inverse field, retain scalar, owner-relation, and duplicate-derived checks and additionally fail with `aggregate inverse relation field collides with owned one single accessor: <package>.<entity>.<field>` when it is forbidden. Add a focused `DefaultCanonicalAssemblerTest` scenario for `Order -> OrderLine` plus `OrderLine -> OrderLineOrder` owned `ONE` with `singleAccessorName = "order"`; derived `OrderLine.order` must fail fast.
+
 - [ ] **Step 5: Run core relation tests**
 
 Run:
@@ -860,7 +870,7 @@ Expected: PASS for `OwnedRelationCardinalityInferenceTest` and `DefaultCanonical
 - [ ] **Step 6: Commit Task 2**
 
 ```powershell
-git add cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateRelationInference.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt
+git add cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateRelationInference.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateInverseRelationInference.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt
 git commit -m "feat: carry owned cardinality through canonical relations"
 ```
 
@@ -868,6 +878,7 @@ git commit -m "feat: carry owned cardinality through canonical relations"
 
 **Files:**
 - Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateRelationPlanning.kt`
+- Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateUniqueConstraintPlanning.kt`
 - Modify: `cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt`
 
 **Interfaces:**
@@ -1071,6 +1082,10 @@ Then extend `jpaImports`:
 
 The final `jpaImports` block should still add `OneToMany` for `AggregateRelationType.ONE_TO_MANY`; it must not add `OneToOne` for owned one-cardinality relations.
 
+- [ ] **Step 4a: Filter lossy unique metadata from aggregate artifacts**
+
+In `AggregateArtifactPlannerTest`, add a complete unconditional constraint and otherwise identical incomplete and filtered constraints. Assert only the complete unconditional constraint produces unique query, handler, and validator artifacts. Update `AggregateUniqueConstraintPlanning` to filter with `constraint.complete && constraint.filterCondition.isNullOrBlank()` before it creates aggregate unique artifacts.
+
 - [ ] **Step 5: Run aggregate generator planner tests**
 
 Run:
@@ -1084,7 +1099,7 @@ Expected: PASS for `AggregateArtifactPlannerTest`.
 - [ ] **Step 6: Commit Task 3**
 
 ```powershell
-git add cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateRelationPlanning.kt cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt
+git add cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateRelationPlanning.kt cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateUniqueConstraintPlanning.kt cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt
 git commit -m "feat: expose owned relation render metadata"
 ```
 
@@ -1526,6 +1541,7 @@ Run:
 
 ```powershell
 ./gradlew.bat :cap4k-plugin-pipeline-api:test --tests "com.only4.cap4k.plugin.pipeline.api.PipelineModelsTest" --console=plain
+./gradlew.bat :cap4k-plugin-pipeline-source-db:test --tests "com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProviderTest" --console=plain
 ./gradlew.bat :cap4k-plugin-pipeline-core:test --tests "com.only4.cap4k.plugin.pipeline.core.OwnedRelationCardinalityInferenceTest" --tests "com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssemblerTest" --console=plain
 ./gradlew.bat :cap4k-plugin-pipeline-generator-aggregate:test --tests "com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlannerTest" --console=plain
 ./gradlew.bat :cap4k-plugin-pipeline-renderer-pebble:test --tests "com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRendererTest" --console=plain
@@ -1541,15 +1557,17 @@ Run:
 ```powershell
 python scripts/validate-cap4k-generator-inputs.py
 git diff --check
-rg -n "softDeleteColumn" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-renderer-pebble cap4k-plugin-pipeline-gradle --glob "!**/build/**"
+rg -n "OneToOne|ONE_TO_ONE|@OneToOne" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-renderer-pebble cap4k-plugin-pipeline-gradle --glob "!**/build/**"
 rg -n "ownedCardinality|OwnedRelationCardinality|ONE_TO_MANY_JOIN_COLUMN|@get:Transient" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-generator-aggregate cap4k-plugin-pipeline-renderer-pebble cap4k-plugin-pipeline-gradle --glob "!**/build/**"
+rg -n "Behavior|behavior|TBD|TODO|complete|filterCondition|DbSchemaSourceProvider|AggregateUniqueConstraintPlanning|ordinal|singleAccessorName|inverse" docs/superpowers/plans/2026-07-21-cap4k-owned-relation-cardinality-from-unique-constraints.md
 ```
 
 Expected:
 - `validate-cap4k-generator-inputs.py` prints `OK: no issues found.`
 - `git diff --check` is clean.
-- `softDeleteColumn` has no active source hits.
+- The `OneToOne` scan has no new owned-cardinality mapping branch.
 - The owned-cardinality scan shows only the intentional model, inference, planner, template, and test hits.
+- The plan scan has no `TBD`, no unimplemented `TODO`, and no checked-in `*Behavior.kt` workaround for the one-child API.
 
 - [ ] **Step 8: Optional full regression**
 
@@ -1577,6 +1595,8 @@ git commit -m "test: cover owned one relation generation"
 - Acceptance criteria 12-13 are covered by Task 2 and Task 3: canonical `relationType` remains `ONE_TO_MANY`, and `persistenceShape`/`ownedCardinality` are separate context fields.
 - Acceptance criteria 14-16 are covered by Task 4 and Task 5: generated entity code hides the backing collection for `ownedCardinality=ONE`, exposes a nullable property, fails fast in the getter, and replaces collection contents in the setter.
 - Acceptance criterion 17 is preserved from PR #119 and reinforced by Task 3: generator contexts already expose `parentRef`, `managedRole`, `structuralParentRef`, and unresolved constructor fields; this plan does not move one-child accessors into checked-in `*Behavior.kt`.
+- Source unique metadata is complete only for contiguous, positive, nonduplicated ordinals and physical terms; filtered or incomplete constraints cannot prove `ONE` or generate aggregate unique artifacts.
+- Inverse relation inference reserves every owned `ONE` `singleAccessorName` in its child entity namespace before it emits a derived inverse field.
 
 **Known Boundaries**
 

@@ -292,6 +292,7 @@ internal fun uniqueConstraintsFromIndexRows(
                 physicalColumnsByKey[columnName.lowercase(Locale.ROOT)]
             }
         }
+        val ordinalSequenceIsComplete = sortedRows.map { it.ordinalPosition } == (1..sortedRows.size).toList()
         val filterCondition = indexRows
             .asSequence()
             .mapNotNull { row -> row.filterCondition?.trim()?.takeIf(String::isNotEmpty) }
@@ -299,7 +300,7 @@ internal fun uniqueConstraintsFromIndexRows(
         UniqueConstraintModel(
             physicalName = physicalName,
             columns = resolvedColumns.filterNotNull(),
-            complete = resolvedColumns.all { it != null },
+            complete = ordinalSequenceIsComplete && resolvedColumns.all { it != null },
             filterCondition = filterCondition,
         )
     }
