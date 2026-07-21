@@ -1,7 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
-import com.only4.cap4k.plugin.pipeline.generator.design.types.DesignSymbolRegistry
-import com.only4.cap4k.plugin.pipeline.generator.design.types.SymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolIdentity
+import com.only4.cap4k.plugin.pipeline.generator.common.types.TypeSymbolRegistry
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -99,7 +99,7 @@ class DesignTypeResolverTest {
         val resolved = resolve("UserId")
         val plan = plan(
             type = "UserId",
-            registry = registryOf(SymbolIdentity("com.acme.demo.domain.types", "UserId")),
+            registry = registryOf(TypeSymbolIdentity("com.acme.demo.domain.types", "UserId")),
         )
 
         assertEquals(DesignResolvedTypeKind.UNRESOLVED, resolved.kind)
@@ -128,8 +128,8 @@ class DesignTypeResolverTest {
             plan(
                 types = listOf("Status"),
                 registry = registryOf(
-                    SymbolIdentity("com.foo", "Status"),
-                    SymbolIdentity("com.bar", "Status"),
+                    TypeSymbolIdentity("com.foo", "Status"),
+                    TypeSymbolIdentity("com.bar", "Status"),
                 ),
             )
         }
@@ -154,7 +154,7 @@ class DesignTypeResolverTest {
     @Test
     fun `project registry fallback resolves exact short name only and does not infer q companion`() {
         val projectRegistry = registryOf(
-            SymbolIdentity("com.acme.demo.domain.types", "VideoPost", source = "project-type-registry"),
+            TypeSymbolIdentity("com.acme.demo.domain.types", "VideoPost", source = "project-type-registry"),
         )
         val knownPlan = plan(
             type = "VideoPost",
@@ -219,7 +219,7 @@ class DesignTypeResolverTest {
     private fun plan(
         types: List<String>,
         innerTypes: Set<String> = emptySet(),
-        registry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        registry: TypeSymbolRegistry = TypeSymbolRegistry(),
     ): DesignImportPlan = DesignImportPlanner.plan(
         types = types.map { resolve(it, innerTypes) },
         innerTypeNames = innerTypes,
@@ -229,11 +229,11 @@ class DesignTypeResolverTest {
     private fun plan(
         type: String,
         innerTypes: Set<String> = emptySet(),
-        registry: DesignSymbolRegistry = DesignSymbolRegistry(),
+        registry: TypeSymbolRegistry = TypeSymbolRegistry(),
     ): DesignImportPlan = plan(listOf(type), innerTypes, registry)
 
-    private fun registryOf(vararg symbols: SymbolIdentity): DesignSymbolRegistry =
-        DesignSymbolRegistry().apply {
+    private fun registryOf(vararg symbols: TypeSymbolIdentity): TypeSymbolRegistry =
+        TypeSymbolRegistry().apply {
             symbols.forEach(::register)
         }
 

@@ -77,7 +77,7 @@ item shape：
 | --- | --- |
 | Configure location | 使用 `types.enumManifest`。 |
 | Type registry | enum manifest entries 不需要 matching `types.registryFile` entries。 |
-| Schema binding | DB `@T=<EnumName>` 可以把 schema fields 绑定到 enum manifest types。 |
+| Schema binding | DB `@Type=<EnumName>` 可以把 schema fields 绑定到 enum manifest types。 |
 | Business boundary | enum 让有限选项保持类型化；complex policy 仍属于 domain/application logic。 |
 
 ## 常见检查

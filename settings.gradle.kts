@@ -42,6 +42,7 @@ include(
     "cap4k-plugin-pipeline-source-enum-manifest",
     "cap4k-plugin-pipeline-source-value-object-manifest",
     "cap4k-plugin-pipeline-source-ir-analysis",
+    "cap4k-plugin-pipeline-generator-common",
     "cap4k-plugin-pipeline-generator-design",
     "cap4k-plugin-pipeline-generator-types",
     "cap4k-plugin-pipeline-generator-aggregate",

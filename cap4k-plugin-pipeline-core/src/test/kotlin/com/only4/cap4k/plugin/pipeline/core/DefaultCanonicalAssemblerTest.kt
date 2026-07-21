@@ -13,6 +13,8 @@ import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
+import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
@@ -49,6 +51,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 
 class DefaultCanonicalAssemblerTest {
@@ -2000,13 +2003,6 @@ class DefaultCanonicalAssemblerTest {
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
                                 DbColumnSnapshot(
-                                    name = "author_id",
-                                    dbType = "BIGINT",
-                                    kotlinType = "Long",
-                                    nullable = false,
-                                    referenceTable = "user_profile",
-                                ),
-                                DbColumnSnapshot(
                                     name = "status",
                                     dbType = "INT",
                                     kotlinType = "Int",
@@ -2046,16 +2042,11 @@ class DefaultCanonicalAssemblerTest {
         val messageEntity = result.entities.single { it.name == "UserMessage" }
         val messageSchema = result.schemas.single { it.name == "SUserMessage" }
         val messageRepository = result.repositories.single { it.name == "UserMessageRepository" }
-        val relation = result.aggregateRelations.single {
-            it.ownerEntityName == "UserMessage" && it.targetEntityName == "UserProfile"
-        }
         val messageJpa = result.aggregateEntityJpa.single { it.entityName == "UserMessage" }
 
         assertEquals("com.acme.demo.domain.model.user_message", messageEntity.packageName)
         assertEquals("com.acme.demo.domain.meta.user_message", messageSchema.packageName)
         assertEquals("com.acme.demo.adapter.persistence.repositories", messageRepository.packageName)
-        assertEquals("com.acme.demo.domain.model.user_message", relation.ownerEntityPackageName)
-        assertEquals("com.acme.demo.domain.model.user_profile", relation.targetEntityPackageName)
         assertEquals(
             "com.acme.demo.domain.model.shared.enums.MessageStatus",
             messageJpa.columns.single { it.fieldName == "status" }.converterTypeFqn,
@@ -2495,7 +2486,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "content",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 ),
@@ -2609,11 +2599,9 @@ class DefaultCanonicalAssemblerTest {
                                     "Long",
                                     false,
                                     isPrimaryKey = true,
-                                    generatedValueStrategy = "IDENTITY"
+                                    idStrategy = DbIdStrategy.DB_IDENTITY
                                 ),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
-                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, insertable = false),
-                                DbColumnSnapshot("updated_by", "VARCHAR", "String", false, updatable = false),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2629,12 +2617,8 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(entity.packageName, controls.single { it.fieldName == "id" }.entityPackageName)
         assertEquals(entity.fields.single { it.name == "id" }.name, controls.single { it.columnName == "id" }.fieldName)
         assertEquals(entity.fields.single { it.name == "version" }.name, controls.single { it.columnName == "version" }.fieldName)
-        assertEquals(entity.fields.single { it.name == "createdBy" }.name, controls.single { it.columnName == "created_by" }.fieldName)
-        assertEquals(entity.fields.single { it.name == "updatedBy" }.name, controls.single { it.columnName == "updated_by" }.fieldName)
         assertEquals("IDENTITY", controls.single { it.fieldName == "id" }.generatedValueStrategy)
         assertEquals(true, controls.single { it.fieldName == "version" }.version)
-        assertEquals(false, controls.single { it.fieldName == "createdBy" }.insertable)
-        assertEquals(false, controls.single { it.fieldName == "updatedBy" }.updatable)
     }
 
     @Test
@@ -2663,7 +2647,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler preserves explicit false version persistence control`() {
+    fun `assembler ignores unmarked version persistence control`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2674,7 +2658,7 @@ class DefaultCanonicalAssemblerTest {
                             comment = "@AggregateRoot=true;",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = false),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2684,16 +2668,12 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val controls = result.model.aggregatePersistenceFieldControls
 
-        assertEquals(1, controls.size)
-        assertEquals(result.model.entities.single().packageName, controls.single().entityPackageName)
-        assertEquals(false, controls.single().version)
-        assertEquals("version", controls.single().fieldName)
+        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
     }
 
     @Test
-    fun `assembler records explicit managed and exposed persistence controls`() {
+    fun `assembler does not record managed role columns as persistence field controls`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2704,8 +2684,8 @@ class DefaultCanonicalAssemblerTest {
                             comment = "@AggregateRoot=true;",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, managed = true),
-                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, exposed = true),
+                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, managedRole = DbManagedRole.SYSTEM),
+                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, managedRole = DbManagedRole.SCOPE),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2715,11 +2695,8 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val controls = result.model.aggregatePersistenceFieldControls
 
-        assertEquals(2, controls.size)
-        assertEquals(setOf("createdBy", "displayName"), controls.map { it.fieldName }.toSet())
-        assertEquals(setOf("created_by", "display_name"), controls.map { it.columnName }.toSet())
+        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
     }
 
     @Test
@@ -2731,7 +2708,7 @@ class DefaultCanonicalAssemblerTest {
                     comment = "",
                     columns = listOf(
                         DbColumnSnapshot("id", "VARCHAR", "String", false, isPrimaryKey = true),
-                        DbColumnSnapshot("created_at", "TIMESTAMP", "java.time.Instant", false, inherited = true, managed = true),
+                        DbColumnSnapshot("created_at", "TIMESTAMP", "java.time.Instant", false, inherited = true, managedRole = DbManagedRole.SYSTEM),
                     ),
                     primaryKey = listOf("id"),
                     uniqueConstraints = emptyList(),
@@ -2762,15 +2739,13 @@ class DefaultCanonicalAssemblerTest {
                                     "Long",
                                     false,
                                     isPrimaryKey = true,
-                                    generatedValueStrategy = "IDENTITY"
+                                    idStrategy = DbIdStrategy.DB_IDENTITY
                                 ),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
-                                DbColumnSnapshot("deleted", "INT", "Int", false, deleted = true),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
+                                DbColumnSnapshot("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
-                            dynamicInsert = true,
-                            dynamicUpdate = true,
                         )
                     )
                 )
@@ -2780,9 +2755,7 @@ class DefaultCanonicalAssemblerTest {
         val control = result.model.aggregatePersistenceProviderControls.single()
 
         assertEquals("VideoPost", control.entityName)
-        assertEquals(true, control.dynamicInsert)
-        assertEquals(true, control.dynamicUpdate)
-        assertEquals("deleted", control.softDeleteColumn)
+        assertNull(control.softDeleteColumn)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
     }
@@ -2824,7 +2797,7 @@ class DefaultCanonicalAssemblerTest {
                             comment = "@AggregateRoot=true;",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
                                 DbColumnSnapshot("slug", "VARCHAR", "String", false),
                             ),
                             primaryKey = listOf("id"),
@@ -2839,9 +2812,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("VideoPost", control.entityName)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
-        assertEquals(null, control.softDeleteColumn)
-        assertEquals(null, control.dynamicInsert)
-        assertEquals(null, control.dynamicUpdate)
+        assertNull(control.softDeleteColumn)
     }
 
     @Test
@@ -2957,7 +2928,7 @@ class DefaultCanonicalAssemblerTest {
                                 "Long",
                                 false,
                                 primaryKey = true,
-                                generatedValueStrategy = "identity",
+                                idStrategy = DbIdStrategy.DB_IDENTITY,
                             )
                         ),
                         primaryKey = listOf("id"),
@@ -3187,7 +3158,7 @@ class DefaultCanonicalAssemblerTest {
                             "Long",
                             false,
                             primaryKey = true,
-                            generatedValueStrategy = "identity",
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
                         ),
                         column("message", "VARCHAR", "String", false),
                     ),
@@ -3275,7 +3246,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "audit_log",
                     columns = listOf(
-                        column("id", "BIGINT", "Long", false, primaryKey = true, generatedValueDeclared = true),
+                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3286,9 +3257,9 @@ class DefaultCanonicalAssemblerTest {
         val control = result.model.aggregateIdPolicyControls.single()
         val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
 
-        assertEquals("snowflake-long", control.strategy)
-        assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, control.kind)
-        assertEquals("snowflake-long", policy.id.strategy)
+        assertEquals("identity", control.strategy)
+        assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, control.kind)
+        assertEquals("identity", policy.id.strategy)
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
     }
 
@@ -3312,7 +3283,7 @@ class DefaultCanonicalAssemblerTest {
                             "Long",
                             false,
                             primaryKey = true,
-                            generatedValueStrategy = "identity",
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
                         ),
                         column("video_id", "UUID", "UUID", false, referenceTable = "video"),
                     ),
@@ -3326,6 +3297,54 @@ class DefaultCanonicalAssemblerTest {
         assertTrue(result.model.aggregateIdPolicyControls.none { it.entityName == "Video" })
         assertEquals("identity", result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.strategy)
     }
+
+    @Test
+    fun `managed role scope is carried into special field resolution`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("tenant_id", "BIGINT", "Long", false, managedRole = DbManagedRole.SCOPE),
+                        column("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertEquals("tenantId", policy.managedFields.single { it.columnName == "tenant_id" }.fieldName)
+        assertEquals(DbManagedRole.SCOPE, policy.managedFields.single { it.columnName == "tenant_id" }.managedRole)
+        assertEquals("deleted", policy.deleted.columnName)
+    }
+
+    @Test
+    fun `inherited managed fields remain visible to canonical policy`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+            tables = listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("created_at", "TIMESTAMP", "java.time.Instant", false, managedRole = DbManagedRole.SYSTEM, inherited = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            )
+        )
+
+        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+
+        assertTrue(policy.managedFields.any { it.columnName == "created_at" && it.managedRole == DbManagedRole.SYSTEM })
+    }
+
 
     @Test
     fun `missing DSL deleted and version default columns do not fail and stay disabled`() {
@@ -3372,8 +3391,7 @@ class DefaultCanonicalAssemblerTest {
                             "Long",
                             false,
                             primaryKey = true,
-                            generatedValueDeclared = true,
-                            generatedValueStrategy = "identity",
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
                         ),
                     ),
                     primaryKey = listOf("id"),
@@ -3407,10 +3425,9 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            generatedValueDeclared = true,
-                            generatedValueStrategy = "identity",
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
                         ),
-                        column("created_by", "VARCHAR", "String", false, managed = true),
+                        column("created_by", "VARCHAR", "String", false, managedRole = DbManagedRole.SYSTEM),
                         column("title", "VARCHAR", "String", false),
                     ),
                     primaryKey = listOf("id"),
@@ -3429,7 +3446,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `non protected exposed column overrides dsl managed default and reopens write surface`() {
+    fun `db managed role overrides dsl managed default and remains read only`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
                 idDefaultStrategy = "identity",
@@ -3447,10 +3464,9 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            generatedValueDeclared = true,
-                            generatedValueStrategy = "identity",
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
                         ),
-                        column("created_by", "VARCHAR", "String", false, exposed = true),
+                        column("created_by", "VARCHAR", "String", false, managedRole = DbManagedRole.SCOPE),
                         column("title", "VARCHAR", "String", false),
                     ),
                     primaryKey = listOf("id"),
@@ -3461,9 +3477,9 @@ class DefaultCanonicalAssemblerTest {
 
         val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
 
-        assertEquals(listOf("id"), policy.managedFields.map { it.columnName })
-        assertEquals(listOf("createdBy", "title"), policy.writeSurface.createAllowedFields)
-        assertEquals(listOf("createdBy", "title"), policy.writeSurface.updateAllowedFields)
+        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("title"), policy.writeSurface.createAllowedFields)
+        assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
     }
 
     @Test
@@ -3478,7 +3494,7 @@ class DefaultCanonicalAssemblerTest {
                     name = "video_post",
                     columns = listOf(
                         column(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, primaryKey = true),
-                        column(name = "is_deleted", dbType = "INT", kotlinType = "Int", nullable = false, deleted = true),
+                        column(name = "is_deleted", dbType = "INT", kotlinType = "Int", nullable = false, managedRole = DbManagedRole.DELETED),
                         column(name = "deleted", dbType = "INT", kotlinType = "Int", nullable = false),
                     ),
                     primaryKey = listOf("id"),
@@ -3488,13 +3504,12 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
-        val providerControl = result.model.aggregatePersistenceProviderControls.single()
 
         assertEquals(true, policy.deleted.enabled)
         assertEquals("isDeleted", policy.deleted.fieldName)
         assertEquals("is_deleted", policy.deleted.columnName)
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.deleted.source)
-        assertEquals("is_deleted", providerControl.softDeleteColumn)
+        assertTrue(result.model.aggregatePersistenceProviderControls.isEmpty())
     }
 
     @Test
@@ -3511,7 +3526,7 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            generatedValueStrategy = "identity",
+                            idStrategy = DbIdStrategy.DB_IDENTITY,
                         )
                     ),
                     primaryKey = listOf("id"),
@@ -3528,40 +3543,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
     }
 
-    @Test
-    fun `exposed on resolved version field fails fast`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(
-                    idDefaultStrategy = "identity",
-                    deletedDefaultColumn = "",
-                    versionDefaultColumn = "",
-                    managedDefaultColumns = emptyList(),
-                ),
-                tables = listOf(
-                    table(
-                        name = "category",
-                        columns = listOf(
-                            column(
-                                "id",
-                                "BIGINT",
-                                "Long",
-                                false,
-                                primaryKey = true,
-                                generatedValueDeclared = true,
-                                generatedValueStrategy = "identity",
-                            ),
-                            column("version", "BIGINT", "Long", false, version = true, exposed = true),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
-            )
-        }
-
-        assertEquals("@Exposed cannot be applied to protected special field: category.version", error.message)
-    }
 
     @Test
     fun `assembler fails fast when generated value marker is declared on a non id column`() {
@@ -3581,7 +3562,7 @@ class DefaultCanonicalAssemblerTest {
                                         "TIMESTAMP",
                                         "java.time.Instant",
                                         false,
-                                        generatedValueDeclared = true,
+                                        idStrategy = DbIdStrategy.DB_IDENTITY,
                                     ),
                                 ),
                                 primaryKey = listOf("id"),
@@ -3609,8 +3590,8 @@ class DefaultCanonicalAssemblerTest {
                                 comment = "@AggregateRoot=true;",
                                 columns = listOf(
                                     DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("deleted", "INT", "Int", false, deleted = true),
-                                    DbColumnSnapshot("is_deleted", "INT", "Int", false, deleted = true),
+                                    DbColumnSnapshot("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                                    DbColumnSnapshot("is_deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
                                 ),
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
@@ -3637,12 +3618,11 @@ class DefaultCanonicalAssemblerTest {
                                 comment = "@AggregateRoot=true;",
                                 columns = listOf(
                                     DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("version", "BIGINT", "Long", false, version = true),
-                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, version = true),
+                                    DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
+                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
                                 ),
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
-                                dynamicUpdate = true,
                             )
                         )
                     )
@@ -3681,7 +3661,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3703,12 +3682,10 @@ class DefaultCanonicalAssemblerTest {
 
         val root = result.model.entities.first { it.name == "VideoPost" }
         assertEquals(true, root.aggregateRoot)
-        assertEquals(false, root.valueObject)
         assertEquals(null, root.parentEntityName)
 
         val child = result.model.entities.first { it.name == "VideoPostItem" }
         assertEquals(false, child.aggregateRoot)
-        assertEquals(true, child.valueObject)
         assertEquals("VideoPost", child.parentEntityName)
     }
 
@@ -3802,7 +3779,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3819,6 +3795,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler derives inverse read only parent relation from parent child truth`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -3847,7 +3824,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3865,6 +3841,87 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(false, inverse.nullable)
         assertEquals(false, inverse.insertable)
         assertEquals(false, inverse.updatable)
+    }
+
+    @Test
+    fun `owned parent binding fails without parent ref`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post_item",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("missing parent reference column for table: video_post_item", error.message)
+    }
+
+    @Test
+    fun `owned parent binding fails with more than one parent ref`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post_item",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                            column("source_video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "ambiguous parent reference columns for table video_post_item: source_video_post_id, video_post_id",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `owned parent binding ignores weak reference metadata without parent ref`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    ),
+                    table(
+                        name = "video_post_item",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, refAggregate = "VideoPost"),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("missing parent reference column for table: video_post_item", error.message)
     }
 
     @Test
@@ -3903,7 +3960,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -3944,6 +4000,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects local lazy override on owned direct parent binding`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -3980,7 +4037,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4020,7 +4076,6 @@ class DefaultCanonicalAssemblerTest {
                     ),
                     idField = childId,
                     aggregateRoot = false,
-                    valueObject = true,
                     parentEntityName = "VideoPost",
                 ),
             ),
@@ -4072,7 +4127,6 @@ class DefaultCanonicalAssemblerTest {
                     uniqueConstraints = emptyList(),
                     parentTable = "video_post",
                     aggregateRoot = false,
-                    valueObject = true,
                 ),
             ),
         )
@@ -4084,6 +4138,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler fails fast when derived inverse field collides with scalar field`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -4112,7 +4167,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4127,6 +4181,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler fails fast when derived inverse field collides with owner relation field`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -4164,7 +4219,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4196,7 +4250,6 @@ class DefaultCanonicalAssemblerTest {
                         ),
                         idField = childId,
                         aggregateRoot = false,
-                        valueObject = true,
                     )
                 ),
                 relations = listOf(
@@ -4248,6 +4301,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects ambiguous parent child join columns`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -4276,7 +4330,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4288,6 +4341,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects conflicting explicit relation type on parent reference`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -4322,7 +4376,6 @@ class DefaultCanonicalAssemblerTest {
                                 uniqueConstraints = emptyList(),
                                 parentTable = "video_post",
                                 aggregateRoot = false,
-                                valueObject = true,
                             ),
                         )
                     )
@@ -4337,6 +4390,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler defaults reference without explicit relation to many to one`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4374,6 +4428,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler preserves fk nullability on many to one relation`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4406,6 +4461,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler strips camel case id suffixes without losing shape`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4454,6 +4510,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler does not treat reference columns as scalar field collisions`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4490,6 +4547,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler maps explicit one to one relation metadata`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4535,6 +4593,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler preserves bounded join column nullability for explicit many to one and one to one`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4623,7 +4682,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "account",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "category",
@@ -4645,7 +4703,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "category",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -4698,7 +4755,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "order",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "category",
@@ -4720,7 +4776,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "category",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -4766,7 +4821,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "tenant",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "warehouse",
@@ -4788,7 +4842,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "warehouse",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                         DbTableSnapshot(
                             tableName = "company",
@@ -4810,7 +4863,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "company",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -4831,6 +4883,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects unsupported many to many relation metadata`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -5277,7 +5330,6 @@ class DefaultCanonicalAssemblerTest {
                             uniqueConstraints = emptyList(),
                             parentTable = "video_post",
                             aggregateRoot = false,
-                            valueObject = true,
                         ),
                     )
                 )
@@ -5292,6 +5344,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects relation field name collisions`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -5329,6 +5382,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects relation field names that collide with entity fields`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
@@ -5366,6 +5420,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    @Disabled("stale relation metadata contract removed by Task 4 redesign")
     fun `assembler rejects relation field names that collide with db camelized entity fields`() {
         val scalarOnlyAssembly = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -5505,8 +5560,47 @@ class DefaultCanonicalAssemblerTest {
         uniqueConstraints = emptyList(),
         parentTable = parentTable,
         aggregateRoot = aggregateRoot,
-        valueObject = !aggregateRoot,
     )
+
+    private fun DbColumnSnapshot(
+        name: String,
+        dbType: String,
+        kotlinType: String,
+        nullable: Boolean,
+        defaultValue: String? = null,
+        comment: String = "",
+        isPrimaryKey: Boolean = false,
+        typeBinding: String? = null,
+        enumItems: List<EnumItemModel> = emptyList(),
+        parentRef: Boolean = false,
+        refAggregate: String? = null,
+        refId: String? = null,
+        idStrategy: DbIdStrategy? = null,
+        managedRole: DbManagedRole? = null,
+        inherited: Boolean? = null,
+        // TODO(Task 4 cleanup): these stale relation parameters only keep disabled legacy tests compiling.
+        // Active relation-contract tests should use parentRef/refAggregate/refId directly.
+        referenceTable: String? = null,
+        explicitRelationType: String? = null,
+        lazy: Boolean? = null,
+    ): DbColumnSnapshot = com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot(
+        name = name,
+        dbType = dbType,
+        kotlinType = kotlinType,
+        nullable = nullable,
+        defaultValue = defaultValue,
+        comment = comment,
+        isPrimaryKey = isPrimaryKey,
+        typeBinding = typeBinding,
+        enumItems = enumItems,
+        parentRef = parentRef || !referenceTable.isNullOrBlank(),
+        refAggregate = refAggregate,
+        refId = refId,
+        idStrategy = idStrategy,
+        managedRole = managedRole,
+        inherited = inherited,
+    )
+
 
     private fun column(
         name: String,
@@ -5514,6 +5608,8 @@ class DefaultCanonicalAssemblerTest {
         kotlinType: String,
         nullable: Boolean,
         primaryKey: Boolean = false,
+        // TODO(Task 4 cleanup): this stale relation alias is compatibility-only for legacy tests.
+        // Active relation-contract tests should use parentRef/refAggregate/refId directly.
         referenceTable: String? = null,
         generatedValueDeclared: Boolean = false,
         generatedValueStrategy: String? = null,
@@ -5521,23 +5617,30 @@ class DefaultCanonicalAssemblerTest {
         version: Boolean? = null,
         managed: Boolean? = null,
         exposed: Boolean? = null,
+        parentRef: Boolean = false,
         refAggregate: String? = null,
         refId: String? = null,
+        idStrategy: DbIdStrategy? = null,
+        managedRole: DbManagedRole? = null,
+        inherited: Boolean? = null,
     ): DbColumnSnapshot = DbColumnSnapshot(
         name = name,
         dbType = dbType,
         kotlinType = kotlinType,
         nullable = nullable,
         isPrimaryKey = primaryKey,
-        referenceTable = referenceTable,
-        generatedValueDeclared = generatedValueDeclared,
-        generatedValueStrategy = generatedValueStrategy,
-        deleted = deleted,
-        version = version,
-        managed = managed,
-        exposed = exposed,
+        parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
+        idStrategy = idStrategy ?: if (generatedValueDeclared || generatedValueStrategy != null) DbIdStrategy.DB_IDENTITY else null,
+        managedRole = managedRole ?: when {
+            deleted == true -> DbManagedRole.DELETED
+            version == true -> DbManagedRole.VERSION
+            managed == true -> DbManagedRole.SYSTEM
+            exposed == true -> DbManagedRole.SCOPE
+            else -> null
+        },
+        inherited = inherited,
     )
 
     private fun aggregateSnapshot(

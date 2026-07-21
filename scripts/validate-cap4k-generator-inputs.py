@@ -131,28 +131,40 @@ COMMENT_ON_COLUMN_RE = re.compile(
 ANNOTATION_RE = re.compile(r"@([A-Za-z][A-Za-z0-9_]*)(=([^;\s]*))?")
 TABLE_ANNOTATIONS = {
     "Parent",
+    "Ignore",
+}
+COLUMN_ANNOTATIONS = {
+    "ParentRef",
+    "Type",
+    "RefAggregate",
+    "RefId",
+    "IdStrategy",
+    "Managed",
+    "Inherited",
+}
+REJECTED_TABLE_ANNOTATIONS = {
     "P",
     "AggregateRoot",
     "Root",
     "R",
     "ValueObject",
     "VO",
-    "Ignore",
     "I",
     "DynamicInsert",
     "DynamicUpdate",
+    "IdGenerator",
+    "IG",
+    "SoftDeleteColumn",
 }
-COLUMN_ANNOTATIONS = {
+REJECTED_COLUMN_ANNOTATIONS = {
     "T",
     "TYPE",
     "E",
     "ENUM",
-    "RefId",
+    "Id",
     "Deleted",
     "Version",
     "GeneratedValue",
-    "Managed",
-    "Inherited",
     "Reference",
     "Ref",
     "Relation",
@@ -161,46 +173,58 @@ COLUMN_ANNOTATIONS = {
     "L",
     "Count",
     "C",
-    "RefAggregate",
+    "Exposed",
+    "Insertable",
+    "Updatable",
 }
-REJECTED_TABLE_ANNOTATIONS = {"IdGenerator", "IG", "SoftDeleteColumn"}
-REJECTED_COLUMN_ANNOTATIONS = {"Exposed", "Insertable", "Updatable"}
 PRESENCE_ANNOTATIONS = {
-    "ValueObject",
-    "VO",
     "Ignore",
-    "I",
-    "Deleted",
-    "Version",
-    "Managed",
+    "ParentRef",
     "Inherited",
 }
-BOOLEAN_ANNOTATIONS = {
-    "AggregateRoot",
-    "Root",
-    "R",
-    "DynamicInsert",
-    "DynamicUpdate",
-    "Lazy",
-    "L",
-}
+BOOLEAN_ANNOTATIONS: set[str] = set()
 REQUIRED_VALUE_ANNOTATIONS = {
     "Parent",
-    "P",
-    "T",
-    "TYPE",
-    "E",
-    "ENUM",
-    "RefId",
-    "Reference",
-    "Ref",
-    "Relation",
-    "Rel",
-    "Count",
-    "C",
+    "Type",
     "RefAggregate",
+    "RefId",
+    "IdStrategy",
+    "Managed",
 }
-RELATION_TYPES = {"MANY_TO_ONE", "ONE_TO_ONE", "1:1", "*:1", "MANYTOONE", "ONETOONE"}
+MANAGED_ROLES = {"system", "scope", "deleted", "version"}
+LIVE_REFERENCE_ROOTS = ("docs/public", "skills")
+LIVE_REFERENCE_SUFFIXES = {".md", ".mdx", ".txt", ".yaml", ".yml"}
+REMOVED_DB_REFERENCE_PATTERNS = {
+    "@AggregateRoot": re.compile(r"@AggregateRoot(?:=|\b)"),
+    "@Root": re.compile(r"@Root(?:=|\b)"),
+    "@R": re.compile(r"@R(?:=|\b)"),
+    "@P": re.compile(r"@P(?:=|\b)"),
+    "@I": re.compile(r"@I(?:=|\b)"),
+    "@T": re.compile(r"@T(?:=|\b)"),
+    "@TYPE": re.compile(r"@TYPE(?:=|\b)"),
+    "@E": re.compile(r"@E(?:=|\b)"),
+    "@ENUM": re.compile(r"@ENUM(?:=|\b)"),
+    "@Id": re.compile(r"@Id(?:=|\b)"),
+    "@DynamicInsert": re.compile(r"@DynamicInsert(?:=|\b)"),
+    "@DynamicUpdate": re.compile(r"@DynamicUpdate(?:=|\b)"),
+    "@Reference": re.compile(r"@Reference(?:=|\b)"),
+    "@Ref": re.compile(r"@Ref(?:=|\b)"),
+    "@Relation": re.compile(r"@Relation(?:=|\b)"),
+    "@Rel": re.compile(r"@Rel(?:=|\b)"),
+    "@Lazy": re.compile(r"@Lazy(?:=|\b)"),
+    "@L": re.compile(r"@L(?:=|\b)"),
+    "@Count": re.compile(r"@Count(?:=|\b)"),
+    "@C": re.compile(r"@C(?:=|\b)"),
+    "@Deleted": re.compile(r"@Deleted(?:=|\b)"),
+    "@Version": re.compile(r"@Version(?:=|\b)"),
+    "@GeneratedValue": re.compile(r"@GeneratedValue(?:=|\b)"),
+    "@Exposed": re.compile(r"@Exposed(?:=|\b)"),
+    "@Insertable": re.compile(r"@Insertable(?:=|\b)"),
+    "@Updatable": re.compile(r"@Updatable(?:=|\b)"),
+    "@ValueObject": re.compile(r"@ValueObject(?:=|\b)"),
+    "@VO": re.compile(r"@VO(?:=|\b)"),
+    "countHint": re.compile(r"\bcountHint\b"),
+}
 
 
 def is_nonblank_string(value: Any) -> bool:
@@ -641,55 +665,42 @@ def validate_annotation_values(
             not has_equals or not value.strip()
         ):
             add_issue(issues, ERROR, file, path, f"@{name} requires a nonblank value")
-        if name == "GeneratedValue" and value not in ("identity", "database-identity"):
+        if name == "IdStrategy" and value != "db_identity":
             add_issue(
                 issues,
                 ERROR,
                 file,
                 path,
-                f"unsupported @GeneratedValue strategy: {value}",
+                f"unsupported @IdStrategy value: {value}",
             )
-        if name in {"Relation", "Rel"} and has_equals and value:
-            if value.upper() not in RELATION_TYPES:
-                add_issue(issues, ERROR, file, path, f"unsupported @{name} value: {value}")
+        if name == "Managed" and value not in MANAGED_ROLES:
+            add_issue(issues, ERROR, file, path, f"unsupported @Managed value: {value}")
 
-    if context == "table":
-        has_parent = has_any(names, {"Parent", "P"})
-        has_root_true = any(
-            value == "true"
-            for name, value, _ in annotations
-            if name in {"AggregateRoot", "Root", "R"}
-        )
-        if has_parent and has_root_true:
-            add_issue(
-                issues,
-                ERROR,
-                file,
-                path,
-                "@Parent/@P cannot be combined with aggregate-root true",
-            )
     if context == "column":
-        if has_any(names, {"E", "ENUM"}) and not has_any(names, {"T", "TYPE"}):
-            add_issue(issues, ERROR, file, path, "@E/@ENUM requires @T/@TYPE")
-        if has_any(names, {"Relation", "Rel", "Lazy", "L", "Count", "C"}):
-            if not has_any(names, {"Reference", "Ref"}):
-                add_issue(
-                    issues,
-                    ERROR,
-                    file,
-                    path,
-                    "@Relation/@Rel, @Lazy/@L, and @Count/@C require @Reference/@Ref",
-                )
-        if "RefAggregate" in names and has_any(names, {"Reference", "Ref"}):
+        if "ParentRef" in names and has_any(names, {"RefAggregate", "RefId", "IdStrategy"}):
             add_issue(
                 issues,
                 ERROR,
                 file,
                 path,
-                "@RefAggregate conflicts with @Reference/@Ref",
+                "@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy",
             )
         if "RefAggregate" in names and "RefId" in names:
-            add_issue(issues, ERROR, file, path, "@RefAggregate conflicts with @RefId")
+            add_issue(
+                issues,
+                ERROR,
+                file,
+                path,
+                "conflicting @RefAggregate and @RefId annotations on the same column comment",
+            )
+        if "Inherited" in names and "Managed" not in names:
+            add_issue(
+                issues,
+                ERROR,
+                file,
+                path,
+                "@Inherited is valid only with @Managed=system, @Managed=scope, @Managed=deleted, or @Managed=version",
+            )
 
 
 def validate_comment(
@@ -751,6 +762,37 @@ def validate_comment(
             "annotation context is unknown",
             "Use explicit table or column comments, or make inline placement unambiguous.",
         )
+
+
+def validate_live_reference_drift(repo_root: Path, issues: list[Issue]) -> None:
+    for relative_root in LIVE_REFERENCE_ROOTS:
+        root = repo_root / relative_root
+        if not root.exists():
+            continue
+        for path in root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in LIVE_REFERENCE_SUFFIXES:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                add_issue(
+                    issues,
+                    WARN,
+                    path,
+                    "$",
+                    "skipped live reference scan due to non-UTF-8 content",
+                )
+                continue
+            for label, pattern in REMOVED_DB_REFERENCE_PATTERNS.items():
+                for match in pattern.finditer(text):
+                    line = text.count("\n", 0, match.start()) + 1
+                    add_issue(
+                        issues,
+                        ERROR,
+                        path,
+                        f"L{line}",
+                        f"removed DB annotation reference in live docs/skills: {label}",
+                    )
 
 
 def find_spans(pattern: re.Pattern[str], text: str) -> list[tuple[int, int]]:
@@ -864,6 +906,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     issues: list[Issue] = []
+    repo_root = Path(__file__).resolve().parents[1]
+
+    validate_live_reference_drift(repo_root, issues)
 
     for value in args.design:
         validate_design(Path(value), issues)

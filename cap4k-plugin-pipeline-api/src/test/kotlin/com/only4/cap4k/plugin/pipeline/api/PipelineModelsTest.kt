@@ -8,6 +8,23 @@ import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
     @Test
+    fun `db column snapshot carries parent ref managed role and id strategy`() {
+        val column = DbColumnSnapshot(
+            name = "parent_id",
+            dbType = "BIGINT",
+            kotlinType = "Long",
+            nullable = false,
+            parentRef = true,
+            managedRole = DbManagedRole.SCOPE,
+            idStrategy = DbIdStrategy.DB_IDENTITY,
+        )
+
+        assertTrue(column.parentRef)
+        assertEquals(DbManagedRole.SCOPE, column.managedRole)
+        assertEquals(DbIdStrategy.DB_IDENTITY, column.idStrategy)
+    }
+
+    @Test
     fun `design block stores artifact selections`() {
         val block = DesignBlockModel(
             tag = "query",

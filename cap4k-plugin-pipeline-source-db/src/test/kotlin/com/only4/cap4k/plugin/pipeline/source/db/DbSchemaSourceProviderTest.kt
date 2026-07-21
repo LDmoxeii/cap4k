@@ -1,6 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
+import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -10,6 +12,7 @@ import java.sql.DriverManager
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -75,8 +78,8 @@ class DbSchemaSourceProviderTest {
                     )
                     """.trimIndent()
                 )
-                statement.execute("comment on table video_post is 'Video post root @AggregateRoot=true;'")
-                statement.execute("comment on table event_record is 'Framework event table @I;'")
+                statement.execute("comment on table video_post is 'Video post root'")
+                statement.execute("comment on table event_record is 'Framework event table @Ignore;'")
             }
         }
 
@@ -108,7 +111,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `db source records table and column relation metadata from comments`() {
+    fun `collect maps parent ref and managed roles into db snapshots`() {
         val url = "jdbc:h2:mem:cap4k-db-source-relation;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -116,7 +119,7 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key comment 'pk',
-                        author_id bigint not null comment 'Author ref @Reference=user_profile;@Relation=ManyToOne;@Lazy=true;@Count=single;'
+                        title varchar(128) not null
                     )
                     """.trimIndent()
                 )
@@ -124,12 +127,14 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post_item (
                         id bigint primary key comment 'pk',
-                        video_post_id bigint not null comment '@Reference=video_post;'
+                        video_post_id bigint not null comment 'owning parent @ParentRef;',
+                        tenant_id bigint not null comment 'tenant scope @Managed=scope;',
+                        deleted int not null comment 'soft marker @Managed=deleted;'
                     )
                     """.trimIndent()
                 )
-                statement.execute("comment on table video_post is 'Video post root @AggregateRoot=true;'")
-                statement.execute("comment on table video_post_item is 'Video post item @Parent=video_post;@VO;'")
+                statement.execute("comment on table video_post is 'Video post root'")
+                statement.execute("comment on table video_post_item is 'Video post item @Parent=video_post;'")
             }
         }
 
@@ -157,33 +162,30 @@ class DbSchemaSourceProviderTest {
 
         val rootTable = snapshot.tables.first { it.tableName.equals("VIDEO_POST", true) }
         val childTable = snapshot.tables.first { it.tableName.equals("VIDEO_POST_ITEM", true) }
-        val authorId = rootTable.columns.first { it.name.equals("AUTHOR_ID", true) }
 
         assertEquals(true, rootTable.aggregateRoot)
         assertEquals("video_post", childTable.parentTable)
-        assertEquals(true, childTable.valueObject)
+        assertFalse(childTable.aggregateRoot)
         assertEquals("Video post root", rootTable.comment)
         assertEquals("Video post item", childTable.comment)
-        assertFalse(rootTable.comment.contains("@AggregateRoot"))
         assertFalse(childTable.comment.contains("@Parent"))
-        assertEquals("user_profile", authorId.referenceTable)
-        assertEquals("MANY_TO_ONE", authorId.explicitRelationType)
-        assertEquals(true, authorId.lazy)
-        assertEquals("single", authorId.countHint)
-        assertEquals("Author ref", authorId.comment)
-        assertFalse(authorId.comment.contains("@Reference"))
+        assertEquals(1, childTable.columns.count { it.parentRef })
+        assertEquals(true, childTable.columns.single { it.name.equals("VIDEO_POST_ID", true) }.parentRef)
+        assertEquals(DbManagedRole.SCOPE, childTable.columns.single { it.name.equals("TENANT_ID", true) }.managedRole)
+        assertEquals(DbManagedRole.DELETED, childTable.columns.single { it.name.equals("DELETED", true) }.managedRole)
+        assertEquals("owning parent", childTable.columns.single { it.name.equals("VIDEO_POST_ID", true) }.comment)
     }
 
     @Test
-    fun `db source rejects column comment with ref aggregate and ref id`() {
-        val url = "jdbc:h2:mem:cap4k-db-source-strong-id-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
+    fun `provider rejects parent ref without parent table binding`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-parent-ref-without-parent;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(
                     """
-                    create table media_file (
-                        id bigint primary key comment 'pk',
-                        task_id bigint not null comment 'Task strong id @RefAggregate=MediaProcessingTask;@RefId=MediaProcessingTaskId;'
+                    create table video_post_item (
+                        id bigint primary key,
+                        video_post_id bigint not null comment '@ParentRef;'
                     )
                     """.trimIndent()
                 )
@@ -203,7 +205,59 @@ class DbSchemaSourceProviderTest {
                                 "username" to "sa",
                                 "password" to "",
                                 "schema" to "PUBLIC",
-                                "includeTables" to listOf("media_file"),
+                                "includeTables" to listOf("video_post_item"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals("@ParentRef is valid only on child tables with @Parent", error.message)
+    }
+
+    @Test
+    fun `provider rejects duplicate parent refs on child table`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-duplicate-parent-refs;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key
+                    )
+                    """.trimIndent()
+                )
+                statement.execute(
+                    """
+                    create table video_post_item (
+                        id bigint primary key,
+                        video_post_id bigint not null comment '@ParentRef;',
+                        backup_video_post_id bigint not null comment '@ParentRef;'
+                    )
+                    """.trimIndent()
+                )
+                statement.execute("comment on table video_post_item is '@Parent=video_post;'")
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post", "video_post_item"),
                                 "excludeTables" to emptyList<String>(),
                             )
                         )
@@ -215,9 +269,101 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "conflicting @RefAggregate and @RefId annotations on the same column comment.",
-            error.message,
+            "table VIDEO_POST_ITEM declares @Parent=video_post but must declare exactly one @ParentRef column.",
+            error.message
         )
+    }
+
+    @Test
+    fun `provider rejects db identity id strategy on non primary key columns`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-db-identity-non-pk;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table video_post (
+                        id bigint primary key,
+                        external_id bigint not null comment '@IdStrategy=db_identity;'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbSchemaSourceProvider().collect(
+                ProjectConfig(
+                    basePackage = "com.acme.demo",
+                    layout = ProjectLayout.MULTI_MODULE,
+                    modules = emptyMap(),
+                    sources = mapOf(
+                        "db" to SourceConfig(
+                            options = mapOf(
+                                "url" to url,
+                                "username" to "sa",
+                                "password" to "",
+                                "schema" to "PUBLIC",
+                                "includeTables" to listOf("video_post"),
+                                "excludeTables" to emptyList<String>(),
+                            )
+                        )
+                    ),
+                    generators = emptyMap(),
+                    templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+                )
+            )
+        }
+
+        assertEquals("@IdStrategy=db_identity is valid only on a primary-key column", error.message)
+    }
+
+    @Test
+    fun `db source records ref aggregate and ref id column metadata from separate comments`() {
+        val url = "jdbc:h2:mem:cap4k-db-source-strong-id-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table media_file (
+                        id bigint primary key comment 'pk',
+                        task_id bigint not null comment 'Task strong id @RefAggregate=MediaProcessingTask;',
+                        owner_id bigint not null comment 'Owner strong id @RefId=UserId;'
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("media_file"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+        val taskId = snapshot.tables.single().columns.single { it.name.equals("TASK_ID", true) }
+        val ownerId = snapshot.tables.single().columns.single { it.name.equals("OWNER_ID", true) }
+
+        assertEquals("MediaProcessingTask", taskId.refAggregate)
+        assertNull(taskId.refId)
+        assertEquals("Task strong id", taskId.comment)
+        assertNull(ownerId.refAggregate)
+        assertEquals("UserId", ownerId.refId)
+        assertEquals("Owner strong id", ownerId.comment)
     }
 
     @Test
@@ -262,7 +408,6 @@ class DbSchemaSourceProviderTest {
 
         assertEquals("MediaProcessingTask", taskId.refAggregate)
         assertEquals(null, taskId.refId)
-        assertEquals(null, taskId.referenceTable)
         assertEquals("Task strong id", taskId.comment)
         assertFalse(taskId.comment.contains("@RefAggregate"))
         assertFalse(taskId.comment.contains("@RefId"))
@@ -277,8 +422,8 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key comment 'pk',
-                        status int not null comment 'shared status @T=Status;',
-                        visibility int not null comment '@T=VideoPostVisibility;@E=0:HIDDEN:Hidden|1:PUBLIC:Public;'
+                        status int not null comment 'shared status @Type=Status;',
+                        visibility int not null comment '@Type=VideoPostVisibility;'
                     )
                     """.trimIndent()
                 )
@@ -313,25 +458,24 @@ class DbSchemaSourceProviderTest {
         assertEquals("Status", status.typeBinding)
         assertEquals(emptyList<Any>(), status.enumItems)
         assertEquals("VideoPostVisibility", visibility.typeBinding)
-        assertEquals(listOf("HIDDEN", "PUBLIC"), visibility.enumItems.map { it.name })
+        assertEquals(emptyList<Any>(), visibility.enumItems)
     }
 
     @Test
-    fun `provider carries explicit special field column metadata into db snapshot`() {
+    fun `provider carries id strategy and managed role column metadata into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(
                     """
                     create table video_post (
-                        id bigint primary key comment '@GeneratedValue=IDENTITY;',
-                        version bigint not null comment '@Version;',
-                        deleted int not null comment '@Deleted;',
+                        id bigint primary key comment '@IdStrategy=db_identity;',
+                        version bigint not null comment '@Managed=version;',
+                        deleted int not null comment '@Managed=deleted;',
                         title varchar(128) not null
                     );
                     """.trimIndent()
                 )
-                statement.execute("comment on table video_post is '@AggregateRoot=true;'")
             }
         }
 
@@ -359,14 +503,13 @@ class DbSchemaSourceProviderTest {
 
         val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
 
-        assertEquals(true, table.columns.single { it.name.equals("ID", true) }.generatedValueDeclared)
-        assertEquals("identity", table.columns.single { it.name.equals("ID", true) }.generatedValueStrategy)
-        assertEquals(true, table.columns.single { it.name.equals("VERSION", true) }.version)
-        assertEquals(true, table.columns.single { it.name.equals("DELETED", true) }.deleted)
+        assertEquals(DbIdStrategy.DB_IDENTITY, table.columns.single { it.name.equals("ID", true) }.idStrategy)
+        assertEquals(DbManagedRole.VERSION, table.columns.single { it.name.equals("VERSION", true) }.managedRole)
+        assertEquals(DbManagedRole.DELETED, table.columns.single { it.name.equals("DELETED", true) }.managedRole)
     }
 
     @Test
-    fun `provider carries managed column marker into db snapshot`() {
+    fun `provider carries managed column role into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-managed-exposed-column-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -374,12 +517,11 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key,
-                        created_at timestamp not null comment '@Managed;',
+                        created_at timestamp not null comment '@Managed=system;',
                         title varchar(128) not null
                     );
                     """.trimIndent()
                 )
-                statement.execute("comment on table video_post is '@AggregateRoot=true;'")
             }
         }
 
@@ -407,10 +549,8 @@ class DbSchemaSourceProviderTest {
 
         val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
 
-        assertEquals(true, table.columns.single { it.name.equals("CREATED_AT", true) }.managed)
-        assertEquals(null, table.columns.single { it.name.equals("CREATED_AT", true) }.exposed)
-        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.managed)
-        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.exposed)
+        assertEquals(DbManagedRole.SYSTEM, table.columns.single { it.name.equals("CREATED_AT", true) }.managedRole)
+        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.managedRole)
     }
 
     @Test
@@ -423,7 +563,7 @@ class DbSchemaSourceProviderTest {
                     create table content (
                         id varchar(36) primary key,
                         title varchar(100) not null,
-                        created_at timestamp not null comment '@Inherited;@Managed;'
+                        created_at timestamp not null comment '@Inherited;@Managed=system;'
                     )
                     """.trimIndent()
                 )
@@ -452,7 +592,7 @@ class DbSchemaSourceProviderTest {
 
         val createdAt = snapshot.tables.single().columns.single { it.name.equals("CREATED_AT", true) }
         assertEquals(true, createdAt.inherited)
-        assertEquals(true, createdAt.managed)
+        assertEquals(DbManagedRole.SYSTEM, createdAt.managedRole)
     }
 
     @Test
@@ -496,7 +636,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed: remove broad managed defaults or stop marking this field managed.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -510,7 +650,7 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key,
-                        title varchar(128) not null comment '@Managed;@Exposed;'
+                        title varchar(128) not null comment '@Managed=system;@Exposed;'
                     );
                     """.trimIndent()
                 )
@@ -542,61 +682,13 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed: remove broad managed defaults or stop marking this field managed.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
 
     @Test
-    fun `provider carries dynamic insert and dynamic update table metadata into db snapshot`() {
-        val url = "jdbc:h2:mem:cap4k-db-source-provider-persistence-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
-        DriverManager.getConnection(url, "sa", "").use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(
-                    """
-                    create table video_post (
-                        id bigint primary key comment '@GeneratedValue=IDENTITY;',
-                        version bigint not null comment '@Version;',
-                        title varchar(128) not null
-                    );
-                    """.trimIndent()
-                )
-                statement.execute(
-                    "comment on table video_post is '@AggregateRoot=true;@DynamicInsert=true;@DynamicUpdate=true;'"
-                )
-            }
-        }
-
-        val snapshot = DbSchemaSourceProvider().collect(
-            ProjectConfig(
-                basePackage = "com.acme.demo",
-                layout = ProjectLayout.MULTI_MODULE,
-                modules = emptyMap(),
-                sources = mapOf(
-                    "db" to SourceConfig(
-                        options = mapOf(
-                            "url" to url,
-                            "username" to "sa",
-                            "password" to "",
-                            "schema" to "PUBLIC",
-                            "includeTables" to listOf("video_post"),
-                            "excludeTables" to emptyList<String>(),
-                        )
-                    )
-                ),
-                generators = emptyMap(),
-                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-            )
-        ) as DbSchemaSnapshot
-
-        val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
-
-        assertEquals(true, table.dynamicInsert)
-        assertEquals(true, table.dynamicUpdate)
-    }
-
-    @Test
-    fun `db source rejects legacy soft delete column table annotation`() {
+    fun `db source rejects unsupported table soft delete annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-legacy-soft-delete-table;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -609,7 +701,7 @@ class DbSchemaSourceProviderTest {
                     """.trimIndent()
                 )
                 statement.execute(
-                    "comment on table video_post is '@AggregateRoot=true;@SoftDeleteColumn=deleted;'"
+                    "comment on table video_post is '@SoftDeleteColumn=deleted;'"
                 )
             }
         }
@@ -639,13 +731,13 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported table annotation @SoftDeleteColumn: use @Deleted marker on the delete column instead",
+            "unsupported table annotation @SoftDeleteColumn. Supported table annotations: @Parent=<table>, @Ignore.",
             error.message,
         )
     }
 
     @Test
-    fun `db source rejects legacy table level entity id generator`() {
+    fun `db source rejects unsupported table id generator annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-entity-id-generator;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -658,7 +750,7 @@ class DbSchemaSourceProviderTest {
                     """.trimIndent()
                 )
                 statement.execute(
-                    "comment on table video_post is 'Video post root @AggregateRoot=true;@IdGenerator=snowflakeIdGenerator;'"
+                    "comment on table video_post is 'Video post root @IdGenerator=snowflakeIdGenerator;'"
                 )
             }
         }
@@ -688,13 +780,13 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported table annotation @IdGenerator: use @GeneratedValue on the ID column instead",
+            "unsupported table annotation @IdGenerator. Supported table annotations: @Parent=<table>, @Ignore.",
             error.message,
         )
     }
 
     @Test
-    fun `provider rejects valued version marker annotation`() {
+    fun `provider rejects removed version marker annotation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-version-false;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -733,11 +825,14 @@ class DbSchemaSourceProviderTest {
             )
         }
 
-        assertEquals("invalid @Version annotation: explicit values are not supported.", error.message)
+        assertEquals(
+            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            error.message,
+        )
     }
 
     @Test
-    fun `provider keeps version null when source is silent`() {
+    fun `provider keeps managed role null when source is silent`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-version-null;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -774,9 +869,9 @@ class DbSchemaSourceProviderTest {
             )
         ) as DbSchemaSnapshot
 
-        val version = snapshot.tables.single().columns.single { it.name.equals("VERSION", true) }
+        val column = snapshot.tables.single().columns.single { it.name.equals("VERSION", true) }
 
-        assertEquals(null, version.version)
+        assertEquals(null, column.managedRole)
     }
 
     @Test
@@ -819,7 +914,10 @@ class DbSchemaSourceProviderTest {
             )
         }
 
-        assertEquals("@Lazy/@L requires @Reference/@Ref on the same column comment.", error.message)
+        assertEquals(
+            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            error.message,
+        )
     }
 
     @Test

@@ -175,6 +175,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     typeBinding = it.typeBinding,
                     enumItems = it.enumItems,
                     columnName = it.name,
+                    parentRef = it.parentRef,
+                    managedRole = it.managedRole,
                     inherited = it.inherited == true,
                 )
             }
@@ -198,7 +200,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     idField = idField,
                     uniqueConstraints = table.uniqueConstraints,
                     aggregateRoot = table.aggregateRoot,
-                    valueObject = table.valueObject,
                     parentEntityName = when {
                         parentTable == null -> null
                         aggregatePolicy == UnsupportedTablePolicy.SKIP &&
@@ -422,7 +423,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val primaryKeyColumn = table.primaryKey.singleOrNull() ?: return null
         val idColumn = table.columns.firstOrNull { it.name.equals(primaryKeyColumn, ignoreCase = true) }
             ?: return null
-        if (idColumn.generatedValueDeclared || idColumn.generatedValueStrategy != null) {
+        if (idColumn.idStrategy != null) {
             return null
         }
         if (!idColumn.refAggregate.isNullOrBlank() || !idColumn.refId.isNullOrBlank()) {

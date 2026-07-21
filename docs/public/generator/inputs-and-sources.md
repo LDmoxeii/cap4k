@@ -26,7 +26,7 @@ DB/schema 是 persistence surface 输入。它可以表达：
 - primary key、foreign key、unique constraint 和 column type。
 - `@RefAggregate=<AggregateName>` 这类同上下文聚合引用事实。
 - `@RefId=<TypeName>` 这类所在上下文外部概念引用身份。
-- `@T=<TypeName>` 这类 enum 或 Value Object type marker。
+- `@Type=<TypeName>` 这类 enum 或 Value Object type marker。
 
 schema 能帮助 generator 生成 aggregate family、repository、factory、specification、Strong ID、mapping 和 persistence adapter 相关结构。它不能替代 Aggregate 行为，也不能把外键关系变成跨聚合直接修改权限。
 

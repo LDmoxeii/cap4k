@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -13,7 +14,6 @@ import java.util.Locale
 
 class DbSchemaSourceProvider : SourceProvider {
     override val id: String = "db"
-    private val relationAnnotationParser = DbRelationAnnotationParser()
     private val tableAnnotationParser = DbTableAnnotationParser
 
     override fun collect(config: ProjectConfig): DbSchemaSnapshot {
@@ -96,8 +96,7 @@ class DbSchemaSourceProvider : SourceProvider {
                     val name = rows.getString("COLUMN_NAME")
                     val comment = rows.getString("REMARKS") ?: ""
                     val typeName = rows.getString("TYPE_NAME")
-                    val annotationMetadata = DbColumnAnnotationParser.parse(comment)
-                    val relationMetadata = relationAnnotationParser.parseColumn(comment)
+                    val columnMetadata = DbColumnAnnotationParser.parse(comment)
                     add(
                         DbColumnSnapshot(
                             name = name,
@@ -105,25 +104,16 @@ class DbSchemaSourceProvider : SourceProvider {
                             kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE"), typeName),
                             nullable = rows.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                             defaultValue = rows.getString("COLUMN_DEF"),
-                            comment = relationMetadata.cleanedComment,
+                            comment = columnMetadata.cleanedComment,
                             isPrimaryKey = name in primaryKeySet,
-                            typeBinding = annotationMetadata.typeBinding,
-                            enumItems = annotationMetadata.enumItems,
-                            referenceTable = relationMetadata.referenceTable,
-                            explicitRelationType = relationMetadata.explicitRelationType,
-                            lazy = relationMetadata.lazy,
-                            countHint = relationMetadata.countHint,
-                            refAggregate = relationMetadata.refAggregate,
-                            refId = annotationMetadata.refId,
-                            generatedValueDeclared = annotationMetadata.generatedValueDeclared,
-                            generatedValueStrategy = annotationMetadata.generatedValueStrategy,
-                            deleted = annotationMetadata.deleted,
-                            version = annotationMetadata.version,
-                            managed = annotationMetadata.managed,
-                            exposed = annotationMetadata.exposed,
-                            insertable = annotationMetadata.insertable,
-                            updatable = annotationMetadata.updatable,
-                            inherited = annotationMetadata.inherited,
+                            typeBinding = columnMetadata.typeBinding,
+                            enumItems = columnMetadata.enumItems,
+                            parentRef = columnMetadata.parentRef,
+                            refAggregate = columnMetadata.refAggregate,
+                            refId = columnMetadata.refId,
+                            idStrategy = columnMetadata.idStrategy,
+                            managedRole = columnMetadata.managedRole,
+                            inherited = columnMetadata.inherited,
                         )
                     )
                 }
@@ -166,21 +156,41 @@ class DbSchemaSourceProvider : SourceProvider {
                 .filter { it.columns.toSet() != primaryKeySet }
         }
 
+        val table = DbTableSnapshot(
+            tableName = tableName,
+            comment = tableMetadata.cleanedComment,
+            columns = columns,
+            primaryKey = primaryKey,
+            uniqueConstraints = uniqueConstraints,
+            parentTable = tableMetadata.parentTable,
+            aggregateRoot = tableMetadata.parentTable == null,
+        )
+        validateTable(table)
+
         return ReadTableResult(
-            table = DbTableSnapshot(
-                tableName = tableName,
-                comment = tableMetadata.cleanedComment,
-                columns = columns,
-                primaryKey = primaryKey,
-                uniqueConstraints = uniqueConstraints,
-                parentTable = tableMetadata.parentTable,
-                aggregateRoot = tableMetadata.aggregateRoot,
-                valueObject = tableMetadata.valueObject,
-                dynamicInsert = tableMetadata.dynamicInsert,
-                dynamicUpdate = tableMetadata.dynamicUpdate,
-            ),
+            table = table,
             ignored = tableMetadata.ignored,
         )
+    }
+
+    private fun validateTable(table: DbTableSnapshot) {
+        require(table.columns.none { it.parentRef } || table.parentTable != null) {
+            "@ParentRef is valid only on child tables with @Parent"
+        }
+
+        if (table.parentTable != null) {
+            val parentRefCount = table.columns.count { it.parentRef }
+            require(parentRefCount != 0) {
+                "table ${table.tableName.uppercase(Locale.ROOT)} declares @Parent=${table.parentTable} but has no @ParentRef column."
+            }
+            require(parentRefCount == 1) {
+                "table ${table.tableName.uppercase(Locale.ROOT)} declares @Parent=${table.parentTable} but must declare exactly one @ParentRef column."
+            }
+        }
+
+        require(table.columns.filter { it.idStrategy == DbIdStrategy.DB_IDENTITY }.all { it.isPrimaryKey }) {
+            "@IdStrategy=db_identity is valid only on a primary-key column"
+        }
     }
 
     private fun requestedTableNames(value: Any?): List<String> =
