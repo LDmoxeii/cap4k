@@ -1589,11 +1589,15 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(generatedVideoPost.contains("@DynamicInsert"))
         assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
-        assertFalse(generatedVideoPost.contains("@SQLDelete"))
-        assertFalse(generatedVideoPost.contains("@Where"))
+        assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.SQLDelete"))
+        assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.Where"))
+        assertTrue(generatedVideoPost.contains("""@SQLDelete(sql = "update `video_post` set `deleted` = `id` where `id` = ? and `version` = ?")"""))
+        assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertFalse(generatedAuditLog.contains("@SQLDelete"))
-        assertFalse(generatedAuditLog.contains("@Where"))
+        assertTrue(generatedAuditLog.contains("import org.hibernate.annotations.SQLDelete"))
+        assertTrue(generatedAuditLog.contains("import org.hibernate.annotations.Where"))
+        assertTrue(generatedAuditLog.contains("""@SQLDelete(sql = "update `audit_log` set `deleted` = `id` where `id` = ?")"""))
+        assertTrue(generatedAuditLog.contains("""@Where(clause = "`deleted` = 0")"""))
         assertFalse(generatedAuditLog.contains("@DynamicInsert"))
         assertFalse(generatedAuditLog.contains("@DynamicUpdate"))
         assertFalse(generatedAuditLog.contains("@GenericGenerator"))
@@ -1660,7 +1664,7 @@ class PipelinePluginFunctionalTest {
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id uuid primary key,",
-            )
+            ).replaceFirst("@Managed=deleted;", "")
         )
 
         val result = GradleRunner.create()
@@ -1681,6 +1685,8 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertFalse(generatedVideoPost.contains("@SQLDelete"))
+        assertFalse(generatedVideoPost.contains("@Where"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1698,7 +1704,7 @@ class PipelinePluginFunctionalTest {
 
             create table audit_log (
                 id bigint primary key comment '@IdStrategy=db_identity;',
-                deleted int not null comment '@Managed=deleted;',
+                deleted bigint not null default 0 comment '@Managed=deleted;',
                 content varchar(128) not null
             );
                         """.trimIndent()

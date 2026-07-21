@@ -100,4 +100,28 @@ class PipelineModelsTest {
 
         assertEquals(emptyList<DesignBlockModel>(), model.designBlocks)
     }
+
+    @Test
+    fun `aggregate persistence provider control carries semantic soft delete policy`() {
+        val softDelete = AggregateSoftDeletePolicy(
+            fieldName = "deleted",
+            columnName = "deleted",
+            activeValue = "0",
+            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+            activePredicateSql = "\"deleted\" = 0",
+            deleteAssignmentSql = "\"deleted\" = \"id\"",
+        )
+        val control = AggregatePersistenceProviderControl(
+            entityName = "VideoPost",
+            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            softDelete = softDelete,
+            idFieldName = "id",
+            versionFieldName = "version",
+        )
+
+        assertEquals(softDelete, control.softDelete)
+        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, control.softDelete?.tombstoneStrategy)
+        assertEquals("\"deleted\" = \"id\"", control.softDelete?.deleteAssignmentSql)
+    }
 }

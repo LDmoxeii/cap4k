@@ -25,6 +25,10 @@ package {{ packageName }}
 {{ use("jakarta.persistence.Id") -}}
 {% endif -%}
 {{ use("jakarta.persistence.Table") -}}
+{% if softDelete is defined and softDelete.enabled -%}
+{{ use("org.hibernate.annotations.SQLDelete") -}}
+{{ use("org.hibernate.annotations.Where") -}}
+{% endif -%}
 {% if hasVersionFields -%}
 {{ use("jakarta.persistence.Version") -}}
 {% endif -%}
@@ -62,6 +66,9 @@ import {{ import }}
 {% endif -%}
 {% if entityJpa.entityEnabled %}@Entity
 @Table(name = "{{ entityJpa.tableName }}")
+{% if softDelete is defined and softDelete.enabled %}@SQLDelete(sql = {{ softDeleteSqlKotlinStringLiteral | raw }})
+@Where(clause = {{ softDeleteWhereClauseKotlinStringLiteral | raw }})
+{% endif -%}
 {% endif -%}
 class {{ typeName }}(
 {% for field in scalarFields -%}
