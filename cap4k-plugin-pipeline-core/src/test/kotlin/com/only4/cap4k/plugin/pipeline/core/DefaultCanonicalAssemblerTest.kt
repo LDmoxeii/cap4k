@@ -5,6 +5,8 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
@@ -4233,6 +4235,158 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `owned relation unique parent ref infers one while keeping one to many persistence type`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                    ),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_file",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        column("storage_key", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(
+                        UniqueConstraintModel(
+                            physicalName = "uk_video_post_file_parent",
+                            columns = listOf("video_post_id"),
+                        )
+                    ),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertEquals("files", relation.fieldName)
+        assertEquals("video_post_id", relation.joinColumn)
+        assertEquals(true, relation.owned)
+        assertEquals("video_post_id", relation.parentRefColumn)
+        assertEquals(OwnedRelationCardinality.ONE, relation.ownedCardinality)
+        assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals("file", relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned relation unique parent ref plus business column infers many`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_file",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        column("storage_key", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(
+                        UniqueConstraintModel(
+                            physicalName = "uk_video_post_file_parent_storage",
+                            columns = listOf("video_post_id", "storage_key"),
+                        )
+                    ),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertEquals(true, relation.owned)
+        assertEquals(OwnedRelationCardinality.MANY, relation.ownedCardinality)
+        assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals(null, relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned one relation single accessor cannot collide with scalar field`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("file", "VARCHAR", "String", false),
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "video_post_file",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = listOf(uniqueConstraint("uk_file_parent", "video_post_id")),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "owned one relation single accessor collides with scalar field: VideoPost.file -> VideoPostFile",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `owned one relation single accessor cannot collide with its backing relation field`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "video_post_fish",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = listOf(uniqueConstraint("uk_fish_parent", "video_post_id")),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "owned one relation single accessor collides with relation field: VideoPost.fish -> VideoPostFish",
+            error.message,
+        )
+    }
+
+    @Test
     fun `assembler keeps owned direct parent ref inside parent owned relation contract`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
@@ -4296,6 +4450,12 @@ class DefaultCanonicalAssemblerTest {
                 ),
                 orphanRemoval = true,
                 joinColumnNullable = false,
+                owned = true,
+                parentRefColumn = "video_post_id",
+                ownedCardinality = OwnedRelationCardinality.MANY,
+                persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                backingCollectionName = "items",
+                singleAccessorName = null,
             ),
             result.model.aggregateRelations.single(),
         )
@@ -5858,17 +6018,24 @@ class DefaultCanonicalAssemblerTest {
         name: String,
         columns: List<DbColumnSnapshot>,
         primaryKey: List<String>,
-        aggregateRoot: Boolean,
+        aggregateRoot: Boolean = true,
         parentTable: String? = null,
+        uniqueConstraints: List<UniqueConstraintModel> = emptyList(),
     ): DbTableSnapshot = DbTableSnapshot(
         tableName = name,
         comment = "",
         columns = columns,
         primaryKey = primaryKey,
-        uniqueConstraints = emptyList(),
+        uniqueConstraints = uniqueConstraints,
         parentTable = parentTable,
         aggregateRoot = aggregateRoot,
     )
+
+    private fun uniqueConstraint(physicalName: String, vararg columns: String): UniqueConstraintModel =
+        UniqueConstraintModel(
+            physicalName = physicalName,
+            columns = columns.toList(),
+        )
 
     private fun DbColumnSnapshot(
         name: String,
