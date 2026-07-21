@@ -79,7 +79,7 @@ internal object AggregateRelationInference {
                     "unknown child table: ${child.tableName}"
                 }
                 val cardinality = OwnedRelationCardinalityInference.infer(binding)
-                val fieldNames = parentChildFieldNames(parentTable, child.tableName)
+                val fieldNames = parentChildFieldNames(parentTable, child.tableName, cardinality)
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
                     ownerEntityPackageName = resolvedParent.packageName,
@@ -148,7 +148,11 @@ internal object AggregateRelationInference {
         return relations
     }
 
-    private fun parentChildFieldNames(parentTableName: String, childTableName: String): OwnedRelationFieldNames {
+    private fun parentChildFieldNames(
+        parentTableName: String,
+        childTableName: String,
+        cardinality: OwnedRelationCardinality,
+    ): OwnedRelationFieldNames {
         val parentTokens = tableNameTokens(parentTableName)
         val childTokens = tableNameTokens(childTableName)
         val stemTokens = if (
@@ -160,12 +164,20 @@ internal object AggregateRelationInference {
             childTokens
         }
         val nonEmptyStemTokens = stemTokens.ifEmpty { childTokens }
-        val singleName = tokensToLowerCamel(nonEmptyStemTokens)
+        val singleName = tokensToLowerCamel(
+            nonEmptyStemTokens.dropLast(1) + RelationInflector.singularizeStable(nonEmptyStemTokens.last())
+        )
         val collectionName = tokensToLowerCamel(
             nonEmptyStemTokens.dropLast(1) + RelationInflector.pluralizeStable(nonEmptyStemTokens.last())
         )
         return OwnedRelationFieldNames(
-            collectionName = collectionName,
+            collectionName = if (
+                cardinality == OwnedRelationCardinality.ONE && collectionName == singleName
+            ) {
+                "${collectionName}Items"
+            } else {
+                collectionName
+            },
             singleName = singleName,
         )
     }
@@ -295,6 +307,30 @@ internal object AggregateRelationInference {
             rule("$", "s"),
         )
 
+        private val singulars = listOf(
+            rule("(quiz)zes$", "$1"),
+            rule("(matr)ices$", "$1ix"),
+            rule("(vert|ind)ices$", "$1ex"),
+            rule("^(ox)en$", "$1"),
+            rule("(alias|status)es$", "$1"),
+            rule("(octop|vir)i$", "$1us"),
+            rule("(cris|ax|test)es$", "$1is"),
+            rule("(shoe)s$", "$1"),
+            rule("(o)es$", "$1"),
+            rule("(bus)es$", "$1"),
+            rule("([m|l])ice$", "$1ouse"),
+            rule("(x|ch|ss|sh)es$", "$1"),
+            rule("(m)ovies$", "$1ovie"),
+            rule("([^aeiouy]|qu)ies$", "$1y"),
+            rule("([lr])ves$", "$1f"),
+            rule("(tive)s$", "$1"),
+            rule("(hive)s$", "$1"),
+            rule("([^f])ves$", "$1fe"),
+            rule("([ti])a$", "$1um"),
+            rule("(s|si|u)s$", "$1s"),
+            rule("s$", ""),
+        )
+
         private val uncountables = setOf(
             "equipment",
             "information",
@@ -313,6 +349,13 @@ internal object AggregateRelationInference {
                 pluralize(word)
             }
         }
+
+        fun singularizeStable(word: String): String =
+            if (word.lowercase(Locale.ROOT) in uncountables) {
+                word
+            } else {
+                applyFirstRule(word, singulars)
+            }
 
         private fun pluralize(word: String): String =
             if (word.lowercase(Locale.ROOT) in uncountables) {

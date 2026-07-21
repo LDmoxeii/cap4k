@@ -28,37 +28,39 @@ internal object AggregateUniqueConstraintPlanning {
         providerControl: AggregatePersistenceProviderControl? = null,
         resolvedPolicy: AggregateSpecialFieldResolvedPolicy? = null,
     ): List<AggregateUniqueConstraintSelection> {
-        val selections = entity.uniqueConstraints.map { constraint ->
-            val resolvedFields = selectConstraintFields(entity, constraint.columns)
-            val controlColumnNames = controlColumnNames(entity, providerControl, resolvedPolicy)
-            val filteredControlFields = resolvedFields.filter { field ->
-                (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
-            }
-            val businessFields = resolvedFields.filterNot { field ->
-                (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
-            }
-            val normalizedName = normalizeUniqueName(entity.tableName, constraint.physicalName)
-            require(businessFields.isNotEmpty()) {
-                "Unique constraint ${constraint.physicalName} on entity ${entity.name} has no business fields after filtering control fields."
-            }
-            val suffix = resolveSuffix(
-                normalizedName = normalizedName,
-                businessFields = businessFields,
-            )
+        val selections = entity.uniqueConstraints
+            .filter { constraint -> constraint.complete && constraint.filterCondition.isNullOrBlank() }
+            .map { constraint ->
+                val resolvedFields = selectConstraintFields(entity, constraint.columns)
+                val controlColumnNames = controlColumnNames(entity, providerControl, resolvedPolicy)
+                val filteredControlFields = resolvedFields.filter { field ->
+                    (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
+                }
+                val businessFields = resolvedFields.filterNot { field ->
+                    (field.columnName ?: field.name).lowercase(Locale.ROOT) in controlColumnNames
+                }
+                val normalizedName = normalizeUniqueName(entity.tableName, constraint.physicalName)
+                require(businessFields.isNotEmpty()) {
+                    "Unique constraint ${constraint.physicalName} on entity ${entity.name} has no business fields after filtering control fields."
+                }
+                val suffix = resolveSuffix(
+                    normalizedName = normalizedName,
+                    businessFields = businessFields,
+                )
 
-            AggregateUniqueConstraintSelection(
-                physicalName = constraint.physicalName,
-                normalizedName = normalizedName,
-                suffix = suffix,
-                requestProps = businessFields,
-                filteredControlFields = filteredControlFields,
-                idType = entity.idField.type,
-                excludeIdParamName = "exclude${entity.name}Id",
-                queryTypeName = "Unique${entity.name}${suffix}Qry",
-                queryHandlerTypeName = "Unique${entity.name}${suffix}QryHandler",
-                validatorTypeName = "Unique${entity.name}${suffix}",
-            )
-        }
+                AggregateUniqueConstraintSelection(
+                    physicalName = constraint.physicalName,
+                    normalizedName = normalizedName,
+                    suffix = suffix,
+                    requestProps = businessFields,
+                    filteredControlFields = filteredControlFields,
+                    idType = entity.idField.type,
+                    excludeIdParamName = "exclude${entity.name}Id",
+                    queryTypeName = "Unique${entity.name}${suffix}Qry",
+                    queryHandlerTypeName = "Unique${entity.name}${suffix}QryHandler",
+                    validatorTypeName = "Unique${entity.name}${suffix}",
+                )
+            }
         validateUniqueSelections(entity, selections)
         return selections
     }

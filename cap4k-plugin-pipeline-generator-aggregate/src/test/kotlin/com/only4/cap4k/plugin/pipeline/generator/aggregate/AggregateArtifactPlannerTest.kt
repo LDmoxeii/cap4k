@@ -4034,6 +4034,30 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `unique planning ignores incomplete and filtered constraints`() {
+        val planning = AggregateUniqueConstraintPlanning.from(
+            entity = EntityModel(
+                name = "VideoPost",
+                packageName = "com.acme.demo.domain.aggregates.video_post",
+                tableName = "video_post",
+                comment = "Video post entity",
+                fields = listOf(
+                    FieldModel("id", "Long", columnName = "id"),
+                    FieldModel("slug", "String", columnName = "slug"),
+                ),
+                idField = FieldModel("id", "Long", columnName = "id"),
+                uniqueConstraints = listOf(
+                    uniqueConstraint("uk_incomplete_slug", "slug").copy(complete = false),
+                    uniqueConstraint("uk_filtered_slug", "slug").copy(filterCondition = "deleted = 0"),
+                    uniqueConstraint("uk_v_slug", "slug"),
+                ),
+            )
+        )
+
+        assertEquals(listOf("uk_v_slug"), planning.map { it.physicalName })
+    }
+
+    @Test
     fun `unique planning uses table prefixed uk_v fragment and filters soft delete fields`() {
         val planning = AggregateUniqueConstraintPlanning.from(
             entity = EntityModel(

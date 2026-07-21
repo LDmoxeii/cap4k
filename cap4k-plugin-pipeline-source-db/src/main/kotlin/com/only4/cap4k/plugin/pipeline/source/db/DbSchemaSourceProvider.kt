@@ -120,40 +120,23 @@ class DbSchemaSourceProvider : SourceProvider {
             }
         }
         val uniqueConstraints = metadata.getIndexInfo(scope.catalog, scope.schemaPattern, tableName, true, false).use { rows ->
-            data class IndexedConstraintColumn(
-                val name: String,
-                val ordinalPosition: Int,
-                val metadataSequence: Int,
-            )
-
             var metadataSequence = 0
-            linkedMapOf<String, MutableList<IndexedConstraintColumn>>().apply {
+            val indexRows = buildList {
                 while (rows.next()) {
                     if (rows.getBoolean("NON_UNIQUE")) continue
                     val indexName = rows.getString("INDEX_NAME") ?: continue
-                    val columnName = rows.getString("COLUMN_NAME") ?: continue
-                    val ordinalPosition = rows.getInt("ORDINAL_POSITION")
-                    getOrPut(indexName) { mutableListOf() }.add(
-                        IndexedConstraintColumn(
-                            name = columnName,
-                            ordinalPosition = ordinalPosition,
+                    add(
+                        UniqueIndexMetadataRow(
+                            indexName = indexName,
+                            columnName = rows.getString("COLUMN_NAME"),
+                            ordinalPosition = rows.getInt("ORDINAL_POSITION"),
                             metadataSequence = metadataSequence++,
+                            filterCondition = rows.getString("FILTER_CONDITION"),
                         )
                     )
                 }
-            }.map { (physicalName, columns) ->
-                UniqueConstraintModel(
-                    physicalName = physicalName,
-                    columns = columns
-                        .sortedWith(
-                            compareBy<IndexedConstraintColumn> {
-                                if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
-                            }.thenBy { it.metadataSequence }
-                        )
-                        .map { it.name },
-                )
             }
-                .filter { it.columns.toSet() != primaryKeySet }
+            uniqueConstraintsFromIndexRows(indexRows, primaryKeySet)
         }
 
         val table = DbTableSnapshot(
@@ -278,3 +261,40 @@ internal fun resolveJdbcMetadataScope(
         )
     }
 }
+
+internal data class UniqueIndexMetadataRow(
+    val indexName: String,
+    val columnName: String?,
+    val ordinalPosition: Int,
+    val metadataSequence: Int,
+    val filterCondition: String?,
+)
+
+internal fun uniqueConstraintsFromIndexRows(
+    rows: List<UniqueIndexMetadataRow>,
+    primaryKey: Set<String>,
+): List<UniqueConstraintModel> = rows
+    .groupByTo(linkedMapOf(), UniqueIndexMetadataRow::indexName)
+    .map { (physicalName, indexRows) ->
+        val filterCondition = indexRows
+            .asSequence()
+            .mapNotNull { row -> row.filterCondition?.trim()?.takeIf(String::isNotEmpty) }
+            .firstOrNull()
+        UniqueConstraintModel(
+            physicalName = physicalName,
+            columns = indexRows
+                .sortedWith(
+                    compareBy<UniqueIndexMetadataRow> {
+                        if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
+                    }.thenBy { it.metadataSequence }
+                )
+                .mapNotNull { it.columnName },
+            complete = indexRows.all { it.columnName != null },
+            filterCondition = filterCondition,
+        )
+    }
+    .filterNot { constraint ->
+        constraint.complete &&
+            constraint.filterCondition.isNullOrBlank() &&
+            constraint.columns.toSet() == primaryKey
+    }

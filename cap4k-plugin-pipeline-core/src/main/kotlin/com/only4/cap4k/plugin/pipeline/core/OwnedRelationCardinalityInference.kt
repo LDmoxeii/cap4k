@@ -28,7 +28,9 @@ internal object OwnedRelationCardinalityInference {
 
         val hasOneProvingUniqueConstraint = child.uniqueConstraints.any { constraint ->
             val constraintColumnKeys = constraint.columns.mapTo(linkedSetOf(), ::columnKey)
-            parentRefKey in constraintColumnKeys &&
+            constraint.complete &&
+                constraint.filterCondition.isNullOrBlank() &&
+                parentRefKey in constraintColumnKeys &&
                 constraintColumnKeys.minus(neutralColumnKeys).isEmpty() &&
                 constraintColumnKeys
                     .filter { it in scopeColumnKeys || it in deletedColumnKeys }

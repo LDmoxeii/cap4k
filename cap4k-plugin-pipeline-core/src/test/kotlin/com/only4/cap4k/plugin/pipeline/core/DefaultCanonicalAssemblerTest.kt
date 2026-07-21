@@ -4280,6 +4280,66 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `owned one plural table stem uses singular accessor`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_files",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(uniqueConstraint("uk_files_parent", "video_post_id")),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals("files", relation.fieldName)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals("file", relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned many plural table stem keeps collection field`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_files",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals(OwnedRelationCardinality.MANY, relation.ownedCardinality)
+        assertEquals("files", relation.fieldName)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals(null, relation.singleAccessorName)
+    }
+
+    @Test
     fun `owned relation unique parent ref plus business column infers many`() {
         val result = assembleAggregate(
             aggregateProjectConfig(),
@@ -4355,35 +4415,33 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `owned one relation single accessor cannot collide with its backing relation field`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                aggregateProjectConfig(),
-                listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
-                        primaryKey = listOf("id"),
-                    ),
-                    table(
-                        name = "video_post_fish",
-                        parentTable = "video_post",
-                        columns = listOf(
-                            column("id", "BIGINT", "Long", false, primaryKey = true),
-                            column("video_post_id", "BIGINT", "Long", false, parentRef = true),
-                        ),
-                        primaryKey = listOf("id"),
-                        uniqueConstraints = listOf(uniqueConstraint("uk_fish_parent", "video_post_id")),
-                        aggregateRoot = false,
-                    ),
+    fun `owned one uncountable table stem uses deterministic backing fallback`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
                 ),
-            )
-        }
-
-        assertEquals(
-            "owned one relation single accessor collides with relation field: VideoPost.fish -> VideoPostFish",
-            error.message,
+                table(
+                    name = "video_post_fish",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(uniqueConstraint("uk_fish_parent", "video_post_id")),
+                    aggregateRoot = false,
+                ),
+            ),
         )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals("fishItems", relation.fieldName)
+        assertEquals("fishItems", relation.backingCollectionName)
+        assertEquals("fish", relation.singleAccessorName)
     }
 
     @Test

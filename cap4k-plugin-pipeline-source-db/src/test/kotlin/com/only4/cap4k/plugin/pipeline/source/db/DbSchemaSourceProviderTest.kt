@@ -1209,6 +1209,37 @@ class DbSchemaSourceProviderTest {
         assertTrue(unique.physicalName.startsWith("UQ_ACCOUNT_ENTRY", ignoreCase = true))
         assertTrue(unique.physicalName.contains("_INDEX_", ignoreCase = true))
         assertEquals(listOf("REGION_ID", "CODE"), unique.columns)
+        assertTrue(unique.complete)
+        assertNull(unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows preserve filters and mark expression metadata incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_parent_active",
+                    columnName = "video_post_id",
+                    ordinalPosition = 1,
+                    metadataSequence = 0,
+                    filterCondition = " deleted = 0 ",
+                ),
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_parent_active",
+                    columnName = null,
+                    ordinalPosition = 2,
+                    metadataSequence = 1,
+                    filterCondition = " deleted = 0 ",
+                ),
+            ),
+            primaryKey = setOf("id"),
+        )
+
+        val unique = constraints.single()
+        assertEquals("uk_video_post_parent_active", unique.physicalName)
+        assertEquals(listOf("video_post_id"), unique.columns)
+        assertFalse(unique.complete)
+        assertEquals("deleted = 0", unique.filterCondition)
     }
 
     @Test

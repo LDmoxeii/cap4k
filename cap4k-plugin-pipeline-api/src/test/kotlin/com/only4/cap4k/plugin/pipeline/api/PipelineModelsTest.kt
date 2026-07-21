@@ -8,6 +8,25 @@ import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
     @Test
+    fun `unique constraint metadata distinguishes complete unconditional indexes`() {
+        val unconditional = UniqueConstraintModel(
+            physicalName = "uk_video_post_slug",
+            columns = listOf("slug"),
+        )
+        val filtered = UniqueConstraintModel(
+            physicalName = "uk_video_post_slug_active",
+            columns = listOf("slug"),
+            complete = false,
+            filterCondition = "deleted = 0",
+        )
+
+        assertTrue(unconditional.complete)
+        assertNull(unconditional.filterCondition)
+        assertFalse(filtered.complete)
+        assertEquals("deleted = 0", filtered.filterCondition)
+    }
+
+    @Test
     fun `db column snapshot carries parent ref managed role and id strategy`() {
         val column = DbColumnSnapshot(
             name = "parent_id",

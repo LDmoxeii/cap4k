@@ -33,6 +33,36 @@ class OwnedRelationCardinalityInferenceTest {
     }
 
     @Test
+    fun `incomplete unique constraint does not prove one`() {
+        val binding = binding(
+            columns = listOf(
+                id(),
+                parentRef("video_post_id"),
+            ),
+            uniqueConstraints = listOf(
+                unique("uk_parent", "video_post_id").copy(complete = false)
+            ),
+        )
+
+        assertEquals(OwnedRelationCardinality.MANY, OwnedRelationCardinalityInference.infer(binding))
+    }
+
+    @Test
+    fun `filtered unique constraint does not prove one`() {
+        val binding = binding(
+            columns = listOf(
+                id(),
+                parentRef("video_post_id"),
+            ),
+            uniqueConstraints = listOf(
+                unique("uk_parent_active", "video_post_id").copy(filterCondition = "deleted = 0")
+            ),
+        )
+
+        assertEquals(OwnedRelationCardinality.MANY, OwnedRelationCardinalityInference.infer(binding))
+    }
+
+    @Test
     fun `unique parent ref plus non null deleted discriminator infers one`() {
         val binding = binding(
             columns = listOf(
