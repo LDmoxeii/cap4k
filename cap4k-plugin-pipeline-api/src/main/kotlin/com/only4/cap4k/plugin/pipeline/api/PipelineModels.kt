@@ -253,6 +253,15 @@ enum class AggregateCascadeType {
     REMOVE,
 }
 
+enum class OwnedRelationCardinality {
+    ONE,
+    MANY,
+}
+
+enum class OwnedRelationPersistenceShape {
+    ONE_TO_MANY_JOIN_COLUMN,
+}
+
 data class AggregateRelationModel(
     val ownerEntityName: String,
     val ownerEntityPackageName: String,
@@ -266,6 +275,12 @@ data class AggregateRelationModel(
     val cascadeTypes: List<AggregateCascadeType> = emptyList(),
     val orphanRemoval: Boolean = false,
     val joinColumnNullable: Boolean? = null,
+    val owned: Boolean = false,
+    val parentRefColumn: String? = null,
+    val ownedCardinality: OwnedRelationCardinality? = null,
+    val persistenceShape: OwnedRelationPersistenceShape? = null,
+    val backingCollectionName: String? = null,
+    val singleAccessorName: String? = null,
 )
 
 data class AggregateInverseRelationModel(
