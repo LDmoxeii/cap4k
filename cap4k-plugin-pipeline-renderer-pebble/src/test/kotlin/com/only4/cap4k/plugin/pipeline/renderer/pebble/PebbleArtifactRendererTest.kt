@@ -4181,7 +4181,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate entity template renders provider specific persistence controls`() {
+    fun `aggregate entity template ignores soft delete sql context`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-aggregate-provider-persistence")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -4210,8 +4210,6 @@ class PebbleArtifactRendererTest {
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
                         "hasVersionFields" to false,
-                        "dynamicInsert" to true,
-                        "dynamicUpdate" to true,
                         "softDeleteSql" to "update \"video_post\" set \"deleted\" = 1 where \"id\" = ? and \"version\" = ?",
                         "softDeleteWhereClause" to "\"deleted\" = 0",
                         "scalarFields" to emptyList<Map<String, Any?>>(),
@@ -4239,14 +4237,14 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
 
-        assertTrue(content.contains("import org.hibernate.annotations.DynamicInsert"))
-        assertTrue(content.contains("import org.hibernate.annotations.DynamicUpdate"))
-        assertTrue(content.contains("import org.hibernate.annotations.SQLDelete"))
-        assertTrue(content.contains("import org.hibernate.annotations.Where"))
-        assertTrue(content.contains("@DynamicInsert"))
-        assertTrue(content.contains("@DynamicUpdate"))
-        assertTrue(content.contains("@SQLDelete(sql = \"update \\\"video_post\\\" set \\\"deleted\\\" = 1 where \\\"id\\\" = ? and \\\"version\\\" = ?\")"))
-        assertTrue(content.contains("@Where(clause = \"\\\"deleted\\\" = 0\")"))
+        assertFalse(content.contains("import org.hibernate.annotations.DynamicInsert"))
+        assertFalse(content.contains("import org.hibernate.annotations.DynamicUpdate"))
+        assertFalse(content.contains("import org.hibernate.annotations.SQLDelete"))
+        assertFalse(content.contains("import org.hibernate.annotations.Where"))
+        assertFalse(content.contains("@DynamicInsert"))
+        assertFalse(content.contains("@DynamicUpdate"))
+        assertFalse(content.contains("@SQLDelete"))
+        assertFalse(content.contains("@Where"))
     }
 
     @Test

@@ -1,42 +1,37 @@
 # DB Schema Annotations
 
-Use these annotations in DB/schema DDL comments when the schema is the selected generator input surface.
+Use these exact annotations in DB/schema DDL comments when the schema is the selected generator input surface.
 
-DB table comments describe table ownership, aggregate-root metadata, exclusion, and JPA provider controls. Value Object inputs use `types.valueObjectManifest`; they are not DB table annotations.
+The DB comment contract is a strict allow-list. Do not use aliases or removed compatibility names; unsupported names fail parsing.
 
 ## Table Annotations
 
-- `@Parent=<table>` / `@P=<table>`
-- `@AggregateRoot=<bool>` / `@Root=<bool>` / `@R=<bool>`
-- `@Ignore` / `@I`
-- `@DynamicInsert=<bool>`
-- `@DynamicUpdate=<bool>`
+- `@Parent=<table>`
+- `@Ignore`
 
 ## Column Annotations
 
-- `@T=<TypeName>` / `@TYPE=<TypeName>`
-- `@E=<items>` / `@ENUM=<items>`
-- `@RefId=<TypeName>`
-- `@Deleted`
-- `@Version`
-- `@GeneratedValue=identity`
-- `@GeneratedValue=database-identity`
-- `@Managed`
-- `@Inherited`
-- `@Reference=<table>` / `@Ref=<table>`
-- `@Relation=<type>` / `@Rel=<type>`
-- `@Lazy=<bool>` / `@L=<bool>`
-- `@Count=<value>` / `@C=<value>`
+- `@ParentRef`
+- `@Type=<TypeName>`
 - `@RefAggregate=<AggregateName>`
+- `@RefId=<TypeName>`
+- `@IdStrategy=db_identity`
+- `@Managed=system`
+- `@Managed=scope`
+- `@Managed=deleted`
+- `@Managed=version`
+- `@Inherited`
 
 ## Rules
 
 - Unsupported table annotations fail table comment parsing.
-- Presence annotations do not take explicit values.
-- Boolean values are strict lowercase `true` or `false`.
-- `@Parent` / `@P` cannot combine with `@AggregateRoot=true`, `@Root=true`, or `@R=true`.
-- `@E` / `@ENUM` requires `@T` / `@TYPE`.
-- `@Relation` / `@Rel`, `@Lazy` / `@L`, and `@Count` / `@C` require `@Reference` or `@Ref` on the same column.
-- `@Relation` / `@Rel` supports `MANY_TO_ONE`, `ONE_TO_ONE`, `1:1`, `*:1`, `MANYTOONE`, and `ONETOONE`.
-- `@RefAggregate` conflicts with `@Reference` / `@Ref`.
-- `@RefAggregate` conflicts with `@RefId`.
+- Unsupported column annotations fail column comment parsing.
+- `@Parent` requires a nonblank table value.
+- `@Ignore`, `@ParentRef`, and `@Inherited` do not take explicit values.
+- A table with `@Parent=<table>` must declare exactly one `@ParentRef` column.
+- `@ParentRef` is valid only on child tables with `@Parent=<table>`.
+- `@ParentRef` cannot combine with `@RefAggregate`, `@RefId`, or `@IdStrategy`.
+- `@RefAggregate` and `@RefId` cannot be declared on the same column.
+- `@IdStrategy` currently supports only `db_identity` and is valid only on a primary-key column.
+- `@Managed` supports only `system`, `scope`, `deleted`, and `version`.
+- `@Inherited` is valid only with `@Managed=system`, `@Managed=scope`, `@Managed=deleted`, or `@Managed=version`.

@@ -345,14 +345,14 @@ open class AggregateIdPolicyExtension @Inject constructor(objects: ObjectFactory
     @Deprecated("aggregate-level id overrides are removed.")
     fun aggregate(name: String, strategy: String) {
         throw IllegalArgumentException(
-            "generators.aggregate.idPolicy.aggregate(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column-level @GeneratedValue declarations."
+            "generators.aggregate.idPolicy.aggregate(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column comments with @IdStrategy=db_identity."
         )
     }
 
     @Deprecated("entity-level id overrides are removed.")
     fun entity(name: String, strategy: String) {
         throw IllegalArgumentException(
-            "generators.aggregate.idPolicy.entity(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column-level @GeneratedValue declarations."
+            "generators.aggregate.idPolicy.entity(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column comments with @IdStrategy=db_identity."
         )
     }
 }

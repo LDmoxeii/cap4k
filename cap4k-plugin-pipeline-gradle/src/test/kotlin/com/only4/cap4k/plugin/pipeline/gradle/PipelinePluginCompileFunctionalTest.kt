@@ -458,10 +458,12 @@ class PipelinePluginCompileFunctionalTest {
                 .exists()
         )
         assertTrue(generatedRootEntity.contains("import jakarta.persistence.CascadeType"))
-        assertTrue(generatedRootEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
-        assertTrue(generatedRootEntity.contains("@OneToOne(fetch = FetchType.EAGER)"))
-        assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
+        assertTrue(generatedRootEntity.contains("import com.acme.demo.domain.aggregates.user_profile.UserProfileId"))
+        assertTrue(generatedRootEntity.contains("var authorId: UserProfileId = authorId"))
+        assertTrue(generatedRootEntity.contains("var coverProfileId: UserProfileId? = coverProfileId"))
+        assertFalse(generatedRootEntity.contains("@JoinColumn(name = \"author_id\""))
+        assertFalse(generatedRootEntity.contains("@OneToOne(fetch = FetchType.EAGER)"))
+        assertFalse(generatedRootEntity.contains("@JoinColumn(name = \"cover_profile_id\""))
         assertTrue(
             generatedRootEntity.contains(
                 "@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"
@@ -557,14 +559,22 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate direct parent lazy override fails fast during domain compileKotlin`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-direct-parent-lazy-override-compile")
+    fun `aggregate parent without parent ref fails fast during domain compileKotlin`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-parent-without-parent-ref-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
-            schemaFile.readText().replace(
-                "video_post_id bigint not null comment '@Reference=video_post;',",
-                "video_post_id bigint not null comment '@Reference=video_post;@Lazy=true;',",
+            """
+            create table video_post (id bigint primary key);
+            create table video_post_item (id bigint primary key, video_post_id bigint not null);
+            comment on table video_post_item is '@Parent=video_post;';
+            """.trimIndent()
+        )
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """includeTables.set(listOf("video_post", "video_post_item", "user_profile", "content", "media_processing_task"))""",
+                """includeTables.set(listOf("video_post", "video_post_item"))""",
             )
         )
 
@@ -572,9 +582,8 @@ class PipelinePluginCompileFunctionalTest {
             .runner(projectDir, ":demo-domain:compileKotlin")
             .buildAndFail()
         assertTrue(
-            compileResult.output.contains(
-                "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id"
-            )
+            compileResult.output.contains("table VIDEO_POST_ITEM declares @Parent=video_post but has no @ParentRef column."),
+            compileResult.output,
         )
     }
 
@@ -628,13 +637,13 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
         ).readText()
 
-        assertTrue(generatedVideoPost.contains("@DynamicInsert"))
-        assertTrue(generatedVideoPost.contains("@DynamicUpdate"))
-        assertTrue(generatedVideoPost.contains("@SQLDelete"))
-        assertTrue(generatedVideoPost.contains("@Where"))
+        assertFalse(generatedVideoPost.contains("@DynamicInsert"))
+        assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
+        assertFalse(generatedVideoPost.contains("@SQLDelete"))
+        assertFalse(generatedVideoPost.contains("@Where"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertTrue(generatedAuditLog.contains("@SQLDelete"))
-        assertTrue(generatedAuditLog.contains("@Where"))
+        assertFalse(generatedAuditLog.contains("@SQLDelete"))
+        assertFalse(generatedAuditLog.contains("@Where"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -646,7 +655,7 @@ class PipelinePluginCompileFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id bigint primary key,",
             )
         )
@@ -695,7 +704,7 @@ class PipelinePluginCompileFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@GeneratedValue=IDENTITY;',",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id uuid primary key,",
             )
         )
@@ -901,7 +910,7 @@ class PipelinePluginCompileFunctionalTest {
 
                 create table if not exists video_file (
                     id bigint primary key,
-                    video_post_id bigint not null comment '@Reference=video_post;',
+                    video_post_id bigint not null comment '@ParentRef;',
                     file_index int not null,
                     constraint uq_video_file_parent_index unique (video_post_id, file_index)
                 );
