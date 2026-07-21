@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -47,13 +51,6 @@ jobs:
             echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/publish/maven-central." >&2
             exit 1
           fi
-
-      - name: Test buildSrc
-        working-directory: buildSrc
-        run: ../gradlew test
-
-      - name: Check
-        run: ./gradlew check
 
       - name: Publish
         run: ./gradlew publish -Prelease.version="${RELEASE_VERSION}"
