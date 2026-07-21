@@ -1432,12 +1432,17 @@ class PipelinePluginFunctionalTest {
         val childEntityFile = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
         )
+        val oneChildEntityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt")
+        )
         val rootEntityContent = rootEntityFile.readText()
         val childEntityContent = childEntityFile.readText()
+        val oneChildEntityContent = oneChildEntityFile.readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(rootEntityFile.toFile().exists())
         assertTrue(childEntityFile.toFile().exists())
+        assertTrue(oneChildEntityFile.toFile().exists())
         assertFalse(
             projectDir.resolve("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
                 .toFile()
@@ -1455,6 +1460,16 @@ class PipelinePluginFunctionalTest {
         assertFalse(rootEntityContent.contains("CascadeType.ALL"))
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(rootEntityContent.contains("import jakarta.persistence.Transient"))
+        assertTrue(rootEntityContent.contains("private val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertFalse(rootEntityContent.replace("\r\n", "\n").contains("\n    val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertTrue(rootEntityContent.contains("@get:Transient"))
+        assertTrue(rootEntityContent.contains("var file: VideoPostFile?"))
+        assertTrue(rootEntityContent.contains("get() = when (files.size)"))
+        assertTrue(rootEntityContent.contains("else -> error(\"owned relation VideoPost.file expected at most one VideoPostFile but found \" + files.size)"))
+        assertTrue(rootEntityContent.contains("set(value)"))
+        assertTrue(rootEntityContent.contains("files.clear()"))
+        assertTrue(rootEntityContent.contains("files.add(value)"))
         assertTrue(rootEntityContent.contains("import com.acme.demo.domain.aggregates.user_profile.UserProfileId"))
         assertTrue(rootEntityContent.contains("var authorId: UserProfileId = authorId"))
         assertTrue(rootEntityContent.contains("var coverProfileId: UserProfileId? = coverProfileId"))
@@ -1476,6 +1491,8 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
         assertFalse(childEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
+        assertTrue(oneChildEntityContent.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
+        assertTrue(oneChildEntityContent.contains("var videoPostId: Long = videoPostId"))
     }
 
     @OptIn(ExperimentalPathApi::class)

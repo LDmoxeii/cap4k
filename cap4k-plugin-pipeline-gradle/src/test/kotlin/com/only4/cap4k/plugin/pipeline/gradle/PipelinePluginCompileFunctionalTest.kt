@@ -437,6 +437,9 @@ class PipelinePluginCompileFunctionalTest {
         val generatedChildEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
         ).readText()
+        val generatedOneChildEntity = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt")
+        ).readText()
         val generatedContentEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt")
         ).readText()
@@ -445,6 +448,7 @@ class PipelinePluginCompileFunctionalTest {
             projectDir,
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt"),
@@ -472,6 +476,10 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedRootEntity.contains("CascadeType.ALL"))
         assertTrue(generatedRootEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(generatedRootEntity.contains("mappedBy ="))
+        assertTrue(generatedRootEntity.contains("private val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertTrue(generatedRootEntity.contains("var file: VideoPostFile?"))
+        assertTrue(generatedRootEntity.contains("@get:Transient"))
+        assertFalse(generatedRootEntity.replace("\r\n", "\n").contains("\n    val files: MutableList<VideoPostFile> = mutableListOf()"))
         assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
         assertTrue(generatedChildEntity.contains("var videoPostId: Long = videoPostId"))
         assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
@@ -483,6 +491,8 @@ class PipelinePluginCompileFunctionalTest {
         assertFalse(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
         assertFalse(generatedChildEntity.contains("@Column(name = \"video_post_id\")\n    var videoPostId: Long = videoPostId"))
         assertFalse(generatedChildEntity.contains("mappedBy ="))
+        assertTrue(generatedOneChildEntity.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
+        assertTrue(generatedOneChildEntity.contains("var videoPostId: Long = videoPostId"))
         assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
         assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
         assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
@@ -530,6 +540,10 @@ class PipelinePluginCompileFunctionalTest {
             fun VideoPost.attachForCompile(item: VideoPostItem) {
                 this.items.add(item)
             }
+
+            fun VideoPost.replaceFileForCompile(file: VideoPostFile?) {
+                this.file = file
+            }
             """.trimIndent()
         )
 
@@ -541,6 +555,7 @@ class PipelinePluginCompileFunctionalTest {
             projectDir,
             "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
             "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt",
+            "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt",
         )
         assertFalse(
             projectDir.resolve(

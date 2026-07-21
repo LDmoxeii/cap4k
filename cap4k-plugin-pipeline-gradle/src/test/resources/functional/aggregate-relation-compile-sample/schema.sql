@@ -11,6 +11,13 @@ create table video_post_item (
     label varchar(128) not null
 );
 
+create table video_post_file (
+    id bigint primary key,
+    video_post_id bigint not null comment '@ParentRef;',
+    storage_key varchar(128) not null,
+    constraint uk_video_post_file_parent unique (video_post_id)
+);
+
 create table user_profile (
     id varchar(36) primary key,
     nickname varchar(128) not null
@@ -29,5 +36,6 @@ create table media_processing_task (
 );
 
 comment on table video_post_item is '@Parent=video_post;';
+comment on table video_post_file is '@Parent=video_post;';
 comment on column content.author_id is '@RefId=AuthorId;';
 comment on column content.media_processing_task_id is '@RefAggregate=MediaProcessingTask;';
