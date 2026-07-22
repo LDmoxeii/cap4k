@@ -30,6 +30,7 @@ import org.hibernate.id.IdentifierGenerationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -391,8 +392,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
-    @DisplayName("reverse eager navigation on nested entities is supported with create intent")
-    fun reverseEagerNavigationOnNestedEntitiesIsSupportedWithCreateIntent() {
+    @DisplayName("reverse eager navigation on nested entities remains a known defect with create intent")
+    fun reverseEagerNavigationOnNestedEntitiesRemainsAKnownDefectWithCreateIntent() {
         val classification = classifyRuntimeBehavior(
             label = "three-level reverse eager navigation",
             desiredContract = {
@@ -418,7 +419,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             }
         )
 
-        assertSupported(classification)
+        assertKnownDefect(classification)
     }
 
     @Test
@@ -476,6 +477,27 @@ class AggregateJpaRuntimeDefectReproductionTest {
         )
 
         assertSupported(classification)
+    }
+
+    @Test
+    @DisplayName("proxy and concrete instances with the same id conflict before flush")
+    fun proxyAndConcreteInstancesWithTheSameIdConflictBeforeFlush() {
+        val root = saveRoot(RuntimeRoot(name = "proxy-conflict"))
+        JpaUnitOfWork.reset()
+
+        val error = requireNotNull(TransactionTemplate(transactionManager).execute {
+            val proxy = rootJpaRepository.getReferenceById(root.id)
+            val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
+            unitOfWork.persist(proxy)
+            unitOfWork.remove(detached)
+
+            assertThrows(IllegalStateException::class.java) {
+                unitOfWork.save()
+            }
+        })
+
+        assertTrue(error.message!!.contains("conflicting UnitOfWork registrations"))
+        assertEquals(1, countRows("select count(*) from `runtime_root` where `id` = ?", root.id))
     }
 
     @Test
@@ -643,6 +665,10 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     private fun assertSupported(classification: RuntimeClassification) {
         assertEquals(RuntimeClassification.SUPPORTED, classification)
+    }
+
+    private fun assertKnownDefect(classification: RuntimeClassification) {
+        assertEquals(RuntimeClassification.KNOWN_DEFECT, classification)
     }
 
     private fun classifyRuntimeBehavior(

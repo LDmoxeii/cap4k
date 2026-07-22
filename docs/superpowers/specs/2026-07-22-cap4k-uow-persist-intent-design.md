@@ -55,7 +55,7 @@ Expected production change surface:
 - update `UnitOfWork` and `Mediator` to remove `persistIfNotExist(...)` and expose `persist(entity, intent)`;
 - update `DefaultMediator` forwarding;
 - update `DefaultAggregateFactorySupervisor` to register factory-created aggregates as `CREATE`;
-- keep `DefaultRepositorySupervisor` on default `persist(entity)` for `persist=true`, which now means `UPDATE`;
+- keep `DefaultRepositorySupervisor` update registration explicit for `persist=true` reads, so the UoW receives `PersistIntent.UPDATE` rather than inferring write intent from implicit newness;
 - refactor `JpaUnitOfWork` pending state and save operation selection around pending intent;
 - update or remove tests and docs that still describe implicit newness or `persistIfNotExist(...)`.
 

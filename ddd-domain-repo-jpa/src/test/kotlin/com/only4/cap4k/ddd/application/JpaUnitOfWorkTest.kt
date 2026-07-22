@@ -114,6 +114,14 @@ class JpaUnitOfWorkTest {
         (field.get(null) as MutableMap<Class<*>, *>).clear()
     }
 
+    private fun processingEntityCount(): Int {
+        val field = JpaUnitOfWork::class.java.getDeclaredField("processingEntitiesThreadLocal")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val threadLocal = field.get(null) as ThreadLocal<Set<Any>>
+        return threadLocal.get().size
+    }
+
     @Test
     @DisplayName("default persist should merge a detached existing entity and report UPDATE")
     fun defaultPersistShouldMergeDetachedExistingEntityAndReportUpdate() {
@@ -144,6 +152,22 @@ class JpaUnitOfWorkTest {
         verify { entityManager.refresh(entity) }
         verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
         verify(exactly = 0) { entityManager.merge(entity) }
+    }
+
+    @Test
+    @DisplayName("generated-id CREATE should decide refresh before persist changes isNew")
+    fun generatedIdCreateShouldDecideRefreshBeforePersistChangesIsNew() {
+        val entity = TestEntity(null, "generated")
+        var persisted = false
+        every { mockEntityInfo.isNew(entity) } answers { !persisted }
+        every { entityManager.persist(entity) } answers { persisted = true }
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(entity) }
+        verify { entityManager.refresh(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
     }
 
     @Test
@@ -563,6 +587,26 @@ class JpaUnitOfWorkTest {
 
         assertTrue(error.message!!.contains("conflicting UnitOfWork registrations"))
         verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("preflight conflict failure should clear processing entities")
+    fun preflightConflictFailureShouldClearProcessingEntities() {
+        val first = TestEntity(8L, "first")
+        val second = TestEntity(8L, "second")
+        every { mockEntityInfo.isNew(first) } returns false
+        every { mockEntityInfo.isNew(second) } returns false
+        every { mockEntityInfo.getId(first) } returns 8L
+        every { mockEntityInfo.getId(second) } returns 8L
+
+        jpaUnitOfWork.persist(first)
+        jpaUnitOfWork.remove(second)
+
+        assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertEquals(0, processingEntityCount())
     }
 
     @Test

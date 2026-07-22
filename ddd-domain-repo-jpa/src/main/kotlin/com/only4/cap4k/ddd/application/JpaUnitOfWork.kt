@@ -9,6 +9,7 @@ import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
+import org.hibernate.Hibernate
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport
 import org.springframework.data.repository.core.EntityInformation
 import org.springframework.transaction.annotation.Propagation
@@ -168,6 +169,8 @@ open class JpaUnitOfWork(
             JpaEntityInformationSupport.getEntityInformation(it, entityManager)
         } as EntityInformation<Any, Any>
 
+    private fun persistentEntityClass(entity: Any): Class<*> = Hibernate.getClassLazy(entity)
+
     protected open fun onEntitiesFlushed(
         createdEntities: Set<Any>,
         updatedEntities: Set<Any>,
@@ -217,11 +220,11 @@ open class JpaUnitOfWork(
             .filter { it.intent == UnitOfWorkIntent.REMOVE }
             .mapTo(InsertionOrderedIdentitySet()) { it.entity }
 
-        prepareApplicationSideIds(pendingChanges)
-        validateSameIdentityConflicts(pendingChanges)
-        uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
-
         try {
+            prepareApplicationSideIds(pendingChanges)
+            validateSameIdentityConflicts(pendingChanges)
+            uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
+
             save(
                 SaveInput(
                     changes = pendingChanges,
@@ -297,20 +300,23 @@ open class JpaUnitOfWork(
             return EntityIdentity(member.ownerType, id)
         }
 
-        val entityInformation = getEntityInformation(entity.javaClass)
+        val entityClass = persistentEntityClass(entity)
+        val entityInformation = getEntityInformation(entityClass)
         if (entityInformation.isNew(entity)) return null
         val id = entityInformation.getId(entity) ?: return null
-        return EntityIdentity(entity.javaClass, id)
+        return EntityIdentity(entityClass, id)
     }
 
     private fun applyCreate(entity: Any, results: FlushResult) {
         validateCreateApplicationSideId(entity)
+        val entityClass = persistentEntityClass(entity)
+        val refreshRequired =
+            applicationSideIdSupport.findApplicationSideId(entity) == null &&
+                getEntityInformation(entityClass).isNew(entity)
         if (!entityManager.contains(entity)) {
             entityManager.persist(entity)
         }
-        if (applicationSideIdSupport.findApplicationSideId(entity) == null &&
-            getEntityInformation(entity.javaClass).isNew(entity)
-        ) {
+        if (refreshRequired) {
             results.refreshList.add(entity)
         }
         results.created.add(entity)
@@ -354,7 +360,8 @@ open class JpaUnitOfWork(
             return
         }
 
-        check(!getEntityInformation(entity.javaClass).isNew(entity)) {
+        val entityClass = persistentEntityClass(entity)
+        check(!getEntityInformation(entityClass).isNew(entity)) {
             "Update-intent entity appears new: ${entity.javaClass.name}"
         }
     }
