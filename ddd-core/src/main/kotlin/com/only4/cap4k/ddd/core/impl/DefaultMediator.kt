@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.impl
 
 import com.only4.cap4k.ddd.core.Mediator
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
@@ -120,12 +121,9 @@ class DefaultMediator : Mediator {
         DomainServiceSupervisor.instance.getService(domainServiceClass)
 
     // UnitOfWork methods
-    override fun persist(entity: Any) {
-        UnitOfWork.instance.persist(entity)
+    override fun persist(entity: Any, intent: PersistIntent) {
+        UnitOfWork.instance.persist(entity, intent)
     }
-
-    override fun persistIfNotExist(entity: Any): Boolean =
-        UnitOfWork.instance.persistIfNotExist(entity)
 
     override fun remove(entity: Any) {
         UnitOfWork.instance.remove(entity)
