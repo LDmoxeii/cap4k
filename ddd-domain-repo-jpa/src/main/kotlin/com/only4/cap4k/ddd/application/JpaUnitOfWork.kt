@@ -33,6 +33,24 @@ private class ObjectIdentityKey(private val entity: Any) {
     override fun hashCode(): Int = System.identityHashCode(entity)
 }
 
+private class InsertionOrderedIdentitySet<E : Any> : AbstractMutableSet<E>() {
+    private val entries = LinkedHashMap<ObjectIdentityKey, E>()
+
+    override val size: Int
+        get() = entries.size
+
+    override fun add(element: E): Boolean =
+        entries.put(ObjectIdentityKey(element), element) == null
+
+    override fun contains(element: E): Boolean =
+        entries.containsKey(ObjectIdentityKey(element))
+
+    override fun iterator(): MutableIterator<E> = entries.values.iterator()
+
+    override fun remove(element: E): Boolean =
+        entries.remove(ObjectIdentityKey(element)) != null
+}
+
 private class PendingChangeSet {
     private val entries = LinkedHashMap<ObjectIdentityKey, PendingChange>()
 
@@ -84,9 +102,9 @@ private data class SaveInput(
 )
 
 private data class FlushResult(
-    val created: LinkedHashSet<Any> = LinkedHashSet(),
-    val updated: LinkedHashSet<Any> = LinkedHashSet(),
-    val deleted: LinkedHashSet<Any> = LinkedHashSet(),
+    val created: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
+    val updated: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
+    val deleted: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
     val refreshList: MutableList<Any> = mutableListOf(),
     var needsFlush: Boolean = false,
 )
@@ -133,7 +151,7 @@ open class JpaUnitOfWork(
         }
 
         private val pendingChangesThreadLocal = ThreadLocal.withInitial { PendingChangeSet() }
-        private val processingEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
+        private val processingEntitiesThreadLocal = ThreadLocal.withInitial { InsertionOrderedIdentitySet<Any>() }
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
@@ -180,21 +198,24 @@ open class JpaUnitOfWork(
         return added
     }
 
-    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean =
-        currentProcessedPersistenceContextEntities.isEmpty() ||
-            processingEntitiesThreadLocal.get().removeAll(currentProcessedPersistenceContextEntities)
+    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean {
+        if (currentProcessedPersistenceContextEntities.isEmpty()) return true
+        return currentProcessedPersistenceContextEntities.fold(false) { removedAny, entity ->
+            processingEntitiesThreadLocal.get().remove(entity) || removedAny
+        }
+    }
 
     override fun save(propagation: Propagation) {
-        val currentProcessedEntitySet = LinkedHashSet<Any>()
+        val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
         val pendingChanges = pendingChangesThreadLocal.get().drain()
         pendingChanges.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
 
         val persistEntitySet = pendingChanges
             .filter { it.intent == UnitOfWorkIntent.CREATE || it.intent == UnitOfWorkIntent.UPDATE }
-            .mapTo(LinkedHashSet()) { it.entity }
+            .mapTo(InsertionOrderedIdentitySet()) { it.entity }
         val deleteEntitySet = pendingChanges
             .filter { it.intent == UnitOfWorkIntent.REMOVE }
-            .mapTo(LinkedHashSet()) { it.entity }
+            .mapTo(InsertionOrderedIdentitySet()) { it.entity }
 
         prepareApplicationSideIds(pendingChanges)
         validateSameIdentityConflicts(pendingChanges)
@@ -227,7 +248,7 @@ open class JpaUnitOfWork(
                     onEntitiesFlushed(results.created, results.updated, results.deleted)
                 }
 
-                buildSet {
+                InsertionOrderedIdentitySet<Any>().apply {
                     addAll(input.persistedEntities)
                     addAll(input.removedEntities)
                     addAll(input.processedEntities)

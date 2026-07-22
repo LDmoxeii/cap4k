@@ -147,6 +147,34 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("equal CREATE instances should remain distinct through persistence notifications and interceptors")
+    fun equalCreateInstancesShouldRemainDistinctThroughPersistenceNotificationsAndInterceptors() {
+        val first = TestEntity(null, "same")
+        val second = TestEntity(null, "same")
+        val persisted = mutableListOf<Any>()
+        val notified = mutableListOf<Any>()
+        val intercepted = mutableListOf<Set<Any>>()
+        every { entityManager.persist(capture(persisted)) } just Runs
+        every { persistListenerManager.onChange(capture(notified), PersistType.CREATE) } just Runs
+        every { interceptor1.beforeTransaction(capture(intercepted), any()) } just Runs
+
+        jpaUnitOfWork.persist(first, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(second, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        assertEquals(2, persisted.size)
+        assertSame(first, persisted[0])
+        assertSame(second, persisted[1])
+        assertEquals(2, notified.size)
+        assertSame(first, notified[0])
+        assertSame(second, notified[1])
+        assertEquals(1, intercepted.size)
+        assertEquals(2, intercepted.single().size)
+        assertSame(first, intercepted.single().elementAt(0))
+        assertSame(second, intercepted.single().elementAt(1))
+    }
+
+    @Test
     @DisplayName("managed update intent should report UPDATE without explicit merge")
     fun managedUpdateIntentShouldReportUpdateWithoutExplicitMerge() {
         val entity = TestEntity(1L, "managed")
