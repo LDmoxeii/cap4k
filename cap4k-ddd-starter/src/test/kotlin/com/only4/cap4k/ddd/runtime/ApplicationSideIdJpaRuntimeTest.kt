@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.test.runtime.appsideid.RuntimeUuidChild
@@ -19,6 +20,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.TestPropertySource
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.util.UUID
 
 @SpringBootTest(classes = [ApplicationSideIdJpaRuntimeTest.RuntimeTestApplication::class])
@@ -63,6 +66,9 @@ class ApplicationSideIdJpaRuntimeTest {
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @Autowired
+    private lateinit var transactionManager: PlatformTransactionManager
+
+    @Autowired
     private lateinit var beforeTransactionIdCapture: BeforeTransactionIdCapture
 
     @BeforeEach
@@ -80,7 +86,7 @@ class ApplicationSideIdJpaRuntimeTest {
             children.add(RuntimeUuidChild(name = "child-with-default-id"))
         }
 
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
 
         assertNotEquals(zeroUuid, root.id)
@@ -104,11 +110,41 @@ class ApplicationSideIdJpaRuntimeTest {
         val preassignedId = UUID.fromString("018f0000-0000-7000-8000-000000000001")
         val root = RuntimeUuidRoot(id = preassignedId, name = "preassigned-root-id")
 
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
 
         assertEquals(preassignedId, root.id)
         assertEquals(preassignedId, rootRepository.findById(preassignedId).orElseThrow().id)
+    }
+
+    @Test
+    fun `update intent assigns id to new owned child without replacing root id`() {
+        val zeroUuid = UUID(0L, 0L)
+        val root = RuntimeUuidRoot(name = "update-root")
+        unitOfWork.persist(root, PersistIntent.CREATE)
+        unitOfWork.save()
+        val rootId = root.id
+        JpaUnitOfWork.reset()
+
+        TransactionTemplate(transactionManager).execute {
+            val loaded = rootRepository.findById(rootId).orElseThrow()
+            loaded.children.add(RuntimeUuidChild(name = "added-on-update"))
+            unitOfWork.persist(loaded)
+            unitOfWork.save()
+            null
+        }
+
+        val childId = requireNotNull(
+            jdbcTemplate.queryForObject(
+                "select `id` from `runtime_uuid_child` where `name` = ?",
+                UUID::class.java,
+                "added-on-update",
+            )
+        )
+
+        assertEquals(rootId, rootRepository.findById(rootId).orElseThrow().id)
+        assertNotEquals(zeroUuid, childId)
+        assertEquals(1, countRows("select count(*) from `runtime_uuid_child` where `root_id` = ?", rootId))
     }
 
     private fun countRows(sql: String, vararg args: Any): Int =

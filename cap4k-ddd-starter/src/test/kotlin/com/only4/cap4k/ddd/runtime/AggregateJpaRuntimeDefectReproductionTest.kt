@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
@@ -178,7 +179,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "preassigned application-side generated id",
             desiredContract = {
                 val root = RuntimeApplicationSideLongRoot(id = preassignedId, name = "preassigned-id")
-                unitOfWork.persist(root)
+                unitOfWork.persist(root, PersistIntent.CREATE)
                 unitOfWork.save()
                 assertEquals(
                     1,
@@ -368,7 +369,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 val root = RuntimeFkMirrorRoot(name = "fk-mirror-root").apply {
                     children.add(RuntimeFkMirrorChild(name = "fk-mirror-child"))
                 }
-                unitOfWork.persist(root)
+                unitOfWork.persist(root, PersistIntent.CREATE)
                 unitOfWork.save()
                 assertNotEquals(0L, root.id)
                 val childId = queryLong("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
@@ -389,24 +390,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
         assertSupported(classification)
     }
 
-    /*
-     * This is not a lazy-loading or isolation problem. The failure happens while
-     * JpaUnitOfWork.save() refreshes the newly persisted root after flush().
-     *
-     * Direct Root -> Child -> Root eager reverse navigation is supported by the
-     * contrast test above. The known defect starts with the nested refresh graph:
-     *
-     * Root -> Child -> Grandchild -> Child -> Root
-     *
-     * The forward one-to-many collections own the join columns, while the reverse
-     * many-to-one associations are read-only eager navigations over those same
-     * columns. CascadeType.ALL includes refresh, so refreshing the new root walks
-     * the nested eager cycle and Hibernate reports FetchNotFoundException for the
-     * root id while resolving that graph.
-     */
     @Test
-    @DisplayName("reverse eager navigation on nested entities is a known defect")
-    fun reverseEagerNavigationOnNestedEntitiesIsKnownDefect() {
+    @DisplayName("reverse eager navigation on nested entities is supported with create intent")
+    fun reverseEagerNavigationOnNestedEntitiesIsSupportedWithCreateIntent() {
         val classification = classifyRuntimeBehavior(
             label = "three-level reverse eager navigation",
             desiredContract = {
@@ -432,7 +418,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             }
         )
 
-        assertKnownDefect(classification)
+        assertSupported(classification)
     }
 
     @Test
@@ -593,19 +579,19 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     private fun saveRoot(root: RuntimeRoot): RuntimeRoot {
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
         return root
     }
 
     private fun saveReverseRoot(root: RuntimeReverseRoot): RuntimeReverseRoot {
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
         return root
     }
 
     private fun saveSafeReverseRoot(root: RuntimeSafeReverseRoot): RuntimeSafeReverseRoot {
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
         return root
     }
@@ -657,10 +643,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     private fun assertSupported(classification: RuntimeClassification) {
         assertEquals(RuntimeClassification.SUPPORTED, classification)
-    }
-
-    private fun assertKnownDefect(classification: RuntimeClassification) {
-        assertEquals(RuntimeClassification.KNOWN_DEFECT, classification)
     }
 
     private fun classifyRuntimeBehavior(
