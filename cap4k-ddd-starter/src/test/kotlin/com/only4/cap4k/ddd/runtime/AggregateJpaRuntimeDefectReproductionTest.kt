@@ -277,8 +277,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -318,8 +317,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -353,8 +351,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -414,8 +411,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 

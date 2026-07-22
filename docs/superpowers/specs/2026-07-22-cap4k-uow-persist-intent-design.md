@@ -203,13 +203,7 @@ Repository reads remain read-only by default.
 
 When a repository read uses `persist=false`, the loaded aggregate is a validation/read object and must not be registered in the UoW write set.
 
-When a repository read uses `persist=true`, `DefaultRepositorySupervisor` must register the loaded aggregate with the default update intent:
-
-```kotlin
-unitOfWork.persist(loaded)
-```
-
-or equivalently:
+When a repository read uses `persist=true`, `DefaultRepositorySupervisor` must register the loaded aggregate with explicit update intent:
 
 ```kotlin
 unitOfWork.persist(loaded, PersistIntent.UPDATE)
@@ -462,7 +456,7 @@ Breaking changes:
 Runtime call-site changes:
 
 - `DefaultAggregateFactorySupervisor.create(...)` must call `persist(instance, PersistIntent.CREATE)`.
-- `DefaultRepositorySupervisor` can keep calling `persist(entity)` for `persist=true` because default intent is update.
+- `DefaultRepositorySupervisor` must call `persist(entity, PersistIntent.UPDATE)` for `persist=true` because update intent is explicit in this phase.
 - `DefaultMediator` must match the new `UnitOfWork` interface and remove `persistIfNotExist`.
 
 Documentation and tests that describe `persistIfNotExist` or implicit persist newness must be updated or removed.

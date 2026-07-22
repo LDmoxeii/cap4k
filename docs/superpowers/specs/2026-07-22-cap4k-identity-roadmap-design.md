@@ -142,7 +142,7 @@ interface UnitOfWork {
 ### Required Behavior
 
 - Factory-created aggregates register `PersistIntent.CREATE`.
-- Repository reads with `persist=true` register update intent through default `persist(entity)`.
+- Repository reads with `persist=true` register update intent through explicit `persist(entity, PersistIntent.UPDATE)`.
 - Repository reads with `persist=false` remain validation-only and must not enter the UoW write set.
 - Manual new entity creation outside a factory must use `persist(entity, PersistIntent.CREATE)`.
 - Manual `persist(entity)` means update intent.
