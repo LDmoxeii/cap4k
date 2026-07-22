@@ -111,7 +111,24 @@ class {{ typeName }}(
 {% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeTypes|length > 0 %}, cascade = [{% for cascadeType in relation.cascadeTypes %}CascadeType.{{ cascadeType }}{% if not loop.last %}, {% endif %}{% endfor %}]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
     @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {{ relation.joinColumnNullable }})
+{% if relation.ownedCardinality == "ONE" %}    private val {{ relation.backingCollectionName }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+
+    @get:Transient
+    var {{ relation.singleAccessorName }}: {{ relation.targetTypeRef }}?
+        get() = when ({{ relation.backingCollectionName }}.size) {
+            0 -> null
+            1 -> {{ relation.backingCollectionName }}[0]
+            else -> error("owned relation {{ typeName }}.{{ relation.singleAccessorName }} expected at most one {{ relation.targetType }} but found " + {{ relation.backingCollectionName }}.size)
+        }
+        set(value) {
+            {{ relation.backingCollectionName }}.clear()
+            if (value != null) {
+                {{ relation.backingCollectionName }}.add(value)
+            }
+        }
+{% else %}
     val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+{% endif %}
 {% endif %}
 {% endfor -%}
 }

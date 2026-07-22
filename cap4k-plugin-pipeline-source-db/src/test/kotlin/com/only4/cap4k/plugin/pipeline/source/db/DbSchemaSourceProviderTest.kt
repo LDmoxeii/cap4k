@@ -1209,6 +1209,96 @@ class DbSchemaSourceProviderTest {
         assertTrue(unique.physicalName.startsWith("UQ_ACCOUNT_ENTRY", ignoreCase = true))
         assertTrue(unique.physicalName.contains("_INDEX_", ignoreCase = true))
         assertEquals(listOf("REGION_ID", "CODE"), unique.columns)
+        assertTrue(unique.complete)
+        assertNull(unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows preserve filters and mark null terms incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_parent_active",
+                    columnName = "VIDEO_POST_ID",
+                    ordinalPosition = 1,
+                    metadataSequence = 0,
+                    filterCondition = " deleted = 0 ",
+                ),
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_parent_active",
+                    columnName = null,
+                    ordinalPosition = 2,
+                    metadataSequence = 1,
+                    filterCondition = " deleted = 0 ",
+                ),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "deleted"),
+        )
+
+        val unique = constraints.single()
+        assertEquals("uk_video_post_parent_active", unique.physicalName)
+        assertEquals(listOf("video_post_id"), unique.columns)
+        assertFalse(unique.complete)
+        assertEquals("deleted = 0", unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows mark non physical expression terms incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_slug_expression",
+                    columnName = "video_post_id",
+                    ordinalPosition = 1,
+                    metadataSequence = 0,
+                    filterCondition = null,
+                ),
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_slug_expression",
+                    columnName = "lower(slug)",
+                    ordinalPosition = 2,
+                    metadataSequence = 1,
+                    filterCondition = null,
+                ),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        val unique = constraints.single()
+        assertEquals("uk_video_post_slug_expression", unique.physicalName)
+        assertEquals(listOf("video_post_id"), unique.columns)
+        assertFalse(unique.complete)
+        assertNull(unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows mark ordinal gaps incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow("uk_video_post_parent", "video_post_id", 1, 0, null),
+                UniqueIndexMetadataRow("uk_video_post_parent", "slug", 3, 1, null),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        assertFalse(constraints.single().complete)
+    }
+
+    @Test
+    fun `unique index rows mark duplicate ordinals incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow("uk_video_post_parent", "video_post_id", 1, 0, null),
+                UniqueIndexMetadataRow("uk_video_post_parent", "slug", 1, 1, null),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        assertFalse(constraints.single().complete)
     }
 
     @Test

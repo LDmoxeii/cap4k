@@ -6,6 +6,8 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
 import java.util.Locale
 
 internal object AggregateRelationInference {
@@ -22,6 +24,11 @@ internal object AggregateRelationInference {
     private data class ScalarFields(
         val tableName: String,
         val columnNamesByFieldName: Map<String, String>,
+    )
+
+    private data class OwnedRelationFieldNames(
+        val collectionName: String,
+        val singleName: String,
     )
 
     private val tableTokenSplitRegex = Regex("_+|(?<=[a-z0-9])(?=[A-Z])")
@@ -71,10 +78,12 @@ internal object AggregateRelationInference {
                 val target = requireNotNull(entityLookup[tableKey(child.tableName)]) {
                     "unknown child table: ${child.tableName}"
                 }
+                val cardinality = OwnedRelationCardinalityInference.infer(binding)
+                val fieldNames = parentChildFieldNames(parentTable, child.tableName, cardinality)
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,
                     ownerEntityPackageName = resolvedParent.packageName,
-                    fieldName = parentChildFieldName(parentTable, child.tableName),
+                    fieldName = fieldNames.collectionName,
                     targetEntityName = target.entityName,
                     targetEntityPackageName = target.packageName,
                     relationType = AggregateRelationType.ONE_TO_MANY,
@@ -88,6 +97,12 @@ internal object AggregateRelationInference {
                     ),
                     orphanRemoval = true,
                     joinColumnNullable = false,
+                    owned = true,
+                    parentRefColumn = binding.parentRefColumn.name,
+                    ownedCardinality = cardinality,
+                    persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                    backingCollectionName = fieldNames.collectionName,
+                    singleAccessorName = if (cardinality == OwnedRelationCardinality.ONE) fieldNames.singleName else null,
                 )
             }
 
@@ -125,10 +140,19 @@ internal object AggregateRelationInference {
             )
         }
 
+        validateOwnedOneSingleAccessorCollisions(
+            relations = relations,
+            scalarFieldsByEntity = scalarFieldsByEntity,
+        )
+
         return relations
     }
 
-    private fun parentChildFieldName(parentTableName: String, childTableName: String): String {
+    private fun parentChildFieldNames(
+        parentTableName: String,
+        childTableName: String,
+        cardinality: OwnedRelationCardinality,
+    ): OwnedRelationFieldNames {
         val parentTokens = tableNameTokens(parentTableName)
         val childTokens = tableNameTokens(childTableName)
         val stemTokens = if (
@@ -139,7 +163,67 @@ internal object AggregateRelationInference {
         } else {
             childTokens
         }
-        return tokensToLowerCamel(stemTokens.dropLast(1) + RelationInflector.pluralizeStable(stemTokens.last()))
+        val nonEmptyStemTokens = stemTokens.ifEmpty { childTokens }
+        val singleName = tokensToLowerCamel(
+            nonEmptyStemTokens.dropLast(1) + RelationInflector.singularizeStable(nonEmptyStemTokens.last())
+        )
+        val collectionName = tokensToLowerCamel(
+            nonEmptyStemTokens.dropLast(1) + RelationInflector.pluralizeStable(nonEmptyStemTokens.last())
+        )
+        return OwnedRelationFieldNames(
+            collectionName = if (
+                cardinality == OwnedRelationCardinality.ONE && collectionName == singleName
+            ) {
+                "${collectionName}Items"
+            } else {
+                collectionName
+            },
+            singleName = singleName,
+        )
+    }
+
+    private fun validateOwnedOneSingleAccessorCollisions(
+        relations: List<AggregateRelationModel>,
+        scalarFieldsByEntity: Map<String, ScalarFields>,
+    ) {
+        val relationFieldNamesByOwner = relations
+            .groupBy { it.ownerEntityName }
+            .mapValues { (_, ownerRelations) -> ownerRelations.map { it.fieldName }.toSet() }
+
+        val duplicateSingleAccessor = relations
+            .filter { it.ownedCardinality == OwnedRelationCardinality.ONE }
+            .mapNotNull { relation -> relation.singleAccessorName?.let { relation to it } }
+            .groupBy { (relation, singleAccessorName) -> relation.ownerEntityName to singleAccessorName }
+            .entries
+            .firstOrNull { (_, candidates) -> candidates.size > 1 }
+        if (duplicateSingleAccessor != null) {
+            val (_, candidates) = duplicateSingleAccessor
+            val first = candidates.first().first
+            val accessor = candidates.first().second
+            val targets = candidates.joinToString(", ") { it.first.targetEntityName }
+            throw IllegalArgumentException(
+                "owned one relation single accessor collision: ${first.ownerEntityName}.$accessor -> $targets"
+            )
+        }
+
+        relations
+            .filter { it.ownedCardinality == OwnedRelationCardinality.ONE }
+            .forEach { relation ->
+                val singleAccessorName = relation.singleAccessorName ?: return@forEach
+                val scalarFields = scalarFieldsByEntity.getValue(relation.ownerEntityName)
+                if (singleAccessorName in scalarFields.columnNamesByFieldName.keys) {
+                    throw IllegalArgumentException(
+                        "owned one relation single accessor collides with scalar field: " +
+                            "${relation.ownerEntityName}.$singleAccessorName -> ${relation.targetEntityName}"
+                    )
+                }
+                if (singleAccessorName in relationFieldNamesByOwner.getValue(relation.ownerEntityName)) {
+                    throw IllegalArgumentException(
+                        "owned one relation single accessor collides with relation field: " +
+                            "${relation.ownerEntityName}.$singleAccessorName -> ${relation.targetEntityName}"
+                    )
+                }
+            }
     }
 
     private fun tableNameTokens(tableName: String): List<String> =
@@ -223,6 +307,30 @@ internal object AggregateRelationInference {
             rule("$", "s"),
         )
 
+        private val singulars = listOf(
+            rule("(quiz)zes$", "$1"),
+            rule("(matr)ices$", "$1ix"),
+            rule("(vert|ind)ices$", "$1ex"),
+            rule("^(ox)en$", "$1"),
+            rule("(alias|status)es$", "$1"),
+            rule("(octop|vir)i$", "$1us"),
+            rule("(cris|ax|test)es$", "$1is"),
+            rule("(shoe)s$", "$1"),
+            rule("(o)es$", "$1"),
+            rule("(bus)es$", "$1"),
+            rule("([m|l])ice$", "$1ouse"),
+            rule("(x|ch|ss|sh)es$", "$1"),
+            rule("(m)ovies$", "$1ovie"),
+            rule("([^aeiouy]|qu)ies$", "$1y"),
+            rule("([lr])ves$", "$1f"),
+            rule("(tive)s$", "$1"),
+            rule("(hive)s$", "$1"),
+            rule("([^f])ves$", "$1fe"),
+            rule("([ti])a$", "$1um"),
+            rule("(s|si|u)s$", "$1s"),
+            rule("s$", ""),
+        )
+
         private val uncountables = setOf(
             "equipment",
             "information",
@@ -241,6 +349,13 @@ internal object AggregateRelationInference {
                 pluralize(word)
             }
         }
+
+        fun singularizeStable(word: String): String =
+            if (word.lowercase(Locale.ROOT) in uncountables) {
+                word
+            } else {
+                applyFirstRule(word, singulars)
+            }
 
         private fun pluralize(word: String): String =
             if (word.lowercase(Locale.ROOT) in uncountables) {

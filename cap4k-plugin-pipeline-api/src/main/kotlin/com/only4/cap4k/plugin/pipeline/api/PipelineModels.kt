@@ -61,9 +61,18 @@ data class DbColumnSnapshot(
     val inherited: Boolean? = null,
 )
 
+/**
+ * Unique-index metadata captured from a source. [complete] is true only when every index part is
+ * represented by a physical column; [filterCondition] preserves any conditional uniqueness predicate.
+ *
+ * The defaulted metadata fields preserve Kotlin source compatibility for in-repository call sites only.
+ * No Java constructor or cross-version JVM binary compatibility is guaranteed for compiled addons.
+ */
 data class UniqueConstraintModel(
     val physicalName: String,
     val columns: List<String>,
+    val complete: Boolean = true,
+    val filterCondition: String? = null,
 )
 
 data class DbTableSnapshot(
@@ -253,6 +262,21 @@ enum class AggregateCascadeType {
     REMOVE,
 }
 
+enum class OwnedRelationCardinality {
+    ONE,
+    MANY,
+}
+
+enum class OwnedRelationPersistenceShape {
+    ONE_TO_MANY_JOIN_COLUMN,
+}
+
+/**
+ * Canonical aggregate relation metadata.
+ *
+ * Defaulted owned-relation fields preserve Kotlin source compatibility for in-repository call sites only.
+ * No Java constructor or cross-version JVM binary compatibility is guaranteed for compiled addons.
+ */
 data class AggregateRelationModel(
     val ownerEntityName: String,
     val ownerEntityPackageName: String,
@@ -266,6 +290,12 @@ data class AggregateRelationModel(
     val cascadeTypes: List<AggregateCascadeType> = emptyList(),
     val orphanRemoval: Boolean = false,
     val joinColumnNullable: Boolean? = null,
+    val owned: Boolean = false,
+    val parentRefColumn: String? = null,
+    val ownedCardinality: OwnedRelationCardinality? = null,
+    val persistenceShape: OwnedRelationPersistenceShape? = null,
+    val backingCollectionName: String? = null,
+    val singleAccessorName: String? = null,
 )
 
 data class AggregateInverseRelationModel(

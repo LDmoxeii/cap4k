@@ -8,6 +8,25 @@ import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
     @Test
+    fun `unique constraint metadata distinguishes complete unconditional indexes`() {
+        val unconditional = UniqueConstraintModel(
+            physicalName = "uk_video_post_slug",
+            columns = listOf("slug"),
+        )
+        val filtered = UniqueConstraintModel(
+            physicalName = "uk_video_post_slug_active",
+            columns = listOf("slug"),
+            complete = false,
+            filterCondition = "deleted = 0",
+        )
+
+        assertTrue(unconditional.complete)
+        assertNull(unconditional.filterCondition)
+        assertFalse(filtered.complete)
+        assertEquals("deleted = 0", filtered.filterCondition)
+    }
+
+    @Test
     fun `db column snapshot carries parent ref managed role and id strategy`() {
         val column = DbColumnSnapshot(
             name = "parent_id",
@@ -123,5 +142,34 @@ class PipelineModelsTest {
         assertEquals(softDelete, control.softDelete)
         assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, control.softDelete?.tombstoneStrategy)
         assertEquals("\"deleted\" = \"id\"", control.softDelete?.deleteAssignmentSql)
+    }
+
+    @Test
+    fun `aggregate relation model carries owned cardinality separately from persistence type`() {
+        val relation = AggregateRelationModel(
+            ownerEntityName = "VideoPost",
+            ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            fieldName = "files",
+            targetEntityName = "VideoPostFile",
+            targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            relationType = AggregateRelationType.ONE_TO_MANY,
+            joinColumn = "video_post_id",
+            fetchType = AggregateFetchType.LAZY,
+            nullable = false,
+            owned = true,
+            parentRefColumn = "video_post_id",
+            ownedCardinality = OwnedRelationCardinality.ONE,
+            persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+            backingCollectionName = "files",
+            singleAccessorName = "file",
+        )
+
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertTrue(relation.owned)
+        assertEquals("video_post_id", relation.parentRefColumn)
+        assertEquals(OwnedRelationCardinality.ONE, relation.ownedCardinality)
+        assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals("file", relation.singleAccessorName)
     }
 }

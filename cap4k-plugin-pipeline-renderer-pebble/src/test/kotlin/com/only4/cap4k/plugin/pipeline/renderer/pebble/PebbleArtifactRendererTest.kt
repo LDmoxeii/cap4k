@@ -876,6 +876,181 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity template renders owned one as hidden collection plus transient single property`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                "typeName" to "VideoPost",
+                "comment" to "video post",
+                "aggregateName" to "VideoPost",
+                "aggregateRoot" to true,
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "video_post",
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "softDelete" to mapOf("enabled" to false),
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "softDeleteSqlKotlinStringLiteral" to null,
+                "softDeleteWhereClauseKotlinStringLiteral" to null,
+                "jpaImports" to listOf(
+                    "jakarta.persistence.FetchType",
+                    "jakarta.persistence.JoinColumn",
+                    "jakarta.persistence.CascadeType",
+                    "jakarta.persistence.OneToMany",
+                    "jakarta.persistence.Transient",
+                ),
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPostFile"),
+                "idField" to mapOf("name" to "id", "type" to "Long"),
+                "fields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "fieldName" to "id",
+                        "fieldType" to "Long",
+                        "renderedType" to "Long",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "embeddedId" to false,
+                        "strongId" to false,
+                        "isVersion" to false,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "fieldName" to "id",
+                        "fieldType" to "Long",
+                        "renderedType" to "Long",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "embeddedId" to false,
+                        "strongId" to false,
+                        "isVersion" to false,
+                        "converterClassRef" to null,
+                    ),
+                ),
+                "relationFields" to listOf(
+                    mapOf(
+                        "name" to "files",
+                        "targetType" to "VideoPostFile",
+                        "targetTypeRef" to "VideoPostFile",
+                        "targetPackageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "relationType" to "ONE_TO_MANY",
+                        "fetchType" to "LAZY",
+                        "joinColumn" to "video_post_id",
+                        "nullable" to false,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                        "orphanRemoval" to true,
+                        "joinColumnNullable" to false,
+                        "owned" to true,
+                        "parentRefColumn" to "video_post_id",
+                        "ownedCardinality" to "ONE",
+                        "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
+                        "backingCollectionName" to "files",
+                        "singleAccessorName" to "file",
+                    )
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import jakarta.persistence.Transient"))
+        assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"))
+        assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
+        assertTrue(content.contains("private val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertFalse(content.normalizedLineEndings().contains("\n    val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertTrue(content.contains("@get:Transient"))
+        assertTrue(content.contains("var file: VideoPostFile?"))
+        assertTrue(content.contains("get() = when (files.size)"))
+        assertTrue(content.contains("0 -> null"))
+        assertTrue(content.contains("1 -> files[0]"))
+        assertTrue(content.contains("else -> error(\"owned relation VideoPost.file expected at most one VideoPostFile but found \" + files.size)"))
+        assertTrue(content.contains("set(value)"))
+        assertTrue(content.contains("files.clear()"))
+        assertTrue(content.contains("files.add(value)"))
+    }
+
+    @Test
+    fun `aggregate entity template keeps owned many as public mutable list`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                "typeName" to "VideoPost",
+                "comment" to "video post",
+                "aggregateName" to "VideoPost",
+                "aggregateRoot" to true,
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "video_post"),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "softDelete" to mapOf("enabled" to false),
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "softDeleteSqlKotlinStringLiteral" to null,
+                "softDeleteWhereClauseKotlinStringLiteral" to null,
+                "jpaImports" to listOf(
+                    "jakarta.persistence.FetchType",
+                    "jakarta.persistence.JoinColumn",
+                    "jakarta.persistence.CascadeType",
+                    "jakarta.persistence.OneToMany",
+                ),
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPostItem"),
+                "idField" to mapOf("name" to "id", "type" to "Long"),
+                "fields" to emptyList<Map<String, Any?>>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to listOf(
+                    mapOf(
+                        "name" to "items",
+                        "targetType" to "VideoPostItem",
+                        "targetTypeRef" to "VideoPostItem",
+                        "targetPackageName" to "com.acme.demo.domain.aggregates.video_post",
+                        "relationType" to "ONE_TO_MANY",
+                        "fetchType" to "LAZY",
+                        "joinColumn" to "video_post_id",
+                        "nullable" to false,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                        "orphanRemoval" to true,
+                        "joinColumnNullable" to false,
+                        "owned" to true,
+                        "parentRefColumn" to "video_post_id",
+                        "ownedCardinality" to "MANY",
+                        "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
+                        "backingCollectionName" to "items",
+                        "singleAccessorName" to null,
+                    )
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertFalse(content.contains("import jakarta.persistence.Transient"))
+        assertTrue(content.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertFalse(content.contains("private val items: MutableList<VideoPostItem>"))
+        assertFalse(content.contains("@get:Transient"))
+        assertFalse(content.contains("var item: VideoPostItem?"))
+    }
+
+    @Test
     fun `aggregate entity template omits aggregate element when metadata context is missing`() {
         val content = renderTemplate(
             templateId = "aggregate/entity.kt.peb",
