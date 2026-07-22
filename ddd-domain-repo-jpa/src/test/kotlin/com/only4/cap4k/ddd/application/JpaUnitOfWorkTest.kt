@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.application
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
@@ -135,16 +136,15 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("持久化不存在的实体时应返回true")
-    fun testPersistIfNotExistWhenNotExists() {
+    @DisplayName("使用 CREATE 意图注册的实体应持久化")
+    fun testPersistWithCreateIntent() {
         // Given
         val entity = TestEntity(null, "test")
 
         // When
-        val result = jpaUnitOfWork.persistIfNotExist(entity)
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
 
         // Then
-        assertTrue(result)
         jpaUnitOfWork.save()
         verify { entityManager.persist(entity) }
     }

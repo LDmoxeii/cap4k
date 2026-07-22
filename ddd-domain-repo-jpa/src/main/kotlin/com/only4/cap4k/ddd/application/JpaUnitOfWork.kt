@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.application
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
@@ -74,13 +75,6 @@ open class JpaUnitOfWork(
             JpaEntityInformationSupport.getEntityInformation(it, entityManager)
         } as EntityInformation<Any, Any>
 
-    private fun isExists(entity: Any): Boolean {
-        val entityInformation = getEntityInformation(entity.javaClass)
-        if (entityInformation.isNew(entity)) return false
-        val id = entityInformation.getId(entity)
-        return entityManager.find(entity.javaClass, id) != null
-    }
-
     protected open fun persistenceContextEntities(): List<Any> = try {
         val sessionImplementor = entityManager.unwrap(SessionImplementor::class.java)
         if (sessionImplementor.isOpen) {
@@ -107,13 +101,8 @@ open class JpaUnitOfWork(
         deletedEntities.forEach { persistListenerManager.onChange(it, PersistType.DELETE) }
     }
 
-    override fun persist(entity: Any) {
+    override fun persist(entity: Any, intent: PersistIntent) {
         persistEntitiesThreadLocal.get().add(entity)
-    }
-
-    override fun persistIfNotExist(entity: Any): Boolean {
-        if (isExists(entity)) return false
-        return persistEntitiesThreadLocal.get().add(entity)
     }
 
     override fun remove(entity: Any) {
