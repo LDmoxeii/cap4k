@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
@@ -102,6 +103,10 @@ class DefaultRepositorySupervisor(
         return reflector(predicate) as Class<ENTITY>
     }
 
+    private fun registerUpdate(entity: Any) {
+        unitOfWork.persist(entity, PersistIntent.UPDATE)
+    }
+
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
@@ -109,7 +114,7 @@ class DefaultRepositorySupervisor(
     ): List<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
             .find(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .also { if (persist) it.forEach(unitOfWork::persist) }
+            .also { if (persist) it.forEach(::registerUpdate) }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
@@ -118,7 +123,7 @@ class DefaultRepositorySupervisor(
         loadPlan: AggregateLoadPlan,
     ): List<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, persist, loadPlan)
-            .also { if (persist) it.forEach(unitOfWork::persist) }
+            .also { if (persist) it.forEach(::registerUpdate) }
 
 
     override fun <ENTITY : Any> find(
@@ -128,7 +133,7 @@ class DefaultRepositorySupervisor(
     ): List<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
             .find(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .also { if (persist) it.forEach(unitOfWork::persist) }
+            .also { if (persist) it.forEach(::registerUpdate) }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
@@ -137,7 +142,7 @@ class DefaultRepositorySupervisor(
         loadPlan: AggregateLoadPlan,
     ): List<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
         .find(predicate, pageParam, persist, loadPlan)
-        .also { if (persist) it.forEach(unitOfWork::persist) }
+        .also { if (persist) it.forEach(::registerUpdate) }
 
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
@@ -145,7 +150,7 @@ class DefaultRepositorySupervisor(
     ): ENTITY? =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
             .findOne(predicate, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            ?.also { if (persist) unitOfWork.persist(it) }
+            ?.also { if (persist) registerUpdate(it) }
 
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
@@ -153,7 +158,7 @@ class DefaultRepositorySupervisor(
         loadPlan: AggregateLoadPlan,
     ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
         .findOne(predicate, persist, loadPlan)
-        ?.also { if (persist) unitOfWork.persist(it) }
+        ?.also { if (persist) registerUpdate(it) }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
@@ -162,7 +167,7 @@ class DefaultRepositorySupervisor(
     ): ENTITY? =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
             .findFirst(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            ?.also { if (persist) unitOfWork.persist(it) }
+            ?.also { if (persist) registerUpdate(it) }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
@@ -171,7 +176,7 @@ class DefaultRepositorySupervisor(
         loadPlan: AggregateLoadPlan,
     ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
         .findFirst(predicate, orders, persist, loadPlan)
-        ?.also { if (persist) unitOfWork.persist(it) }
+        ?.also { if (persist) registerUpdate(it) }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
@@ -180,7 +185,7 @@ class DefaultRepositorySupervisor(
     ): PageData<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
             .findPage(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .apply { if (persist) list.forEach(unitOfWork::persist) }
+            .apply { if (persist) list.forEach(::registerUpdate) }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
@@ -190,7 +195,7 @@ class DefaultRepositorySupervisor(
     ): PageData<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
             .findPage(predicate, pageParam, persist, loadPlan)
-            .apply { if (persist) list.forEach(unitOfWork::persist) }
+            .apply { if (persist) list.forEach(::registerUpdate) }
 
     override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)

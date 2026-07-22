@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
@@ -73,6 +74,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -87,6 +89,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -101,7 +104,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { mockUnitOfWork.persist(expectedEntity) }
+        verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.UPDATE) }
     }
 
     @Test
@@ -122,7 +125,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { mockUnitOfWork.persist(expectedEntity) }
+        verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.UPDATE) }
     }
 
     @Test
@@ -144,7 +147,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        expectedEntities.forEach { entity -> verify { mockUnitOfWork.persist(entity) } }
+        expectedEntities.forEach { entity -> verify { mockUnitOfWork.persist(entity, PersistIntent.UPDATE) } }
     }
 
     @Test
@@ -161,6 +164,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(pageData, result)
         verify { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -178,7 +182,7 @@ class DefaultRepositorySupervisorTest {
         assertEquals(pageData, result)
         verify { mockRepository.findPage(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
         entities.forEach { entity ->
-            verify { mockUnitOfWork.persist(entity) }
+            verify { mockUnitOfWork.persist(entity, PersistIntent.UPDATE) }
         }
     }
 
