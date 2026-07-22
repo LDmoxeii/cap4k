@@ -53,6 +53,18 @@ class JpaApplicationSideIdSupportTest {
     }
 
     @Test
+    fun `assigns owned child ids without changing root during update prep`() {
+        val rootId = UUID.fromString("018f0000-0000-7000-8000-000000000099")
+        val root = RootEntity(id = rootId)
+        root.children += ChildEntity()
+
+        support.assignMissingIdsToOwnedRelations(root)
+
+        assertEquals(rootId, root.id)
+        assertEquals(UUID(1L, 2L), root.children.single().id)
+    }
+
+    @Test
     fun `does not traverse many to one reverse navigation`() {
         val child = ChildWithParent()
         child.parent = RootEntity()
