@@ -9,13 +9,92 @@ import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
-import org.hibernate.engine.spi.SessionImplementor
-import org.slf4j.LoggerFactory
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport
 import org.springframework.data.repository.core.EntityInformation
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.ConcurrentHashMap
+
+private enum class UnitOfWorkIntent {
+    CREATE,
+    UPDATE,
+    REMOVE,
+}
+
+private data class PendingChange(
+    val entity: Any,
+    val intent: UnitOfWorkIntent,
+)
+
+private class ObjectIdentityKey(private val entity: Any) {
+    override fun equals(other: Any?): Boolean =
+        other is ObjectIdentityKey && entity === other.entity
+
+    override fun hashCode(): Int = System.identityHashCode(entity)
+}
+
+private class PendingChangeSet {
+    private val entries = LinkedHashMap<ObjectIdentityKey, PendingChange>()
+
+    fun persist(entity: Any, intent: PersistIntent) {
+        val key = ObjectIdentityKey(entity)
+        val next = intent.toUnitOfWorkIntent()
+        val current = entries[key]
+        entries[key] = when (current?.intent) {
+            null -> PendingChange(entity, next)
+            UnitOfWorkIntent.CREATE -> PendingChange(entity, UnitOfWorkIntent.CREATE)
+            UnitOfWorkIntent.UPDATE -> when (next) {
+                UnitOfWorkIntent.UPDATE -> PendingChange(entity, UnitOfWorkIntent.UPDATE)
+                UnitOfWorkIntent.CREATE -> error("UoW intent conflict: UPDATE cannot become CREATE for the same instance")
+                UnitOfWorkIntent.REMOVE -> error("persist cannot register REMOVE intent")
+            }
+            UnitOfWorkIntent.REMOVE ->
+                error("UoW intent conflict: REMOVE cannot become ${next.name} for the same instance")
+        }
+    }
+
+    fun remove(entity: Any) {
+        val key = ObjectIdentityKey(entity)
+        val current = entries[key]
+        when (current?.intent) {
+            null -> entries[key] = PendingChange(entity, UnitOfWorkIntent.REMOVE)
+            UnitOfWorkIntent.CREATE -> entries.remove(key)
+            UnitOfWorkIntent.UPDATE -> entries[key] = PendingChange(entity, UnitOfWorkIntent.REMOVE)
+            UnitOfWorkIntent.REMOVE -> Unit
+        }
+    }
+
+    fun drain(): List<PendingChange> {
+        val changes = entries.values.toList()
+        entries.clear()
+        return changes
+    }
+}
+
+private fun PersistIntent.toUnitOfWorkIntent(): UnitOfWorkIntent = when (this) {
+    PersistIntent.CREATE -> UnitOfWorkIntent.CREATE
+    PersistIntent.UPDATE -> UnitOfWorkIntent.UPDATE
+}
+
+private data class SaveInput(
+    val changes: List<PendingChange>,
+    val persistedEntities: Set<Any>,
+    val removedEntities: Set<Any>,
+    val processedEntities: Set<Any>,
+)
+
+private data class FlushResult(
+    val created: LinkedHashSet<Any> = LinkedHashSet(),
+    val updated: LinkedHashSet<Any> = LinkedHashSet(),
+    val deleted: LinkedHashSet<Any> = LinkedHashSet(),
+    val refreshList: MutableList<Any> = mutableListOf(),
+    var needsFlush: Boolean = false,
+)
+
+private data class EntityIdentity(
+    val entityType: Class<*>,
+    val id: Any,
+)
 
 /**
  * 基于Jpa的UnitOfWork实现
@@ -47,24 +126,20 @@ open class JpaUnitOfWork(
     private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
 
     companion object {
-        private val log = LoggerFactory.getLogger(JpaUnitOfWork::class.java)
-
         lateinit var instance: JpaUnitOfWork
 
         fun fixAopWrapper(unitOfWork: JpaUnitOfWork) {
             instance = unitOfWork
         }
 
-        private val persistEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
-        private val removeEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
+        private val pendingChangesThreadLocal = ThreadLocal.withInitial { PendingChangeSet() }
         private val processingEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
         @JvmStatic
         fun reset() {
-            persistEntitiesThreadLocal.remove()
-            removeEntitiesThreadLocal.remove()
+            pendingChangesThreadLocal.remove()
             processingEntitiesThreadLocal.remove()
         }
     }
@@ -74,20 +149,6 @@ open class JpaUnitOfWork(
         entityInformationCache.computeIfAbsent(entityClass) {
             JpaEntityInformationSupport.getEntityInformation(it, entityManager)
         } as EntityInformation<Any, Any>
-
-    protected open fun persistenceContextEntities(): List<Any> = try {
-        val sessionImplementor = entityManager.unwrap(SessionImplementor::class.java)
-        if (sessionImplementor.isOpen) {
-            sessionImplementor.persistenceContext
-                .reentrantSafeEntityEntries()
-                .map { it.key }
-        } else {
-            emptyList()
-        }
-    } catch (ex: Exception) {
-        log.debug("获取持久化上下文实体失败", ex)
-        emptyList()
-    }
 
     protected open fun onEntitiesFlushed(
         createdEntities: Set<Any>,
@@ -102,11 +163,11 @@ open class JpaUnitOfWork(
     }
 
     override fun persist(entity: Any, intent: PersistIntent) {
-        persistEntitiesThreadLocal.get().add(entity)
+        pendingChangesThreadLocal.get().persist(entity, intent)
     }
 
     override fun remove(entity: Any) {
-        removeEntitiesThreadLocal.get().add(entity)
+        pendingChangesThreadLocal.get().remove(entity)
     }
 
     private fun pushProcessingEntity(
@@ -125,118 +186,155 @@ open class JpaUnitOfWork(
 
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = LinkedHashSet<Any>()
+        val pendingChanges = pendingChangesThreadLocal.get().drain()
+        pendingChanges.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
 
-        val persistEntitySet = persistEntitiesThreadLocal.get().takeIf { it.isNotEmpty() }?.also { entities ->
-            persistEntitiesThreadLocal.remove()
-            entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
-        } ?: emptySet()
+        val persistEntitySet = pendingChanges
+            .filter { it.intent == UnitOfWorkIntent.CREATE || it.intent == UnitOfWorkIntent.UPDATE }
+            .mapTo(LinkedHashSet()) { it.entity }
+        val deleteEntitySet = pendingChanges
+            .filter { it.intent == UnitOfWorkIntent.REMOVE }
+            .mapTo(LinkedHashSet()) { it.entity }
 
-        val deleteEntitySet = removeEntitiesThreadLocal.get().takeIf { it.isNotEmpty() }?.also { entities ->
-            removeEntitiesThreadLocal.remove()
-            entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
-        } ?: emptySet()
-
-        persistEntitySet.forEach(applicationSideIdSupport::assignMissingIds)
+        prepareApplicationSideIds(pendingChanges)
+        validateSameIdentityConflicts(pendingChanges)
         uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
         try {
-            save(arrayOf(persistEntitySet, deleteEntitySet, currentProcessedEntitySet), propagation) { input ->
-                val (persistEntities, deleteEntities, processedEntities) = input
+            save(
+                SaveInput(
+                    changes = pendingChanges,
+                    persistedEntities = persistEntitySet,
+                    removedEntities = deleteEntitySet,
+                    processedEntities = currentProcessedEntitySet,
+                ),
+                propagation,
+            ) { input ->
+                val results = FlushResult()
+                uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
 
-                val results = object {
-                    val created = LinkedHashSet<Any>()
-                    val updated = LinkedHashSet<Any>()
-                    val deleted = LinkedHashSet<Any>()
-                    var needsFlush = false
-                    var refreshList: MutableList<Any>? = null
-                }
-
-                uowInterceptors.forEach { it.preInTransaction(persistEntities, deleteEntities) }
-
-                // 处理持久化实体
-                persistEntities.takeIf { it.isNotEmpty() }?.let { entities ->
-                    results.needsFlush = true
-                    entities.forEach { entity ->
-                        val applicationSideIdMember = applicationSideIdSupport.findApplicationSideId(entity)
-                        when {
-                            // 应用侧ID实体处理
-                            applicationSideIdMember != null -> {
-                                check(!applicationSideIdSupport.isDefaultId(applicationSideIdMember, entity)) {
-                                    "Application-side ID remains default after assignment: " +
-                                        "${applicationSideIdMember.ownerType.name}.${applicationSideIdMember.field.name}"
-                                }
-                                val id = applicationSideIdMember.get(entity)
-                                when {
-                                    entityManager.contains(entity) -> results.updated.add(entity)
-                                    entityManager.find(applicationSideIdMember.ownerType, id) == null -> {
-                                        entityManager.persist(entity)
-                                        results.created.add(entity)
-                                    }
-                                    else -> {
-                                        entityManager.merge(entity)
-                                        results.updated.add(entity)
-                                    }
-                                }
-                            }
-                            // 新实体处理
-                            getEntityInformation(entity.javaClass).isNew(entity) -> {
-                                if (!entityManager.contains(entity)) {
-                                    entityManager.persist(entity)
-                                }
-                                results.refreshList = (results.refreshList ?: mutableListOf()).apply { add(entity) }
-                                results.created.add(entity)
-                            }
-                            // 现有实体处理
-                            else -> {
-                                if (!entityManager.contains(entity)) {
-                                    entityManager.merge(entity)
-                                }
-                                results.updated.add(entity)
-                            }
-                        }
+                input.changes.forEach { change ->
+                    when (change.intent) {
+                        UnitOfWorkIntent.CREATE -> applyCreate(change.entity, results)
+                        UnitOfWorkIntent.UPDATE -> applyUpdate(change.entity, results)
+                        UnitOfWorkIntent.REMOVE -> applyRemove(change.entity, results)
                     }
                 }
 
-                // 处理删除实体
-                deleteEntities.takeIf { it.isNotEmpty() }?.let { entities ->
-                    results.needsFlush = true
-                    entities.forEach { entity ->
-                        when {
-                            entityManager.contains(entity) -> entityManager.remove(entity)
-                            else -> {
-                                entityManager.merge(entity).also { merged ->
-                                    entityManager.remove(merged)
-                                }
-                            }
-                        }
-                        results.deleted.add(entity)
-                    }
-                }
-
-                // 刷新和回调处理
                 if (results.needsFlush) {
                     entityManager.flush()
-                    results.refreshList?.forEach { entityManager.refresh(it) }
+                    results.refreshList.forEach { entityManager.refresh(it) }
                     onEntitiesFlushed(results.created, results.updated, results.deleted)
                 }
 
-                // 后处理
                 buildSet {
-                    addAll(persistEntities)
-                    addAll(deleteEntities)
-//                    persistenceContextEntities().forEach {
-//                        pushProcessingEntity(it, processedEntities as MutableSet<Any>)
-//                    }
-                    addAll(processedEntities)
+                    addAll(input.persistedEntities)
+                    addAll(input.removedEntities)
+                    addAll(input.processedEntities)
                 }.let { allEntities ->
                     uowInterceptors.forEach { it.postEntitiesPersisted(allEntities) }
-                    uowInterceptors.forEach { it.postInTransaction(persistEntities, deleteEntities) }
+                    uowInterceptors.forEach {
+                        it.postInTransaction(input.persistedEntities, input.removedEntities)
+                    }
                 }
             }
 
             uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
         } finally {
             popProcessingEntities(currentProcessedEntitySet)
+        }
+    }
+
+    private fun prepareApplicationSideIds(changes: List<PendingChange>) {
+        changes.forEach { change ->
+            when (change.intent) {
+                UnitOfWorkIntent.CREATE -> applicationSideIdSupport.assignMissingIds(change.entity)
+                UnitOfWorkIntent.UPDATE -> applicationSideIdSupport.assignMissingIdsToOwnedRelations(change.entity)
+                UnitOfWorkIntent.REMOVE -> Unit
+            }
+        }
+    }
+
+    private fun validateSameIdentityConflicts(changes: List<PendingChange>) {
+        val identities = LinkedHashMap<EntityIdentity, PendingChange>()
+        changes.forEach { change ->
+            val identity = identityOf(change.entity) ?: return@forEach
+            val previous = identities.putIfAbsent(identity, change)
+            if (previous != null && previous.entity !== change.entity) {
+                error(
+                    "conflicting UnitOfWork registrations for ${identity.entityType.name} id ${identity.id}: " +
+                        "${previous.intent} and ${change.intent}"
+                )
+            }
+        }
+    }
+
+    private fun identityOf(entity: Any): EntityIdentity? {
+        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
+            if (applicationSideIdSupport.isDefaultId(member, entity)) return null
+            val id = member.get(entity) ?: return null
+            return EntityIdentity(member.ownerType, id)
+        }
+
+        val entityInformation = getEntityInformation(entity.javaClass)
+        if (entityInformation.isNew(entity)) return null
+        val id = entityInformation.getId(entity) ?: return null
+        return EntityIdentity(entity.javaClass, id)
+    }
+
+    private fun applyCreate(entity: Any, results: FlushResult) {
+        validateCreateApplicationSideId(entity)
+        if (!entityManager.contains(entity)) {
+            entityManager.persist(entity)
+        }
+        if (applicationSideIdSupport.findApplicationSideId(entity) == null &&
+            getEntityInformation(entity.javaClass).isNew(entity)
+        ) {
+            results.refreshList.add(entity)
+        }
+        results.created.add(entity)
+        results.needsFlush = true
+    }
+
+    private fun applyUpdate(entity: Any, results: FlushResult) {
+        validateUpdateRootIdentified(entity)
+        if (!entityManager.contains(entity)) {
+            entityManager.merge(entity)
+        }
+        results.updated.add(entity)
+        results.needsFlush = true
+    }
+
+    private fun applyRemove(entity: Any, results: FlushResult) {
+        when {
+            entityManager.contains(entity) -> entityManager.remove(entity)
+            else -> entityManager.merge(entity).also { merged ->
+                entityManager.remove(merged)
+            }
+        }
+        results.deleted.add(entity)
+        results.needsFlush = true
+    }
+
+    private fun validateCreateApplicationSideId(entity: Any) {
+        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
+            check(!applicationSideIdSupport.isDefaultId(member, entity)) {
+                "Application-side ID remains default after assignment: " +
+                    "${member.ownerType.name}.${member.field.name}"
+            }
+        }
+    }
+
+    private fun validateUpdateRootIdentified(entity: Any) {
+        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
+            check(!applicationSideIdSupport.isDefaultId(member, entity)) {
+                "Update-intent application-side ID is default: ${member.ownerType.name}.${member.field.name}"
+            }
+            return
+        }
+
+        check(!getEntityInformation(entity.javaClass).isNew(entity)) {
+            "Update-intent entity appears new: ${entity.javaClass.name}"
         }
     }
 
