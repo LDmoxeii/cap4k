@@ -2,7 +2,7 @@
 
 Date: 2026-07-22
 
-Status as of 2026-07-23: design approved for implementation and dispatched outside `master`; no Phase 2 implementation PR has been merged into `master` yet.
+Status as of 2026-07-23: implemented and focused-verified on branch `plan/cap4k-all-entity-strong-id`; no Phase 2 implementation PR has been merged into `master` yet.
 
 ## Reader Contract
 
@@ -622,6 +622,28 @@ Recommended test classes to update or add:
 - `StrongIdJpaRuntimeTest`
 - `AggregateArtifactPlannerTest`
 - `DefaultCanonicalAssemblerTest`
+
+## implementationEvidence
+
+Status: implemented on branch `plan/cap4k-all-entity-strong-id` after focused verification.
+
+Evidence:
+
+- `PersistIntent` exposes `CREATE` and `EXISTING`; `PersistType.UPDATE` remains listener output only.
+- DB/schema `@IdStrategy=uuid7` generates own Strong IDs for aggregate roots and owned child entities.
+- `@IdStrategy=db_identity` keeps primitive provider-generated primary keys.
+- Repository reads record observation baselines for `persist=false` and `persist=true`.
+- `persist=true` promotes the observed graph as `EXISTING` without implying dirty update.
+- Generated Strong ID own IDs are completed idempotently for `CREATE` roots and new owned children under `EXISTING` roots.
+- Update listeners run only for Hibernate-dirty existing entities.
+
+Verification:
+
+- Static drift scan found no production references to removed public `UPDATE` intent, root-only Strong ID gates, `persistIfNotExist`, or removed `@Reference` inference. The only `@Reference` matches were source-db tests that assert old annotations are rejected.
+- `.\gradlew.bat :cap4k-plugin-pipeline-gradle:test --rerun-tasks --console=plain` completed with `BUILD SUCCESSFUL` after updating the functional unique metadata baseline for the new inline unique fixture.
+- `.\gradlew.bat :ddd-core:test :ddd-domain-repo-jpa:test :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-source-db:test :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-generator-aggregate:test :cap4k-plugin-pipeline-renderer-pebble:test --rerun-tasks --console=plain` completed with `BUILD SUCCESSFUL`.
+- `.\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.runtime.strongid.StrongIdJpaRuntimeTest" --tests "com.only4.cap4k.ddd.runtime.strongid.StrongIdUowRuntimeTest" --rerun-tasks --console=plain` completed with `BUILD SUCCESSFUL`.
+- `.\gradlew.bat test --continue --console=plain` completed with `BUILD SUCCESSFUL`; this broad command was mostly up-to-date/from-cache, so fresh execution evidence is limited to the focused commands above.
 
 ## rollbackTriggers
 

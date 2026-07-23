@@ -35,7 +35,7 @@ The work must be split because each phase changes a different contract surface: 
 | Phase | Name | Status | Main Outcome |
 |---|---|---|---|
 | 1 | Unit of Work persist intent | Spec exists in this docs folder | `persist(entity, PersistIntent.CREATE/UPDATE)` separates create and update intent before JPA sees the entity. |
-| 2 | All-entity Strong ID support | Needs new spec | Generated Strong ID support expands from aggregate roots/references to every generated entity own ID where the ID strategy requests it. |
+| 2 | All-entity Strong ID support | Implemented and focused-verified on branch; not merged to `master` | Generated Strong ID support expands from aggregate roots/references to every generated entity own ID where the ID strategy requests it. |
 | 3 | Mediator ID allocation entry | Needs new spec | Application code gets a stable mediator-facing way to allocate IDs manually without depending directly on low-level registries. |
 | 4 | Strong-ID create-time injection | Needs new spec | Generated Strong ID entity constructors/factories receive real IDs during creation without save-time mutation. |
 | 5 | Optional non-Strong-ID create-time injection | Future research | Explore whether primitive application-side IDs can get the same create-time ergonomics without weakening the Strong ID path. |
@@ -177,7 +177,7 @@ Out of scope:
 
 ## Phase 2: All-Entity Strong ID Support
 
-Phase-specific spec: not written yet.
+Phase-specific spec: [2026-07-22-cap4k-all-entity-strong-id-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-22-cap4k-all-entity-strong-id-design.md>).
 
 ### Purpose
 

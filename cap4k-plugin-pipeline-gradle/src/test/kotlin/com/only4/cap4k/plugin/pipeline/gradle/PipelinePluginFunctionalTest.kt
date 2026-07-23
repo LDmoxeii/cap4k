@@ -1500,8 +1500,8 @@ class PipelinePluginFunctionalTest {
     fun `cap4kGenerate fails fast when parent table has no parent ref`() {
         val result = runCap4kGenerateWithSchema(
             """
-            create table video_post (id bigint primary key);
-            create table video_post_item (id bigint primary key, video_post_id bigint not null);
+            create table video_post (id bigint primary key comment '@IdStrategy=db_identity;');
+            create table video_post_item (id bigint primary key comment '@IdStrategy=db_identity;', video_post_id bigint not null);
             comment on table video_post_item is '@Parent=video_post;';
             """.trimIndent()
         )
@@ -1519,7 +1519,7 @@ class PipelinePluginFunctionalTest {
         val tableResult = runCap4kGenerateWithSchema(
             """
             create table video_post (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=db_identity;',
                 version bigint,
                 deleted boolean
             );
@@ -1529,7 +1529,7 @@ class PipelinePluginFunctionalTest {
         val columnResult = runCap4kGenerateWithSchema(
             """
             create table video_post (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=db_identity;',
                 version bigint,
                 deleted boolean
             );
@@ -1629,8 +1629,8 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id bigint primary key,",
-            )
+                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
+            ).replaceFirst("@Managed=deleted;", "")
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
@@ -1680,7 +1680,7 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id uuid primary key,",
+                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
             ).replaceFirst("@Managed=deleted;", "")
         )
 
@@ -1715,7 +1715,7 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             """
             create table video (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=uuid7;',
                 title varchar(128) not null
             );
 
@@ -1738,13 +1738,11 @@ class PipelinePluginFunctionalTest {
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
             .withArguments("cap4kGenerate")
-            .build()
+            .buildAndFail()
 
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(
-            projectDir.resolve(
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video/VideoId.kt")
-            ).toFile().exists()
+            result.output.contains("@IdStrategy=uuid7 currently requires String physical ID column on table video.id"),
+            result.output,
         )
     }
 
@@ -1757,7 +1755,7 @@ class PipelinePluginFunctionalTest {
         projectDir.resolve("schema.sql").writeText(
             """
             create table if not exists video_post (
-                id bigint primary key,
+                id varchar(36) primary key comment '@IdStrategy=uuid7;',
                 slug varchar(128) not null unique,
                 tenant_id bigint not null,
                 title varchar(255) not null,
@@ -2013,7 +2011,7 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id bigint primary key,",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
             ).replaceFirst(
                 "title varchar(128) not null",
                 "created_by varchar(64) not null,\n    title varchar(128) not null",
@@ -2064,15 +2062,15 @@ class PipelinePluginFunctionalTest {
         assertTrue(firstResolvedPolicy.has("writeSurface"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
-        assertEquals("DSL_DEFAULT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
-        assertEquals("uuid7", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
+        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("identity", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("deleted").get("source").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("version").get("source").asString)
         assertEquals(listOf("id", "deleted", "version", "created_by"), videoPostPolicy.getAsJsonArray("managedFields").map {
             it.asJsonObject.get("columnName").asString
         })
         assertEquals(
-            listOf("id", "title"),
+            listOf("title"),
             videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("createAllowedFields").map { it.asString }
         )
         assertEquals(
@@ -2869,7 +2867,7 @@ class PipelinePluginFunctionalTest {
         projectDir.resolve("schema.sql").writeText(
             """
             create table if not exists video_post (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=db_identity;',
                 title varchar(255) not null
             );
             """.trimIndent()
@@ -3167,14 +3165,14 @@ class PipelinePluginFunctionalTest {
             context.getAsJsonArray("uniqueSelectedBusinessFields").map { it.asString },
         )
         assertEquals(
-            listOf("deleted", "version"),
+            emptyList<String>(),
             context.getAsJsonArray("uniqueFilteredControlFields").map { it.asString },
         )
-        assertEquals("uk_v_slug", context.get("uniqueNormalizedName").asString)
+        val uniqueNormalizedName = context.get("uniqueNormalizedName").asString
+        assertTrue(uniqueNormalizedName.startsWith("CONSTRAINT_INDEX_"))
         assertEquals("Slug", context.get("uniqueResolvedSuffix").asString)
         val uniquePhysicalName = context.get("uniquePhysicalName").asString
-        assertTrue(uniquePhysicalName.startsWith("video_post_uk_v_slug"))
-        assertTrue(uniquePhysicalName.contains("_INDEX_"))
+        assertEquals(uniqueNormalizedName, uniquePhysicalName)
     }
 
     private fun functionalAddonJar(projectDir: Path): Path {

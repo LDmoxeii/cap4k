@@ -2089,7 +2089,7 @@ Run:
 
 Expected: PASS. If full `:cap4k-ddd-starter:test` still fails outside these classes, record it as known starter fixture debt unless the failure appears in one of these two focused strong-id tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
 git add cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt `
@@ -2108,7 +2108,7 @@ git commit -m "test: cover strong id owned entity runtime"
 - Consumes: all previous task commits.
 - Produces: final static and focused-runtime evidence summary without overstating full verification.
 
-- [ ] **Step 1: Static drift scan**
+- [x] **Step 1: Static drift scan**
 
 Run:
 
@@ -2118,7 +2118,7 @@ rg -n "PersistIntent\.UPDATE|UnitOfWorkIntent\.UPDATE|AGGREGATE_ROOT|isGenerated
 
 Expected: no production references to removed input intent/root-only Strong ID gates; no `persistIfNotExist`; no generated identity inference from removed `@Reference`.
 
-- [ ] **Step 2: Focused module verification**
+- [x] **Step 2: Focused module verification**
 
 Run:
 
@@ -2135,7 +2135,7 @@ Run:
 
 Expected: PASS for all modules listed.
 
-- [ ] **Step 3: Focused runtime verification**
+- [x] **Step 3: Focused runtime verification**
 
 Run:
 
@@ -2145,7 +2145,7 @@ Run:
 
 Expected: PASS for strong-id runtime fixtures.
 
-- [ ] **Step 4: Optional broad verification**
+- [x] **Step 4: Optional broad verification**
 
 Run when time allows:
 
@@ -2155,7 +2155,7 @@ Run when time allows:
 
 Expected: PASS or known unrelated starter fixture failures documented with exact test names. Do not claim full verification if this command times out or fails.
 
-- [ ] **Step 5: Update docs**
+- [x] **Step 5: Update docs**
 
 In `2026-07-22-cap4k-all-entity-strong-id-design.md`, add an implementation evidence section:
 
@@ -2183,7 +2183,7 @@ Verification:
 
 In `2026-07-22-cap4k-identity-roadmap-design.md`, update Phase 2 status from "Spec exists" to the actual result only after the implementation branch is merged or accepted by the maintainer.
 
-- [ ] **Step 6: Final diff review**
+- [x] **Step 6: Final diff review**
 
 Run:
 
@@ -2195,7 +2195,7 @@ git diff --stat HEAD
 
 Expected: `git diff --check` reports no whitespace errors; `git status --short` lists only intended files; `git diff --stat HEAD` is explainable by the task list above.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```powershell
 git add docs/superpowers/specs/2026-07-22-cap4k-all-entity-strong-id-design.md `
