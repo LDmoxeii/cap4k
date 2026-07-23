@@ -2899,6 +2899,36 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `db schema primary key without explicit id strategy fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(
+                            com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot(
+                                name = "id",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                isPrimaryKey = true,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "primary key video.id must declare @IdStrategy=uuid7 or @IdStrategy=db_identity",
+            error.message,
+        )
+    }
+
+    @Test
     fun `ref aggregate resolves to referenced aggregate id type`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
