@@ -7,11 +7,15 @@ import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
 import com.only4.cap4k.ddd.core.domain.id.IdStrategy
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import io.mockk.*
+import jakarta.persistence.CascadeType
 import jakarta.persistence.EntityManager
 import jakarta.persistence.Id
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.OneToMany
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.transaction.annotation.Propagation
@@ -120,6 +124,33 @@ class JpaUnitOfWorkTest {
         @Suppress("UNCHECKED_CAST")
         val threadLocal = field.get(null) as ThreadLocal<Set<Any>>
         return threadLocal.get().size
+    }
+
+    private fun observationBaseline(): JpaRepositoryObservationBaseline {
+        val field = JpaUnitOfWork::class.java.getDeclaredField("repositoryObservationBaseline")
+        field.isAccessible = true
+        return field.get(jpaUnitOfWork) as JpaRepositoryObservationBaseline
+    }
+
+    @Test
+    @DisplayName("repository observation records root and generated owned children")
+    fun repositoryObservationRecordsRootAndGeneratedOwnedChildren() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns 10L
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns 20L
+
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val baseline = observationBaseline()
+        val entries = baseline.entriesFor(root)
+        assertEquals(listOf(root, child), entries.map { it.entity })
+        assertTrue(baseline.isObservedObject(root))
+        assertTrue(baseline.isObservedObject(child))
+        assertTrue(baseline.containsIdentity(JpaObservedIdentity(ObservedRoot::class.java, 10L)))
+        assertTrue(baseline.containsIdentity(JpaObservedIdentity(ObservedChild::class.java, 20L)))
     }
 
     @Test
@@ -649,6 +680,19 @@ class JpaUnitOfWorkTest {
         @field:ApplicationSideId(strategy = "snowflake-long")
         var id: Long = 0L,
         var name: String = ""
+    )
+
+    private class ObservedRoot(
+        @field:Id
+        var id: Long? = null,
+        @field:OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE], orphanRemoval = true)
+        @field:JoinColumn(name = "root_id")
+        val children: MutableList<ObservedChild> = mutableListOf(),
+    )
+
+    private class ObservedChild(
+        @field:Id
+        var id: Long? = null,
     )
 
 }

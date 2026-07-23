@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
@@ -26,13 +27,6 @@ private data class PendingChange(
     val entity: Any,
     val intent: UnitOfWorkIntent,
 )
-
-private class ObjectIdentityKey(private val entity: Any) {
-    override fun equals(other: Any?): Boolean =
-        other is ObjectIdentityKey && entity === other.entity
-
-    override fun hashCode(): Int = System.identityHashCode(entity)
-}
 
 private class InsertionOrderedIdentitySet<E : Any> : AbstractMutableSet<E>() {
     private val entries = LinkedHashMap<ObjectIdentityKey, E>()
@@ -126,7 +120,7 @@ open class JpaUnitOfWork(
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
     idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
-) : UnitOfWork {
+) : UnitOfWork, JpaRepositoryObservationRecorder {
 
     constructor(
         uowInterceptors: List<UnitOfWorkInterceptor>,
@@ -143,6 +137,8 @@ open class JpaUnitOfWork(
     lateinit var entityManager: EntityManager
 
     private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
+    private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
+    private val repositoryObservationBaseline = JpaRepositoryObservationBaseline()
 
     companion object {
         lateinit var instance: JpaUnitOfWork
@@ -189,6 +185,20 @@ open class JpaUnitOfWork(
 
     override fun remove(entity: Any) {
         pendingChangesThreadLocal.get().remove(entity)
+    }
+
+    override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
+        val observed = ownedRelationTraversal.reachableOwnedEntities(root)
+            .map { entity -> JpaObservedEntity(entity, observedIdentityOf(entity)) }
+        repositoryObservationBaseline.record(root, observed)
+    }
+
+    private fun observedIdentityOf(entity: Any): JpaObservedIdentity? {
+        val entityClass = persistentEntityClass(entity)
+        val entityInformation = getEntityInformation(entityClass)
+        if (entityInformation.isNew(entity)) return null
+        val id = entityInformation.getId(entity) ?: return null
+        return JpaObservedIdentity(entityClass, id)
     }
 
     private fun pushProcessingEntity(

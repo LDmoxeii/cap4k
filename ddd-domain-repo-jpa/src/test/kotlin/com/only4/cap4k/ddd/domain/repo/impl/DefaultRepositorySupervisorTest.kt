@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
+import com.only4.cap4k.ddd.application.JpaRepositoryObservationRecorder
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
@@ -17,6 +18,7 @@ class DefaultRepositorySupervisorTest {
 
     private lateinit var mockUnitOfWork: UnitOfWork
     private lateinit var mockRepository: Repository<TestEntity>
+    private lateinit var observationRecorder: JpaRepositoryObservationRecorder
     private lateinit var supervisor: DefaultRepositorySupervisor
 
     private data class TestEntity(val id: Long, val name: String)
@@ -30,6 +32,7 @@ class DefaultRepositorySupervisorTest {
     fun setup() {
         mockUnitOfWork = mockk<UnitOfWork>(relaxed = true)
         mockRepository = mockk<Repository<TestEntity>>(relaxed = true)
+        observationRecorder = mockk(relaxed = true)
 
         every { mockRepository.supportPredicateClass() } returns TestPredicate::class.java
 
@@ -51,7 +54,8 @@ class DefaultRepositorySupervisorTest {
 
         supervisor = DefaultRepositorySupervisor(
             repositories = listOf(mockRepository),
-            unitOfWork = mockUnitOfWork
+            unitOfWork = mockUnitOfWork,
+            observationRecorder = observationRecorder,
         )
     }
 
@@ -74,6 +78,9 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        expectedEntities.forEach { entity ->
+            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        }
         verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
     }
 
@@ -89,6 +96,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
         verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
     }
 
@@ -104,6 +112,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
         verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.EXISTING) }
     }
 
@@ -125,6 +134,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
         verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.EXISTING) }
     }
 
@@ -147,7 +157,10 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        expectedEntities.forEach { entity -> verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) } }
+        expectedEntities.forEach { entity ->
+            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
+            verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
+        }
     }
 
     @Test
@@ -164,6 +177,9 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(pageData, result)
         verify { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        entities.forEach { entity ->
+            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        }
         verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
     }
 
@@ -182,6 +198,7 @@ class DefaultRepositorySupervisorTest {
         assertEquals(pageData, result)
         verify { mockRepository.findPage(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
         entities.forEach { entity ->
+            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
             verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
         }
     }
@@ -202,6 +219,7 @@ class DefaultRepositorySupervisorTest {
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
         expectedEntities.forEach { entity ->
+            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
             verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
         }
     }
@@ -227,6 +245,7 @@ class DefaultRepositorySupervisorTest {
         assertEquals(expectedEntities, result)
         verify { mockRepository.find(predicate, pageParam, true, AggregateLoadPlan.MINIMAL) }
         expectedEntities.forEach { entity ->
+            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.MINIMAL) }
             verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
         }
     }
@@ -246,6 +265,7 @@ class DefaultRepositorySupervisorTest {
 
         assertEquals(expectedEntity, result)
         verify { mockRepository.findFirst(predicate, orders, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
+        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
         verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.EXISTING) }
     }
 
