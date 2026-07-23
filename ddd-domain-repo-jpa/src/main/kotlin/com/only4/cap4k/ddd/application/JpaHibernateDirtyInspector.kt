@@ -15,7 +15,7 @@ internal class JpaHibernateDirtyInspector(
     }
 
     private fun isDirty(session: SharedSessionContractImplementor, entity: Any): Boolean {
-        val entry = session.persistenceContextInternal.getEntry(entity) ?: return true
+        val entry = session.persistenceContextInternal.getEntry(entity) ?: return false
         if (entry.status != Status.MANAGED) return false
         val loadedState = entry.loadedState ?: return true
         val persister = entry.persister

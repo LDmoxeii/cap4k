@@ -307,6 +307,7 @@ open class JpaUnitOfWork(
                 generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
             }
             UnitOfWorkEntryKind.EXISTING -> {
+                validateObservedIdentityConsistency(entry.entity)
                 applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
                 generatedStrongIdSupport.completeExisting(
                     root = entry.entity,
@@ -316,6 +317,19 @@ open class JpaUnitOfWork(
             }
             UnitOfWorkEntryKind.REMOVE -> Unit
         }
+    }
+
+    private fun validateObservedIdentityConsistency(root: Any) {
+        ownedRelationTraversal.reachableOwnedEntities(root)
+            .filter { repositoryObservationBaseline.isObservedObject(it) }
+            .forEach { entity ->
+                val observed = repositoryObservationBaseline.identityFor(entity) ?: return@forEach
+                val current = observedIdentityOf(entity)
+                check(current == observed) {
+                    "Observed existing entity ${observed.entityType.name} changed identity " +
+                        "from ${observed.id} to ${current?.id}"
+                }
+            }
     }
 
     private fun validateSameIdentityConflicts(entries: List<UnitOfWorkEntry>) {
@@ -364,10 +378,8 @@ open class JpaUnitOfWork(
 
     private fun applyExisting(entity: Any, results: FlushResult) {
         validateExistingRootIdentified(entity)
-        if (!entityManager.contains(entity)) {
-            entityManager.merge(entity)
-        }
-        results.existing.add(entity)
+        val managed = if (entityManager.contains(entity)) entity else entityManager.merge(entity)
+        results.existing.add(managed)
         results.needsFlush = true
     }
 

@@ -7,6 +7,7 @@ import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -103,6 +104,84 @@ class StrongIdUowRuntimeTest {
                 entity === loaded && type == PersistType.UPDATE
             }
         )
+    }
+
+    @Test
+    fun `clean detached existing enrollment does not emit update listener`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.new(),
+                title = "clean-detached-root",
+                authorId = StrongAuthorId.new(),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        val loaded = repository.findById(content.id).orElseThrow()
+        unitOfWork.observeRepositoryLoad(loaded, AggregateLoadPlan.WHOLE_AGGREGATE)
+        entityManager.detach(loaded)
+
+        unitOfWork.persist(loaded)
+        unitOfWork.save()
+
+        assertFalse(
+            persistListenerManager.changes.any { (_, type) -> type == PersistType.UPDATE }
+        )
+    }
+
+    @Test
+    fun `dirty loaded existing enrollment emits update listener`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.new(),
+                title = "original-title",
+                authorId = StrongAuthorId.new(),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        val loaded = repository.findById(content.id).orElseThrow()
+        unitOfWork.observeRepositoryLoad(loaded, AggregateLoadPlan.WHOLE_AGGREGATE)
+        StrongContent::class.java.getDeclaredField("title").apply {
+            isAccessible = true
+            set(loaded, "changed-title")
+        }
+
+        unitOfWork.persist(loaded)
+        unitOfWork.save()
+
+        assertTrue(
+            persistListenerManager.changes.any { (entity, type) ->
+                entity === loaded && type == PersistType.UPDATE
+            }
+        )
+    }
+
+    @Test
+    fun `dirty detached existing enrollment emits update listener for managed merge result`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.new(),
+                title = "detached-original-title",
+                authorId = StrongAuthorId.new(),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        val loaded = repository.findById(content.id).orElseThrow()
+        unitOfWork.observeRepositoryLoad(loaded, AggregateLoadPlan.WHOLE_AGGREGATE)
+        StrongContent::class.java.getDeclaredField("title").apply {
+            isAccessible = true
+            set(loaded, "detached-changed-title")
+        }
+        entityManager.detach(loaded)
+
+        unitOfWork.persist(loaded)
+        unitOfWork.save()
+
+        val updated = persistListenerManager.changes.single { (_, type) -> type == PersistType.UPDATE }.first
+        assertFalse(updated === loaded)
+        assertEquals(loaded.id, (updated as StrongContent).id)
     }
 
     @SpringBootApplication

@@ -58,7 +58,9 @@ class JpaUnitOfWorkTest {
         }
 
         override fun dirtyExistingEntities(existingEntities: Set<Any>): Set<Any> =
-            existingEntities.filterTo(LinkedHashSet()) { it in dirtyExistingEntities }
+            existingEntities.filterTo(LinkedHashSet()) { candidate ->
+                dirtyExistingEntities.any { configured -> configured === candidate }
+            }
     }
 
     @BeforeEach
@@ -205,8 +207,14 @@ class JpaUnitOfWorkTest {
     fun existingPersistShouldFillNewOwnedChildStrongIdWithoutReplacingRootId() {
         val root = StrongRootEntity()
         root.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000099")
+        val observedChild = StrongChildEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000098")
+        }
+        root.children += observedChild
         every { mockEntityInfo.isNew(root) } returns false
         every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(observedChild) } returns false
+        every { mockEntityInfo.getId(observedChild) } returns observedChild.id
 
         jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
         val child = StrongChildEntity()
@@ -214,7 +222,43 @@ class JpaUnitOfWorkTest {
         jpaUnitOfWork.persist(root)
 
         assertEquals("018f0000-0000-7000-8000-000000000099", root.id.value)
+        assertEquals("018f0000-0000-7000-8000-000000000098", observedChild.id.value)
         assertEquals("018f0000-0000-7000-8000-000000000001", child.id.value)
+    }
+
+    @Test
+    @DisplayName("EXISTING persist rejects a missing root strong id before completing owned children")
+    fun existingPersistShouldRejectMissingRootStrongIdBeforeCompletingOwnedChildren() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        root.children += child
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(root)
+        }
+
+        assertTrue(error.message!!.contains("missing Strong ID"))
+        assertThrows(UninitializedPropertyAccessException::class.java) { root.id }
+        assertThrows(UninitializedPropertyAccessException::class.java) { child.id }
+    }
+
+    @Test
+    @DisplayName("EXISTING persist rejects an observed entity whose strong id changed")
+    fun existingPersistShouldRejectChangedObservedStrongId() {
+        val root = StrongRootEntity()
+        val observedId = TestStrongEntityId("018f0000-0000-7000-8000-000000000097")
+        root.id = observedId
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns observedId
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        root.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000096")
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(root)
+        }
+
+        assertTrue(error.message!!.contains("changed identity"))
     }
 
     @Test
@@ -289,6 +333,32 @@ class JpaUnitOfWorkTest {
         jpaUnitOfWork.save()
 
         verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+    }
+
+    @Test
+    @DisplayName("clean detached existing entity is inspected through its managed merge result")
+    fun cleanDetachedExistingEntityShouldNotEmitUpdateListener() {
+        val detached = TestEntity(1L, "clean")
+        val managed = TestEntity(1L, "clean")
+        jpaUnitOfWork = TestableJpaUnitOfWork(
+            uowInterceptors = uowInterceptors,
+            persistListenerManager = persistListenerManager,
+            supportEntityInlinePersistListener = true,
+            idStrategyRegistry = MapBackedIdentifierStrategyRegistry(listOf(FixedLongStrategy())),
+            dirtyExistingEntities = setOf(detached),
+        )
+        jpaUnitOfWork.setTestEntityManager(entityManager)
+        JpaUnitOfWork.fixAopWrapper(jpaUnitOfWork)
+        every { mockEntityInfo.isNew(detached) } returns false
+        every { mockEntityInfo.getId(detached) } returns 1L
+        every { entityManager.contains(detached) } returns false
+        every { entityManager.merge(detached) } returns managed
+
+        jpaUnitOfWork.persist(detached)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.merge(detached) }
+        verify(exactly = 0) { persistListenerManager.onChange(any(), PersistType.UPDATE) }
     }
 
     @Test

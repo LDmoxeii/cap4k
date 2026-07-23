@@ -15,10 +15,22 @@ internal class JpaGeneratedStrongIdSupport {
         traversal: JpaGeneratedOwnedRelationTraversal,
         baseline: JpaRepositoryObservationBaseline,
     ) {
-        traversal.reachableOwnedEntities(root)
+        validateExistingRootStrongId(root)
+        val reachable = traversal.reachableOwnedEntities(root)
+        validateObservedStrongIds(reachable, baseline)
+        reachable.asSequence()
+            .filterNot { it === root }
             .filterNot { baseline.isObservedObject(it) }
             .forEach(::completeMissingOwnStrongId)
-        validateObservedStrongIds(root, traversal, baseline)
+    }
+
+    private fun validateExistingRootStrongId(root: Any) {
+        ownStrongIdField(root)?.let { field ->
+            field.isAccessible = true
+            check(field.get(root) != null) {
+                "Existing-intent root ${Hibernate.getClassLazy(root).name}.${field.name} has missing Strong ID"
+            }
+        }
     }
 
     private fun completeMissingOwnStrongId(entity: Any) {
@@ -31,17 +43,23 @@ internal class JpaGeneratedStrongIdSupport {
     }
 
     private fun validateObservedStrongIds(
-        root: Any,
-        traversal: JpaGeneratedOwnedRelationTraversal,
+        reachable: Iterable<Any>,
         baseline: JpaRepositoryObservationBaseline,
     ) {
-        traversal.reachableOwnedEntities(root)
+        reachable
             .filter { baseline.isObservedObject(it) }
             .forEach { entity ->
                 ownStrongIdField(entity)?.let { field ->
                     field.isAccessible = true
-                    check(field.get(entity) != null) {
+                    val currentId = field.get(entity)
+                    check(currentId != null) {
                         "Observed existing entity ${Hibernate.getClassLazy(entity).name}.${field.name} has missing Strong ID"
+                    }
+                    baseline.identityFor(entity)?.let { observed ->
+                        check(currentId == observed.id) {
+                            "Observed existing entity ${observed.entityType.name} changed identity " +
+                                "from ${observed.id} to $currentId"
+                        }
                     }
                 }
             }

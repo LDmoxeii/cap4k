@@ -18,6 +18,7 @@ internal class JpaObservedEntity(
 internal class JpaRepositoryObservationBaseline {
     private val observedByRoot = LinkedHashMap<ObjectIdentityKey, LinkedHashSet<JpaObservedEntity>>()
     private val rootKeyByObservedObject = LinkedHashMap<ObjectIdentityKey, ObjectIdentityKey>()
+    private val observedByObject = LinkedHashMap<ObjectIdentityKey, JpaObservedEntity>()
     private val observedIdentities = LinkedHashSet<JpaObservedIdentity>()
 
     fun record(root: Any, entries: List<JpaObservedEntity>) {
@@ -25,7 +26,9 @@ internal class JpaRepositoryObservationBaseline {
         val bucket = observedByRoot.getOrPut(rootKey) { LinkedHashSet() }
         entries.forEach { entry ->
             bucket += entry
-            rootKeyByObservedObject[ObjectIdentityKey(entry.entity)] = rootKey
+            val entityKey = ObjectIdentityKey(entry.entity)
+            rootKeyByObservedObject[entityKey] = rootKey
+            observedByObject.putIfAbsent(entityKey, entry)
             entry.identity?.let { observedIdentities += it }
         }
     }
@@ -36,12 +39,16 @@ internal class JpaRepositoryObservationBaseline {
     fun containsIdentity(identity: JpaObservedIdentity): Boolean =
         identity in observedIdentities
 
+    fun identityFor(entity: Any): JpaObservedIdentity? =
+        observedByObject[ObjectIdentityKey(entity)]?.identity
+
     fun isObservedObject(entity: Any): Boolean =
         rootKeyByObservedObject.containsKey(ObjectIdentityKey(entity))
 
     fun clear() {
         observedByRoot.clear()
         rootKeyByObservedObject.clear()
+        observedByObject.clear()
         observedIdentities.clear()
     }
 }
