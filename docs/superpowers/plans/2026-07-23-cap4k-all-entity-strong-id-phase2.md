@@ -80,12 +80,14 @@
 - Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/PersistIntent.kt`
 - Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/UnitOfWork.kt`
 - Modify: `ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediatorTest.kt`
+- Modify: `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt`
 - Modify: `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt`
 - Modify: `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt`
 
 **Interfaces:**
 - Consumes: current `UnitOfWork.persist(entity: Any, intent: PersistIntent = PersistIntent.UPDATE)`.
 - Produces: `UnitOfWork.persist(entity: Any, intent: PersistIntent = PersistIntent.EXISTING)` and `PersistIntent.CREATE/EXISTING`.
+- Produces: transitional JPA public-to-internal mapping `PersistIntent.EXISTING -> UnitOfWorkIntent.UPDATE`; Task 6 renames the internal runtime state.
 
 - [ ] **Step 1: Write failing core API tests**
 
@@ -147,6 +149,12 @@ fun persist(entity: Any, intent: PersistIntent = PersistIntent.EXISTING)
 
 - [ ] **Step 4: Update repository supervisor enrollment names**
 
+In `JpaUnitOfWork.kt`, update the public intent mapping so the enum rename compiles before Task 6 changes internal state names:
+
+```kotlin
+PersistIntent.EXISTING -> UnitOfWorkIntent.UPDATE
+```
+
 In `DefaultRepositorySupervisor.kt`, replace `registerUpdate` with:
 
 ```kotlin
@@ -191,6 +199,7 @@ Expected: `rg` finds only `UnitOfWorkIntent.UPDATE` until Task 6 removes the int
 git add ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/PersistIntent.kt `
         ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/UnitOfWork.kt `
         ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediatorTest.kt `
+        ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt `
         ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt `
         ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt
 git commit -m "feat: rename uow existing intent"
