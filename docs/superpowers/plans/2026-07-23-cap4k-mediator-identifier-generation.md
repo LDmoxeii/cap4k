@@ -529,8 +529,8 @@ class IdPolicyAutoConfigurationTest {
             }
     }
 
-    private class OrderNoStrategy : IdentifierStrategy {
-        override val name: String = "order-no"
+    private open class OrderNoStrategy : IdentifierStrategy {
+        override open val name: String = "order-no"
         override val capabilities: Set<IdentifierCapability> = emptySet()
         override fun supports(type: KClass<*>): Boolean = type == String::class
         override fun <T : Any> next(type: KClass<T>): T {
@@ -722,3 +722,852 @@ git commit -m "feat: wire identifier strategy families"
 ```
 
 Expected: Commit includes starter strategy renames, auto-configuration, and `IdPolicyAutoConfigurationTest`.
+
+### Task 3: Mediator Identifiers Facade
+
+**Files:**
+- Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt`
+- Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/MediatorSupport.kt`
+- Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediator.kt`
+- Modify: `cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/MediatorAutoConfiguration.kt`
+- Test: `ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediatorTest.kt`
+
+**Interfaces:**
+- Consumes: `IdentifierGenerator` from Task 1 and Spring bean from Task 2.
+- Produces: `Mediator.identifiers: IdentifierGenerator` instance property.
+- Produces: `Mediator.identifiers` companion shortcut.
+- Produces: `DefaultMediator(override val identifiers: IdentifierGenerator = MediatorSupport.identifiers)`.
+- Produces: `MediatorSupport.configure(identifierGenerator: IdentifierGenerator)`.
+
+- [ ] **Step 1: Replace mediator forwarding tests with identifier facade coverage**
+
+Replace `ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediatorTest.kt` with:
+
+```kotlin
+package com.only4.cap4k.ddd.core.impl
+
+import com.only4.cap4k.ddd.core.Mediator
+import com.only4.cap4k.ddd.core.MediatorSupport
+import com.only4.cap4k.ddd.core.application.PersistIntent
+import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.UnitOfWorkSupport
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Test
+import org.springframework.transaction.annotation.Propagation
+import kotlin.reflect.KClass
+
+class DefaultMediatorTest {
+
+    @Test
+    fun `persist forwards entity and intent to configured unit of work`() {
+        val unitOfWork = RecordingUnitOfWork()
+        UnitOfWorkSupport.configure(unitOfWork)
+        val entity = Any()
+
+        DefaultMediator(RecordingIdentifierGenerator()).persist(entity, PersistIntent.CREATE)
+
+        assertSame(entity, unitOfWork.persistedEntity)
+        assertEquals(PersistIntent.CREATE, unitOfWork.persistedIntent)
+    }
+
+    @Test
+    fun `identifiers property delegates to configured generator`() {
+        val generator = RecordingIdentifierGenerator()
+        val mediator = DefaultMediator(generator)
+
+        val id = mediator.identifiers.next("order-no", String::class)
+
+        assertEquals("ID-1", id)
+        assertEquals("order-no", generator.strategy)
+        assertEquals(String::class, generator.type)
+    }
+
+    @Test
+    fun `companion identifiers shortcut delegates to configured generator`() {
+        val generator = RecordingIdentifierGenerator()
+        MediatorSupport.configure(generator)
+
+        val id = Mediator.identifiers.next("order-no", String::class.java)
+
+        assertEquals("ID-1", id)
+        assertEquals("order-no", generator.strategy)
+        assertEquals(String::class, generator.type)
+    }
+
+    @Test
+    fun `identifier generation does not touch unit of work`() {
+        val unitOfWork = RecordingUnitOfWork()
+        UnitOfWorkSupport.configure(unitOfWork)
+
+        DefaultMediator(RecordingIdentifierGenerator()).identifiers.next("order-no", String::class)
+
+        assertEquals(0, unitOfWork.persistCalls)
+        assertEquals(0, unitOfWork.removeCalls)
+        assertEquals(0, unitOfWork.saveCalls)
+    }
+
+    private class RecordingIdentifierGenerator : IdentifierGenerator {
+        var strategy: String? = null
+        var type: KClass<*>? = null
+
+        override fun <T : Any> next(strategy: String, type: KClass<T>): T {
+            this.strategy = strategy
+            this.type = type
+            @Suppress("UNCHECKED_CAST")
+            return "ID-1" as T
+        }
+    }
+
+    private class RecordingUnitOfWork : UnitOfWork {
+        var persistedEntity: Any? = null
+        var persistedIntent: PersistIntent? = null
+        var persistCalls: Int = 0
+        var removeCalls: Int = 0
+        var saveCalls: Int = 0
+
+        override fun persist(entity: Any, intent: PersistIntent) {
+            persistCalls++
+            persistedEntity = entity
+            persistedIntent = intent
+        }
+
+        override fun remove(entity: Any) {
+            removeCalls++
+        }
+
+        override fun save(propagation: Propagation) {
+            saveCalls++
+        }
+    }
+}
+```
+
+- [ ] **Step 2: Run mediator tests and confirm they fail for missing facade**
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-core:test --tests "com.only4.cap4k.ddd.core.impl.DefaultMediatorTest"
+```
+
+Expected: FAIL with unresolved `identifiers` references or missing `DefaultMediator(IdentifierGenerator)` constructor.
+
+- [ ] **Step 3: Add identifier generator storage to MediatorSupport**
+
+Update `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/MediatorSupport.kt` to:
+
+```kotlin
+package com.only4.cap4k.ddd.core
+
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+import org.springframework.context.ApplicationContext
+
+/**
+ * 中介者配置
+ *
+ * @author LD_moxeii
+ * @date 2025/07/22
+ */
+object MediatorSupport {
+    lateinit var instance: Mediator
+    lateinit var ioc: ApplicationContext
+    lateinit var identifiers: IdentifierGenerator
+
+    fun configure(mediator: Mediator) {
+        instance = mediator
+    }
+
+    fun configure(applicationContext: ApplicationContext) {
+        ioc = applicationContext
+    }
+
+    fun configure(identifierGenerator: IdentifierGenerator) {
+        identifiers = identifierGenerator
+    }
+}
+```
+
+- [ ] **Step 4: Expose identifiers from Mediator**
+
+Update `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt` by adding the import:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+```
+
+Add this instance property inside `interface Mediator`:
+
+```kotlin
+    val identifiers: IdentifierGenerator
+        get() = MediatorSupport.identifiers
+```
+
+Add this companion shortcut after `ioc`:
+
+```kotlin
+        @JvmStatic
+        val identifiers: IdentifierGenerator
+            get() = MediatorSupport.identifiers
+```
+
+- [ ] **Step 5: Inject identifiers into DefaultMediator**
+
+Change the class declaration in `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediator.kt` from:
+
+```kotlin
+class DefaultMediator : Mediator {
+```
+
+to:
+
+```kotlin
+class DefaultMediator(
+    override val identifiers: IdentifierGenerator = MediatorSupport.identifiers
+) : Mediator {
+```
+
+Add imports:
+
+```kotlin
+import com.only4.cap4k.ddd.core.MediatorSupport
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+```
+
+Keep all existing forwarding methods unchanged.
+
+- [ ] **Step 6: Configure DefaultMediator with the generator bean**
+
+Replace `cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/MediatorAutoConfiguration.kt` with:
+
+```kotlin
+package com.only4.cap4k.ddd
+
+import com.only4.cap4k.ddd.core.Mediator
+import com.only4.cap4k.ddd.core.MediatorSupport
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+import com.only4.cap4k.ddd.core.impl.DefaultMediator
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.context.ApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+
+/**
+ * CQS自动配置类
+ *
+ * @author LD_moxeii
+ * @date 2025/08/03
+ */
+@Configuration
+class MediatorAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean(Mediator::class)
+    fun defaultMediator(
+        applicationContext: ApplicationContext,
+        identifierGenerator: IdentifierGenerator,
+    ): DefaultMediator =
+        DefaultMediator(identifierGenerator).also {
+            MediatorSupport.configure(it)
+            MediatorSupport.configure(applicationContext)
+            MediatorSupport.configure(identifierGenerator)
+        }
+}
+```
+
+- [ ] **Step 7: Run mediator tests**
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-core:test --tests "com.only4.cap4k.ddd.core.impl.DefaultMediatorTest"
+```
+
+Expected: PASS.
+
+- [ ] **Step 8: Run starter context smoke for mediator wiring**
+
+Run:
+
+```powershell
+.\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.AutoConfigurationContextTest"
+```
+
+Expected at this point: may fail only where tests still assert old `IdAllocator`/`IdStrategyRegistry` bean types. Do not fix those assertions until Task 5 unless the failure blocks context startup.
+
+- [ ] **Step 9: Commit Task 3**
+
+Run:
+
+```powershell
+git status --short
+git add ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/MediatorSupport.kt ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediator.kt cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/MediatorAutoConfiguration.kt ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/impl/DefaultMediatorTest.kt
+git commit -m "feat: expose mediator identifier generator"
+```
+
+Expected: Commit contains only Mediator facade changes and tests.
+
+### Task 4: JPA ApplicationSideId Capability Migration
+
+**Files:**
+- Modify: `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaApplicationSideIdSupport.kt`
+- Modify: `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt`
+- Modify: `cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt`
+- Test: `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaApplicationSideIdSupportTest.kt`
+- Test: `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt`
+
+**Interfaces:**
+- Consumes: `IdentifierStrategyRegistry` and `IdentifierCapability.ENTITY_ID_PREASSIGNMENT`.
+- Produces: JPA-only capability enforcement for entity ID preassignment.
+- Preserves: `ApplicationSideIdMember` shape and existing owned relation traversal.
+- Preserves: `JpaUnitOfWork` `PersistIntent.CREATE/UPDATE` behavior.
+
+- [ ] **Step 1: Update JPA support test imports and strategy helpers**
+
+In `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaApplicationSideIdSupportTest.kt`, replace old ID imports:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
+import com.only4.cap4k.ddd.core.domain.id.IdStrategy
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+```
+
+with:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+import kotlin.reflect.KClass
+```
+
+Replace every `MapBackedIdStrategyRegistry(...)` call with `MapBackedIdentifierStrategyRegistry(...)`.
+
+Replace the helper strategy classes with:
+
+```kotlin
+    private class FixedUuidStrategy : IdentifierStrategy {
+        override val name: String = "uuid7"
+        override val capabilities: Set<IdentifierCapability> =
+            setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == UUID::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return UUID(1L, 2L) as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean =
+            value == null || value == UUID(0L, 0L)
+    }
+
+    private class NonPreassigningUuidStrategy : IdentifierStrategy {
+        override val name: String = "uuid7"
+        override val capabilities: Set<IdentifierCapability> = emptySet()
+        override fun supports(type: KClass<*>): Boolean = type == UUID::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return UUID(1L, 2L) as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean =
+            value == null || value == UUID(0L, 0L)
+    }
+
+    private class StringIdStrategy : IdentifierStrategy {
+        override val name: String = "string-id"
+        override val capabilities: Set<IdentifierCapability> =
+            setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == String::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return "not-a-uuid" as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean =
+            value == null || value == ""
+    }
+
+    private class DefaultUuidStrategy : IdentifierStrategy {
+        override val name: String = "default-uuid"
+        override val capabilities: Set<IdentifierCapability> =
+            setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == UUID::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return UUID(0L, 0L) as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean =
+            value == null || value == UUID(0L, 0L)
+    }
+```
+
+Replace `nullUuidStrategy()` with:
+
+```kotlin
+    private fun nullUuidStrategy(): IdentifierStrategy =
+        Proxy.newProxyInstance(
+            IdentifierStrategy::class.java.classLoader,
+            arrayOf(IdentifierStrategy::class.java)
+        ) { _, method, args ->
+            when (method.name) {
+                "getName" -> "null-uuid"
+                "getCapabilities" -> setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+                "supports" -> args?.single() == UUID::class
+                "isDefaultValue" -> args?.get(0) == null || args?.get(0) == UUID(0L, 0L)
+                "next" -> null
+                else -> error("unexpected method: ${method.name}")
+            }
+        } as IdentifierStrategy
+```
+
+- [ ] **Step 2: Replace the database-side rejection test with capability rejection**
+
+Replace the existing `rejects database side strategy` test in `JpaApplicationSideIdSupportTest` with:
+
+```kotlin
+    @Test
+    fun `rejects strategy without entity id preassignment capability`() {
+        val nonPreassigningSupport = JpaApplicationSideIdSupport(
+            MapBackedIdentifierStrategyRegistry(listOf(NonPreassigningUuidStrategy()))
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            nonPreassigningSupport.assignMissingIds(RootEntity())
+        }
+
+        assertEquals("identifier strategy uuid7 does not support entity ID preassignment", error.message)
+    }
+```
+
+- [ ] **Step 3: Update the output type mismatch assertion**
+
+Replace the expected message in `rejects strategy output type mismatch before assignment` with:
+
+```kotlin
+        assertEquals(
+            "identifier strategy string-id does not support output type java.util.UUID for field " +
+                "com.only4.cap4k.ddd.application.JpaApplicationSideIdSupportTest\$StringStrategyEntity.id",
+            error.message
+        )
+```
+
+- [ ] **Step 4: Run JPA support tests and confirm they fail on production imports**
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-domain-repo-jpa:test --tests "com.only4.cap4k.ddd.application.JpaApplicationSideIdSupportTest"
+```
+
+Expected: FAIL because production code still imports `IdGenerationKind`, `IdStrategy`, and `IdStrategyRegistry`.
+
+- [ ] **Step 5: Migrate JpaApplicationSideIdSupport to the new registry and capability**
+
+In `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaApplicationSideIdSupport.kt`, replace imports:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
+import com.only4.cap4k.ddd.core.domain.id.IdStrategy
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+```
+
+with:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+import kotlin.reflect.KClass
+```
+
+Change the constructor parameter to:
+
+```kotlin
+    private val idStrategyRegistry: IdentifierStrategyRegistry
+```
+
+Replace `isDefaultId(...)` with:
+
+```kotlin
+    fun isDefaultId(member: ApplicationSideIdMember, entity: Any): Boolean {
+        val strategy = idStrategyRegistry.get(member.annotation.strategy)
+        requireEntityIdPreassignment(strategy)
+        return strategy.isDefaultValue(member.get(entity), member.field.type.kotlin)
+    }
+```
+
+Replace the private `requireApplicationSide(...)`, `validateOutputType(...)`, and `nextValue(...)` helpers with:
+
+```kotlin
+    private fun requireEntityIdPreassignment(strategy: IdentifierStrategy) {
+        require(IdentifierCapability.ENTITY_ID_PREASSIGNMENT in strategy.capabilities) {
+            "identifier strategy ${strategy.name} does not support entity ID preassignment"
+        }
+    }
+
+    private fun validateOutputType(strategy: IdentifierStrategy, member: ApplicationSideIdMember) {
+        val fieldType = member.field.type.kotlin
+        require(strategy.supports(fieldType)) {
+            "identifier strategy ${strategy.name} does not support output type ${member.field.type.name} for field " +
+                "${member.field.declaringClass.name}.${member.field.name}"
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun nextValue(strategy: IdentifierStrategy, member: ApplicationSideIdMember): Any? {
+        val fieldType = member.field.type.kotlin as KClass<Any>
+        return strategy.next(fieldType)
+    }
+```
+
+In `assignMissingIds(...)`, replace:
+
+```kotlin
+            requireApplicationSide(strategy)
+```
+
+with:
+
+```kotlin
+            requireEntityIdPreassignment(strategy)
+```
+
+Replace:
+
+```kotlin
+                val generated = nextValue(strategy)
+```
+
+with:
+
+```kotlin
+                val generated = nextValue(strategy, member)
+```
+
+Replace:
+
+```kotlin
+                check(!strategy.isDefaultValue(generated)) {
+```
+
+with:
+
+```kotlin
+                check(!strategy.isDefaultValue(generated, member.field.type.kotlin)) {
+```
+
+- [ ] **Step 6: Update JpaUnitOfWork constructor types**
+
+In `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt`, replace imports:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+```
+
+with:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+```
+
+Replace constructor defaults:
+
+```kotlin
+    idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
+```
+
+with:
+
+```kotlin
+    idStrategyRegistry: IdentifierStrategyRegistry = MapBackedIdentifierStrategyRegistry(emptyList()),
+```
+
+Replace every remaining `MapBackedIdStrategyRegistry(emptyList())` in the file with `MapBackedIdentifierStrategyRegistry(emptyList())`.
+
+- [ ] **Step 7: Update JPA repository auto-configuration injection type**
+
+In `cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt`, replace:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+```
+
+with:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+```
+
+Change the `jpaUnitOfWork(...)` parameter:
+
+```kotlin
+        idStrategyRegistry: IdentifierStrategyRegistry,
+```
+
+- [ ] **Step 8: Update JpaUnitOfWorkTest strategy fixture**
+
+In `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt`, replace old imports with:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
+import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+import kotlin.reflect.KClass
+```
+
+Replace `MapBackedIdStrategyRegistry(...)` with `MapBackedIdentifierStrategyRegistry(...)`.
+
+Replace the `FixedLongStrategy` helper with:
+
+```kotlin
+    private class FixedLongStrategy : IdentifierStrategy {
+        override val name: String = BuiltInIdentifierStrategies.SNOWFLAKE
+        override val capabilities: Set<IdentifierCapability> =
+            setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == Long::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return 1001L as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean =
+            value == null || value == 0L
+    }
+```
+
+Change any test fixture annotation from:
+
+```kotlin
+    @ApplicationSideId(strategy = "snowflake-long")
+```
+
+to:
+
+```kotlin
+    @ApplicationSideId(strategy = "snowflake")
+```
+
+- [ ] **Step 9: Run JPA support and UoW tests**
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-domain-repo-jpa:test --tests "com.only4.cap4k.ddd.application.JpaApplicationSideIdSupportTest" --tests "com.only4.cap4k.ddd.application.JpaUnitOfWorkTest"
+```
+
+Expected: PASS.
+
+- [ ] **Step 10: Commit Task 4**
+
+Run:
+
+```powershell
+git status --short
+git add ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaApplicationSideIdSupport.kt ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaApplicationSideIdSupportTest.kt ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt
+git commit -m "feat: enforce identifier preassignment capability in jpa"
+```
+
+Expected: Commit contains only JPA capability migration and related tests.
+
+### Task 5: Global Cleanup And Verification
+
+**Files:**
+- Modify: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/AutoConfigurationContextTest.kt`
+- Modify: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt`
+- Modify: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/test/runtime/appsideid/ApplicationSideIdRuntimeFixtures.kt` only if it imports old core types.
+- Delete: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/IdGenerationKind.kt` after no references remain.
+- Search and update: remaining production/test references in `ddd-core`, `ddd-domain-repo-jpa`, and `cap4k-ddd-starter`.
+
+**Interfaces:**
+- Consumes: all interfaces from Tasks 1-4.
+- Produces: no new API.
+- Produces: repository state with no old public ID runtime names in production or current tests.
+
+- [ ] **Step 1: Update starter context bean assertions**
+
+In `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/AutoConfigurationContextTest.kt`, replace imports:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdAllocator
+import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+```
+
+with:
+
+```kotlin
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+```
+
+Replace bean assertions:
+
+```kotlin
+            assertNotNull(context.getBean(IdStrategyRegistry::class.java))
+            assertNotNull(context.getBean(IdAllocator::class.java))
+```
+
+with:
+
+```kotlin
+            assertNotNull(context.getBean(IdentifierStrategyRegistry::class.java))
+            assertNotNull(context.getBean(IdentifierGenerator::class.java))
+```
+
+- [ ] **Step 2: Update snowflake-long runtime fixtures**
+
+Run:
+
+```powershell
+rg -n "\"snowflake-long\"" cap4k-ddd-starter/src/test ddd-domain-repo-jpa/src/test ddd-core/src/test --glob "*.kt"
+```
+
+Expected before cleanup: matches only in active tests or fixtures, not in production after Tasks 1-4.
+
+For every active test fixture match in current test sources, replace:
+
+```kotlin
+@ApplicationSideId(strategy = "snowflake-long")
+```
+
+with:
+
+```kotlin
+@ApplicationSideId(strategy = "snowflake")
+```
+
+Do not edit old historical plan files under `docs/superpowers/plans/**`.
+
+- [ ] **Step 3: Delete IdGenerationKind after reference cleanup**
+
+Run:
+
+```powershell
+rg -n "IdGenerationKind" ddd-core ddd-domain-repo-jpa cap4k-ddd-starter --glob "*.kt"
+```
+
+Expected before deletion: no matches except `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/IdGenerationKind.kt`.
+
+Delete the file:
+
+```powershell
+git rm ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/IdGenerationKind.kt
+```
+
+- [ ] **Step 4: Run static old API search**
+
+Run:
+
+```powershell
+rg -n "IdAllocator|DefaultIdAllocator|IdStrategy\\b|IdStrategyRegistry|MapBackedIdStrategyRegistry|IdGenerationKind|SnowflakeLongIdStrategy" ddd-core ddd-domain-repo-jpa cap4k-ddd-starter --glob "*.kt"
+```
+
+Expected: no matches.
+
+Run:
+
+```powershell
+rg -n "\"snowflake-long\"" ddd-core ddd-domain-repo-jpa cap4k-ddd-starter --glob "*.kt"
+```
+
+Expected: no matches.
+
+Run:
+
+```powershell
+rg -n "IdentifierGenerator" ddd-distributed-snowflake/src/main/kotlin --glob "*.kt"
+```
+
+Expected: matches may include `org.hibernate.id.IdentifierGenerator` in `SnowflakeIdentifierGenerator.kt`; do not edit that file unless a compiler error proves an import conflict.
+
+- [ ] **Step 5: Run focused Gradle verification**
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-core:test --tests "com.only4.cap4k.ddd.core.domain.id.IdPolicyCoreTest" --tests "com.only4.cap4k.ddd.core.impl.DefaultMediatorTest"
+```
+
+Expected: PASS.
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-domain-repo-jpa:test --tests "com.only4.cap4k.ddd.application.JpaApplicationSideIdSupportTest" --tests "com.only4.cap4k.ddd.application.JpaUnitOfWorkTest"
+```
+
+Expected: PASS.
+
+Run:
+
+```powershell
+.\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.domain.id.IdPolicyAutoConfigurationTest" --tests "com.only4.cap4k.ddd.AutoConfigurationContextTest"
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Run broader affected module tests if focused verification is green**
+
+Run:
+
+```powershell
+.\gradlew.bat :ddd-core:test :ddd-domain-repo-jpa:test :cap4k-ddd-starter:test
+```
+
+Expected: PASS. If this is too slow or environment-limited, record the exact skipped command and the focused evidence from Step 5 in the final implementation report.
+
+- [ ] **Step 7: Commit Task 5**
+
+Run:
+
+```powershell
+git status --short
+git add ddd-core ddd-domain-repo-jpa cap4k-ddd-starter
+git commit -m "chore: remove legacy id allocation runtime names"
+```
+
+Expected: Commit contains cleanup and verification-related fixture changes only.
+
+## Coverage Checklist
+
+- `BuiltInIdentifierStrategies.UUID7 = "uuid7"`: Task 1 test and implementation.
+- `BuiltInIdentifierStrategies.SNOWFLAKE = "snowflake"`: Task 1 test and implementation.
+- `IdentifierGenerator` KClass overload: Task 1.
+- `IdentifierGenerator` Java `Class<T>` overload: Task 1 and Task 3 companion shortcut test.
+- `uuid7` supports `String` and `UUID`: Task 2.
+- `uuid7` rejects `Long`: Task 2.
+- `snowflake` supports `Long` and decimal `String`: Task 2.
+- `snowflake` rejects `UUID`: Task 2.
+- `snowflake-long` removed with no alias: Task 2 and Task 5.
+- External strategy beans collected: Task 2.
+- Duplicate strategy names fail fast: Task 1 and Task 2.
+- Unknown strategy names fail fast: Task 1 and Task 2.
+- `mediator.identifiers`: Task 3.
+- `Mediator.identifiers`: Task 3.
+- Identifier generation has no UoW side effect: Task 3.
+- JPA entity ID assignment requires `ENTITY_ID_PREASSIGNMENT`: Task 4.
+- Business-code strategy without `ENTITY_ID_PREASSIGNMENT` remains usable: Task 1 and Task 2.
+- Strong ID wrapper generation remains out of scope: Global Constraints and no task creates wrapper generation.
+- UoW `PersistIntent.CREATE/UPDATE` remains unchanged: Task 4 explicitly preserves UoW semantics.
+
+## Self-Review
+
+Spec coverage: The plan maps every Phase 3 public API, strategy matrix, registry rule, Mediator facade rule, JPA capability boundary, and verification evidence item to at least one task. Phase 2 all-entity Strong ID work and Phase 4 create-time Strong ID injection remain out of scope.
+
+Placeholder scan: The plan contains no unresolved placeholder language. Each code-changing step includes the exact code snippet or replacement command needed for that step.
+
+Type consistency: The plan uses `IdentifierGenerator`, `IdentifierStrategy`, `IdentifierStrategyRegistry`, `MapBackedIdentifierStrategyRegistry`, `IdentifierCapability.ENTITY_ID_PREASSIGNMENT`, and `BuiltInIdentifierStrategies` consistently across tasks. The public strategy constants are always `uuid7` and `snowflake`.
+
+Risk notes: `SnowflakeIdentifierGenerator` in `ddd-distributed-snowflake` is a Hibernate generator and is intentionally not renamed in this plan. `IdPolicyAutoConfiguration` remains named as-is to avoid unrelated Spring auto-configuration import churn; it wires the new identifier runtime internally.
+
+## Execution Handoff
+
+Plan complete when this file is committed. Use one of these execution modes:
+
+1. **Subagent-Driven (recommended)**: dispatch a fresh subagent per task, review after each task, and commit at every task boundary.
+2. **Inline Execution**: execute tasks in this session using `superpowers:executing-plans`, with a checkpoint after each task commit.
