@@ -268,9 +268,14 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "ContentId",
                         packageName = "com.acme.demo.domain.aggregates.content",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "Content",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.content",
                         ownerAggregateName = "Content",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
                     ),
                     StrongIdModel(
                         typeName = "AuthorId",
@@ -301,7 +306,7 @@ class AggregateArtifactPlannerTest {
                     contentId.outputPath,
                 )
                 assertEquals("com.acme.demo.domain.aggregates.content", contentId.context["packageName"])
-                assertEquals(StrongIdKind.AGGREGATE_ROOT.name, contentId.context["kind"])
+                assertEquals(StrongIdKind.OWN_ID.name, contentId.context["kind"])
                 assertEquals(true, contentId.context["canGenerateNew"])
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, contentId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, contentId.conflictPolicy)
@@ -359,6 +364,113 @@ class AggregateArtifactPlannerTest {
                     root = false,
                 )
             },
+        )
+    }
+
+    @Test
+    fun `aggregate planner emits own strong id artifacts for roots and owned children`() {
+        val order = EntityModel(
+            name = "Order",
+            packageName = "com.demo.domain.order",
+            tableName = "orders",
+            comment = "",
+            aggregateRoot = true,
+            fields = listOf(FieldModel("id", "OrderId", nullable = false, columnName = "id")),
+            idField = FieldModel("id", "OrderId", nullable = false, columnName = "id"),
+        )
+        val orderLine = EntityModel(
+            name = "OrderLine",
+            packageName = "com.demo.domain.order",
+            tableName = "order_line",
+            comment = "",
+            aggregateRoot = false,
+            parentEntityName = "Order",
+            fields = listOf(
+                FieldModel("id", "OrderLineId", nullable = false, columnName = "id"),
+                FieldModel("orderId", "String", nullable = false, columnName = "order_id", parentRef = true),
+            ),
+            idField = FieldModel("id", "OrderLineId", nullable = false, columnName = "id"),
+        )
+
+        val artifacts = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(order, orderLine),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(order),
+                    defaultAggregateEntityJpa(orderLine),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "OrderId",
+                        packageName = "com.demo.domain.order",
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "Order",
+                        ownerEntityPackageName = "com.demo.domain.order",
+                        ownerAggregateName = "Order",
+                        ownerAggregatePackageName = "com.demo.domain.order",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
+                    ),
+                    StrongIdModel(
+                        typeName = "OrderLineId",
+                        packageName = "com.demo.domain.order",
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "OrderLine",
+                        ownerEntityPackageName = "com.demo.domain.order",
+                        ownerAggregateName = "Order",
+                        ownerAggregatePackageName = "com.demo.domain.order",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
+                    ),
+                ),
+            )
+        )
+
+        val strongIds = artifacts
+            .filter { it.templateId == "aggregate/strong_id.kt.peb" }
+            .associateBy { it.context["typeName"] }
+        val rootId = strongIds.getValue("OrderId")
+        val childId = strongIds.getValue("OrderLineId")
+        val childEntity = artifacts.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == "OrderLine"
+        }.context
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = childEntity["scalarFields"] as List<Map<String, Any?>>
+        val childIdField = scalarFields.single { it["name"] == "id" }
+
+        assertAll(
+            { assertEquals(StrongIdKind.OWN_ID.name, rootId.context["kind"]) },
+            { assertEquals(true, rootId.context["canGenerateNew"]) },
+            {
+                assertAggregateElement(
+                    rootId,
+                    aggregate = "Order",
+                    name = "OrderId",
+                    packageName = "com.demo.domain.order",
+                    description = "",
+                    type = "strong-id",
+                    root = true,
+                )
+            },
+            { assertEquals(StrongIdKind.OWN_ID.name, childId.context["kind"]) },
+            { assertEquals(true, childId.context["canGenerateNew"]) },
+            {
+                assertAggregateElement(
+                    childId,
+                    aggregate = "Order",
+                    name = "OrderLineId",
+                    packageName = "com.demo.domain.order",
+                    description = "",
+                    type = "strong-id",
+                    root = false,
+                )
+            },
+            { assertEquals(true, childIdField["strongId"]) },
+            { assertEquals(true, childIdField["embeddedId"]) },
+            { assertEquals("OrderLineId", childIdField["type"]) },
         )
     }
 
@@ -444,9 +556,14 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "ContentId",
                         packageName = "com.acme.demo.domain.aggregates.content",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "Content",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.content",
                         ownerAggregateName = "Content",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
                     ),
                     StrongIdModel(
                         typeName = "AuthorId",
@@ -456,7 +573,7 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "MediaProcessingTaskId",
                         packageName = "com.acme.demo.domain.aggregates.media_processing_task",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
                         ownerAggregateName = "MediaProcessingTask",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
                     ),
@@ -4645,7 +4762,7 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "ContentId",
                         packageName = "com.acme.demo.domain.aggregates.content",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
                         ownerAggregateName = "Content",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                     )
@@ -4818,9 +4935,14 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "VideoPostId",
                         packageName = "com.acme.demo.domain.aggregates.video_post",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         ownerAggregateName = "VideoPost",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
                     ),
                 ),
             )
@@ -4914,9 +5036,14 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "VideoPostId",
                         packageName = "com.acme.demo.domain.aggregates.video_post",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         ownerAggregateName = "VideoPost",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
                     ),
                 ),
             )
@@ -5000,9 +5127,14 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "VideoPostId",
                         packageName = "com.acme.demo.domain.aggregates.video_post",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         ownerAggregateName = "VideoPost",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
                     ),
                 ),
             )

@@ -25,7 +25,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
-            val ownStrongId = resolveAggregateRootStrongId(model, entity)
+            val ownStrongId = resolveOwnStrongId(model, entity)
             val ownIdFieldName = ownStrongId?.let { entity.idField.name }
             val ownIdInitializer = ownStrongId?.let { "${it.typeName}.new()" }
             val ownIdTypeRef = ownStrongId?.fqn()
@@ -238,7 +238,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         ) != null
     }
 
-    private fun resolveAggregateRootStrongId(
+    private fun resolveOwnStrongId(
         model: CanonicalModel,
         entity: EntityModel,
     ): StrongIdModel? =

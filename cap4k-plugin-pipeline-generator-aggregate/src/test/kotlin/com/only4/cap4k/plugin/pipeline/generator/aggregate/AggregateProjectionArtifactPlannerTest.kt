@@ -222,7 +222,7 @@ class AggregateProjectionArtifactPlannerTest {
                 StrongIdModel(
                     typeName = "ContentId",
                     packageName = "com.acme.demo.domain.aggregates.content",
-                    kind = StrongIdKind.AGGREGATE_ROOT,
+                    kind = StrongIdKind.AGGREGATE_REFERENCE,
                     ownerAggregateName = "Content",
                     ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                 )
