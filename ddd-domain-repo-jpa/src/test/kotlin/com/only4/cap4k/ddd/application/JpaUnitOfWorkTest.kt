@@ -3,10 +3,11 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
-import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
-import com.only4.cap4k.ddd.core.domain.id.IdStrategy
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
+import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import io.mockk.*
@@ -15,6 +16,7 @@ import jakarta.persistence.Id
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.transaction.annotation.Propagation
+import kotlin.reflect.KClass
 
 @DisplayName("JpaUnitOfWork 测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -33,7 +35,7 @@ class JpaUnitOfWorkTest {
         uowInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
-        idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
+        idStrategyRegistry: IdentifierStrategyRegistry = MapBackedIdentifierStrategyRegistry(emptyList()),
     ) : JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
@@ -59,7 +61,7 @@ class JpaUnitOfWorkTest {
             uowInterceptors = uowInterceptors,
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            idStrategyRegistry = MapBackedIdStrategyRegistry(listOf(FixedLongStrategy())),
+            idStrategyRegistry = MapBackedIdentifierStrategyRegistry(listOf(FixedLongStrategy())),
         )
 
         // Set up entity manager
@@ -635,18 +637,21 @@ class JpaUnitOfWorkTest {
         val name: String
     )
 
-    private class FixedLongStrategy : IdStrategy {
-        override val name: String = "snowflake-long"
-        override val kind: IdGenerationKind = IdGenerationKind.APPLICATION_SIDE
-        override val outputType = Long::class
-        override val preassignable: Boolean = true
-        override fun isDefaultValue(value: Any?): Boolean = value == null || value == 0L
-        override fun next(): Any = 42L
+    private class FixedLongStrategy : IdentifierStrategy {
+        override val name: String = BuiltInIdentifierStrategies.SNOWFLAKE
+        override val capabilities: Set<IdentifierCapability> = setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == Long::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return 42L as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == 0L
     }
 
     private class ApplicationSideLongEntity(
         @field:Id
-        @field:ApplicationSideId(strategy = "snowflake-long")
+        @field:ApplicationSideId(strategy = "snowflake")
         var id: Long = 0L,
         var name: String = ""
     )
