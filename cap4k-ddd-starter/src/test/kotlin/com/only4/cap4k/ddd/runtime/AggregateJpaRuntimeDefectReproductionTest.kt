@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
@@ -29,6 +30,7 @@ import org.hibernate.id.IdentifierGenerationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -178,7 +180,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "preassigned application-side generated id",
             desiredContract = {
                 val root = RuntimeApplicationSideLongRoot(id = preassignedId, name = "preassigned-id")
-                unitOfWork.persist(root)
+                unitOfWork.persist(root, PersistIntent.CREATE)
                 unitOfWork.save()
                 assertEquals(
                     1,
@@ -275,8 +277,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -316,8 +317,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -351,8 +351,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -368,7 +367,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 val root = RuntimeFkMirrorRoot(name = "fk-mirror-root").apply {
                     children.add(RuntimeFkMirrorChild(name = "fk-mirror-child"))
                 }
-                unitOfWork.persist(root)
+                unitOfWork.persist(root, PersistIntent.CREATE)
                 unitOfWork.save()
                 assertNotEquals(0L, root.id)
                 val childId = queryLong("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
@@ -389,24 +388,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
         assertSupported(classification)
     }
 
-    /*
-     * This is not a lazy-loading or isolation problem. The failure happens while
-     * JpaUnitOfWork.save() refreshes the newly persisted root after flush().
-     *
-     * Direct Root -> Child -> Root eager reverse navigation is supported by the
-     * contrast test above. The known defect starts with the nested refresh graph:
-     *
-     * Root -> Child -> Grandchild -> Child -> Root
-     *
-     * The forward one-to-many collections own the join columns, while the reverse
-     * many-to-one associations are read-only eager navigations over those same
-     * columns. CascadeType.ALL includes refresh, so refreshing the new root walks
-     * the nested eager cycle and Hibernate reports FetchNotFoundException for the
-     * root id while resolving that graph.
-     */
     @Test
-    @DisplayName("reverse eager navigation on nested entities is a known defect")
-    fun reverseEagerNavigationOnNestedEntitiesIsKnownDefect() {
+    @DisplayName("reverse eager navigation on nested entities remains a known defect with create intent")
+    fun reverseEagerNavigationOnNestedEntitiesRemainsAKnownDefectWithCreateIntent() {
         val classification = classifyRuntimeBehavior(
             label = "three-level reverse eager navigation",
             desiredContract = {
@@ -427,8 +411,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure.hasCause<HibernateException>() ||
-                    failure is AssertionError
+                    failure.hasCause<HibernateException>()
             }
         )
 
@@ -490,6 +473,27 @@ class AggregateJpaRuntimeDefectReproductionTest {
         )
 
         assertSupported(classification)
+    }
+
+    @Test
+    @DisplayName("proxy and concrete instances with the same id conflict before flush")
+    fun proxyAndConcreteInstancesWithTheSameIdConflictBeforeFlush() {
+        val root = saveRoot(RuntimeRoot(name = "proxy-conflict"))
+        JpaUnitOfWork.reset()
+
+        val error = requireNotNull(TransactionTemplate(transactionManager).execute {
+            val proxy = rootJpaRepository.getReferenceById(root.id)
+            val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
+            unitOfWork.persist(proxy)
+            unitOfWork.remove(detached)
+
+            assertThrows(IllegalStateException::class.java) {
+                unitOfWork.save()
+            }
+        })
+
+        assertTrue(error.message!!.contains("conflicting UnitOfWork registrations"))
+        assertEquals(1, countRows("select count(*) from `runtime_root` where `id` = ?", root.id))
     }
 
     @Test
@@ -593,19 +597,19 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     private fun saveRoot(root: RuntimeRoot): RuntimeRoot {
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
         return root
     }
 
     private fun saveReverseRoot(root: RuntimeReverseRoot): RuntimeReverseRoot {
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
         return root
     }
 
     private fun saveSafeReverseRoot(root: RuntimeSafeReverseRoot): RuntimeSafeReverseRoot {
-        unitOfWork.persist(root)
+        unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
         return root
     }

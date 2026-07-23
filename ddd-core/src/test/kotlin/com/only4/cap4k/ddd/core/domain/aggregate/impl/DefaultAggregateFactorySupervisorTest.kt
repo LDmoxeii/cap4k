@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.aggregate.impl
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
@@ -36,7 +37,7 @@ class DefaultAggregateFactorySupervisorTest {
         // Then
         assertNotNull(result)
         assertEquals("test-data", result!!.data)
-        verify { unitOfWork.persist(result) }
+        verify { unitOfWork.persist(result, PersistIntent.CREATE) }
     }
 
     @Test
@@ -52,7 +53,7 @@ class DefaultAggregateFactorySupervisorTest {
         }
 
         assertTrue(exception.message!!.contains("No factory found for payload"))
-        verify(exactly = 0) { unitOfWork.persist(any()) }
+        verify(exactly = 0) { unitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -75,8 +76,8 @@ class DefaultAggregateFactorySupervisorTest {
         assertNotNull(result2)
         assertEquals("test-data", result1!!.data)
         assertEquals("another-data", result2!!.data)
-        verify { unitOfWork.persist(result1) }
-        verify { unitOfWork.persist(result2) }
+        verify { unitOfWork.persist(result1, PersistIntent.CREATE) }
+        verify { unitOfWork.persist(result2, PersistIntent.CREATE) }
     }
 
     @Test
@@ -87,7 +88,7 @@ class DefaultAggregateFactorySupervisorTest {
         supervisor = DefaultAggregateFactorySupervisor(listOf(factory), unitOfWork)
         val payload = TestPayload("test-data")
 
-        every { unitOfWork.persist(any()) } throws RuntimeException("Database error")
+        every { unitOfWork.persist(any(), PersistIntent.CREATE) } throws RuntimeException("Database error")
 
         // When & Then
         val exception = assertThrows(RuntimeException::class.java) {
@@ -110,7 +111,7 @@ class DefaultAggregateFactorySupervisorTest {
         }
 
         assertTrue(exception.message!!.contains("No factory found for payload"))
-        verify(exactly = 0) { unitOfWork.persist(any()) }
+        verify(exactly = 0) { unitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -131,7 +132,7 @@ class DefaultAggregateFactorySupervisorTest {
         threads.forEach { it.join() }
 
         // Then
-        verify(exactly = 10) { unitOfWork.persist(any()) }
+        verify(exactly = 10) { unitOfWork.persist(any(), PersistIntent.CREATE) }
     }
 
     // Test data classes and factories

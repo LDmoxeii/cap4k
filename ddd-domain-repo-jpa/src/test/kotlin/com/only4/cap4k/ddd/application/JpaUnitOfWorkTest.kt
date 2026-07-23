@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.application
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
@@ -7,15 +8,13 @@ import com.only4.cap4k.ddd.core.domain.id.IdStrategy
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
+import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import io.mockk.*
 import jakarta.persistence.EntityManager
 import jakarta.persistence.Id
-import org.hibernate.engine.spi.SessionImplementor
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.transaction.annotation.Propagation
-import java.lang.reflect.InvocationHandler
-import java.lang.reflect.Proxy
 
 @DisplayName("JpaUnitOfWork 测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -34,7 +33,6 @@ class JpaUnitOfWorkTest {
         uowInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
-        private val overridePersistenceContextEntities: Boolean = true,
         idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
     ) : JpaUnitOfWork(
         uowInterceptors,
@@ -46,17 +44,6 @@ class JpaUnitOfWorkTest {
         fun setTestEntityManager(em: EntityManager) {
             this.entityManager = em
         }
-
-        var persistenceContextEntityProvider: () -> List<Any> = { emptyList() }
-
-        override fun persistenceContextEntities(): List<Any> =
-            if (overridePersistenceContextEntities) {
-                persistenceContextEntityProvider()
-            } else {
-                super.persistenceContextEntities()
-            }
-
-        fun testPersistenceContextEntities() = persistenceContextEntities()
     }
 
     @BeforeEach
@@ -81,6 +68,7 @@ class JpaUnitOfWorkTest {
 
         // Reset ThreadLocal state
         JpaUnitOfWork.reset()
+        clearEntityInformationCache()
 
         // Set up static mock and create fresh entity info mock each time
         mockkStatic("org.springframework.data.jpa.repository.support.JpaEntityInformationSupport")
@@ -98,7 +86,6 @@ class JpaUnitOfWorkTest {
         // Mock entityManager methods explicitly
         every { entityManager.persist(any()) } just Runs
         every { entityManager.merge<Any>(any()) } answers { firstArg<Any>() }
-        every { entityManager.find(any<Class<*>>(), any()) } returns null
         every { entityManager.contains(any()) } returns false
         every { entityManager.remove(any()) } just Runs
         every { entityManager.flush() } just Runs
@@ -120,33 +107,170 @@ class JpaUnitOfWorkTest {
         )
     }
 
-    @Test
-    @DisplayName("应该持久化非值对象实体")
-    fun testPersistNormalEntity() {
-        // Given
-        val entity = TestEntity(1L, "test")
+    private fun clearEntityInformationCache() {
+        val field = JpaUnitOfWork::class.java.getDeclaredField("entityInformationCache")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        (field.get(null) as MutableMap<Class<*>, *>).clear()
+    }
 
-        // When
-        jpaUnitOfWork.persist(entity)
-
-        // Then
-        jpaUnitOfWork.save()
-        verify { entityManager.persist(entity) }
+    private fun processingEntityCount(): Int {
+        val field = JpaUnitOfWork::class.java.getDeclaredField("processingEntitiesThreadLocal")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val threadLocal = field.get(null) as ThreadLocal<Set<Any>>
+        return threadLocal.get().size
     }
 
     @Test
-    @DisplayName("持久化不存在的实体时应返回true")
-    fun testPersistIfNotExistWhenNotExists() {
-        // Given
-        val entity = TestEntity(null, "test")
+    @DisplayName("default persist should merge a detached existing entity and report UPDATE")
+    fun defaultPersistShouldMergeDetachedExistingEntityAndReportUpdate() {
+        val entity = TestEntity(1L, "existing")
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 1L
+        every { entityManager.contains(entity) } returns false
 
-        // When
-        val result = jpaUnitOfWork.persistIfNotExist(entity)
-
-        // Then
-        assertTrue(result)
+        jpaUnitOfWork.persist(entity)
         jpaUnitOfWork.save()
+
+        verify { entityManager.merge(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+        verify(exactly = 0) { entityManager.persist(entity) }
+    }
+
+    @Test
+    @DisplayName("CREATE intent should persist a new entity and report CREATE")
+    fun createIntentShouldPersistAndReportCreate() {
+        val entity = TestEntity(null, "new")
+        every { mockEntityInfo.isNew(entity) } returns true
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
         verify { entityManager.persist(entity) }
+        verify { entityManager.flush() }
+        verify { entityManager.refresh(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
+        verify(exactly = 0) { entityManager.merge(entity) }
+    }
+
+    @Test
+    @DisplayName("generated-id CREATE should decide refresh before persist changes isNew")
+    fun generatedIdCreateShouldDecideRefreshBeforePersistChangesIsNew() {
+        val entity = TestEntity(null, "generated")
+        var persisted = false
+        every { mockEntityInfo.isNew(entity) } answers { !persisted }
+        every { entityManager.persist(entity) } answers { persisted = true }
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(entity) }
+        verify { entityManager.refresh(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
+    }
+
+    @Test
+    @DisplayName("equal CREATE instances should remain distinct through persistence notifications and interceptors")
+    fun equalCreateInstancesShouldRemainDistinctThroughPersistenceNotificationsAndInterceptors() {
+        val first = TestEntity(null, "same")
+        val second = TestEntity(null, "same")
+        val persisted = mutableListOf<Any>()
+        val notified = mutableListOf<Any>()
+        val intercepted = mutableListOf<Set<Any>>()
+        every { entityManager.persist(capture(persisted)) } just Runs
+        every { persistListenerManager.onChange(capture(notified), PersistType.CREATE) } just Runs
+        every { interceptor1.beforeTransaction(capture(intercepted), any()) } just Runs
+
+        jpaUnitOfWork.persist(first, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(second, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        assertEquals(2, persisted.size)
+        assertSame(first, persisted[0])
+        assertSame(second, persisted[1])
+        assertEquals(2, notified.size)
+        assertSame(first, notified[0])
+        assertSame(second, notified[1])
+        assertEquals(1, intercepted.size)
+        assertEquals(2, intercepted.single().size)
+        assertSame(first, intercepted.single().elementAt(0))
+        assertSame(second, intercepted.single().elementAt(1))
+    }
+
+    @Test
+    @DisplayName("managed update intent should report UPDATE without explicit merge")
+    fun managedUpdateIntentShouldReportUpdateWithoutExplicitMerge() {
+        val entity = TestEntity(1L, "managed")
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 1L
+        every { entityManager.contains(entity) } returns true
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify(exactly = 0) { entityManager.merge(entity) }
+        verify(exactly = 0) { entityManager.persist(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+    }
+
+    @Test
+    @DisplayName("same instance CREATE then default persist remains CREATE")
+    fun sameInstanceCreateThenDefaultPersistRemainsCreate() {
+        val entity = TestEntity(null, "created-then-mutated")
+        every { mockEntityInfo.isNew(entity) } returns true
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
+        verify(exactly = 0) { entityManager.merge(entity) }
+    }
+
+    @Test
+    @DisplayName("same instance CREATE then remove should cancel pending change")
+    fun sameInstanceCreateThenRemoveShouldCancelPendingChange() {
+        val entity = TestEntity(null, "cancelled")
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        jpaUnitOfWork.remove(entity)
+        jpaUnitOfWork.save()
+
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.merge(any()) }
+        verify(exactly = 0) { entityManager.remove(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+        verify(exactly = 0) { persistListenerManager.onChange(any(), any()) }
+    }
+
+    @Test
+    @DisplayName("same instance UPDATE then CREATE should fail fast")
+    fun sameInstanceUpdateThenCreateShouldFailFast() {
+        val entity = TestEntity(1L, "existing")
+
+        jpaUnitOfWork.persist(entity)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        }
+
+        assertTrue(error.message!!.contains("UPDATE cannot become CREATE"))
+    }
+
+    @Test
+    @DisplayName("same instance REMOVE then UPDATE should fail fast")
+    fun sameInstanceRemoveThenUpdateShouldFailFast() {
+        val entity = TestEntity(1L, "removed")
+
+        jpaUnitOfWork.remove(entity)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(entity)
+        }
+
+        assertTrue(error.message!!.contains("REMOVE cannot become UPDATE"))
     }
 
     @Test
@@ -188,7 +312,7 @@ class JpaUnitOfWorkTest {
     fun testSaveWithDefaultPropagation() {
         // Given
         val entity = TestEntity(1L, "test")
-        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
 
         // When
         jpaUnitOfWork.save()
@@ -203,7 +327,7 @@ class JpaUnitOfWorkTest {
     fun testSaveInterceptorOrder() {
         // Given
         val entity = TestEntity(1L, "test")
-        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
 
         // When
         jpaUnitOfWork.save()
@@ -339,36 +463,6 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("会话关闭时应返回空列表")
-    fun testPersistenceContextEntitiesSessionClosed() {
-        // Given
-        val unitOfWork = realPersistenceContextLookupUnitOfWork(
-            entityManagerProxy { closedSessionImplementor() }
-        )
-
-        // When
-        val result = unitOfWork.testPersistenceContextEntities()
-
-        // Then
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    @DisplayName("发生异常时应返回空列表")
-    fun testPersistenceContextEntitiesException() {
-        // Given
-        val unitOfWork = realPersistenceContextLookupUnitOfWork(
-            entityManagerProxy { throw RuntimeException("Test exception") }
-        )
-
-        // When
-        val result = unitOfWork.testPersistenceContextEntities()
-
-        // Then
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
     @DisplayName("应正确重置ThreadLocal变量")
     fun testReset() {
         // Given
@@ -399,7 +493,7 @@ class JpaUnitOfWorkTest {
         JpaUnitOfWork.fixAopWrapper(unitOfWork)
 
         val entity = TestEntity(1L, "test")
-        unitOfWork.persist(entity)
+        unitOfWork.persist(entity, PersistIntent.CREATE)
 
         // When
         unitOfWork.save()
@@ -426,17 +520,18 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("preassigned application-side id should persist when database row is missing")
-    fun preassignedApplicationSideIdShouldPersistWhenDatabaseRowIsMissing() {
+    @DisplayName("CREATE intent with preassigned application-side id should not query existence")
+    fun createIntentWithPreassignedApplicationSideIdShouldNotQueryExistence() {
         val entity = ApplicationSideLongEntity(id = 100L, name = "new")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 100L
-        every { entityManager.find(ApplicationSideLongEntity::class.java, 100L) } returns null
 
-        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
         jpaUnitOfWork.save()
 
         verify { entityManager.persist(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
+        verify(exactly = 0) { entityManager.find(ApplicationSideLongEntity::class.java, any()) }
         verify(exactly = 0) { entityManager.merge(entity) }
     }
 
@@ -446,7 +541,7 @@ class JpaUnitOfWorkTest {
         val entity = ApplicationSideLongEntity(id = 0L, name = "allocated")
         every { mockEntityInfo.isNew(entity) } returns true
 
-        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
         jpaUnitOfWork.save()
 
         verify {
@@ -458,32 +553,60 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("existing application-side id should merge when database row exists")
-    fun existingApplicationSideIdShouldMergeWhenDatabaseRowExists() {
+    @DisplayName("update intent with application-side id should merge without querying existence")
+    fun updateIntentWithApplicationSideIdShouldMergeWithoutQueryingExistence() {
         val entity = ApplicationSideLongEntity(id = 100L, name = "existing")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 100L
-        every { entityManager.find(ApplicationSideLongEntity::class.java, 100L) } returns ApplicationSideLongEntity(100L)
 
         jpaUnitOfWork.persist(entity)
         jpaUnitOfWork.save()
 
         verify { entityManager.merge(entity) }
+        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+        verify(exactly = 0) { entityManager.find(ApplicationSideLongEntity::class.java, any()) }
         verify(exactly = 0) { entityManager.persist(entity) }
     }
 
     @Test
-    @DisplayName("application-side id lookup should use managed owner class")
-    fun applicationSideIdLookupShouldUseManagedOwnerClass() {
-        val entity = ApplicationSideLongDerivedEntity(id = 100L, name = "derived")
-        every { entityManager.find(ApplicationSideLongBaseEntity::class.java, 100L) } returns null
+    @DisplayName("different instances with same identity should fail before flush")
+    fun differentInstancesWithSameIdentityShouldFailBeforeFlush() {
+        val first = TestEntity(7L, "first")
+        val second = TestEntity(7L, "second")
+        every { mockEntityInfo.isNew(first) } returns false
+        every { mockEntityInfo.isNew(second) } returns false
+        every { mockEntityInfo.getId(first) } returns 7L
+        every { mockEntityInfo.getId(second) } returns 7L
 
-        jpaUnitOfWork.persist(entity)
-        jpaUnitOfWork.save()
+        jpaUnitOfWork.persist(first)
+        jpaUnitOfWork.remove(second)
 
-        verify { entityManager.find(ApplicationSideLongBaseEntity::class.java, 100L) }
-        verify(exactly = 0) { entityManager.find(ApplicationSideLongDerivedEntity::class.java, 100L) }
-        verify { entityManager.persist(entity) }
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("conflicting UnitOfWork registrations"))
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("preflight conflict failure should clear processing entities")
+    fun preflightConflictFailureShouldClearProcessingEntities() {
+        val first = TestEntity(8L, "first")
+        val second = TestEntity(8L, "second")
+        every { mockEntityInfo.isNew(first) } returns false
+        every { mockEntityInfo.isNew(second) } returns false
+        every { mockEntityInfo.getId(first) } returns 8L
+        every { mockEntityInfo.getId(second) } returns 8L
+
+        jpaUnitOfWork.persist(first)
+        jpaUnitOfWork.remove(second)
+
+        assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertEquals(0, processingEntityCount())
     }
 
     @Test
@@ -502,51 +625,6 @@ class JpaUnitOfWorkTest {
 
         assertEquals(JpaUnitOfWork::class.java, unitOfWork.javaClass)
         assertEquals(JpaUnitOfWork::class.java, constructor.declaringClass)
-    }
-
-    private fun realPersistenceContextLookupUnitOfWork(entityManager: EntityManager): TestableJpaUnitOfWork =
-        TestableJpaUnitOfWork(
-            uowInterceptors = emptyList(),
-            persistListenerManager = persistListenerManager,
-            supportEntityInlinePersistListener = true,
-            overridePersistenceContextEntities = false,
-        ).also {
-            it.setTestEntityManager(entityManager)
-        }
-
-    private fun entityManagerProxy(unwrapResult: () -> Any): EntityManager {
-        val handler = InvocationHandler { proxy, method, args ->
-            when (method.name) {
-                "unwrap" -> unwrapResult()
-                "toString" -> "EntityManagerProxy"
-                "hashCode" -> System.identityHashCode(proxy)
-                "equals" -> proxy === args?.firstOrNull()
-                else -> throw UnsupportedOperationException("Unexpected EntityManager call: ${method.name}")
-            }
-        }
-        return Proxy.newProxyInstance(
-            EntityManager::class.java.classLoader,
-            arrayOf(EntityManager::class.java),
-            handler,
-        ) as EntityManager
-    }
-
-    private fun closedSessionImplementor(): SessionImplementor {
-        val handler = InvocationHandler { proxy, method, args ->
-            when (method.name) {
-                "isOpen" -> false
-                "isClosed" -> true
-                "toString" -> "ClosedSessionImplementor"
-                "hashCode" -> System.identityHashCode(proxy)
-                "equals" -> proxy === args?.firstOrNull()
-                else -> throw UnsupportedOperationException("Unexpected SessionImplementor call: ${method.name}")
-            }
-        }
-        return Proxy.newProxyInstance(
-            SessionImplementor::class.java.classLoader,
-            arrayOf(SessionImplementor::class.java),
-            handler,
-        ) as SessionImplementor
     }
 
     // Test helper classes
@@ -573,16 +651,4 @@ class JpaUnitOfWorkTest {
         var name: String = ""
     )
 
-    @jakarta.persistence.Entity
-    open class ApplicationSideLongBaseEntity(
-        @field:Id
-        @field:ApplicationSideId(strategy = "snowflake-long")
-        open var id: Long = 0L,
-        open var name: String = ""
-    )
-
-    private class ApplicationSideLongDerivedEntity(
-        override var id: Long = 0L,
-        override var name: String = ""
-    ) : ApplicationSideLongBaseEntity(id, name)
 }

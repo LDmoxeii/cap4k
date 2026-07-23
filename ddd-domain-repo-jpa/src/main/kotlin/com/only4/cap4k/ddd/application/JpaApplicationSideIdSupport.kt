@@ -24,6 +24,17 @@ internal class JpaApplicationSideIdSupport(
         assignMissingIds(root, Collections.newSetFromMap(IdentityHashMap()))
     }
 
+    fun assignMissingIdsToOwnedRelations(root: Any) {
+        val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+        visited.add(root)
+        ownedRelationValues(root).forEach { related ->
+            when (related) {
+                is Iterable<*> -> related.filterNotNull().forEach { assignMissingIds(it, visited) }
+                else -> assignMissingIds(related, visited)
+            }
+        }
+    }
+
     fun findApplicationSideId(entity: Any): ApplicationSideIdMember? {
         val entityType = entityType(entity)
         return persistentFields(entityType)
