@@ -53,7 +53,6 @@
   - `ddd-distributed-snowflake`
   - `ddd-domain-event-jpa`
   - `ddd-domain-repo-jpa`
-  - `ddd-domain-repo-jpa-querydsl`
   - `ddd-integration-event-http`
   - `ddd-integration-event-http-jpa`
   - `ddd-integration-event-rabbitmq`
