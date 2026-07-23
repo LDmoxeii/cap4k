@@ -17,15 +17,15 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.ConcurrentHashMap
 
-private enum class UnitOfWorkIntent {
+private enum class UnitOfWorkEntryKind {
     CREATE,
-    UPDATE,
+    EXISTING,
     REMOVE,
 }
 
-private data class PendingChange(
+private data class UnitOfWorkEntry(
     val entity: Any,
-    val intent: UnitOfWorkIntent,
+    val kind: UnitOfWorkEntryKind,
 )
 
 private class InsertionOrderedIdentitySet<E : Any> : AbstractMutableSet<E>() {
@@ -46,51 +46,54 @@ private class InsertionOrderedIdentitySet<E : Any> : AbstractMutableSet<E>() {
         entries.remove(ObjectIdentityKey(element)) != null
 }
 
-private class PendingChangeSet {
-    private val entries = LinkedHashMap<ObjectIdentityKey, PendingChange>()
+private class PendingEntrySet {
+    private val entries = LinkedHashMap<ObjectIdentityKey, UnitOfWorkEntry>()
 
-    fun persist(entity: Any, intent: PersistIntent) {
+    fun persist(entity: Any, intent: PersistIntent): UnitOfWorkEntry {
         val key = ObjectIdentityKey(entity)
-        val next = intent.toUnitOfWorkIntent()
+        val next = intent.toUnitOfWorkEntryKind()
         val current = entries[key]
-        entries[key] = when (current?.intent) {
-            null -> PendingChange(entity, next)
-            UnitOfWorkIntent.CREATE -> PendingChange(entity, UnitOfWorkIntent.CREATE)
-            UnitOfWorkIntent.UPDATE -> when (next) {
-                UnitOfWorkIntent.UPDATE -> PendingChange(entity, UnitOfWorkIntent.UPDATE)
-                UnitOfWorkIntent.CREATE -> error("UoW intent conflict: UPDATE cannot become CREATE for the same instance")
-                UnitOfWorkIntent.REMOVE -> error("persist cannot register REMOVE intent")
+        val merged = when (current?.kind) {
+            null -> UnitOfWorkEntry(entity, next)
+            UnitOfWorkEntryKind.CREATE -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.CREATE)
+            UnitOfWorkEntryKind.EXISTING -> when (next) {
+                UnitOfWorkEntryKind.EXISTING -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.EXISTING)
+                UnitOfWorkEntryKind.CREATE ->
+                    error("UoW intent conflict: EXISTING cannot become CREATE for the same instance")
+                UnitOfWorkEntryKind.REMOVE -> error("persist cannot register REMOVE intent")
             }
-            UnitOfWorkIntent.REMOVE ->
+            UnitOfWorkEntryKind.REMOVE ->
                 error("UoW intent conflict: REMOVE cannot become ${next.name} for the same instance")
         }
+        entries[key] = merged
+        return merged
     }
 
     fun remove(entity: Any) {
         val key = ObjectIdentityKey(entity)
         val current = entries[key]
-        when (current?.intent) {
-            null -> entries[key] = PendingChange(entity, UnitOfWorkIntent.REMOVE)
-            UnitOfWorkIntent.CREATE -> entries.remove(key)
-            UnitOfWorkIntent.UPDATE -> entries[key] = PendingChange(entity, UnitOfWorkIntent.REMOVE)
-            UnitOfWorkIntent.REMOVE -> Unit
+        when (current?.kind) {
+            null -> entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
+            UnitOfWorkEntryKind.CREATE -> entries.remove(key)
+            UnitOfWorkEntryKind.EXISTING -> entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
+            UnitOfWorkEntryKind.REMOVE -> Unit
         }
     }
 
-    fun drain(): List<PendingChange> {
+    fun drain(): List<UnitOfWorkEntry> {
         val changes = entries.values.toList()
         entries.clear()
         return changes
     }
 }
 
-private fun PersistIntent.toUnitOfWorkIntent(): UnitOfWorkIntent = when (this) {
-    PersistIntent.CREATE -> UnitOfWorkIntent.CREATE
-    PersistIntent.EXISTING -> UnitOfWorkIntent.UPDATE
+private fun PersistIntent.toUnitOfWorkEntryKind(): UnitOfWorkEntryKind = when (this) {
+    PersistIntent.CREATE -> UnitOfWorkEntryKind.CREATE
+    PersistIntent.EXISTING -> UnitOfWorkEntryKind.EXISTING
 }
 
 private data class SaveInput(
-    val changes: List<PendingChange>,
+    val entries: List<UnitOfWorkEntry>,
     val persistedEntities: Set<Any>,
     val removedEntities: Set<Any>,
     val processedEntities: Set<Any>,
@@ -98,7 +101,7 @@ private data class SaveInput(
 
 private data class FlushResult(
     val created: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
-    val updated: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
+    val existing: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
     val deleted: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
     val refreshList: MutableList<Any> = mutableListOf(),
     var needsFlush: Boolean = false,
@@ -148,7 +151,7 @@ open class JpaUnitOfWork(
             instance = unitOfWork
         }
 
-        private val pendingChangesThreadLocal = ThreadLocal.withInitial { PendingChangeSet() }
+        private val pendingEntriesThreadLocal = ThreadLocal.withInitial { PendingEntrySet() }
         private val processingEntitiesThreadLocal = ThreadLocal.withInitial { InsertionOrderedIdentitySet<Any>() }
         private val repositoryObservationBaselineThreadLocal =
             ThreadLocal.withInitial { JpaRepositoryObservationBaseline() }
@@ -157,7 +160,7 @@ open class JpaUnitOfWork(
 
         @JvmStatic
         fun reset() {
-            pendingChangesThreadLocal.remove()
+            pendingEntriesThreadLocal.remove()
             processingEntitiesThreadLocal.remove()
             repositoryObservationBaselineThreadLocal.remove()
         }
@@ -184,11 +187,11 @@ open class JpaUnitOfWork(
     }
 
     override fun persist(entity: Any, intent: PersistIntent) {
-        pendingChangesThreadLocal.get().persist(entity, intent)
+        pendingEntriesThreadLocal.get().persist(entity, intent)
     }
 
     override fun remove(entity: Any) {
-        pendingChangesThreadLocal.get().remove(entity)
+        pendingEntriesThreadLocal.get().remove(entity)
     }
 
     override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
@@ -227,24 +230,24 @@ open class JpaUnitOfWork(
 
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
-        val pendingChanges = pendingChangesThreadLocal.get().drain()
-        pendingChanges.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
+        val pendingEntries = pendingEntriesThreadLocal.get().drain()
+        pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
 
-        val persistEntitySet = pendingChanges
-            .filter { it.intent == UnitOfWorkIntent.CREATE || it.intent == UnitOfWorkIntent.UPDATE }
+        val persistEntitySet = pendingEntries
+            .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
             .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-        val deleteEntitySet = pendingChanges
-            .filter { it.intent == UnitOfWorkIntent.REMOVE }
+        val deleteEntitySet = pendingEntries
+            .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
             .mapTo(InsertionOrderedIdentitySet()) { it.entity }
 
         try {
-            prepareApplicationSideIds(pendingChanges)
-            validateSameIdentityConflicts(pendingChanges)
+            prepareApplicationSideIds(pendingEntries)
+            validateSameIdentityConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
             save(
                 SaveInput(
-                    changes = pendingChanges,
+                    entries = pendingEntries,
                     persistedEntities = persistEntitySet,
                     removedEntities = deleteEntitySet,
                     processedEntities = currentProcessedEntitySet,
@@ -254,18 +257,18 @@ open class JpaUnitOfWork(
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
 
-                input.changes.forEach { change ->
-                    when (change.intent) {
-                        UnitOfWorkIntent.CREATE -> applyCreate(change.entity, results)
-                        UnitOfWorkIntent.UPDATE -> applyUpdate(change.entity, results)
-                        UnitOfWorkIntent.REMOVE -> applyRemove(change.entity, results)
+                input.entries.forEach { entry ->
+                    when (entry.kind) {
+                        UnitOfWorkEntryKind.CREATE -> applyCreate(entry.entity, results)
+                        UnitOfWorkEntryKind.EXISTING -> applyExisting(entry.entity, results)
+                        UnitOfWorkEntryKind.REMOVE -> applyRemove(entry.entity, results)
                     }
                 }
 
                 if (results.needsFlush) {
                     entityManager.flush()
                     results.refreshList.forEach { entityManager.refresh(it) }
-                    onEntitiesFlushed(results.created, results.updated, results.deleted)
+                    onEntitiesFlushed(results.created, emptySet(), results.deleted)
                 }
 
                 InsertionOrderedIdentitySet<Any>().apply {
@@ -287,25 +290,25 @@ open class JpaUnitOfWork(
         }
     }
 
-    private fun prepareApplicationSideIds(changes: List<PendingChange>) {
-        changes.forEach { change ->
-            when (change.intent) {
-                UnitOfWorkIntent.CREATE -> applicationSideIdSupport.assignMissingIds(change.entity)
-                UnitOfWorkIntent.UPDATE -> applicationSideIdSupport.assignMissingIdsToOwnedRelations(change.entity)
-                UnitOfWorkIntent.REMOVE -> Unit
+    private fun prepareApplicationSideIds(entries: List<UnitOfWorkEntry>) {
+        entries.forEach { entry ->
+            when (entry.kind) {
+                UnitOfWorkEntryKind.CREATE -> applicationSideIdSupport.assignMissingIds(entry.entity)
+                UnitOfWorkEntryKind.EXISTING -> applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
+                UnitOfWorkEntryKind.REMOVE -> Unit
             }
         }
     }
 
-    private fun validateSameIdentityConflicts(changes: List<PendingChange>) {
-        val identities = LinkedHashMap<EntityIdentity, PendingChange>()
-        changes.forEach { change ->
-            val identity = identityOf(change.entity) ?: return@forEach
-            val previous = identities.putIfAbsent(identity, change)
-            if (previous != null && previous.entity !== change.entity) {
+    private fun validateSameIdentityConflicts(entries: List<UnitOfWorkEntry>) {
+        val identities = LinkedHashMap<EntityIdentity, UnitOfWorkEntry>()
+        entries.forEach { entry ->
+            val identity = identityOf(entry.entity) ?: return@forEach
+            val previous = identities.putIfAbsent(identity, entry)
+            if (previous != null && previous.entity !== entry.entity) {
                 error(
                     "conflicting UnitOfWork registrations for ${identity.entityType.name} id ${identity.id}: " +
-                        "${previous.intent} and ${change.intent}"
+                        "${previous.kind} and ${entry.kind}"
                 )
             }
         }
@@ -341,12 +344,12 @@ open class JpaUnitOfWork(
         results.needsFlush = true
     }
 
-    private fun applyUpdate(entity: Any, results: FlushResult) {
-        validateUpdateRootIdentified(entity)
+    private fun applyExisting(entity: Any, results: FlushResult) {
+        validateExistingRootIdentified(entity)
         if (!entityManager.contains(entity)) {
             entityManager.merge(entity)
         }
-        results.updated.add(entity)
+        results.existing.add(entity)
         results.needsFlush = true
     }
 
@@ -370,17 +373,17 @@ open class JpaUnitOfWork(
         }
     }
 
-    private fun validateUpdateRootIdentified(entity: Any) {
+    private fun validateExistingRootIdentified(entity: Any) {
         applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
             check(!applicationSideIdSupport.isDefaultId(member, entity)) {
-                "Update-intent application-side ID is default: ${member.ownerType.name}.${member.field.name}"
+                "Existing-intent application-side ID is default: ${member.ownerType.name}.${member.field.name}"
             }
             return
         }
 
         val entityClass = persistentEntityClass(entity)
         check(!getEntityInformation(entityClass).isNew(entity)) {
-            "Update-intent entity appears new: ${entity.javaClass.name}"
+            "Existing-intent entity appears new: ${entity.javaClass.name}"
         }
     }
 

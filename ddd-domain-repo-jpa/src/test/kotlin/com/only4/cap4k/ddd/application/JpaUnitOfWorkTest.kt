@@ -148,8 +148,8 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("default persist should merge a detached existing entity and report UPDATE")
-    fun defaultPersistShouldMergeDetachedExistingEntityAndReportUpdate() {
+    @DisplayName("default persist enrolls an existing detached entity without reporting update")
+    fun defaultPersistShouldEnrollDetachedExistingEntity() {
         val entity = TestEntity(1L, "existing")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 1L
@@ -159,8 +159,8 @@ class JpaUnitOfWorkTest {
         jpaUnitOfWork.save()
 
         verify { entityManager.merge(entity) }
-        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
         verify(exactly = 0) { entityManager.persist(entity) }
+        verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
     }
 
     @Test
@@ -224,8 +224,8 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("managed update intent should report UPDATE without explicit merge")
-    fun managedUpdateIntentShouldReportUpdateWithoutExplicitMerge() {
+    @DisplayName("managed existing intent should not report update without dirty classification")
+    fun managedExistingIntentShouldNotReportUpdateWithoutDirtyClassification() {
         val entity = TestEntity(1L, "managed")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 1L
@@ -236,7 +236,7 @@ class JpaUnitOfWorkTest {
 
         verify(exactly = 0) { entityManager.merge(entity) }
         verify(exactly = 0) { entityManager.persist(entity) }
-        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+        verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
     }
 
     @Test
@@ -255,8 +255,8 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("same instance CREATE then remove should cancel pending change")
-    fun sameInstanceCreateThenRemoveShouldCancelPendingChange() {
+    @DisplayName("same instance CREATE then remove should cancel pending entry")
+    fun sameInstanceCreateThenRemoveShouldCancelPendingEntry() {
         val entity = TestEntity(null, "cancelled")
 
         jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
@@ -271,8 +271,8 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("same instance UPDATE then CREATE should fail fast")
-    fun sameInstanceUpdateThenCreateShouldFailFast() {
+    @DisplayName("same instance EXISTING then CREATE should fail fast")
+    fun sameInstanceExistingThenCreateShouldFailFast() {
         val entity = TestEntity(1L, "existing")
 
         jpaUnitOfWork.persist(entity)
@@ -281,12 +281,12 @@ class JpaUnitOfWorkTest {
             jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
         }
 
-        assertTrue(error.message!!.contains("UPDATE cannot become CREATE"))
+        assertEquals("UoW intent conflict: EXISTING cannot become CREATE for the same instance", error.message)
     }
 
     @Test
-    @DisplayName("same instance REMOVE then UPDATE should fail fast")
-    fun sameInstanceRemoveThenUpdateShouldFailFast() {
+    @DisplayName("same instance REMOVE then EXISTING should fail fast")
+    fun sameInstanceRemoveThenExistingShouldFailFast() {
         val entity = TestEntity(1L, "removed")
 
         jpaUnitOfWork.remove(entity)
@@ -295,7 +295,7 @@ class JpaUnitOfWorkTest {
             jpaUnitOfWork.persist(entity)
         }
 
-        assertTrue(error.message!!.contains("REMOVE cannot become UPDATE"))
+        assertTrue(error.message!!.contains("REMOVE cannot become EXISTING"))
     }
 
     @Test
@@ -578,8 +578,8 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("update intent with application-side id should merge without querying existence")
-    fun updateIntentWithApplicationSideIdShouldMergeWithoutQueryingExistence() {
+    @DisplayName("existing intent with application-side id should merge without querying existence or reporting update")
+    fun existingIntentWithApplicationSideIdShouldMergeWithoutQueryingExistenceOrReportingUpdate() {
         val entity = ApplicationSideLongEntity(id = 100L, name = "existing")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 100L
@@ -588,7 +588,7 @@ class JpaUnitOfWorkTest {
         jpaUnitOfWork.save()
 
         verify { entityManager.merge(entity) }
-        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+        verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
         verify(exactly = 0) { entityManager.find(ApplicationSideLongEntity::class.java, any()) }
         verify(exactly = 0) { entityManager.persist(entity) }
     }
