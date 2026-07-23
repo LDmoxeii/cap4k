@@ -9,7 +9,7 @@
 - Added `JpaGeneratedOwnedRelationTraversal` to traverse generated owned `@OneToMany + @JoinColumn` relations with `PERSIST`/`MERGE` cascade and `orphanRemoval=true`.
 - Added `JpaRepositoryObservationBaseline` and identity-based `ObjectIdentityKey` support for observed root/object/identity tracking.
 - Moved `ObjectIdentityKey` out of `JpaUnitOfWork.kt` so observation baseline can reuse reference identity semantics.
-- Made `JpaUnitOfWork` implement `JpaRepositoryObservationRecorder` and record observed roots plus initialized generated owned children.
+- Made `JpaUnitOfWork` implement `JpaRepositoryObservationRecorder` and record observed roots plus initialized generated owned children in thread-local UoW state.
 - Updated `DefaultRepositorySupervisor` so repository read results are observed before optional `PersistIntent.EXISTING` enrollment.
 - Kept save classification unchanged in this task.
 - Added tests for repository observation on `persist=false`, `persist=true`, load-plan-aware reads, and UoW owned-child observation baseline capture.
@@ -57,3 +57,7 @@ Results:
 ## Self-Review
 
 This task records observation baselines only. It does not consume the baseline during save, does not change `EXISTING` save classification, and does not add dirty-only update listener classification; those remain Task 6-8 work.
+
+## Review Fix
+
+Local review found that repository observation baseline state is UoW runtime state and should not be a plain mutable singleton-bean field. The baseline is now stored in a ThreadLocal, cleared by `JpaUnitOfWork.reset()`, and removed in `save(...)` finally.

@@ -126,12 +126,6 @@ class JpaUnitOfWorkTest {
         return threadLocal.get().size
     }
 
-    private fun observationBaseline(): JpaRepositoryObservationBaseline {
-        val field = JpaUnitOfWork::class.java.getDeclaredField("repositoryObservationBaseline")
-        field.isAccessible = true
-        return field.get(jpaUnitOfWork) as JpaRepositoryObservationBaseline
-    }
-
     @Test
     @DisplayName("repository observation records root and generated owned children")
     fun repositoryObservationRecordsRootAndGeneratedOwnedChildren() {
@@ -144,7 +138,7 @@ class JpaUnitOfWorkTest {
 
         jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
 
-        val baseline = observationBaseline()
+        val baseline = jpaUnitOfWork.observedRepositoryBaseline()
         val entries = baseline.entriesFor(root)
         assertEquals(listOf(root, child), entries.map { it.entity })
         assertTrue(baseline.isObservedObject(root))

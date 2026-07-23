@@ -138,7 +138,8 @@ open class JpaUnitOfWork(
 
     private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
-    private val repositoryObservationBaseline = JpaRepositoryObservationBaseline()
+    private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
+        get() = repositoryObservationBaselineThreadLocal.get()
 
     companion object {
         lateinit var instance: JpaUnitOfWork
@@ -149,6 +150,8 @@ open class JpaUnitOfWork(
 
         private val pendingChangesThreadLocal = ThreadLocal.withInitial { PendingChangeSet() }
         private val processingEntitiesThreadLocal = ThreadLocal.withInitial { InsertionOrderedIdentitySet<Any>() }
+        private val repositoryObservationBaselineThreadLocal =
+            ThreadLocal.withInitial { JpaRepositoryObservationBaseline() }
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
@@ -156,6 +159,7 @@ open class JpaUnitOfWork(
         fun reset() {
             pendingChangesThreadLocal.remove()
             processingEntitiesThreadLocal.remove()
+            repositoryObservationBaselineThreadLocal.remove()
         }
     }
 
@@ -192,6 +196,9 @@ open class JpaUnitOfWork(
             .map { entity -> JpaObservedEntity(entity, observedIdentityOf(entity)) }
         repositoryObservationBaseline.record(root, observed)
     }
+
+    internal fun observedRepositoryBaseline(): JpaRepositoryObservationBaseline =
+        repositoryObservationBaseline
 
     private fun observedIdentityOf(entity: Any): JpaObservedIdentity? {
         val entityClass = persistentEntityClass(entity)
@@ -275,6 +282,7 @@ open class JpaUnitOfWork(
 
             uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
         } finally {
+            repositoryObservationBaselineThreadLocal.remove()
             popProcessingEntities(currentProcessedEntitySet)
         }
     }
