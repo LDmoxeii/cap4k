@@ -7,11 +7,15 @@ import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
 import com.only4.cap4k.ddd.core.domain.id.IdStrategy
 import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import io.mockk.*
 import jakarta.persistence.CascadeType
+import jakarta.persistence.Column
+import jakarta.persistence.Embeddable
+import jakarta.persistence.EmbeddedId
 import jakarta.persistence.EntityManager
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
@@ -19,6 +23,7 @@ import jakarta.persistence.OneToMany
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.transaction.annotation.Propagation
+import java.io.Serializable
 
 @DisplayName("JpaUnitOfWork 测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -177,6 +182,33 @@ class JpaUnitOfWorkTest {
         verify { entityManager.refresh(entity) }
         verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
         verify(exactly = 0) { entityManager.merge(entity) }
+    }
+
+    @Test
+    @DisplayName("CREATE persist assigns generated strong root id before save")
+    fun createPersistShouldAssignGeneratedStrongRootIdBeforeSave() {
+        val entity = StrongRootEntity()
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", entity.id.value)
+    }
+
+    @Test
+    @DisplayName("EXISTING persist fills new owned child strong id without replacing root id")
+    fun existingPersistShouldFillNewOwnedChildStrongIdWithoutReplacingRootId() {
+        val root = StrongRootEntity()
+        root.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000099")
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+        val child = StrongChildEntity()
+        root.children += child
+        jpaUnitOfWork.persist(root)
+
+        assertEquals("018f0000-0000-7000-8000-000000000099", root.id.value)
+        assertEquals("018f0000-0000-7000-8000-000000000001", child.id.value)
     }
 
     @Test
@@ -688,5 +720,36 @@ class JpaUnitOfWorkTest {
         @field:Id
         var id: Long? = null,
     )
+
+    @Embeddable
+    class TestStrongEntityId protected constructor() : StrongId, Serializable {
+        @Column(name = "value", nullable = false, updatable = false, length = 36)
+        override lateinit var value: String
+            protected set
+
+        constructor(value: String) : this() {
+            this.value = value
+        }
+
+        companion object {
+            fun new(): TestStrongEntityId = TestStrongEntityId("018f0000-0000-7000-8000-000000000001")
+        }
+    }
+
+    @jakarta.persistence.Entity
+    class StrongRootEntity {
+        @EmbeddedId
+        lateinit var id: TestStrongEntityId
+
+        @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE], orphanRemoval = true)
+        @JoinColumn(name = "root_id", nullable = false)
+        val children: MutableList<StrongChildEntity> = mutableListOf()
+    }
+
+    @jakarta.persistence.Entity
+    class StrongChildEntity {
+        @EmbeddedId
+        lateinit var id: TestStrongEntityId
+    }
 
 }

@@ -33,6 +33,15 @@ class JpaApplicationSideIdSupportTest {
     }
 
     @Test
+    fun `application side compatibility support does not require strong id companion`() {
+        val root = RootEntity()
+
+        support.assignMissingIds(root)
+
+        assertEquals(UUID(1L, 2L), root.id)
+    }
+
+    @Test
     fun `keeps preassigned root id`() {
         val assigned = UUID(9L, 9L)
         val root = RootEntity(id = assigned)

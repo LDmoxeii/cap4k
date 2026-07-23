@@ -140,6 +140,7 @@ open class JpaUnitOfWork(
     lateinit var entityManager: EntityManager
 
     private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
+    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport()
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
     private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
         get() = repositoryObservationBaselineThreadLocal.get()
@@ -187,7 +188,8 @@ open class JpaUnitOfWork(
     }
 
     override fun persist(entity: Any, intent: PersistIntent) {
-        pendingEntriesThreadLocal.get().persist(entity, intent)
+        val entry = pendingEntriesThreadLocal.get().persist(entity, intent)
+        completeIdsForEntry(entry)
     }
 
     override fun remove(entity: Any) {
@@ -291,12 +293,24 @@ open class JpaUnitOfWork(
     }
 
     private fun prepareApplicationSideIds(entries: List<UnitOfWorkEntry>) {
-        entries.forEach { entry ->
-            when (entry.kind) {
-                UnitOfWorkEntryKind.CREATE -> applicationSideIdSupport.assignMissingIds(entry.entity)
-                UnitOfWorkEntryKind.EXISTING -> applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
-                UnitOfWorkEntryKind.REMOVE -> Unit
+        entries.forEach(::completeIdsForEntry)
+    }
+
+    private fun completeIdsForEntry(entry: UnitOfWorkEntry) {
+        when (entry.kind) {
+            UnitOfWorkEntryKind.CREATE -> {
+                applicationSideIdSupport.assignMissingIds(entry.entity)
+                generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
             }
+            UnitOfWorkEntryKind.EXISTING -> {
+                applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
+                generatedStrongIdSupport.completeExisting(
+                    root = entry.entity,
+                    traversal = ownedRelationTraversal,
+                    baseline = repositoryObservationBaseline,
+                )
+            }
+            UnitOfWorkEntryKind.REMOVE -> Unit
         }
     }
 
