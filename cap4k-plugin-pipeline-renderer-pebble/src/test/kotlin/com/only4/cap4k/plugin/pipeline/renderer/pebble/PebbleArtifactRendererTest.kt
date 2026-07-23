@@ -1576,7 +1576,6 @@ class PebbleArtifactRendererTest {
                 "aggregateName" to "Content",
                 "idType" to "ContentId",
                 "idTypeFqn" to "com.acme.demo.domain.aggregates.content.ContentId",
-                "supportQuerydsl" to false,
                 "imports" to emptyList<String>(),
             ),
         )
@@ -1591,6 +1590,9 @@ class PebbleArtifactRendererTest {
         )
         assertTrue(content.contains("jpaRepository: JpaRepository<Content, ContentId>"))
         assertTrue(content.contains("AbstractJpaRepository<Content, ContentId>"))
+        assertFalse(content.contains("QuerydslPredicateExecutor"))
+        assertFalse(content.contains("AbstractQuerydslRepository"))
+        assertFalse(content.contains("QuerydslRepositoryAdapter"))
     }
 
     @Test
@@ -1657,7 +1659,6 @@ class PebbleArtifactRendererTest {
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "aggregateName" to "UserMessage",
                         "idType" to "Long",
-                        "supportQuerydsl" to false,
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -1714,6 +1715,9 @@ class PebbleArtifactRendererTest {
         )
         assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
         assertTrue(repositoryContent.contains("AbstractJpaRepository<UserMessage, Long>"))
+        assertFalse(repositoryContent.contains("QuerydslPredicateExecutor"))
+        assertFalse(repositoryContent.contains("AbstractQuerydslRepository"))
+        assertFalse(repositoryContent.contains("QuerydslRepositoryAdapter"))
         assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.SchemaSpecification"))
         assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.Field"))
         assertTrue(schemaContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessage"))
@@ -3039,7 +3043,6 @@ class PebbleArtifactRendererTest {
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "aggregateName" to "Order",
                         "idType" to "Long",
-                        "supportQuerydsl" to false,
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),

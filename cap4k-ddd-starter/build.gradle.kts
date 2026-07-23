@@ -10,7 +10,6 @@ dependencies {
     api(project(":ddd-distributed-snowflake"))
     api(project(":ddd-distributed-locker-jdbc"))
     api(project(":ddd-domain-repo-jpa"))
-    api(project(":ddd-domain-repo-jpa-querydsl"))
 
     implementation(project(":ddd-application-request-jpa"))
     implementation(project(":ddd-distributed-saga-jpa"))
@@ -55,7 +54,6 @@ dependencies {
     testImplementation(project(":ddd-distributed-snowflake"))
     testImplementation(project(":ddd-distributed-locker-jdbc"))
     testImplementation(project(":ddd-domain-repo-jpa"))
-    testImplementation(project(":ddd-domain-repo-jpa-querydsl"))
 
     testImplementation(project(":ddd-application-request-jpa"))
     testImplementation(project(":ddd-distributed-saga-jpa"))
