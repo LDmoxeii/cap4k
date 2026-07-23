@@ -43,6 +43,7 @@ class JpaUnitOfWorkTest {
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
         idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
+        private val dirtyExistingEntities: Set<Any> = emptySet(),
     ) : JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
@@ -53,6 +54,9 @@ class JpaUnitOfWorkTest {
         fun setTestEntityManager(em: EntityManager) {
             this.entityManager = em
         }
+
+        override fun dirtyExistingEntities(existingEntities: Set<Any>): Set<Any> =
+            existingEntities.filterTo(LinkedHashSet()) { it in dirtyExistingEntities }
     }
 
     @BeforeEach
@@ -269,6 +273,43 @@ class JpaUnitOfWorkTest {
         verify(exactly = 0) { entityManager.merge(entity) }
         verify(exactly = 0) { entityManager.persist(entity) }
         verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+    }
+
+    @Test
+    @DisplayName("clean existing entity does not emit update listener")
+    fun cleanExistingEntityShouldNotEmitUpdateListener() {
+        val entity = TestEntity(1L, "clean")
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 1L
+        every { entityManager.contains(entity) } returns true
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+    }
+
+    @Test
+    @DisplayName("dirty existing entity emits update listener")
+    fun dirtyExistingEntityShouldEmitUpdateListener() {
+        val entity = TestEntity(1L, "dirty")
+        jpaUnitOfWork = TestableJpaUnitOfWork(
+            uowInterceptors = uowInterceptors,
+            persistListenerManager = persistListenerManager,
+            supportEntityInlinePersistListener = true,
+            idStrategyRegistry = MapBackedIdStrategyRegistry(listOf(FixedLongStrategy())),
+            dirtyExistingEntities = setOf(entity),
+        )
+        jpaUnitOfWork.setTestEntityManager(entityManager)
+        JpaUnitOfWork.fixAopWrapper(jpaUnitOfWork)
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 1L
+        every { entityManager.contains(entity) } returns true
+
+        jpaUnitOfWork.persist(entity)
+        jpaUnitOfWork.save()
+
+        verify { persistListenerManager.onChange(entity, PersistType.UPDATE) }
     }
 
     @Test

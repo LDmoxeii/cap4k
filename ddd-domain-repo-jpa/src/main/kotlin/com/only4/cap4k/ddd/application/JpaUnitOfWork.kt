@@ -187,6 +187,9 @@ open class JpaUnitOfWork(
         deletedEntities.forEach { persistListenerManager.onChange(it, PersistType.DELETE) }
     }
 
+    protected open fun dirtyExistingEntities(existingEntities: Set<Any>): Set<Any> =
+        JpaHibernateDirtyInspector(entityManager).dirtyManagedEntities(existingEntities)
+
     override fun persist(entity: Any, intent: PersistIntent) {
         val entry = pendingEntriesThreadLocal.get().persist(entity, intent)
         completeIdsForEntry(entry)
@@ -268,9 +271,10 @@ open class JpaUnitOfWork(
                 }
 
                 if (results.needsFlush) {
+                    val dirtyExisting = dirtyExistingEntities(results.existing)
                     entityManager.flush()
                     results.refreshList.forEach { entityManager.refresh(it) }
-                    onEntitiesFlushed(results.created, emptySet(), results.deleted)
+                    onEntitiesFlushed(results.created, dirtyExisting, results.deleted)
                 }
 
                 InsertionOrderedIdentitySet<Any>().apply {
