@@ -5,7 +5,8 @@ import com.only4.cap4k.ddd.core.MediatorSupport
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.impl.DefaultMediator
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.beans.factory.InitializingBean
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.ApplicationContext
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -20,14 +21,18 @@ import org.springframework.context.annotation.Configuration
 class MediatorAutoConfiguration {
 
     @Bean
-    fun mediatorSupportInitializer(
-        mediator: Mediator,
+    fun mediatorSupportBeanPostProcessor(
         applicationContext: ApplicationContext,
-        identifierGenerator: IdentifierGenerator,
-    ): InitializingBean = InitializingBean {
-        MediatorSupport.configure(mediator)
-        MediatorSupport.configure(applicationContext)
-        MediatorSupport.configure(identifierGenerator)
+        identifierGeneratorProvider: ObjectProvider<IdentifierGenerator>,
+    ): BeanPostProcessor = object : BeanPostProcessor {
+        override fun postProcessAfterInitialization(bean: Any, beanName: String): Any {
+            if (bean is Mediator) {
+                MediatorSupport.configure(bean)
+                MediatorSupport.configure(applicationContext)
+                MediatorSupport.configure(identifierGeneratorProvider.getObject())
+            }
+            return bean
+        }
     }
 
     @Bean

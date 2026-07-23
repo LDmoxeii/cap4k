@@ -23,3 +23,17 @@
 - `./gradlew.bat :ddd-core:test --tests "com.only4.cap4k.ddd.core.impl.MediatorJavaInteropTest"`
 - `./gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.AutoConfigurationContextTest"`
 - `git diff --check`
+
+## Final Re-review: Mediator Support Binding Order
+
+- Replaced the ordinary `InitializingBean` initializer with a focused `BeanPostProcessor` in `MediatorAutoConfiguration`.
+- The post-processor configures the `Mediator`, `ApplicationContext`, and lazily resolved `IdentifierGenerator` immediately after every `Mediator` bean is initialized, before dependent beans receive it.
+- `defaultMediator(identifierGenerator)` remains conditional and continues to construct `DefaultMediator(identifierGenerator)`.
+- Added an `ApplicationContextRunner` regression test whose dependent bean reads `mediator.identifiers` during its own creation.
+- Red: the test failed against the `InitializingBean` implementation with `UninitializedPropertyAccessException`.
+- Green: the focused auto-configuration test passed after the `BeanPostProcessor` implementation.
+
+### Final Verification
+
+- `./gradlew.bat :ddd-core:test --tests "com.only4.cap4k.ddd.core.impl.DefaultMediatorTest" --tests "com.only4.cap4k.ddd.core.impl.MediatorJavaInteropTest"` passed.
+- `./gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.AutoConfigurationContextTest"` passed.

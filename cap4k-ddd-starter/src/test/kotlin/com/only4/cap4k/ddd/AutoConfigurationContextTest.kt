@@ -97,6 +97,24 @@ class AutoConfigurationContextTest {
             }
     }
 
+    @Test
+    fun `custom mediator configures identifiers before dependent bean initialization`() {
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(
+                IdPolicyAutoConfiguration::class.java,
+                MediatorAutoConfiguration::class.java,
+            ))
+            .withUserConfiguration(
+                CustomMediatorWithConsumerConfiguration::class.java,
+            )
+            .run { context ->
+                val identifierGenerator = context.getBean(IdentifierGenerator::class.java)
+                val consumer = context.getBean(MediatorIdentifierConsumer::class.java)
+
+                assertTrue(consumer.identifierGenerator === identifierGenerator)
+            }
+    }
+
     private fun entityManagerFactoryProxy(): EntityManagerFactory {
         val handler = InvocationHandler { proxy, method, args ->
             when (method.name) {
@@ -240,6 +258,20 @@ class AutoConfigurationContextTest {
 
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }
+
+    @Configuration(proxyBeanMethods = false)
+    private class CustomMediatorWithConsumerConfiguration {
+        @Bean
+        fun customMediator(): Mediator = CustomMediator()
+
+        @Bean
+        fun mediatorIdentifierConsumer(mediator: Mediator): MediatorIdentifierConsumer =
+            MediatorIdentifierConsumer(mediator.identifiers)
+    }
+
+    private class MediatorIdentifierConsumer(
+        val identifierGenerator: IdentifierGenerator,
+    )
 
     @Test
     @Disabled
