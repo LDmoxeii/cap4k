@@ -1,9 +1,9 @@
 package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
-import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
-import com.only4.cap4k.ddd.core.domain.id.IdStrategy
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
 import jakarta.persistence.CascadeType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.ManyToOne
@@ -13,10 +13,10 @@ import org.hibernate.Hibernate
 import java.lang.reflect.Field
 import java.util.Collections
 import java.util.IdentityHashMap
-import kotlin.jvm.javaObjectType
+import kotlin.reflect.KClass
 
 internal class JpaApplicationSideIdSupport(
-    private val idStrategyRegistry: IdStrategyRegistry
+    private val idStrategyRegistry: IdentifierStrategyRegistry
 ) {
 
     // Compatibility path for manually annotated entities; generated Strong IDs are assigned before save.
@@ -52,8 +52,8 @@ internal class JpaApplicationSideIdSupport(
 
     fun isDefaultId(member: ApplicationSideIdMember, entity: Any): Boolean {
         val strategy = idStrategyRegistry.get(member.annotation.strategy)
-        requireApplicationSide(strategy)
-        return strategy.isDefaultValue(member.get(entity))
+        requireEntityIdPreassignment(strategy)
+        return strategy.isDefaultValue(member.get(entity), member.field.type.kotlin)
     }
 
     private fun assignMissingIds(entity: Any, visited: MutableSet<Any>) {
@@ -61,14 +61,14 @@ internal class JpaApplicationSideIdSupport(
 
         findApplicationSideId(entity)?.let { member ->
             val strategy = idStrategyRegistry.get(member.annotation.strategy)
-            requireApplicationSide(strategy)
-            if (strategy.isDefaultValue(member.get(entity))) {
+            requireEntityIdPreassignment(strategy)
+            if (strategy.isDefaultValue(member.get(entity), member.field.type.kotlin)) {
                 validateOutputType(strategy, member)
-                val generated = nextValue(strategy)
+                val generated = nextValue(strategy, member)
                 check(generated != null) {
                     "ID strategy ${strategy.name} generated null for application-side ID"
                 }
-                check(!strategy.isDefaultValue(generated)) {
+                check(!strategy.isDefaultValue(generated, member.field.type.kotlin)) {
                     "ID strategy ${strategy.name} generated a default application-side ID value"
                 }
                 member.set(entity, generated)
@@ -107,23 +107,25 @@ internal class JpaApplicationSideIdSupport(
         }
     }
 
-    private fun requireApplicationSide(strategy: IdStrategy) {
-        require(strategy.kind == IdGenerationKind.APPLICATION_SIDE) {
-            "ID strategy ${strategy.name} is not application-side"
+    private fun requireEntityIdPreassignment(strategy: IdentifierStrategy) {
+        require(IdentifierCapability.ENTITY_ID_PREASSIGNMENT in strategy.capabilities) {
+            "identifier strategy ${strategy.name} does not support entity ID preassignment"
         }
     }
 
-    private fun validateOutputType(strategy: IdStrategy, member: ApplicationSideIdMember) {
-        val outputType = strategy.outputType.javaObjectType
-        val fieldType = member.field.type.kotlin.javaObjectType
-        require(fieldType.isAssignableFrom(outputType)) {
-            "ID strategy ${strategy.name} output type ${outputType.name} cannot be assigned to field " +
-                "${member.field.declaringClass.name}.${member.field.name} of type ${member.field.type.name}"
+    private fun validateOutputType(strategy: IdentifierStrategy, member: ApplicationSideIdMember) {
+        val fieldType = member.field.type.kotlin
+        require(strategy.supports(fieldType)) {
+            "identifier strategy ${strategy.name} does not support output type ${member.field.type.name} for field " +
+                "${member.field.declaringClass.name}.${member.field.name}"
         }
     }
 
-    private fun nextValue(strategy: IdStrategy): Any? =
-        IdStrategy::class.java.getMethod("next").invoke(strategy)
+    @Suppress("UNCHECKED_CAST")
+    private fun nextValue(strategy: IdentifierStrategy, member: ApplicationSideIdMember): Any? {
+        val fieldType = member.field.type.kotlin as KClass<Any>
+        return strategy.next(fieldType)
+    }
 
     private fun getter(type: Class<*>, fieldName: String) =
         type.methods.firstOrNull {

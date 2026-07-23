@@ -11,6 +11,7 @@ import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
 import com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator
+import com.only4.cap4k.ddd.domain.id.SnowflakeIdentifierStrategy
 import com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository
 import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import jakarta.persistence.CascadeType
@@ -706,6 +707,12 @@ class AggregateJpaRuntimeDefectReproductionTest {
         fun snowflakeIdGenerator(): SnowflakeIdGenerator =
             SnowflakeIdGenerator(workerId = 1L, datacenterId = 1L)
                 .also(SnowflakeIdentifierGenerator::configure)
+
+        @Bean
+        fun snowflakeIdentifierStrategy(
+            snowflakeIdGenerator: SnowflakeIdGenerator
+        ): SnowflakeIdentifierStrategy =
+            SnowflakeIdentifierStrategy(snowflakeIdGenerator)
     }
 }
 
@@ -931,7 +938,7 @@ interface RuntimeRootJpaRepository :
 @Table(name = "`runtime_application_side_long_root`")
 open class RuntimeApplicationSideLongRoot(id: Long = 0L, name: String = "") {
     @Id
-    @ApplicationSideId(strategy = "snowflake-long")
+    @ApplicationSideId(strategy = "snowflake")
     @Column(name = "`id`", nullable = false, updatable = false)
     open var id: Long = id
         protected set

@@ -991,7 +991,7 @@ class AggregateArtifactPlannerTest {
             repository.context["entityTypeFqn"],
         )
         assertEquals("Long", repository.context["idType"])
-        assertEquals(false, repository.context["supportQuerydsl"])
+        assertFalse(repository.context.containsKey("supportQuerydsl"))
     }
 
     @Test
@@ -3182,7 +3182,7 @@ class AggregateArtifactPlannerTest {
         val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", repositoryContext["entityTypeFqn"])
         assertEquals("VideoPost", repositoryContext["aggregateName"])
-        assertEquals(false, repositoryContext["supportQuerydsl"])
+        assertFalse(repositoryContext.containsKey("supportQuerydsl"))
         assertEquals(false, repositoryContext.containsKey("qEntityTypeFqn"))
         assertEquals(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
@@ -4653,7 +4653,7 @@ class AggregateArtifactPlannerTest {
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
         assertEquals(false, entityContext.containsKey("entityTypeFqn"))
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", repositoryContext["entityTypeFqn"])
-        assertEquals(false, repositoryContext["supportQuerydsl"])
+        assertFalse(repositoryContext.containsKey("supportQuerydsl"))
     }
 
     @Test
