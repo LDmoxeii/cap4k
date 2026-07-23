@@ -1,12 +1,13 @@
 package com.only4.cap4k.ddd.core.domain.aggregate
 
+import java.util.Collections
 import kotlin.reflect.KClass
 
 class OwnedEntityList<E : Any> internal constructor(
     private val delegate: MutableList<E>,
     private val entityType: KClass<E>,
     private val path: String,
-) : List<E> by delegate {
+) : List<E> by Collections.unmodifiableList(delegate) {
 
     fun add(entity: E): Boolean = delegate.add(entity)
 

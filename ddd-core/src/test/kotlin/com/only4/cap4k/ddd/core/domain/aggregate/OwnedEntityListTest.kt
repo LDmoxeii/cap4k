@@ -48,6 +48,36 @@ class OwnedEntityListTest {
     }
 
     @Test
+    fun `iterator removal cannot mutate delegate`() {
+        val child = TestChild("a")
+        val delegate = mutableListOf(child)
+        val children = OwnedEntityList.of(delegate, TestChild::class, "Parent.children")
+        @Suppress("UNCHECKED_CAST")
+        val iterator = children.iterator() as MutableIterator<TestChild>
+
+        iterator.next()
+
+        assertThrows(UnsupportedOperationException::class.java) {
+            iterator.remove()
+        }
+        assertEquals(listOf(child), delegate)
+    }
+
+    @Test
+    fun `subList clearing cannot mutate delegate`() {
+        val child = TestChild("a")
+        val delegate = mutableListOf(child)
+        val children = OwnedEntityList.of(delegate, TestChild::class, "Parent.children")
+        @Suppress("UNCHECKED_CAST")
+        val subList = children.subList(0, 1) as MutableList<TestChild>
+
+        assertThrows(UnsupportedOperationException::class.java) {
+            subList.clear()
+        }
+        assertEquals(listOf(child), delegate)
+    }
+
+    @Test
     fun `singleOrNull returns null for empty delegate`() {
         val children = OwnedEntityList.of(mutableListOf<TestChild>(), TestChild::class, "Parent.child")
 
