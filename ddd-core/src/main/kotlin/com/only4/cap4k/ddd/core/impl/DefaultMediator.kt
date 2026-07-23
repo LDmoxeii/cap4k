@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.impl
 
 import com.only4.cap4k.ddd.core.Mediator
+import com.only4.cap4k.ddd.core.MediatorSupport
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
@@ -8,6 +9,7 @@ import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
@@ -24,7 +26,9 @@ import java.time.LocalDateTime
  * @author LD_moxeii
  * @date 2025/07/23
  */
-class DefaultMediator : Mediator {
+class DefaultMediator(
+    override val identifiers: IdentifierGenerator = MediatorSupport.identifiers
+) : Mediator {
 
     // AggregateFactorySupervisor methods
     override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =

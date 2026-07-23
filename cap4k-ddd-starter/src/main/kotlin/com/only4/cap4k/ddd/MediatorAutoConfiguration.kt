@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd
 
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.MediatorSupport
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.impl.DefaultMediator
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.ApplicationContext
@@ -19,9 +20,13 @@ class MediatorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(Mediator::class)
-    fun defaultMediator(applicationContext: ApplicationContext): DefaultMediator =
-        DefaultMediator().also {
+    fun defaultMediator(
+        applicationContext: ApplicationContext,
+        identifierGenerator: IdentifierGenerator,
+    ): DefaultMediator =
+        DefaultMediator(identifierGenerator).also {
             MediatorSupport.configure(it)
             MediatorSupport.configure(applicationContext)
+            MediatorSupport.configure(identifierGenerator)
         }
 }

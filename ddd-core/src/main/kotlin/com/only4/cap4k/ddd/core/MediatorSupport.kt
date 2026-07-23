@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core
 
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import org.springframework.context.ApplicationContext
 
 /**
@@ -11,6 +12,7 @@ import org.springframework.context.ApplicationContext
 object MediatorSupport {
     lateinit var instance: Mediator
     lateinit var ioc: ApplicationContext
+    lateinit var identifiers: IdentifierGenerator
 
     fun configure(mediator: Mediator) {
         instance = mediator
@@ -18,5 +20,9 @@ object MediatorSupport {
 
     fun configure(applicationContext: ApplicationContext) {
         ioc = applicationContext
+    }
+
+    fun configure(identifierGenerator: IdentifierGenerator) {
+        identifiers = identifierGenerator
     }
 }
