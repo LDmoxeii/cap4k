@@ -5,8 +5,8 @@ import com.only4.cap4k.ddd.application.event.IntegrationEventAutoConfiguration
 import com.only4.cap4k.ddd.application.request.RequestAutoConfiguration
 import com.only4.cap4k.ddd.application.saga.SagaAutoConfiguration
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
-import com.only4.cap4k.ddd.core.domain.id.IdAllocator
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeAutoConfiguration
@@ -55,8 +55,8 @@ class AutoConfigurationContextTest {
     @Test
     fun `context should contain id policy beans for jpa unit of work`() {
         contextRunner.run { context ->
-            assertNotNull(context.getBean(IdStrategyRegistry::class.java))
-            assertNotNull(context.getBean(IdAllocator::class.java))
+            assertNotNull(context.getBean(IdentifierStrategyRegistry::class.java))
+            assertNotNull(context.getBean(IdentifierGenerator::class.java))
             assertNotNull(context.getBean(JpaUnitOfWork::class.java))
         }
     }
