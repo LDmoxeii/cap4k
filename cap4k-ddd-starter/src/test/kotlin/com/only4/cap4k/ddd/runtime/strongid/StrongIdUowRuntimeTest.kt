@@ -7,6 +7,7 @@ import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
+import org.hibernate.Hibernate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -83,6 +84,26 @@ class StrongIdUowRuntimeTest {
     }
 
     @Test
+    fun `existing enrollment accepts uninitialized strong id proxy`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.new(),
+                title = "proxy-root",
+                authorId = StrongAuthorId.new(),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        val reference = repository.getReferenceById(content.id)
+        assertFalse(Hibernate.isInitialized(reference))
+
+        unitOfWork.persist(reference)
+        unitOfWork.save()
+
+        assertTrue(repository.findById(content.id).isPresent)
+    }
+
+    @Test
     fun `clean existing enrollment does not emit update listener`() {
         val content = repository.saveAndFlush(
             StrongContent(
@@ -153,6 +174,34 @@ class StrongIdUowRuntimeTest {
         assertTrue(
             persistListenerManager.changes.any { (entity, type) ->
                 entity === loaded && type == PersistType.UPDATE
+            }
+        )
+    }
+
+    @Test
+    fun `dirty managed proxy emits update listener for initialized implementation`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.new(),
+                title = "proxy-original-title",
+                authorId = StrongAuthorId.new(),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        val reference = repository.getReferenceById(content.id)
+        val implementation = Hibernate.unproxy(reference) as StrongContent
+        StrongContent::class.java.getDeclaredField("title").apply {
+            isAccessible = true
+            set(implementation, "proxy-changed-title")
+        }
+
+        unitOfWork.persist(reference)
+        unitOfWork.save()
+
+        assertTrue(
+            persistListenerManager.changes.any { (entity, type) ->
+                entity === implementation && type == PersistType.UPDATE
             }
         )
     }

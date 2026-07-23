@@ -134,3 +134,95 @@ dirty detached existing enrollment emits update listener for managed merge resul
 
 - Focused Gradle commands still print pre-existing Kotlin/deprecation warnings in unrelated modules and fixtures. No new warning was introduced by Task 11.
 - The first RED JPA command hit the external command timeout after the tests completed; the final GREEN command completed normally with exit code 0.
+
+## Review Fix Loop
+
+### Changes Requested
+
+The Task 11 review identified three remaining Hibernate runtime gaps:
+
+1. An uninitialized Strong ID Hibernate proxy exposed its identifier through the proxy lazy initializer while its inherited `@EmbeddedId` field remained null, causing a false missing-root-ID failure.
+2. A managed proxy's Hibernate `EntityEntry` belonged to the initialized implementation object, so dirty inspection of the proxy object missed an UPDATE.
+3. The last observed-identity validation occurred before transaction interceptors, allowing an interceptor to change an observed ID before merge/flush.
+
+### Fix-Loop RED Evidence
+
+JPA interceptor-order regression command:
+
+```powershell
+.\gradlew.bat :ddd-domain-repo-jpa:test --tests "com.only4.cap4k.ddd.application.JpaUnitOfWorkTest" --rerun-tasks --console=plain
+```
+
+RED output before production fixes:
+
+```text
+39 tests completed, 1 failed
+EXISTING revalidates observed identity after beforeTransaction interceptors FAILED
+Expected IllegalStateException to be thrown, but nothing was thrown
+BUILD FAILED in 9s
+```
+
+Hibernate proxy regression command:
+
+```powershell
+.\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.runtime.strongid.StrongIdUowRuntimeTest" --rerun-tasks --console=plain
+```
+
+Initial RED output before production fixes:
+
+```text
+8 tests completed, 2 failed
+existing enrollment accepts uninitialized strong id proxy FAILED
+dirty managed proxy emits update listener for initialized implementation FAILED
+java.lang.IllegalStateException: Existing-intent root ...StrongContent.id has missing Strong ID
+BUILD FAILED in 31s
+```
+
+After only the proxy identifier fix, the command was rerun to isolate dirty inspection:
+
+```text
+8 tests completed, 1 failed
+existing enrollment accepts uninitialized strong id proxy PASSED
+dirty managed proxy emits update listener for initialized implementation FAILED
+BUILD FAILED in 17s
+```
+
+This intermediate RED proved that proxy identifier resolution and proxy dirty normalization were independent defects.
+
+### Fix-Loop Implementation
+
+- `JpaGeneratedStrongIdSupport` now resolves a Strong ID from `HibernateProxy.hibernateLazyInitializer.identifier` before falling back to direct field access. Root and observed-entity validation share this resolution path.
+- `JpaHibernateDirtyInspector` normalizes each proxy candidate to its initialized Hibernate implementation before looking up the persistence-context entry and running `findDirty`.
+- `JpaUnitOfWork.applyExisting` revalidates the complete observed reachable graph immediately before root validation and merge, after `beforeTransaction` and `preInTransaction` interceptors have run.
+
+### Fix-Loop GREEN Evidence
+
+Final JPA command output:
+
+```text
+39 tests completed, 0 failed
+BUILD SUCCESSFUL in 8s
+```
+
+Final Hibernate runtime command output:
+
+```text
+8 tests completed, 0 failed
+BUILD SUCCESSFUL in 22s
+```
+
+New passing regression tests:
+
+```text
+EXISTING revalidates observed identity after beforeTransaction interceptors
+existing enrollment accepts uninitialized strong id proxy
+dirty managed proxy emits update listener for initialized implementation
+```
+
+### Fix-Loop Self-Review
+
+- Proxy identifier validation does not require initializing an uninitialized reference.
+- Dirty inspection returns the managed implementation to listeners, matching the Hibernate persistence-context entry that was actually inspected.
+- The pre-merge validation executes after both interceptor phases and before any `EntityManager.merge` or flush call.
+- Existing managed, detached, clean, dirty, missing-root, owned-child, and baseline identity tests remain green.
+- No generator, planning documentation, CI, or PR body file was edited. The only non-code update is this required Task 11 report.

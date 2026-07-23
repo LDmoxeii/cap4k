@@ -262,6 +262,28 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("EXISTING revalidates observed identity after beforeTransaction interceptors")
+    fun existingShouldRejectObservedIdentityChangedByBeforeTransactionInterceptor() {
+        val root = StrongRootEntity()
+        root.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000095")
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } answers { root.id }
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+        jpaUnitOfWork.persist(root)
+        every { interceptor1.beforeTransaction(any(), any()) } answers {
+            root.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000094")
+        }
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("changed identity"))
+        verify(exactly = 0) { entityManager.merge(root) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     @DisplayName("generated-id CREATE should decide refresh before persist changes isNew")
     fun generatedIdCreateShouldDecideRefreshBeforePersistChangesIsNew() {
         val entity = TestEntity(null, "generated")

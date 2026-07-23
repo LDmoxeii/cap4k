@@ -377,6 +377,7 @@ open class JpaUnitOfWork(
     }
 
     private fun applyExisting(entity: Any, results: FlushResult) {
+        validateObservedIdentityConsistency(entity)
         validateExistingRootIdentified(entity)
         val managed = if (entityManager.contains(entity)) entity else entityManager.merge(entity)
         results.existing.add(managed)

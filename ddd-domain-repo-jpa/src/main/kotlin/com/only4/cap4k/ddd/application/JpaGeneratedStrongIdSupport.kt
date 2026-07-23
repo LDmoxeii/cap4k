@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import jakarta.persistence.EmbeddedId
 import org.hibernate.Hibernate
+import org.hibernate.proxy.HibernateProxy
 import java.lang.reflect.Field
 
 internal class JpaGeneratedStrongIdSupport {
@@ -27,7 +28,7 @@ internal class JpaGeneratedStrongIdSupport {
     private fun validateExistingRootStrongId(root: Any) {
         ownStrongIdField(root)?.let { field ->
             field.isAccessible = true
-            check(field.get(root) != null) {
+            check(ownStrongIdValue(root, field) != null) {
                 "Existing-intent root ${Hibernate.getClassLazy(root).name}.${field.name} has missing Strong ID"
             }
         }
@@ -51,7 +52,7 @@ internal class JpaGeneratedStrongIdSupport {
             .forEach { entity ->
                 ownStrongIdField(entity)?.let { field ->
                     field.isAccessible = true
-                    val currentId = field.get(entity)
+                    val currentId = ownStrongIdValue(entity, field)
                     check(currentId != null) {
                         "Observed existing entity ${Hibernate.getClassLazy(entity).name}.${field.name} has missing Strong ID"
                     }
@@ -64,6 +65,9 @@ internal class JpaGeneratedStrongIdSupport {
                 }
             }
     }
+
+    private fun ownStrongIdValue(entity: Any, field: Field): Any? =
+        (entity as? HibernateProxy)?.hibernateLazyInitializer?.identifier ?: field.get(entity)
 
     private fun ownStrongIdField(entity: Any): Field? =
         persistentFields(Hibernate.getClassLazy(entity)).firstOrNull { field ->

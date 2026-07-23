@@ -3,16 +3,21 @@ package com.only4.cap4k.ddd.application
 import jakarta.persistence.EntityManager
 import org.hibernate.engine.spi.SharedSessionContractImplementor
 import org.hibernate.engine.spi.Status
+import org.hibernate.proxy.HibernateProxy
 
 internal class JpaHibernateDirtyInspector(
     private val entityManager: EntityManager,
 ) {
     fun dirtyManagedEntities(candidates: Iterable<Any>): Set<Any> {
         val session = entityManager.unwrap(SharedSessionContractImplementor::class.java)
-        return candidates.filterTo(LinkedHashSet()) { entity ->
-            isDirty(session, entity)
-        }
+        return candidates.asSequence()
+            .map(::managedImplementation)
+            .filter { entity -> isDirty(session, entity) }
+            .toCollection(LinkedHashSet())
     }
+
+    private fun managedImplementation(entity: Any): Any =
+        (entity as? HibernateProxy)?.hibernateLazyInitializer?.implementation ?: entity
 
     private fun isDirty(session: SharedSessionContractImplementor, entity: Any): Boolean {
         val entry = session.persistenceContextInternal.getEntry(entity) ?: return false
