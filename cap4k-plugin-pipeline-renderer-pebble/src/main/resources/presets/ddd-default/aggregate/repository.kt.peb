@@ -14,10 +14,6 @@ package {{ packageName }}
 {%- if idTypeFqn %}
 {{ use(idTypeFqn) -}}
 {%- endif %}
-{%- if supportQuerydsl %}
-{{ use("org.springframework.data.querydsl.QuerydslPredicateExecutor") -}}
-{{ use("com.only4.cap4k.ddd.domain.repo.querydsl.AbstractQuerydslRepository") -}}
-{%- endif %}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -33,12 +29,7 @@ import {{ import }}
     root = {{ aggregateElement.root }}
 )
 {% endif -%}
-{%- if supportQuerydsl %}
-interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpecificationExecutor<{{ entityName }}>,
-    QuerydslPredicateExecutor<{{ entityName }}> {
-{%- else %}
 interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpecificationExecutor<{{ entityName }}> {
-{%- endif %}
 
     @Component
     class {{ entityName }}JpaRepositoryAdapter(
@@ -48,13 +39,4 @@ interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpe
         jpaSpecificationExecutor,
         jpaRepository
     )
-
-{%- if supportQuerydsl %}
-    @Component
-    class {{ entityName }}QuerydslRepositoryAdapter(
-        querydslPredicateExecutor: QuerydslPredicateExecutor<{{ entityName }}>
-    ) : AbstractQuerydslRepository<{{ entityName }}>(
-        querydslPredicateExecutor
-    )
-{%- endif %}
 }
