@@ -1,9 +1,9 @@
 package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
-import com.only4.cap4k.ddd.core.domain.id.IdGenerationKind
-import com.only4.cap4k.ddd.core.domain.id.IdStrategy
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
 import jakarta.persistence.CascadeType
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.Id
@@ -16,11 +16,12 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Proxy
 import java.util.UUID
+import kotlin.reflect.KClass
 
 class JpaApplicationSideIdSupportTest {
 
     private val support = JpaApplicationSideIdSupport(
-        MapBackedIdStrategyRegistry(listOf(FixedUuidStrategy()))
+        MapBackedIdentifierStrategyRegistry(listOf(FixedUuidStrategy()))
     )
 
     @Test
@@ -146,22 +147,22 @@ class JpaApplicationSideIdSupportTest {
     }
 
     @Test
-    fun `rejects database side strategy`() {
-        val databaseSideSupport = JpaApplicationSideIdSupport(
-            MapBackedIdStrategyRegistry(listOf(DatabaseSideUuidStrategy()))
+    fun `rejects strategy without entity id preassignment capability`() {
+        val nonPreassigningSupport = JpaApplicationSideIdSupport(
+            MapBackedIdentifierStrategyRegistry(listOf(NonPreassigningUuidStrategy()))
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            databaseSideSupport.assignMissingIds(RootEntity())
+            nonPreassigningSupport.assignMissingIds(RootEntity())
         }
 
-        assertEquals("ID strategy uuid7 is not application-side", error.message)
+        assertEquals("identifier strategy uuid7 does not support entity ID preassignment", error.message)
     }
 
     @Test
     fun `rejects strategy output type mismatch before assignment`() {
         val mismatchSupport = JpaApplicationSideIdSupport(
-            MapBackedIdStrategyRegistry(listOf(StringIdStrategy()))
+            MapBackedIdentifierStrategyRegistry(listOf(StringIdStrategy()))
         )
         val entity = StringStrategyEntity()
 
@@ -170,16 +171,17 @@ class JpaApplicationSideIdSupportTest {
         }
 
         assertEquals(
-            "ID strategy string-id output type java.lang.String cannot be assigned to field com.only4.cap4k.ddd.application.JpaApplicationSideIdSupportTest\$StringStrategyEntity.id of type java.util.UUID",
+            "identifier strategy string-id does not support output type java.util.UUID for field " +
+                "com.only4.cap4k.ddd.application.JpaApplicationSideIdSupportTest\$StringStrategyEntity.id",
             error.message
         )
-        assertEquals(UUID(0L, 0L), entity.id)
+        assertNull(entity.id)
     }
 
     @Test
     fun `rejects null generated id before assignment`() {
         val nullSupport = JpaApplicationSideIdSupport(
-            MapBackedIdStrategyRegistry(listOf(nullUuidStrategy()))
+            MapBackedIdentifierStrategyRegistry(listOf(nullUuidStrategy()))
         )
         val entity = NullStrategyEntity()
 
@@ -194,7 +196,7 @@ class JpaApplicationSideIdSupportTest {
     @Test
     fun `rejects default generated id before assignment`() {
         val defaultSupport = JpaApplicationSideIdSupport(
-            MapBackedIdStrategyRegistry(listOf(DefaultUuidStrategy()))
+            MapBackedIdentifierStrategyRegistry(listOf(DefaultUuidStrategy()))
         )
         val entity = DefaultStrategyEntity()
 
@@ -206,57 +208,68 @@ class JpaApplicationSideIdSupportTest {
         assertEquals(UUID(0L, 0L), entity.id)
     }
 
-    private class FixedUuidStrategy : IdStrategy {
+    private class FixedUuidStrategy : IdentifierStrategy {
         override val name: String = "uuid7"
-        override val kind: IdGenerationKind = IdGenerationKind.APPLICATION_SIDE
-        override val outputType = UUID::class
-        override val preassignable: Boolean = true
-        override fun isDefaultValue(value: Any?): Boolean = value == null || value == UUID(0L, 0L)
-        override fun next(): Any = UUID(1L, 2L)
+        override val capabilities: Set<IdentifierCapability> = setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == UUID::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return UUID(1L, 2L) as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == UUID(0L, 0L)
     }
 
-    private class DatabaseSideUuidStrategy : IdStrategy {
+    private class NonPreassigningUuidStrategy : IdentifierStrategy {
         override val name: String = "uuid7"
-        override val kind: IdGenerationKind = IdGenerationKind.DATABASE_SIDE
-        override val outputType = UUID::class
-        override val preassignable: Boolean = false
-        override fun isDefaultValue(value: Any?): Boolean = value == null || value == UUID(0L, 0L)
-        override fun next(): Any = UUID(1L, 2L)
+        override val capabilities: Set<IdentifierCapability> = emptySet()
+        override fun supports(type: KClass<*>): Boolean = type == UUID::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return UUID(1L, 2L) as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == UUID(0L, 0L)
     }
 
-    private class StringIdStrategy : IdStrategy {
+    private class StringIdStrategy : IdentifierStrategy {
         override val name: String = "string-id"
-        override val kind: IdGenerationKind = IdGenerationKind.APPLICATION_SIDE
-        override val outputType = String::class
-        override val preassignable: Boolean = true
-        override fun isDefaultValue(value: Any?): Boolean = value == null || value == UUID(0L, 0L)
-        override fun next(): Any = "not-a-uuid"
+        override val capabilities: Set<IdentifierCapability> = setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == String::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return "not-a-uuid" as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == ""
     }
 
-    private class DefaultUuidStrategy : IdStrategy {
+    private class DefaultUuidStrategy : IdentifierStrategy {
         override val name: String = "default-uuid"
-        override val kind: IdGenerationKind = IdGenerationKind.APPLICATION_SIDE
-        override val outputType = UUID::class
-        override val preassignable: Boolean = true
-        override fun isDefaultValue(value: Any?): Boolean = value == null || value == UUID(0L, 0L)
-        override fun next(): Any = UUID(0L, 0L)
+        override val capabilities: Set<IdentifierCapability> = setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+        override fun supports(type: KClass<*>): Boolean = type == UUID::class
+        override fun <T : Any> next(type: KClass<T>): T {
+            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
+            @Suppress("UNCHECKED_CAST")
+            return UUID(0L, 0L) as T
+        }
+        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == UUID(0L, 0L)
     }
 
-    private fun nullUuidStrategy(): IdStrategy =
+    private fun nullUuidStrategy(): IdentifierStrategy =
         Proxy.newProxyInstance(
-            IdStrategy::class.java.classLoader,
-            arrayOf(IdStrategy::class.java)
+            IdentifierStrategy::class.java.classLoader,
+            arrayOf(IdentifierStrategy::class.java)
         ) { _, method, args ->
             when (method.name) {
                 "getName" -> "null-uuid"
-                "getKind" -> IdGenerationKind.APPLICATION_SIDE
-                "getOutputType" -> UUID::class
-                "getPreassignable" -> true
-                "isDefaultValue" -> args?.single() == null || args.single() == UUID(0L, 0L)
+                "getCapabilities" -> setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
+                "supports" -> args?.single() == UUID::class
+                "isDefaultValue" -> args?.get(0) == null || args?.get(0) == UUID(0L, 0L)
                 "next" -> null
                 else -> error("unexpected method: ${method.name}")
             }
-        } as IdStrategy
+        } as IdentifierStrategy
 
     private class RootEntity(
         @field:Id
@@ -338,7 +351,7 @@ class JpaApplicationSideIdSupportTest {
     private class StringStrategyEntity {
         @field:Id
         @field:ApplicationSideId(strategy = "string-id")
-        var id: UUID = UUID(0L, 0L)
+        var id: UUID? = null
     }
 
     private class NullStrategyEntity {

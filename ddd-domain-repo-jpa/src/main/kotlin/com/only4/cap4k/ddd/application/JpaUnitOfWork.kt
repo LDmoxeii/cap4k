@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
@@ -125,7 +125,7 @@ open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
-    idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
+    idStrategyRegistry: IdentifierStrategyRegistry = MapBackedIdentifierStrategyRegistry(emptyList()),
 ) : UnitOfWork {
 
     constructor(
@@ -136,7 +136,7 @@ open class JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
         supportEntityInlinePersistListener,
-        MapBackedIdStrategyRegistry(emptyList()),
+        MapBackedIdentifierStrategyRegistry(emptyList()),
     )
 
     @PersistenceContext

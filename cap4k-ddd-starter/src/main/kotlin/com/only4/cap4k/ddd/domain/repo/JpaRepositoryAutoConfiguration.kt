@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisorSupport
 import com.only4.cap4k.ddd.core.domain.aggregate.Specification
 import com.only4.cap4k.ddd.core.domain.aggregate.SpecificationManager
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultSpecificationManager
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.SpecificationUnitOfWorkInterceptor
@@ -66,7 +66,7 @@ class JpaRepositoryAutoConfiguration {
         unitOfWorkInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         jpaUnitOfWorkProperties: JpaUnitOfWorkProperties,
-        idStrategyRegistry: IdStrategyRegistry,
+        idStrategyRegistry: IdentifierStrategyRegistry,
     ): JpaUnitOfWork = JpaUnitOfWork(
         unitOfWorkInterceptors,
         persistListenerManager,

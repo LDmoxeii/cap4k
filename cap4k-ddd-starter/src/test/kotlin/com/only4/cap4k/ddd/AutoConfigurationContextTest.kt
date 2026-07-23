@@ -4,11 +4,21 @@ import com.only4.cap4k.ddd.application.distributed.JdbcLockerAutoConfiguration
 import com.only4.cap4k.ddd.application.event.IntegrationEventAutoConfiguration
 import com.only4.cap4k.ddd.application.request.RequestAutoConfiguration
 import com.only4.cap4k.ddd.application.saga.SagaAutoConfiguration
+import com.only4.cap4k.ddd.core.Mediator
+import com.only4.cap4k.ddd.core.MediatorSupport
+import com.only4.cap4k.ddd.core.application.PersistIntent
+import com.only4.cap4k.ddd.core.application.RequestParam
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
-import com.only4.cap4k.ddd.core.domain.id.IdAllocator
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
+import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
+import com.only4.cap4k.ddd.core.share.OrderInfo
+import com.only4.cap4k.ddd.core.share.PageData
+import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeAutoConfiguration
 import com.only4.cap4k.ddd.domain.event.DomainEventAutoConfiguration
 import com.only4.cap4k.ddd.domain.id.IdPolicyAutoConfiguration
@@ -21,8 +31,13 @@ import jakarta.persistence.EntityManagerFactory
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+import org.springframework.transaction.annotation.Propagation
+import java.time.LocalDateTime
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 import kotlin.test.assertTrue
@@ -55,10 +70,49 @@ class AutoConfigurationContextTest {
     @Test
     fun `context should contain id policy beans for jpa unit of work`() {
         contextRunner.run { context ->
-            assertNotNull(context.getBean(IdStrategyRegistry::class.java))
-            assertNotNull(context.getBean(IdAllocator::class.java))
+            assertNotNull(context.getBean(IdentifierStrategyRegistry::class.java))
+            assertNotNull(context.getBean(IdentifierGenerator::class.java))
             assertNotNull(context.getBean(JpaUnitOfWork::class.java))
         }
+    }
+
+    @Test
+    fun `custom mediator initializes its default identifiers property`() {
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(
+                IdPolicyAutoConfiguration::class.java,
+                MediatorAutoConfiguration::class.java,
+            ))
+            .withUserConfiguration(
+                CustomMediatorConfiguration::class.java,
+            )
+            .run { context ->
+                val mediator = context.getBean(Mediator::class.java)
+                val identifierGenerator = context.getBean(IdentifierGenerator::class.java)
+
+                assertTrue(mediator is CustomMediator)
+                assertTrue(MediatorSupport.instance === mediator)
+                assertTrue(MediatorSupport.ioc.getBean(IdentifierGenerator::class.java) === identifierGenerator)
+                assertTrue(mediator.identifiers === identifierGenerator)
+            }
+    }
+
+    @Test
+    fun `custom mediator configures identifiers before dependent bean initialization`() {
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(
+                IdPolicyAutoConfiguration::class.java,
+                MediatorAutoConfiguration::class.java,
+            ))
+            .withUserConfiguration(
+                CustomMediatorWithConsumerConfiguration::class.java,
+            )
+            .run { context ->
+                val identifierGenerator = context.getBean(IdentifierGenerator::class.java)
+                val consumer = context.getBean(MediatorIdentifierConsumer::class.java)
+
+                assertTrue(consumer.identifierGenerator === identifierGenerator)
+            }
     }
 
     private fun entityManagerFactoryProxy(): EntityManagerFactory {
@@ -97,6 +151,127 @@ class AutoConfigurationContextTest {
             handler,
         ) as EntityManager
     }
+
+    @Configuration(proxyBeanMethods = false)
+    private class CustomMediatorConfiguration {
+        @Bean
+        fun customMediator(): Mediator = CustomMediator()
+    }
+
+    private class CustomMediator : Mediator {
+        override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY =
+            unsupported()
+
+        override fun <ENTITY : Any> find(
+            predicate: Predicate<ENTITY>,
+            orders: Collection<OrderInfo>,
+            persist: Boolean,
+        ): List<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> find(
+            predicate: Predicate<ENTITY>,
+            orders: Collection<OrderInfo>,
+            persist: Boolean,
+            loadPlan: AggregateLoadPlan,
+        ): List<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> find(
+            predicate: Predicate<ENTITY>,
+            pageParam: PageParam,
+            persist: Boolean,
+        ): List<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> find(
+            predicate: Predicate<ENTITY>,
+            pageParam: PageParam,
+            persist: Boolean,
+            loadPlan: AggregateLoadPlan,
+        ): List<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> findOne(predicate: Predicate<ENTITY>, persist: Boolean): ENTITY? = unsupported()
+
+        override fun <ENTITY : Any> findOne(
+            predicate: Predicate<ENTITY>,
+            persist: Boolean,
+            loadPlan: AggregateLoadPlan,
+        ): ENTITY? = unsupported()
+
+        override fun <ENTITY : Any> findFirst(
+            predicate: Predicate<ENTITY>,
+            orders: Collection<OrderInfo>,
+            persist: Boolean,
+        ): ENTITY? = unsupported()
+
+        override fun <ENTITY : Any> findFirst(
+            predicate: Predicate<ENTITY>,
+            orders: Collection<OrderInfo>,
+            persist: Boolean,
+            loadPlan: AggregateLoadPlan,
+        ): ENTITY? = unsupported()
+
+        override fun <ENTITY : Any> findPage(
+            predicate: Predicate<ENTITY>,
+            pageParam: PageParam,
+            persist: Boolean,
+        ): PageData<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> findPage(
+            predicate: Predicate<ENTITY>,
+            pageParam: PageParam,
+            persist: Boolean,
+            loadPlan: AggregateLoadPlan,
+        ): PageData<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> = unsupported()
+
+        override fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long = unsupported()
+
+        override fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean = unsupported()
+
+        override fun <DOMAIN_SERVICE : Any> getService(domainServiceClass: Class<DOMAIN_SERVICE>): DOMAIN_SERVICE = unsupported()
+
+        override fun persist(entity: Any, intent: PersistIntent) = unsupported<Unit>()
+
+        override fun remove(entity: Any) = unsupported<Unit>()
+
+        override fun save(propagation: Propagation) = unsupported<Unit>()
+
+        override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE = unsupported()
+
+        override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> schedule(
+            request: REQUEST,
+            schedule: LocalDateTime,
+        ): String = unsupported()
+
+        override fun <R : Any> result(requestId: String): R? = unsupported()
+
+        override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) = unsupported<Unit>()
+
+        override fun <EVENT : Any> attach(
+            schedule: LocalDateTime,
+            eventPayloadSupplier: () -> EVENT,
+        ) = unsupported<Unit>()
+
+        override fun <EVENT : Any> detach(eventPayload: EVENT) = unsupported<Unit>()
+
+        private fun <T> unsupported(): T = throw UnsupportedOperationException()
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    private class CustomMediatorWithConsumerConfiguration {
+        @Bean
+        fun customMediator(): Mediator = CustomMediator()
+
+        @Bean
+        fun mediatorIdentifierConsumer(mediator: Mediator): MediatorIdentifierConsumer =
+            MediatorIdentifierConsumer(mediator.identifiers)
+    }
+
+    private class MediatorIdentifierConsumer(
+        val identifierGenerator: IdentifierGenerator,
+    )
 
     @Test
     @Disabled

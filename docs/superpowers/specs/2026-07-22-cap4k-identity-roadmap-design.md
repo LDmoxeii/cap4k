@@ -16,14 +16,14 @@ cap4k currently has several identity mechanisms that were introduced at differen
 
 - primitive database identity IDs;
 - application-side ID metadata through `@ApplicationSideId`;
-- runtime ID allocation through `IdAllocator` and `IdStrategyRegistry`;
+- runtime identifier generation through the current `IdAllocator` and `IdStrategyRegistry` infrastructure;
 - generated Strong ID wrappers for aggregate roots and references;
 - Unit of Work persist-or-merge behavior that still depends partly on JPA newness and existence checks.
 
 These mechanisms are individually useful, but they do not yet form one coherent authoring story. The desired direction is:
 
 - generated entities can receive real IDs at creation time;
-- user code can still manually allocate IDs when it must return or publish an ID before save;
+- user code can still manually generate identifiers when it must return or publish an ID, business code, or distributed key before save;
 - Strong ID is optional but becomes the best-supported generated identity shape;
 - Unit of Work classification is explicit enough to separate create audit from update audit;
 - persistence behavior does not depend on guessing whether a non-default ID means new or existing.
@@ -34,27 +34,28 @@ The work must be split because each phase changes a different contract surface: 
 
 | Phase | Name | Status | Main Outcome |
 |---|---|---|---|
-| 1 | Unit of Work persist intent | Spec exists in this docs folder | `persist(entity, PersistIntent.CREATE/UPDATE)` separates create and update intent before JPA sees the entity. |
-| 2 | All-entity Strong ID support | Needs new spec | Generated Strong ID support expands from aggregate roots/references to every generated entity own ID where the ID strategy requests it. |
-| 3 | Mediator ID allocation entry | Needs new spec | Application code gets a stable mediator-facing way to allocate IDs manually without depending directly on low-level registries. |
+| 1 | Unit of Work persist intent | Completed and merged to master on 2026-07-23 | `persist(entity, PersistIntent.CREATE/UPDATE)` separates create and update intent before JPA sees the entity. |
+| 2 | All-entity Strong ID support | Implementation dispatched; not merged to master | Generated Strong ID support expands to every generated entity own ID, and the merged Phase 1 `UPDATE` input evolves into `EXISTING` baseline enrollment. |
+| 3 | Mediator identifier generation entry | Spec exists in this docs folder | Application code gets `mediator.identifiers` plus built-in `uuid7` and `snowflake` strategy constants for manual primitive/runtime identifier generation. |
 | 4 | Strong-ID create-time injection | Needs new spec | Generated Strong ID entity constructors/factories receive real IDs during creation without save-time mutation. |
 | 5 | Optional non-Strong-ID create-time injection | Future research | Explore whether primitive application-side IDs can get the same create-time ergonomics without weakening the Strong ID path. |
 
-The phases are intentionally ordered. Phase 1 fixes write intent first, because every later application-side ID strategy can create an entity whose ID is already non-default before persistence. Without explicit create/update intent, audit and listener classification remain ambiguous.
+The phases are intentionally ordered. Phase 1 fixed write intent first, because every later application-side ID strategy can create an entity whose ID is already non-default before persistence. Without explicit create/update intent, audit and listener classification remain ambiguous.
 
 ## Current Evidence
 
 Current master evidence:
 
-- `UnitOfWork` lives in `ddd-core` and currently exposes `persist(entity)`, `persistIfNotExist(entity)`, `remove(entity)`, and `save(propagation)`.
-- `Mediator` extends `UnitOfWork`, `AggregateFactorySupervisor`, `RepositorySupervisor`, `DomainServiceSupervisor`, `IntegrationEventSupervisor`, and `RequestSupervisor`, but it does not expose `IdAllocator`.
-- `DefaultAggregateFactorySupervisor.create(...)` creates an aggregate through the registered factory and then calls `unitOfWork.persist(instance)`.
-- `DefaultRepositorySupervisor` calls `unitOfWork.persist(entity)` only when repository reads use `persist=true`.
-- `JpaUnitOfWork` has separate thread-local sets for persisted and removed entities, plus a processing set.
-- `JpaUnitOfWork.save(...)` currently chooses create versus update through application-side ID metadata, JPA `EntityInformation.isNew(entity)`, `EntityManager.contains(entity)`, and existence queries.
-- `JpaUnitOfWork` still contains a persistence-context scan helper and commented-out scan code, so the current implementation does not cleanly document the intended write boundary.
+- `UnitOfWork` lives in `ddd-core` and now exposes `persist(entity, intent = PersistIntent.UPDATE)`, `remove(entity)`, and `save(propagation)`.
+- `PersistIntent` exists in `ddd-core` with `CREATE` and `UPDATE`.
+- `Mediator` extends `UnitOfWork`, `AggregateFactorySupervisor`, `RepositorySupervisor`, `DomainServiceSupervisor`, `IntegrationEventSupervisor`, and `RequestSupervisor`, but it does not expose an identifier generation facade.
+- `DefaultAggregateFactorySupervisor.create(...)` creates an aggregate through the registered factory and then calls `unitOfWork.persist(instance, PersistIntent.CREATE)`.
+- `DefaultRepositorySupervisor` calls `unitOfWork.persist(entity, PersistIntent.UPDATE)` only when repository reads use `persist=true`.
+- `JpaUnitOfWork` now uses a pending-change model keyed by object identity, with internal `CREATE`, `UPDATE`, and `REMOVE` intents.
+- `JpaUnitOfWork.save(...)` now applies persistence operations from explicit pending intent instead of choosing insert/update from ID defaultness.
+- `JpaUnitOfWork` still reports update-intent entries as `PersistType.UPDATE`; Phase 2 must add existing-baseline and provider dirty inspection so clean loaded entities do not receive update audit.
 - `PersistType.CREATE`, `PersistType.UPDATE`, and `PersistType.DELETE` already exist as post-flush listener classifications.
-- `IdAllocator`, `DefaultIdAllocator`, `IdStrategyRegistry`, and `@ApplicationSideId` already exist in core ID runtime code.
+- `IdAllocator`, `DefaultIdAllocator`, `IdStrategyRegistry`, and `@ApplicationSideId` already exist in core ID runtime code, but Phase 3 intentionally renames the public runtime generation surface to `IdentifierGenerator`/`IdentifierStrategyRegistry`.
 - `@ApplicationSideId` is documented in code as a compatibility runtime annotation for manually authored application-side IDs. Generated Strong ID aggregates are not supposed to use save-time ID assignment as their final path.
 - `StrongId` currently exposes `value: String`, and `StrongIds` currently supplies UUIDv7 string generation and validation.
 - `StrongIdKind` currently distinguishes `AGGREGATE_ROOT`, `AGGREGATE_REFERENCE`, and `REFERENCE`.
@@ -96,9 +97,9 @@ Save-time assignment means UoW scans an object graph during `save()` and fills m
 
 Create-time assignment means the entity receives a real ID during construction or factory creation, before it enters the UoW and before `save()` is called.
 
-### Manual Allocation
+### Manual Identifier Generation
 
-Manual allocation means application code asks cap4k for an ID before constructing or mutating an aggregate. This is needed when a command must return an ID, publish it, use it for idempotency, or pass it into an external boundary before save.
+Manual identifier generation means application code asks cap4k for an identifier before constructing or mutating an aggregate, or for a business code that is not an entity primary key. This is needed when a command must return an ID, publish it, use it for idempotency, or pass it into an external boundary before save.
 
 ### Persist Intent
 
@@ -110,13 +111,15 @@ Persist intent is the command-side UoW classification declared before JPA operat
 - Do not ask implementation agents to infer missing design from chat history.
 - Do not rely on EF Core or JPA to automatically inspect the database and infer new versus existing rows from a non-default ID.
 - Do not make repository reads imply writes unless `persist=true` or explicit UoW persistence is used.
-- Do not make dirty checking a cap4k responsibility in this roadmap.
+- Do not put dirty checking in business code or `ddd-core`. Phase 2 may use provider dirty inspection inside `JpaUnitOfWork` because that class is already JPA/Hibernate-specific.
 - Do not move business invariants into Mediator, Repository, UoW, or persistence adapters.
 - Do not treat Strong ID as a DDD tactical carrier like aggregate, command, or domain event. It is an identity type and generation/runtime contract.
 
 ## Phase 1: Unit of Work Persist Intent
 
 Phase-specific spec: [2026-07-22-cap4k-uow-persist-intent-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-22-cap4k-uow-persist-intent-design.md>).
+
+Status as of 2026-07-23: completed and merged to `master` through PR #128, with merge commit `390c44bb`. Agents should treat the phase 1 spec as implemented baseline behavior on `master`, not as a pending target.
 
 ### Purpose
 
@@ -177,7 +180,9 @@ Out of scope:
 
 ## Phase 2: All-Entity Strong ID Support
 
-Phase-specific spec: not written yet.
+Phase-specific spec: [2026-07-22-cap4k-all-entity-strong-id-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-22-cap4k-all-entity-strong-id-design.md>).
+
+Status as of 2026-07-23: design is approved for implementation and has been dispatched outside `master`. No Phase 2 implementation PR has been merged into `master` yet.
 
 ### Purpose
 
@@ -189,7 +194,18 @@ The result should be:
 - owned child entity own IDs can be Strong IDs;
 - reference IDs remain reference IDs and do not generate new values from the owning entity;
 - database identity IDs stay primitive nullable IDs and do not become Strong IDs;
-- parent reference columns remain structural FK storage, not child own IDs.
+- parent reference columns remain structural FK storage, not child own IDs;
+- repository-loaded roots and owned children are enrolled as known existing baselines, not update intents;
+- update listener/audit classification comes from provider dirty inspection, not from repository load or ID presence.
+
+Phase 1 is implemented with `PersistIntent.CREATE/UPDATE`. Phase 2 is allowed to break that merged shape and replace public update intent with `PersistIntent.EXISTING`, because this roadmap currently has no external-user compatibility constraint.
+
+Phase 2 dependency impact:
+
+- Do not reimplement Phase 1 pending intent mechanics; they are already present on `master`.
+- Migrate the real public enum/default from `UPDATE` to `EXISTING`, not just the design text.
+- Replace repository `persist=true` update registration with repository observation baseline capture plus `EXISTING` enrollment.
+- Preserve Phase 1 factory `CREATE`, remove cancellation, same-instance conflict, and listener result behavior unless the Phase 2 spec explicitly supersedes a rule.
 
 ### Required Design Decisions
 
@@ -198,10 +214,11 @@ The phase-specific spec must decide these points explicitly:
 - Whether `StrongIdKind.AGGREGATE_ROOT` is replaced by a more general own-ID kind such as `ENTITY_ID`, or whether a new kind is added while preserving the old enum value during migration.
 - How `StrongIdModel` represents owner entity name/package separately from owner aggregate name/package.
 - How `canGenerateNew`, strategy name, and value type are represented for own IDs.
-- How String-backed UUID7, UUID-backed UUID7, and Long-backed Snowflake Strong IDs are modeled.
+- How the current String-backed UUID7 Strong ID route expands to all generated entity own IDs while keeping UUID-backed and Long-backed value types as explicit future expansion points.
 - How generated Strong ID files are named and packaged for owned entities.
 - How repository IDs, factory output, field imports, and type registry entries resolve owned entity ID types.
 - How parent-ref storage compatibility is validated against the parent own-ID storage type.
+- How `JpaUnitOfWork` captures existing baselines and detects dirty existing entities before listener classification.
 
 ### Required Behavior
 
@@ -211,6 +228,7 @@ The phase-specific spec must decide these points explicitly:
 - `@RefAggregate` and `@RefId` continue to create or reuse non-generating reference identity types.
 - Removed DB annotations such as `@Reference` must not re-enter Strong ID inference.
 - Composite primary keys remain unsupported unless a future spec expands the aggregate generator.
+- `PersistType.UPDATE` remains a result/listener type only; it must not remain a public pre-flush UoW input intent after phase 2.
 
 ### Implementation Boundary
 
@@ -226,66 +244,76 @@ Likely implementation areas:
 
 Out of scope:
 
-- Mediator ID allocation entry;
-- runtime create/update UoW classification beyond the Phase 1 dependency;
+- Mediator identifier generation entry;
+- runtime create/update UoW classification beyond the phase 2 baseline/dirtiness contract;
+- broad JPA graph support outside generated cap4k owned relations;
 - final create-time injection ergonomics;
 - non-Strong-ID create-time injection.
 
-## Phase 3: Mediator ID Allocation Entry
+## Phase 3: Mediator Identifier Generation Entry
 
-Phase-specific spec: not written yet.
+Phase-specific spec: [2026-07-23-cap4k-mediator-identifier-generation-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-23-cap4k-mediator-identifier-generation-design.md>).
+
+Status as of 2026-07-23: design spec exists. Implementation has not been dispatched and no Phase 3 implementation PR has been merged into `master`.
 
 ### Purpose
 
-This phase gives application code a stable way to request IDs through the cap4k facade it already uses.
+This phase gives application code a stable way to request identifiers through the cap4k facade it already uses.
 
-Today `IdAllocator` exists, but `Mediator` does not expose it. A command handler that needs to manually allocate an ID must depend on lower-level ID runtime APIs or generated Strong ID static helpers. That is not the desired long-term application surface.
+Today `IdAllocator` exists, but `Mediator` does not expose a generation facade. A command handler that needs to manually generate an ID, business code, distributed key, or idempotency key must depend on lower-level runtime APIs or generated Strong ID static helpers. That is not the desired long-term application surface.
 
-Manual allocation is needed when:
+Manual identifier generation is needed when:
 
 - the command response must include the ID before `save()`;
 - a domain event or integration event must carry the ID before persistence;
 - an external call or idempotency key must reference the new entity before persistence;
 - user-authored construction is used instead of the generated aggregate factory;
-- custom application logic must pass an ID into a factory payload or constructor intentionally.
+- custom application logic must pass an ID into a factory payload or constructor intentionally;
+- custom application logic needs a business code such as `BIZ` + date + sequence that is not an entity primary key.
 
 ### Required Design Decisions
 
-The phase-specific spec must decide the public API shape. Candidate shapes include:
+The phase-specific spec chooses `mediator.identifiers` as the public API shape:
 
 ```kotlin
-mediator.ids.next("uuid7", UUID::class)
-mediator.nextId("uuid7", UUID::class)
-mediator.nextId(ContentId::class)
+mediator.identifiers.next(BuiltInIdentifierStrategies.UUID7, String::class)
+mediator.identifiers.next(BuiltInIdentifierStrategies.UUID7, UUID::class)
+mediator.identifiers.next(BuiltInIdentifierStrategies.SNOWFLAKE, Long::class)
+mediator.identifiers.next(BuiltInIdentifierStrategies.SNOWFLAKE, String::class)
+mediator.identifiers.next("order-no", String::class)
 ```
 
-The roadmap does not choose between these shapes. The design must weigh:
+The design decision is:
 
-- keeping `Mediator` readable versus making ID allocation discoverable;
-- exposing strategy strings versus typed ID allocation;
-- allowing primitive ID allocation for compatibility versus prioritizing Strong ID types;
-- whether generated Strong ID metadata can remove the need for caller-supplied strategy names;
-- how Java callers should use the same API;
-- whether `Mediator` should extend an ID allocation interface or expose one as a property.
+- expose `IdentifierGenerator` through `Mediator.identifiers`, not `mediator.nextId(...)`;
+- provide `BuiltInIdentifierStrategies.UUID7 = "uuid7"` and `BuiltInIdentifierStrategies.SNOWFLAKE = "snowflake"` in `ddd-core`;
+- treat built-in strategies as strategy families that support multiple output types;
+- keep external strategy registration open through Spring `IdentifierStrategy` beans;
+- remove `IdGenerationKind` from the generic generation strategy model;
+- use a narrow capability such as `IdentifierCapability.ENTITY_ID_PREASSIGNMENT` only in JPA/entity-ID assignment code;
+- keep Strong ID wrapper generation out of Phase 3.
 
 ### Required Behavior
 
-- ID allocation has no UoW side effect.
-- ID allocation does not persist or register an entity.
-- Database identity strategies cannot allocate IDs through this API.
+- Identifier generation has no UoW side effect.
+- Identifier generation does not persist or register an entity.
+- Database identity strategies are not runtime `IdentifierStrategy` values and cannot generate identifiers through this API.
 - Unknown strategies fail fast with clear diagnostics.
 - Requested output type and strategy output type must match.
+- `uuid7` supports `String` and `UUID`.
+- `snowflake` supports `Long` and decimal `String`.
+- The old `snowflake-long` public strategy name is removed; do not retain a compatibility alias.
 - The API should be available from application handlers without binding those handlers to JPA modules.
-- The API should delegate to existing runtime ID strategy infrastructure where possible.
+- The API should delegate to existing runtime strategy infrastructure where possible, after renaming or splitting it into generic `Identifier*` contracts.
 
 ### Implementation Boundary
 
 Likely implementation areas:
 
-- `ddd-core` ID allocation facade contract;
+- `ddd-core` identifier generation facade contract;
 - `Mediator` and `DefaultMediator`;
-- starter/runtime wiring for the allocator implementation;
-- tests that prove handlers can allocate IDs without using JPA-specific classes.
+- starter/runtime wiring for the generator implementation;
+- tests that prove handlers can generate identifiers without using JPA-specific classes.
 
 Out of scope:
 
@@ -316,10 +344,10 @@ For generated application-side Strong IDs, `aggregate.id` is already real after 
 
 ### Required Design Decisions
 
-The phase-specific spec must decide where create-time ID allocation happens:
+The phase-specific spec must decide where create-time ID generation happens:
 
 - generated Strong ID companion, for example `OrderId.new()`;
-- generated aggregate factory, by injecting an ID allocation facet and passing `OrderId` into the constructor;
+- generated aggregate factory, by injecting an identifier generation facet and passing `OrderId` into the constructor;
 - generated entity constructor default, if static generation is accepted;
 - a generated identity factory or policy object;
 - another explicit runtime hook.
@@ -354,7 +382,7 @@ Likely implementation areas:
 - aggregate/entity constructor render models;
 - aggregate factory templates;
 - nested owned child input/factory planning after its own design exists;
-- runtime ID allocation integration if the chosen approach requires injection;
+- runtime identifier generation integration if the chosen approach requires injection;
 - JPA and Jackson fixtures proving Strong ID persistence, find-by-id, and boundary serialization still work.
 
 Out of scope:
@@ -362,7 +390,7 @@ Out of scope:
 - primitive non-Strong-ID create-time injection;
 - broad repository API redesign;
 - changing domain event tactical modeling;
-- cap4k dirty checking.
+- additional dirty inspection work beyond the phase 2 JPA provider boundary.
 
 ## Phase 5: Optional Non-Strong-ID Create-Time Injection
 
@@ -395,8 +423,8 @@ The roadmap should be executed in this order:
 
 1. Phase 1 first, because all later create-time ID behavior depends on explicit write intent.
 2. Phase 2 next, because generated own-ID modeling must be settled before the create-time story is locked in.
-3. Phase 3 either after Phase 1 or alongside Phase 2 if the chosen API stays allocation-only and does not depend on the final Strong ID factory shape.
-4. Phase 4 after Phase 1 and Phase 2, and after Phase 3 if the final design uses mediator-backed allocation for Strong IDs.
+3. Phase 3 either after Phase 1 or alongside Phase 2 if the chosen API stays generation-only and does not depend on the final Strong ID factory shape.
+4. Phase 4 after Phase 1 and Phase 2, and after Phase 3 if the final design uses mediator-backed identifier generation for Strong IDs.
 5. Phase 5 only after the first four phases are stable enough to evaluate whether primitive IDs truly need the same ergonomics.
 
 If a later phase exposes a contradiction in an earlier phase, stop and roll back to the earliest phase that introduced the wrong assumption instead of papering over it in implementation.
