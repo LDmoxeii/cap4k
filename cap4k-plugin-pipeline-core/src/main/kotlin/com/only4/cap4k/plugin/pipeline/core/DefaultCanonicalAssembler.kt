@@ -147,7 +147,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .filter { it.aggregateRoot }
             .mapNotNull { table ->
                 generatedOwnStrongIdType(table)
-                    ?.let { idType -> AggregateNaming.entityName(table.tableName) to idType }
+                    ?.let { idType ->
+                        val idPackage = artifactLayout.aggregateEntityPackage(
+                            AggregateNaming.tableSegment(table.tableName)
+                        )
+                        AggregateNaming.entityName(table.tableName) to "$idPackage.$idType"
+                    }
             }
             .toMap()
 

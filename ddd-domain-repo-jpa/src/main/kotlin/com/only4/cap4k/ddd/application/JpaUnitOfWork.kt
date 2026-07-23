@@ -261,6 +261,7 @@ open class JpaUnitOfWork(
             ) { input ->
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
+                prepareApplicationSideIds(input.entries)
 
                 input.entries.forEach { entry ->
                     when (entry.kind) {
@@ -307,6 +308,7 @@ open class JpaUnitOfWork(
                 generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
             }
             UnitOfWorkEntryKind.EXISTING -> {
+                validateExistingEvidence(entry.entity)
                 validateObservedIdentityConsistency(entry.entity)
                 applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
                 generatedStrongIdSupport.completeExisting(
@@ -320,16 +322,21 @@ open class JpaUnitOfWork(
     }
 
     private fun validateObservedIdentityConsistency(root: Any) {
-        ownedRelationTraversal.reachableOwnedEntities(root)
-            .filter { repositoryObservationBaseline.isObservedObject(it) }
-            .forEach { entity ->
-                val observed = repositoryObservationBaseline.identityFor(entity) ?: return@forEach
-                val current = observedIdentityOf(entity)
-                check(current == observed) {
-                    "Observed existing entity ${observed.entityType.name} changed identity " +
-                        "from ${observed.id} to ${current?.id}"
-                }
+        repositoryObservationBaseline.entriesFor(root).forEach { entry ->
+            val observed = entry.identity ?: return@forEach
+            val current = observedIdentityOf(entry.entity)
+            check(current == observed) {
+                "Observed existing entity ${observed.entityType.name} changed identity " +
+                    "from ${observed.id} to ${current?.id}"
             }
+        }
+    }
+
+    private fun validateExistingEvidence(entity: Any) {
+        check(repositoryObservationBaseline.hasBaselineFor(entity) || entityManager.contains(entity)) {
+            "EXISTING persist for ${persistentEntityClass(entity).name} requires a repository observation " +
+                "baseline or provider-managed existing state; detached unobserved instances cannot be merged safely"
+        }
     }
 
     private fun validateSameIdentityConflicts(entries: List<UnitOfWorkEntry>) {

@@ -22,8 +22,25 @@ internal class JpaRepositoryObservationBaseline {
     private val observedIdentities = LinkedHashSet<JpaObservedIdentity>()
 
     fun record(root: Any, entries: List<JpaObservedEntity>) {
-        val rootKey = ObjectIdentityKey(root)
-        val bucket = observedByRoot.getOrPut(rootKey) { LinkedHashSet() }
+        val canonicalRoot = entries.firstOrNull()?.entity ?: root
+        val rootAliasKey = ObjectIdentityKey(root)
+        val canonicalRootKey = ObjectIdentityKey(canonicalRoot)
+        val existingRootKey = rootKeyByObservedObject[rootAliasKey]
+            ?: rootKeyByObservedObject[canonicalRootKey]
+        if (existingRootKey != null) {
+            rootKeyByObservedObject[rootAliasKey] = existingRootKey
+            rootKeyByObservedObject[canonicalRootKey] = existingRootKey
+            observedByRoot[existingRootKey]
+                ?.firstOrNull()
+                ?.let { observedByObject.putIfAbsent(rootAliasKey, it) }
+            return
+        }
+
+        val rootKey = canonicalRootKey
+        val bucket = LinkedHashSet<JpaObservedEntity>()
+        observedByRoot[rootKey] = bucket
+        rootKeyByObservedObject[rootAliasKey] = rootKey
+        rootKeyByObservedObject[canonicalRootKey] = rootKey
         entries.forEach { entry ->
             bucket += entry
             val entityKey = ObjectIdentityKey(entry.entity)
@@ -31,6 +48,7 @@ internal class JpaRepositoryObservationBaseline {
             observedByObject.putIfAbsent(entityKey, entry)
             entry.identity?.let { observedIdentities += it }
         }
+        bucket.firstOrNull()?.let { observedByObject.putIfAbsent(rootAliasKey, it) }
     }
 
     fun entriesFor(root: Any): Set<JpaObservedEntity> =
@@ -44,6 +62,9 @@ internal class JpaRepositoryObservationBaseline {
 
     fun isObservedObject(entity: Any): Boolean =
         rootKeyByObservedObject.containsKey(ObjectIdentityKey(entity))
+
+    fun hasBaselineFor(root: Any): Boolean =
+        entriesFor(root).isNotEmpty()
 
     fun clear() {
         observedByRoot.clear()

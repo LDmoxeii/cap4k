@@ -16,11 +16,12 @@ internal class JpaGeneratedStrongIdSupport {
         traversal: JpaGeneratedOwnedRelationTraversal,
         baseline: JpaRepositoryObservationBaseline,
     ) {
-        validateExistingRootStrongId(root)
         val reachable = traversal.reachableOwnedEntities(root)
+        val traversalRoot = reachable.firstOrNull() ?: root
+        validateExistingRootStrongId(traversalRoot)
         validateObservedStrongIds(reachable, baseline)
         reachable.asSequence()
-            .filterNot { it === root }
+            .filterNot { it === traversalRoot }
             .filterNot { baseline.isObservedObject(it) }
             .forEach(::completeMissingOwnStrongId)
     }

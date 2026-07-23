@@ -17,6 +17,10 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
+import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
+import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
@@ -44,6 +48,7 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
+import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -55,6 +60,144 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
 class AggregateArtifactPlannerTest {
+
+    @Test
+    fun `ref aggregate uses aggregate own id when a shared ref id has the same name`() {
+        val config = aggregateConfig()
+        val model = DefaultCanonicalAssembler().assemble(
+            config = config,
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "author",
+                            comment = "author",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    name = "id",
+                                    dbType = "VARCHAR",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    isPrimaryKey = true,
+                                    idStrategy = DbIdStrategy.UUID7,
+                                )
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "article",
+                            comment = "article",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    name = "id",
+                                    dbType = "VARCHAR",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    isPrimaryKey = true,
+                                    idStrategy = DbIdStrategy.UUID7,
+                                ),
+                                DbColumnSnapshot(
+                                    name = "author_id",
+                                    dbType = "VARCHAR",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    refAggregate = "Author",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                        DbTableSnapshot(
+                            tableName = "review",
+                            comment = "review",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    name = "id",
+                                    dbType = "VARCHAR",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    isPrimaryKey = true,
+                                    idStrategy = DbIdStrategy.UUID7,
+                                ),
+                                DbColumnSnapshot(
+                                    name = "reviewer_id",
+                                    dbType = "VARCHAR",
+                                    kotlinType = "String",
+                                    nullable = false,
+                                    refId = "AuthorId",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        ),
+                    )
+                )
+            ),
+        ).model
+
+        val items = AggregateArtifactPlanner().plan(config, model)
+        val articleEntity = items.first {
+            it.templateId == "aggregate/entity.kt.peb" &&
+                it.context["typeName"] == "Article"
+        }.context
+        @Suppress("UNCHECKED_CAST")
+        val entityFields = articleEntity["scalarFields"] as List<Map<String, Any?>>
+        val reviewEntity = items.first {
+            it.templateId == "aggregate/entity.kt.peb" &&
+                it.context["typeName"] == "Review"
+        }.context
+        @Suppress("UNCHECKED_CAST")
+        val reviewEntityFields = reviewEntity["scalarFields"] as List<Map<String, Any?>>
+        val articleFactory = items.first {
+            it.templateId == "aggregate/factory.kt.peb" &&
+                it.context["entityName"] == "Article"
+        }.context
+        @Suppress("UNCHECKED_CAST")
+        val factoryFields = articleFactory["payloadFields"] as List<Map<String, Any?>>
+        val reviewFactory = items.first {
+            it.templateId == "aggregate/factory.kt.peb" &&
+                it.context["entityName"] == "Review"
+        }.context
+        @Suppress("UNCHECKED_CAST")
+        val reviewFactoryFields = reviewFactory["payloadFields"] as List<Map<String, Any?>>
+
+        assertAll(
+            {
+                assertEquals(
+                    "com.acme.demo.domain.aggregates.author.AuthorId",
+                    entityFields.single { it["name"] == "authorId" }["typeRef"],
+                )
+            },
+            {
+                assertEquals(
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                    reviewEntityFields.single { it["name"] == "reviewerId" }["typeRef"],
+                )
+            },
+            {
+                assertEquals(
+                    "com.acme.demo.domain.aggregates.author.AuthorId",
+                    factoryFields.single { it["name"] == "authorId" }["typeRef"],
+                )
+            },
+            {
+                assertEquals(
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                    reviewFactoryFields.single { it["name"] == "reviewerId" }["typeRef"],
+                )
+            },
+            {
+                val sharedReference = model.strongIds.single {
+                    it.kind == StrongIdKind.REFERENCE && it.typeName == "AuthorId"
+                }
+                assertFalse(sharedReference.canGenerateNew)
+            },
+        )
+    }
 
     @Test
     fun `aggregate planner keeps fixed baseline families when optional artifacts are disabled`() {

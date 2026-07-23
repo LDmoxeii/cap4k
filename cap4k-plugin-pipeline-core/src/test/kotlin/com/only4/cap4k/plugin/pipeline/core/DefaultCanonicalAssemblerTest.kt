@@ -2959,7 +2959,10 @@ class DefaultCanonicalAssemblerTest {
 
         val content = result.model.entities.single { it.name == "Content" }
 
-        assertEquals("MediaProcessingTaskId", content.fields.single { it.name == "mediaProcessingTaskId" }.type)
+        assertEquals(
+            "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
+            content.fields.single { it.name == "mediaProcessingTaskId" }.type,
+        )
         assertEquals(
             listOf("MediaProcessingTaskId", "ContentId"),
             result.model.strongIds.map { it.typeName },

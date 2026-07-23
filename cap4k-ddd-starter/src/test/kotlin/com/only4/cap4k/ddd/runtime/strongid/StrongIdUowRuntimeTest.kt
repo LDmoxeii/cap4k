@@ -104,6 +104,30 @@ class StrongIdUowRuntimeTest {
     }
 
     @Test
+    fun `existing enrollment completes owned child reached through initialized proxy implementation`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.new(),
+                title = "initialized-proxy-root",
+                authorId = StrongAuthorId.new(),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        val reference = repository.getReferenceById(content.id)
+        Hibernate.initialize(reference)
+        val implementation = Hibernate.unproxy(reference) as StrongContent
+        val child = StrongContentItem.unassigned("proxy-child")
+        implementation.items += child
+
+        unitOfWork.persist(reference)
+
+        assertTrue(child.hasAssignedId())
+        unitOfWork.save()
+        assertTrue(repository.findById(content.id).orElseThrow().items.any { it.id == child.id })
+    }
+
+    @Test
     fun `clean existing enrollment does not emit update listener`() {
         val content = repository.saveAndFlush(
             StrongContent(

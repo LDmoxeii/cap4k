@@ -161,12 +161,13 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("default persist enrolls an existing detached entity without reporting update")
-    fun defaultPersistShouldEnrollDetachedExistingEntity() {
+    @DisplayName("default persist enrolls an observed detached entity without reporting update")
+    fun defaultPersistShouldEnrollObservedDetachedExistingEntity() {
         val entity = TestEntity(1L, "existing")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 1L
         every { entityManager.contains(entity) } returns false
+        jpaUnitOfWork.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE)
 
         jpaUnitOfWork.persist(entity)
         jpaUnitOfWork.save()
@@ -174,6 +175,23 @@ class JpaUnitOfWorkTest {
         verify { entityManager.merge(entity) }
         verify(exactly = 0) { entityManager.persist(entity) }
         verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+    }
+
+    @Test
+    @DisplayName("default EXISTING persist rejects an assigned detached entity without trustworthy evidence")
+    fun defaultPersistShouldRejectAssignedDetachedEntityWithoutBaseline() {
+        val entity = ApplicationSideLongEntity(id = 100L, name = "unobserved")
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns 100L
+        every { entityManager.contains(entity) } returns false
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(entity)
+        }
+
+        assertTrue(error.message!!.contains("repository observation baseline or provider-managed existing state"))
+        verify(exactly = 0) { entityManager.merge(entity) }
+        verify(exactly = 0) { entityManager.persist(entity) }
     }
 
     @Test
@@ -227,11 +245,115 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("repeated repository observation does not absorb a child added after the original baseline")
+    fun repeatedObservationShouldPreserveOriginalBaseline() {
+        val root = StrongRootEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000091")
+        }
+        val observedChild = StrongChildEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000092")
+        }
+        root.children += observedChild
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(observedChild) } returns false
+        every { mockEntityInfo.getId(observedChild) } returns observedChild.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val newChild = StrongChildEntity()
+        root.children += newChild
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+        jpaUnitOfWork.persist(root)
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", newChild.id.value)
+    }
+
+    @Test
+    @DisplayName("EXISTING persist validates a removed baseline child identity before flush")
+    fun existingPersistShouldRejectMissingIdentityOnRemovedBaselineChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(child) } answers { child.id == null }
+        every { mockEntityInfo.getId(child) } answers { child.id }
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        root.children.remove(child)
+        child.id = null
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(root)
+        }
+
+        assertTrue(error.message!!.contains("changed identity"))
+        verify(exactly = 0) { entityManager.merge(root) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("EXISTING persist keeps legitimate orphan removal when baseline identity is unchanged")
+    fun existingPersistShouldAllowRemovedBaselineChildWithUnchangedIdentity() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns child.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        root.children.remove(child)
+        jpaUnitOfWork.persist(root)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.merge(root) }
+        verify { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("CREATE completes a generated owned child added by preInTransaction before persistence")
+    fun createShouldCompleteChildAddedByPreInTransaction() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        every { interceptor1.preInTransaction(any(), any()) } answers {
+            root.children += child
+        }
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", child.id.value)
+        verify { entityManager.persist(root) }
+    }
+
+    @Test
+    @DisplayName("EXISTING completes a generated owned child added by preInTransaction before persistence")
+    fun existingShouldCompleteChildAddedByPreInTransaction() {
+        val root = StrongRootEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000093")
+        }
+        val child = StrongChildEntity()
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+        every { interceptor1.preInTransaction(any(), any()) } answers {
+            root.children += child
+        }
+
+        jpaUnitOfWork.persist(root)
+        jpaUnitOfWork.save()
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", child.id.value)
+        verify { entityManager.merge(root) }
+    }
+
+    @Test
     @DisplayName("EXISTING persist rejects a missing root strong id before completing owned children")
     fun existingPersistShouldRejectMissingRootStrongIdBeforeCompletingOwnedChildren() {
         val root = StrongRootEntity()
         val child = StrongChildEntity()
         root.children += child
+        every { entityManager.contains(root) } returns true
 
         val error = assertThrows(IllegalStateException::class.java) {
             jpaUnitOfWork.persist(root)
@@ -375,6 +497,7 @@ class JpaUnitOfWorkTest {
         every { mockEntityInfo.getId(detached) } returns 1L
         every { entityManager.contains(detached) } returns false
         every { entityManager.merge(detached) } returns managed
+        jpaUnitOfWork.observeRepositoryLoad(detached, AggregateLoadPlan.WHOLE_AGGREGATE)
 
         jpaUnitOfWork.persist(detached)
         jpaUnitOfWork.save()
@@ -441,6 +564,7 @@ class JpaUnitOfWorkTest {
     @DisplayName("same instance EXISTING then CREATE should fail fast")
     fun sameInstanceExistingThenCreateShouldFailFast() {
         val entity = TestEntity(1L, "existing")
+        every { entityManager.contains(entity) } returns true
 
         jpaUnitOfWork.persist(entity)
 
@@ -659,6 +783,7 @@ class JpaUnitOfWorkTest {
     fun testReset() {
         // Given
         val entity = TestEntity(1L, "test")
+        every { entityManager.contains(entity) } returns true
         jpaUnitOfWork.persist(entity)
         jpaUnitOfWork.remove(entity)
 
@@ -750,6 +875,7 @@ class JpaUnitOfWorkTest {
         val entity = ApplicationSideLongEntity(id = 100L, name = "existing")
         every { mockEntityInfo.isNew(entity) } returns false
         every { mockEntityInfo.getId(entity) } returns 100L
+        jpaUnitOfWork.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE)
 
         jpaUnitOfWork.persist(entity)
         jpaUnitOfWork.save()
@@ -769,6 +895,7 @@ class JpaUnitOfWorkTest {
         every { mockEntityInfo.isNew(second) } returns false
         every { mockEntityInfo.getId(first) } returns 7L
         every { mockEntityInfo.getId(second) } returns 7L
+        every { entityManager.contains(first) } returns true
 
         jpaUnitOfWork.persist(first)
         jpaUnitOfWork.remove(second)
@@ -790,6 +917,7 @@ class JpaUnitOfWorkTest {
         every { mockEntityInfo.isNew(second) } returns false
         every { mockEntityInfo.getId(first) } returns 8L
         every { mockEntityInfo.getId(second) } returns 8L
+        every { entityManager.contains(first) } returns true
 
         jpaUnitOfWork.persist(first)
         jpaUnitOfWork.remove(second)
