@@ -109,6 +109,11 @@ jobs:
           echo "docs_only=${docs_only}"
           echo "publish_promotion=${publish_promotion}"
 
+      - name: Test PR workflow guard
+        if: steps.classify.outputs.publish_promotion != 'true'
+        shell: pwsh
+        run: ./scripts/test-pr-workflow.ps1
+
       - name: Make Gradle wrapper executable
         if: steps.classify.outputs.run_gradle == 'true'
         run: chmod +x gradlew

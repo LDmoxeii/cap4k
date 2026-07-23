@@ -104,6 +104,8 @@ Pull request policy:
 - `master -> publish/maven-central`: required for Central promotion
 - do not open working-branch, issue-branch, ad-hoc-branch, docs-branch, or `verify/*` pull requests into either publish branch
 - publish-branch pull requests must use same-repository `master` as the head branch
+- before opening a pull request, use `scripts/create-pr.ps1` so tracked PR templates are discovered case-insensitively, the completed body is validated against the template headings, and the created PR body is checked after creation
+- direct `gh pr create` usage is reserved for cases where `scripts/create-pr.ps1` cannot run; when using it directly, first discover templates with `git ls-files | rg -i '(^|/)(pull_request_template\.md|pull_request_template/.*\.md)$'`, fill the tracked template, and validate the final body with `scripts/validate-pr-body.ps1 -Base <base-branch> -RequireChangeType`
 
 CI and branch protection contract:
 
@@ -111,6 +113,7 @@ CI and branch protection contract:
 - `master`, `publish/aliyun-private`, and `publish/maven-central` are protected by required PRs, strict `check`, and admin enforcement
 - PRs into `master` run Gradle only when the change can affect code, build, scripts, workflows, tests, fixtures, or template resources
 - docs-only PRs into `master` skip Gradle but still complete the required `check` job
+- PR workflow guard tests run in the required `check` job for normal and docs-only pull requests so PR template and PR creation scripts stay aligned
 - docs-only includes `docs/**`, `README*`, root Markdown files, `.github/ISSUE_TEMPLATE/**`, and `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/workflows/**`, `scripts/**`, `buildSrc/**`, `gradle/**`, Gradle files, source files, test files, fixtures, and template resources are not docs-only
 - PRs into publish branches only validate that the head is same-repository `master`; they do not run Gradle because `master` already carried the full check
