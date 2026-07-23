@@ -59,4 +59,8 @@ Results:
 
 ## Self-Review
 
-The implementation keeps repository and factory generation scoped to aggregate roots while replacing the underlying id lookup with owner-entity metadata. Cross-aggregate id fields are now represented as `AGGREGATE_REFERENCE` in generator tests so the entity planner does not mistakenly treat another entity's own id as the current entity's embedded id.
+The implementation keeps repository and factory generation scoped to aggregate roots while replacing the underlying id lookup with owner-entity metadata. Entity planner resolution treats only the owner entity id field as `@EmbeddedId`; non-owner fields may either use explicit reference metadata or reuse the target aggregate's own-id wrapper as a normal embedded Strong ID.
+
+## Review Fix
+
+Local review found that real `@RefAggregate` canonical output can reuse the target aggregate own-id wrapper rather than producing a separate `AGGREGATE_REFERENCE` entry. The entity planner now prefers explicit reference metadata when available but falls back to the matching own-id wrapper for non-owner fields, while still marking `embeddedId=true` only for the owning entity id field. The aggregate planner test now covers this target-own-id reference shape.

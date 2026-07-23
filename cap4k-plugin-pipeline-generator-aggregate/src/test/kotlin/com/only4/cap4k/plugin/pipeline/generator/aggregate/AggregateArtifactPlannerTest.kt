@@ -573,9 +573,14 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "MediaProcessingTaskId",
                         packageName = "com.acme.demo.domain.aggregates.media_processing_task",
-                        kind = StrongIdKind.AGGREGATE_REFERENCE,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "MediaProcessingTask",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.media_processing_task",
                         ownerAggregateName = "MediaProcessingTask",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
                     ),
                 ),
             )

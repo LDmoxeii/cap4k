@@ -304,13 +304,16 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         if (ownId != null) return ownId
 
         val matches = model.strongIds.filter { strongId ->
-            strongId.kind != StrongIdKind.OWN_ID &&
-                (field.type == strongId.typeName || field.type == strongId.fqn())
+            field.type == strongId.typeName || field.type == strongId.fqn()
         }
-        require(matches.size <= 1) {
+        val selectedMatches = matches
+            .filter { it.kind != StrongIdKind.OWN_ID }
+            .takeIf { it.isNotEmpty() }
+            ?: matches
+        require(selectedMatches.size <= 1) {
             "ambiguous strong id type ${field.type} for ${entity.packageName}.${entity.name}.${field.name}"
         }
-        return matches.singleOrNull()
+        return selectedMatches.singleOrNull()
     }
 
     private fun isOwnIdField(
