@@ -643,7 +643,8 @@ Verification:
 - `.\gradlew.bat :cap4k-plugin-pipeline-gradle:test --rerun-tasks --console=plain` completed with `BUILD SUCCESSFUL` after updating the functional unique metadata baseline for the new inline unique fixture.
 - `.\gradlew.bat :ddd-core:test :ddd-domain-repo-jpa:test :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-source-db:test :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-generator-aggregate:test :cap4k-plugin-pipeline-renderer-pebble:test --rerun-tasks --console=plain` completed with `BUILD SUCCESSFUL`.
 - `.\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.runtime.strongid.StrongIdJpaRuntimeTest" --tests "com.only4.cap4k.ddd.runtime.strongid.StrongIdUowRuntimeTest" --rerun-tasks --console=plain` completed with `BUILD SUCCESSFUL`.
-- `.\gradlew.bat test --continue --console=plain` completed with `BUILD SUCCESSFUL`; this broad command was mostly up-to-date/from-cache, so fresh execution evidence is limited to the focused commands above.
+- The local broad command `.\gradlew.bat test --continue --console=plain` timed out after 10 minutes without useful failure output. It is not a passing result.
+- The only full-green verification signal is GitHub PR CI `check`, which completed successfully on 2026-07-23 and ran the repository CI path, including `./gradlew check` for this non-docs-only PR. Fresh local execution evidence remains limited to the focused commands above.
 
 ## rollbackTriggers
 

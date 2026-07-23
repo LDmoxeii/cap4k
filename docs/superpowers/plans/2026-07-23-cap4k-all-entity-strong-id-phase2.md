@@ -24,7 +24,7 @@
 - No mediator-facing manual ID allocation is added in this phase.
 - Do not reintroduce removed DB annotations such as `@Reference`.
 - Implement one task at a time, run that task's focused verification, and commit before starting the next task.
-- Baseline note: `./gradlew.bat test --continue` was attempted in this worktree and timed out after 10 minutes without useful failure output; use focused module tests for each task and record any broader-test timeout separately.
+- Baseline note: `./gradlew.bat test --continue --console=plain` was attempted in this worktree and timed out after 10 minutes without useful failure output. This is not a passing result; use focused module tests for each task and record any broader-test timeout separately. The only full-green signal is GitHub PR CI `check` succeeding on 2026-07-23.
 
 ---
 
@@ -2153,7 +2153,7 @@ Run when time allows:
 .\gradlew.bat test --continue --console=plain
 ```
 
-Expected: PASS or known unrelated starter fixture failures documented with exact test names. Do not claim full verification if this command times out or fails.
+Recorded result: the local command timed out after 10 minutes without useful failure output. It is not a PASS. Full-green evidence is limited to the successful GitHub PR CI `check` run on 2026-07-23; focused commands remain the local execution evidence.
 
 - [x] **Step 5: Update docs**
 
@@ -2178,7 +2178,7 @@ Verification:
 
 - Focused module verification command from Task 10 Step 2 completed with PASS.
 - Strong ID runtime verification command from Task 10 Step 3 completed with PASS.
-- Broad verification command from Task 10 Step 4 completed with PASS, or this section records the exact timeout/failure command and class names before the implementation is handed off.
+- Local broad verification timed out after 10 minutes without useful failure output and must not be reported as PASS. The only full-green result is the GitHub PR CI `check` run on 2026-07-23.
 ```
 
 In `2026-07-22-cap4k-identity-roadmap-design.md`, update Phase 2 status from "Spec exists" to the actual result only after the implementation branch is merged or accepted by the maintainer.

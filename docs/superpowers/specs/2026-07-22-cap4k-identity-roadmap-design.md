@@ -254,7 +254,7 @@ Out of scope:
 
 Phase-specific spec: [2026-07-23-cap4k-mediator-identifier-generation-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-23-cap4k-mediator-identifier-generation-design.md>).
 
-Status as of 2026-07-23: design spec exists. Implementation has not been dispatched and no Phase 3 implementation PR has been merged into `master`.
+Status as of 2026-07-23: implemented and merged to `master` through PR #131.
 
 ### Purpose
 
