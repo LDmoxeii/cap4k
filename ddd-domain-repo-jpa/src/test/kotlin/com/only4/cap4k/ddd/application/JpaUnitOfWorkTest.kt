@@ -548,7 +548,7 @@ class JpaUnitOfWorkTest {
 
         verify {
             interceptor1.beforeTransaction(
-                match<Set<Any>> { persisted -> (persisted.single() as ApplicationSideLongEntity).id == 42L },
+                match<Set<Any>> { persisted -> (persisted.single() as ApplicationSideLongEntity).id == 1001L },
                 any()
             )
         }
@@ -644,7 +644,7 @@ class JpaUnitOfWorkTest {
         override fun <T : Any> next(type: KClass<T>): T {
             require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
             @Suppress("UNCHECKED_CAST")
-            return 42L as T
+            return 1001L as T
         }
         override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == 0L
     }
