@@ -253,10 +253,14 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         val matches = model.strongIds.filter { strongId ->
             field.type == strongId.typeName || field.type == strongId.fqn()
         }
-        require(matches.size <= 1) {
+        val selectedMatches = matches
+            .filter { it.kind != StrongIdKind.OWN_ID }
+            .takeIf { it.isNotEmpty() }
+            ?: matches
+        require(selectedMatches.size <= 1) {
             "ambiguous strong id type ${field.type} for factory field ${field.name}"
         }
-        return matches.singleOrNull()
+        return selectedMatches.singleOrNull()
     }
 
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"

@@ -654,6 +654,104 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `factory planner selects reference strong id when own and reference ids share a simple name`() {
+        val entity = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "content",
+            fields = listOf(
+                FieldModel("id", "ContentId", columnName = "id"),
+                FieldModel("authorId", "AuthorId", columnName = "author_id"),
+            ),
+            idField = FieldModel("id", "ContentId", columnName = "id"),
+        )
+
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "strong-id",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "authorId"),
+                            updateAllowedFields = listOf("authorId"),
+                        ),
+                    ),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "ContentId",
+                        packageName = entity.packageName,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        ownerAggregateName = entity.name,
+                        ownerAggregatePackageName = entity.packageName,
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
+                    ),
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.aggregates.author",
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = "Author",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.author",
+                        ownerAggregateName = "Author",
+                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.author",
+                        idStrategy = "uuid7",
+                        canGenerateNew = true,
+                        isEmbeddedId = true,
+                    ),
+                    StrongIdModel(
+                        typeName = "AuthorId",
+                        packageName = "com.acme.demo.domain.shared.ids",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+            )
+        )
+
+        val factoryContext = planItems.single { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields =
+            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+
+        assertAll(
+            { assertEquals(true, factoryContext["constructorMappingResolved"]) },
+            {
+                assertEquals(
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                    payloadFields.single { it["name"] == "authorId" }["typeRef"],
+                )
+            },
+            {
+                assertEquals(
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                    constructorPayloadFields.single { it["name"] == "authorId" }["typeRef"],
+                )
+            },
+        )
+    }
+
+    @Test
     fun `aggregate planner emits checked in behavior scaffold per aggregate root only`() {
         val root = EntityModel(
             name = "VideoPost",
