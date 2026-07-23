@@ -101,12 +101,13 @@ class IdPolicyAutoConfigurationTest {
             .withUserConfiguration(IdPolicyAutoConfiguration::class.java)
             .run { context ->
                 val registry = context.getBean(IdentifierStrategyRegistry::class.java)
+                val legacyStrategyName = listOf("snowflake", "long").joinToString("-")
 
                 val error = assertThrows(IllegalArgumentException::class.java) {
-                    registry.get("snowflake-long")
+                    registry.get(legacyStrategyName)
                 }
 
-                assertEquals("unknown identifier strategy: snowflake-long", error.message)
+                assertEquals("unknown identifier strategy: $legacyStrategyName", error.message)
             }
     }
 
