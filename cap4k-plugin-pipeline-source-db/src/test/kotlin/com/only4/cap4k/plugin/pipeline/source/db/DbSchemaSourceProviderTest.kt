@@ -1,4 +1,4 @@
-package com.only4.cap4k.plugin.pipeline.source.db
+﻿package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
@@ -314,7 +314,7 @@ class DbSchemaSourceProviderTest {
             )
         }
 
-        assertEquals("@IdStrategy=db_identity is valid only on a primary-key column", error.message)
+        assertEquals("@IdStrategy is valid only on a primary-key column", error.message)
     }
 
     @Test
@@ -636,7 +636,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -682,7 +682,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -826,7 +826,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -915,7 +915,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }

@@ -144,6 +144,7 @@ internal object AggregateSpecialFieldPolicyResolver {
 
     private fun DbIdStrategy.toAggregateStrategy(): String = when (this) {
         DbIdStrategy.DB_IDENTITY -> "identity"
+        DbIdStrategy.UUID7 -> "uuid7"
     }
 
     private fun idWritePolicy(kind: AggregateIdPolicyKind): SpecialFieldWritePolicy =

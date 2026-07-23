@@ -212,6 +212,8 @@ git commit -m "feat: rename uow existing intent"
 - Modify: `cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt`
 - Modify: `cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParser.kt`
 - Modify: `cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProvider.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregatePersistenceFieldBehaviorInference.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt`
 - Modify: `cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParserTest.kt`
 - Modify: `cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProviderTest.kt`
 
@@ -304,6 +306,22 @@ private fun resolveIdStrategy(annotations: Map<String, String?>): DbIdStrategy? 
 }
 ```
 
+Keep downstream `DbIdStrategy` consumers exhaustive so the branch remains compilable after adding the enum value:
+
+```kotlin
+// AggregatePersistenceFieldBehaviorInference
+private fun DbIdStrategy.toPersistenceStrategy(): String? = when (this) {
+    DbIdStrategy.DB_IDENTITY -> "IDENTITY"
+    DbIdStrategy.UUID7 -> null
+}
+
+// AggregateSpecialFieldPolicyResolver
+private fun DbIdStrategy.toAggregateStrategy(): String = when (this) {
+    DbIdStrategy.DB_IDENTITY -> "identity"
+    DbIdStrategy.UUID7 -> "uuid7"
+}
+```
+
 - [ ] **Step 4: Keep primary-key-only validation**
 
 In `DbSchemaSourceProvider.kt`, keep the validation broad across any `idStrategy`:
@@ -323,6 +341,7 @@ Run:
 ```powershell
 .\gradlew.bat :cap4k-plugin-pipeline-api:test --tests "com.only4.cap4k.plugin.pipeline.api.PipelineModelsTest" --console=plain
 .\gradlew.bat :cap4k-plugin-pipeline-source-db:test --tests "com.only4.cap4k.plugin.pipeline.source.db.DbColumnAnnotationParserTest" --tests "com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProviderTest" --console=plain
+.\gradlew.bat :cap4k-plugin-pipeline-core:compileKotlin --console=plain
 ```
 
 Expected: PASS with parser diagnostics updated to mention `@IdStrategy=db_identity|uuid7`.
@@ -334,6 +353,8 @@ git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipelin
         cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt `
         cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParser.kt `
         cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProvider.kt `
+        cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregatePersistenceFieldBehaviorInference.kt `
+        cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt `
         cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParserTest.kt `
         cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbSchemaSourceProviderTest.kt
 git commit -m "feat: add uuid7 db id strategy input"

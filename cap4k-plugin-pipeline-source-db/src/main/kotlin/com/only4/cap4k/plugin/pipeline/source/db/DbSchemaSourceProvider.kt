@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -175,8 +174,8 @@ class DbSchemaSourceProvider : SourceProvider {
             }
         }
 
-        require(table.columns.filter { it.idStrategy == DbIdStrategy.DB_IDENTITY }.all { it.isPrimaryKey }) {
-            "@IdStrategy=db_identity is valid only on a primary-key column"
+        require(table.columns.filter { it.idStrategy != null }.all { it.isPrimaryKey }) {
+            "@IdStrategy is valid only on a primary-key column"
         }
     }
 
