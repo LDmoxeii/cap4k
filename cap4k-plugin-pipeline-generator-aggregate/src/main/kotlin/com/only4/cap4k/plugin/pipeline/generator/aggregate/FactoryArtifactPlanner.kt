@@ -243,9 +243,9 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         entity: EntityModel,
     ): StrongIdModel? =
         model.strongIds.singleOrNull {
-            it.kind == StrongIdKind.AGGREGATE_ROOT &&
-                it.ownerAggregateName == entity.name &&
-                it.ownerAggregatePackageName == entity.packageName &&
+            it.kind == StrongIdKind.OWN_ID &&
+                it.ownerEntityName == entity.name &&
+                it.ownerEntityPackageName == entity.packageName &&
                 it.typeName == entity.idField.type.shortTypeName()
         }
 

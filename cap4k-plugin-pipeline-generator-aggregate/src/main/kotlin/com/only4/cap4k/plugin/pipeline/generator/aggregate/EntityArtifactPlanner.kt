@@ -295,9 +295,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         field: FieldModel,
     ): StrongIdModel? {
         val aggregateRootId = model.strongIds.firstOrNull {
-            it.kind == StrongIdKind.AGGREGATE_ROOT &&
-                it.ownerAggregateName == entity.name &&
-                it.ownerAggregatePackageName == entity.packageName &&
+            it.kind == StrongIdKind.OWN_ID &&
+                it.ownerEntityName == entity.name &&
+                it.ownerEntityPackageName == entity.packageName &&
                 it.typeName == field.type.shortTypeName() &&
                 field.name == entity.idField.name
         }
@@ -318,9 +318,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         strongId: StrongIdModel,
     ): Boolean =
         field.name == entity.idField.name &&
-            strongId.kind == StrongIdKind.AGGREGATE_ROOT &&
-            strongId.ownerAggregateName == entity.name &&
-            strongId.ownerAggregatePackageName == entity.packageName
+            strongId.kind == StrongIdKind.OWN_ID &&
+            strongId.ownerEntityName == entity.name &&
+            strongId.ownerEntityPackageName == entity.packageName
 
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
 

@@ -366,6 +366,11 @@ git commit -m "feat: add uuid7 db id strategy input"
 - Modify: `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt`
+- Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateElementContext.kt`
+- Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/EntityArtifactPlanner.kt`
+- Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/FactoryArtifactPlanner.kt`
+- Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/RepositoryArtifactPlanner.kt`
+- Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/StrongIdArtifactPlanner.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt`
 
 **Interfaces:**
@@ -495,6 +500,8 @@ data class StrongIdModel(
 ```
 
 Update tests and hand-built `StrongIdModel(...)` call sites by replacing root own IDs with `StrongIdKind.OWN_ID`, adding the owner entity fields, and setting `canGenerateNew = true` for own IDs only.
+
+Also update generator production references to the removed `StrongIdKind.AGGREGATE_ROOT` so downstream modules remain compilable; Task 4 adds the broader generator-planner test coverage.
 
 - [ ] **Step 4: Resolve own-ID field types from explicit strategy**
 

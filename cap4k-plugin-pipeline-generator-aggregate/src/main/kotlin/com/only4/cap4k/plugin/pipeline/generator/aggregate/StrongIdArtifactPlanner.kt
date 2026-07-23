@@ -4,7 +4,6 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 
 internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
@@ -22,7 +21,7 @@ internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to strongId.typeName,
                     "aggregateElement" to strongIdAggregateElementContext(strongId),
                     "kind" to strongId.kind.name,
-                    "canGenerateNew" to (strongId.kind == StrongIdKind.AGGREGATE_ROOT),
+                    "canGenerateNew" to strongId.canGenerateNew,
                 ),
             )
         }

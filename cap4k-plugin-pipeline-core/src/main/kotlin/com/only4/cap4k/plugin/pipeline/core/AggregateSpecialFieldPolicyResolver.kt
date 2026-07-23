@@ -25,9 +25,6 @@ internal data class AggregateSpecialFieldResolutionResult(
 )
 
 internal object AggregateSpecialFieldPolicyResolver {
-    private const val DefaultIdStrategy = "uuid7"
-    private const val NonStrongIdDefaultStrategy = "identity"
-
     fun resolve(
         config: ProjectConfig,
         entities: List<EntityModel>,
@@ -74,27 +71,20 @@ internal object AggregateSpecialFieldPolicyResolver {
         val idColumn = resolveIdColumn(entity = entity, table = table)
         validateGeneratedValueDeclaration(table = table, idColumn = idColumn)
 
-        val defaultStrategy = config.aggregateSpecialFieldDefaults.idDefaultStrategy
-            .trim()
-            .takeIf { it.isNotBlank() }
-            ?: DefaultIdStrategy
-        val generatedValueStrategy = idColumn.idStrategy?.toAggregateStrategy()
-        val (idStrategy, idSource) = when {
-            generatedValueStrategy != null ->
-                AggregateIdPolicyResolver.normalizeStrategy(generatedValueStrategy) to SpecialFieldSource.DB_EXPLICIT
-            isGeneratedAggregateRootStrongId(entity) ->
-                DefaultIdStrategy to SpecialFieldSource.DSL_DEFAULT
-            else ->
-                NonStrongIdDefaultStrategy to SpecialFieldSource.DSL_DEFAULT
-        }
-
-        if (idSource == SpecialFieldSource.DB_EXPLICIT) {
-            AggregateIdPolicyResolver.validateType(
-                config = config,
-                entity = entity,
-                strategy = idStrategy,
+        val idStrategy = when (idColumn.idStrategy) {
+            DbIdStrategy.UUID7 -> "uuid7"
+            DbIdStrategy.DB_IDENTITY -> "identity"
+            null -> throw IllegalArgumentException(
+                "primary key ${table.tableName}.${idColumn.name} must declare @IdStrategy=uuid7 or @IdStrategy=db_identity"
             )
         }
+        val idSource = SpecialFieldSource.DB_EXPLICIT
+        validateExplicitIdStrategyType(
+            config = config,
+            entity = entity,
+            idColumn = idColumn,
+            strategy = idStrategy,
+        )
         val idKind = AggregateIdPolicyResolver.resolveKind(idStrategy)
         val deletedPolicy = resolveMarkerPolicy(
             markerName = "deleted",
@@ -142,11 +132,6 @@ internal object AggregateSpecialFieldPolicyResolver {
         )
     }
 
-    private fun DbIdStrategy.toAggregateStrategy(): String = when (this) {
-        DbIdStrategy.DB_IDENTITY -> "identity"
-        DbIdStrategy.UUID7 -> "uuid7"
-    }
-
     private fun idWritePolicy(kind: AggregateIdPolicyKind): SpecialFieldWritePolicy =
         if (kind == AggregateIdPolicyKind.APPLICATION_SIDE) {
             SpecialFieldWritePolicy.CREATE_ONLY
@@ -154,8 +139,26 @@ internal object AggregateSpecialFieldPolicyResolver {
             SpecialFieldWritePolicy.READ_ONLY
         }
 
-    private fun isGeneratedAggregateRootStrongId(entity: EntityModel): Boolean =
-        entity.aggregateRoot && entity.idField.type == "${entity.name}Id"
+    private fun validateExplicitIdStrategyType(
+        config: ProjectConfig,
+        entity: EntityModel,
+        idColumn: DbColumnSnapshot,
+        strategy: String,
+    ) {
+        when (idColumn.idStrategy) {
+            DbIdStrategy.DB_IDENTITY -> AggregateIdPolicyResolver.validateType(
+                config = config,
+                entity = entity,
+                strategy = strategy,
+            )
+
+            DbIdStrategy.UUID7 -> require(idColumn.kotlinType == "String") {
+                "@IdStrategy=uuid7 currently requires String physical ID column on table ${entity.tableName}.${idColumn.name}"
+            }
+
+            null -> Unit
+        }
+    }
 
     private fun markerWritePolicy(markerName: String, enabled: Boolean): SpecialFieldWritePolicy = when {
         !enabled -> SpecialFieldWritePolicy.READ_WRITE
