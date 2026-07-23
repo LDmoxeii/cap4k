@@ -92,7 +92,7 @@ private class PendingChangeSet {
 
 private fun PersistIntent.toUnitOfWorkIntent(): UnitOfWorkIntent = when (this) {
     PersistIntent.CREATE -> UnitOfWorkIntent.CREATE
-    PersistIntent.UPDATE -> UnitOfWorkIntent.UPDATE
+    PersistIntent.EXISTING -> UnitOfWorkIntent.UPDATE
 }
 
 private data class SaveInput(
