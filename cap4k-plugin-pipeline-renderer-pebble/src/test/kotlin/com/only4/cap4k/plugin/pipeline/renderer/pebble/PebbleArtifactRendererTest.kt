@@ -2,6 +2,8 @@ package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.*
+import com.tschuchort.compiletesting.KotlinCompilation
+import com.tschuchort.compiletesting.SourceFile
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.writeText
@@ -21,6 +23,182 @@ class PebbleArtifactRendererTest {
         assertFalse(Regex("""(?m)[ \t]+$""").containsMatchIn(content), "Generated Kotlin must not contain trailing whitespace.")
         assertFalse(Regex("""\n{3,}""").containsMatchIn(content), "Generated Kotlin must not contain three or more consecutive newlines.")
     }
+
+    private fun schemaRelationJoinTestContext(): Map<String, Any?> = mapOf(
+        "packageName" to "com.acme.demo.domain._share.meta.video_post",
+        "typeName" to "SVideoPost",
+        "entityName" to "VideoPost",
+        "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
+        "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+        "isAggregateRoot" to false,
+        "imports" to emptyList<String>(),
+        "fields" to emptyList<Map<String, String>>(),
+        "relationJoins" to listOf(
+            mapOf(
+                "domainName" to "items",
+                "persistencePathName" to "_items",
+                "methodName" to "joinItems",
+                "relationKind" to "OWNED_MANY",
+                "targetEntityName" to "VideoPostItem",
+                "targetEntityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPostItem",
+                "targetSchemaName" to "SVideoPostItem",
+                "targetSchemaFqn" to "com.acme.demo.domain._share.meta.video_post.SVideoPostItem",
+            ),
+        ),
+    )
+
+    private val schemaRelationJoinStubSources = listOf(
+        SourceFile.kotlin(
+            "CriteriaStubs.kt",
+            """
+            package jakarta.persistence.criteria
+
+            interface Expression<T>
+            interface Path<T> : Expression<T> { fun <Y> get(name: String): Path<Y> }
+            interface From<Z, X> : Path<X> { fun <Y> join(name: String, joinType: JoinType): Join<X, Y> }
+            interface Join<Z, X> : From<Z, X>
+            interface Predicate : Expression<Boolean>
+            interface CriteriaBuilder {
+                fun and(vararg predicates: Predicate): Predicate
+                fun or(vararg predicates: Predicate): Predicate
+                fun not(predicate: Predicate): Predicate
+            }
+            interface CriteriaQuery<T> {
+                fun where(predicate: Predicate): CriteriaQuery<T>
+                fun distinct(distinct: Boolean): CriteriaQuery<T>
+                fun orderBy(orders: List<Any>): CriteriaQuery<T>
+                fun <E> subquery(resultClass: Class<E>): Subquery<E>
+            }
+            interface Subquery<T> : CriteriaQuery<T> {
+                fun <E> from(entityClass: Class<E>): From<Any, E>
+                fun select(expression: Expression<T>): Subquery<T>
+            }
+            enum class JoinType { INNER, LEFT, RIGHT }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "SpecificationStub.kt",
+            """
+            package org.springframework.data.jpa.domain
+
+            import jakarta.persistence.criteria.CriteriaBuilder
+            import jakarta.persistence.criteria.CriteriaQuery
+            import jakarta.persistence.criteria.From
+            import jakarta.persistence.criteria.Predicate
+
+            fun interface Specification<T> {
+                fun toPredicate(root: From<Any, T>, query: CriteriaQuery<*>, builder: CriteriaBuilder): Predicate?
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "SchemaRuntimeStubs.kt",
+            """
+            package com.only4.cap4k.ddd.domain.repo.schema
+
+            import jakarta.persistence.criteria.CriteriaBuilder
+            import jakarta.persistence.criteria.CriteriaQuery
+            import jakarta.persistence.criteria.Expression
+            import jakarta.persistence.criteria.Path
+            import jakarta.persistence.criteria.Predicate
+            import jakarta.persistence.criteria.Subquery
+
+            fun interface SchemaSpecification<E, S> {
+                fun toPredicate(schema: S, query: CriteriaQuery<*>, builder: CriteriaBuilder): Predicate?
+            }
+            fun interface PredicateBuilder<S> { fun build(schema: S): Predicate }
+            fun interface OrderBuilder<S> { fun build(schema: S): Any }
+            fun interface ExpressionBuilder<S, E> { fun build(schema: S): Expression<E> }
+            fun interface SubqueryConfigure<E, S> { fun configure(subquery: Subquery<E>, schema: S) }
+            open class Field<T>(path: Path<T>, criteriaBuilder: CriteriaBuilder)
+            class RelationCollectionField<T>(path: Path<Collection<T>>, criteriaBuilder: CriteriaBuilder)
+            class RelationOptionalField<T>(path: Path<Collection<T>>, criteriaBuilder: CriteriaBuilder)
+            enum class JoinType {
+                INNER, LEFT, RIGHT;
+                fun toJpaJoinType(): jakarta.persistence.criteria.JoinType =
+                    jakarta.persistence.criteria.JoinType.valueOf(name)
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "VideoPostEntities.kt",
+            """
+            package com.acme.demo.domain.aggregates.video_post
+
+            class VideoPost
+            class VideoPostItem
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "SVideoPostItem.kt",
+            """
+            package com.acme.demo.domain._share.meta.video_post
+
+            import com.acme.demo.domain.aggregates.video_post.VideoPostItem
+            import jakarta.persistence.criteria.CriteriaBuilder
+            import jakarta.persistence.criteria.From
+
+            class SVideoPostItem(val root: From<*, VideoPostItem>, val criteriaBuilder: CriteriaBuilder)
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "SchemaRelationJoinBehavior.kt",
+            """
+            package com.acme.demo.domain._share.meta.video_post
+
+            import com.acme.demo.domain.aggregates.video_post.VideoPost
+            import jakarta.persistence.criteria.CriteriaBuilder
+            import jakarta.persistence.criteria.From
+            import jakarta.persistence.criteria.Join
+            import jakarta.persistence.criteria.JoinType
+            import jakarta.persistence.criteria.Path
+            import jakarta.persistence.criteria.Predicate
+
+            object SchemaRelationJoinBehavior {
+                @JvmStatic
+                fun verify() {
+                    val root = RecordingRoot()
+                    val schema = SVideoPost(root, RecordingCriteriaBuilder())
+
+                    val first = schema.joinItems()
+                    val second = schema.joinItems()
+
+                    check(first === second)
+                    check(first.root === second.root)
+                    check(root.joinCalls == 1)
+                    val failure = runCatching { schema.joinItems(com.only4.cap4k.ddd.domain.repo.schema.JoinType.LEFT) }.exceptionOrNull()
+                    check(failure is IllegalStateException)
+                    check(failure.message!!.contains("schema relation items is already joined as INNER"))
+                    check(root.joinCalls == 1)
+                }
+            }
+
+            private class RecordingRoot : From<Any, VideoPost> {
+                var joinCalls = 0
+
+                override fun <Y> get(name: String): Path<Y> = error("not used")
+
+                override fun <Y> join(name: String, joinType: JoinType): Join<VideoPost, Y> {
+                    check(name == "_items")
+                    check(joinType == JoinType.INNER)
+                    joinCalls += 1
+                    return RecordingJoin()
+                }
+            }
+
+            private class RecordingJoin<Z, X> : Join<Z, X> {
+                override fun <Y> get(name: String): Path<Y> = error("not used")
+                override fun <Y> join(name: String, joinType: JoinType): Join<X, Y> = error("not used")
+            }
+
+            private class RecordingCriteriaBuilder : CriteriaBuilder {
+                override fun and(vararg predicates: Predicate): Predicate = error("not used")
+                override fun or(vararg predicates: Predicate): Predicate = error("not used")
+                override fun not(predicate: Predicate): Predicate = error("not used")
+            }
+            """.trimIndent(),
+        ),
+    )
 
     private fun assertMaintainableTemplateSource(templateId: String) {
         val content = Files.readString(Path.of("src/main/resources/presets/ddd-default", templateId))
@@ -2073,6 +2251,28 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("SVideoPostItemAdjustment(join, criteriaBuilder)"))
         assertFalse(content.contains("fun predicateById("))
         assertFalse(content.contains("fun predicate(builder: PredicateBuilder<SVideoPostItem>): JpaPredicate<VideoPostItem>"))
+    }
+
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate schema join methods reuse schema wrapper and reject conflicting join type`() {
+        val content = renderTemplate(
+            templateId = "aggregate/schema.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
+            context = schemaRelationJoinTestContext(),
+        )
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(SourceFile.kotlin("SVideoPost.kt", content)) + schemaRelationJoinStubSources
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val behavior = result.classLoader.loadClass(
+            "com.acme.demo.domain._share.meta.video_post.SchemaRelationJoinBehavior"
+        )
+        behavior.getMethod("verify").invoke(null)
     }
 
     @Test
