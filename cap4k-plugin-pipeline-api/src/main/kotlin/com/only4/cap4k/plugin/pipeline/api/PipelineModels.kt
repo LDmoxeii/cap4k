@@ -42,6 +42,7 @@ enum class DbManagedRole {
 enum class DbIdStrategy {
     DB_IDENTITY,
     UUID7,
+    SNOWFLAKE,
 }
 
 data class DbColumnSnapshot(

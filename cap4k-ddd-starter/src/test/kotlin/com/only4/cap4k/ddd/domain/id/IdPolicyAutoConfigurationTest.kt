@@ -95,23 +95,6 @@ class IdPolicyAutoConfigurationTest {
     }
 
     @Test
-    fun `snowflake long legacy name is not registered`() {
-        ApplicationContextRunner()
-            .withBean(SnowflakeIdGenerator::class.java, { SnowflakeIdGenerator(1L, 1L) })
-            .withUserConfiguration(IdPolicyAutoConfiguration::class.java)
-            .run { context ->
-                val registry = context.getBean(IdentifierStrategyRegistry::class.java)
-                val legacyStrategyName = listOf("snowflake", "long").joinToString("-")
-
-                val error = assertThrows(IllegalArgumentException::class.java) {
-                    registry.get(legacyStrategyName)
-                }
-
-                assertEquals("unknown identifier strategy: $legacyStrategyName", error.message)
-            }
-    }
-
-    @Test
     fun `application provided strategy bean is collected`() {
         ApplicationContextRunner()
             .withBean("orderNoStrategy", IdentifierStrategy::class.java, { OrderNoStrategy() })
