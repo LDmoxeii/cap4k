@@ -113,7 +113,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             aggregateRenderedType(fieldType)
                         }
                         val typeRef = strongId?.fqn()
-                        val embeddedId = strongId != null && isAggregateRootIdField(entity, field, strongId)
+                        val embeddedId = strongId != null && isOwnIdField(entity, field, strongId)
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
                         val applicationSideIdStrategy: String? = null
                         val generatedValueStrategy = if (
@@ -294,33 +294,37 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         entity: EntityModel,
         field: FieldModel,
     ): StrongIdModel? {
-        val aggregateRootId = model.strongIds.firstOrNull {
-            it.kind == StrongIdKind.AGGREGATE_ROOT &&
-                it.ownerAggregateName == entity.name &&
-                it.ownerAggregatePackageName == entity.packageName &&
+        val ownId = model.strongIds.firstOrNull {
+            it.kind == StrongIdKind.OWN_ID &&
+                it.ownerEntityName == entity.name &&
+                it.ownerEntityPackageName == entity.packageName &&
                 it.typeName == field.type.shortTypeName() &&
                 field.name == entity.idField.name
         }
-        if (aggregateRootId != null) return aggregateRootId
+        if (ownId != null) return ownId
 
         val matches = model.strongIds.filter { strongId ->
             field.type == strongId.typeName || field.type == strongId.fqn()
         }
-        require(matches.size <= 1) {
+        val selectedMatches = matches
+            .filter { it.kind != StrongIdKind.OWN_ID }
+            .takeIf { it.isNotEmpty() }
+            ?: matches
+        require(selectedMatches.size <= 1) {
             "ambiguous strong id type ${field.type} for ${entity.packageName}.${entity.name}.${field.name}"
         }
-        return matches.singleOrNull()
+        return selectedMatches.singleOrNull()
     }
 
-    private fun isAggregateRootIdField(
+    private fun isOwnIdField(
         entity: EntityModel,
         field: FieldModel,
         strongId: StrongIdModel,
     ): Boolean =
         field.name == entity.idField.name &&
-            strongId.kind == StrongIdKind.AGGREGATE_ROOT &&
-            strongId.ownerAggregateName == entity.name &&
-            strongId.ownerAggregatePackageName == entity.packageName
+            strongId.kind == StrongIdKind.OWN_ID &&
+            strongId.ownerEntityName == entity.name &&
+            strongId.ownerEntityPackageName == entity.packageName
 
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
 

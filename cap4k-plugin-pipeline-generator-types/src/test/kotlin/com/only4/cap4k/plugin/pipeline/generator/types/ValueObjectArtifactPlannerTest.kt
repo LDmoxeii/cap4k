@@ -181,7 +181,7 @@ class ValueObjectArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "ContentId",
                         packageName = "com.acme.demo.domain.aggregates.content",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
                         ownerAggregateName = "Content",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                     ),
@@ -254,7 +254,7 @@ class ValueObjectArtifactPlannerTest {
                         StrongIdModel(
                             typeName = "ContentId",
                             packageName = "com.acme.demo.domain.aggregates.content",
-                            kind = StrongIdKind.AGGREGATE_ROOT,
+                            kind = StrongIdKind.OWN_ID,
                             ownerAggregateName = "Content",
                             ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                         ),

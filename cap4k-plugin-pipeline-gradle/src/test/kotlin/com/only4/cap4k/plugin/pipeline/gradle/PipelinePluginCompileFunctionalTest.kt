@@ -580,8 +580,8 @@ class PipelinePluginCompileFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             """
-            create table video_post (id bigint primary key);
-            create table video_post_item (id bigint primary key, video_post_id bigint not null);
+            create table video_post (id bigint primary key comment '@IdStrategy=db_identity;');
+            create table video_post_item (id bigint primary key comment '@IdStrategy=db_identity;', video_post_id bigint not null);
             comment on table video_post_item is '@Parent=video_post;';
             """.trimIndent()
         )
@@ -675,8 +675,8 @@ class PipelinePluginCompileFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id bigint primary key,",
-            )
+                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
+            ).replaceFirst("@Managed=deleted;", "")
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
@@ -724,7 +724,7 @@ class PipelinePluginCompileFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id uuid primary key,",
+                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
             ).replaceFirst("@Managed=deleted;", "")
         )
 
@@ -930,7 +930,7 @@ class PipelinePluginCompileFunctionalTest {
                 """
 
                 create table if not exists video_file (
-                    id bigint primary key,
+                    id bigint primary key comment '@IdStrategy=db_identity;',
                     video_post_id bigint not null comment '@ParentRef;',
                     file_index int not null,
                     constraint uq_video_file_parent_index unique (video_post_id, file_index)

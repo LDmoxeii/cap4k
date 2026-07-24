@@ -1,5 +1,5 @@
 create table if not exists video_post (
-  id bigint primary key,
+  id bigint primary key comment '@IdStrategy=db_identity;',
   title varchar(128) not null
 );
 

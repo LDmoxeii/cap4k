@@ -43,7 +43,8 @@ internal object AggregatePersistenceFieldBehaviorInference {
         }
     }
 
-    private fun DbIdStrategy.toPersistenceStrategy(): String = when (this) {
+    private fun DbIdStrategy.toPersistenceStrategy(): String? = when (this) {
         DbIdStrategy.DB_IDENTITY -> "IDENTITY"
+        DbIdStrategy.UUID7 -> null
     }
 }

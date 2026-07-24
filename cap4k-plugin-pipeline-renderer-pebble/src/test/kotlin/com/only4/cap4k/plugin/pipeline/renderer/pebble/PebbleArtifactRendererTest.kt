@@ -713,7 +713,7 @@ class PebbleArtifactRendererTest {
             context = mapOf(
                 "packageName" to "com.acme.demo.domain.aggregates.content",
                 "typeName" to "ContentId",
-                "kind" to "AGGREGATE_ROOT",
+                "kind" to "OWN_ID",
                 "canGenerateNew" to true,
             ),
         )
@@ -1409,6 +1409,63 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("@Column(name = \"id\")"))
         assertFalse(content.contains("@Column(name = \"author_id\")"))
         assertFalse(content.contains("@Column(name = \"media_processing_task_id\")"))
+    }
+
+    @Test
+    fun `aggregate entity template renders owned child strong id as embedded id`() {
+        val content = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/demo/domain/order/OrderLine.kt",
+            context = mapOf(
+                "packageName" to "com.demo.domain.order",
+                "typeName" to "OrderLine",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to "order_line",
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to true,
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf("com.demo.domain.order.OrderLineId"),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "OrderLineId",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to true,
+                        "embeddedId" to true,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to "CREATE_ONLY",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to false,
+                        "converterClassRef" to null,
+                    )
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import jakarta.persistence.EmbeddedId"))
+        assertTrue(content.contains("@EmbeddedId"))
+        assertTrue(content.contains("var id: OrderLineId = id"))
+        assertFalse(content.contains("ApplicationSideId"))
     }
 
     @Test

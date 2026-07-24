@@ -7,6 +7,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
 $validateScript = Join-Path $PSScriptRoot "validate-pr-body.ps1"
 $createScript = Join-Path $PSScriptRoot "create-pr.ps1"
+$ciWorkflow = Join-Path $repoRoot ".github/workflows/ci.yml"
 
 function Invoke-ScriptProcess {
     param(
@@ -54,6 +55,28 @@ $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cap4k-pr-workflow-test
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
 try {
+    $workflowText = Get-Content -LiteralPath $ciWorkflow -Raw -Encoding UTF8
+    $prBodyValidationStep = @'
+      - name: Validate PR body
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          $bodyFile = Join-Path $env:RUNNER_TEMP 'pr-body.md'
+          Set-Content -LiteralPath $bodyFile -Value $env:PR_BODY -Encoding utf8NoBOM
+          ./scripts/validate-pr-body.ps1 -BodyFile $bodyFile -Base $env:BASE_REF -RequireChangeType
+'@
+
+    if ($workflowText -notlike "*$prBodyValidationStep*") {
+        throw "CI workflow must validate pull-request bodies with validate-pr-body.ps1."
+    }
+
+    if ($workflowText.IndexOf($prBodyValidationStep) -gt $workflowText.IndexOf("      - name: Make Gradle wrapper executable")) {
+        throw "CI must validate pull-request bodies before Gradle checks."
+    }
+
     $template = Join-Path $tempRoot "template.md"
     $validBody = Join-Path $tempRoot "valid-body.md"
     $missingBody = Join-Path $tempRoot "missing-body.md"

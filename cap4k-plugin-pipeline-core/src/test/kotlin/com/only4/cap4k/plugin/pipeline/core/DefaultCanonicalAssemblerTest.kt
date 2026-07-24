@@ -1940,6 +1940,8 @@ class DefaultCanonicalAssemblerTest {
                                     dbType = "BIGINT",
                                     kotlinType = "Long",
                                     nullable = false,
+                                    isPrimaryKey = true,
+                                    idStrategy = DbIdStrategy.DB_IDENTITY,
                                 ),
                                 DbColumnSnapshot(
                                     name = "status",
@@ -2626,7 +2628,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler does not infer persistence field controls when source is silent`() {
+    fun `assembler records only identity id persistence field control when source has no other markers`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2647,7 +2649,10 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+        val controls = result.model.aggregatePersistenceFieldControls
+        assertEquals(listOf("id"), controls.map { it.fieldName })
+        assertEquals("IDENTITY", controls.single().generatedValueStrategy)
+        assertNull(controls.single().version)
     }
 
     @Test
@@ -2673,7 +2678,10 @@ class DefaultCanonicalAssemblerTest {
         )
 
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+        val controls = result.model.aggregatePersistenceFieldControls
+        assertEquals(listOf("id"), controls.map { it.fieldName })
+        assertEquals("IDENTITY", controls.single().generatedValueStrategy)
+        assertNull(controls.single().version)
     }
 
     @Test
@@ -2700,7 +2708,9 @@ class DefaultCanonicalAssemblerTest {
         )
 
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+        val controls = result.model.aggregatePersistenceFieldControls
+        assertEquals(listOf("id"), controls.map { it.fieldName })
+        assertTrue(controls.none { it.fieldName == "createdBy" || it.fieldName == "displayName" })
     }
 
     @Test
@@ -2820,15 +2830,63 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `aggregate root id defaults to strong id metadata and field type`() {
+    fun `uuid7 root and owned child primary keys become own strong ids`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "order",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("title", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                ),
+                table(
+                    name = "order_line",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
+                        column("sku", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = false,
+                    parentTable = "order",
+                ),
+            )
+        )
+
+        val orderId = result.model.strongIds.single { it.typeName == "OrderId" }
+        assertEquals(StrongIdKind.OWN_ID, orderId.kind)
+        assertEquals("Order", orderId.ownerEntityName)
+        assertEquals("uuid7", orderId.idStrategy)
+        assertEquals(true, orderId.canGenerateNew)
+        assertEquals(true, orderId.isEmbeddedId)
+
+        val lineId = result.model.strongIds.single { it.typeName == "OrderLineId" }
+        assertEquals(StrongIdKind.OWN_ID, lineId.kind)
+        assertEquals("OrderLine", lineId.ownerEntityName)
+        assertEquals("Order", lineId.ownerAggregateName)
+        assertEquals("uuid7", lineId.idStrategy)
+        assertEquals(true, lineId.canGenerateNew)
+        assertEquals(true, lineId.isEmbeddedId)
+
+        val line = result.model.entities.single { it.name == "OrderLine" }
+        assertEquals("OrderLineId", line.idField.type)
+        assertEquals("String", line.fields.single { it.name == "orderId" }.type)
+    }
+
+    @Test
+    fun `db identity primary key stays primitive and does not emit own strong id`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
                 table(
-                    name = "content",
+                    name = "invoice",
                     columns = listOf(
-                        column("id", "VARCHAR", "String", false, primaryKey = true),
-                        column("title", "VARCHAR", "String", false),
+                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                        column("title", "VARCHAR(64)", "String", false),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -2836,19 +2894,38 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val entity = result.model.entities.single()
-        val strongId = result.model.strongIds.single()
+        assertEquals("Long", result.model.entities.single().idField.type)
+        assertTrue(result.model.strongIds.none { it.typeName == "InvoiceId" })
+    }
 
-        assertEquals("ContentId", strongId.typeName)
-        assertEquals("com.acme.demo.domain.aggregates.content", strongId.packageName)
-        assertEquals("String", strongId.valueType)
-        assertEquals(StrongIdKind.AGGREGATE_ROOT, strongId.kind)
-        assertEquals("Content", strongId.ownerAggregateName)
-        assertEquals("com.acme.demo.domain.aggregates.content", strongId.ownerAggregatePackageName)
-        assertEquals("ContentId", entity.idField.type)
-        assertEquals("ContentId", entity.fields.single { it.name == "id" }.type)
-        assertEquals("ContentId", result.model.repositories.single().idType)
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+    @Test
+    fun `db schema primary key without explicit id strategy fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(
+                            com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot(
+                                name = "id",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                isPrimaryKey = true,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "primary key video.id must declare @IdStrategy=uuid7 or @IdStrategy=db_identity",
+            error.message,
+        )
     }
 
     @Test
@@ -2882,7 +2959,10 @@ class DefaultCanonicalAssemblerTest {
 
         val content = result.model.entities.single { it.name == "Content" }
 
-        assertEquals("MediaProcessingTaskId", content.fields.single { it.name == "mediaProcessingTaskId" }.type)
+        assertEquals(
+            "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
+            content.fields.single { it.name == "mediaProcessingTaskId" }.type,
+        )
         assertEquals(
             listOf("MediaProcessingTaskId", "ContentId"),
             result.model.strongIds.map { it.typeName },
@@ -3062,28 +3142,38 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `default uuid7 strategy does not emit primitive aggregate id policy`() {
-        val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
-            tables = listOf(
-                table(
-                    name = "user_message",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
-                    primaryKey = listOf("id"),
-                    aggregateRoot = true,
+    fun `uuid7 id strategy requires string physical id column`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "user_message",
+                        columns = listOf(
+                            column(
+                                "id",
+                                "UUID",
+                                "UUID",
+                                false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.UUID7,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
                 )
             )
+        }
+
+        assertEquals(
+            "@IdStrategy=uuid7 currently requires String physical ID column on table user_message.id",
+            error.message,
         )
-
-        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
-
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
-        assertEquals("UserMessageId", result.model.entities.single().idField.type)
-        assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
     }
 
     @Test
-    fun `non root silent primitive ids keep non strong id policy semantics`() {
+    fun `non root primitive ids keep db explicit identity policy semantics`() {
         listOf("identity", "uuid7").forEach { defaultStrategy ->
             val result = assembleAggregate(
                 config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = defaultStrategy),
@@ -3114,12 +3204,12 @@ class DefaultCanonicalAssemblerTest {
             assertEquals("identity", policy.id.strategy)
             assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, policy.id.kind)
             assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.id.writePolicy)
-            assertEquals(SpecialFieldSource.DSL_DEFAULT, policy.id.source)
+            assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
         }
     }
 
     @Test
-    fun `generated default aggregate root ignores primitive identity default for strong id policy`() {
+    fun `explicit uuid7 aggregate root ignores primitive identity default for strong id policy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
             tables = listOf(
@@ -3144,8 +3234,8 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("uuid7", resolved.id.strategy)
         assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, resolved.id.kind)
         assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, resolved.id.writePolicy)
-        assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+        assertEquals(SpecialFieldSource.DB_EXPLICIT, resolved.id.source)
+        assertEquals("uuid7", result.model.aggregateIdPolicyControls.single().strategy)
     }
 
     @Test
@@ -3180,7 +3270,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `application-side id resolves create-only write policy`() {
+    fun `uuid7 own id resolves create-only write policy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
                 idDefaultStrategy = "uuid7",
@@ -3191,7 +3281,9 @@ class DefaultCanonicalAssemblerTest {
             tables = listOf(
                 table(
                     name = "category",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                    ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
                 )
@@ -3204,7 +3296,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `default uuid7 strategy allows primitive source id column behind strong id field`() {
+    fun `db identity strategy keeps primitive source id column`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
@@ -3217,8 +3309,8 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertEquals("VideoId", result.model.entities.single().idField.type)
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+        assertEquals("Long", result.model.entities.single().idField.type)
+        assertEquals("identity", result.model.aggregateIdPolicyControls.single().strategy)
     }
 
     @Test
@@ -3274,7 +3366,9 @@ class DefaultCanonicalAssemblerTest {
             tables = listOf(
                 table(
                     name = "video",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                    ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
                 ),
@@ -3298,7 +3392,7 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertTrue(result.model.aggregateIdPolicyControls.none { it.entityName == "Video" })
+        assertEquals("uuid7", result.model.aggregateIdPolicyControls.single { it.entityName == "Video" }.strategy)
         assertEquals("identity", result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.strategy)
     }
 
@@ -3667,7 +3761,9 @@ class DefaultCanonicalAssemblerTest {
             tables = listOf(
                 table(
                     name = "video",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                    ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
                 )
@@ -5518,7 +5614,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("title"), unique.columns)
         assertEquals("VideoPostRepository", model.repositories.single().name)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
-        assertEquals("VideoPostId", model.repositories.single().idType)
+        assertEquals("Long", model.repositories.single().idType)
     }
 
     @Test
@@ -6167,7 +6263,7 @@ class DefaultCanonicalAssemblerTest {
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
-        idStrategy = idStrategy,
+        idStrategy = idStrategy ?: defaultTestIdStrategy(isPrimaryKey, kotlinType),
         managedRole = managedRole,
         inherited = inherited,
     )
@@ -6205,7 +6301,11 @@ class DefaultCanonicalAssemblerTest {
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
-        idStrategy = idStrategy ?: if (generatedValueDeclared || generatedValueStrategy != null) DbIdStrategy.DB_IDENTITY else null,
+        idStrategy = idStrategy ?: defaultTestIdStrategy(
+            primaryKey = primaryKey,
+            kotlinType = kotlinType,
+            dbGenerated = generatedValueDeclared || generatedValueStrategy != null,
+        ),
         managedRole = managedRole ?: when {
             deleted == true -> DbManagedRole.DELETED
             version == true -> DbManagedRole.VERSION
@@ -6215,6 +6315,19 @@ class DefaultCanonicalAssemblerTest {
         },
         inherited = inherited,
     )
+
+    private fun defaultTestIdStrategy(
+        primaryKey: Boolean,
+        kotlinType: String,
+        dbGenerated: Boolean = false,
+    ): DbIdStrategy? = when {
+        dbGenerated -> DbIdStrategy.DB_IDENTITY
+        !primaryKey -> null
+        kotlinType in setOf("Long", "kotlin.Long", "Int", "kotlin.Int", "Short", "kotlin.Short") ->
+            DbIdStrategy.DB_IDENTITY
+        kotlinType == "String" -> DbIdStrategy.UUID7
+        else -> null
+    }
 
     private fun aggregateSnapshot(
         aggregateName: String,

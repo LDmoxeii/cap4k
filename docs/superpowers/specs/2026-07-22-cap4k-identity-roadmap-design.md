@@ -35,8 +35,8 @@ The work must be split because each phase changes a different contract surface: 
 | Phase | Name | Status | Main Outcome |
 |---|---|---|---|
 | 1 | Unit of Work persist intent | Completed and merged to master on 2026-07-23 | `persist(entity, PersistIntent.CREATE/UPDATE)` separates create and update intent before JPA sees the entity. |
-| 2 | All-entity Strong ID support | Implementation dispatched; not merged to master | Generated Strong ID support expands to every generated entity own ID, and the merged Phase 1 `UPDATE` input evolves into `EXISTING` baseline enrollment. |
-| 3 | Mediator identifier generation entry | Spec exists in this docs folder | Application code gets `mediator.identifiers` plus built-in `uuid7` and `snowflake` strategy constants for manual primitive/runtime identifier generation. |
+| 2 | All-entity Strong ID support | Implemented and focused-verified on branch; not merged to `master` | Generated Strong ID support expands to every generated entity own ID, and the merged Phase 1 `UPDATE` input evolves into `EXISTING` baseline enrollment. |
+| 3 | Mediator identifier generation entry | Completed and merged to master on 2026-07-23 | Application code gets `mediator.identifiers` plus built-in `uuid7` and `snowflake` strategy constants for manual primitive/runtime identifier generation. |
 | 4 | Strong-ID create-time injection | Needs new spec | Generated Strong ID entity constructors/factories receive real IDs during creation without save-time mutation. |
 | 5 | Optional non-Strong-ID create-time injection | Future research | Explore whether primitive application-side IDs can get the same create-time ergonomics without weakening the Strong ID path. |
 
@@ -182,7 +182,7 @@ Out of scope:
 
 Phase-specific spec: [2026-07-22-cap4k-all-entity-strong-id-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-22-cap4k-all-entity-strong-id-design.md>).
 
-Status as of 2026-07-23: design is approved for implementation and has been dispatched outside `master`. No Phase 2 implementation PR has been merged into `master` yet.
+Status as of 2026-07-23: implemented and focused-verified on branch `plan/cap4k-all-entity-strong-id`; no Phase 2 implementation PR has been merged into `master` yet.
 
 ### Purpose
 
@@ -254,7 +254,7 @@ Out of scope:
 
 Phase-specific spec: [2026-07-23-cap4k-mediator-identifier-generation-design.md](</C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k/docs/superpowers/specs/2026-07-23-cap4k-mediator-identifier-generation-design.md>).
 
-Status as of 2026-07-23: design spec exists. Implementation has not been dispatched and no Phase 3 implementation PR has been merged into `master`.
+Status as of 2026-07-23: implemented and merged to `master` through PR #131.
 
 ### Purpose
 

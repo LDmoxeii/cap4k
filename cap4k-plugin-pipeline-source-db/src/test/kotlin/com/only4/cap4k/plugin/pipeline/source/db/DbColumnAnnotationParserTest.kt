@@ -1,4 +1,4 @@
-package com.only4.cap4k.plugin.pipeline.source.db
+﻿package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
@@ -26,6 +26,13 @@ class DbColumnAnnotationParserTest {
         val metadata = DbColumnAnnotationParser.parse("@IdStrategy=db_identity;")
 
         assertEquals(DbIdStrategy.DB_IDENTITY, metadata.idStrategy)
+    }
+
+    @Test
+    fun `column parser accepts uuid7 id strategy`() {
+        val metadata = DbColumnAnnotationParser.parse("@IdStrategy=uuid7;")
+
+        assertEquals(DbIdStrategy.UUID7, metadata.idStrategy)
     }
 
     @Test
@@ -58,7 +65,7 @@ class DbColumnAnnotationParserTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Reference. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Reference. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -101,7 +108,7 @@ class DbColumnAnnotationParserTest {
         }
 
         assertEquals(
-            "unsupported column annotation @CustomMarker. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @CustomMarker. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -131,6 +138,15 @@ class DbColumnAnnotationParserTest {
         }
 
         assertEquals("unsupported @IdStrategy value: sequence", error.message)
+    }
+
+    @Test
+    fun `column parser rejects unsupported application side id strategy`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@IdStrategy=snowflake-long;")
+        }
+
+        assertEquals("unsupported @IdStrategy value: snowflake-long", error.message)
     }
 
     @Test

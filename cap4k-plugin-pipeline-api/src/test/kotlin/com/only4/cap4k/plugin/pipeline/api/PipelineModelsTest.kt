@@ -44,6 +44,20 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `db id strategy carries uuid7 application side strategy`() {
+        val column = DbColumnSnapshot(
+            name = "id",
+            dbType = "varchar(36)",
+            kotlinType = "String",
+            nullable = false,
+            isPrimaryKey = true,
+            idStrategy = DbIdStrategy.UUID7,
+        )
+
+        assertEquals(DbIdStrategy.UUID7, column.idStrategy)
+    }
+
+    @Test
     fun `design block stores artifact selections`() {
         val block = DesignBlockModel(
             tag = "query",

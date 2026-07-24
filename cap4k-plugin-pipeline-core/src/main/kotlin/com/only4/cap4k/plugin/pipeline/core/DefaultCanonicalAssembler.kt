@@ -19,6 +19,8 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.DomainServiceModel
+import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -142,9 +144,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
 
         val aggregateRootIdTypesByName = supportedTables
+            .filter { it.aggregateRoot }
             .mapNotNull { table ->
-                generatedAggregateRootStrongIdType(table)
-                    ?.let { idType -> AggregateNaming.entityName(table.tableName) to idType }
+                generatedOwnStrongIdType(table)
+                    ?.let { idType ->
+                        val idPackage = artifactLayout.aggregateEntityPackage(
+                            AggregateNaming.tableSegment(table.tableName)
+                        )
+                        AggregateNaming.entityName(table.tableName) to "$idPackage.$idType"
+                    }
             }
             .toMap()
 
@@ -156,14 +164,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val aggregateOwnerTable = resolveAggregateOwnerTable(table, supportedTablesByName)
             val segment = AggregateNaming.tableSegment(aggregateOwnerTable.tableName)
             val parentTable = table.parentTable
-            val generatedRootIdType = generatedAggregateRootStrongIdType(table)
+            val generatedOwnIdType = generatedOwnStrongIdType(table)
             val fields = table.columns.map {
                 val fieldName = lowerCamelIdentifier(it.name)
                 val resolvedType = resolveStrongIdFieldType(
                     column = it,
                     aggregateRootIdTypesByName = aggregateRootIdTypesByName,
-                ) ?: if (isTablePrimaryKeyColumn(table, it) && generatedRootIdType != null) {
-                    generatedRootIdType
+                ) ?: if (isTablePrimaryKeyColumn(table, it) && generatedOwnIdType != null) {
+                    generatedOwnIdType
                 } else {
                     it.kotlinType
                 }
@@ -398,7 +406,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
     private fun resolveStrongIdFieldType(
-        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
+        column: DbColumnSnapshot,
         aggregateRootIdTypesByName: Map<String, String>,
     ): String? {
         val refAggregate = column.refAggregate?.takeIf { it.isNotBlank() }
@@ -415,50 +423,72 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return refId
     }
 
-    private fun generatedAggregateRootStrongIdType(table: DbTableSnapshot): String? {
-        if (!table.aggregateRoot) {
-            return null
-        }
-
+    private fun generatedOwnStrongIdType(table: DbTableSnapshot): String? {
         val primaryKeyColumn = table.primaryKey.singleOrNull() ?: return null
         val idColumn = table.columns.firstOrNull { it.name.equals(primaryKeyColumn, ignoreCase = true) }
             ?: return null
-        if (idColumn.idStrategy != null) {
+        if (idColumn.idStrategy != DbIdStrategy.UUID7) {
             return null
         }
-        if (!idColumn.refAggregate.isNullOrBlank() || !idColumn.refId.isNullOrBlank()) {
-            return null
+        require(idColumn.kotlinType == "String") {
+            "@IdStrategy=uuid7 currently requires String physical ID column on table ${table.tableName}.${idColumn.name}"
+        }
+        require(idColumn.refAggregate.isNullOrBlank() && idColumn.refId.isNullOrBlank()) {
+            "primary key ${table.tableName}.${idColumn.name} cannot also be @RefAggregate or @RefId"
         }
 
-        return aggregateRootStrongIdTypeName(AggregateNaming.entityName(table.tableName))
+        return ownStrongIdTypeName(AggregateNaming.entityName(table.tableName))
     }
 
     private fun isTablePrimaryKeyColumn(
         table: DbTableSnapshot,
-        column: com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot,
+        column: DbColumnSnapshot,
     ): Boolean = table.primaryKey.any { it.equals(column.name, ignoreCase = true) }
 
-    private fun aggregateRootStrongIdTypeName(entityName: String): String = "${entityName}Id"
+    private fun ownStrongIdTypeName(entityName: String): String = "${entityName}Id"
 
     private fun buildStrongIds(
         config: ProjectConfig,
         entities: List<EntityModel>,
         tables: List<DbTableSnapshot>,
     ): List<StrongIdModel> {
-        val aggregateRootStrongIds = entities
+        val tableByEntity = tables.associateBy { AggregateNaming.entityName(it.tableName) }
+        val ownIds = entities
             .asSequence()
-            .filter { it.aggregateRoot && it.idField.type == aggregateRootStrongIdTypeName(it.name) }
-            .map { entity ->
+            .mapNotNull { entity ->
+                val table = tableByEntity[entity.name] ?: return@mapNotNull null
+                val idColumn = table.columns.firstOrNull { column ->
+                    table.primaryKey.any { it.equals(column.name, ignoreCase = true) }
+                } ?: return@mapNotNull null
+                if (idColumn.idStrategy != DbIdStrategy.UUID7) return@mapNotNull null
+                val ownerAggregate = aggregateRootEntityOrSelf(entity, entities)
                 StrongIdModel(
                     typeName = entity.idField.type,
                     packageName = entity.packageName,
-                    kind = StrongIdKind.AGGREGATE_ROOT,
-                    ownerAggregateName = entity.name,
-                    ownerAggregatePackageName = entity.packageName,
+                    valueType = "String",
+                    kind = StrongIdKind.OWN_ID,
+                    ownerEntityName = entity.name,
+                    ownerEntityPackageName = entity.packageName,
+                    ownerAggregateName = ownerAggregate.name,
+                    ownerAggregatePackageName = ownerAggregate.packageName,
+                    idStrategy = "uuid7",
+                    canGenerateNew = true,
+                    isEmbeddedId = true,
                 )
             }
 
-        val referenceStrongIds = tables
+        val referenceStrongIds = buildReferenceStrongIds(config, tables)
+
+        return (ownIds + referenceStrongIds)
+            .distinctBy { it.packageName to it.typeName }
+            .toList()
+    }
+
+    private fun buildReferenceStrongIds(
+        config: ProjectConfig,
+        tables: List<DbTableSnapshot>,
+    ): Sequence<StrongIdModel> =
+        tables
             .asSequence()
             .flatMap { it.columns.asSequence() }
             .onEach { column ->
@@ -476,9 +506,18 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
 
-        return (aggregateRootStrongIds + referenceStrongIds)
-            .distinctBy { it.packageName to it.typeName }
-            .toList()
+    private fun aggregateRootEntityOrSelf(entity: EntityModel, entities: List<EntityModel>): EntityModel {
+        val entitiesByName = entities.associateBy { it.name }
+        val visited = mutableSetOf<String>()
+        var current = entity
+        while (!current.aggregateRoot) {
+            if (!visited.add("${current.packageName}.${current.name}")) {
+                return entity
+            }
+            val parentEntityName = current.parentEntityName ?: return entity
+            current = entitiesByName[parentEntityName] ?: return entity
+        }
+        return current
     }
 
     private fun resolveAggregateOwnerTable(
