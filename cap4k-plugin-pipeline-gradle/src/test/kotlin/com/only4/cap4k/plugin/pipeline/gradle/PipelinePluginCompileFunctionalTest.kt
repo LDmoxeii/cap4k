@@ -514,6 +514,86 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `aggregate schema owned relation joins compile for owned many owned one and chained children`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-schema-relation-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
+        val buildFile = projectDir.resolve("build.gradle.kts")
+        buildFile.writeText(
+            buildFile.readText().replace(
+                """includeTables.set(listOf("video_post", "video_post_item", "video_post_file", "user_profile", "content", "media_processing_task"))""",
+                """includeTables.set(listOf("video_post", "video_post_item", "video_post_file", "video_post_item_adjustment", "user_profile", "content", "media_processing_task"))""",
+            )
+        )
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText() +
+                """
+
+                create table video_post_item_adjustment (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    video_post_item_id bigint not null comment '@ParentRef;',
+                    reason varchar(64) not null
+                );
+
+                comment on table video_post_item_adjustment is '@Parent=video_post_item;';
+                """.trimIndent()
+        )
+        val smokeFile = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/SchemaRelationCompileSmoke.kt"
+        )
+        smokeFile.writeText(
+            """
+            package com.acme.demo.domain.aggregates.video_post
+
+            import com.acme.demo.domain._share.meta.video_post.SVideoPost
+            import com.only4.cap4k.ddd.domain.repo.schema.JoinType
+
+            class SchemaRelationCompileSmoke {
+                fun compileOwnedRelationQueries(label: String, storageKey: String, reason: String) {
+                    SVideoPost.predicate(distinct = true) { post ->
+                        val item = post.joinItems()
+                        val file = post.joinFile(JoinType.LEFT)
+                        val adjustment = item.joinAdjustments()
+
+                        post.all(
+                            post.items.isNotEmpty(),
+                            post.file.isNotNull(),
+                            item.label eq label,
+                            file.storageKey eq storageKey,
+                            adjustment.reason eq reason,
+                        )
+                    }
+                }
+            }
+            """.trimIndent()
+        )
+
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+        val rootSchema = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
+        ).readText()
+        val itemSchema = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostItem.kt")
+        ).readText()
+
+        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(rootSchema.contains("fun predicate(distinct: Boolean, builder: PredicateBuilder<SVideoPost>): JpaPredicate<VideoPost>"))
+        assertTrue(rootSchema.contains("val items: RelationCollectionField<VideoPostItem>"))
+        assertTrue(rootSchema.contains("val file: RelationOptionalField<VideoPostFile>"))
+        assertTrue(rootSchema.contains("fun joinItems(): SVideoPostItem = joinItems(JoinType.INNER)"))
+        assertTrue(rootSchema.contains("fun joinFile(joinType: JoinType): SVideoPostFile"))
+        assertTrue(rootSchema.contains("root.join<VideoPost, T>(persistencePathName, joinType.toJpaJoinType())"))
+        assertTrue(itemSchema.contains("fun joinAdjustments(): SVideoPostItemAdjustment = joinAdjustments(JoinType.INNER)"))
+        assertFalse(rootSchema.contains("val _items: RelationCollectionField"))
+        assertFalse(rootSchema.contains("val _files: RelationOptionalField"))
+        assertFalse(rootSchema.contains("fun join_items"))
+        assertFalse(rootSchema.contains("fun join_files"))
+    }
+
+    @Test
     fun `aggregate behavior source compiles against generated entities when module build dir is customized`() {
         val planProjectDir = Files.createTempDirectory("pipeline-functional-aggregate-custom-build-dir-plan")
         FunctionalFixtureSupport.copyCompileFixture(planProjectDir, "aggregate-relation-compile-sample")

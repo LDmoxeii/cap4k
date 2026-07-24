@@ -5408,6 +5408,282 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `schema planner emits relation joins for owned many and owned one relations`() {
+        val rootEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = true,
+        )
+        val itemEntity = EntityModel(
+            name = "VideoPostItem",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post_item",
+            comment = "video post item",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = "VideoPost",
+        )
+        val fileEntity = EntityModel(
+            name = "VideoPostFile",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post_file",
+            comment = "video post file",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = "VideoPost",
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(rootEntity, itemEntity, fileEntity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SVideoPost",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoPost",
+                        comment = "video post schema",
+                        fields = rootEntity.fields,
+                    ),
+                    SchemaModel(
+                        name = "SVideoPostItem",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoPostItem",
+                        comment = "video post item schema",
+                        fields = itemEntity.fields,
+                    ),
+                    SchemaModel(
+                        name = "SVideoPostFile",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoPostFile",
+                        comment = "video post file schema",
+                        fields = fileEntity.fields,
+                    ),
+                ),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(rootEntity),
+                    defaultAggregateEntityJpa(itemEntity),
+                    defaultAggregateEntityJpa(fileEntity),
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "items",
+                        targetEntityName = "VideoPostItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        owned = true,
+                        parentRefColumn = "video_post_id",
+                        ownedCardinality = OwnedRelationCardinality.MANY,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "items",
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "files",
+                        targetEntityName = "VideoPostFile",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "video_post_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        owned = true,
+                        parentRefColumn = "video_post_id",
+                        ownedCardinality = OwnedRelationCardinality.ONE,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "files",
+                        singleAccessorName = "file",
+                    ),
+                ),
+            )
+        )
+
+        val schema = plan.single {
+            it.templateId == "aggregate/schema.kt.peb" && it.context["typeName"] == "SVideoPost"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val relationJoins = schema.context.getValue("relationJoins") as List<Map<String, Any?>>
+        val items = relationJoins.single { it["domainName"] == "items" }
+        val file = relationJoins.single { it["domainName"] == "file" }
+
+        assertEquals(listOf("items", "file"), relationJoins.map { it["domainName"] })
+        assertAll(
+            {
+                assertEquals("_items", items["persistencePathName"])
+                assertEquals("joinItems", items["methodName"])
+                assertEquals("OWNED_MANY", items["relationKind"])
+                assertEquals("VideoPostItem", items["targetEntityName"])
+                assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPostItem", items["targetEntityTypeFqn"])
+                assertEquals("SVideoPostItem", items["targetSchemaName"])
+                assertEquals("com.acme.demo.domain._share.meta.video_post.SVideoPostItem", items["targetSchemaFqn"])
+                assertEquals("RelationCollectionField", items["relationFieldType"])
+                assertEquals("MANY", items["ownedCardinality"])
+                assertEquals("ONE_TO_MANY_JOIN_COLUMN", items["persistenceShape"])
+            },
+            {
+                assertEquals("_files", file["persistencePathName"])
+                assertEquals("joinFile", file["methodName"])
+                assertEquals("OWNED_ONE", file["relationKind"])
+                assertEquals("VideoPostFile", file["targetEntityName"])
+                assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPostFile", file["targetEntityTypeFqn"])
+                assertEquals("SVideoPostFile", file["targetSchemaName"])
+                assertEquals("com.acme.demo.domain._share.meta.video_post.SVideoPostFile", file["targetSchemaFqn"])
+                assertEquals("RelationOptionalField", file["relationFieldType"])
+                assertEquals("ONE", file["ownedCardinality"])
+                assertEquals("ONE_TO_MANY_JOIN_COLUMN", file["persistenceShape"])
+            },
+        )
+    }
+
+    @Test
+    fun `schema planner omits ordinary and inverse relations from relation joins`() {
+        val rootEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val profileEntity = EntityModel(
+            name = "UserProfile",
+            packageName = "com.acme.demo.domain.aggregates.user_profile",
+            tableName = "user_profile",
+            comment = "user profile",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(rootEntity, profileEntity),
+                schemas = listOf(
+                    SchemaModel(
+                        name = "SVideoPost",
+                        packageName = "com.acme.demo.domain._share.meta.video_post",
+                        entityName = "VideoPost",
+                        comment = "video post schema",
+                        fields = rootEntity.fields,
+                    ),
+                    SchemaModel(
+                        name = "SUserProfile",
+                        packageName = "com.acme.demo.domain._share.meta.user_profile",
+                        entityName = "UserProfile",
+                        comment = "user profile schema",
+                        fields = profileEntity.fields,
+                    ),
+                ),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(rootEntity), defaultAggregateEntityJpa(profileEntity)),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "author",
+                        targetEntityName = "UserProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.user_profile",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                    ),
+                ),
+                aggregateInverseRelations = listOf(
+                    AggregateInverseRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "readOnlyProfile",
+                        targetEntityName = "UserProfile",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.user_profile",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "author_id",
+                        fetchType = AggregateFetchType.LAZY,
+                    ),
+                ),
+            )
+        )
+
+        val schema = plan.single {
+            it.templateId == "aggregate/schema.kt.peb" && it.context["typeName"] == "SVideoPost"
+        }
+        @Suppress("UNCHECKED_CAST")
+        val relationJoins = schema.context.getValue("relationJoins") as List<Map<String, Any?>>
+
+        assertEquals(emptyList<Map<String, Any?>>(), relationJoins)
+    }
+
+    @Test
+    fun `schema planner fails fast when an eligible owned relation target schema is missing`() {
+        val rootEntity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val itemEntity = EntityModel(
+            name = "VideoPostItem",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post_item",
+            comment = "video post item",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = "VideoPost",
+        )
+        val model = CanonicalModel(
+            entities = listOf(rootEntity, itemEntity),
+            schemas = listOf(
+                SchemaModel(
+                    name = "SVideoPost",
+                    packageName = "com.acme.demo.domain._share.meta.video_post",
+                    entityName = "VideoPost",
+                    comment = "video post schema",
+                    fields = rootEntity.fields,
+                ),
+            ),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(rootEntity), defaultAggregateEntityJpa(itemEntity)),
+            aggregateRelations = listOf(
+                AggregateRelationModel(
+                    ownerEntityName = "VideoPost",
+                    ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    fieldName = "items",
+                    targetEntityName = "VideoPostItem",
+                    targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                    relationType = AggregateRelationType.ONE_TO_MANY,
+                    joinColumn = "video_post_id",
+                    fetchType = AggregateFetchType.LAZY,
+                    nullable = false,
+                    owned = true,
+                    parentRefColumn = "video_post_id",
+                    ownedCardinality = OwnedRelationCardinality.MANY,
+                    persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                    backingCollectionName = "items",
+                ),
+            ),
+        )
+
+        val ex = assertThrows(IllegalStateException::class.java) {
+            AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        }
+
+        assertEquals(
+            "schema SVideoPost relation items requires exactly one target schema for com.acme.demo.domain.aggregates.video_post.VideoPostItem, but found 0",
+            ex.message,
+        )
+    }
+
+    @Test
     fun `schema planner fails fast when schema entity is ambiguous`() {
         val config = aggregateConfig()
         val primaryEntity = EntityModel(
