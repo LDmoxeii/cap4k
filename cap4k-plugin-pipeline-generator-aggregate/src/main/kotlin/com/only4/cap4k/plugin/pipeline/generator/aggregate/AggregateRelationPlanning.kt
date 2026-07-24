@@ -13,11 +13,16 @@ internal data class AggregateRelationRenderPlan(
 )
 
 internal object AggregateRelationPlanning {
+    private const val OWNED_ENTITY_LIST_FQN = "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"
+
     private val supportedRelationTypes = setOf(
         AggregateRelationType.MANY_TO_ONE,
         AggregateRelationType.ONE_TO_ONE,
         AggregateRelationType.ONE_TO_MANY,
     )
+
+    private fun privateBackingCollectionName(name: String): String =
+        if (name.startsWith("_")) name else "_$name"
 
     fun planFor(
         entity: EntityModel,
@@ -39,6 +44,9 @@ internal object AggregateRelationPlanning {
         val targetPackagesByType = allEntityRelations
             .groupBy { it.first }
             .mapValues { (_, matchingRelations) -> matchingRelations.map { it.second }.distinct() }
+        val hasOwnedCollectionFacadeRelations = entityRelations.any {
+            it.owned && it.relationType == AggregateRelationType.ONE_TO_MANY
+        }
 
         val ownerRelationFields = entityRelations.map { relation ->
             val targetTypeRef = when {
@@ -46,9 +54,32 @@ internal object AggregateRelationPlanning {
                 targetPackagesByType.getValue(relation.targetEntityName).size == 1 -> relation.targetEntityName
                 else -> "${relation.targetEntityPackageName}.${relation.targetEntityName}"
             }
+            val backingCollectionName = when {
+                relation.owned && relation.relationType == AggregateRelationType.ONE_TO_MANY ->
+                    privateBackingCollectionName(relation.backingCollectionName ?: relation.fieldName)
+                else -> relation.backingCollectionName
+            }
+            val persistencePathName = when {
+                relation.owned && relation.relationType == AggregateRelationType.ONE_TO_MANY ->
+                    requireNotNull(backingCollectionName) {
+                        "owned relation ${relation.ownerEntityPackageName}.${relation.ownerEntityName}.${relation.fieldName} requires a backing collection name"
+                    }
+                else -> relation.fieldName
+            }
+            val domainName = when {
+                relation.owned &&
+                    relation.relationType == AggregateRelationType.ONE_TO_MANY &&
+                    relation.ownedCardinality == OwnedRelationCardinality.ONE ->
+                    requireNotNull(relation.singleAccessorName) {
+                        "owned one relation ${relation.ownerEntityPackageName}.${relation.ownerEntityName}.${relation.fieldName} requires a single accessor name"
+                    }
+                else -> relation.fieldName
+            }
 
             mapOf(
                 "name" to relation.fieldName,
+                "domainName" to domainName,
+                "persistencePathName" to persistencePathName,
                 "targetType" to relation.targetEntityName,
                 "targetTypeRef" to targetTypeRef,
                 "targetPackageName" to relation.targetEntityPackageName,
@@ -63,7 +94,7 @@ internal object AggregateRelationPlanning {
                 "parentRefColumn" to relation.parentRefColumn,
                 "ownedCardinality" to relation.ownedCardinality?.name,
                 "persistenceShape" to relation.persistenceShape?.name,
-                "backingCollectionName" to relation.backingCollectionName,
+                "backingCollectionName" to backingCollectionName,
                 "singleAccessorName" to relation.singleAccessorName,
             )
         }
@@ -76,6 +107,8 @@ internal object AggregateRelationPlanning {
 
             mapOf(
                 "name" to relation.fieldName,
+                "domainName" to relation.fieldName,
+                "persistencePathName" to relation.fieldName,
                 "targetType" to relation.targetEntityName,
                 "targetTypeRef" to targetTypeRef,
                 "targetPackageName" to relation.targetEntityPackageName,
@@ -98,7 +131,7 @@ internal object AggregateRelationPlanning {
             )
         }
         val relationFields = ownerRelationFields + inverseRelationFields
-        val imports = (entityRelations.map {
+        val relationTargetImports = (entityRelations.map {
             it.targetEntityName to it.targetEntityPackageName
         } + entityInverseRelations.map {
             it.targetEntityName to it.targetEntityPackageName
@@ -113,12 +146,14 @@ internal object AggregateRelationPlanning {
                     null
                 }
             }
-            .distinct()
+        val imports = buildList {
+            addAll(relationTargetImports)
+            if (hasOwnedCollectionFacadeRelations) {
+                add(OWNED_ENTITY_LIST_FQN)
+            }
+        }.distinct()
         val relationTypes = (entityRelations.map { it.relationType } + entityInverseRelations.map { it.relationType }).toSet()
         val hasCascadeTypes = entityRelations.any { it.cascadeTypes.isNotEmpty() }
-        val hasOwnedOneRelations = entityRelations.any {
-            it.ownedCardinality == OwnedRelationCardinality.ONE
-        }
         val jpaImports = buildList {
             if (relationTypes.isNotEmpty()) {
                 add("jakarta.persistence.FetchType")
@@ -136,7 +171,7 @@ internal object AggregateRelationPlanning {
             if (AggregateRelationType.ONE_TO_MANY in relationTypes) {
                 add("jakarta.persistence.OneToMany")
             }
-            if (hasOwnedOneRelations) {
+            if (hasOwnedCollectionFacadeRelations) {
                 add("jakarta.persistence.Transient")
             }
         }

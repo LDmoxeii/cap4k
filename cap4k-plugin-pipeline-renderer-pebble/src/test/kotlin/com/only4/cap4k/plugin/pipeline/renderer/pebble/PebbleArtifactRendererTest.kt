@@ -864,9 +864,9 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(content.contains("class Category("))
-        assertTrue(content.normalizedLineEndings().contains("class Category(\n    id: Long = 0L,"))
-        assertFalse(content.normalizedLineEndings().contains("class Category(\nid: Long = 0L,"))
+        assertTrue(content.contains("class Category internal constructor("))
+        assertTrue(content.normalizedLineEndings().contains("class Category internal constructor(\n    id: Long = 0L,"))
+        assertFalse(content.normalizedLineEndings().contains("class Category(\n    id: Long = 0L,"))
         assertFalse(content.contains("data class Category("))
         assertFalse(content.contains("val name: String"))
         assertTrue(content.contains("name: String = \"\""))
@@ -909,7 +909,10 @@ class PebbleArtifactRendererTest {
                     "jakarta.persistence.OneToMany",
                     "jakarta.persistence.Transient",
                 ),
-                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPostFile"),
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPostFile",
+                    "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
+                ),
                 "idField" to mapOf("name" to "id", "type" to "Long"),
                 "fields" to listOf(
                     mapOf(
@@ -960,7 +963,9 @@ class PebbleArtifactRendererTest {
                         "parentRefColumn" to "video_post_id",
                         "ownedCardinality" to "ONE",
                         "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
-                        "backingCollectionName" to "files",
+                        "domainName" to "file",
+                        "persistencePathName" to "_files",
+                        "backingCollectionName" to "_files",
                         "singleAccessorName" to "file",
                     )
                 ),
@@ -969,23 +974,25 @@ class PebbleArtifactRendererTest {
 
         assertReadableKotlin(content)
         assertTrue(content.contains("import jakarta.persistence.Transient"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"))
+        assertTrue(content.contains("class VideoPost internal constructor("))
         assertTrue(content.contains("@OneToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)"))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertTrue(content.contains("private val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertTrue(content.contains("private var _files: MutableList<VideoPostFile> = mutableListOf()"))
         assertFalse(content.normalizedLineEndings().contains("\n    val files: MutableList<VideoPostFile> = mutableListOf()"))
         assertTrue(content.contains("@get:Transient"))
         assertTrue(content.contains("var file: VideoPostFile?"))
-        assertTrue(content.contains("get() = when (files.size)"))
-        assertTrue(content.contains("0 -> null"))
-        assertTrue(content.contains("1 -> files[0]"))
-        assertTrue(content.contains("else -> error(\"owned relation VideoPost.file expected at most one VideoPostFile but found \" + files.size)"))
+        assertTrue(content.contains("get() = OwnedEntityList.of(_files, VideoPostFile::class, \"VideoPost.file\")"))
+        assertTrue(content.contains(".singleOrNull()"))
         assertTrue(content.contains("set(value)"))
-        assertTrue(content.contains("files.clear()"))
-        assertTrue(content.contains("files.add(value)"))
+        assertTrue(content.contains("OwnedEntityList.of(_files, VideoPostFile::class, \"VideoPost.file\")"))
+        assertTrue(content.contains(".replace(value)"))
+        assertFalse(content.contains("_files.clear()"))
+        assertFalse(content.contains("_files.add(value)"))
     }
 
     @Test
-    fun `aggregate entity template keeps owned many as public mutable list`() {
+    fun `aggregate entity template renders owned many as private backing collection plus facade`() {
         val content = renderTemplate(
             templateId = "aggregate/entity.kt.peb",
             outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
@@ -1013,8 +1020,12 @@ class PebbleArtifactRendererTest {
                     "jakarta.persistence.JoinColumn",
                     "jakarta.persistence.CascadeType",
                     "jakarta.persistence.OneToMany",
+                    "jakarta.persistence.Transient",
                 ),
-                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPostItem"),
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPostItem",
+                    "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
+                ),
                 "idField" to mapOf("name" to "id", "type" to "Long"),
                 "fields" to emptyList<Map<String, Any?>>(),
                 "scalarFields" to emptyList<Map<String, Any?>>(),
@@ -1035,7 +1046,9 @@ class PebbleArtifactRendererTest {
                         "parentRefColumn" to "video_post_id",
                         "ownedCardinality" to "MANY",
                         "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
-                        "backingCollectionName" to "items",
+                        "domainName" to "items",
+                        "persistencePathName" to "_items",
+                        "backingCollectionName" to "_items",
                         "singleAccessorName" to null,
                     )
                 ),
@@ -1043,10 +1056,14 @@ class PebbleArtifactRendererTest {
         )
 
         assertReadableKotlin(content)
-        assertFalse(content.contains("import jakarta.persistence.Transient"))
-        assertTrue(content.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(content.contains("import jakarta.persistence.Transient"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"))
+        assertTrue(content.contains("class VideoPost internal constructor("))
+        assertTrue(content.contains("private var _items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(content.contains("val items: OwnedEntityList<VideoPostItem>"))
+        assertTrue(content.contains("get() = OwnedEntityList.of(_items, VideoPostItem::class, \"VideoPost.items\")"))
+        assertFalse(content.normalizedLineEndings().contains("\n    val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertFalse(content.contains("private val items: MutableList<VideoPostItem>"))
-        assertFalse(content.contains("@get:Transient"))
         assertFalse(content.contains("var item: VideoPostItem?"))
     }
 
@@ -3253,7 +3270,7 @@ class PebbleArtifactRendererTest {
         assertTrue(schemaContent.contains("class SOrder("))
         assertTrue(schemaContent.contains("fun specify(builder: PredicateBuilder<SOrder>): Specification<Order>"))
         assertTrue(schemaContent.contains("val orderNo: Field<String>"))
-        assertTrue(entityContent.contains("class Order("))
+        assertTrue(entityContent.contains("class Order internal constructor("))
         assertFalse(entityContent.contains("data class Order("))
         assertTrue(entityContent.contains("orderNo: String?"))
         assertTrue(entityContent.contains("var orderNo: String? = orderNo"))
@@ -3356,11 +3373,13 @@ class PebbleArtifactRendererTest {
                             "jakarta.persistence.ManyToOne",
                             "jakarta.persistence.OneToMany",
                             "jakarta.persistence.OneToOne",
+                            "jakarta.persistence.Transient",
                         ),
                         "imports" to listOf(
                             "com.acme.demo.domain.identity.user.UserProfile",
                             "com.acme.demo.domain.identity.user.CoverProfile",
                             "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
+                            "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
                         ),
                         "scalarFields" to listOf(
                             mapOf(
@@ -3409,6 +3428,14 @@ class PebbleArtifactRendererTest {
                                 "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
                                 "orphanRemoval" to true,
                                 "joinColumnNullable" to false,
+                                "owned" to true,
+                                "parentRefColumn" to "video_post_id",
+                                "ownedCardinality" to "MANY",
+                                "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
+                                "domainName" to "items",
+                                "persistencePathName" to "_items",
+                                "backingCollectionName" to "_items",
+                                "singleAccessorName" to null,
                             )
                         ),
                     ),
@@ -3443,7 +3470,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.acme.demo.domain.identity.user.UserProfile"))
         assertTrue(content.contains("import com.acme.demo.domain.identity.user.CoverProfile"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.item.VideoPostItem"))
-        assertTrue(content.contains("class VideoPost("))
+        assertTrue(content.contains("class VideoPost internal constructor("))
         assertFalse(content.contains("data class VideoPost("))
         assertTrue(content.contains(") {"))
         assertTrue(constructorSection.contains("id: Long"))
@@ -3461,7 +3488,10 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("CascadeType.ALL"))
         assertTrue(content.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
         assertFalse(content.contains("mappedBy ="))
-        assertTrue(bodySection.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(bodySection.contains("private var _items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(bodySection.contains("val items: OwnedEntityList<VideoPostItem>"))
+        assertTrue(bodySection.contains("OwnedEntityList.of(_items, VideoPostItem::class, \"VideoPost.items\")"))
+        assertFalse(bodySection.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
     }
 
     @Test
@@ -4098,7 +4128,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(content.contains("@Convert(converter = Status.Converter::class)"))
         assertFalse(content.contains("@Convert(converter = com.acme.demo.domain.shared.enums.Status.Converter::class)"))
-        assertTrue(content.contains("class VideoPost("))
+        assertTrue(content.contains("class VideoPost internal constructor("))
         assertFalse(content.contains("data class VideoPost("))
         assertFalse(content.contains("@GeneratedValue"))
         assertFalse(content.contains("@Version"))

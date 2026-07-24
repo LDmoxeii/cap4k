@@ -3044,7 +3044,10 @@ class AggregateArtifactPlannerTest {
         assertEquals("video_post_id", relation["parentRefColumn"])
         assertEquals("ONE", relation["ownedCardinality"])
         assertEquals("ONE_TO_MANY_JOIN_COLUMN", relation["persistenceShape"])
-        assertEquals("files", relation["backingCollectionName"])
+        assertEquals("files", relation["name"])
+        assertEquals("file", relation["domainName"])
+        assertEquals("_files", relation["backingCollectionName"])
+        assertEquals("_files", relation["persistencePathName"])
         assertEquals("file", relation["singleAccessorName"])
         assertTrue(jpaImports.contains("jakarta.persistence.OneToMany"))
         assertTrue(jpaImports.contains("jakarta.persistence.JoinColumn"))
@@ -3092,14 +3095,20 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
+        val imports = entityItem.context["imports"] as List<String>
+        @Suppress("UNCHECKED_CAST")
         val jpaImports = entityItem.context["jpaImports"] as List<String>
         val relation = relationFields.single()
 
         assertEquals(true, relation["owned"])
         assertEquals("MANY", relation["ownedCardinality"])
-        assertEquals("items", relation["backingCollectionName"])
+        assertEquals("items", relation["name"])
+        assertEquals("items", relation["domainName"])
+        assertEquals("_items", relation["backingCollectionName"])
+        assertEquals("_items", relation["persistencePathName"])
         assertEquals(null, relation["singleAccessorName"])
-        assertFalse(jpaImports.contains("jakarta.persistence.Transient"))
+        assertTrue(imports.contains("com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"))
+        assertTrue(jpaImports.contains("jakarta.persistence.Transient"))
     }
 
     @Test

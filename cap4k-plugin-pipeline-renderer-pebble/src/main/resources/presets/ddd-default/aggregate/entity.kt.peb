@@ -70,7 +70,7 @@ import {{ import }}
 @Where(clause = {{ softDeleteWhereClauseKotlinStringLiteral | raw }})
 {% endif -%}
 {% endif -%}
-class {{ typeName }}(
+class {{ typeName }} internal constructor(
 {% for field in scalarFields -%}
 {{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
@@ -111,23 +111,21 @@ class {{ typeName }}(
 {% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeTypes|length > 0 %}, cascade = [{% for cascadeType in relation.cascadeTypes %}CascadeType.{{ cascadeType }}{% if not loop.last %}, {% endif %}{% endfor %}]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
     @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {{ relation.joinColumnNullable }})
-{% if relation.ownedCardinality == "ONE" %}    private val {{ relation.backingCollectionName }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+{% if relation.owned %}    private var {{ relation.backingCollectionName }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
 
-    @get:Transient
+{% if relation.ownedCardinality == "ONE" %}    @get:Transient
     var {{ relation.singleAccessorName }}: {{ relation.targetTypeRef }}?
-        get() = when ({{ relation.backingCollectionName }}.size) {
-            0 -> null
-            1 -> {{ relation.backingCollectionName }}[0]
-            else -> error("owned relation {{ typeName }}.{{ relation.singleAccessorName }} expected at most one {{ relation.targetType }} but found " + {{ relation.backingCollectionName }}.size)
-        }
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
+            .singleOrNull()
         set(value) {
-            {{ relation.backingCollectionName }}.clear()
-            if (value != null) {
-                {{ relation.backingCollectionName }}.add(value)
-            }
+            OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
+                .replace(value)
         }
-{% else %}
-    val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+{% else %}    @get:Transient
+    val {{ relation.name }}: OwnedEntityList<{{ relation.targetTypeRef }}>
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
+{% endif %}
+{% else %}    val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
 {% endif %}
 {% endif %}
 {% endfor -%}
