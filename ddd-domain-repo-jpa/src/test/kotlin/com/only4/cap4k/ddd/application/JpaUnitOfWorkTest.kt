@@ -182,6 +182,52 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("persist rejects a repository-observed owned child as a standalone target")
+    fun persistShouldRejectRepositoryObservedOwnedChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns child.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(child)
+        }
+
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("remove rejects a repository-observed owned child as a standalone target")
+    fun removeShouldRejectRepositoryObservedOwnedChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns child.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.remove(child)
+        }
+
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+        verify(exactly = 0) { entityManager.remove(any()) }
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     @DisplayName("default persist enrolls an observed detached entity without reporting update")
     fun defaultPersistShouldEnrollObservedDetachedExistingEntity() {
         val entity = TestEntity(1L, "existing")

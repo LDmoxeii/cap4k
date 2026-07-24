@@ -191,12 +191,23 @@ open class JpaUnitOfWork(
         JpaHibernateDirtyInspector(entityManager).dirtyManagedEntities(existingEntities)
 
     override fun persist(entity: Any, intent: PersistIntent) {
+        validateStandaloneEnrollmentTarget(entity, "persist")
         val entry = pendingEntriesThreadLocal.get().persist(entity, intent)
         completeIdsForEntry(entry)
     }
 
     override fun remove(entity: Any) {
+        validateStandaloneEnrollmentTarget(entity, "remove")
         pendingEntriesThreadLocal.get().remove(entity)
+    }
+
+    private fun validateStandaloneEnrollmentTarget(entity: Any, operation: String) {
+        val observedRoot = repositoryObservationBaseline.observedRootForChild(entity) ?: return
+        error(
+            "UnitOfWork.$operation cannot register generated owned child " +
+                "${persistentEntityClass(entity).name} as a standalone target; " +
+                "persist the aggregate root ${persistentEntityClass(observedRoot).name} instead"
+        )
     }
 
     override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
