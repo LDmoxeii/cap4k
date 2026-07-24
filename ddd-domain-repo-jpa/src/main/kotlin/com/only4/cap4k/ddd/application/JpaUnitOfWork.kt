@@ -348,7 +348,7 @@ open class JpaUnitOfWork(
     }
 
     private fun validateExistingEvidence(entity: Any) {
-        check(repositoryObservationBaseline.hasBaselineFor(entity, observedIdentityOf(entity)) || entityManager.contains(entity)) {
+        check(repositoryObservationBaseline.hasBaselineFor(entity) || entityManager.contains(entity)) {
             "EXISTING persist for ${persistentEntityClass(entity).name} requires a repository observation " +
                 "baseline or provider-managed existing state; detached unobserved instances cannot be merged safely"
         }

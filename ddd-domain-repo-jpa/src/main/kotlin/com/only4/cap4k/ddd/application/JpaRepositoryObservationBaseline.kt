@@ -101,8 +101,8 @@ internal class JpaRepositoryObservationBaseline {
     fun isObservedObject(entity: Any, identity: JpaObservedIdentity? = null): Boolean =
         observedRootKeyFor(entity, identity) != null
 
-    fun hasBaselineFor(root: Any, identity: JpaObservedIdentity? = null): Boolean =
-        entriesFor(root, identity).isNotEmpty()
+    fun hasBaselineFor(root: Any): Boolean =
+        entriesFor(root).isNotEmpty()
 
     private fun observedRootKeyFor(
         entity: Any,

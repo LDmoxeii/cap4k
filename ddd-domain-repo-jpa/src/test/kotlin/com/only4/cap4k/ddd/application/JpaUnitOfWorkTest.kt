@@ -270,6 +270,28 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("default EXISTING persist rejects an unobserved detached root clone with an observed identity")
+    fun defaultPersistShouldRejectUnobservedDetachedRootCloneWithObservedIdentity() {
+        val observed = TestEntity(1L, "observed")
+        val clone = TestEntity(1L, "clone")
+        every { mockEntityInfo.isNew(observed) } returns false
+        every { mockEntityInfo.getId(observed) } returns observed.id
+        every { mockEntityInfo.isNew(clone) } returns false
+        every { mockEntityInfo.getId(clone) } returns clone.id
+        every { entityManager.contains(clone) } returns false
+        jpaUnitOfWork.observeRepositoryLoad(observed, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(clone)
+        }
+
+        assertTrue(error.message!!.contains("detached unobserved instances cannot be merged safely"))
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     @DisplayName("default EXISTING persist rejects an assigned detached entity without trustworthy evidence")
     fun defaultPersistShouldRejectAssignedDetachedEntityWithoutBaseline() {
         val entity = ApplicationSideLongEntity(id = 100L, name = "unobserved")
