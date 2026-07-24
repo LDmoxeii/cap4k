@@ -55,7 +55,7 @@ class PebbleArtifactRendererTest {
 
             interface Expression<T>
             interface Path<T> : Expression<T> { fun <Y> get(name: String): Path<Y> }
-            interface From<Z, X> : Path<X> { fun <Y> join(name: String, joinType: JoinType): Join<X, Y> }
+            interface From<Z, X> : Path<X> { fun <Y, T> join(name: String, joinType: JoinType): Join<Y, T> }
             interface Join<Z, X> : From<Z, X>
             interface Predicate : Expression<Boolean>
             interface CriteriaBuilder {
@@ -178,7 +178,7 @@ class PebbleArtifactRendererTest {
 
                 override fun <Y> get(name: String): Path<Y> = error("not used")
 
-                override fun <Y> join(name: String, joinType: JoinType): Join<VideoPost, Y> {
+                override fun <Y, T> join(name: String, joinType: JoinType): Join<Y, T> {
                     check(name == "_items")
                     check(joinType == JoinType.INNER)
                     joinCalls += 1
@@ -188,7 +188,7 @@ class PebbleArtifactRendererTest {
 
             private class RecordingJoin<Z, X> : Join<Z, X> {
                 override fun <Y> get(name: String): Path<Y> = error("not used")
-                override fun <Y> join(name: String, joinType: JoinType): Join<X, Y> = error("not used")
+                override fun <Y, T> join(name: String, joinType: JoinType): Join<Y, T> = error("not used")
             }
 
             private class RecordingCriteriaBuilder : CriteriaBuilder {
@@ -2189,7 +2189,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("SVideoPostFile(join, criteriaBuilder)"))
         assertTrue(content.contains("private data class JoinCacheKey"))
         assertTrue(content.contains("private val joinTypesByPath = mutableMapOf<JoinCacheKey, JoinType>()"))
-        assertTrue(content.contains("root.join<T>(persistencePathName, joinType.toJpaJoinType())"))
+        assertTrue(content.contains("root.join<VideoPost, T>(persistencePathName, joinType.toJpaJoinType())"))
         assertTrue(content.contains("schema relation $" + "domainName is already joined as $" + "existingType"))
         assertFalse(content.contains("val _items: RelationCollectionField"))
         assertFalse(content.contains("val _files: RelationOptionalField"))

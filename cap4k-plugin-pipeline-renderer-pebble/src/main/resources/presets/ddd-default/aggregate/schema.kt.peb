@@ -248,7 +248,7 @@ class {{ typeName }}(
         }
         joinTypesByPath[key] = joinType
         return joinsByPath.getOrPut(key) {
-            root.join<T>(persistencePathName, joinType.toJpaJoinType())
+            root.join<{{ entityName }}, T>(persistencePathName, joinType.toJpaJoinType())
         } as Join<*, T>
     }
 
