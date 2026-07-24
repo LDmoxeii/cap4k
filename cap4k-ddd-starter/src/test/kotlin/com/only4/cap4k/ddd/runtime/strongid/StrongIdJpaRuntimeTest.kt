@@ -3,11 +3,14 @@ package com.only4.cap4k.ddd.runtime.strongid
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
 import jakarta.persistence.AttributeOverride
+import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
 import jakarta.persistence.Embedded
 import jakarta.persistence.EmbeddedId
 import jakarta.persistence.Entity
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -74,6 +77,35 @@ class StrongIdJpaRuntimeTest {
         assertEquals(id.value, persistedId)
         assertEquals(authorId.value, persistedAuthorId)
         assertEquals(mediaProcessingTaskId.value, persistedMediaProcessingTaskId)
+    }
+
+    @Test
+    fun `hibernate persists owned child by strong id and parent fk storage`() {
+        val contentId = StrongContentId.new()
+        val itemId = StrongContentItemId.new()
+        val content = StrongContent(
+            id = contentId,
+            title = "content-with-item",
+            authorId = StrongAuthorId.new(),
+            mediaProcessingTaskId = null,
+        )
+        content.items += StrongContentItem(itemId, "chapter-1")
+
+        repository.saveAndFlush(content)
+
+        val persistedItemId = jdbcTemplate.queryForObject(
+            """select "id" from "strong_content_item" where "label" = ?""",
+            String::class.java,
+            "chapter-1",
+        )
+        val persistedParentId = jdbcTemplate.queryForObject(
+            """select "content_id" from "strong_content_item" where "label" = ?""",
+            String::class.java,
+            "chapter-1",
+        )
+
+        assertEquals(itemId.value, persistedItemId)
+        assertEquals(contentId.value, persistedParentId)
     }
 
     @SpringBootApplication
@@ -150,6 +182,30 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializab
     override fun toString(): String = value
 }
 
+@Embeddable
+class StrongContentItemId protected constructor() : StrongId, Serializable {
+    @Column(name = "value", nullable = false, updatable = false, length = 36)
+    override lateinit var value: String
+        protected set
+
+    constructor(value: String) : this() {
+        this.value = StrongIds.requireUuidV7(value, "StrongContentItemId")
+    }
+
+    companion object {
+        fun new(): StrongContentItemId = StrongContentItemId(StrongIds.newUuidV7String())
+
+        fun parse(value: String): StrongContentItemId = StrongContentItemId(value)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is StrongContentItemId && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
+
+    override fun toString(): String = value
+}
+
 @Entity
 @Table(name = "`strong_content`")
 open class StrongContent protected constructor() {
@@ -175,6 +231,10 @@ open class StrongContent protected constructor() {
     open var mediaProcessingTaskId: StrongMediaProcessingTaskId? = null
         protected set
 
+    @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], orphanRemoval = true)
+    @JoinColumn(name = "`content_id`", nullable = false)
+    open val items: MutableList<StrongContentItem> = mutableListOf()
+
     constructor(
         id: StrongContentId,
         title: String,
@@ -186,6 +246,41 @@ open class StrongContent protected constructor() {
         this.authorId = authorId
         this.mediaProcessingTaskId = mediaProcessingTaskId
     }
+
+    companion object {
+        fun unassigned(title: String): StrongContent =
+            StrongContent().also {
+                it.title = title
+                it.authorId = StrongAuthorId.new()
+            }
+    }
+
+    fun hasAssignedId(): Boolean = this::id.isInitialized
+}
+
+@Entity
+@Table(name = "`strong_content_item`")
+open class StrongContentItem protected constructor() {
+    @EmbeddedId
+    @AttributeOverride(name = "value", column = Column(name = "`id`", nullable = false, updatable = false, length = 36))
+    open lateinit var id: StrongContentItemId
+        protected set
+
+    @Column(name = "`label`", nullable = false)
+    open lateinit var label: String
+        protected set
+
+    constructor(id: StrongContentItemId, label: String) : this() {
+        this.id = id
+        this.label = label
+    }
+
+    companion object {
+        fun unassigned(label: String): StrongContentItem =
+            StrongContentItem().also { it.label = label }
+    }
+
+    fun hasAssignedId(): Boolean = this::id.isInitialized
 }
 
 interface StrongIdJpaRepository : JpaRepository<StrongContent, StrongContentId>

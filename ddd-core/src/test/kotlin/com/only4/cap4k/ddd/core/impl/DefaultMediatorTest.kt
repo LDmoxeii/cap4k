@@ -8,16 +8,30 @@ import com.only4.cap4k.ddd.core.application.UnitOfWorkSupport
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.transaction.annotation.Propagation
 import kotlin.reflect.KClass
 
 class DefaultMediatorTest {
+    @BeforeEach
+    fun setUp() {
+        unitOfWork.reset()
+        UnitOfWorkSupport.configure(unitOfWork)
+    }
+
+    @Test
+    fun `default mediator persist forwards existing intent`() {
+        val entity = Any()
+
+        DefaultMediator().persist(entity)
+
+        assertSame(entity, unitOfWork.persistedEntity)
+        assertEquals(PersistIntent.EXISTING, unitOfWork.persistedIntent)
+    }
 
     @Test
     fun `persist forwards entity and intent to configured unit of work`() {
-        val unitOfWork = RecordingUnitOfWork()
-        UnitOfWorkSupport.configure(unitOfWork)
         val entity = Any()
 
         DefaultMediator(RecordingIdentifierGenerator()).persist(entity, PersistIntent.CREATE)
@@ -81,6 +95,11 @@ class DefaultMediatorTest {
         var removeCalls: Int = 0
         var saveCalls: Int = 0
 
+        fun reset() {
+            persistedEntity = null
+            persistedIntent = null
+        }
+
         override fun persist(entity: Any, intent: PersistIntent) {
             persistCalls++
             persistedEntity = entity
@@ -94,5 +113,9 @@ class DefaultMediatorTest {
         override fun save(propagation: Propagation) {
             saveCalls++
         }
+    }
+
+    private companion object {
+        val unitOfWork = RecordingUnitOfWork()
     }
 }

@@ -114,6 +114,17 @@ jobs:
         shell: pwsh
         run: ./scripts/test-pr-workflow.ps1
 
+      - name: Validate PR body
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          $bodyFile = Join-Path $env:RUNNER_TEMP 'pr-body.md'
+          Set-Content -LiteralPath $bodyFile -Value $env:PR_BODY -Encoding utf8NoBOM
+          ./scripts/validate-pr-body.ps1 -BodyFile $bodyFile -Base $env:BASE_REF -RequireChangeType
+
       - name: Make Gradle wrapper executable
         if: steps.classify.outputs.run_gradle == 'true'
         run: chmod +x gradlew

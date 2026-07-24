@@ -2,7 +2,7 @@
 
 Date: 2026-07-23
 
-Status as of 2026-07-23: design approved for spec authoring after expanding the scope from entity-ID-specific runtime support to generic identifier generation. Implementation has not been dispatched and no Phase 3 implementation PR has been merged into `master`.
+Status as of 2026-07-23: implemented and merged to `master` through PR #131.
 
 ## Reader Contract
 

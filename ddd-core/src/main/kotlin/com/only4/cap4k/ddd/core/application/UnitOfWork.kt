@@ -14,13 +14,13 @@ interface UnitOfWork {
     /**
      * 提交实体持久化意图。
      *
-     * 默认意图为 UPDATE。工厂创建的新聚合应显式传入 PersistIntent.CREATE。
+     * 默认意图为 EXISTING。工厂创建的新聚合应显式传入 PersistIntent.CREATE。
      *
      * @param entity 需要持久化的实体对象
      * @param intent 持久化意图
      * @throws IllegalArgumentException 当实体对象无效时
      */
-    fun persist(entity: Any, intent: PersistIntent = PersistIntent.UPDATE)
+    fun persist(entity: Any, intent: PersistIntent = PersistIntent.EXISTING)
 
     /**
      * 提交实体删除意图

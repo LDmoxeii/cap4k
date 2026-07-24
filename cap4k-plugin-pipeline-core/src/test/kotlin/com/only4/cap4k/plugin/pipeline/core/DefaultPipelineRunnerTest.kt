@@ -11,6 +11,7 @@ import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
@@ -1016,7 +1017,15 @@ class DefaultPipelineRunnerTest {
                                     "video_post",
                                     "",
                                     columns = listOf(
-                                        DbColumnSnapshot("id", "BIGINT", "Long", false, null, "", true),
+                                        DbColumnSnapshot(
+                                            name = "id",
+                                            dbType = "VARCHAR",
+                                            kotlinType = "String",
+                                            nullable = false,
+                                            comment = "",
+                                            isPrimaryKey = true,
+                                            idStrategy = DbIdStrategy.UUID7,
+                                        ),
                                         DbColumnSnapshot("created_by", "VARCHAR", "String", false),
                                         DbColumnSnapshot("title", "VARCHAR", "String", false),
                                     ),

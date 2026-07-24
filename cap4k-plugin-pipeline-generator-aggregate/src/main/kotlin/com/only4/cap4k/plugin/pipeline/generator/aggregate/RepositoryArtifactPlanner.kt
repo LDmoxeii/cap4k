@@ -21,7 +21,7 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 entities = entitiesByName[repository.entityName].orEmpty(),
             )
             val aggregateName = aggregateRootName(entity, model.entities)
-            val strongId = entity?.let { resolveAggregateRootStrongId(model, it) }
+            val strongId = entity?.let { resolveOwnStrongId(model, it) }
             val idType = strongId?.typeName ?: repository.idType
             val idTypeFqn = strongId?.fqn()
             generatedKotlinArtifact(
@@ -70,14 +70,14 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             "$packageName.$entityName"
         }
 
-    private fun resolveAggregateRootStrongId(
+    private fun resolveOwnStrongId(
         model: CanonicalModel,
         entity: EntityModel,
     ): StrongIdModel? =
         model.strongIds.singleOrNull {
-            it.kind == StrongIdKind.AGGREGATE_ROOT &&
-                it.ownerAggregateName == entity.name &&
-                it.ownerAggregatePackageName == entity.packageName &&
+            it.kind == StrongIdKind.OWN_ID &&
+                it.ownerEntityName == entity.name &&
+                it.ownerEntityPackageName == entity.packageName &&
                 it.typeName == entity.idField.type.shortTypeName()
         }
 

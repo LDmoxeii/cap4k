@@ -41,6 +41,7 @@ enum class DbManagedRole {
 
 enum class DbIdStrategy {
     DB_IDENTITY,
+    UUID7,
 }
 
 data class DbColumnSnapshot(
@@ -563,7 +564,7 @@ data class DomainEventModel(
 )
 
 enum class StrongIdKind {
-    AGGREGATE_ROOT,
+    OWN_ID,
     AGGREGATE_REFERENCE,
     REFERENCE,
 }
@@ -573,8 +574,13 @@ data class StrongIdModel(
     val packageName: String,
     val valueType: String = "String",
     val kind: StrongIdKind,
+    val ownerEntityName: String? = null,
+    val ownerEntityPackageName: String? = null,
     val ownerAggregateName: String? = null,
     val ownerAggregatePackageName: String? = null,
+    val idStrategy: String? = null,
+    val canGenerateNew: Boolean = false,
+    val isEmbeddedId: Boolean = false,
 )
 
 data class CanonicalModel(

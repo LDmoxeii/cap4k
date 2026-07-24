@@ -25,7 +25,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
-            val ownStrongId = resolveAggregateRootStrongId(model, entity)
+            val ownStrongId = resolveOwnStrongId(model, entity)
             val ownIdFieldName = ownStrongId?.let { entity.idField.name }
             val ownIdInitializer = ownStrongId?.let { "${it.typeName}.new()" }
             val ownIdTypeRef = ownStrongId?.fqn()
@@ -238,14 +238,14 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         ) != null
     }
 
-    private fun resolveAggregateRootStrongId(
+    private fun resolveOwnStrongId(
         model: CanonicalModel,
         entity: EntityModel,
     ): StrongIdModel? =
         model.strongIds.singleOrNull {
-            it.kind == StrongIdKind.AGGREGATE_ROOT &&
-                it.ownerAggregateName == entity.name &&
-                it.ownerAggregatePackageName == entity.packageName &&
+            it.kind == StrongIdKind.OWN_ID &&
+                it.ownerEntityName == entity.name &&
+                it.ownerEntityPackageName == entity.packageName &&
                 it.typeName == entity.idField.type.shortTypeName()
         }
 
@@ -253,10 +253,14 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         val matches = model.strongIds.filter { strongId ->
             field.type == strongId.typeName || field.type == strongId.fqn()
         }
-        require(matches.size <= 1) {
+        val selectedMatches = matches
+            .filter { it.kind != StrongIdKind.OWN_ID }
+            .takeIf { it.isNotEmpty() }
+            ?: matches
+        require(selectedMatches.size <= 1) {
             "ambiguous strong id type ${field.type} for factory field ${field.name}"
         }
-        return matches.singleOrNull()
+        return selectedMatches.singleOrNull()
     }
 
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"

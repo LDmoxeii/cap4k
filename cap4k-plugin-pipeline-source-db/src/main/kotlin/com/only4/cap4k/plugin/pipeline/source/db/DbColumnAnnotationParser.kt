@@ -80,7 +80,7 @@ internal object DbColumnAnnotationParser {
         val unsupported = annotations.firstOrNull { it.rawName !in supportedColumnAnnotations } ?: return
         throw IllegalArgumentException(
             "unsupported column annotation @${unsupported.rawName}. Supported column annotations: " +
-                "@ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, " +
+                "@ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, " +
                 "@Managed=system|scope|deleted|version, @Inherited."
         )
     }
@@ -135,8 +135,9 @@ internal object DbColumnAnnotationParser {
 
         val rawValue = values.single()
         require(rawValue.isNotBlank()) { "invalid @IdStrategy annotation: value is required." }
-        return when (rawValue) {
+        return when (rawValue.trim().lowercase()) {
             "db_identity" -> DbIdStrategy.DB_IDENTITY
+            "uuid7" -> DbIdStrategy.UUID7
             else -> throw IllegalArgumentException("unsupported @IdStrategy value: $rawValue")
         }
     }
