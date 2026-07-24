@@ -202,7 +202,9 @@ open class JpaUnitOfWork(
     }
 
     private fun validateStandaloneEnrollmentTarget(entity: Any, operation: String) {
-        val observedRoot = repositoryObservationBaseline.observedRootForChild(entity) ?: return
+        val observedRoot = repositoryObservationBaseline
+            .observedRootForChild(entity, observedIdentityOf(entity))
+            ?: return
         error(
             "UnitOfWork.$operation cannot register generated owned child " +
                 "${persistentEntityClass(entity).name} as a standalone target; " +
@@ -273,6 +275,7 @@ open class JpaUnitOfWork(
             ) { input ->
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
+                validatePendingOwnedChildConflicts(input.entries)
                 prepareApplicationSideIds(input.entries)
 
                 input.entries.forEach { entry ->
@@ -345,7 +348,7 @@ open class JpaUnitOfWork(
     }
 
     private fun validateExistingEvidence(entity: Any) {
-        check(repositoryObservationBaseline.hasBaselineFor(entity) || entityManager.contains(entity)) {
+        check(repositoryObservationBaseline.hasBaselineFor(entity, observedIdentityOf(entity)) || entityManager.contains(entity)) {
             "EXISTING persist for ${persistentEntityClass(entity).name} requires a repository observation " +
                 "baseline or provider-managed existing state; detached unobserved instances cannot be merged safely"
         }
@@ -377,7 +380,7 @@ open class JpaUnitOfWork(
             reachable.asSequence()
                 .filterNot { it === traversalRoot }
                 .forEach { child ->
-                    if (entries.any { it.entity === child }) {
+                    if (entries.any { samePersistentEntity(it.entity, child) }) {
                         error(
                             "UnitOfWork cannot register generated owned child " +
                                 "${persistentEntityClass(child).name} as a separate public UnitOfWork target " +
@@ -387,6 +390,12 @@ open class JpaUnitOfWork(
                     }
                 }
         }
+    }
+
+    private fun samePersistentEntity(first: Any, second: Any): Boolean {
+        if (first === second) return true
+        val firstIdentity = identityOf(first) ?: return false
+        return firstIdentity == identityOf(second)
     }
 
     private fun identityOf(entity: Any): EntityIdentity? {

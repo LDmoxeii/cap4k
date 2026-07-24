@@ -23,6 +23,8 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToMany
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.hibernate.proxy.HibernateProxy
+import org.hibernate.proxy.LazyInitializer
 import org.springframework.transaction.annotation.Propagation
 import java.io.Serializable
 import kotlin.reflect.KClass
@@ -202,6 +204,29 @@ class JpaUnitOfWorkTest {
         verify(exactly = 0) { entityManager.persist(any()) }
         verify(exactly = 0) { entityManager.merge<Any>(any()) }
         verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("persist rejects a Hibernate proxy alias of a repository-observed owned child")
+    fun persistShouldRejectHibernateProxyAliasOfRepositoryObservedOwnedChild() {
+        val implementation = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(implementation))
+        val proxy = hibernateProxy(ObservedChild::class.java, implementation.id, implementation)
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(implementation) } returns false
+        every { mockEntityInfo.getId(implementation) } returns implementation.id
+        every { mockEntityInfo.isNew(proxy) } returns false
+        every { mockEntityInfo.getId(proxy) } returns implementation.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(proxy)
+        }
+
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
     }
 
     @Test
@@ -395,6 +420,54 @@ class JpaUnitOfWorkTest {
         assertTrue(error.message!!.contains("persist the aggregate root"))
         assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
         assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("save rejects a Hibernate proxy alias of a pending owned child")
+    fun saveShouldRejectHibernateProxyAliasOfPendingOwnedChild() {
+        val implementation = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(implementation))
+        val proxy = hibernateProxy(ObservedChild::class.java, implementation.id, implementation)
+        every { mockEntityInfo.isNew(implementation) } returns false
+        every { mockEntityInfo.getId(implementation) } returns implementation.id
+        every { mockEntityInfo.isNew(proxy) } returns false
+        every { mockEntityInfo.getId(proxy) } returns implementation.id
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(proxy, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("save rejects a pending standalone child added to its root by preInTransaction")
+    fun saveShouldRejectPendingStandaloneChildAddedToRootByPreInTransaction() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        every { interceptor1.preInTransaction(any(), any()) } answers {
+            root.children += child
+        }
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
+        assertTrue(error.message!!.contains("persist the aggregate root"))
         verify(exactly = 0) { entityManager.persist(any()) }
         verify(exactly = 0) { entityManager.flush() }
     }
@@ -1102,6 +1175,23 @@ class JpaUnitOfWorkTest {
         @field:Id
         var id: Long? = null,
     )
+
+    private fun hibernateProxy(
+        entityType: Class<*>,
+        id: Any?,
+        implementation: Any,
+    ): HibernateProxy {
+        val initializer = mockk<LazyInitializer>()
+        every { initializer.persistentClass } returns entityType
+        every { initializer.implementationClass } returns entityType
+        every { initializer.identifier } returns id
+        every { initializer.implementation } returns implementation
+        every { initializer.isUninitialized } returns false
+        val proxy = mockk<HibernateProxy>()
+        every { proxy.asHibernateProxy() } returns proxy
+        every { proxy.hibernateLazyInitializer } returns initializer
+        return proxy
+    }
 
     @Embeddable
     class TestStrongEntityId protected constructor() : StrongId, Serializable {
