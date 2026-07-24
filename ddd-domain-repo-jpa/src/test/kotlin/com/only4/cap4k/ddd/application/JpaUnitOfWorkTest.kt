@@ -378,6 +378,55 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("save rejects a pending owned child that is also reachable from a pending root")
+    fun saveShouldRejectPendingOwnedChildReachableFromPendingRoot() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        root.children += child
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("root-only existing enrollment with a new owned child remains valid")
+    fun existingRootOnlyEnrollmentWithNewOwnedChildShouldRemainValid() {
+        val root = StrongRootEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000088")
+        }
+        val observedChild = StrongChildEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000087")
+        }
+        root.children += observedChild
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(observedChild) } returns false
+        every { mockEntityInfo.getId(observedChild) } returns observedChild.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val newChild = StrongChildEntity()
+        root.children += newChild
+        jpaUnitOfWork.persist(root)
+        jpaUnitOfWork.save()
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", newChild.id.value)
+        verify { entityManager.merge(root) }
+        verify { entityManager.flush() }
+        verify(exactly = 0) { entityManager.persist(newChild) }
+    }
+
+    @Test
     @DisplayName("CREATE completes a generated owned child added by preInTransaction before persistence")
     fun createShouldCompleteChildAddedByPreInTransaction() {
         val root = StrongRootEntity()

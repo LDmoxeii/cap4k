@@ -259,6 +259,7 @@ open class JpaUnitOfWork(
         try {
             prepareApplicationSideIds(pendingEntries)
             validateSameIdentityConflicts(pendingEntries)
+            validatePendingOwnedChildConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
             save(
@@ -361,6 +362,30 @@ open class JpaUnitOfWork(
                         "${previous.kind} and ${entry.kind}"
                 )
             }
+        }
+    }
+
+    private fun validatePendingOwnedChildConflicts(entries: List<UnitOfWorkEntry>) {
+        val rootEntries = entries.filter {
+            it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
+        }
+        if (rootEntries.isEmpty() || entries.size < 2) return
+
+        rootEntries.forEach { rootEntry ->
+            val reachable = ownedRelationTraversal.reachableOwnedEntities(rootEntry.entity)
+            val traversalRoot = reachable.firstOrNull() ?: return@forEach
+            reachable.asSequence()
+                .filterNot { it === traversalRoot }
+                .forEach { child ->
+                    if (entries.any { it.entity === child }) {
+                        error(
+                            "UnitOfWork cannot register generated owned child " +
+                                "${persistentEntityClass(child).name} as a separate public UnitOfWork target " +
+                                "while aggregate root ${persistentEntityClass(rootEntry.entity).name} is pending; " +
+                                "persist the aggregate root only"
+                        )
+                    }
+                }
         }
     }
 
