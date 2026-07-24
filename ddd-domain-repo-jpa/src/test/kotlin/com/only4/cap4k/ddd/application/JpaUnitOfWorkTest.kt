@@ -161,6 +161,27 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("repository observation distinguishes root from generated owned child")
+    fun repositoryObservationShouldDistinguishRootFromGeneratedOwnedChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns 10L
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns 20L
+
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val baseline = jpaUnitOfWork.observedRepositoryBaseline()
+        assertTrue(baseline.isObservedRoot(root))
+        assertFalse(baseline.isObservedChild(root))
+        org.junit.jupiter.api.Assertions.assertNull(baseline.observedRootForChild(root))
+        assertTrue(baseline.isObservedChild(child))
+        assertSame(root, baseline.observedRootForChild(child))
+        assertSame(root, baseline.observedRootFor(child))
+    }
+
+    @Test
     @DisplayName("default persist enrolls an observed detached entity without reporting update")
     fun defaultPersistShouldEnrollObservedDetachedExistingEntity() {
         val entity = TestEntity(1L, "existing")
