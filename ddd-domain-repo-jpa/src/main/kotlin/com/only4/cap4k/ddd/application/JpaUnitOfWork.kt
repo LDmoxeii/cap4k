@@ -191,12 +191,25 @@ open class JpaUnitOfWork(
         JpaHibernateDirtyInspector(entityManager).dirtyManagedEntities(existingEntities)
 
     override fun persist(entity: Any, intent: PersistIntent) {
+        validateStandaloneEnrollmentTarget(entity, "persist")
         val entry = pendingEntriesThreadLocal.get().persist(entity, intent)
         completeIdsForEntry(entry)
     }
 
     override fun remove(entity: Any) {
+        validateStandaloneEnrollmentTarget(entity, "remove")
         pendingEntriesThreadLocal.get().remove(entity)
+    }
+
+    private fun validateStandaloneEnrollmentTarget(entity: Any, operation: String) {
+        val observedRoot = repositoryObservationBaseline
+            .observedRootForChild(entity, observedIdentityOf(entity))
+            ?: return
+        error(
+            "UnitOfWork.$operation cannot register generated owned child " +
+                "${persistentEntityClass(entity).name} as a standalone target; " +
+                "persist the aggregate root ${persistentEntityClass(observedRoot).name} instead"
+        )
     }
 
     override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
@@ -248,6 +261,7 @@ open class JpaUnitOfWork(
         try {
             prepareApplicationSideIds(pendingEntries)
             validateSameIdentityConflicts(pendingEntries)
+            validatePendingOwnedChildConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
             save(
@@ -261,6 +275,7 @@ open class JpaUnitOfWork(
             ) { input ->
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
+                validatePendingOwnedChildConflicts(input.entries)
                 prepareApplicationSideIds(input.entries)
 
                 input.entries.forEach { entry ->
@@ -351,6 +366,36 @@ open class JpaUnitOfWork(
                 )
             }
         }
+    }
+
+    private fun validatePendingOwnedChildConflicts(entries: List<UnitOfWorkEntry>) {
+        val rootEntries = entries.filter {
+            it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
+        }
+        if (rootEntries.isEmpty() || entries.size < 2) return
+
+        rootEntries.forEach { rootEntry ->
+            val reachable = ownedRelationTraversal.reachableOwnedEntities(rootEntry.entity)
+            val traversalRoot = reachable.firstOrNull() ?: return@forEach
+            reachable.asSequence()
+                .filterNot { it === traversalRoot }
+                .forEach { child ->
+                    if (entries.any { samePersistentEntity(it.entity, child) }) {
+                        error(
+                            "UnitOfWork cannot register generated owned child " +
+                                "${persistentEntityClass(child).name} as a separate public UnitOfWork target " +
+                                "while aggregate root ${persistentEntityClass(rootEntry.entity).name} is pending; " +
+                                "persist the aggregate root only"
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun samePersistentEntity(first: Any, second: Any): Boolean {
+        if (first === second) return true
+        val firstIdentity = identityOf(first) ?: return false
+        return firstIdentity == identityOf(second)
     }
 
     private fun identityOf(entity: Any): EntityIdentity? {

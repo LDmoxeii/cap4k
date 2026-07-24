@@ -18,6 +18,10 @@ internal class JpaObservedEntity(
 internal class JpaRepositoryObservationBaseline {
     private val observedByRoot = LinkedHashMap<ObjectIdentityKey, LinkedHashSet<JpaObservedEntity>>()
     private val rootKeyByObservedObject = LinkedHashMap<ObjectIdentityKey, ObjectIdentityKey>()
+    private val observedRootKeyByObject = LinkedHashMap<ObjectIdentityKey, ObjectIdentityKey>()
+    private val observedRootKeyByIdentity = LinkedHashMap<JpaObservedIdentity, ObjectIdentityKey>()
+    private val observedChildRootKeyByIdentity = LinkedHashMap<JpaObservedIdentity, ObjectIdentityKey>()
+    private val rootObjectByRootKey = LinkedHashMap<ObjectIdentityKey, Any>()
     private val observedByObject = LinkedHashMap<ObjectIdentityKey, JpaObservedEntity>()
     private val observedIdentities = LinkedHashSet<JpaObservedIdentity>()
 
@@ -27,9 +31,16 @@ internal class JpaRepositoryObservationBaseline {
         val canonicalRootKey = ObjectIdentityKey(canonicalRoot)
         val existingRootKey = rootKeyByObservedObject[rootAliasKey]
             ?: rootKeyByObservedObject[canonicalRootKey]
+            ?: entries.firstOrNull()?.identity?.let(observedRootKeyByIdentity::get)
         if (existingRootKey != null) {
             rootKeyByObservedObject[rootAliasKey] = existingRootKey
             rootKeyByObservedObject[canonicalRootKey] = existingRootKey
+            observedRootKeyByObject[rootAliasKey] = existingRootKey
+            observedRootKeyByObject[canonicalRootKey] = existingRootKey
+            rootObjectByRootKey.putIfAbsent(
+                existingRootKey,
+                observedByRoot[existingRootKey]?.firstOrNull()?.entity ?: canonicalRoot,
+            )
             observedByRoot[existingRootKey]
                 ?.firstOrNull()
                 ?.let { observedByObject.putIfAbsent(rootAliasKey, it) }
@@ -41,18 +52,28 @@ internal class JpaRepositoryObservationBaseline {
         observedByRoot[rootKey] = bucket
         rootKeyByObservedObject[rootAliasKey] = rootKey
         rootKeyByObservedObject[canonicalRootKey] = rootKey
-        entries.forEach { entry ->
+        observedRootKeyByObject[rootAliasKey] = rootKey
+        observedRootKeyByObject[canonicalRootKey] = rootKey
+        rootObjectByRootKey.putIfAbsent(rootKey, canonicalRoot)
+        entries.forEachIndexed { index, entry ->
             bucket += entry
             val entityKey = ObjectIdentityKey(entry.entity)
             rootKeyByObservedObject[entityKey] = rootKey
             observedByObject.putIfAbsent(entityKey, entry)
-            entry.identity?.let { observedIdentities += it }
+            entry.identity?.let { identity ->
+                observedIdentities += identity
+                if (index == 0) {
+                    observedRootKeyByIdentity.putIfAbsent(identity, rootKey)
+                } else {
+                    observedChildRootKeyByIdentity.putIfAbsent(identity, rootKey)
+                }
+            }
         }
         bucket.firstOrNull()?.let { observedByObject.putIfAbsent(rootAliasKey, it) }
     }
 
-    fun entriesFor(root: Any): Set<JpaObservedEntity> =
-        observedByRoot[rootKeyByObservedObject[ObjectIdentityKey(root)] ?: ObjectIdentityKey(root)].orEmpty()
+    fun entriesFor(root: Any, identity: JpaObservedIdentity? = null): Set<JpaObservedEntity> =
+        observedByRoot[observedRootKeyFor(root, identity) ?: ObjectIdentityKey(root)].orEmpty()
 
     fun containsIdentity(identity: JpaObservedIdentity): Boolean =
         identity in observedIdentities
@@ -60,16 +81,45 @@ internal class JpaRepositoryObservationBaseline {
     fun identityFor(entity: Any): JpaObservedIdentity? =
         observedByObject[ObjectIdentityKey(entity)]?.identity
 
-    fun isObservedObject(entity: Any): Boolean =
-        rootKeyByObservedObject.containsKey(ObjectIdentityKey(entity))
+    fun isObservedRoot(entity: Any, identity: JpaObservedIdentity? = null): Boolean =
+        observedRootKeyByObject.containsKey(ObjectIdentityKey(entity)) ||
+            (identity != null && observedRootKeyByIdentity.containsKey(identity))
+
+    fun isObservedChild(entity: Any, identity: JpaObservedIdentity? = null): Boolean {
+        val key = ObjectIdentityKey(entity)
+        return (rootKeyByObservedObject.containsKey(key) ||
+            (identity != null && observedChildRootKeyByIdentity.containsKey(identity))) &&
+            !isObservedRoot(entity, identity)
+    }
+
+    fun observedRootFor(entity: Any, identity: JpaObservedIdentity? = null): Any? =
+        observedRootKeyFor(entity, identity)?.let(rootObjectByRootKey::get)
+
+    fun observedRootForChild(entity: Any, identity: JpaObservedIdentity? = null): Any? =
+        if (isObservedChild(entity, identity)) observedRootFor(entity, identity) else null
+
+    fun isObservedObject(entity: Any, identity: JpaObservedIdentity? = null): Boolean =
+        observedRootKeyFor(entity, identity) != null
 
     fun hasBaselineFor(root: Any): Boolean =
         entriesFor(root).isNotEmpty()
+
+    private fun observedRootKeyFor(
+        entity: Any,
+        identity: JpaObservedIdentity?,
+    ): ObjectIdentityKey? =
+        rootKeyByObservedObject[ObjectIdentityKey(entity)]
+            ?: identity?.let(observedRootKeyByIdentity::get)
+            ?: identity?.let(observedChildRootKeyByIdentity::get)
 
     fun clear() {
         observedByRoot.clear()
         rootKeyByObservedObject.clear()
         observedByObject.clear()
         observedIdentities.clear()
+        observedRootKeyByObject.clear()
+        observedRootKeyByIdentity.clear()
+        observedChildRootKeyByIdentity.clear()
+        rootObjectByRootKey.clear()
     }
 }

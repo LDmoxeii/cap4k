@@ -23,6 +23,8 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToMany
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
+import org.hibernate.proxy.HibernateProxy
+import org.hibernate.proxy.LazyInitializer
 import org.springframework.transaction.annotation.Propagation
 import java.io.Serializable
 import kotlin.reflect.KClass
@@ -161,6 +163,96 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("repository observation distinguishes root from generated owned child")
+    fun repositoryObservationShouldDistinguishRootFromGeneratedOwnedChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns 10L
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns 20L
+
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val baseline = jpaUnitOfWork.observedRepositoryBaseline()
+        assertTrue(baseline.isObservedRoot(root))
+        assertFalse(baseline.isObservedChild(root))
+        org.junit.jupiter.api.Assertions.assertNull(baseline.observedRootForChild(root))
+        assertTrue(baseline.isObservedChild(child))
+        assertSame(root, baseline.observedRootForChild(child))
+        assertSame(root, baseline.observedRootFor(child))
+    }
+
+    @Test
+    @DisplayName("persist rejects a repository-observed owned child as a standalone target")
+    fun persistShouldRejectRepositoryObservedOwnedChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns child.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(child)
+        }
+
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("persist rejects a Hibernate proxy alias of a repository-observed owned child")
+    fun persistShouldRejectHibernateProxyAliasOfRepositoryObservedOwnedChild() {
+        val implementation = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(implementation))
+        val proxy = hibernateProxy(ObservedChild::class.java, implementation.id, implementation)
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(implementation) } returns false
+        every { mockEntityInfo.getId(implementation) } returns implementation.id
+        every { mockEntityInfo.isNew(proxy) } returns false
+        every { mockEntityInfo.getId(proxy) } returns implementation.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(proxy)
+        }
+
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+    }
+
+    @Test
+    @DisplayName("remove rejects a repository-observed owned child as a standalone target")
+    fun removeShouldRejectRepositoryObservedOwnedChild() {
+        val child = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(child))
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns child.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.remove(child)
+        }
+
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+        verify(exactly = 0) { entityManager.remove(any()) }
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     @DisplayName("default persist enrolls an observed detached entity without reporting update")
     fun defaultPersistShouldEnrollObservedDetachedExistingEntity() {
         val entity = TestEntity(1L, "existing")
@@ -175,6 +267,28 @@ class JpaUnitOfWorkTest {
         verify { entityManager.merge(entity) }
         verify(exactly = 0) { entityManager.persist(entity) }
         verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
+    }
+
+    @Test
+    @DisplayName("default EXISTING persist rejects an unobserved detached root clone with an observed identity")
+    fun defaultPersistShouldRejectUnobservedDetachedRootCloneWithObservedIdentity() {
+        val observed = TestEntity(1L, "observed")
+        val clone = TestEntity(1L, "clone")
+        every { mockEntityInfo.isNew(observed) } returns false
+        every { mockEntityInfo.getId(observed) } returns observed.id
+        every { mockEntityInfo.isNew(clone) } returns false
+        every { mockEntityInfo.getId(clone) } returns clone.id
+        every { entityManager.contains(clone) } returns false
+        jpaUnitOfWork.observeRepositoryLoad(observed, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(clone)
+        }
+
+        assertTrue(error.message!!.contains("detached unobserved instances cannot be merged safely"))
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
     }
 
     @Test
@@ -308,6 +422,103 @@ class JpaUnitOfWorkTest {
 
         verify { entityManager.merge(root) }
         verify { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("save rejects a pending owned child that is also reachable from a pending root")
+    fun saveShouldRejectPendingOwnedChildReachableFromPendingRoot() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        root.children += child
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("save rejects a Hibernate proxy alias of a pending owned child")
+    fun saveShouldRejectHibernateProxyAliasOfPendingOwnedChild() {
+        val implementation = ObservedChild(20L)
+        val root = ObservedRoot(10L, mutableListOf(implementation))
+        val proxy = hibernateProxy(ObservedChild::class.java, implementation.id, implementation)
+        every { mockEntityInfo.isNew(implementation) } returns false
+        every { mockEntityInfo.getId(implementation) } returns implementation.id
+        every { mockEntityInfo.isNew(proxy) } returns false
+        every { mockEntityInfo.getId(proxy) } returns implementation.id
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(proxy, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
+        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("save rejects a pending standalone child added to its root by preInTransaction")
+    fun saveShouldRejectPendingStandaloneChildAddedToRootByPreInTransaction() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        every { interceptor1.preInTransaction(any(), any()) } answers {
+            root.children += child
+        }
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
+        assertTrue(error.message!!.contains("persist the aggregate root"))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    @DisplayName("root-only existing enrollment with a new owned child remains valid")
+    fun existingRootOnlyEnrollmentWithNewOwnedChildShouldRemainValid() {
+        val root = StrongRootEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000088")
+        }
+        val observedChild = StrongChildEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000087")
+        }
+        root.children += observedChild
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns root.id
+        every { mockEntityInfo.isNew(observedChild) } returns false
+        every { mockEntityInfo.getId(observedChild) } returns observedChild.id
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val newChild = StrongChildEntity()
+        root.children += newChild
+        jpaUnitOfWork.persist(root)
+        jpaUnitOfWork.save()
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", newChild.id.value)
+        verify { entityManager.merge(root) }
+        verify { entityManager.flush() }
+        verify(exactly = 0) { entityManager.persist(newChild) }
     }
 
     @Test
@@ -986,6 +1197,23 @@ class JpaUnitOfWorkTest {
         @field:Id
         var id: Long? = null,
     )
+
+    private fun hibernateProxy(
+        entityType: Class<*>,
+        id: Any?,
+        implementation: Any,
+    ): HibernateProxy {
+        val initializer = mockk<LazyInitializer>()
+        every { initializer.persistentClass } returns entityType
+        every { initializer.implementationClass } returns entityType
+        every { initializer.identifier } returns id
+        every { initializer.implementation } returns implementation
+        every { initializer.isUninitialized } returns false
+        val proxy = mockk<HibernateProxy>()
+        every { proxy.asHibernateProxy() } returns proxy
+        every { proxy.hibernateLazyInitializer } returns initializer
+        return proxy
+    }
 
     @Embeddable
     class TestStrongEntityId protected constructor() : StrongId, Serializable {
