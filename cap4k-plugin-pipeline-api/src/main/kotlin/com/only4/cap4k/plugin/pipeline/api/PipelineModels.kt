@@ -61,6 +61,8 @@ data class DbColumnSnapshot(
     val idStrategy: DbIdStrategy? = null,
     val managedRole: DbManagedRole? = null,
     val inherited: Boolean? = null,
+    val jdbcType: Int? = null,
+    val columnSize: Int? = null,
 )
 
 /**
