@@ -1917,6 +1917,165 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate schema template renders owned relation fields joins constants and distinct predicate`() {
+        val content = renderTemplate(
+            templateId = "aggregate/schema.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain._share.meta.video_post",
+                "typeName" to "SVideoPost",
+                "entityName" to "VideoPost",
+                "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "isAggregateRoot" to true,
+                "imports" to emptyList<String>(),
+                "fields" to listOf(
+                    mapOf(
+                        "name" to "title",
+                        "fieldName" to "title",
+                        "columnName" to "title",
+                        "fieldType" to "String",
+                        "type" to "String",
+                        "renderedType" to "String",
+                        "comment" to "title",
+                    )
+                ),
+                "relationJoins" to listOf(
+                    mapOf(
+                        "domainName" to "items",
+                        "persistencePathName" to "_items",
+                        "methodName" to "joinItems",
+                        "relationKind" to "OWNED_MANY",
+                        "targetEntityName" to "VideoPostItem",
+                        "targetEntityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPostItem",
+                        "targetSchemaName" to "SVideoPostItem",
+                        "targetSchemaFqn" to "com.acme.demo.domain._share.meta.video_post.SVideoPostItem",
+                        "relationFieldType" to "RelationCollectionField",
+                        "nullable" to false,
+                        "ownedCardinality" to "MANY",
+                        "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
+                    ),
+                    mapOf(
+                        "domainName" to "file",
+                        "persistencePathName" to "_files",
+                        "methodName" to "joinFile",
+                        "relationKind" to "OWNED_ONE",
+                        "targetEntityName" to "VideoPostFile",
+                        "targetEntityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPostFile",
+                        "targetSchemaName" to "SVideoPostFile",
+                        "targetSchemaFqn" to "com.acme.demo.domain._share.meta.video_post.SVideoPostFile",
+                        "relationFieldType" to "RelationOptionalField",
+                        "nullable" to false,
+                        "ownedCardinality" to "ONE",
+                        "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
+                    ),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import jakarta.persistence.criteria.From"))
+        assertTrue(content.contains("import jakarta.persistence.criteria.Join"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.domain.repo.schema.JoinType"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.domain.repo.schema.RelationCollectionField"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.domain.repo.schema.RelationOptionalField"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.VideoPost"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostItem"))
+        assertTrue(content.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostFile"))
+        assertTrue(content.contains("import com.acme.demo.domain._share.meta.video_post.SVideoPostItem"))
+        assertTrue(content.contains("import com.acme.demo.domain._share.meta.video_post.SVideoPostFile"))
+        assertTrue(content.contains("private val root: From<*, VideoPost>"))
+        assertTrue(content.contains("val title: Field<String>"))
+        assertTrue(content.contains("class PROPERTY_NAMES"))
+        assertTrue(content.contains("val title = \"title\""))
+        assertTrue(content.contains("class RELATION_NAMES"))
+        assertTrue(content.contains("val items = \"items\""))
+        assertTrue(content.contains("val file = \"file\""))
+        assertTrue(content.contains("val props = PROPERTY_NAMES()"))
+        assertTrue(content.contains("val relations = RELATION_NAMES()"))
+        assertTrue(content.contains("fun predicate(builder: PredicateBuilder<SVideoPost>): JpaPredicate<VideoPost>"))
+        assertTrue(content.contains("return predicate(false, builder)"))
+        assertTrue(content.contains("fun predicate(distinct: Boolean, builder: PredicateBuilder<SVideoPost>): JpaPredicate<VideoPost>"))
+        assertTrue(content.contains("return JpaPredicate.bySpecification(VideoPost::class.java, specify(builder, distinct))"))
+        assertTrue(content.contains("val items: RelationCollectionField<VideoPostItem>"))
+        assertTrue(content.contains("RelationCollectionField(root.get<Collection<VideoPostItem>>(\"_items\"), criteriaBuilder)"))
+        assertTrue(content.contains("val file: RelationOptionalField<VideoPostFile>"))
+        assertTrue(content.contains("RelationOptionalField(root.get<Collection<VideoPostFile>>(\"_files\"), criteriaBuilder)"))
+        assertTrue(content.contains("fun joinItems(): SVideoPostItem = joinItems(JoinType.INNER)"))
+        assertTrue(content.contains("fun joinItems(joinType: JoinType): SVideoPostItem"))
+        assertTrue(content.contains("val join = _join<VideoPostItem>(\"items\", \"_items\", joinType)"))
+        assertTrue(content.contains("SVideoPostItem(join, criteriaBuilder)"))
+        assertTrue(content.contains("fun joinFile(): SVideoPostFile = joinFile(JoinType.INNER)"))
+        assertTrue(content.contains("fun joinFile(joinType: JoinType): SVideoPostFile"))
+        assertTrue(content.contains("val join = _join<VideoPostFile>(\"file\", \"_files\", joinType)"))
+        assertTrue(content.contains("SVideoPostFile(join, criteriaBuilder)"))
+        assertTrue(content.contains("private data class JoinCacheKey"))
+        assertTrue(content.contains("private val joinTypesByPath = mutableMapOf<JoinCacheKey, JoinType>()"))
+        assertTrue(content.contains("root.join<T>(persistencePathName, joinType.toJpaJoinType())"))
+        assertTrue(content.contains("schema relation $" + "domainName is already joined as $" + "existingType"))
+        assertFalse(content.contains("val _items: RelationCollectionField"))
+        assertFalse(content.contains("val _files: RelationOptionalField"))
+        assertFalse(content.contains("fun join_items"))
+        assertFalse(content.contains("fun join_files"))
+        assertFalse(content.contains("val _items = \"_items\""))
+        assertFalse(content.contains("val _files = \"_files\""))
+    }
+
+    @Test
+    fun `aggregate child schema template renders chained owned joins without aggregate root predicates`() {
+        val content = renderTemplate(
+            templateId = "aggregate/schema.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostItem.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain._share.meta.video_post",
+                "typeName" to "SVideoPostItem",
+                "entityName" to "VideoPostItem",
+                "schemaRuntimePackage" to "com.only4.cap4k.ddd.domain.repo.schema",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPostItem",
+                "isAggregateRoot" to false,
+                "imports" to emptyList<String>(),
+                "fields" to listOf(
+                    mapOf(
+                        "name" to "label",
+                        "fieldName" to "label",
+                        "columnName" to "label",
+                        "fieldType" to "String",
+                        "type" to "String",
+                        "renderedType" to "String",
+                        "comment" to "label",
+                    )
+                ),
+                "relationJoins" to listOf(
+                    mapOf(
+                        "domainName" to "adjustments",
+                        "persistencePathName" to "_adjustments",
+                        "methodName" to "joinAdjustments",
+                        "relationKind" to "OWNED_MANY",
+                        "targetEntityName" to "VideoPostItemAdjustment",
+                        "targetEntityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPostItemAdjustment",
+                        "targetSchemaName" to "SVideoPostItemAdjustment",
+                        "targetSchemaFqn" to "com.acme.demo.domain._share.meta.video_post.SVideoPostItemAdjustment",
+                        "relationFieldType" to "RelationCollectionField",
+                        "nullable" to false,
+                        "ownedCardinality" to "MANY",
+                        "persistenceShape" to "ONE_TO_MANY_JOIN_COLUMN",
+                    ),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("private val root: From<*, VideoPostItem>"))
+        assertTrue(content.contains("val label: Field<String>"))
+        assertTrue(content.contains("val adjustments: RelationCollectionField<VideoPostItemAdjustment>"))
+        assertTrue(content.contains("fun joinAdjustments(): SVideoPostItemAdjustment = joinAdjustments(JoinType.INNER)"))
+        assertTrue(content.contains("fun joinAdjustments(joinType: JoinType): SVideoPostItemAdjustment"))
+        assertTrue(content.contains("SVideoPostItemAdjustment(join, criteriaBuilder)"))
+        assertFalse(content.contains("fun predicateById("))
+        assertFalse(content.contains("fun predicate(builder: PredicateBuilder<SVideoPostItem>): JpaPredicate<VideoPostItem>"))
+    }
+
+    @Test
     fun `type helper reads renderedType from object and passes through string input`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-helper-type")
         val overrideDesignDir = Files.createDirectories(overrideDir.resolve("design"))

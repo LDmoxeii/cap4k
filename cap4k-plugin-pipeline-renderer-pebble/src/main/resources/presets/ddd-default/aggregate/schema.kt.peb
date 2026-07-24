@@ -6,6 +6,7 @@ package {{ packageName }}
 {{ use("org.springframework.data.jpa.domain.Specification") -}}
 {{ use("jakarta.persistence.criteria.CriteriaBuilder") -}}
 {{ use("jakarta.persistence.criteria.CriteriaQuery") -}}
+{{ use("jakarta.persistence.criteria.From") -}}
 {{ use("jakarta.persistence.criteria.Path") -}}
 {{ use("jakarta.persistence.criteria.Predicate") -}}
 {{ use("jakarta.persistence.criteria.Subquery") -}}
@@ -15,6 +16,16 @@ package {{ packageName }}
 {{ use(schemaRuntimePackage ~ ".ExpressionBuilder") -}}
 {{ use(schemaRuntimePackage ~ ".SubqueryConfigure") -}}
 {{ use(schemaRuntimePackage ~ ".Field") -}}
+{%- if relationJoins is defined and relationJoins|length > 0 %}
+{{ use("jakarta.persistence.criteria.Join") -}}
+{{ use(schemaRuntimePackage ~ ".JoinType") -}}
+{{ use(schemaRuntimePackage ~ ".RelationCollectionField") -}}
+{{ use(schemaRuntimePackage ~ ".RelationOptionalField") -}}
+{% for relation in relationJoins -%}
+{{ use(relation.targetEntityTypeFqn) -}}
+{{ use(relation.targetSchemaFqn) -}}
+{% endfor -%}
+{%- endif %}
 {%- if entityTypeFqn %}
 {{ use(entityTypeFqn) -}}
 {%- endif %}
@@ -36,7 +47,7 @@ import {{ import }}
 )
 {% endif -%}
 class {{ typeName }}(
-    private val root: Path<{{ entityName }}>,
+    private val root: From<*, {{ entityName }}>,
     private val criteriaBuilder: CriteriaBuilder,
 ) {
     class PROPERTY_NAMES {
@@ -44,10 +55,22 @@ class {{ typeName }}(
         val {{ field.fieldName }} = "{{ field.fieldName }}"
 {% endfor %}
     }
+{%- if relationJoins is defined and relationJoins|length > 0 %}
+
+    class RELATION_NAMES {
+{% for relation in relationJoins %}
+        val {{ relation.domainName }} = "{{ relation.domainName }}"
+{% endfor %}
+    }
+{%- endif %}
 
     companion object {
 
         val props = PROPERTY_NAMES()
+{%- if relationJoins is defined and relationJoins|length > 0 %}
+
+        val relations = RELATION_NAMES()
+{%- endif %}
 
         @JvmStatic
         fun specify(builder: PredicateBuilder<{{ typeName }}>): Specification<{{ entityName }}> {
@@ -155,7 +178,12 @@ class {{ typeName }}(
 
         @JvmStatic
         fun predicate(builder: PredicateBuilder<{{ typeName }}>): JpaPredicate<{{ entityName }}> {
-            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder))
+            return predicate(false, builder)
+        }
+
+        @JvmStatic
+        fun predicate(distinct: Boolean, builder: PredicateBuilder<{{ typeName }}>): JpaPredicate<{{ entityName }}> {
+            return JpaPredicate.bySpecification({{ entityName }}::class.java, specify(builder, distinct))
         }
 
         @JvmStatic
@@ -180,6 +208,73 @@ class {{ typeName }}(
     }
 
 {% endfor %}
+{%- if relationJoins is defined and relationJoins|length > 0 %}
+{% for relation in relationJoins %}
+{%- if relation.relationKind == "OWNED_MANY" %}
+    val {{ relation.domainName }}: RelationCollectionField<{{ relation.targetEntityName }}> by lazy {
+        RelationCollectionField(root.get<Collection<{{ relation.targetEntityName }}>>("{{ relation.persistencePathName }}"), criteriaBuilder)
+    }
+{%- elseif relation.relationKind == "OWNED_ONE" %}
+    val {{ relation.domainName }}: RelationOptionalField<{{ relation.targetEntityName }}> by lazy {
+        RelationOptionalField(root.get<Collection<{{ relation.targetEntityName }}>>("{{ relation.persistencePathName }}"), criteriaBuilder)
+    }
+{%- endif %}
+
+{% endfor %}
+{%- endif %}
+{%- if relationJoins is defined and relationJoins|length > 0 %}
+    private data class JoinCacheKey(
+        val domainName: String,
+        val persistencePathName: String,
+    )
+
+    private val joinTypesByPath = mutableMapOf<JoinCacheKey, JoinType>()
+    private val joinsByPath = mutableMapOf<JoinCacheKey, Join<*, *>>()
+    private val schemasByPath = mutableMapOf<Pair<JoinCacheKey, JoinType>, Any>()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T> _join(
+        domainName: String,
+        persistencePathName: String,
+        joinType: JoinType,
+    ): Join<*, T> {
+        val key = JoinCacheKey(domainName, persistencePathName)
+        val existingType = joinTypesByPath[key]
+        if (existingType != null && existingType != joinType) {
+            error(
+                "schema relation $domainName is already joined as $existingType; " +
+                    "cannot join it again as $joinType in the same schema instance"
+            )
+        }
+        joinTypesByPath[key] = joinType
+        return joinsByPath.getOrPut(key) {
+            root.join<T>(persistencePathName, joinType.toJpaJoinType())
+        } as Join<*, T>
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <S : Any> _joinedSchema(
+        domainName: String,
+        persistencePathName: String,
+        joinType: JoinType,
+        factory: () -> S,
+    ): S {
+        val key = JoinCacheKey(domainName, persistencePathName) to joinType
+        return schemasByPath.getOrPut(key) { factory() } as S
+    }
+
+{% for relation in relationJoins %}
+    fun {{ relation.methodName }}(): {{ relation.targetSchemaName }} = {{ relation.methodName }}(JoinType.INNER)
+
+    fun {{ relation.methodName }}(joinType: JoinType): {{ relation.targetSchemaName }} {
+        val join = _join<{{ relation.targetEntityName }}>("{{ relation.domainName }}", "{{ relation.persistencePathName }}", joinType)
+        return _joinedSchema("{{ relation.domainName }}", "{{ relation.persistencePathName }}", joinType) {
+            {{ relation.targetSchemaName }}(join, criteriaBuilder)
+        }
+    }
+
+{% endfor %}
+{%- endif %}
     fun all(vararg restrictions: Predicate): Predicate {
         return criteriaBuilder.and(*restrictions)
     }
