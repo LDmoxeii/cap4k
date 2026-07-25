@@ -46,7 +46,7 @@ class StrongIdJacksonRuntimeTest {
     data class Payload(val id: StrongContentId)
 
     @Embeddable
-    class StrongContentId protected constructor() : StrongId, Serializable {
+    class StrongContentId protected constructor() : StrongId<String>, Serializable {
         @Column(name = "`id`", nullable = false, updatable = false, length = 36)
         override lateinit var value: String
             protected set
@@ -57,7 +57,7 @@ class StrongIdJacksonRuntimeTest {
         }
 
         companion object {
-            fun new(): StrongContentId = StrongContentId(StrongIds.newUuidV7String())
+            fun new(): StrongContentId = StrongContentId("019c0000-0000-7000-8000-000000000001")
 
             fun parse(value: String): StrongContentId = StrongContentId(value)
         }

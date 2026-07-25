@@ -1216,7 +1216,7 @@ class JpaUnitOfWorkTest {
     }
 
     @Embeddable
-    class TestStrongEntityId protected constructor() : StrongId, Serializable {
+    class TestStrongEntityId protected constructor() : StrongId<String>, Serializable {
         @Column(name = "value", nullable = false, updatable = false, length = 36)
         override lateinit var value: String
             protected set

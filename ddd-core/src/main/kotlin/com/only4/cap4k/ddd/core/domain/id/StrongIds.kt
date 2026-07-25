@@ -1,23 +1,40 @@
 package com.only4.cap4k.ddd.core.domain.id
 
-import com.github.f4b6a3.uuid.UuidCreator
 import java.util.UUID
 
 object StrongIds {
-    private val UUID_V7_PATTERN =
-        Regex("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-
-    fun newUuidV7String(): String = UuidCreator.getTimeOrderedEpoch().toString()
+    private val canonicalSnowflake = Regex("^[1-9][0-9]{0,18}$")
 
     fun requireUuidV7(value: String, typeName: String): String {
-        val normalized = value.trim().lowercase()
-        require(normalized == value && UUID_V7_PATTERN.matches(normalized)) {
+        val uuid = runCatching { UUID.fromString(value) }.getOrNull()
+        require(
+            value == value.trim() &&
+                value == value.lowercase() &&
+                uuid != null &&
+                uuid.toString() == value
+        ) { "$typeName must be a UUIDv7 value: $value" }
+        requireUuidV7(uuid, typeName)
+        return value
+    }
+
+    fun requireUuidV7(value: UUID, typeName: String): UUID {
+        require(value != UUID(0L, 0L) && value.version() == 7 && value.variant() == 2) {
             "$typeName must be a UUIDv7 value: $value"
         }
-        val uuid = runCatching { UUID.fromString(normalized) }.getOrNull()
-        require(uuid != null && uuid.version() == 7 && uuid.variant() == 2 && uuid != UUID(0L, 0L)) {
-            "$typeName must be a UUIDv7 value: $value"
+        return value
+    }
+
+    fun requireSnowflake(value: String, typeName: String): String {
+        require(canonicalSnowflake.matches(value) && value.toLongOrNull()?.let { it > 0L } == true) {
+            "$typeName must be a positive canonical Snowflake value: $value"
         }
-        return normalized
+        return value
+    }
+
+    fun requireSnowflake(value: Long, typeName: String): Long {
+        require(value > 0L) {
+            "$typeName must be a positive canonical Snowflake value: $value"
+        }
+        return value
     }
 }

@@ -19,7 +19,6 @@ dependencies {
 
     // Common dependencies
     implementation(libs.slf4j)
-    implementation("com.github.f4b6a3:uuid-creator:6.1.1")
 
     // Test dependencies
     testImplementation(platform(libs.junit.bom))

@@ -115,7 +115,7 @@ class StrongIdJpaRuntimeTest {
 }
 
 @Embeddable
-class StrongContentId protected constructor() : StrongId, Serializable {
+class StrongContentId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -125,7 +125,7 @@ class StrongContentId protected constructor() : StrongId, Serializable {
     }
 
     companion object {
-        fun new(): StrongContentId = StrongContentId(StrongIds.newUuidV7String())
+        fun new(): StrongContentId = StrongContentId("019c0000-0000-7000-8000-000000000002")
 
         fun parse(value: String): StrongContentId = StrongContentId(value)
     }
@@ -139,7 +139,7 @@ class StrongContentId protected constructor() : StrongId, Serializable {
 }
 
 @Embeddable
-class StrongAuthorId protected constructor() : StrongId, Serializable {
+class StrongAuthorId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -149,7 +149,7 @@ class StrongAuthorId protected constructor() : StrongId, Serializable {
     }
 
     companion object {
-        fun new(): StrongAuthorId = StrongAuthorId(StrongIds.newUuidV7String())
+        fun new(): StrongAuthorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003")
     }
 
     override fun equals(other: Any?): Boolean =
@@ -161,7 +161,7 @@ class StrongAuthorId protected constructor() : StrongId, Serializable {
 }
 
 @Embeddable
-class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializable {
+class StrongMediaProcessingTaskId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -171,7 +171,7 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializab
     }
 
     companion object {
-        fun new(): StrongMediaProcessingTaskId = StrongMediaProcessingTaskId(StrongIds.newUuidV7String())
+        fun new(): StrongMediaProcessingTaskId = StrongMediaProcessingTaskId("019c0000-0000-7000-8000-000000000004")
     }
 
     override fun equals(other: Any?): Boolean =
@@ -183,7 +183,7 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializab
 }
 
 @Embeddable
-class StrongContentItemId protected constructor() : StrongId, Serializable {
+class StrongContentItemId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -193,7 +193,7 @@ class StrongContentItemId protected constructor() : StrongId, Serializable {
     }
 
     companion object {
-        fun new(): StrongContentItemId = StrongContentItemId(StrongIds.newUuidV7String())
+        fun new(): StrongContentItemId = StrongContentItemId("019c0000-0000-7000-8000-000000000005")
 
         fun parse(value: String): StrongContentItemId = StrongContentItemId(value)
     }

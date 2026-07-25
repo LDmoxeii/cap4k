@@ -889,12 +889,14 @@ git commit -m "feat: project strong id column length"
 
 **Files:**
 
+- Modify: `ddd-core/build.gradle.kts`
 - Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongId.kt`
 - Modify: `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIds.kt`
 - Replace tests in: `ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIdsTest.kt`
 - Mechanically update raw implementors in: `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt`
 - Mechanically update raw implementors in: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt`
 - Mechanically update raw implementors in: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt`
+- Modify: `docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md` (source-evidence correction only)
 
 **Interfaces:**
 
@@ -1062,7 +1064,7 @@ object StrongIds {
 }
 ```
 
-This intentionally deletes `UuidCreator` and `newUuidV7String()` from `StrongIds`.
+This intentionally deletes `UuidCreator` and `newUuidV7String()` from `StrongIds`. Remove the now-unused `uuid-creator` dependency from `ddd-core/build.gradle.kts`; do not touch the starter or JPA module dependencies because those modules still have real allocation implementations.
 
 - [ ] **Step 4: Add explicit type arguments to existing test fixtures.**
 
@@ -1092,12 +1094,13 @@ Expected: PASS only after any direct fixture calls to removed allocation are tem
 
 ```powershell
 rg -n 'interface StrongId\s*\{|:\s*StrongId([, ]|$)|newUuidV7String' ddd-core/src ddd-domain-repo-jpa/src cap4k-ddd-starter/src
+rg -n 'UuidCreator|uuid-creator' ddd-core
 ```
 
-Expected: no raw implementors and no allocation helper.
+Expected: no raw implementors, no allocation helper, and no UUID allocation dependency in `ddd-core`. UUID allocation in starter and JPA modules remains in scope for their existing infrastructure strategies.
 
 ```powershell
-git add ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongId.kt ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIds.kt ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIdsTest.kt ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt
+git add ddd-core/build.gradle.kts ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongId.kt ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIds.kt ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIdsTest.kt ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md
 git commit -m "refactor: make strong ids generic validation values"
 ```
 
