@@ -802,6 +802,7 @@ git commit -m "feat: assemble storage nearest strong ids"
 - Modify: `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateJpaControlInference.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt`
+- Modify: `docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md` (source-evidence correction only)
 
 **Interfaces:**
 
@@ -811,13 +812,14 @@ git commit -m "feat: assemble storage nearest strong ids"
 
 - [ ] **Step 1: Add a failing projection assertion.**
 
-Extend the existing pipeline fixture with one UUID7 `VARCHAR(40)` ID and one native UUID ID. Assert:
+Extend the existing pipeline fixture with one UUID7 `VARCHAR(40)` ID and one native UUID ID with `columnSize=16`. `PipelineResult` does not expose the canonical model, so capture the `CanonicalModel` received by the fixture's aggregate `GeneratorProvider`, then assert:
 
 ```kotlin
-val textId = result.model.aggregateEntityJpa
+val aggregateEntityJpa = requireNotNull(capturedModel).aggregateEntityJpa
+val textId = aggregateEntityJpa
     .single { it.entityName == "VideoPost" }
     .columns.single { it.isId }
-val nativeId = result.model.aggregateEntityJpa
+val nativeId = aggregateEntityJpa
     .single { it.entityName == "AuditRecord" }
     .columns.single { it.isId }
 
@@ -877,7 +879,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit Task 5 only.**
 
 ```powershell
-git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateJpaControlInference.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt
+git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateJpaControlInference.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md
 git commit -m "feat: project strong id column length"
 ```
 
