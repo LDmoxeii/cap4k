@@ -3,12 +3,12 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
-import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
-import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
-import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
-import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.StrongId
+import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
@@ -27,7 +27,6 @@ import org.hibernate.proxy.HibernateProxy
 import org.hibernate.proxy.LazyInitializer
 import org.springframework.transaction.annotation.Propagation
 import java.io.Serializable
-import kotlin.reflect.KClass
 
 @DisplayName("JpaUnitOfWork 测试")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -39,6 +38,7 @@ class JpaUnitOfWorkTest {
     private lateinit var interceptor1: UnitOfWorkInterceptor
     private lateinit var interceptor2: UnitOfWorkInterceptor
     private lateinit var jpaUnitOfWork: TestableJpaUnitOfWork
+    private lateinit var generatedOwnIdRegistry: GeneratedOwnIdRegistry
     private lateinit var mockEntityInfo: org.springframework.data.jpa.repository.support.JpaEntityInformation<Any, Any>
 
     // Testable subclass to access protected members
@@ -46,13 +46,13 @@ class JpaUnitOfWorkTest {
         uowInterceptors: List<UnitOfWorkInterceptor>,
         persistListenerManager: PersistListenerManager,
         supportEntityInlinePersistListener: Boolean,
-        idStrategyRegistry: IdentifierStrategyRegistry = MapBackedIdentifierStrategyRegistry(emptyList()),
+        generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
         private val dirtyExistingEntities: Set<Any> = emptySet(),
     ) : JpaUnitOfWork(
         uowInterceptors,
         persistListenerManager,
         supportEntityInlinePersistListener,
-        idStrategyRegistry
+        generatedOwnIdRegistry
     ) {
 
         fun setTestEntityManager(em: EntityManager) {
@@ -74,11 +74,18 @@ class JpaUnitOfWorkTest {
         interceptor2 = mockk(relaxed = true)
         uowInterceptors = listOf(interceptor1, interceptor2)
 
+        val generatedOwnIdCatalog = object : GeneratedOwnIdCatalog {
+            override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
+                StrongRootEntityAccessor(),
+                StrongChildEntityAccessor(),
+            )
+        }
+        generatedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(listOf(generatedOwnIdCatalog))
         jpaUnitOfWork = TestableJpaUnitOfWork(
             uowInterceptors = uowInterceptors,
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            idStrategyRegistry = MapBackedIdentifierStrategyRegistry(listOf(FixedLongStrategy())),
+            generatedOwnIdRegistry = generatedOwnIdRegistry,
         )
 
         // Set up entity manager
@@ -570,7 +577,7 @@ class JpaUnitOfWorkTest {
             jpaUnitOfWork.persist(root)
         }
 
-        assertTrue(error.message!!.contains("missing Strong ID"))
+        assertTrue(error.message!!.contains("missing generated own ID"))
         assertThrows(UninitializedPropertyAccessException::class.java) { root.id }
         assertThrows(UninitializedPropertyAccessException::class.java) { child.id }
     }
@@ -699,7 +706,7 @@ class JpaUnitOfWorkTest {
             uowInterceptors = uowInterceptors,
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            idStrategyRegistry = MapBackedIdentifierStrategyRegistry(listOf(FixedLongStrategy())),
+            generatedOwnIdRegistry = generatedOwnIdRegistry,
             dirtyExistingEntities = setOf(detached),
         )
         jpaUnitOfWork.setTestEntityManager(entityManager)
@@ -725,7 +732,7 @@ class JpaUnitOfWorkTest {
             uowInterceptors = uowInterceptors,
             persistListenerManager = persistListenerManager,
             supportEntityInlinePersistListener = true,
-            idStrategyRegistry = MapBackedIdentifierStrategyRegistry(listOf(FixedLongStrategy())),
+            generatedOwnIdRegistry = generatedOwnIdRegistry,
             dirtyExistingEntities = setOf(entity),
         )
         jpaUnitOfWork.setTestEntityManager(entityManager)
@@ -1064,23 +1071,6 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("application-side id should be assigned before beforeTransaction interceptors")
-    fun applicationSideIdShouldBeAssignedBeforeBeforeTransactionInterceptors() {
-        val entity = ApplicationSideLongEntity(id = 0L, name = "allocated")
-        every { mockEntityInfo.isNew(entity) } returns true
-
-        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
-        jpaUnitOfWork.save()
-
-        verify {
-            interceptor1.beforeTransaction(
-                match<Set<Any>> { persisted -> (persisted.single() as ApplicationSideLongEntity).id == 1001L },
-                any()
-            )
-        }
-    }
-
-    @Test
     @DisplayName("existing intent with application-side id should merge without querying existence or reporting update")
     fun existingIntentWithApplicationSideIdShouldMergeWithoutQueryingExistenceOrReportingUpdate() {
         val entity = ApplicationSideLongEntity(id = 100L, name = "existing")
@@ -1141,21 +1131,15 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("three argument JpaUnitOfWork constructor should remain callable")
-    fun threeArgumentJpaUnitOfWorkConstructorShouldRemainCallable() {
+    @DisplayName("default registry keeps the three argument Kotlin call site callable")
+    fun defaultRegistryShouldKeepThreeArgumentKotlinCallSiteCallable() {
         val unitOfWork = JpaUnitOfWork(
             uowInterceptors,
             persistListenerManager,
             supportEntityInlinePersistListener = true,
         )
-        val constructor = JpaUnitOfWork::class.java.getConstructor(
-            List::class.java,
-            PersistListenerManager::class.java,
-            Boolean::class.javaPrimitiveType,
-        )
 
         assertEquals(JpaUnitOfWork::class.java, unitOfWork.javaClass)
-        assertEquals(JpaUnitOfWork::class.java, constructor.declaringClass)
     }
 
     // Test helper classes
@@ -1165,18 +1149,6 @@ class JpaUnitOfWorkTest {
         val id: Long?,
         val name: String
     )
-
-    private class FixedLongStrategy : IdentifierStrategy {
-        override val name: String = BuiltInIdentifierStrategies.SNOWFLAKE
-        override val capabilities: Set<IdentifierCapability> = setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
-        override fun supports(type: KClass<*>): Boolean = type == Long::class
-        override fun <T : Any> next(type: KClass<T>): T {
-            require(supports(type)) { "identifier strategy $name does not support output type ${type.qualifiedName}" }
-            @Suppress("UNCHECKED_CAST")
-            return 1001L as T
-        }
-        override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null || value == 0L
-    }
 
     private class ApplicationSideLongEntity(
         @field:Id
@@ -1244,6 +1216,41 @@ class JpaUnitOfWorkTest {
     class StrongChildEntity {
         @EmbeddedId
         lateinit var id: TestStrongEntityId
+    }
+
+    private class StrongRootEntityAccessor : GeneratedOwnIdAccessor<StrongRootEntity, TestStrongEntityId> {
+        override val entityType = StrongRootEntity::class
+        override val label = "StrongRootEntity.id"
+        private var sequence = 0L
+
+        override fun current(entity: StrongRootEntity): TestStrongEntityId? =
+            readInitializedOrNull { entity.id }
+
+        override fun assign(entity: StrongRootEntity, id: TestStrongEntityId) {
+            entity.id = id
+        }
+
+        override fun next(): TestStrongEntityId = sequentialUuid7(++sequence)
+    }
+
+    private class StrongChildEntityAccessor : GeneratedOwnIdAccessor<StrongChildEntity, TestStrongEntityId> {
+        override val entityType = StrongChildEntity::class
+        override val label = "StrongChildEntity.id"
+        private var sequence = 0L
+
+        override fun current(entity: StrongChildEntity): TestStrongEntityId? =
+            readInitializedOrNull { entity.id }
+
+        override fun assign(entity: StrongChildEntity, id: TestStrongEntityId) {
+            entity.id = id
+        }
+
+        override fun next(): TestStrongEntityId = sequentialUuid7(++sequence)
+    }
+
+    companion object {
+        private fun sequentialUuid7(sequence: Long): TestStrongEntityId =
+            TestStrongEntityId("018f0000-0000-7000-8000-${sequence.toString(16).padStart(12, '0')}")
     }
 
 }

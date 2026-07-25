@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
@@ -122,25 +122,13 @@ open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
-    idStrategyRegistry: IdentifierStrategyRegistry = MapBackedIdentifierStrategyRegistry(emptyList()),
+    generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
 ) : UnitOfWork, JpaRepositoryObservationRecorder {
-
-    constructor(
-        uowInterceptors: List<UnitOfWorkInterceptor>,
-        persistListenerManager: PersistListenerManager,
-        supportEntityInlinePersistListener: Boolean,
-    ) : this(
-        uowInterceptors,
-        persistListenerManager,
-        supportEntityInlinePersistListener,
-        MapBackedIdentifierStrategyRegistry(emptyList()),
-    )
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
 
-    private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
-    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport()
+    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport(generatedOwnIdRegistry)
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
     private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
         get() = repositoryObservationBaselineThreadLocal.get()
@@ -259,7 +247,7 @@ open class JpaUnitOfWork(
             .mapTo(InsertionOrderedIdentitySet()) { it.entity }
 
         try {
-            prepareApplicationSideIds(pendingEntries)
+            completeGeneratedOwnIds(pendingEntries)
             validateSameIdentityConflicts(pendingEntries)
             validatePendingOwnedChildConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
@@ -276,7 +264,7 @@ open class JpaUnitOfWork(
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
                 validatePendingOwnedChildConflicts(input.entries)
-                prepareApplicationSideIds(input.entries)
+                completeGeneratedOwnIds(input.entries)
 
                 input.entries.forEach { entry ->
                     when (entry.kind) {
@@ -312,20 +300,17 @@ open class JpaUnitOfWork(
         }
     }
 
-    private fun prepareApplicationSideIds(entries: List<UnitOfWorkEntry>) {
+    private fun completeGeneratedOwnIds(entries: List<UnitOfWorkEntry>) {
         entries.forEach(::completeIdsForEntry)
     }
 
     private fun completeIdsForEntry(entry: UnitOfWorkEntry) {
         when (entry.kind) {
-            UnitOfWorkEntryKind.CREATE -> {
-                applicationSideIdSupport.assignMissingIds(entry.entity)
+            UnitOfWorkEntryKind.CREATE ->
                 generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
-            }
             UnitOfWorkEntryKind.EXISTING -> {
                 validateExistingEvidence(entry.entity)
                 validateObservedIdentityConsistency(entry.entity)
-                applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
                 generatedStrongIdSupport.completeExisting(
                     root = entry.entity,
                     traversal = ownedRelationTraversal,
@@ -399,12 +384,6 @@ open class JpaUnitOfWork(
     }
 
     private fun identityOf(entity: Any): EntityIdentity? {
-        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
-            if (applicationSideIdSupport.isDefaultId(member, entity)) return null
-            val id = member.get(entity) ?: return null
-            return EntityIdentity(member.ownerType, id)
-        }
-
         val entityClass = persistentEntityClass(entity)
         val entityInformation = getEntityInformation(entityClass)
         if (entityInformation.isNew(entity)) return null
@@ -413,17 +392,10 @@ open class JpaUnitOfWork(
     }
 
     private fun applyCreate(entity: Any, results: FlushResult) {
-        validateCreateApplicationSideId(entity)
         val entityClass = persistentEntityClass(entity)
-        val refreshRequired =
-            applicationSideIdSupport.findApplicationSideId(entity) == null &&
-                getEntityInformation(entityClass).isNew(entity)
-        if (!entityManager.contains(entity)) {
-            entityManager.persist(entity)
-        }
-        if (refreshRequired) {
-            results.refreshList.add(entity)
-        }
+        val refreshRequired = getEntityInformation(entityClass).isNew(entity)
+        if (!entityManager.contains(entity)) entityManager.persist(entity)
+        if (refreshRequired) results.refreshList.add(entity)
         results.created.add(entity)
         results.needsFlush = true
     }
@@ -447,23 +419,7 @@ open class JpaUnitOfWork(
         results.needsFlush = true
     }
 
-    private fun validateCreateApplicationSideId(entity: Any) {
-        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
-            check(!applicationSideIdSupport.isDefaultId(member, entity)) {
-                "Application-side ID remains default after assignment: " +
-                    "${member.ownerType.name}.${member.field.name}"
-            }
-        }
-    }
-
     private fun validateExistingRootIdentified(entity: Any) {
-        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
-            check(!applicationSideIdSupport.isDefaultId(member, entity)) {
-                "Existing-intent application-side ID is default: ${member.ownerType.name}.${member.field.name}"
-            }
-            return
-        }
-
         val entityClass = persistentEntityClass(entity)
         check(!getEntityInformation(entityClass).isNew(entity)) {
             "Existing-intent entity appears new: ${entity.javaClass.name}"
