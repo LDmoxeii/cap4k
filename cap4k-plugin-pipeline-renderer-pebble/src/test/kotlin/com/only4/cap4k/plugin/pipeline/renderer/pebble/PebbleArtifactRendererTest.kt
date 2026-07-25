@@ -884,47 +884,135 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate strong id template renders embeddable validated wrapper`() {
-        val content = renderTemplate(
-            templateId = "aggregate/strong_id.kt.peb",
-            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
-            context = mapOf(
-                "packageName" to "com.acme.demo.domain.aggregates.content",
-                "typeName" to "ContentId",
-                "kind" to "OWN_ID",
-            ),
-        )
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate strong id template renders four storage nearest variants with scalar string json`() {
+        fun renderStrongId(
+            packageName: String,
+            valueType: String,
+            validationKind: String,
+            stringBacked: Boolean,
+            uuidBacked: Boolean,
+            longBacked: Boolean,
+        ): String =
+            renderTemplate(
+                templateId = "aggregate/strong_id.kt.peb",
+                outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${packageName.replace('.', '/')}/OrderId.kt",
+                context = mapOf(
+                    "packageName" to packageName,
+                    "typeName" to "OrderId",
+                    "valueType" to valueType,
+                    "validationKind" to validationKind,
+                    "stringBacked" to stringBacked,
+                    "uuidBacked" to uuidBacked,
+                    "longBacked" to longBacked,
+                    "imports" to emptyList<String>(),
+                ),
+            )
 
-        assertReadableKotlin(content)
+        val uuidText = renderStrongId("com.acme.demo.ids.uuidtext", "String", "UUID7", true, false, false)
+        val uuidNative = renderStrongId("com.acme.demo.ids.uuidnative", "UUID", "UUID7", false, true, false)
+        val snowflakeText = renderStrongId("com.acme.demo.ids.snowflaketext", "String", "SNOWFLAKE", true, false, false)
+        val snowflakeLong = renderStrongId("com.acme.demo.ids.snowflakelong", "Long", "SNOWFLAKE", false, false, true)
+
+        assertTrue(uuidText.contains("StrongId<String>"))
+        assertTrue(uuidText.contains("fun of(value: String): OrderId"))
+        assertTrue(uuidNative.contains("StrongId<UUID>"))
+        assertTrue(uuidNative.contains("fun of(value: UUID): OrderId"))
+        assertTrue(snowflakeText.contains("StrongIds.requireSnowflake(value, \"OrderId\")"))
+        assertTrue(snowflakeLong.contains("override var value: Long = 0L"))
+        assertTrue(snowflakeLong.contains("fun jsonValue(): String = value.toString()"))
+        listOf(uuidText, uuidNative, snowflakeText, snowflakeLong).forEach { source ->
+            assertReadableKotlin(source)
+            assertFalse(source.contains("fun new("))
+            assertFalse(source.contains("AttributeConverter"))
+            assertFalse(source.contains("length ="))
+            assertTrue(source.contains("value.isTextual"))
+        }
         assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
-        assertTrue(content.contains("@Embeddable"))
-        assertTrue(content.contains("class ContentId protected constructor() : StrongId, Serializable"))
-        assertTrue(content.contains("""@Column(name = "value", nullable = false, updatable = false, length = 36)"""))
-        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
-        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
-        assertTrue(content.contains("fun parse(value: String): ContentId = ContentId(value)"))
+
+        val generatedSources = listOf(
+            SourceFile.kotlin("UuidTextOrderId.kt", uuidText),
+            SourceFile.kotlin("UuidNativeOrderId.kt", uuidNative),
+            SourceFile.kotlin("SnowflakeTextOrderId.kt", snowflakeText),
+            SourceFile.kotlin("SnowflakeLongOrderId.kt", snowflakeLong),
+        )
+        val result = KotlinCompilation().apply {
+            sources = generatedSources + strongIdCompileStubs
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
 
-    @Test
-    fun `reference strong id template renders parse without new factory`() {
-        val content = renderTemplate(
-            templateId = "aggregate/strong_id.kt.peb",
-            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
-            context = mapOf(
-                "packageName" to "com.acme.demo.domain.shared.ids",
-                "typeName" to "AuthorId",
-                "kind" to "REFERENCE",
-            ),
-        )
+    private val strongIdCompileStubs = listOf(
+        SourceFile.kotlin(
+            "StrongId.kt",
+            """
+            package com.only4.cap4k.ddd.core.domain.id
 
-        assertReadableKotlin(content)
-        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
-        assertTrue(content.contains("@Embeddable"))
-        assertTrue(content.contains("class AuthorId protected constructor() : StrongId, Serializable"))
-        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
-        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "AuthorId")"""))
-        assertTrue(content.contains("fun parse(value: String): AuthorId = AuthorId(value)"))
-    }
+            interface StrongId<T> {
+                val value: T
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "StrongIds.kt",
+            """
+            package com.only4.cap4k.ddd.core.domain.id
+
+            import java.util.UUID
+
+            object StrongIds {
+                fun requireUuidV7(value: String, typeName: String): String = value
+                fun requireUuidV7(value: UUID, typeName: String): UUID = value
+                fun requireSnowflake(value: String, typeName: String): String = value
+                fun requireSnowflake(value: Long, typeName: String): Long = value
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "JacksonAnnotationStubs.kt",
+            """
+            package com.fasterxml.jackson.annotation
+
+            @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
+            annotation class JsonCreator(val mode: Mode = Mode.DEFAULT) {
+                enum class Mode { DEFAULT, DELEGATING }
+            }
+
+            @Target(AnnotationTarget.FUNCTION)
+            annotation class JsonValue
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "JsonNodeStub.kt",
+            """
+            package com.fasterxml.jackson.databind
+
+            class JsonNode {
+                val isTextual: Boolean = true
+                fun textValue(): String = ""
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "JakartaPersistenceStubs.kt",
+            """
+            package jakarta.persistence
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Embeddable
+
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class Column(
+                val name: String,
+                val nullable: Boolean = true,
+                val updatable: Boolean = true,
+            )
+            """.trimIndent(),
+        ),
+    )
 
     @Test
     fun `renderer preserves artifact output ownership metadata`() {
