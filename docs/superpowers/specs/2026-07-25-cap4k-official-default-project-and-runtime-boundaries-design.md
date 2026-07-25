@@ -129,40 +129,81 @@ project
 
 因此，类似 `content-studio-runtime-init-h2.sql` 的框架运行时 SQL 不能成为默认项目首次启动的前置步骤。
 
-## 5. 运行时能力分层
+## 5. 本轮目标：审计并拆除运行时硬耦合
 
-下表定义产品能力边界。具体 Gradle artifact 名称在实施计划中结合现有发布坐标最终落定，但不得改变这里的依赖方向。
+本轮不是机械地“拆几个 starter”，而是：
 
-| 能力 | 默认项目 | 数据库要求 | 边界 |
-| --- | --- | --- | --- |
-| Core 同步路由 | 包含 | 无框架表 | Command / Query 同步路由及基础运行时契约 |
-| JPA Repository / UoW | 包含 | 仅业务 JPA 结构 | 不得传递引入 Event、Request、Saga、Locker 或 Snowflake 实现 |
-| UUIDv7 / Strong ID / Factory | 包含 | 无框架表 | 官方基础能力，不再用普通布尔开关拼装 |
-| 本地 Domain Event | 包含 | 无框架表 | 进程内分发，不等于可靠事件持久化 |
-| 可靠 Request | 可选 | Request / Archived Request 表 | 为 async、schedule、retry、result 等可靠语义提供持久化实现 |
-| 可靠 Event | 可选 | Event / Archived Event 表 | 提供至少一次投递、补偿或归档所需实现 |
-| Locker | 抽象按需使用 | 取决于实现 | Request/Event/Saga 依赖 Locker 抽象，不依赖 JDBC starter |
-| JDBC Locker | 可选 | Locker 表 | Locker 的一种实现，不是可靠能力模块的固定传递依赖 |
-| Integration Event | 可选 | 取决于可靠实现和 Transport | 单体项目不需要默认引入 |
-| HTTP/RabbitMQ/RocketMQ Transport | 可选 | 取决于适配器 | 各 Transport 独立装配，只消费真实订阅类型 |
-| Saga | 高级可选 | Saga 相关表 | 先隔离，不进入默认项目 |
-| Snowflake | 可选 | worker-id 存储 | UUIDv7 默认项目不出现 Snowflake |
+> 审计并拆除运行时模块之间不合理的硬耦合，让依赖树真实表达能力边界。
 
-### 5.1 starter 目标
+数据库自动初始化仍然后置；但任何会让最小同步项目被动引入框架表、调度器、消息适配器或高级能力的依赖，都必须在本轮处理。
 
-目标架构至少形成以下独立能力入口：
+### 5.1 已确认的耦合问题
 
-- 最小基础同步入口。
-- `cap4k-ddd-jpa-starter`。
-- `cap4k-ddd-request-starter`。
-- `cap4k-ddd-event-starter`。
-- `cap4k-ddd-locker-jdbc-starter`。
-- 独立 Saga starter。
-- 独立 Snowflake starter。
-- 独立 Integration Event 能力及各 Transport starter。
-- cap4k BOM。
+| 当前问题 | 本轮处理方向 |
+| --- | --- |
+| `ddd-domain-repo-jpa` 依赖 `ddd-domain-event-jpa` | 删除依赖；业务 JPA 仓储不能自动获得可靠事件持久化 |
+| `cap4k-ddd-starter` 聚合 Core、JPA、Locker、Snowflake、Request、Event、Saga | 拆除并删除聚合入口，各 starter 独立发布，由 BOM 统一版本 |
+| `IdPolicyAutoConfiguration` 同时认识 UUID7 和 Snowflake | UUID7 留在 Core starter；Snowflake Strategy 移入 Snowflake starter |
+| `RequestAutoConfiguration` 同时负责同步路由、JPA Record、调度、补偿和归档 | 拆成 Core 的基础同步 Request 装配与可靠 Request JPA 装配 |
+| `DomainEventAutoConfiguration` 同时负责本地事件、Integration Event、JPA Event、Locker 和定时任务 | 拆成本地事件运行时、可靠 Event JPA、Integration Event 三个边界 |
+| `IntegrationEventAutoConfiguration` 同时装配 HTTP、HTTP JPA、RabbitMQ 和 RocketMQ | 每个 Transport starter 管理自己的自动装配 |
+| `JpaRepositoryAutoConfiguration` 仍装配旧 Specification 机制 | 删除 Specification 运行时实现与装配 |
+| 可选能力通过 `@ConditionalOnClass` 塞在大 starter 中 | 改为引入对应 starter 才存在对应自动装配 |
 
-当前 `cap4k-ddd-starter` 同时聚合 core、Snowflake、JDBC Locker、JPA Repository、Request JPA、Saga JPA、Event JPA 和 Integration Event 适配器。该“全能力入口”不再是目标公共契约。
+### 5.2 本轮不拆分 `ddd-core` API
+
+`ddd-core` 当前可以继续共置 Request、Event、Integration Event、Saga 的接口及部分无数据库实现。
+
+理由：
+
+- `ddd-core` 本身不引入框架表、JDBC/JPA 持久化实现或调度任务。
+- API 共置不会让最小项目创建数据库表或启动高级运行时。
+- 继续拆成 `request-api`、`event-api`、`saga-api` 会波及大量包名、生成模板、文档和测试。
+- 当前真实问题是实现与自动装配硬耦合，不是 classpath 中能看到未使用的接口。
+
+因此本轮边界固定为：
+
+> 拆实现、自动装配和 starter，不拆 `ddd-core` 的 API 包；等 API 共置产生真实维护问题后再讨论 Core 分裂。
+
+### 5.3 目标 starter 矩阵
+
+底层 `ddd-*` 实现模块可以继续保留，但自动装配分别迁入对应 starter。
+
+| Starter | 直接拥有的能力 | 依赖 | 运行时前提 | 框架表 | 默认模板 |
+| --- | --- | --- | --- | --- | --- |
+| `cap4k-ddd-core-starter` | Mediator、同步 Command/Query、本地同步 Domain Event、Domain Service、UUID7 | `ddd-core` | Spring Context，Validator 可选 | 无 | 是 |
+| `cap4k-ddd-jpa-starter` | Repository、Unit of Work、Aggregate Factory、JPA ID 注入 | Core starter、`ddd-domain-repo-jpa` | Spring Data JPA | 无框架表，只有业务表 | 是 |
+| `cap4k-ddd-request-starter` | 可靠异步 Request、schedule、retry、result、补偿和归档 | Core starter、`ddd-application-request-jpa`、`Locker` 接口 | JPA、一个 `Locker` Bean、非空应用名 | `__request`、`__archived_request` | 否 |
+| `cap4k-ddd-event-starter` | 可靠 Event、Outbox、重试、补偿和归档 | Core starter、`ddd-domain-event-jpa`、`Locker` 接口 | JPA、一个 `Locker` Bean、非空应用名 | `__event`、`__archived_event` | 否 |
+| `cap4k-ddd-locker-jdbc-starter` | JDBC `Locker` 实现 | `ddd-core` 中的 `Locker` 接口、`ddd-distributed-locker-jdbc` | `JdbcTemplate` | `__locker` | 否 |
+| `cap4k-ddd-saga-starter` | Saga 持久化、执行、补偿和归档 | Core starter、`ddd-distributed-saga-jpa`、`Locker` 接口 | JPA、一个 `Locker` Bean、非空应用名 | `__saga`、`__saga_process` | 否 |
+| `cap4k-ddd-snowflake-starter` | Snowflake Generator 和对应 ID Strategy | Core starter、`ddd-distributed-snowflake` | `JdbcTemplate` | `__worker_id` | 否 |
+| `cap4k-ddd-integration-event-starter` | Integration Event 公共运行时和 best-effort/可靠模式桥接 | Core starter | 至少一个 Transport Publisher | 无 | 否，仅供 Transport 传递依赖 |
+| `cap4k-ddd-integration-event-http-starter` | HTTP Publisher、Subscriber 和端点 | Integration Event starter、`ddd-integration-event-http` | Spring Web | 无 | 否 |
+| `cap4k-ddd-integration-event-http-jpa-starter` | HTTP Subscriber 注册信息持久化 | HTTP starter、`ddd-integration-event-http-jpa` | JPA | `__event_http_subscriber` | 否 |
+| `cap4k-ddd-integration-event-rabbitmq-starter` | RabbitMQ Transport | Integration Event starter、`ddd-integration-event-rabbitmq` | RabbitMQ 客户端配置 | 无 | 否 |
+| `cap4k-ddd-integration-event-rocketmq-starter` | RocketMQ Transport | Integration Event starter、`ddd-integration-event-rocketmq` | RocketMQ 客户端配置 | 无 | 否 |
+| `cap4k-ddd-console-starter` | Request/Event/Saga/Locker 运维查询入口 | Core starter、`cap4k-ddd-console` | 对应能力存在时条件装配 | 无自己的表 | 否 |
+
+名称表达用户选择的能力，而不是当前持久化技术。即使当前 Request、Event、Saga 官方实现是 JPA，也继续使用通用 starter 名称；JPA 前提和 SQL 必须在各 starter 文档中明确。
+
+### 5.4 模块硬规则
+
+- `cap4k-ddd-bom` 只管理版本，没有运行时依赖。
+- 当前大而全的 `cap4k-ddd-starter` 删除，不保留兼容聚合入口。
+- 默认 Bootstrap 只引入 `cap4k-ddd-core-starter` 和 `cap4k-ddd-jpa-starter`。
+- 一个可选 starter 只能带入自身能力的实现。
+- 可选 starter 可以依赖 `ddd-core` 中的接口，但不能依赖另一个可选能力的具体 starter 或持久化实现。
+- Request/Event/Saga starter 不依赖 JDBC Locker starter。
+- Request/Event/Saga starter 之间不相互依赖。
+- Saga 可以依赖 Request 的接口或同步路由能力，但不自动引入 Request JPA。
+- JPA Repository 可以参与本地领域事件生命周期，但不自动引入可靠 Event JPA。
+- Transport starter 不依赖可靠 Event starter。
+- HTTP JPA 不反向污染普通 HTTP Transport。
+- Console 不传递引入任何被观察能力。
+- Snowflake starter 注册 Snowflake ID Strategy；默认 UUID7 装配不认识 Snowflake 实现。
+- Spring Boot 的 `AutoConfiguration.imports` 分散到各 starter，不再集中注册所有能力。
+- `@ConditionalOnClass` 只用于 starter 自身第三方库条件，不再用于在大 starter 中猜测用户需要哪项 cap4k 能力。
 
 ## 6. starter 依赖规则
 
@@ -185,23 +226,57 @@ project
 
 可靠 Request、可靠 Event 和 Saga 可以依赖 Locker 接口，但不能依赖 `cap4k-ddd-locker-jdbc-starter`。
 
-最终应用负责选择 Locker 实现。若某个已启用的可靠能力必须使用 Locker，而应用没有提供任何实现，应在启动或首次建立该能力时给出明确错误，不能静默退化。
+最终应用负责选择 Locker 实现。对 Request/Event/Saga starter，`Locker` 是已声明的运行时前提；引入 starter 却没有 `Locker` Bean 时，Spring Context 必须以明确的缺失依赖错误启动失败，不能静默退化或等待后台任务运行后才暴露问题。
 
-### 6.3 同步路径不依赖可靠持久化
+### 6.3 Request 的默认边界
 
-基础同步 Command / Query 必须在没有 Request JPA、Event JPA、Locker、Saga 和 Snowflake 的情况下正常工作。
+Request 的语义固定为：
 
-可靠 API 的处理规则为：
+- Core starter 提供同步 `send`。
+- 同步 `send` 不依赖 Request Record、JPA、Locker、调度器或框架表。
+- `async`、`schedule`、`retry`、`result` 属于可靠 Request 能力。
+- 缺少 `cap4k-ddd-request-starter` 时调用可靠异步 API，必须立即抛出明确错误。
+- 不提供与可靠 API 同名的静默内存降级。
 
-- `async`、`schedule`、`retry`、`result` 等操作如果承诺持久化、重试或可恢复语义，则缺少对应实现时必须明确失败。
-- 不允许表面调用成功、实际悄悄失去可靠性保证。
-- 若框架保留某种进程内、非可靠实现，其 API 和文档必须明确表达非可靠语义；不能与可靠 API 共用含糊契约。
-- 用户可以显式选择并承担非可靠模式的代价，框架不能替用户隐式选择。
+也就是说，默认项目可以完整体验同步 Command / Query，但不能误以为没有 Request starter 时仍获得可靠异步语义。
 
-### 6.4 Domain Event、可靠 Event 与 Integration Event 分离
+### 6.4 Integration Event 的两级语义
+
+Integration Event 允许在没有可靠 Event starter 时运行，但必须显式区分 best-effort 与可靠模式。
+
+#### 仅引入 Transport starter
+
+例如只引入 HTTP、RabbitMQ 或 RocketMQ starter：
+
+- 启用 Integration Event 公共运行时和对应 Transport。
+- 事务提交后直接尝试发布。
+- 不写入 `__event`。
+- 不提供 Outbox、重试、补偿、归档或至少一次投递保证。
+- 发送期间发生进程崩溃、网络失败或 Broker 不可用时，事件可能丢失。
+- 该模式明确命名和记录为 best-effort。
+
+#### 同时引入可靠 Event starter
+
+- Integration Event 先进入可靠 Event Record。
+- Event JPA 提供 Outbox、重试、补偿和归档。
+- 获得至少一次发布语义。
+- 需要 `__event`、`__archived_event` 以及用户选择的 `Locker` Bean。
+
+可靠增强通过公共接口接入。Transport starter 不直接依赖 `cap4k-ddd-event-starter` 或 `ddd-domain-event-jpa`。
+
+### 6.5 Integration Event 模块边界
+
+- 默认 Core 不装配 Integration Event。
+- HTTP、RabbitMQ、RocketMQ 各自拥有独立 starter 和自动装配。
+- 多个 Transport 共享的 Integration Event 基础运行时位于公共实现层，不把具体 Transport 逻辑放回 `ddd-core`。
+- Event JPA 出现时通过接口增强可靠性，不让 Transport 认识其具体实现。
+- HTTP Subscriber JPA 保持独立，不随 HTTP Transport 自动引入。
+- 不再由一个巨大的 `IntegrationEventAutoConfiguration` 使用 `@ConditionalOnClass` 同时管理所有适配器。
+
+### 6.6 Domain Event、可靠 Event 与 Integration Event 分离
 
 - Domain Event 是领域语言和本地进程内协作能力。
-- 可靠 Event 是持久化、重试、补偿、归档等运行时能力。
+- 可靠 Event 是持久化、Outbox、重试、补偿和归档能力。
 - Integration Event 是跨边界发布语言。
 - Transport 是 Integration Event 的传输实现。
 
@@ -268,32 +343,163 @@ Spring 根据实际 payload 类型将事件路由到匹配的 `@EventListener`�
 
 ## 8. 运行时配置瘦身
 
-### 8.1 基础能力不开放普通开关
+本轮采用配置瘦身方案 A：
 
-以下属于官方基础组合，不应继续以普通用户布尔开关呈现：
+> 删除能力启停和结构配置，只保留真实的运行策略与运维调优项。
 
+能力边界由 starter 依赖决定。高级用户需要替换底层实现时提供 SPI Bean，而不是通过字符串配置重写框架内部结构。
+
+### 8.1 删除的配置
+
+#### 能力启停开关
+
+删除：
+
+- `snowflake.enable`。
+- `supportEntityInlinePersistListener`。
+- `addPartitionEnable`。
+- 其他与 starter 存在性重复的能力开关。
+
+如果用户不希望某项可选能力存在，应删除对应 starter，而不是设置 `enable=false`。
+
+#### 框架表名和字段名
+
+删除用户自定义：
+
+- Locker 表名和字段名。
+- Snowflake 表名和字段名。
+- Request/Event/Saga 表名和字段名。
+
+Request、Event、Saga、Locker 和 Snowflake 使用固定框架表契约。高级用户如果需要不同结构，应替换对应 Repository、Locker 或存储 SPI，而不是配置每个表名和字段名。
+
+#### 扫描、线程工厂和分区配置
+
+删除：
+
+- `eventScanPackage`。
+- 所有 `*ThreadFactoryClassName`。
+- `addPartitionCron`。
+- 旧 camelCase/kebab-case 双重兼容键。
+- 当前不统一的 `application/domain/distributed` 历史层级前缀。
+
+线程执行器需要深度定制时，用户通过特定类型或名称的 Spring Bean 覆盖，不再填写线程工厂实现类名字符串。
+
+### 8.2 引入 starter 后固定开启的行为
+
+#### Core starter
+
+- Mediator。
+- 同步 Command / Query。
+- 本地同步 Domain Event。
+- UUID7。
+- Domain Service。
+
+#### JPA starter
+
+- Repository。
+- Unit of Work。
 - Aggregate Factory。
-- UUIDv7 默认策略。
-- 强类型 ID 所需能力。
-- 基础同步 Command / Query 路由。
-- 默认项目选择的 JPA Repository / Unit of Work。
+- Entity inline lifecycle listener。
 
-用户通过依赖选择能力，通过少量策略配置调整行为；不能通过任意开关制造框架不支持的半装配状态。
+#### Request/Event/Saga starter
 
-### 8.2 配置审计规则
+- 对应可靠持久化。
+- 补偿任务。
+- 归档任务。
 
-实施计划必须逐项盘点现有配置，并按下列类型处理：
+#### Snowflake starter
 
-| 配置类型 | 处理 |
-| --- | --- |
-| 与依赖存在性重复 | 删除，由 starter 是否存在决定 |
-| 官方基础能力开关 | 删除或固定为推荐默认 |
-| 高级能力启用开关 | 优先改为引入对应 starter |
-| 真正策略选择 | 保留，但缩小取值和说明 |
-| 历史实现遗留 | 删除 |
-| 实验性生成能力 | 移出默认核心，进入 addon |
+- 注册 Snowflake Generator。
+- 注册 Snowflake ID Strategy。
 
-本轮不接受“为了灵活”而保留没有明确用户场景的配置。
+默认 UUID7 装配不包含任何 Snowflake 类型或条件判断。
+
+#### Transport starter
+
+- 引入对应 starter 即装配对应 Transport。
+- 不通过大 starter 中的 `@ConditionalOnClass` 猜测能力。
+
+### 8.3 保留的配置
+
+只保留具有真实生产调优价值的配置。
+
+#### JPA
+
+- `retrieve-count-warn-threshold`。
+
+#### Request
+
+- 执行线程池大小。
+- 补偿 cron。
+- 补偿批次大小。
+- 最大并发数。
+- 补偿间隔。
+- 最大锁时长。
+- 归档 cron。
+- 归档批次大小。
+- 归档保留天数。
+- 归档最大锁时长。
+
+#### Event
+
+- Publisher 线程池大小。
+- 与 Request 对应的补偿和归档调优项。
+
+#### Saga
+
+- 异步线程池大小。
+- 与 Request 对应的补偿和归档调优项。
+
+#### Snowflake
+
+- 可选固定 `worker-id`。
+- 可选固定 `datacenter-id`。
+- Worker 租约时间。
+- 主机标识。
+- 最大连续心跳失败次数。
+
+#### Transport
+
+- HTTP/RabbitMQ 发布线程池大小。
+- RabbitMQ 是否自动声明 Exchange/Queue。
+- RabbitMQ 默认 Exchange 类型。
+- RocketMQ、RabbitMQ 连接信息继续使用官方 Spring 配置，不在 cap4k 中重复包装。
+
+### 8.4 配置前缀统一
+
+配置前缀与 starter 能力对齐：
+
+```text
+cap4k.ddd.jpa
+cap4k.ddd.request
+cap4k.ddd.event
+cap4k.ddd.saga
+cap4k.ddd.locker.jdbc
+cap4k.ddd.snowflake
+cap4k.ddd.integration-event.http
+cap4k.ddd.integration-event.rabbitmq
+cap4k.ddd.integration-event.rocketmq
+```
+
+同时把历史拼写 `compense` 统一修正为 `compensation`。当前没有外部用户，不保留旧前缀、旧拼写或旧键兼容。
+
+### 8.5 默认项目配置效果
+
+官方最小同步项目的 `application.yml` 不出现任何 `cap4k.ddd.*` 配置，只保留正常 Spring 配置，例如：
+
+```yaml
+spring:
+  application:
+    name: example
+  datasource:
+    # ...
+```
+
+引入可靠 Request/Event/Saga starter 后，所有调优项均有默认值，用户无需先复制一组 cap4k 配置；但必须提供：
+
+- 对应框架表。
+- 一个 `Locker` Bean。
+- 非空的 `spring.application.name`。
 
 ## 9. 生成器能力调整
 
@@ -456,19 +662,21 @@ Saga 是极少使用、当前能力偏弱的高级功能。
 后续实施计划应围绕以下工作拆分：
 
 1. 建立当前 Gradle 模块和 Spring AutoConfiguration 依赖图。
-2. 定义 BOM、最小基础入口和各独立 starter 的最终 artifact 映射。
+2. 按第 5.3 节矩阵建立 BOM 和全部独立 starter。
 3. 拆除 `ddd-domain-repo-jpa -> ddd-domain-event-jpa` 及同类错误实现依赖。
-4. 将 Request、Event、Locker、Saga、Snowflake 和 Integration Event/Transport 隔离。
-5. 确保同步 Command / Query 与本地 Domain Event 在无框架表环境运行。
-6. 为缺少可靠实现的高级 API 建立明确失败语义。
-7. 删除 `event-scan-package` 和事件 classpath 扫描。
-8. 实现真实 `@EventListener` 驱动的 `IntegrationEventSubscriptionRegistry`。
-9. 瘦身运行时配置和 generator 配置。
-10. 将 Unique 自动生成迁移到 B 类 addon。
-11. 删除当前 Aggregate Specification 实现。
-12. 删除 `Reentrant`。
-13. 调整多模块 Bootstrap 的默认依赖，确认不包含示例业务、框架 SQL和 Skill。
-14. 按新模块边界重组测试 fixture 和验证命令。
+4. 删除当前 `cap4k-ddd-starter`，把 `AutoConfiguration.imports` 分散到各 starter。
+5. 将 Request、Event、Locker、Saga、Snowflake、Integration Event、HTTP JPA、各 Transport 和 Console 隔离。
+6. 保持 `ddd-core` API 共置，同时确保 Core starter 的同步 Command / Query 与本地 Domain Event 在无框架表环境运行。
+7. 固化 Request 语义：同步 `send` 默认可用，缺少 Request starter 时可靠异步 API 调用即报错。
+8. 实现 Integration Event 的 Transport-only best-effort 模式和 Event starter 可靠增强模式。
+9. 删除 `event-scan-package` 和事件 classpath 扫描。
+10. 实现真实 `@EventListener` 驱动的 `IntegrationEventSubscriptionRegistry`。
+11. 按第 8 节精确清单删除、固定和保留运行时配置，并统一前缀。
+12. 瘦身 generator 配置，将 Unique 自动生成迁移到 B 类 addon。
+13. 删除当前 Aggregate Specification 实现。
+14. 删除 `Reentrant`。
+15. 调整多模块 Bootstrap，使默认依赖只有 Core starter 和 JPA starter，且不包含示例业务、框架 SQL 和 Skill。
+16. 按新模块边界重组测试 fixture 和验证命令。
 
 在进入代码修改前，必须先形成独立实施计划；本文不规定文件移动顺序和提交拆分。
 
@@ -481,6 +689,18 @@ Saga 是极少使用、当前能力偏弱的高级功能。
   - implementation 引入 Request JPA、Saga JPA 和 Event JPA。
 - [当前 JPA Repository 模块](../../../ddd-domain-repo-jpa/build.gradle.kts)
   - 当前以 implementation 依赖 Event JPA，是已确认的错误耦合。
+- [IdPolicyAutoConfiguration](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/IdPolicyAutoConfiguration.kt)
+  - 当前同时装配 UUID7 和 Snowflake Strategy。
+- [RequestAutoConfiguration](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/application/request/RequestAutoConfiguration.kt)
+  - 当前同时装配 JPA Record Repository、Request Supervisor、调度服务、补偿任务和归档任务。
+- [DomainEventAutoConfiguration](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/event/DomainEventAutoConfiguration.kt)
+  - 当前同时装配本地事件、Event JPA、Integration Event 协作、Locker 调度服务和定时任务。
+- [IntegrationEventAutoConfiguration](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/IntegrationEventAutoConfiguration.kt)
+  - 当前在一个自动装配中通过条件判断管理 HTTP、HTTP JPA、RabbitMQ 和 RocketMQ。
+- [JpaRepositoryAutoConfiguration](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt)
+  - 当前仍装配 Specification Manager、Specification UoW Interceptor 和可开关的 Entity inline listener。
+- [当前集中式 AutoConfiguration imports](../../../cap4k-ddd-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports)
+  - 当前统一登记 Core、JPA、Request、Event、Saga、Locker、Snowflake 和 Integration Event 配置。
 - [EventProperties](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/event/configure/EventProperties.kt)
   - 当前定义空字符串默认值的 `eventScanPackage`。
 - [DefaultEventSubscriberManager](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventSubscriberManager.kt)
@@ -500,21 +720,27 @@ Specification 的实现跨 core、pipeline API、aggregate generator、Pebble re
 
 以下内容允许在实施计划中确定：
 
-- 最小基础 starter 的最终 artifact 名称。
-- 现有模块是改名、拆分还是新建后删除旧模块。
-- AutoConfiguration 类的最终归属。
+- 现有底层 `ddd-*` 模块中的代码是移动、拆分还是由新 starter 组合。
+- 已固定 starter 内部的 AutoConfiguration 类名、包名和文件布局。
 - Registry 的 Spring 生命周期和并发数据结构。
-- 缺失能力时使用启动校验还是调用时异常。
+- Integration Event 可靠增强接口的具体 SPI 形态。
+- 线程执行器覆盖 Bean 的类型和名称。
 - 测试 fixture 如何按 starter 隔离。
 - 各可选 starter 的 SQL 文件位置和文档格式。
 
 这些实现选择必须同时满足：
 
+- starter artifact 名称和第 5.3 节矩阵不变。
+- 本轮不拆 `ddd-core` API。
 - 默认项目保持最小同步。
-- 不恢复全能力聚合入口。
+- 删除当前全能力 `cap4k-ddd-starter`。
+- Request 同步 `send` 默认可用，可靠异步 API 缺少 Request starter 时调用即报错。
+- Integration Event 同时支持 Transport-only best-effort 和 Event starter 可靠增强。
 - 不恢复事件包扫描。
-- 不让 Request/Event 固定依赖 JDBC Locker。
+- 不让 Request/Event/Saga 固定依赖 JDBC Locker。
 - 不让 JPA Repository 固定依赖 Event JPA。
+- 不让 Transport 固定依赖 Event JPA。
+- 不改变第 8 节已确认的配置删除、保留和前缀清单。
 - 不让 Bootstrap 管理 Skill。
 - 不把数据库自动迁移带回本轮。
 
@@ -523,19 +749,30 @@ Specification 的实现跨 core、pipeline API、aggregate generator、Pebble re
 设计实施完成后必须满足：
 
 1. Bootstrap 生成的默认多模块项目不含示例业务。
-2. 默认项目只使用最小同步、MVC、JPA、UUIDv7/Strong ID、Factory 和本地 Domain Event 所需能力。
-3. 默认项目无需任何 cap4k 框架表即可启动和执行基础同步用例。
-4. BOM 可以统一所有 cap4k 组件版本。
-5. 没有公共全能力 starter 把 Saga、Snowflake、Request/Event 可靠实现和 Transport 一次性传递给用户。
-6. JPA Repository 不依赖 Event JPA。
-7. Request/Event/Saga 只依赖 Locker 抽象，不固定依赖 JDBC Locker starter。
-8. 缺少可靠实现时，高级 API 不会静默丢失语义。
-9. `event-scan-package`、事件 classpath 扫描及其模板配置全部消失。
-10. Transport 只为真实 `@EventListener` Integration Event Handler 建立消费者。
-11. Unique 自动生成不再属于默认核心。
-12. 当前 Aggregate Specification 实现和 `Reentrant` 完整删除。
-13. Bootstrap 不读取、生成、复制、覆盖或删除 Skill。
-14. 本轮没有引入框架表自动迁移、单模块初始化或公开项目模板。
+2. 默认 Bootstrap 只引入 `cap4k-ddd-core-starter` 和 `cap4k-ddd-jpa-starter`。
+3. 默认项目只使用最小同步、MVC、JPA、UUID7/Strong ID、Factory 和本地 Domain Event 所需能力。
+4. 默认项目无需任何 cap4k 框架表即可启动和执行基础同步用例。
+5. 第 5.3 节定义的 starter 均形成独立发布和自动装配边界。
+6. `cap4k-ddd-bom` 只统一版本，不携带运行时依赖。
+7. 当前全能力 `cap4k-ddd-starter` 被删除，不保留兼容聚合入口。
+8. 本轮没有为了 starter 拆分继续拆分 `ddd-core` API。
+9. JPA Repository 不依赖 Event JPA。
+10. Request/Event/Saga 只依赖 Locker 抽象，不固定依赖 JDBC Locker starter，且三者不相互依赖。
+11. Transport 不依赖可靠 Event starter，HTTP JPA 不污染普通 HTTP Transport，Console 不传递引入被观察能力。
+12. Snowflake Strategy 只由 Snowflake starter 注册，Core 的 UUID7 装配不认识 Snowflake 实现。
+13. 同步 Request `send` 在 Core starter 中可用；缺少 Request starter 时调用 `async/schedule/retry/result` 明确报错。
+14. 仅引入 Transport 时，Integration Event 以无 `__event` 表的 best-effort 模式运行。
+15. 同时引入 Event starter 时，Integration Event 获得 Event Record、重试、补偿、归档和至少一次发布语义。
+16. 各 starter 拥有自己的 `AutoConfiguration.imports`；不再由大 starter 通过 `@ConditionalOnClass` 管理所有 cap4k 能力。
+17. `event-scan-package`、事件 classpath 扫描及其模板配置全部消失。
+18. Transport 只为真实 `@EventListener` Integration Event Handler 建立消费者。
+19. 第 8.1 节能力开关、表字段、扫描、线程工厂类名、分区 cron、旧键和旧前缀全部删除。
+20. 只保留第 8.3 节运维调优配置，并使用第 8.4 节统一前缀和 `compensation` 拼写。
+21. 官方默认项目的 `application.yml` 不出现 `cap4k.ddd.*` 配置。
+22. Unique 自动生成不再属于默认核心。
+23. 当前 Aggregate Specification 实现和 `Reentrant` 完整删除。
+24. Bootstrap 不读取、生成、复制、覆盖或删除 Skill。
+25. 本轮没有引入框架表自动迁移、单模块初始化或公开项目模板。
 
 ## 18. 上下文恢复摘要
 
@@ -544,12 +781,19 @@ Specification 的实现跨 core、pipeline API、aggregate generator、Pebble re
 - 先稳定官方项目契约，再做传播入口。
 - 官方默认项目是无示例业务的多模块最小同步项目。
 - 默认能力不需要 cap4k 框架表。
-- BOM 管版本，Bootstrap 给默认组合，starter 给独立能力。
-- 不保留全能力聚合入口。
+- BOM 只管版本；默认 Bootstrap 只引入 Core starter 和 JPA starter。
+- starter 使用第 5.3 节固定矩阵；删除全能力 `cap4k-ddd-starter`。
+- 本轮拆实现、自动装配和 starter，不拆 `ddd-core` API。
 - JPA Repository 与 Event JPA 解耦。
-- Request/Event/Saga 依赖 Locker 抽象，不依赖 JDBC 实现。
-- Integration Event、Saga、Snowflake、可靠 Request/Event 和 Transport 全部 opt-in。
+- Request/Event/Saga 依赖 Locker 抽象，不依赖 JDBC 实现，也不相互依赖。
+- Request 默认只有同步 `send`；可靠异步 API 缺少 Request starter 时调用即报错。
+- Integration Event 支持 Transport-only best-effort 与 Event starter 至少一次发布两级语义。
+- Integration Event、Saga、Snowflake、可靠 Request/Event、Transport、HTTP JPA 和 Console 全部 opt-in。
+- Snowflake Strategy 只存在于 Snowflake starter。
+- 每个 starter 自己拥有 AutoConfiguration，不能用大包加 `@ConditionalOnClass` 模拟能力拆分。
 - 删除 `event-scan-package` 和 classpath 扫描，改用真实 `@EventListener` Registry。
+- 配置采用方案 A：删除能力与结构配置，只保留运维调优项，统一 starter 对齐前缀和 `compensation` 拼写。
+- 默认项目 `application.yml` 不含 `cap4k.ddd.*`。
 - Unique 自动生成迁移到 B 类 addon。
 - 删除当前 Aggregate Specification 和 `Reentrant`。
 - 框架表自动迁移后置。
