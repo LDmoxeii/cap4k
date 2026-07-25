@@ -157,7 +157,7 @@ Recent durable decisions to preserve:
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - frontend TypeScript generation is currently not planned as a cap4k core slice unless a first-class endpoint tactical model or stable API-contract projection exists
 - public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
-- UUID7 is the default application-side ID policy, Snowflake remains explicit as `snowflake-long`, database `@IdGenerator` comments are unsupported, and field-level `@ApplicationSideId` is the runtime contract
+- Application-side entity IDs are generated Strong IDs. Supported strategies are `uuid7` and `snowflake`. The backing type follows JDBC storage; generated typed accessors allocate IDs, and generated catalogs feed the runtime registry.
 
 ## Known Test Fixture Debt
 
