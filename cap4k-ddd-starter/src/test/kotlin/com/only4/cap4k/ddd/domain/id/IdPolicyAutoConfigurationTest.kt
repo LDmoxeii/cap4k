@@ -1,6 +1,9 @@
 package com.only4.cap4k.ddd.domain.id
 
 import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
@@ -10,6 +13,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -117,6 +122,49 @@ class IdPolicyAutoConfigurationTest {
             }
     }
 
+    @Test
+    fun `generated own id registry is empty without catalogs`() {
+        contextRunner.run { context ->
+            assertNull(context.getBean(GeneratedOwnIdRegistry::class.java).accessorFor(TestEntity::class))
+        }
+    }
+
+    @Test
+    fun `generated own id registry collects catalogs`() {
+        ApplicationContextRunner()
+            .withBean("testCatalog", GeneratedOwnIdCatalog::class.java, { catalog(TestEntityAccessor) })
+            .withUserConfiguration(IdPolicyAutoConfiguration::class.java)
+            .run { context ->
+                assertSame(
+                    TestEntityAccessor,
+                    context.getBean(GeneratedOwnIdRegistry::class.java).accessorFor(TestEntity::class),
+                )
+            }
+    }
+
+    @Test
+    fun `application registry replaces the default`() {
+        val custom = object : GeneratedOwnIdRegistry {
+            override fun accessorFor(entityType: KClass<*>) = null
+        }
+        ApplicationContextRunner()
+            .withBean(GeneratedOwnIdRegistry::class.java, { custom })
+            .withUserConfiguration(IdPolicyAutoConfiguration::class.java)
+            .run { context -> assertSame(custom, context.getBean(GeneratedOwnIdRegistry::class.java)) }
+    }
+
+    @Test
+    fun `duplicate catalog accessors fail application startup`() {
+        ApplicationContextRunner()
+            .withBean("firstCatalog", GeneratedOwnIdCatalog::class.java, { catalog(TestEntityAccessor) })
+            .withBean("secondCatalog", GeneratedOwnIdCatalog::class.java, { catalog(TestEntityAccessor) })
+            .withUserConfiguration(IdPolicyAutoConfiguration::class.java)
+            .run { context ->
+                assertNotNull(context.startupFailure)
+                assertTrue(context.startupFailure!!.stackTraceToString().contains("duplicate generated own ID accessor"))
+            }
+    }
+
     private open class OrderNoStrategy : IdentifierStrategy {
         override open val name: String = "order-no"
         override val capabilities: Set<IdentifierCapability> = emptySet()
@@ -132,4 +180,21 @@ class IdPolicyAutoConfigurationTest {
     private class DuplicateUuid7Strategy : OrderNoStrategy() {
         override val name: String = "uuid7"
     }
+
+    private class TestEntity(var id: String? = null)
+
+    private object TestEntityAccessor : GeneratedOwnIdAccessor<TestEntity, String> {
+        override val entityType: KClass<TestEntity> = TestEntity::class
+        override val label: String = "TestEntity.id"
+        override fun current(entity: TestEntity): String? = entity.id
+        override fun assign(entity: TestEntity, id: String) {
+            entity.id = id
+        }
+        override fun next(): String = "ID-1"
+    }
+
+    private fun catalog(vararg accessors: GeneratedOwnIdAccessor<*, *>): GeneratedOwnIdCatalog =
+        object : GeneratedOwnIdCatalog {
+            override val accessors: List<GeneratedOwnIdAccessor<*, *>> = accessors.toList()
+        }
 }
