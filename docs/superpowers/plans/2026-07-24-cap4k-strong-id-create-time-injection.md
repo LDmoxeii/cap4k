@@ -1192,12 +1192,19 @@ internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return model.strongIds.map { strongId ->
             val validationKind = when (strongId.idStrategy) {
-                "snowflake" -> "SNOWFLAKE"
-                null, "uuid7" -> "UUID7"
+                null, "uuid7" -> {
+                    require(strongId.valueType in setOf("String", "UUID")) {
+                        "unsupported Strong ID backing ${strongId.valueType} for UUID7 ${strongId.packageName}.${strongId.typeName}"
+                    }
+                    "UUID7"
+                }
+                "snowflake" -> {
+                    require(strongId.valueType in setOf("String", "Long")) {
+                        "unsupported Strong ID backing ${strongId.valueType} for Snowflake ${strongId.packageName}.${strongId.typeName}"
+                    }
+                    "SNOWFLAKE"
+                }
                 else -> error("unsupported Strong ID strategy ${strongId.idStrategy} for ${strongId.packageName}.${strongId.typeName}")
-            }
-            require(strongId.valueType in setOf("String", "UUID", "Long")) {
-                "unsupported Strong ID backing ${strongId.valueType} for ${strongId.packageName}.${strongId.typeName}"
             }
             generatedKotlinArtifact(
                 config = config,

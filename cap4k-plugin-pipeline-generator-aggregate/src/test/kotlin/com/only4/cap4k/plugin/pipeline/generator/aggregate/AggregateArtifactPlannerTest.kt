@@ -58,6 +58,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Path
+import java.sql.Types
 
 class AggregateArtifactPlannerTest {
 
@@ -80,6 +81,8 @@ class AggregateArtifactPlannerTest {
                                     nullable = false,
                                     isPrimaryKey = true,
                                     idStrategy = DbIdStrategy.UUID7,
+                                    jdbcType = Types.VARCHAR,
+                                    columnSize = 36,
                                 )
                             ),
                             primaryKey = listOf("id"),
@@ -97,6 +100,8 @@ class AggregateArtifactPlannerTest {
                                     nullable = false,
                                     isPrimaryKey = true,
                                     idStrategy = DbIdStrategy.UUID7,
+                                    jdbcType = Types.VARCHAR,
+                                    columnSize = 36,
                                 ),
                                 DbColumnSnapshot(
                                     name = "author_id",
@@ -104,6 +109,8 @@ class AggregateArtifactPlannerTest {
                                     kotlinType = "String",
                                     nullable = false,
                                     refAggregate = "Author",
+                                    jdbcType = Types.VARCHAR,
+                                    columnSize = 36,
                                 ),
                             ),
                             primaryKey = listOf("id"),
@@ -121,6 +128,8 @@ class AggregateArtifactPlannerTest {
                                     nullable = false,
                                     isPrimaryKey = true,
                                     idStrategy = DbIdStrategy.UUID7,
+                                    jdbcType = Types.VARCHAR,
+                                    columnSize = 36,
                                 ),
                                 DbColumnSnapshot(
                                     name = "reviewer_id",
@@ -128,6 +137,8 @@ class AggregateArtifactPlannerTest {
                                     kotlinType = "String",
                                     nullable = false,
                                     refId = "AuthorId",
+                                    jdbcType = Types.VARCHAR,
+                                    columnSize = 36,
                                 ),
                             ),
                             primaryKey = listOf("id"),
@@ -189,8 +200,6 @@ class AggregateArtifactPlannerTest {
                     "com.acme.demo.domain.shared.ids.AuthorId",
                     reviewFactoryFields.single { it["name"] == "reviewerId" }["typeRef"],
                 )
-            },
-            {
             },
         )
     }
@@ -563,6 +572,35 @@ class AggregateArtifactPlannerTest {
         assertEquals(true, snowflakeLong.context["longBacked"])
 
         assertTrue(strongIds.values.all { allocationContextKey !in it.context })
+    }
+
+    @Test
+    fun `strong id planner rejects invalid strategy backing pairs`() {
+        listOf(
+            StrongIdModel(
+                typeName = "UuidLongId",
+                packageName = "com.acme.demo.domain.aggregates.example",
+                valueType = "Long",
+                kind = StrongIdKind.OWN_ID,
+                idStrategy = "uuid7",
+            ),
+            StrongIdModel(
+                typeName = "SnowflakeUuidId",
+                packageName = "com.acme.demo.domain.aggregates.example",
+                valueType = "UUID",
+                kind = StrongIdKind.OWN_ID,
+                idStrategy = "snowflake",
+            ),
+        ).forEach { strongId ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                StrongIdArtifactPlanner().plan(
+                    aggregateConfig(),
+                    CanonicalModel(strongIds = listOf(strongId)),
+                )
+            }
+
+            assertTrue(error.message!!.contains("unsupported Strong ID backing"))
+        }
     }
 
     @Test
