@@ -575,6 +575,86 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner projects authoritative strong id override lengths by backing`() {
+        val entity = EntityModel(
+            name = "StrongIdMatrix",
+            packageName = "com.acme.demo.domain.aggregates.strong_id_matrix",
+            tableName = "strong_id_matrix",
+            comment = "",
+            fields = listOf(
+                FieldModel("uuidText", "UuidTextId", nullable = false, columnName = "uuid_text"),
+                FieldModel("uuidNative", "UuidNativeId", nullable = false, columnName = "uuid_native"),
+                FieldModel("snowflakeText", "SnowflakeTextId", nullable = false, columnName = "snowflake_text"),
+                FieldModel("snowflakeLong", "SnowflakeLongId", nullable = false, columnName = "snowflake_long"),
+            ),
+            idField = FieldModel("uuidText", "UuidTextId", nullable = false, columnName = "uuid_text"),
+        )
+        val entityContext = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(
+                    AggregateEntityJpaModel(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        entityEnabled = true,
+                        tableName = entity.tableName,
+                        columns = listOf(
+                            AggregateColumnJpaModel("uuidText", "uuid_text", isId = true, columnLength = 40),
+                            AggregateColumnJpaModel("uuidNative", "uuid_native", isId = false, columnLength = 36),
+                            AggregateColumnJpaModel("snowflakeText", "snowflake_text", isId = false, columnLength = 24),
+                            AggregateColumnJpaModel("snowflakeLong", "snowflake_long", isId = false, columnLength = 19),
+                        ),
+                    )
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "UuidTextId",
+                        packageName = entity.packageName,
+                        valueType = "String",
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        ownerAggregateName = entity.name,
+                        ownerAggregatePackageName = entity.packageName,
+                        idStrategy = "uuid7",
+                        isEmbeddedId = true,
+                    ),
+                    StrongIdModel(
+                        typeName = "UuidNativeId",
+                        packageName = entity.packageName,
+                        valueType = "UUID",
+                        kind = StrongIdKind.REFERENCE,
+                        idStrategy = "uuid7",
+                    ),
+                    StrongIdModel(
+                        typeName = "SnowflakeTextId",
+                        packageName = entity.packageName,
+                        valueType = "String",
+                        kind = StrongIdKind.REFERENCE,
+                        idStrategy = "snowflake",
+                    ),
+                    StrongIdModel(
+                        typeName = "SnowflakeLongId",
+                        packageName = entity.packageName,
+                        valueType = "Long",
+                        kind = StrongIdKind.REFERENCE,
+                        idStrategy = "snowflake",
+                    ),
+                ),
+            ),
+        ).single { it.templateId == "aggregate/entity.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val fields = (entityContext["scalarFields"] as List<Map<String, Any?>>)
+            .associateBy { it.getValue("fieldName") }
+
+        assertEquals(40, fields.getValue("uuidText")["attributeOverrideLength"])
+        assertNull(fields.getValue("uuidNative")["attributeOverrideLength"])
+        assertEquals(24, fields.getValue("snowflakeText")["attributeOverrideLength"])
+        assertNull(fields.getValue("snowflakeLong")["attributeOverrideLength"])
+    }
+
+    @Test
     fun `strong id planner rejects invalid strategy backing pairs`() {
         listOf(
             StrongIdModel(

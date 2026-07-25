@@ -1546,6 +1546,73 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `aggregate entity template renders strong id override length only for string backing`() {
+        fun renderStrongIdEntity(
+            typeName: String,
+            columnName: String,
+            attributeOverrideLength: Int?,
+            embeddedId: Boolean,
+        ): String = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/$typeName.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo",
+                "typeName" to "${typeName}Entity",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to columnName,
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to embeddedId,
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to !embeddedId,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to typeName,
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to columnName,
+                        "isId" to embeddedId,
+                        "strongId" to true,
+                        "embeddedId" to embeddedId,
+                        "applicationSideIdStrategy" to null,
+                        "writePolicy" to if (embeddedId) "CREATE_ONLY" else "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to !embeddedId,
+                        "attributeOverrideLength" to attributeOverrideLength,
+                        "converterClassRef" to null,
+                    )
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        val uuidTextEntity = renderStrongIdEntity("UuidTextId", "uuid_text", 40, embeddedId = true)
+        val uuidNativeEntity = renderStrongIdEntity("UuidNativeId", "uuid_native", null, embeddedId = false)
+        val snowflakeTextEntity = renderStrongIdEntity("SnowflakeTextId", "snowflake_text", 24, embeddedId = false)
+        val snowflakeLongEntity = renderStrongIdEntity("SnowflakeLongId", "snowflake_long", null, embeddedId = false)
+
+        assertTrue(uuidTextEntity.contains("updatable = false, length = 40"))
+        assertFalse(uuidNativeEntity.contains("length ="))
+        assertFalse(snowflakeLongEntity.contains("length ="))
+        assertTrue(snowflakeTextEntity.contains("length = 24"))
+    }
+
+    @Test
     fun `aggregate entity template renders aggregate root strong id as embedded id`() {
         val content = renderTemplate(
             templateId = "aggregate/entity.kt.peb",
@@ -1592,6 +1659,7 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideNullable" to false,
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to false,
+                        "attributeOverrideLength" to 36,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -1627,6 +1695,7 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideNullable" to false,
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to true,
+                        "attributeOverrideLength" to 36,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -1646,6 +1715,7 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideNullable" to true,
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to true,
+                        "attributeOverrideLength" to 36,
                         "converterClassRef" to null,
                     ),
                 ),

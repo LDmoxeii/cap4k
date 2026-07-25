@@ -199,6 +199,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 updatable != null -> updatable
                                 else -> true
                             },
+                            "attributeOverrideLength" to if (strongId?.valueType == "String") jpa.columnLength else null,
                         )
                     }
                 }

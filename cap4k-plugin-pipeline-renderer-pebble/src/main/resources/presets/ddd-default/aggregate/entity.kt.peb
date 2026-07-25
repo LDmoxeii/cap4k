@@ -77,9 +77,9 @@ class {{ typeName }} internal constructor(
 ) {
 {% for field in scalarFields %}
 {% if field.embeddedId %}    @EmbeddedId
-    @AttributeOverride(name = "value", column = Column(name = "{{ field.columnName }}", nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}, length = 36))
+    @AttributeOverride(name = "value", column = Column(name = "{{ field.columnName }}", nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}{% if field.attributeOverrideLength is not null %}, length = {{ field.attributeOverrideLength }}{% endif %}))
 {% elseif field.strongId %}    @Embedded
-    @AttributeOverride(name = "value", column = Column(name = "{{ field.columnName }}", nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}, length = 36))
+    @AttributeOverride(name = "value", column = Column(name = "{{ field.columnName }}", nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}{% if field.attributeOverrideLength is not null %}, length = {{ field.attributeOverrideLength }}{% endif %}))
 {% elseif field.isId %}    @Id
 {% endif %}{% if field.isId and field.generatedValueStrategy == "IDENTITY" %}    @GeneratedValue(strategy = GenerationType.IDENTITY)
 {% endif %}{% if field.isVersion %}    @Version
