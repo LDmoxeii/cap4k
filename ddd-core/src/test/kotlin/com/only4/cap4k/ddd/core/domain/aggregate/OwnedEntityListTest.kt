@@ -152,5 +152,61 @@ class OwnedEntityListTest {
         assertEquals(listOf(first, second), delegate)
     }
 
+    @Test
+    fun `add prepares before mutating delegate`() {
+        val events = mutableListOf<String>()
+        val delegate = object : ArrayList<TestChild>() {
+            override fun add(element: TestChild): Boolean {
+                events += "add"
+                return super.add(element)
+            }
+        }
+        val children = OwnedEntityList.of(delegate, TestChild::class, "Parent.children") {
+            events += "prepare"
+        }
+
+        children.add(TestChild("new"))
+
+        assertEquals(listOf("prepare", "add"), events)
+    }
+
+    @Test
+    fun `failed add preparation leaves delegate unchanged`() {
+        val old = TestChild("old")
+        val delegate = mutableListOf(old)
+        val children = OwnedEntityList.of(delegate, TestChild::class, "Parent.children") {
+            error("allocation failed")
+        }
+
+        assertThrows(IllegalStateException::class.java) { children.add(TestChild("new")) }
+        assertEquals(listOf(old), delegate)
+    }
+
+    @Test
+    fun `failed replace preparation preserves old child`() {
+        val old = TestChild("old")
+        val delegate = mutableListOf(old)
+        val children = OwnedEntityList.of(delegate, TestChild::class, "Parent.child") {
+            error("allocation failed")
+        }
+
+        assertThrows(IllegalStateException::class.java) { children.replace(TestChild("new")) }
+        assertEquals(listOf(old), delegate)
+    }
+
+    @Test
+    fun `replace null does not prepare`() {
+        var prepareCalls = 0
+        val delegate = mutableListOf(TestChild("old"))
+        val children = OwnedEntityList.of(delegate, TestChild::class, "Parent.child") {
+            prepareCalls++
+        }
+
+        children.replace(null)
+
+        assertEquals(0, prepareCalls)
+        assertTrue(delegate.isEmpty())
+    }
+
     private data class TestChild(val value: String)
 }
