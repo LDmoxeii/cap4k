@@ -583,7 +583,6 @@ data class StrongIdModel(
     val ownerAggregateName: String? = null,
     val ownerAggregatePackageName: String? = null,
     val idStrategy: String? = null,
-    val canGenerateNew: Boolean = false,
     val isEmbeddedId: Boolean = false,
 )
 

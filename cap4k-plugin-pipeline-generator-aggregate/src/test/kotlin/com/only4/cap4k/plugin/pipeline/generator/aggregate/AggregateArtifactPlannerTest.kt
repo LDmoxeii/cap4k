@@ -191,10 +191,6 @@ class AggregateArtifactPlannerTest {
                 )
             },
             {
-                val sharedReference = model.strongIds.single {
-                    it.kind == StrongIdKind.REFERENCE && it.typeName == "AuthorId"
-                }
-                assertFalse(sharedReference.canGenerateNew)
             },
         )
     }
@@ -417,7 +413,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "Content",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                     StrongIdModel(
@@ -450,7 +445,6 @@ class AggregateArtifactPlannerTest {
                 )
                 assertEquals("com.acme.demo.domain.aggregates.content", contentId.context["packageName"])
                 assertEquals(StrongIdKind.OWN_ID.name, contentId.context["kind"])
-                assertEquals(true, contentId.context["canGenerateNew"])
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, contentId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, contentId.conflictPolicy)
                 assertEquals("demo-domain/build/generated/cap4k/main/kotlin", contentId.resolvedOutputRoot)
@@ -473,7 +467,6 @@ class AggregateArtifactPlannerTest {
                 )
                 assertEquals("com.acme.demo.domain.shared.ids", authorId.context["packageName"])
                 assertEquals(StrongIdKind.REFERENCE.name, authorId.context["kind"])
-                assertEquals(false, authorId.context["canGenerateNew"])
                 assertEquals(ArtifactOutputKind.GENERATED_SOURCE, authorId.outputKind)
                 assertEquals(ConflictPolicy.OVERWRITE, authorId.conflictPolicy)
                 assertEquals("demo-domain/build/generated/cap4k/main/kotlin", authorId.resolvedOutputRoot)
@@ -496,7 +489,6 @@ class AggregateArtifactPlannerTest {
                 )
                 assertEquals("com.acme.demo.domain.aggregates.content", contentRefId.context["packageName"])
                 assertEquals(StrongIdKind.AGGREGATE_REFERENCE.name, contentRefId.context["kind"])
-                assertEquals(false, contentRefId.context["canGenerateNew"])
                 assertAggregateElement(
                     contentRefId,
                     aggregate = "Content",
@@ -508,6 +500,69 @@ class AggregateArtifactPlannerTest {
                 )
             },
         )
+    }
+
+    @Test
+    fun `strong id planner projects all resolved backing contexts without allocation flag`() {
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "UuidTextId",
+                        packageName = "com.acme.demo.domain.aggregates.example",
+                        valueType = "String",
+                        kind = StrongIdKind.OWN_ID,
+                        idStrategy = "uuid7",
+                    ),
+                    StrongIdModel(
+                        typeName = "UuidNativeId",
+                        packageName = "com.acme.demo.domain.aggregates.example",
+                        valueType = "UUID",
+                        kind = StrongIdKind.OWN_ID,
+                        idStrategy = "uuid7",
+                    ),
+                    StrongIdModel(
+                        typeName = "SnowflakeTextId",
+                        packageName = "com.acme.demo.domain.aggregates.example",
+                        valueType = "String",
+                        kind = StrongIdKind.OWN_ID,
+                        idStrategy = "snowflake",
+                    ),
+                    StrongIdModel(
+                        typeName = "SnowflakeLongId",
+                        packageName = "com.acme.demo.domain.aggregates.example",
+                        valueType = "Long",
+                        kind = StrongIdKind.OWN_ID,
+                        idStrategy = "snowflake",
+                    ),
+                ),
+            ),
+        )
+
+        val strongIds = plan
+            .filter { it.templateId == "aggregate/strong_id.kt.peb" }
+            .associateBy { it.context.getValue("typeName") }
+        val uuidText = strongIds.getValue("UuidTextId")
+        val uuidNative = strongIds.getValue("UuidNativeId")
+        val snowflakeText = strongIds.getValue("SnowflakeTextId")
+        val snowflakeLong = strongIds.getValue("SnowflakeLongId")
+        val allocationContextKey = "can" + "GenerateNew"
+
+        assertEquals("String", uuidText.context["valueType"])
+        assertEquals("UUID7", uuidText.context["validationKind"])
+        assertEquals(true, uuidText.context["stringBacked"])
+
+        assertEquals("UUID", uuidNative.context["valueType"])
+        assertEquals(true, uuidNative.context["uuidBacked"])
+
+        assertEquals("String", snowflakeText.context["valueType"])
+        assertEquals("SNOWFLAKE", snowflakeText.context["validationKind"])
+
+        assertEquals("Long", snowflakeLong.context["valueType"])
+        assertEquals(true, snowflakeLong.context["longBacked"])
+
+        assertTrue(strongIds.values.all { allocationContextKey !in it.context })
     }
 
     @Test
@@ -553,7 +608,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "Order",
                         ownerAggregatePackageName = "com.demo.domain.order",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                     StrongIdModel(
@@ -565,7 +619,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "Order",
                         ownerAggregatePackageName = "com.demo.domain.order",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                 ),
@@ -586,7 +639,6 @@ class AggregateArtifactPlannerTest {
 
         assertAll(
             { assertEquals(StrongIdKind.OWN_ID.name, rootId.context["kind"]) },
-            { assertEquals(true, rootId.context["canGenerateNew"]) },
             {
                 assertAggregateElement(
                     rootId,
@@ -599,7 +651,6 @@ class AggregateArtifactPlannerTest {
                 )
             },
             { assertEquals(StrongIdKind.OWN_ID.name, childId.context["kind"]) },
-            { assertEquals(true, childId.context["canGenerateNew"]) },
             {
                 assertAggregateElement(
                     childId,
@@ -705,7 +756,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "Content",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                     StrongIdModel(
@@ -722,7 +772,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "MediaProcessingTask",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                 ),
@@ -846,7 +895,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = entity.name,
                         ownerAggregatePackageName = entity.packageName,
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                     StrongIdModel(
@@ -858,7 +906,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "Author",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.author",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                     StrongIdModel(
@@ -5196,7 +5243,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "VideoPost",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                 ),
@@ -5297,7 +5343,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "VideoPost",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                 ),
@@ -5388,7 +5433,6 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "VideoPost",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.video_post",
                         idStrategy = "uuid7",
-                        canGenerateNew = true,
                         isEmbeddedId = true,
                     ),
                 ),

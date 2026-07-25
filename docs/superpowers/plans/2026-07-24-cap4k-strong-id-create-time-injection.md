@@ -1112,9 +1112,12 @@ git commit -m "refactor: make strong ids generic validation values"
 
 - Modify: `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt`
 - Modify: `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/StrongIdArtifactPlanner.kt`
 - Modify: `cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt`
+- Modify: `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb` (remove the obsolete conditional allocation block only; Task 8 replaces the template)
 - Modify: `cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt`
+- Modify: `docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md` (source-evidence correction only)
 
 **Interfaces:**
 
@@ -1170,7 +1173,7 @@ data class StrongIdModel(
 )
 ```
 
-Remove every named argument and assertion for `canGenerateNew`; do not replace it with another allocation boolean.
+Remove every named argument and assertion for `canGenerateNew`; do not replace it with another allocation boolean. The current Pebble template is also a consumer: remove its `{% if canGenerateNew %}` / `new()` block and the two old renderer-test context entries/assertions now. Task 8 replaces the remaining validation-only transitional template with the four final backing variants.
 
 - [ ] **Step 4: Replace `StrongIdArtifactPlanner` with backing-driven context.**
 
@@ -1223,7 +1226,7 @@ internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
 - [ ] **Step 5: Run GREEN tests and scan removed context.**
 
 ```powershell
-.\gradlew.bat :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-generator-aggregate:test --no-daemon
+.\gradlew.bat :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-generator-aggregate:test :cap4k-plugin-pipeline-renderer-pebble:test --no-daemon
 rg -n 'canGenerateNew' cap4k-plugin-pipeline-api/src cap4k-plugin-pipeline-core/src cap4k-plugin-pipeline-generator-aggregate/src cap4k-plugin-pipeline-renderer-pebble/src
 ```
 
@@ -1232,7 +1235,7 @@ Expected: tests PASS; scan has no matches.
 - [ ] **Step 6: Commit Task 7 only.**
 
 ```powershell
-git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/StrongIdArtifactPlanner.kt cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt
+git add cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/StrongIdArtifactPlanner.kt cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md
 git commit -m "refactor: plan strong ids from resolved backing"
 ```
 

@@ -2863,7 +2863,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(StrongIdKind.OWN_ID, orderId.kind)
         assertEquals("Order", orderId.ownerEntityName)
         assertEquals("uuid7", orderId.idStrategy)
-        assertEquals(true, orderId.canGenerateNew)
         assertEquals(true, orderId.isEmbeddedId)
 
         val lineId = result.model.strongIds.single { it.typeName == "OrderLineId" }
@@ -2871,7 +2870,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("OrderLine", lineId.ownerEntityName)
         assertEquals("Order", lineId.ownerAggregateName)
         assertEquals("uuid7", lineId.idStrategy)
-        assertEquals(true, lineId.canGenerateNew)
         assertEquals(true, lineId.isEmbeddedId)
 
         val line = result.model.entities.single { it.name == "OrderLine" }

@@ -514,7 +514,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     ownerAggregateName = ownerAggregate.name,
                     ownerAggregatePackageName = ownerAggregate.packageName,
                     idStrategy = generatedOwnId.strategy,
-                    canGenerateNew = true,
                     isEmbeddedId = true,
                 )
             }

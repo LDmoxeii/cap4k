@@ -892,7 +892,6 @@ class PebbleArtifactRendererTest {
                 "packageName" to "com.acme.demo.domain.aggregates.content",
                 "typeName" to "ContentId",
                 "kind" to "OWN_ID",
-                "canGenerateNew" to true,
             ),
         )
 
@@ -904,7 +903,6 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
         assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
         assertTrue(content.contains("fun parse(value: String): ContentId = ContentId(value)"))
-        assertTrue(content.contains("fun new(): ContentId = ContentId(StrongIds.newUuidV7String())"))
     }
 
     @Test
@@ -916,7 +914,6 @@ class PebbleArtifactRendererTest {
                 "packageName" to "com.acme.demo.domain.shared.ids",
                 "typeName" to "AuthorId",
                 "kind" to "REFERENCE",
-                "canGenerateNew" to false,
             ),
         )
 
@@ -927,7 +924,6 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
         assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "AuthorId")"""))
         assertTrue(content.contains("fun parse(value: String): AuthorId = AuthorId(value)"))
-        assertFalse(content.contains("fun new(): AuthorId"))
     }
 
     @Test
