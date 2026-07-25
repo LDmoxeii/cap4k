@@ -555,8 +555,51 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate factory template renders strong id constructor mapping`() {
-        val content = renderTemplate(
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate templates omit generated own id construction and compile`() {
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "Content",
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "content"),
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasEmbeddedIdFields" to true,
+                "hasVersionFields" to false,
+                "hasConverterFields" to false,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                ),
+                "constructorFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false, "defaultValue" to null),
+                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false, "defaultValue" to null),
+                ),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "ContentId",
+                        "nullable" to false,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to true,
+                        "embeddedId" to true,
+                        "generatedOwnId" to true,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to false,
+                    ),
+                    mapOf("name" to "title", "type" to "String", "nullable" to false, "columnName" to "title"),
+                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false, "columnName" to "author_id"),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+        val factoryContent = renderTemplate(
             templateId = "aggregate/factory.kt.peb",
             outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/factory/ContentFactory.kt",
             context = mapOf(
@@ -574,43 +617,105 @@ class PebbleArtifactRendererTest {
                     mapOf("name" to "title"),
                     mapOf("name" to "authorId"),
                 ),
-                "ownIdFieldName" to "id",
-                "ownIdInitializer" to "ContentId.new()",
-                "ownIdTypeRef" to "com.acme.demo.domain.aggregates.content.ContentId",
                 "entityName" to "Content",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
                 "aggregateName" to "Content",
                 "imports" to listOf(
-                    "com.acme.demo.domain.aggregates.content.ContentId",
                     "com.acme.demo.domain.shared.ids.AuthorId",
                 ),
             ),
         )
 
-        assertReadableKotlin(content)
-        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
-        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
-        assertTrue(content.contains("override fun create(entityPayload: Payload): Content ="))
-        assertTrue(content.contains("Content("))
+        assertReadableKotlin(entityContent)
+        assertReadableKotlin(factoryContent)
+        assertTrue(entityContent.contains("class Content internal constructor(\n    title: String,\n    authorId: AuthorId\n)"))
+        assertTrue(entityContent.contains("lateinit var id: ContentId\n        internal set"))
+        assertFalse(factoryContent.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(factoryContent.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(factoryContent.contains("override fun create(entityPayload: Payload): Content ="))
+        assertTrue(factoryContent.contains("Content("))
         assertTrue(
-            content.normalizedLineEndings().contains(
+            factoryContent.normalizedLineEndings().contains(
                 "override fun create(entityPayload: Payload): Content =\n        Content("
             )
         )
-        assertTrue(content.contains("id = ContentId.new()"))
-        assertTrue(content.contains("title = entityPayload.title"))
-        assertTrue(content.contains("authorId = entityPayload.authorId"))
-        assertTrue(content.contains("data class Payload("))
-        assertTrue(content.contains("val title: String,"))
-        assertTrue(content.contains("val authorId: AuthorId"))
-        assertTrue(content.contains(") : AggregatePayload<Content>"))
-        assertFalse(Regex("""data class Payload\(\n\n""").containsMatchIn(content))
-        assertFalse(Regex("""val title: String,\n\n\s*val authorId""").containsMatchIn(content))
-        assertFalse(content.normalizedLineEndings().contains("    )\n\n\n    data class Payload("))
-        assertFalse(content.normalizedLineEndings().contains("=\nContent("))
-        assertFalse(content.contains("AuthorId.new()"))
-        assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
-        assertFalse(content.contains("val id: ContentId"))
+        assertFalse(factoryContent.contains("id ="))
+        assertFalse(factoryContent.contains(".new()"))
+        assertTrue(factoryContent.contains("title = entityPayload.title"))
+        assertTrue(factoryContent.contains("authorId = entityPayload.authorId"))
+        assertTrue(factoryContent.contains("data class Payload("))
+        assertTrue(factoryContent.contains("val title: String,"))
+        assertTrue(factoryContent.contains("val authorId: AuthorId"))
+        assertFalse(factoryContent.contains("val id: ContentId"))
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("Content.kt", entityContent),
+                SourceFile.kotlin("ContentFactory.kt", factoryContent),
+                SourceFile.kotlin(
+                    "AggregateContracts.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.aggregate
+
+                    interface AggregatePayload<ENTITY : Any>
+                    interface AggregateFactory<PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> {
+                        fun create(entityPayload: PAYLOAD): ENTITY
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Service.kt",
+                    """
+                    package org.springframework.stereotype
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Service
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Jpa.kt",
+                    """
+                    package jakarta.persistence
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Entity
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Table(val name: String)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class EmbeddedId
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class AttributeOverride(val name: String, val column: Column)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Column(
+                        val name: String,
+                        val nullable: Boolean = true,
+                        val insertable: Boolean = true,
+                        val updatable: Boolean = true,
+                    )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Ids.kt",
+                    """
+                    package com.acme.demo.domain.aggregates.content
+
+                    class ContentId
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "AuthorId.kt",
+                    """
+                    package com.acme.demo.domain.shared.ids
+
+                    class AuthorId
+                    """.trimIndent(),
+                ),
+            )
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
 
     @Test
@@ -1342,6 +1447,10 @@ class PebbleArtifactRendererTest {
                     "jakarta.persistence.OneToMany",
                 ),
                 "imports" to emptyList<String>(),
+                "constructorFields" to listOf(
+                    mapOf("name" to "id", "type" to "Long", "nullable" to false, "defaultValue" to "0L"),
+                    mapOf("name" to "name", "type" to "String", "nullable" to false, "defaultValue" to "\"\""),
+                ),
                 "scalarFields" to listOf(
                     mapOf(
                         "name" to "id",
@@ -4150,6 +4259,9 @@ class PebbleArtifactRendererTest {
                             "com.acme.demo.domain.identity.user.CoverProfile",
                             "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
                             "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
+                        ),
+                        "constructorFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
                         ),
                         "scalarFields" to listOf(
                             mapOf(

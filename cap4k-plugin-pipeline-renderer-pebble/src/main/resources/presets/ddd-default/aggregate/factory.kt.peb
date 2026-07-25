@@ -27,9 +27,6 @@ class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{
     override fun create(entityPayload: {{ payloadTypeName }}): {{ entityName }} =
 {% if constructorMappingResolved -%}
 {{ "        " }}{{ entityName }}(
-{% if ownIdInitializer is not null -%}
-{{ "            " }}{{ ownIdFieldName }} = {{ ownIdInitializer }}{% if constructorPayloadFields|length > 0 %},{% endif %}
-{% endif -%}
 {% for field in constructorPayloadFields -%}
 {{ "            " }}{{ field.name }} = entityPayload.{{ field.name }}{% if not loop.last %},{% endif %}
 {% endfor -%}

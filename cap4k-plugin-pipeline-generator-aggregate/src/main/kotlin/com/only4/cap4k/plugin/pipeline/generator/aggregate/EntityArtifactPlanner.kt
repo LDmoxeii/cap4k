@@ -18,6 +18,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
         val defaultProjector = AggregateEntityDefaultProjector()
         val identifierQuoteStyle = resolveIdentifierQuoteStyle(config)
+        val generatedOwnIdsByEntity = GeneratedOwnIdPlanning.from(model).associateBy { it.entityFqn }
 
         return model.entities.map { entity ->
             val aggregateName = aggregateRootName(entity, model.entities)
@@ -114,6 +115,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         }
                         val typeRef = strongId?.fqn()
                         val embeddedId = strongId != null && isOwnIdField(entity, field, strongId)
+                        val generatedOwnId =
+                            generatedOwnIdsByEntity["${entity.packageName}.${entity.name}"] != null &&
+                                field.name == entity.idField.name
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
                         val applicationSideIdStrategy: String? = null
                         val generatedValueStrategy = if (
@@ -175,6 +179,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "typeRef" to typeRef,
                             "strongId" to (strongId != null),
                             "embeddedId" to embeddedId,
+                            "generatedOwnId" to generatedOwnId,
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
@@ -249,6 +254,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "imports" to scalarImports.distinct(),
                     "fields" to fieldContexts,
                     "scalarFields" to scalarFields,
+                    "constructorFields" to scalarFields.filterNot { it["generatedOwnId"] == true },
                     "relationFields" to relationPlan.relationFields,
                 ),
             )

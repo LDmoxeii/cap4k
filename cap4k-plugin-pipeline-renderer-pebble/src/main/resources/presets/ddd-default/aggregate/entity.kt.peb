@@ -71,7 +71,7 @@ import {{ import }}
 {% endif -%}
 {% endif -%}
 class {{ typeName }} internal constructor(
-{% for field in scalarFields -%}
+{% for field in constructorFields -%}
 {{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
@@ -89,8 +89,11 @@ class {{ typeName }} internal constructor(
 {% endif %}{% if field.converterClassRef %}{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" %}    @Convert(converter = {{ type(field.converterTypeRef) | raw }}.Converter::class)
 {% else %}    @Convert(converter = {{ type(field.converterClassRef) | raw }}::class)
 {% endif -%}
-{% endif %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+{% endif %}{% if field.generatedOwnId %}    lateinit var {{ field.name }}: {{ type(field) | raw }}
         internal set
+{% else %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+        internal set
+{% endif %}
 
 {% endfor -%}
 {% for relation in relationFields -%}

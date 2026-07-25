@@ -903,7 +903,8 @@ class AggregateArtifactPlannerTest {
                         ownerEntityPackageName = "com.demo.domain.order",
                         ownerAggregateName = "Order",
                         ownerAggregatePackageName = "com.demo.domain.order",
-                        idStrategy = "uuid7",
+                        idStrategy = "snowflake",
+                        valueType = "Long",
                         isEmbeddedId = true,
                     ),
                 ),
@@ -915,12 +916,29 @@ class AggregateArtifactPlannerTest {
             .associateBy { it.context["typeName"] }
         val rootId = strongIds.getValue("OrderId")
         val childId = strongIds.getValue("OrderLineId")
+        val rootEntity = artifacts.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == "Order"
+        }.context
         val childEntity = artifacts.single {
             it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == "OrderLine"
         }.context
         @Suppress("UNCHECKED_CAST")
+        val rootScalarFields = rootEntity["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val rootConstructorFields = rootEntity["constructorFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
         val scalarFields = childEntity["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorFields = childEntity["constructorFields"] as List<Map<String, Any?>>
         val childIdField = scalarFields.single { it["name"] == "id" }
+        val factoryContext = artifacts.single { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = factoryContext["payloadFields"] as List<Map<String, Any?>>
+        val allocationContextKeys = listOf(
+            "ownId" + "Initializer",
+            "ownId" + "FieldName",
+            "ownId" + "TypeRef",
+        )
 
         assertAll(
             { assertEquals(StrongIdKind.OWN_ID.name, rootId.context["kind"]) },
@@ -950,6 +968,12 @@ class AggregateArtifactPlannerTest {
             { assertEquals(true, childIdField["strongId"]) },
             { assertEquals(true, childIdField["embeddedId"]) },
             { assertEquals("OrderLineId", childIdField["type"]) },
+            { assertFalse(rootConstructorFields.any { it["name"] == "id" }) },
+            { assertEquals(true, rootScalarFields.single { it["name"] == "id" }["generatedOwnId"]) },
+            { assertFalse(constructorFields.any { it["name"] == "id" }) },
+            { assertEquals(true, childIdField["generatedOwnId"]) },
+            { assertFalse(payloadFields.any { it["name"] == "id" }) },
+            { assertTrue(allocationContextKeys.none(factoryContext::containsKey)) },
         )
     }
 
@@ -1063,6 +1087,8 @@ class AggregateArtifactPlannerTest {
         val entityContext = plan.single { it.outputPath.endsWith("/Content.kt") }.context
         @Suppress("UNCHECKED_CAST")
         val scalarFields = entityContext["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorFields = entityContext["constructorFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
         val authorIdField = scalarFields.single { it["fieldName"] == "authorId" }
         val mediaProcessingTaskIdField = scalarFields.single { it["fieldName"] == "mediaProcessingTaskId" }
@@ -1075,6 +1101,11 @@ class AggregateArtifactPlannerTest {
             (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
 
         val repositoryContext = plan.single { it.templateId == "aggregate/repository.kt.peb" }.context
+        val allocationContextKeys = listOf(
+            "ownId" + "Initializer",
+            "ownId" + "FieldName",
+            "ownId" + "TypeRef",
+        )
 
         assertAll(
             { assertEquals("ContentId", idField["type"]) },
@@ -1084,6 +1115,8 @@ class AggregateArtifactPlannerTest {
             { assertEquals(null, idField["applicationSideIdStrategy"]) },
             { assertEquals(true, idField["strongId"]) },
             { assertEquals(true, idField["embeddedId"]) },
+            { assertEquals(true, idField["generatedOwnId"]) },
+            { assertFalse(constructorFields.any { it["name"] == "id" }) },
             { assertEquals(false, idField["attributeOverrideNullable"]) },
             { assertEquals(null, idField["attributeOverrideInsertable"]) },
             { assertEquals(false, idField["attributeOverrideUpdatable"]) },
@@ -1113,9 +1146,7 @@ class AggregateArtifactPlannerTest {
             },
             { assertFalse(payloadFields.any { it["name"] == "id" }) },
             { assertEquals(listOf("title", "authorId", "mediaProcessingTaskId"), payloadFields.map { it["name"] }) },
-            { assertEquals("id", factoryContext["ownIdFieldName"]) },
-            { assertEquals("ContentId.new()", factoryContext["ownIdInitializer"]) },
-            { assertEquals("com.acme.demo.domain.aggregates.content.ContentId", factoryContext["ownIdTypeRef"]) },
+            { assertTrue(allocationContextKeys.none(factoryContext::containsKey)) },
             { assertEquals(listOf("title", "authorId", "mediaProcessingTaskId"), constructorPayloadFields.map { it["name"] }) },
             { assertEquals("ContentId", repositoryContext["idType"]) },
             {
@@ -2348,10 +2379,14 @@ class AggregateArtifactPlannerTest {
         val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
         @Suppress("UNCHECKED_CAST")
         val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorFields = entityArtifact.context["constructorFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
         assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals("IDENTITY", idField["generatedValueStrategy"])
+        assertEquals(false, idField["generatedOwnId"])
+        assertEquals(listOf("id", "title"), constructorFields.map { it["name"] })
         assertEquals(true, entityArtifact.context["hasGeneratedValueFields"])
         assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }

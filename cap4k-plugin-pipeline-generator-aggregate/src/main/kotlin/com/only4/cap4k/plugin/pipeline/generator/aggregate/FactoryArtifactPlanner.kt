@@ -26,9 +26,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val ownStrongId = resolveOwnStrongId(model, entity)
-            val ownIdFieldName = ownStrongId?.let { entity.idField.name }
-            val ownIdInitializer = ownStrongId?.let { "${it.typeName}.new()" }
-            val ownIdTypeRef = ownStrongId?.fqn()
             val payloadFields = resolvedPolicy
                 ?.writeSurface
                 ?.createAllowedFields
@@ -65,8 +62,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 payloadFields = payloadFields,
             )
             val imports = (
-                listOfNotNull(ownIdTypeRef) +
-                    payloadFields.flatMap { field ->
+                payloadFields.flatMap { field ->
                         (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
                     } +
                     payloadFields.mapNotNull { it["typeRef"] as? String }
@@ -97,9 +93,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "constructorPayloadFields" to constructorMapping.payloadFields,
                     "constructorUnresolvedFields" to constructorMapping.unresolvedFields,
                     "constructorStructuralFields" to constructorMapping.structuralFields,
-                    "ownIdFieldName" to ownIdFieldName,
-                    "ownIdInitializer" to ownIdInitializer,
-                    "ownIdTypeRef" to ownIdTypeRef,
                     "entityName" to entity.name,
                     "entityTypeFqn" to entityTypeFqn,
                     "aggregateName" to entity.name,
