@@ -2169,6 +2169,14 @@ git commit -m "feat: prepare owned children before relation mutation"
 
 **Depends on:** Tasks 11 and 12
 
+**Coupled compile checkpoint with Task 15:** Replacing the helper constructor makes the existing
+`JpaUnitOfWork` call site intentionally uncompilable until Task 15 injects
+`GeneratedOwnIdRegistry`. Do not add a no-argument constructor, empty-registry default, reflective
+fallback, or temporary compatibility path. Commit the Task 14 files after the expected single
+call-site compilation failure, but do not mark or review Task 14 as complete until Task 15 restores
+the module-wide GREEN state. After Task 15, review the two task diffs separately against their own
+briefs.
+
 **Files:**
 
 - Replace: `ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaGeneratedStrongIdSupport.kt`
@@ -2321,14 +2329,18 @@ assertThrows(IllegalStateException::class.java) {
 }
 ```
 
-- [ ] **Step 5: Run GREEN tests and reflection scan.**
+- [ ] **Step 5: Record the coupled-checkpoint failure and run the reflection scan.**
 
 ```powershell
 .\gradlew.bat :ddd-domain-repo-jpa:test --tests "com.only4.cap4k.ddd.application.JpaGeneratedStrongIdSupportTest" --no-daemon
 rg -n 'java\.lang\.reflect|EmbeddedId|StrongId::class|getField\("Companion"\)|method\.name == "new"' ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaGeneratedStrongIdSupport.kt
+git diff --check
 ```
 
-Expected: tests PASS; scan has no matches.
+Expected before Task 15: compilation FAILS only at the existing
+`JpaUnitOfWork.kt` no-argument construction of `JpaGeneratedStrongIdSupport`; the reflection scan
+has no matches and `git diff --check` has no output. Task 15 owns removal of that final obsolete
+call site and must rerun this focused test to GREEN.
 
 - [ ] **Step 6: Commit Task 14 only.**
 
@@ -2339,7 +2351,11 @@ git commit -m "refactor: complete generated ids through registry"
 
 ## Task 15: Cut UoW And Starter Wiring Over To The Registry
 
-**Depends on:** Task 14
+**Depends on:** Task 14 implementation commit. This task restores focused registry-only UoW GREEN,
+but the pre-existing annotation-only runtime tests and direct empty-registry runtime fixtures remain
+red until Tasks 16 and 17 delete or migrate them. Tasks 14-17 therefore form one continuous
+regression checkpoint: keep four atomic commits, add no compatibility path, and defer their
+independent reviews until Task 17 restores complete module GREEN.
 
 **Files:**
 
@@ -2474,11 +2490,18 @@ Do not remove `IdentifierStrategyRegistry` or `IdentifierGenerator` from `IdPoli
 - [ ] **Step 6: Run GREEN tests and dependency scans.**
 
 ```powershell
+.\gradlew.bat :ddd-domain-repo-jpa:test --tests "com.only4.cap4k.ddd.application.JpaGeneratedStrongIdSupportTest" --no-daemon
 .\gradlew.bat :ddd-domain-repo-jpa:test :cap4k-ddd-starter:test --no-daemon
 rg -n 'IdentifierStrategyRegistry|JpaApplicationSideIdSupport|applicationSideIdSupport' ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt
 ```
 
-Expected: tests PASS; scan has no matches.
+Expected before Tasks 16 and 17: the focused Task 14 helper test and focused `JpaUnitOfWorkTest`
+PASS. The complete two-module command reports exactly five known failures and no others: two
+annotation-only `ApplicationSideIdJpaRuntimeTest` cases owned by Task 16, and three
+`StrongIdUowRuntimeTest` cases that still construct the UoW without the generated registry and are
+owned by Task 17. The dependency scan has no matches. Record the exact failure set, commit only
+Task 15 files, and do not add compatibility/reflection/global fallback code. Task 17 must rerun the
+complete modules to GREEN before Tasks 14 and 15 are independently reviewed.
 
 - [ ] **Step 7: Commit Task 15 only.**
 
@@ -2489,7 +2512,9 @@ git commit -m "refactor: wire jpa uow to generated id registry"
 
 ## Task 16: Delete The Legacy Application-Side Annotation Runtime
 
-**Depends on:** Task 15
+**Depends on:** Task 15. This is the second cleanup stage in the Tasks 14-17 regression checkpoint;
+after deletion, the only allowed remaining module failures are the three Task 17
+`StrongIdUowRuntimeTest` registry-fixture migrations.
 
 **Files:**
 
@@ -2500,6 +2525,7 @@ git commit -m "refactor: wire jpa uow to generated id registry"
 - Delete: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/test/runtime/appsideid/ApplicationSideIdRuntimeFixtures.kt`
 - Modify: `ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/id/IdPolicyCoreTest.kt`
 - Modify: `ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt`
+- Modify: `cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt`
 
 **Interfaces:**
 
@@ -2515,9 +2541,17 @@ Replace `ApplicationSideLongEntity` tests in `JpaUnitOfWorkTest` with `StrongRoo
 // CREATE with a preassigned Strong ID preserves it and never checks database existence.
 // CREATE assignment is visible to beforeTransaction interceptors.
 // observed EXISTING with Strong ID merges without reporting a clean update.
+// EXISTING with an assigned Strong ID but no repository observation or provider-managed evidence is rejected before merge, persist, or flush.
 ```
 
 Do not add a generic annotation replacement.
+
+In `AggregateJpaRuntimeDefectReproductionTest`, remove only the obsolete annotation-runtime
+residue: the `ApplicationSideId` import, the setup deletion for
+`runtime_application_side_long_root`, the
+`preassignedApplicationSideIdIsPreservedForNewRoot` test, and the
+`RuntimeApplicationSideLongRoot` fixture. Preserve every unrelated defect-reproduction test and
+fixture in that file.
 
 - [ ] **Step 2: Delete the named production and runtime fixture files.**
 
@@ -2542,7 +2576,9 @@ Delete `application side annotation still exposes strategy name`, `AnnotatedEnti
 rg -n 'ApplicationSideId|JpaApplicationSideIdSupport' ddd-core/src ddd-domain-repo-jpa/src cap4k-ddd-starter/src
 ```
 
-Expected: tests PASS; scan has no matches.
+Expected before Task 17: `ddd-core` and `ddd-domain-repo-jpa` PASS; the starter module reports
+exactly the three `StrongIdUowRuntimeTest` failures owned by Task 17 and no others. The residue scan
+has no matches. Do not restore annotation compatibility to force this intermediate commit GREEN.
 
 - [ ] **Step 5: Commit deletions and migrated tests.**
 
@@ -2555,7 +2591,8 @@ Before committing, run `git diff --cached --stat` and confirm no unrelated file 
 
 ## Task 17: Lock The Registry-Only UoW Lifecycle Timing
 
-**Depends on:** Task 16
+**Depends on:** Task 16. This task closes the Tasks 14-17 regression checkpoint and must restore
+complete module GREEN before any of the four task diffs are marked complete.
 
 **Files:**
 
@@ -2615,9 +2652,14 @@ No test fixture may expose `StrongId.new()`.
 ```powershell
 .\gradlew.bat :ddd-domain-repo-jpa:test --no-daemon
 .\gradlew.bat :cap4k-ddd-starter:test --tests "com.only4.cap4k.ddd.runtime.strongid.StrongIdUowRuntimeTest" --no-daemon
+.\gradlew.bat :ddd-core:test :ddd-domain-repo-jpa:test :cap4k-ddd-starter:test --no-daemon
 git add ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt
 git commit -m "test: lock generated id uow timing"
 ```
+
+Expected: all three commands PASS. Append the final complete-module GREEN evidence to Tasks 14-17
+reports, generate one review package per atomic commit, and dispatch independent reviewers for all
+four tasks before starting Task 18.
 
 ## Task 18: Reconcile Pending Children Before Persistence Sets
 
