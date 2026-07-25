@@ -76,7 +76,8 @@ internal object AggregateSpecialFieldPolicyResolver {
             DbIdStrategy.SNOWFLAKE -> "snowflake"
             DbIdStrategy.DB_IDENTITY -> "identity"
             null -> throw IllegalArgumentException(
-                "primary key ${table.tableName}.${idColumn.name} must declare @IdStrategy=uuid7 or @IdStrategy=db_identity"
+                "primary key ${table.tableName}.${idColumn.name} must declare " +
+                    "@IdStrategy=uuid7, @IdStrategy=snowflake, or @IdStrategy=db_identity"
             )
         }
         val idSource = SpecialFieldSource.DB_EXPLICIT
@@ -153,13 +154,7 @@ internal object AggregateSpecialFieldPolicyResolver {
                 strategy = strategy,
             )
 
-            DbIdStrategy.UUID7 -> require(idColumn.kotlinType == "String") {
-                "@IdStrategy=uuid7 currently requires String physical ID column on table ${entity.tableName}.${idColumn.name}"
-            }
-
-            DbIdStrategy.SNOWFLAKE -> Unit
-
-            null -> Unit
+            DbIdStrategy.UUID7, DbIdStrategy.SNOWFLAKE, null -> Unit
         }
     }
 

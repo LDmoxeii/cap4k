@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
+import java.sql.Types
 
 class DefaultPipelineRunnerTest {
 
@@ -1025,6 +1026,8 @@ class DefaultPipelineRunnerTest {
                                             comment = "",
                                             isPrimaryKey = true,
                                             idStrategy = DbIdStrategy.UUID7,
+                                            jdbcType = Types.VARCHAR,
+                                            columnSize = 36,
                                         ),
                                         DbColumnSnapshot("created_by", "VARCHAR", "String", false),
                                         DbColumnSnapshot("title", "VARCHAR", "String", false),
@@ -1063,7 +1066,7 @@ class DefaultPipelineRunnerTest {
                 ),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
                 aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                    idDefaultStrategy = "snowflake-long",
+                    idDefaultStrategy = "snowflake",
                     managedDefaultColumns = listOf("created_by"),
                 ),
             )

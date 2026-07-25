@@ -699,7 +699,7 @@ Replace every active `snowflake-long` fixture token in `DefaultCanonicalAssemble
 
 - [ ] **Step 4: Centralize own-ID eligibility and backing in the assembler.**
 
-Add this helper inside `DefaultCanonicalAssembler` and use it from both `generatedOwnStrongIdType` and `buildStrongIds`:
+Add this helper inside `DefaultCanonicalAssembler`. Resolve every supported table once into a table-name keyed catalog; use that same catalog for entity field projection, aggregate-reference validation metadata, and `buildStrongIds`:
 
 ```kotlin
 private data class GeneratedOwnStrongId(
@@ -726,15 +726,26 @@ private fun generatedOwnStrongId(table: DbTableSnapshot): GeneratedOwnStrongId? 
         backing = AggregateStrongIdBackingResolver.resolve(table.tableName, idColumn),
     )
 }
+```
 
-private fun generatedOwnStrongIdType(table: DbTableSnapshot): String? =
-    generatedOwnStrongId(table)?.typeName
+Build the catalog once before projecting entity fields:
+
+```kotlin
+val generatedOwnStrongIdsByTableName = supportedTables
+    .mapNotNull { table ->
+        generatedOwnStrongId(table)?.let { strongId ->
+            table.tableName.lowercase(Locale.ROOT) to strongId
+        }
+    }
+    .toMap()
 ```
 
 Replace the own-ID `StrongIdModel` construction with:
 
 ```kotlin
-val resolved = generatedOwnStrongId(table) ?: return@mapNotNull null
+val resolved = generatedOwnStrongIdsByTableName[
+    table.tableName.lowercase(Locale.ROOT)
+] ?: return@mapNotNull null
 val ownerAggregate = aggregateRootEntityOrSelf(entity, entities)
 StrongIdModel(
     typeName = entity.idField.type,
@@ -778,7 +789,7 @@ Expected: tests PASS; scan has no matches.
 - [ ] **Step 7: Commit Task 4 only.**
 
 ```powershell
-git add cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateIdPolicyResolver.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt
+git add cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateIdPolicyResolver.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md
 git commit -m "feat: assemble storage nearest strong ids"
 ```
 

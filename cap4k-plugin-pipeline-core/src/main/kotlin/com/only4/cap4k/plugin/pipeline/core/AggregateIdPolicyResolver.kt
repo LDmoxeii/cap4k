@@ -8,7 +8,7 @@ import java.util.Locale
 
 internal object AggregateIdPolicyResolver {
     private const val UUID7 = "uuid7"
-    private const val SNOWFLAKE_LONG = "snowflake-long"
+    private const val SNOWFLAKE = "snowflake"
     private const val IDENTITY = "identity"
     private const val DATABASE_IDENTITY = "database-identity"
 
@@ -23,7 +23,7 @@ internal object AggregateIdPolicyResolver {
     fun resolveKind(strategy: String): AggregateIdPolicyKind {
         return when (normalizeStrategy(strategy)) {
             IDENTITY -> AggregateIdPolicyKind.DATABASE_SIDE
-            UUID7, SNOWFLAKE_LONG -> AggregateIdPolicyKind.APPLICATION_SIDE
+            UUID7, SNOWFLAKE -> AggregateIdPolicyKind.APPLICATION_SIDE
             else -> throw IllegalArgumentException("unknown ID strategy: ${normalizeStrategy(strategy)}")
         }
     }
@@ -47,16 +47,10 @@ internal object AggregateIdPolicyResolver {
         strategy: String,
     ) {
         val normalizedStrategy = normalizeStrategy(strategy)
-        val idType = entity.idField.type
-        val valid = when (normalizedStrategy) {
-            UUID7 -> idType in UuidTypes
-            SNOWFLAKE_LONG -> idType in LongTypes
-            IDENTITY -> idType in DatabaseIdentityTypes
-            else -> throw IllegalArgumentException("unknown ID strategy: $normalizedStrategy")
-        }
-
-        require(valid) {
-            "ID strategy $normalizedStrategy cannot be applied to aggregate ${entityKey(config, entity)} id field ${entity.idField.name}: generated ID type is $idType"
+        if (normalizedStrategy != IDENTITY) return
+        require(entity.idField.type in DatabaseIdentityTypes) {
+            "ID strategy $normalizedStrategy cannot be applied to aggregate ${entityKey(config, entity)} " +
+                "id field ${entity.idField.name}: generated ID type is ${entity.idField.type}"
         }
     }
 
@@ -76,8 +70,6 @@ internal object AggregateIdPolicyResolver {
             .joinToString(".")
     }
 
-    private val UuidTypes = setOf("UUID", "java.util.UUID")
-    private val LongTypes = setOf("Long", "kotlin.Long")
     private val DatabaseIdentityTypes = setOf(
         "Long",
         "kotlin.Long",
