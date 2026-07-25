@@ -1051,13 +1051,10 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "MediaProcessingTaskId",
                         packageName = "com.acme.demo.domain.aggregates.media_processing_task",
-                        kind = StrongIdKind.OWN_ID,
-                        ownerEntityName = "MediaProcessingTask",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.media_processing_task",
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
                         ownerAggregateName = "MediaProcessingTask",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
                         idStrategy = "uuid7",
-                        isEmbeddedId = false,
                     ),
                 ),
             )
@@ -1143,12 +1140,23 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "ContentId", columnName = "id"),
         )
+        val author = EntityModel(
+            name = "Author",
+            packageName = "com.acme.demo.domain.aggregates.author",
+            tableName = "author",
+            comment = "author",
+            fields = listOf(FieldModel("id", "AuthorId", columnName = "id")),
+            idField = FieldModel("id", "AuthorId", columnName = "id"),
+        )
 
         val planItems = AggregateArtifactPlanner().plan(
             aggregateConfig(),
             CanonicalModel(
-                entities = listOf(entity),
-                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                entities = listOf(entity, author),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(entity),
+                    defaultAggregateEntityJpa(author),
+                ),
                 aggregateSpecialFieldResolvedPolicies = listOf(
                     AggregateSpecialFieldResolvedPolicy(
                         entityName = entity.name,
@@ -1186,12 +1194,12 @@ class AggregateArtifactPlannerTest {
                         typeName = "AuthorId",
                         packageName = "com.acme.demo.domain.aggregates.author",
                         kind = StrongIdKind.OWN_ID,
-                        ownerEntityName = "Author",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.author",
-                        ownerAggregateName = "Author",
-                        ownerAggregatePackageName = "com.acme.demo.domain.aggregates.author",
+                        ownerEntityName = author.name,
+                        ownerEntityPackageName = author.packageName,
+                        ownerAggregateName = author.name,
+                        ownerAggregatePackageName = author.packageName,
                         idStrategy = "uuid7",
-                        isEmbeddedId = false,
+                        isEmbeddedId = true,
                     ),
                     StrongIdModel(
                         typeName = "AuthorId",
@@ -1202,7 +1210,9 @@ class AggregateArtifactPlannerTest {
             )
         )
 
-        val factoryContext = planItems.single { it.templateId == "aggregate/factory.kt.peb" }.context
+        val factoryContext = planItems.single {
+            it.templateId == "aggregate/factory.kt.peb" && it.context["entityName"] == entity.name
+        }.context
         @Suppress("UNCHECKED_CAST")
         val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
         @Suppress("UNCHECKED_CAST")
