@@ -38,6 +38,8 @@ class JpaUnitOfWorkTest {
     private lateinit var interceptor2: UnitOfWorkInterceptor
     private lateinit var jpaUnitOfWork: TestableJpaUnitOfWork
     private lateinit var generatedOwnIdRegistry: GeneratedOwnIdRegistry
+    private lateinit var strongRootEntityAccessor: StrongRootEntityAccessor
+    private lateinit var strongChildEntityAccessor: StrongChildEntityAccessor
     private lateinit var mockEntityInfo: org.springframework.data.jpa.repository.support.JpaEntityInformation<Any, Any>
 
     // Testable subclass to access protected members
@@ -73,10 +75,12 @@ class JpaUnitOfWorkTest {
         interceptor2 = mockk(relaxed = true)
         uowInterceptors = listOf(interceptor1, interceptor2)
 
+        strongRootEntityAccessor = StrongRootEntityAccessor()
+        strongChildEntityAccessor = StrongChildEntityAccessor()
         val generatedOwnIdCatalog = object : GeneratedOwnIdCatalog {
             override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
-                StrongRootEntityAccessor(),
-                StrongChildEntityAccessor(),
+                strongRootEntityAccessor,
+                strongChildEntityAccessor,
             )
         }
         generatedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(listOf(generatedOwnIdCatalog))
@@ -311,6 +315,121 @@ class JpaUnitOfWorkTest {
         verify { entityManager.refresh(entity) }
         verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
         verify(exactly = 0) { entityManager.merge(entity) }
+    }
+
+    @Test
+    fun `CREATE persist completes registered root before returning`() {
+        val root = StrongRootEntity()
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+
+        assertEquals("018f0000-0000-7000-8000-000000000001", root.id.value)
+        assertEquals(1, strongRootEntityAccessor.nextCalls)
+    }
+
+    @Test
+    fun `CREATE persist completes every reachable registered child before returning`() {
+        val root = StrongRootEntity().also {
+            it.children += StrongChildEntity()
+            it.children += StrongChildEntity()
+        }
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+
+        assertTrue(root.children.all { child -> strongChildEntityAccessor.current(child) != null })
+        assertEquals(2, strongChildEntityAccessor.nextCalls)
+    }
+
+    @Test
+    fun `CREATE persist preserves preassigned registered ids`() {
+        val rootId = TestStrongEntityId("018f0000-0000-7000-8000-000000000099")
+        val childId = TestStrongEntityId("018f0000-0000-7000-8000-000000000098")
+        val child = StrongChildEntity().also { it.id = childId }
+        val root = StrongRootEntity().also {
+            it.id = rootId
+            it.children += child
+        }
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+
+        assertSame(rootId, root.id)
+        assertSame(childId, child.id)
+        assertEquals(0, strongRootEntityAccessor.nextCalls)
+        assertEquals(0, strongChildEntityAccessor.nextCalls)
+    }
+
+    @Test
+    fun `EXISTING persist preserves observed root and child ids`() {
+        val rootId = TestStrongEntityId("018f0000-0000-7000-8000-000000000099")
+        val childId = TestStrongEntityId("018f0000-0000-7000-8000-000000000098")
+        val child = StrongChildEntity().also { it.id = childId }
+        val root = StrongRootEntity().also {
+            it.id = rootId
+            it.children += child
+        }
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns rootId
+        every { mockEntityInfo.isNew(child) } returns false
+        every { mockEntityInfo.getId(child) } returns childId
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        jpaUnitOfWork.persist(root, PersistIntent.EXISTING)
+
+        assertSame(rootId, root.id)
+        assertSame(childId, child.id)
+        assertEquals(0, strongRootEntityAccessor.nextCalls)
+        assertEquals(0, strongChildEntityAccessor.nextCalls)
+    }
+
+    @Test
+    fun `EXISTING persist completes only newly reachable registered children`() {
+        val rootId = TestStrongEntityId("018f0000-0000-7000-8000-000000000099")
+        val observedChildId = TestStrongEntityId("018f0000-0000-7000-8000-000000000098")
+        val observedChild = StrongChildEntity().also { it.id = observedChildId }
+        val root = StrongRootEntity().also {
+            it.id = rootId
+            it.children += observedChild
+        }
+        every { mockEntityInfo.isNew(root) } returns false
+        every { mockEntityInfo.getId(root) } returns rootId
+        every { mockEntityInfo.isNew(observedChild) } returns false
+        every { mockEntityInfo.getId(observedChild) } returns observedChildId
+        jpaUnitOfWork.observeRepositoryLoad(root, AggregateLoadPlan.WHOLE_AGGREGATE)
+        val newChild = StrongChildEntity().also(root.children::add)
+
+        jpaUnitOfWork.persist(root, PersistIntent.EXISTING)
+
+        assertSame(rootId, root.id)
+        assertSame(observedChildId, observedChild.id)
+        assertTrue(strongChildEntityAccessor.current(newChild) != null)
+        assertEquals(0, strongRootEntityAccessor.nextCalls)
+        assertEquals(1, strongChildEntityAccessor.nextCalls)
+    }
+
+    @Test
+    fun `completion is idempotent across persist and save`() {
+        val child = StrongChildEntity()
+        val root = StrongRootEntity().also { it.children += child }
+
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        assertEquals(1, strongRootEntityAccessor.nextCalls)
+        assertEquals(1, strongChildEntityAccessor.nextCalls)
+
+        jpaUnitOfWork.save()
+
+        assertEquals(1, strongRootEntityAccessor.nextCalls)
+        assertEquals(1, strongChildEntityAccessor.nextCalls)
+    }
+
+    @Test
+    fun `unregistered database identity entity remains provider managed`() {
+        val entity = TestEntity(null, "provider-managed")
+
+        jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+
+        assertEquals(null, entity.id)
+        jpaUnitOfWork.save()
+        verify { entityManager.persist(entity) }
     }
 
     @Test
@@ -1182,9 +1301,6 @@ class JpaUnitOfWorkTest {
             this.value = value
         }
 
-        companion object {
-            fun new(): TestStrongEntityId = TestStrongEntityId("018f0000-0000-7000-8000-000000000001")
-        }
     }
 
     @jakarta.persistence.Entity
@@ -1206,7 +1322,7 @@ class JpaUnitOfWorkTest {
     private class StrongRootEntityAccessor : GeneratedOwnIdAccessor<StrongRootEntity, TestStrongEntityId> {
         override val entityType = StrongRootEntity::class
         override val label = "StrongRootEntity.id"
-        private var sequence = 0L
+        var nextCalls = 0
 
         override fun current(entity: StrongRootEntity): TestStrongEntityId? =
             readInitializedOrNull { entity.id }
@@ -1215,13 +1331,13 @@ class JpaUnitOfWorkTest {
             entity.id = id
         }
 
-        override fun next(): TestStrongEntityId = sequentialUuid7(++sequence)
+        override fun next(): TestStrongEntityId = sequentialUuid7((++nextCalls).toLong())
     }
 
     private class StrongChildEntityAccessor : GeneratedOwnIdAccessor<StrongChildEntity, TestStrongEntityId> {
         override val entityType = StrongChildEntity::class
         override val label = "StrongChildEntity.id"
-        private var sequence = 0L
+        var nextCalls = 0
 
         override fun current(entity: StrongChildEntity): TestStrongEntityId? =
             readInitializedOrNull { entity.id }
@@ -1230,7 +1346,7 @@ class JpaUnitOfWorkTest {
             entity.id = id
         }
 
-        override fun next(): TestStrongEntityId = sequentialUuid7(++sequence)
+        override fun next(): TestStrongEntityId = sequentialUuid7((++nextCalls).toLong())
     }
 
     companion object {
