@@ -605,6 +605,8 @@ class JpaUnitOfWorkTest {
                 emptySet(),
             )
         }
+        verify(exactly = 1) { persistListenerManager.onChange(root, PersistType.CREATE) }
+        verify(exactly = 0) { persistListenerManager.onChange(child, any()) }
     }
 
     @Test
@@ -631,6 +633,9 @@ class JpaUnitOfWorkTest {
                 emptySet(),
             )
         }
+        verify(exactly = 1) { persistListenerManager.onChange(root, PersistType.CREATE) }
+        verify(exactly = 0) { persistListenerManager.onChange(child, any()) }
+        verify(exactly = 0) { persistListenerManager.onChange(grandchild, any()) }
         assertTrue(child.hasAssignedId())
         assertTrue(grandchild.hasAssignedId())
     }

@@ -3,6 +3,9 @@ package com.only4.cap4k.ddd.runtime.strongid
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
@@ -64,6 +67,32 @@ class StrongIdUowRuntimeTest {
         }
 
         unitOfWork.persist(content, PersistIntent.CREATE)
+
+        assertTrue(content.hasAssignedId())
+        assertTrue(content.items.all { it.hasAssignedId() })
+        val assignedRootId = content.id
+        val assignedChildIds = content.items.map { it.id }
+
+        unitOfWork.save()
+        entityManager.clear()
+        val loaded = repository.findById(assignedRootId).orElseThrow()
+        assertEquals(assignedRootId, loaded.id)
+        assertEquals(assignedChildIds, loaded.items.map { it.id })
+    }
+
+    @Test
+    fun `factory supervisor returns an id ready root graph before save`() {
+        val factorySupervisor = DefaultAggregateFactorySupervisor(
+            factories = listOf(StrongContentFactory()),
+            unitOfWork = unitOfWork,
+        ).apply { init() }
+
+        val content = factorySupervisor.create(
+            StrongContentFactory.Payload(
+                title = "factory-create",
+                itemLabels = listOf("first-child", "second-child"),
+            )
+        )
 
         assertTrue(content.hasAssignedId())
         assertTrue(content.items.all { it.hasAssignedId() })
@@ -304,6 +333,21 @@ class StrongIdUowRuntimeTest {
             generatedOwnIdRegistry,
         )
     }
+}
+
+private class StrongContentFactory :
+    AggregateFactory<StrongContentFactory.Payload, StrongContent> {
+    override fun create(entityPayload: Payload): StrongContent =
+        StrongContent.unassigned(entityPayload.title).also { content ->
+            entityPayload.itemLabels.forEach { label ->
+                content.items += StrongContentItem.unassigned(label)
+            }
+        }
+
+    data class Payload(
+        val title: String,
+        val itemLabels: List<String>,
+    ) : AggregatePayload<StrongContent>
 }
 
 private class StrongContentGeneratedOwnIdAccessor : GeneratedOwnIdAccessor<StrongContent, StrongContentId> {
