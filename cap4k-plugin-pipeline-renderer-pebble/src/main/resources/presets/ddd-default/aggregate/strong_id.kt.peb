@@ -39,6 +39,7 @@ class {{ typeName }} protected constructor() : StrongId<{{ valueType }}>, Serial
         protected set
 {% endif %}
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: {{ valueType }}) : this() {
         this.value = value
     }

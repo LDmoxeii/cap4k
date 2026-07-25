@@ -1278,6 +1278,11 @@ listOf(uuidText, uuidNative, snowflakeText, snowflakeLong).forEach { source ->
     assertFalse(source.contains("AttributeConverter"))
     assertFalse(source.contains("length ="))
     assertTrue(source.contains("value.isTextual"))
+    assertTrue(
+        source.contains(
+            "@JsonCreator(mode = JsonCreator.Mode.DISABLED)\n    private constructor(value:"
+        )
+    )
 }
 ```
 
@@ -1337,6 +1342,7 @@ class {{ typeName }} protected constructor() : StrongId<{{ valueType }}>, Serial
         protected set
 {% endif %}
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: {{ valueType }}) : this() {
         this.value = value
     }
@@ -1485,7 +1491,28 @@ data class Payload(
 )
 ```
 
-Implement each fixture with the exact Task 8 generated shape. Add tests that serialize all four values as strings, deserialize them, reject object form, and reject:
+Implement each fixture with the exact Task 8 generated shape. Retain semantic-validation tests for textual-but-invalid values on all four backings: a UUIDv4 string must be rejected by both UUID fixtures, and `"01"` must be rejected by both Snowflake fixtures. These assertions prove Jackson reaches `fromJson(JsonNode) -> parse -> StrongIds`; they must not be removed as transport-only coverage. Also add tests that serialize all four values as strings, deserialize them, reject object form, and reject:
+
+```kotlin
+objectMapper.readValue(
+    """{"uuidText":"550e8400-e29b-41d4-a716-446655440000"}""",
+    UuidTextPayload::class.java,
+)
+objectMapper.readValue(
+    """{"uuidNative":"550e8400-e29b-41d4-a716-446655440000"}""",
+    UuidNativePayload::class.java,
+)
+objectMapper.readValue(
+    """{"snowflakeText":"01"}""",
+    SnowflakeTextPayload::class.java,
+)
+objectMapper.readValue(
+    """{"snowflakeLong":"01"}""",
+    SnowflakeLongPayload::class.java,
+)
+```
+
+Retain the numeric-token guard as a separate transport-shape assertion:
 
 ```kotlin
 objectMapper.readValue(

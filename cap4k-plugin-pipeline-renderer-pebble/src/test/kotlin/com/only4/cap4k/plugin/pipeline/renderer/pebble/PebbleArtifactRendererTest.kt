@@ -927,6 +927,11 @@ class PebbleArtifactRendererTest {
             assertFalse(source.contains("AttributeConverter"))
             assertFalse(source.contains("length ="))
             assertTrue(source.contains("value.isTextual"))
+            assertTrue(
+                source.contains(
+                    "@JsonCreator(mode = JsonCreator.Mode.DISABLED)\n    private constructor(value:"
+                )
+            )
         }
         assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
 
@@ -978,7 +983,7 @@ class PebbleArtifactRendererTest {
 
             @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
             annotation class JsonCreator(val mode: Mode = Mode.DEFAULT) {
-                enum class Mode { DEFAULT, DELEGATING }
+                enum class Mode { DEFAULT, DELEGATING, DISABLED }
             }
 
             @Target(AnnotationTarget.FUNCTION)

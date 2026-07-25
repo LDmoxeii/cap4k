@@ -9,6 +9,7 @@ import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -18,6 +19,7 @@ import java.io.Serializable
 import java.util.UUID
 
 private const val UUID7_TEXT = "019c0000-0000-7000-8000-000000000001"
+private const val UUID4_TEXT = "550e8400-e29b-41d4-a716-446655440000"
 private const val SNOWFLAKE_TEXT = "7288198123456789012"
 
 class StrongIdJacksonRuntimeTest {
@@ -83,6 +85,40 @@ class StrongIdJacksonRuntimeTest {
         assertFalse(messages.any { it.contains("overflow", ignoreCase = true) })
     }
 
+    @Test
+    fun `jackson rejects semantically invalid textual values for every strong id backing`() {
+        assertAll(
+            {
+                assertSemanticRejection(
+                    """{"uuidText":"$UUID4_TEXT"}""",
+                    UuidTextPayload::class.java,
+                    "UuidTextId must be a UUIDv7 value",
+                )
+            },
+            {
+                assertSemanticRejection(
+                    """{"uuidNative":"$UUID4_TEXT"}""",
+                    UuidNativePayload::class.java,
+                    "UuidNativeId must be a UUIDv7 value",
+                )
+            },
+            {
+                assertSemanticRejection(
+                    """{"snowflakeText":"01"}""",
+                    SnowflakeTextPayload::class.java,
+                    "SnowflakeTextId must be a positive canonical Snowflake value",
+                )
+            },
+            {
+                assertSemanticRejection(
+                    """{"snowflakeLong":"01"}""",
+                    SnowflakeLongPayload::class.java,
+                    "SnowflakeLongId must be a positive canonical Snowflake value",
+                )
+            },
+        )
+    }
+
     data class Payload(
         val uuidText: UuidTextId,
         val uuidNative: UuidNativeId,
@@ -97,6 +133,14 @@ class StrongIdJacksonRuntimeTest {
 
     private fun Throwable.causeMessages(): List<String> =
         generateSequence(this) { it.cause }.mapNotNull { it.message }.toList()
+
+    private fun <T> assertSemanticRejection(json: String, payloadType: Class<T>, expectedMessage: String) {
+        val error = assertThrows(Exception::class.java) {
+            objectMapper.readValue(json, payloadType)
+        }
+
+        assertTrue(error.causeMessages().any { it.contains(expectedMessage) })
+    }
 }
 
 @Embeddable
@@ -105,6 +149,7 @@ class UuidTextId protected constructor() : StrongId<String>, Serializable {
     override lateinit var value: String
         protected set
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: String) : this() {
         this.value = value
     }
@@ -140,6 +185,7 @@ class UuidNativeId protected constructor() : StrongId<UUID>, Serializable {
     override lateinit var value: UUID
         protected set
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: UUID) : this() {
         this.value = value
     }
@@ -176,6 +222,7 @@ class SnowflakeTextId protected constructor() : StrongId<String>, Serializable {
     override lateinit var value: String
         protected set
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: String) : this() {
         this.value = value
     }
@@ -211,6 +258,7 @@ class SnowflakeLongId protected constructor() : StrongId<Long>, Serializable {
     override var value: Long = 0L
         protected set
 
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: Long) : this() {
         this.value = value
     }
