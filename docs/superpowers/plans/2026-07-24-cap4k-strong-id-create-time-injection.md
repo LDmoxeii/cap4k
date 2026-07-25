@@ -328,11 +328,13 @@ git commit -m "feat: retain jdbc strong id metadata"
 
 - Create: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateStrongIdBackingResolver.kt`
 - Create: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateStrongIdBackingResolverTest.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregatePersistenceFieldBehaviorInference.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt`
 
 **Interfaces:**
 
 - Consumes: `DbColumnSnapshot.idStrategy`, `jdbcType`, `dbType`, `kotlinType`, `columnSize`.
-- Produces: `ResolvedStrongIdBacking(valueType, columnLength)`.
+- Produces: `ResolvedStrongIdBacking(valueType, columnLength)` and compile-safe canonical Snowflake propagation through existing exhaustive consumers.
 - Rejects: missing evidence, insufficient character capacity, cross-storage mapping, unsupported numeric types, and false native-UUID evidence.
 
 - [ ] **Step 1: Create the failing matrix test.**
@@ -392,25 +394,33 @@ class AggregateStrongIdBackingResolverTest {
     @Test
     fun `rejects crossed and guessed storage`() {
         val unsupported = listOf(
-            arrayOf(DbIdStrategy.UUID7, Types.BIGINT, "BIGINT", "Long", 64),
-            arrayOf(DbIdStrategy.UUID7, Types.OTHER, "jsonb", "String", 36),
-            arrayOf(DbIdStrategy.SNOWFLAKE, Types.INTEGER, "INTEGER", "Int", 32),
-            arrayOf(DbIdStrategy.SNOWFLAKE, Types.NUMERIC, "NUMERIC", "java.math.BigDecimal", 19),
-            arrayOf(DbIdStrategy.SNOWFLAKE, Types.OTHER, "UUID", "java.util.UUID", 16),
+            UnsupportedCase(DbIdStrategy.UUID7, Types.BIGINT, "BIGINT", "Long", 64),
+            UnsupportedCase(DbIdStrategy.UUID7, Types.OTHER, "jsonb", "String", 36),
+            UnsupportedCase(DbIdStrategy.SNOWFLAKE, Types.INTEGER, "INTEGER", "Int", 32),
+            UnsupportedCase(DbIdStrategy.SNOWFLAKE, Types.NUMERIC, "NUMERIC", "java.math.BigDecimal", 19),
+            UnsupportedCase(DbIdStrategy.SNOWFLAKE, Types.OTHER, "UUID", "java.util.UUID", 16),
         )
 
-        unsupported.forEach { values ->
+        unsupported.forEach { case ->
             assertThrows(IllegalArgumentException::class.java) {
                 resolve(
-                    strategy = values[0] as DbIdStrategy,
-                    jdbcType = values[1] as Int,
-                    dbType = values[2] as String,
-                    kotlinType = values[3] as String,
-                    columnSize = values[4] as Int,
+                    strategy = case.strategy,
+                    jdbcType = case.jdbcType,
+                    dbType = case.dbType,
+                    kotlinType = case.kotlinType,
+                    columnSize = case.columnSize,
                 )
             }
         }
     }
+
+    private data class UnsupportedCase(
+        val strategy: DbIdStrategy,
+        val jdbcType: Int,
+        val dbType: String,
+        val kotlinType: String,
+        val columnSize: Int,
+    )
 
     private fun resolve(
         strategy: DbIdStrategy,
@@ -440,9 +450,30 @@ class AggregateStrongIdBackingResolverTest {
 .\gradlew.bat :cap4k-plugin-pipeline-core:test --tests "com.only4.cap4k.plugin.pipeline.core.AggregateStrongIdBackingResolverTest" --no-daemon
 ```
 
-Expected: test compilation FAILS because the resolver and result do not exist.
+Expected: on the first run after Task 1, production compilation FAILS because existing exhaustive `DbIdStrategy` consumers do not yet cover `SNOWFLAKE`. After Step 3, rerun and confirm compilation advances to the intended test failure because the resolver and result do not exist.
 
-- [ ] **Step 3: Create the strict resolver.**
+- [ ] **Step 3: Propagate the canonical enum through existing exhaustive consumers.**
+
+Make only these final-semantics branches:
+
+```kotlin
+// AggregatePersistenceFieldBehaviorInference.toPersistenceStrategy
+DbIdStrategy.UUID7, DbIdStrategy.SNOWFLAKE -> null
+```
+
+```kotlin
+// AggregateSpecialFieldPolicyResolver.resolvePolicy
+DbIdStrategy.SNOWFLAKE -> "snowflake"
+```
+
+```kotlin
+// AggregateSpecialFieldPolicyResolver.validateExplicitIdStrategyType
+DbIdStrategy.SNOWFLAKE -> Unit
+```
+
+Do not add `else`. Snowflake is application-side, so it has no provider `generatedValueStrategy`; strict backing validation belongs to the new resolver and its Task 4 integration. Rerun the RED command and confirm the remaining failure is now the missing resolver/result.
+
+- [ ] **Step 4: Create the strict resolver.**
 
 Create `AggregateStrongIdBackingResolver.kt` with this complete content:
 
@@ -546,7 +577,7 @@ internal object AggregateStrongIdBackingResolver {
 }
 ```
 
-- [ ] **Step 4: Run GREEN tests.**
+- [ ] **Step 5: Run GREEN tests.**
 
 ```powershell
 .\gradlew.bat :cap4k-plugin-pipeline-core:test --tests "com.only4.cap4k.plugin.pipeline.core.AggregateStrongIdBackingResolverTest" --no-daemon
@@ -554,10 +585,10 @@ internal object AggregateStrongIdBackingResolver {
 
 Expected: PASS. If H2 reports a native UUID JDBC type outside `OTHER/BINARY`, stop and record the exact metadata; do not broaden the resolver without revising the matrix.
 
-- [ ] **Step 5: Commit Task 3 only.**
+- [ ] **Step 6: Commit Task 3 only.**
 
 ```powershell
-git add cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateStrongIdBackingResolver.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateStrongIdBackingResolverTest.kt
+git add docs/superpowers/plans/2026-07-24-cap4k-strong-id-create-time-injection.md cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateStrongIdBackingResolver.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregatePersistenceFieldBehaviorInference.kt cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateStrongIdBackingResolverTest.kt
 git commit -m "feat: resolve storage nearest strong id backing"
 ```
 
@@ -568,8 +599,10 @@ git commit -m "feat: resolve storage nearest strong id backing"
 **Files:**
 
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateIdPolicyResolver.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateSpecialFieldPolicyResolver.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt`
 - Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt`
+- Modify: `cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt`
 
 **Interfaces:**
 
@@ -648,6 +681,21 @@ fun validateType(config: ProjectConfig, entity: EntityModel, strategy: String) {
     }
 }
 ```
+
+In `AggregateSpecialFieldPolicyResolver`, update the missing-strategy diagnostic to list `snowflake`, and remove primitive application-side validation. Its final branch is:
+
+```kotlin
+when (idColumn.idStrategy) {
+    DbIdStrategy.DB_IDENTITY -> AggregateIdPolicyResolver.validateType(
+        config = config,
+        entity = entity,
+        strategy = strategy,
+    )
+    DbIdStrategy.UUID7, DbIdStrategy.SNOWFLAKE, null -> Unit
+}
+```
+
+Replace every active `snowflake-long` fixture token in `DefaultCanonicalAssemblerTest` and `DefaultPipelineRunnerTest` with `snowflake`. Do not retain a negative compatibility fixture.
 
 - [ ] **Step 4: Centralize own-ID eligibility and backing in the assembler.**
 
