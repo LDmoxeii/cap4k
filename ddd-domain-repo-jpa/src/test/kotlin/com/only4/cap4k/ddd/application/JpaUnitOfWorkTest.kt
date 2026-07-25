@@ -302,6 +302,25 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    @DisplayName("default EXISTING persist rejects an assigned detached strong entity without trustworthy evidence")
+    fun defaultPersistShouldRejectAssignedDetachedStrongEntityWithoutBaseline() {
+        val assignedId = TestStrongEntityId("018f0000-0000-7000-8000-000000000100")
+        val entity = StrongRootEntity().also { it.id = assignedId }
+        every { mockEntityInfo.isNew(entity) } returns false
+        every { mockEntityInfo.getId(entity) } returns assignedId
+        every { entityManager.contains(entity) } returns false
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.persist(entity)
+        }
+
+        assertTrue(error.message!!.contains("repository observation baseline or provider-managed existing state"))
+        verify(exactly = 0) { entityManager.merge(entity) }
+        verify(exactly = 0) { entityManager.persist(entity) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     @DisplayName("CREATE intent should persist a new entity and report CREATE")
     fun createIntentShouldPersistAndReportCreate() {
         val entity = TestEntity(null, "new")
