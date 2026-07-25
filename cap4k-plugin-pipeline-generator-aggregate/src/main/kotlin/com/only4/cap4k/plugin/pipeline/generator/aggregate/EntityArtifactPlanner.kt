@@ -120,7 +120,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             generatedOwnIdsByEntity["${entity.packageName}.${entity.name}"] != null &&
                                 field.name == entity.idField.name
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
-                        val applicationSideIdStrategy: String? = null
                         val generatedValueStrategy = if (
                             strongId == null &&
                             idPolicyApplies &&
@@ -151,13 +150,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
-                            applicationSideIdStrategy != null -> true
                             else -> null
                         }
                         val updatable = when {
                             embeddedId -> null
                             jpa.columnName in readOnlyInverseJoinColumns -> false
-                            applicationSideIdStrategy != null -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true
                             else -> null
@@ -188,7 +185,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "converterTypeRef" to jpa.converterTypeFqn,
                             "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
-                            "applicationSideIdStrategy" to applicationSideIdStrategy,
                             "isVersion" to isVersionField,
                             "writePolicy" to writePolicy,
                             "parentRef" to field.parentRef,
@@ -239,7 +235,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "hasGeneratedValueFields" to scalarFields.any {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
-                    "hasApplicationSideIdFields" to scalarFields.any { it["applicationSideIdStrategy"] != null },
                     "hasEmbeddedIdFields" to scalarFields.any { it["embeddedId"] == true },
                     "hasStrongIdFields" to scalarFields.any { it["strongId"] == true },
                     "hasEmbeddedStrongIdFields" to scalarFields.any {

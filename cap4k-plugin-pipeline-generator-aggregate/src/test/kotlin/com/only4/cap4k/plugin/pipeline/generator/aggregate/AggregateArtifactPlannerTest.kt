@@ -1112,7 +1112,6 @@ class AggregateArtifactPlannerTest {
             { assertEquals("ContentId", idField["fieldType"]) },
             { assertEquals("com.acme.demo.domain.aggregates.content.ContentId", idField["typeRef"]) },
             { assertEquals(null, idField["defaultValue"]) },
-            { assertEquals(null, idField["applicationSideIdStrategy"]) },
             { assertEquals(true, idField["strongId"]) },
             { assertEquals(true, idField["embeddedId"]) },
             { assertEquals(true, idField["generatedOwnId"]) },
@@ -2172,7 +2171,6 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals("CREATE_ONLY", idField["writePolicy"])
         assertEquals(null, idField["defaultValue"])
         assertEquals(null, idField["updatable"])
@@ -2181,7 +2179,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
         assertEquals(listOf("java.util.UUID"), entityArtifact.context["imports"])
     }
 
@@ -2331,7 +2328,6 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals(null, idField["defaultValue"])
         assertEquals(null, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
@@ -2339,7 +2335,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(idField.containsKey("genericGenerator" + "Name"))
         assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
         assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }
 
     @Test
@@ -2383,12 +2378,10 @@ class AggregateArtifactPlannerTest {
         val constructorFields = entityArtifact.context["constructorFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals(null, idField["applicationSideIdStrategy"])
         assertEquals("IDENTITY", idField["generatedValueStrategy"])
         assertEquals(false, idField["generatedOwnId"])
         assertEquals(listOf("id", "title"), constructorFields.map { it["name"] })
         assertEquals(true, entityArtifact.context["hasGeneratedValueFields"])
-        assertEquals(false, entityArtifact.context["hasApplicationSideIdFields"])
     }
 
     @Test

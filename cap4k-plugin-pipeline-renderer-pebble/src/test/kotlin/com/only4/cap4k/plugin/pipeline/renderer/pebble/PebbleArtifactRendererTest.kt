@@ -1520,7 +1520,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -1633,7 +1632,6 @@ class PebbleArtifactRendererTest {
                 "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "video_post"),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -1726,7 +1724,6 @@ class PebbleArtifactRendererTest {
                 "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "orders"),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -2109,7 +2106,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to true,
                 "hasEmbeddedIdFields" to false,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
@@ -2126,7 +2122,6 @@ class PebbleArtifactRendererTest {
                         "defaultValue" to null,
                         "columnName" to "id",
                         "isId" to true,
-                        "applicationSideIdStrategy" to "uuid7",
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to true,
@@ -2138,7 +2133,6 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertFalse(content.contains("ApplicationSideId"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
     }
 
@@ -2161,7 +2155,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to embeddedId,
                 "hasStrongIdFields" to true,
                 "hasEmbeddedStrongIdFields" to !embeddedId,
@@ -2182,7 +2175,6 @@ class PebbleArtifactRendererTest {
                         "isId" to embeddedId,
                         "strongId" to true,
                         "embeddedId" to embeddedId,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to if (embeddedId) "CREATE_ONLY" else "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2223,7 +2215,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to true,
                 "hasStrongIdFields" to true,
                 "hasEmbeddedStrongIdFields" to true,
@@ -2248,7 +2239,6 @@ class PebbleArtifactRendererTest {
                         "isId" to true,
                         "strongId" to true,
                         "embeddedId" to true,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2268,7 +2258,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to false,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2284,7 +2273,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to true,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2304,7 +2292,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to true,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2350,7 +2337,6 @@ class PebbleArtifactRendererTest {
             )
         )
         assertFalse(content.contains("@Id"))
-        assertFalse(content.contains("ApplicationSideId"))
         assertFalse(content.contains("UUID(" + "0L, 0L)"))
         assertFalse(content.contains("@Column(name = \"id\")"))
         assertFalse(content.contains("@Column(name = \"author_id\")"))
@@ -2371,7 +2357,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to true,
                 "hasStrongIdFields" to true,
                 "hasEmbeddedStrongIdFields" to false,
@@ -2392,7 +2377,6 @@ class PebbleArtifactRendererTest {
                         "isId" to true,
                         "strongId" to true,
                         "embeddedId" to true,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2411,7 +2395,6 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import jakarta.persistence.EmbeddedId"))
         assertTrue(content.contains("@EmbeddedId"))
         assertTrue(content.contains("var id: OrderLineId = id"))
-        assertFalse(content.contains("ApplicationSideId"))
     }
 
     @Test
@@ -2428,7 +2411,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to true,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -2450,7 +2432,6 @@ class PebbleArtifactRendererTest {
                         "isId" to true,
                         "strongId" to false,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to null,
@@ -2468,7 +2449,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to false,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -5407,7 +5387,6 @@ class PebbleArtifactRendererTest {
                         ),
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
-                        "hasApplicationSideIdFields" to true,
                         "hasEmbeddedIdFields" to false,
                         "hasVersionFields" to false,
                         "scalarFields" to listOf(
@@ -5419,7 +5398,6 @@ class PebbleArtifactRendererTest {
                                 "defaultValue" to null,
                                 "columnName" to "id",
                                 "isId" to true,
-                                "applicationSideIdStrategy" to "uuid7",
                                 "insertable" to true,
                                 "updatable" to false,
                             ),
@@ -5459,7 +5437,6 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
 
         assertTrue(content.contains("import java.util.UUID"))
-        assertFalse(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
         assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
         assertFalse(content.contains("import jakarta.persistence.GenerationType"))
