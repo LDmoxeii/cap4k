@@ -408,10 +408,177 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `aggregate planner emits aggregate and reference strong id artifacts`() {
+    fun `aggregate planner plans generated own id accessors and catalog for complete eligible owners`() {
+        val packageName = "com.acme.demo.domain.aggregates.orders"
+        val entities = listOf(
+            EntityModel(
+                name = "Line",
+                packageName = packageName,
+                tableName = "line",
+                comment = "",
+                fields = listOf(FieldModel("lineId", "LineId", columnName = "line_id")),
+                idField = FieldModel("lineId", "LineId", columnName = "line_id"),
+            ),
+            EntityModel(
+                name = "Order",
+                packageName = packageName,
+                tableName = "orders",
+                comment = "",
+                fields = listOf(FieldModel("orderId", "OrderId", columnName = "order_id")),
+                idField = FieldModel("orderId", "OrderId", columnName = "order_id"),
+            ),
+            EntityModel(
+                name = "Payment",
+                packageName = packageName,
+                tableName = "payment",
+                comment = "",
+                fields = listOf(FieldModel("paymentId", "PaymentId", columnName = "payment_id")),
+                idField = FieldModel("paymentId", "PaymentId", columnName = "payment_id"),
+            ),
+            EntityModel(
+                name = "Shipment",
+                packageName = packageName,
+                tableName = "shipment",
+                comment = "",
+                fields = listOf(FieldModel("shipmentId", "ShipmentId", columnName = "shipment_id")),
+                idField = FieldModel("shipmentId", "ShipmentId", columnName = "shipment_id"),
+            ),
+            EntityModel(
+                name = "DatabaseIdentity",
+                packageName = packageName,
+                tableName = "database_identity",
+                comment = "",
+                fields = listOf(FieldModel("id", "Long", columnName = "id")),
+                idField = FieldModel("id", "Long", columnName = "id"),
+            ),
+        )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
             CanonicalModel(
+                entities = entities,
+                aggregateEntityJpa = entities.map(::defaultAggregateEntityJpa),
+                strongIds = listOf(
+                    generatedOwnId("LineId", packageName, "UUID", "Line", "uuid7"),
+                    generatedOwnId("OrderId", packageName, "String", "Order", "uuid7"),
+                    generatedOwnId("PaymentId", packageName, "String", "Payment", "snowflake"),
+                    generatedOwnId("ShipmentId", packageName, "Long", "Shipment", "snowflake"),
+                    StrongIdModel(
+                        typeName = "OrderReferenceId",
+                        packageName = packageName,
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
+                    ),
+                    StrongIdModel(
+                        typeName = "ExternalReferenceId",
+                        packageName = packageName,
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+            ),
+        )
+
+        val accessors = plan.filter { it.templateId == "aggregate/generated_own_id_accessor.kt.peb" }
+        val catalogs = plan.filter { it.templateId == "aggregate/generated_own_id_catalog.kt.peb" }
+
+        assertEquals(4, accessors.size)
+        assertEquals(1, catalogs.size)
+        assertEquals(
+            listOf(
+                "LineGeneratedOwnIdAccessor",
+                "OrderGeneratedOwnIdAccessor",
+                "PaymentGeneratedOwnIdAccessor",
+                "ShipmentGeneratedOwnIdAccessor",
+            ),
+            accessors.map { it.context.getValue("typeName") as String },
+        )
+        assertEquals("GeneratedOwnIdCatalogContribution", catalogs.single().context["typeName"])
+        assertEquals(ConflictPolicy.OVERWRITE, catalogs.single().conflictPolicy)
+        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, catalogs.single().outputKind)
+        assertEquals("orderId", accessors.single { it.context["entityName"] == "Order" }.context["idFieldName"])
+        assertEquals(
+            listOf(
+                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/LineGeneratedOwnIdAccessor.kt",
+                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/OrderGeneratedOwnIdAccessor.kt",
+                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/PaymentGeneratedOwnIdAccessor.kt",
+                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/ShipmentGeneratedOwnIdAccessor.kt",
+            ),
+            accessors.map { it.outputPath },
+        )
+        assertTrue(accessors.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
+        assertTrue(accessors.all { it.outputKind == ArtifactOutputKind.GENERATED_SOURCE })
+        assertEquals(
+            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt",
+            catalogs.single().outputPath,
+        )
+    }
+
+    @Test
+    fun `aggregate planner omits generated own id catalog when no eligible owner exists`() {
+        val databaseIdentity = EntityModel(
+            name = "DatabaseIdentity",
+            packageName = "com.acme.demo.domain.aggregates.orders",
+            tableName = "database_identity",
+            comment = "",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(databaseIdentity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(databaseIdentity)),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "OrderReferenceId",
+                        packageName = "com.acme.demo.domain.aggregates.orders",
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
+                    ),
+                    StrongIdModel(
+                        typeName = "ExternalReferenceId",
+                        packageName = "com.acme.demo.domain.aggregates.orders",
+                        kind = StrongIdKind.REFERENCE,
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(plan.none { it.templateId == "aggregate/generated_own_id_catalog.kt.peb" })
+    }
+
+    @Test
+    fun `aggregate planner fails generated own id planning when owner metadata is incomplete`() {
+        val incompleteId = StrongIdModel(
+            typeName = "IncompleteId",
+            packageName = "com.acme.demo.domain.aggregates.orders",
+            kind = StrongIdKind.OWN_ID,
+            idStrategy = "uuid7",
+            isEmbeddedId = true,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(strongIds = listOf(incompleteId)),
+            )
+        }
+
+        assertTrue(error.message!!.contains("com.acme.demo.domain.aggregates.orders.IncompleteId"))
+    }
+
+    @Test
+    fun `aggregate planner emits aggregate and reference strong id artifacts`() {
+        val content = EntityModel(
+            name = "Content",
+            packageName = "com.acme.demo.domain.aggregates.content",
+            tableName = "content",
+            comment = "",
+            fields = listOf(FieldModel("id", "ContentId", columnName = "id")),
+            idField = FieldModel("id", "ContentId", columnName = "id"),
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(content),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(content)),
                 strongIds = listOf(
                     StrongIdModel(
                         typeName = "ContentId",
@@ -890,7 +1057,7 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "MediaProcessingTask",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.media_processing_task",
                         idStrategy = "uuid7",
-                        isEmbeddedId = true,
+                        isEmbeddedId = false,
                     ),
                 ),
             )
@@ -1024,7 +1191,7 @@ class AggregateArtifactPlannerTest {
                         ownerAggregateName = "Author",
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.author",
                         idStrategy = "uuid7",
-                        isEmbeddedId = true,
+                        isEmbeddedId = false,
                     ),
                     StrongIdModel(
                         typeName = "AuthorId",
@@ -6061,6 +6228,26 @@ class AggregateArtifactPlannerTest {
             "artifact.factory" to true,
             "artifact.specification" to true,
             "artifact.unique" to true,
+        )
+
+    private fun generatedOwnId(
+        typeName: String,
+        packageName: String,
+        valueType: String,
+        entityName: String,
+        strategy: String,
+    ): StrongIdModel =
+        StrongIdModel(
+            typeName = typeName,
+            packageName = packageName,
+            valueType = valueType,
+            kind = StrongIdKind.OWN_ID,
+            ownerEntityName = entityName,
+            ownerEntityPackageName = packageName,
+            ownerAggregateName = entityName,
+            ownerAggregatePackageName = packageName,
+            idStrategy = strategy,
+            isEmbeddedId = true,
         )
 
     private fun defaultAggregateEntityJpa(entity: EntityModel): AggregateEntityJpaModel =

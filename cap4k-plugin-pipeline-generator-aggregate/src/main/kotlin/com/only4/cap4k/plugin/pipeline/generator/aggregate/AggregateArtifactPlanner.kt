@@ -19,6 +19,7 @@ class AggregateArtifactPlanner : GeneratorProvider {
         UniqueQueryHandlerArtifactPlanner(),
         UniqueValidatorArtifactPlanner(),
         StrongIdArtifactPlanner(),
+        GeneratedOwnIdArtifactPlanner(),
         LocalEnumArtifactPlanner(),
     )
 
