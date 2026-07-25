@@ -990,6 +990,333 @@ class PebbleArtifactRendererTest {
 
     @Test
     @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `generated strong id consumer matrix compiles`() {
+        data class MatrixCell(
+            val packageName: String,
+            val entityName: String,
+            val idTypeName: String,
+            val idFieldName: String,
+            val strategy: String,
+            val valueType: String,
+            val validationKind: String,
+            val stringBacked: Boolean,
+            val uuidBacked: Boolean,
+            val longBacked: Boolean,
+        )
+
+        val cells = listOf(
+            MatrixCell(
+                packageName = "com.acme.demo.domain.orders",
+                entityName = "Order",
+                idTypeName = "OrderId",
+                idFieldName = "id",
+                strategy = "uuid7",
+                valueType = "String",
+                validationKind = "UUID7",
+                stringBacked = true,
+                uuidBacked = false,
+                longBacked = false,
+            ),
+            MatrixCell(
+                packageName = "com.acme.demo.domain.payments",
+                entityName = "Payment",
+                idTypeName = "PaymentId",
+                idFieldName = "id",
+                strategy = "uuid7",
+                valueType = "UUID",
+                validationKind = "UUID7",
+                stringBacked = false,
+                uuidBacked = true,
+                longBacked = false,
+            ),
+            MatrixCell(
+                packageName = "com.acme.demo.domain.orders.lines",
+                entityName = "OrderLine",
+                idTypeName = "OrderLineId",
+                idFieldName = "id",
+                strategy = "snowflake",
+                valueType = "Long",
+                validationKind = "SNOWFLAKE",
+                stringBacked = false,
+                uuidBacked = false,
+                longBacked = true,
+            ),
+            MatrixCell(
+                packageName = "com.acme.demo.domain.shipments",
+                entityName = "Shipment",
+                idTypeName = "ShipmentId",
+                idFieldName = "id",
+                strategy = "snowflake",
+                valueType = "String",
+                validationKind = "SNOWFLAKE",
+                stringBacked = true,
+                uuidBacked = false,
+                longBacked = false,
+            ),
+        )
+
+        fun renderStrongId(cell: MatrixCell): String = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idTypeName}.kt",
+            context = mapOf(
+                "packageName" to cell.packageName,
+                "typeName" to cell.idTypeName,
+                "valueType" to cell.valueType,
+                "validationKind" to cell.validationKind,
+                "stringBacked" to cell.stringBacked,
+                "uuidBacked" to cell.uuidBacked,
+                "longBacked" to cell.longBacked,
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        fun renderAccessor(cell: MatrixCell): String = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}GeneratedOwnIdAccessor.kt",
+            context = mapOf(
+                "packageName" to cell.packageName,
+                "typeName" to "${cell.entityName}GeneratedOwnIdAccessor",
+                "entityName" to cell.entityName,
+                "entityFqn" to "${cell.packageName}.${cell.entityName}",
+                "idFieldName" to cell.idFieldName,
+                "idTypeName" to cell.idTypeName,
+                "idTypeFqn" to "${cell.packageName}.${cell.idTypeName}",
+                "label" to "${cell.entityName}.${cell.idFieldName}",
+                "strategy" to cell.strategy,
+                "backingType" to cell.valueType,
+                "backingTypeFqn" to if (cell.uuidBacked) "java.util.UUID" else null,
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        fun renderEntity(cell: MatrixCell, relations: List<Map<String, Any?>> = emptyList()): String =
+            renderTemplate(
+                templateId = "aggregate/entity.kt.peb",
+                outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}.kt",
+                context = mapOf(
+                    "packageName" to cell.packageName,
+                    "typeName" to cell.entityName,
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to true,
+                        "tableName" to cell.entityName.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase(),
+                    ),
+                    "hasStrongIdFields" to true,
+                    "hasEmbeddedStrongIdFields" to false,
+                    "hasGeneratedValueFields" to false,
+                    "hasEmbeddedIdFields" to true,
+                    "hasVersionFields" to false,
+                    "hasConverterFields" to false,
+                    "softDelete" to mapOf("enabled" to false),
+                    "jpaImports" to if (relations.isEmpty()) emptyList() else listOf(
+                        "jakarta.persistence.CascadeType",
+                        "jakarta.persistence.FetchType",
+                        "jakarta.persistence.JoinColumn",
+                        "jakarta.persistence.OneToMany",
+                        "jakarta.persistence.Transient",
+                    ),
+                    "imports" to if (relations.isEmpty()) emptyList() else listOf(
+                        "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
+                    ),
+                    "constructorFields" to emptyList<Map<String, Any?>>(),
+                    "scalarFields" to listOf(
+                        mapOf(
+                            "name" to cell.idFieldName,
+                            "type" to cell.idTypeName,
+                            "nullable" to false,
+                            "columnName" to "id",
+                            "isId" to true,
+                            "strongId" to true,
+                            "embeddedId" to true,
+                            "generatedOwnId" to true,
+                            "attributeOverrideNullable" to false,
+                            "attributeOverrideInsertable" to null,
+                            "attributeOverrideUpdatable" to false,
+                        ),
+                    ),
+                    "relationFields" to relations,
+                ),
+            )
+
+        val orderRelations = listOf(
+            mapOf(
+                "name" to "lines",
+                "targetTypeRef" to "com.acme.demo.domain.orders.lines.OrderLine",
+                "relationType" to "ONE_TO_MANY",
+                "fetchType" to "LAZY",
+                "joinColumn" to "order_id",
+                "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                "orphanRemoval" to true,
+                "joinColumnNullable" to false,
+                "owned" to true,
+                "ownedCardinality" to "MANY",
+                "domainName" to "lines",
+                "backingCollectionName" to "_lines",
+                "singleAccessorName" to null,
+                "generatedOwnIdAccessorFqn" to
+                    "com.acme.demo.domain.orders.lines.OrderLineGeneratedOwnIdAccessor",
+            ),
+            mapOf(
+                "name" to "shipments",
+                "targetTypeRef" to "com.acme.demo.domain.shipments.Shipment",
+                "relationType" to "ONE_TO_MANY",
+                "fetchType" to "LAZY",
+                "joinColumn" to "order_id",
+                "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                "orphanRemoval" to true,
+                "joinColumnNullable" to false,
+                "owned" to true,
+                "ownedCardinality" to "ONE",
+                "domainName" to "shipment",
+                "backingCollectionName" to "_shipments",
+                "singleAccessorName" to "shipment",
+                "generatedOwnIdAccessorFqn" to
+                    "com.acme.demo.domain.shipments.ShipmentGeneratedOwnIdAccessor",
+            ),
+        )
+        val entitySources = cells.map { cell ->
+            renderEntity(cell, if (cell.entityName == "Order") orderRelations else emptyList())
+        }
+        val strongIdSources = cells.map(::renderStrongId)
+        val accessorSources = cells.map(::renderAccessor)
+        val factorySource = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/orders/factory/OrderFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.orders.factory",
+                "typeName" to "OrderFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "OrderPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to true,
+                "payloadFields" to emptyList<Map<String, Any?>>(),
+                "constructorPayloadFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "Order",
+                "entityTypeFqn" to "com.acme.demo.domain.orders.Order",
+                "aggregateName" to "Order",
+                "imports" to emptyList<String>(),
+            ),
+        )
+        val catalogFqn = "com.acme.demo.domain._share.identity.GeneratedOwnIdCatalogContribution"
+        val catalogSource = renderTemplate(
+            templateId = "aggregate/generated_own_id_catalog.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${catalogFqn.replace('.', '/')}.kt",
+            context = mapOf(
+                "packageName" to catalogFqn.substringBeforeLast('.'),
+                "typeName" to catalogFqn.substringAfterLast('.'),
+                "beanName" to "com.acme.demo.domain._share.identity.generatedOwnIdCatalogContribution",
+                "accessors" to cells.map { cell ->
+                    mapOf("fqn" to "${cell.packageName}.${cell.entityName}GeneratedOwnIdAccessor")
+                },
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertTrue(entitySources[0].contains("class Order internal constructor(\n)"))
+        assertTrue(entitySources[2].contains("class OrderLine internal constructor(\n)"))
+        assertFalse(factorySource.contains("OrderId"))
+        assertFalse(factorySource.contains("id ="))
+        assertFalse(factorySource.contains("Mediator.identifiers"))
+        assertTrue(
+            entitySources[0].contains(
+                "com.acme.demo.domain.orders.lines.OrderLineGeneratedOwnIdAccessor.assignIfMissing(entity)"
+            )
+        )
+        assertTrue(
+            entitySources[0].contains(
+                "com.acme.demo.domain.shipments.ShipmentGeneratedOwnIdAccessor.assignIfMissing(entity)"
+            )
+        )
+        assertTrue(catalogSource.contains("class GeneratedOwnIdCatalogContribution : GeneratedOwnIdCatalog"))
+        assertFalse(catalogSource.contains("GeneratedOwnIdCatalogContributionImpl"))
+
+        val boundaryFixtures = listOf(
+            """
+            package com.fasterxml.jackson.annotation
+
+            @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
+            annotation class JsonCreator(val mode: Mode = Mode.DEFAULT) {
+                enum class Mode { DEFAULT, DELEGATING, DISABLED }
+            }
+            @Target(AnnotationTarget.FUNCTION)
+            annotation class JsonValue
+            """.trimIndent(),
+            """
+            package com.fasterxml.jackson.databind
+
+            class JsonNode {
+                val isTextual: Boolean = true
+                fun textValue(): String = ""
+            }
+            """.trimIndent(),
+            """
+            package jakarta.persistence
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Embeddable
+            @Target(AnnotationTarget.CLASS)
+            annotation class Entity
+            @Target(AnnotationTarget.CLASS)
+            annotation class Table(val name: String)
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class EmbeddedId
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class AttributeOverride(val name: String, val column: Column)
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class Column(
+                val name: String,
+                val nullable: Boolean = true,
+                val insertable: Boolean = true,
+                val updatable: Boolean = true,
+                val length: Int = 255,
+            )
+            enum class FetchType { LAZY, EAGER }
+            enum class CascadeType { PERSIST, MERGE, REMOVE }
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class OneToMany(
+                val fetch: FetchType,
+                val cascade: Array<CascadeType> = [],
+                val orphanRemoval: Boolean = false,
+            )
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class JoinColumn(val name: String, val nullable: Boolean = true)
+            @Target(AnnotationTarget.PROPERTY_GETTER)
+            annotation class Transient
+            """.trimIndent(),
+            """
+            package org.springframework.stereotype
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Component(val value: String = "")
+            @Target(AnnotationTarget.CLASS)
+            annotation class Service
+            """.trimIndent(),
+            """
+            package org.springframework.context
+
+            interface ApplicationContext
+            """.trimIndent(),
+        )
+        val renderedSources = strongIdSources + entitySources + accessorSources +
+            listOf(factorySource, catalogSource) + boundaryFixtures
+
+        val result = KotlinCompilation().apply {
+            sources = renderedSources.mapIndexed { index, source ->
+                SourceFile.kotlin("Generated$index.kt", source)
+            }
+            inheritClassPath = true
+            messageOutputStream = System.out
+            jvmTarget = "17"
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val catalogClass = result.classLoader.loadClass(catalogFqn)
+        assertEquals("GeneratedOwnIdCatalogContribution", catalogClass.simpleName)
+        assertFalse(catalogClass.simpleName.endsWith("Impl"))
+    }
+
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
     fun `aggregate strong id template renders four storage nearest variants with scalar string json`() {
         fun renderStrongId(
             packageName: String,

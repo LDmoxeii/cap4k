@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.pebble)
 
     testImplementation(platform(libs.junit.bom))
+    testImplementation(project(":ddd-core"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation(libs.kotlin.compile.testing)
     testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.20")
