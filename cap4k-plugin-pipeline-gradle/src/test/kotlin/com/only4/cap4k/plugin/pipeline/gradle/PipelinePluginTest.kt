@@ -930,6 +930,34 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `aggregate generation wires jackson databind into resolved domain module without duplicates`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-domain-jackson-databind-dependency-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+        val config = projectConfig(
+            modules = mapOf("domain" to "demo-domain"),
+            sources = mapOf("db" to SourceConfig()),
+            generators = mapOf("aggregate" to GeneratorConfig()),
+        )
+
+        ensureAggregateDomainJpaDependency(rootProject, config)
+        ensureAggregateDomainJpaDependency(rootProject, config)
+
+        val jacksonDatabindDependencies = domainProject.configurations.getByName("implementation").dependencies
+            .filter { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            }
+        assertEquals(1, jacksonDatabindDependencies.size)
+    }
+
+    @Test
     fun `value object generation wires json converter dependencies into resolved domain module`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-root")
         val rootProject = ProjectBuilder.builder()

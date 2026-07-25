@@ -1671,7 +1671,10 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedVideoPost.contains("@EmbeddedId"))
-        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertTrue(generatedVideoPost.contains("lateinit var id: VideoPostId"))
+        assertTrue(generatedVideoPost.contains("internal set"))
+        assertFalse(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertFalse(generatedVideoPost.contains("internal constructor(\n    id: VideoPostId"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
@@ -1704,7 +1707,10 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("UUID(" + "0L, 0L)"))
         assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedVideoPost.contains("@EmbeddedId"))
-        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertTrue(generatedVideoPost.contains("lateinit var id: VideoPostId"))
+        assertTrue(generatedVideoPost.contains("internal set"))
+        assertFalse(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertFalse(generatedVideoPost.contains("internal constructor(\n    id: VideoPostId"))
         assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
@@ -1747,7 +1753,9 @@ class PipelinePluginFunctionalTest {
             .buildAndFail()
 
         assertTrue(
-            result.output.contains("@IdStrategy=uuid7 currently requires String physical ID column on table video.id"),
+            result.output.contains(
+                "unsupported UUID7 storage for video.id: jdbcType=-5, dbType=BIGINT, kotlinType=Long, columnSize=64"
+            ),
             result.output,
         )
     }
@@ -1854,7 +1862,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(generatedEntity.contains("@EmbeddedId"))
-        assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
+        assertTrue(generatedEntity.contains("lateinit var id: VideoPostId"))
+        assertTrue(generatedEntity.contains("internal set"))
+        assertFalse(generatedEntity.contains("var id: VideoPostId = id"))
+        assertFalse(generatedEntity.contains("internal constructor(\n    id: VideoPostId"))
         assertFalse(generatedEntity.contains("@Id"))
         assertFalse(generatedEntity.contains("@Column(name = \"id\""))
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
