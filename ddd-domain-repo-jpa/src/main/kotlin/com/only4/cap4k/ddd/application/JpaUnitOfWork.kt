@@ -394,6 +394,7 @@ open class JpaUnitOfWork(
 
     private fun reconcilePendingOwnedChildren(entries: List<UnitOfWorkEntry>): List<UnitOfWorkEntry> {
         val ownership = analyzePendingOwnership(entries)
+        validateNoPendingOwnedChildRemoval(entries, ownership.reachableByOwnerIndex)
         val absorbedIndexes = linkedSetOf<Int>()
 
         ownership.ownersByChildIndex.forEach { (childIndex, ownerIndexes) ->
@@ -413,6 +414,22 @@ open class JpaUnitOfWork(
         return entries.filterIndexed { index, _ -> index !in absorbedIndexes }
     }
 
+    private fun validateNoPendingOwnedChildRemoval(
+        entries: List<UnitOfWorkEntry>,
+        reachableByOwnerIndex: Map<Int, List<Any>>,
+    ) {
+        val removeIndexes = entries.indices.filter { entries[it].kind == UnitOfWorkEntryKind.REMOVE }
+        removeIndexes.forEach { removeIndex ->
+            val owners = reachableByOwnerIndex.filterValues { reachable ->
+                reachable.drop(1).any { samePersistentEntity(it, entries[removeIndex].entity) }
+            }.keys
+            check(owners.isEmpty()) {
+                "UnitOfWork.remove cannot register an owned child while its aggregate root is pending: " +
+                    persistentEntityClass(entries[removeIndex].entity).name
+            }
+        }
+    }
+
     private fun validateNoLatePendingOwnedChildEntries(entries: List<UnitOfWorkEntry>) {
         val rootEntries = entries.filter {
             it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
@@ -426,12 +443,7 @@ open class JpaUnitOfWork(
                 .filterNot { it === traversalRoot }
                 .forEach { child ->
                     if (entries.any { samePersistentEntity(it.entity, child) }) {
-                        error(
-                            "UnitOfWork cannot register generated owned child " +
-                                "${persistentEntityClass(child).name} as a separate public UnitOfWork target " +
-                                "while aggregate root ${persistentEntityClass(rootEntry.entity).name} is pending; " +
-                                "persist the aggregate root only"
-                        )
+                        error("pending ownership changed after UnitOfWork interceptor input was constructed")
                     }
                 }
         }

@@ -600,6 +600,100 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    fun `nested pending owned entries retain only the outermost root`() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        val grandchild = StrongChildEntity()
+        root.children += child
+        child.children += grandchild
+
+        jpaUnitOfWork.persist(grandchild, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(root) }
+        verify(exactly = 0) { entityManager.persist(child) }
+        verify(exactly = 0) { entityManager.persist(grandchild) }
+        verify {
+            interceptor1.beforeTransaction(
+                match<Set<Any>> { it.size == 1 && it.single() === root },
+                emptySet(),
+            )
+        }
+        assertTrue(child.hasAssignedId())
+        assertTrue(grandchild.hasAssignedId())
+    }
+
+    @Test
+    fun `pending child shared by unrelated roots fails deterministically in registration order`() {
+        val child = StrongChildEntity()
+        val firstRoot = StrongRootEntity().also { it.children += child }
+        val secondRoot = StrongRootEntity().also { it.children += child }
+
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    fun `pending child shared by unrelated roots fails with reversed root registration`() {
+        val child = StrongChildEntity()
+        val firstRoot = StrongRootEntity().also { it.children += child }
+        val secondRoot = StrongRootEntity().also { it.children += child }
+
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    fun `isolated CREATE with no pending owner remains caller declared top level`() {
+        val child = StrongChildEntity()
+
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(child) }
+    }
+
+    @Test
+    fun `remove rejects a pending owned child while its aggregate root is pending`() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        root.children += child
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.remove(child)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(
+            error.message!!.contains(
+                "UnitOfWork.remove cannot register an owned child while its aggregate root is pending"
+            )
+        )
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     fun `reconciliation failure clears same-thread repository observation state`() {
         val observedChild = StrongChildEntity().also {
             it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000098")
@@ -681,8 +775,11 @@ class JpaUnitOfWorkTest {
             jpaUnitOfWork.save()
         }
 
-        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
-        assertTrue(error.message!!.contains("persist the aggregate root"))
+        assertTrue(
+            error.message!!.contains(
+                "pending ownership changed after UnitOfWork interceptor input was constructed"
+            )
+        )
         verify(exactly = 0) { entityManager.persist(any()) }
         verify(exactly = 0) { entityManager.flush() }
     }
@@ -1396,6 +1493,10 @@ class JpaUnitOfWorkTest {
     class StrongChildEntity {
         @EmbeddedId
         lateinit var id: TestStrongEntityId
+
+        @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE], orphanRemoval = true)
+        @JoinColumn(name = "parent_id", nullable = false)
+        val children: MutableList<StrongChildEntity> = mutableListOf()
 
         fun hasAssignedId(): Boolean = this::id.isInitialized
     }
