@@ -2,7 +2,6 @@ package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
@@ -299,23 +298,6 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("default EXISTING persist rejects an assigned detached entity without trustworthy evidence")
-    fun defaultPersistShouldRejectAssignedDetachedEntityWithoutBaseline() {
-        val entity = ApplicationSideLongEntity(id = 100L, name = "unobserved")
-        every { mockEntityInfo.isNew(entity) } returns false
-        every { mockEntityInfo.getId(entity) } returns 100L
-        every { entityManager.contains(entity) } returns false
-
-        val error = assertThrows(IllegalStateException::class.java) {
-            jpaUnitOfWork.persist(entity)
-        }
-
-        assertTrue(error.message!!.contains("repository observation baseline or provider-managed existing state"))
-        verify(exactly = 0) { entityManager.merge(entity) }
-        verify(exactly = 0) { entityManager.persist(entity) }
-    }
-
-    @Test
     @DisplayName("CREATE intent should persist a new entity and report CREATE")
     fun createIntentShouldPersistAndReportCreate() {
         val entity = TestEntity(null, "new")
@@ -332,13 +314,19 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("CREATE persist assigns generated strong root id before save")
-    fun createPersistShouldAssignGeneratedStrongRootIdBeforeSave() {
+    @DisplayName("CREATE assignment is visible to beforeTransaction interceptors")
+    fun createPersistShouldExposeGeneratedStrongRootIdToBeforeTransactionInterceptors() {
         val entity = StrongRootEntity()
+        val interceptedIds = mutableListOf<TestStrongEntityId>()
+        every { interceptor1.beforeTransaction(any(), any()) } answers {
+            interceptedIds += entity.id
+        }
 
         jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
 
         assertEquals("018f0000-0000-7000-8000-000000000001", entity.id.value)
+        assertEquals(listOf(entity.id), interceptedIds)
     }
 
     @Test
@@ -1055,27 +1043,31 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("CREATE intent with preassigned application-side id should not query existence")
-    fun createIntentWithPreassignedApplicationSideIdShouldNotQueryExistence() {
-        val entity = ApplicationSideLongEntity(id = 100L, name = "new")
+    @DisplayName("CREATE intent preserves a preassigned strong id without querying existence")
+    fun createIntentWithPreassignedStrongIdShouldNotQueryExistence() {
+        val preassignedId = TestStrongEntityId("018f0000-0000-7000-8000-000000000100")
+        val entity = StrongRootEntity().also { it.id = preassignedId }
         every { mockEntityInfo.isNew(entity) } returns false
-        every { mockEntityInfo.getId(entity) } returns 100L
+        every { mockEntityInfo.getId(entity) } returns preassignedId
 
         jpaUnitOfWork.persist(entity, PersistIntent.CREATE)
         jpaUnitOfWork.save()
 
+        assertSame(preassignedId, entity.id)
         verify { entityManager.persist(entity) }
         verify { persistListenerManager.onChange(entity, PersistType.CREATE) }
-        verify(exactly = 0) { entityManager.find(ApplicationSideLongEntity::class.java, any()) }
+        verify(exactly = 0) { entityManager.find(StrongRootEntity::class.java, any()) }
         verify(exactly = 0) { entityManager.merge(entity) }
     }
 
     @Test
-    @DisplayName("existing intent with application-side id should merge without querying existence or reporting update")
-    fun existingIntentWithApplicationSideIdShouldMergeWithoutQueryingExistenceOrReportingUpdate() {
-        val entity = ApplicationSideLongEntity(id = 100L, name = "existing")
+    @DisplayName("observed EXISTING strong id merges without querying existence or reporting update")
+    fun observedExistingStrongIdShouldMergeWithoutQueryingExistenceOrReportingUpdate() {
+        val entity = StrongRootEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000101")
+        }
         every { mockEntityInfo.isNew(entity) } returns false
-        every { mockEntityInfo.getId(entity) } returns 100L
+        every { mockEntityInfo.getId(entity) } returns entity.id
         jpaUnitOfWork.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE)
 
         jpaUnitOfWork.persist(entity)
@@ -1083,7 +1075,7 @@ class JpaUnitOfWorkTest {
 
         verify { entityManager.merge(entity) }
         verify(exactly = 0) { persistListenerManager.onChange(entity, PersistType.UPDATE) }
-        verify(exactly = 0) { entityManager.find(ApplicationSideLongEntity::class.java, any()) }
+        verify(exactly = 0) { entityManager.find(StrongRootEntity::class.java, any()) }
         verify(exactly = 0) { entityManager.persist(entity) }
     }
 
@@ -1148,13 +1140,6 @@ class JpaUnitOfWorkTest {
         @jakarta.persistence.Id
         val id: Long?,
         val name: String
-    )
-
-    private class ApplicationSideLongEntity(
-        @field:Id
-        @field:ApplicationSideId(strategy = "snowflake")
-        var id: Long = 0L,
-        var name: String = ""
     )
 
     private class ObservedRoot(

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.util.UUID
 import kotlin.reflect.KClass
 
 class IdPolicyCoreTest {
@@ -94,14 +93,6 @@ class IdPolicyCoreTest {
         assertEquals("ORD-1", generator.next("fixed-string", String::class))
     }
 
-    @Test
-    fun `application side annotation still exposes strategy name`() {
-        val annotation = AnnotatedEntity::class.java.getDeclaredField("id")
-            .getAnnotation(ApplicationSideId::class.java)
-
-        assertEquals("fixed-uuid", annotation.strategy)
-    }
-
     private class FixedStringStrategy : IdentifierStrategy {
         override val name: String = "fixed-string"
         override val capabilities: Set<IdentifierCapability> = emptySet()
@@ -122,8 +113,4 @@ class IdPolicyCoreTest {
         override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean = value == null
     }
 
-    private class AnnotatedEntity {
-        @field:ApplicationSideId(strategy = "fixed-uuid")
-        var id: UUID = UUID(0L, 0L)
-    }
 }
