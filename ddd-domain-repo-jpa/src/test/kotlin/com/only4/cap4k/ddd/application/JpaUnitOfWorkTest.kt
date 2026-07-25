@@ -558,30 +558,50 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    @DisplayName("save rejects a pending owned child that is also reachable from a pending root")
-    fun saveShouldRejectPendingOwnedChildReachableFromPendingRoot() {
+    fun `root first pending child is absorbed into the root entry`() {
         val root = StrongRootEntity()
         val child = StrongChildEntity()
         root.children += child
 
         jpaUnitOfWork.persist(root, PersistIntent.CREATE)
         jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
 
-        val error = assertThrows(IllegalStateException::class.java) {
-            jpaUnitOfWork.save()
+        verify { entityManager.persist(root) }
+        verify(exactly = 0) { entityManager.persist(child) }
+        verify {
+            interceptor1.beforeTransaction(
+                match<Set<Any>> { it.size == 1 && it.single() === root },
+                emptySet(),
+            )
         }
-
-        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
-        assertTrue(error.message!!.contains("persist the aggregate root"))
-        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
-        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
-        verify(exactly = 0) { entityManager.persist(any()) }
-        verify(exactly = 0) { entityManager.flush() }
+        verify(exactly = 0) { persistListenerManager.onChange(child, any()) }
+        assertTrue(child.hasAssignedId())
     }
 
     @Test
-    @DisplayName("save rejects a Hibernate proxy alias of a pending owned child")
-    fun saveShouldRejectHibernateProxyAliasOfPendingOwnedChild() {
+    fun `child first registration converges to the same root only entry`() {
+        val root = StrongRootEntity()
+        val child = StrongChildEntity()
+        root.children += child
+
+        jpaUnitOfWork.persist(child, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(root, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
+
+        verify { entityManager.persist(root) }
+        verify(exactly = 0) { entityManager.persist(child) }
+        verify {
+            interceptor1.beforeTransaction(
+                match<Set<Any>> { it.size == 1 && it.single() === root },
+                emptySet(),
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("save absorbs a Hibernate proxy alias of a pending owned child")
+    fun saveShouldAbsorbHibernateProxyAliasOfPendingOwnedChild() {
         val implementation = ObservedChild(20L)
         val root = ObservedRoot(10L, mutableListOf(implementation))
         val proxy = hibernateProxy(ObservedChild::class.java, implementation.id, implementation)
@@ -592,17 +612,16 @@ class JpaUnitOfWorkTest {
 
         jpaUnitOfWork.persist(root, PersistIntent.CREATE)
         jpaUnitOfWork.persist(proxy, PersistIntent.CREATE)
+        jpaUnitOfWork.save()
 
-        val error = assertThrows(IllegalStateException::class.java) {
-            jpaUnitOfWork.save()
+        verify { entityManager.persist(root) }
+        verify(exactly = 0) { entityManager.persist(proxy) }
+        verify {
+            interceptor1.beforeTransaction(
+                match<Set<Any>> { it.size == 1 && it.single() === root },
+                emptySet(),
+            )
         }
-
-        assertTrue(error.message!!.contains("separate public UnitOfWork target"))
-        assertTrue(error.message!!.contains("persist the aggregate root"))
-        assertTrue(error.message!!.contains(ObservedRoot::class.java.name))
-        assertTrue(error.message!!.contains(ObservedChild::class.java.name))
-        verify(exactly = 0) { entityManager.persist(any()) }
-        verify(exactly = 0) { entityManager.flush() }
     }
 
     @Test
@@ -1336,6 +1355,8 @@ class JpaUnitOfWorkTest {
     class StrongChildEntity {
         @EmbeddedId
         lateinit var id: TestStrongEntityId
+
+        fun hasAssignedId(): Boolean = this::id.isInitialized
     }
 
     private class StrongRootEntityAccessor : GeneratedOwnIdAccessor<StrongRootEntity, TestStrongEntityId> {

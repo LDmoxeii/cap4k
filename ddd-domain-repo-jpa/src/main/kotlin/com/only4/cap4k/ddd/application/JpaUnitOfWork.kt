@@ -236,7 +236,8 @@ open class JpaUnitOfWork(
 
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
-        val pendingEntries = pendingEntriesThreadLocal.get().drain()
+        val drainedEntries = pendingEntriesThreadLocal.get().drain()
+        val pendingEntries = reconcilePendingOwnedChildren(drainedEntries)
         pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
 
         val persistEntitySet = pendingEntries
@@ -249,7 +250,6 @@ open class JpaUnitOfWork(
         try {
             completeGeneratedOwnIds(pendingEntries)
             validateSameIdentityConflicts(pendingEntries)
-            validatePendingOwnedChildConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
             save(
@@ -263,7 +263,7 @@ open class JpaUnitOfWork(
             ) { input ->
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
-                validatePendingOwnedChildConflicts(input.entries)
+                validateNoLatePendingOwnedChildEntries(input.entries)
                 completeGeneratedOwnIds(input.entries)
 
                 input.entries.forEach { entry ->
@@ -353,7 +353,67 @@ open class JpaUnitOfWork(
         }
     }
 
-    private fun validatePendingOwnedChildConflicts(entries: List<UnitOfWorkEntry>) {
+    private data class PendingOwnership(
+        val ownersByChildIndex: Map<Int, Set<Int>>,
+        val reachableByOwnerIndex: Map<Int, List<Any>>,
+    )
+
+    private fun analyzePendingOwnership(entries: List<UnitOfWorkEntry>): PendingOwnership {
+        val activeIndexes = entries.indices.filter { index ->
+            entries[index].kind == UnitOfWorkEntryKind.CREATE ||
+                entries[index].kind == UnitOfWorkEntryKind.EXISTING
+        }
+        val reachableByOwner = activeIndexes.associateWith { index ->
+            ownedRelationTraversal.reachableOwnedEntities(entries[index].entity)
+        }
+        val ownersByChild = linkedMapOf<Int, LinkedHashSet<Int>>()
+
+        activeIndexes.forEach { ownerIndex ->
+            val descendants = reachableByOwner.getValue(ownerIndex).drop(1)
+            activeIndexes.filter { it != ownerIndex }.forEach { childIndex ->
+                if (descendants.any { samePersistentEntity(it, entries[childIndex].entity) }) {
+                    ownersByChild.getOrPut(childIndex, ::linkedSetOf).add(ownerIndex)
+                }
+            }
+        }
+        return PendingOwnership(ownersByChild, reachableByOwner)
+    }
+
+    private fun outermostOwners(
+        ownerIndexes: Set<Int>,
+        entries: List<UnitOfWorkEntry>,
+        reachableByOwnerIndex: Map<Int, List<Any>>,
+    ): List<Int> = ownerIndexes.filter { candidateIndex ->
+        ownerIndexes.none { otherIndex ->
+            otherIndex != candidateIndex &&
+                reachableByOwnerIndex.getValue(otherIndex).drop(1).any {
+                    samePersistentEntity(it, entries[candidateIndex].entity)
+                }
+        }
+    }
+
+    private fun reconcilePendingOwnedChildren(entries: List<UnitOfWorkEntry>): List<UnitOfWorkEntry> {
+        val ownership = analyzePendingOwnership(entries)
+        val absorbedIndexes = linkedSetOf<Int>()
+
+        ownership.ownersByChildIndex.forEach { (childIndex, ownerIndexes) ->
+            val outermost = outermostOwners(
+                ownerIndexes = ownerIndexes,
+                entries = entries,
+                reachableByOwnerIndex = ownership.reachableByOwnerIndex,
+            )
+            check(outermost.size == 1) {
+                val childType = persistentEntityClass(entries[childIndex].entity).name
+                val roots = outermost.joinToString { persistentEntityClass(entries[it].entity).name }
+                "pending owned child $childType is reachable from multiple unrelated pending roots: $roots"
+            }
+            absorbedIndexes += childIndex
+        }
+
+        return entries.filterIndexed { index, _ -> index !in absorbedIndexes }
+    }
+
+    private fun validateNoLatePendingOwnedChildEntries(entries: List<UnitOfWorkEntry>) {
         val rootEntries = entries.filter {
             it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
         }
