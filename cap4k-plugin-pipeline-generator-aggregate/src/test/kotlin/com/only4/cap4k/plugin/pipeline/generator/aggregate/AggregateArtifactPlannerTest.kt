@@ -3489,6 +3489,223 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `entity planner exposes generated own id accessors for eligible owned relations`() {
+        val packageName = "com.acme.demo.domain.aggregates.order"
+        val order = EntityModel(
+            name = "Order",
+            packageName = packageName,
+            tableName = "orders",
+            comment = "order",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val orderLine = EntityModel(
+            name = "OrderLine",
+            packageName = packageName,
+            tableName = "order_line",
+            comment = "order line",
+            fields = listOf(FieldModel("id", "OrderLineId", columnName = "id")),
+            idField = FieldModel("id", "OrderLineId", columnName = "id"),
+        )
+        val shippingAddress = EntityModel(
+            name = "ShippingAddress",
+            packageName = packageName,
+            tableName = "shipping_address",
+            comment = "shipping address",
+            fields = listOf(FieldModel("id", "ShippingAddressId", columnName = "id")),
+            idField = FieldModel("id", "ShippingAddressId", columnName = "id"),
+        )
+        val entities = listOf(order, orderLine, shippingAddress)
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = entities,
+                aggregateEntityJpa = entities.map(::defaultAggregateEntityJpa),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = order.name,
+                        ownerEntityPackageName = packageName,
+                        fieldName = "lines",
+                        targetEntityName = orderLine.name,
+                        targetEntityPackageName = packageName,
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "order_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        owned = true,
+                        ownedCardinality = OwnedRelationCardinality.MANY,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "lines",
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = order.name,
+                        ownerEntityPackageName = packageName,
+                        fieldName = "shippingAddresses",
+                        targetEntityName = shippingAddress.name,
+                        targetEntityPackageName = packageName,
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "order_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        owned = true,
+                        ownedCardinality = OwnedRelationCardinality.ONE,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "shippingAddresses",
+                        singleAccessorName = "shippingAddress",
+                    ),
+                ),
+                strongIds = listOf(
+                    generatedOwnId("OrderLineId", packageName, "String", orderLine.name, "uuid7"),
+                    generatedOwnId("ShippingAddressId", packageName, "String", shippingAddress.name, "uuid7"),
+                ),
+            ),
+        )
+
+        val orderArtifact = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == order.name
+        }
+        @Suppress("UNCHECKED_CAST")
+        val relations = orderArtifact.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(
+            "$packageName.OrderLineGeneratedOwnIdAccessor",
+            relations.single { it["name"] == "lines" }["generatedOwnIdAccessorFqn"],
+        )
+        assertEquals(
+            "$packageName.ShippingAddressGeneratedOwnIdAccessor",
+            relations.single { it["name"] == "shippingAddresses" }["generatedOwnIdAccessorFqn"],
+        )
+    }
+
+    @Test
+    fun `entity planner omits generated own id accessors outside eligible owned relations`() {
+        val packageName = "com.acme.demo.domain.aggregates.order"
+        fun entity(name: String, idType: String = "Long"): EntityModel {
+            val id = FieldModel("id", idType, columnName = "id")
+            return EntityModel(
+                name = name,
+                packageName = packageName,
+                tableName = name.lowercase(),
+                comment = name,
+                fields = listOf(id),
+                idField = id,
+            )
+        }
+        fun ownedMany(fieldName: String, target: EntityModel) = AggregateRelationModel(
+            ownerEntityName = "Order",
+            ownerEntityPackageName = packageName,
+            fieldName = fieldName,
+            targetEntityName = target.name,
+            targetEntityPackageName = packageName,
+            relationType = AggregateRelationType.ONE_TO_MANY,
+            joinColumn = "order_id",
+            fetchType = AggregateFetchType.LAZY,
+            nullable = false,
+            owned = true,
+            ownedCardinality = OwnedRelationCardinality.MANY,
+            persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+            backingCollectionName = fieldName,
+        )
+
+        val order = entity("Order")
+        val eligibleChild = entity("EligibleChild", "EligibleChildId")
+        val databaseIdentityChild = entity("DatabaseIdentityChild")
+        val aggregateReferenceChild = entity("AggregateReferenceChild", "ExternalOrderId")
+        val unregisteredChild = entity("UnregisteredChild", "UnregisteredChildId")
+        val entities = listOf(
+            order,
+            eligibleChild,
+            databaseIdentityChild,
+            aggregateReferenceChild,
+            unregisteredChild,
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = entities,
+                aggregateEntityJpa = entities.map(::defaultAggregateEntityJpa),
+                aggregateRelations = listOf(
+                    ownedMany("nonOwnedChildren", eligibleChild).copy(
+                        owned = false,
+                        ownedCardinality = null,
+                        persistenceShape = null,
+                        backingCollectionName = null,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = order.name,
+                        ownerEntityPackageName = packageName,
+                        fieldName = "ownedManyToOneChild",
+                        targetEntityName = eligibleChild.name,
+                        targetEntityPackageName = packageName,
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "eligible_child_id",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        owned = true,
+                    ),
+                    ownedMany("databaseIdentityChildren", databaseIdentityChild),
+                    ownedMany("aggregateReferenceChildren", aggregateReferenceChild),
+                    ownedMany("unregisteredChildren", unregisteredChild),
+                ),
+                aggregateInverseRelations = listOf(
+                    AggregateInverseRelationModel(
+                        ownerEntityName = order.name,
+                        ownerEntityPackageName = packageName,
+                        fieldName = "inverseEligibleChildren",
+                        targetEntityName = eligibleChild.name,
+                        targetEntityPackageName = packageName,
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "order_id",
+                        fetchType = AggregateFetchType.LAZY,
+                    ),
+                ),
+                aggregateIdPolicyControls = listOf(
+                    AggregateIdPolicyControl(
+                        entityName = databaseIdentityChild.name,
+                        entityPackageName = packageName,
+                        tableName = databaseIdentityChild.tableName,
+                        idFieldName = databaseIdentityChild.idField.name,
+                        idFieldType = databaseIdentityChild.idField.type,
+                        strategy = "identity",
+                        kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                    ),
+                ),
+                strongIds = listOf(
+                    generatedOwnId("EligibleChildId", packageName, "String", eligibleChild.name, "uuid7"),
+                    StrongIdModel(
+                        typeName = "ExternalOrderId",
+                        packageName = packageName,
+                        kind = StrongIdKind.AGGREGATE_REFERENCE,
+                    ),
+                ),
+            ),
+        )
+
+        val orderArtifact = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == order.name
+        }
+        @Suppress("UNCHECKED_CAST")
+        val relations = orderArtifact.context["relationFields"] as List<Map<String, Any?>>
+        val excludedRelationNames = listOf(
+            "nonOwnedChildren",
+            "ownedManyToOneChild",
+            "databaseIdentityChildren",
+            "aggregateReferenceChildren",
+            "unregisteredChildren",
+            "inverseEligibleChildren",
+        )
+
+        excludedRelationNames.forEach { relationName ->
+            val relation = relations.single { it["name"] == relationName }
+            assertTrue(
+                relation.containsKey("generatedOwnIdAccessorFqn"),
+                "$relationName should expose an explicit null accessor context",
+            )
+            assertNull(relation["generatedOwnIdAccessorFqn"], relationName)
+        }
+    }
+
+    @Test
     fun `entity planner relation nullability is sourced from canonical relation model`() {
         val entity = EntityModel(
             name = "VideoPost",

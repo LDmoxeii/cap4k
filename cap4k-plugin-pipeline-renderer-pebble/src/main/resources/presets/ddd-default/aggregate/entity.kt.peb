@@ -118,15 +118,21 @@ class {{ typeName }} internal constructor(
 
 {% if relation.ownedCardinality == "ONE" %}    @get:Transient
     var {{ relation.singleAccessorName }}: {{ relation.targetTypeRef }}?
-        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
+                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
+            }{% endif %})
             .singleOrNull()
         set(value) {
-            OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
+            OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
+                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
+            }{% endif %})
                 .replace(value)
         }
 {% else %}    @get:Transient
     val {{ relation.name }}: OwnedEntityList<{{ relation.targetTypeRef }}>
-        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
+                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
+            }{% endif %})
 {% endif %}
 {% else %}    val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
 {% endif %}

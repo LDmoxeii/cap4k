@@ -43,6 +43,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 entity = entity,
                 relations = model.aggregateRelations,
                 inverseRelations = model.aggregateInverseRelations,
+                generatedOwnIdsByEntity = generatedOwnIdsByEntity,
             )
             val readOnlyInverseJoinColumns = relationPlan.relationFields
                 .filter {

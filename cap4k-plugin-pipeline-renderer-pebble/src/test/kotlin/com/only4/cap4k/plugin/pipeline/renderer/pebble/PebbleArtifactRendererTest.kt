@@ -1696,6 +1696,237 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate entity assigns generated ids before owned relation mutation and compiles with typed accessors`() {
+        val packageName = "com.acme.demo.domain.aggregates.order"
+        fun accessor(entityName: String, idTypeName: String): String = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${packageName.replace('.', '/')}/${entityName}GeneratedOwnIdAccessor.kt",
+            context = mapOf(
+                "packageName" to packageName,
+                "typeName" to "${entityName}GeneratedOwnIdAccessor",
+                "entityName" to entityName,
+                "entityFqn" to "$packageName.$entityName",
+                "idFieldName" to "id",
+                "idTypeName" to idTypeName,
+                "idTypeFqn" to "$packageName.$idTypeName",
+                "label" to "$entityName.id",
+                "strategy" to "uuid7",
+                "backingType" to "String",
+                "backingTypeFqn" to null,
+                "imports" to emptyList<String>(),
+            ),
+        )
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/${packageName.replace('.', '/')}/Order.kt",
+            context = mapOf(
+                "packageName" to packageName,
+                "typeName" to "Order",
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "orders"),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasApplicationSideIdFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "softDelete" to mapOf("enabled" to false),
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "softDeleteSqlKotlinStringLiteral" to null,
+                "softDeleteWhereClauseKotlinStringLiteral" to null,
+                "jpaImports" to listOf(
+                    "jakarta.persistence.CascadeType",
+                    "jakarta.persistence.FetchType",
+                    "jakarta.persistence.JoinColumn",
+                    "jakarta.persistence.OneToMany",
+                    "jakarta.persistence.Transient",
+                ),
+                "imports" to listOf("com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"),
+                "constructorFields" to emptyList<Map<String, Any?>>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to listOf(
+                    mapOf(
+                        "name" to "lines",
+                        "targetType" to "OrderLine",
+                        "targetTypeRef" to "OrderLine",
+                        "targetPackageName" to packageName,
+                        "relationType" to "ONE_TO_MANY",
+                        "fetchType" to "LAZY",
+                        "joinColumn" to "order_id",
+                        "nullable" to false,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                        "orphanRemoval" to true,
+                        "joinColumnNullable" to false,
+                        "owned" to true,
+                        "ownedCardinality" to "MANY",
+                        "domainName" to "lines",
+                        "backingCollectionName" to "_lines",
+                        "singleAccessorName" to null,
+                        "generatedOwnIdAccessorFqn" to "$packageName.OrderLineGeneratedOwnIdAccessor",
+                    ),
+                    mapOf(
+                        "name" to "primaryLines",
+                        "targetType" to "PrimaryOrderLine",
+                        "targetTypeRef" to "PrimaryOrderLine",
+                        "targetPackageName" to packageName,
+                        "relationType" to "ONE_TO_MANY",
+                        "fetchType" to "LAZY",
+                        "joinColumn" to "primary_order_id",
+                        "nullable" to false,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                        "orphanRemoval" to true,
+                        "joinColumnNullable" to false,
+                        "owned" to true,
+                        "ownedCardinality" to "ONE",
+                        "domainName" to "primaryLine",
+                        "backingCollectionName" to "_primaryLines",
+                        "singleAccessorName" to "primaryLine",
+                        "generatedOwnIdAccessorFqn" to "$packageName.PrimaryOrderLineGeneratedOwnIdAccessor",
+                    ),
+                ),
+            ),
+        )
+        val orderLineAccessor = accessor("OrderLine", "OrderLineId")
+        val primaryOrderLineAccessor = accessor("PrimaryOrderLine", "PrimaryOrderLineId")
+
+        val manyHook = "$packageName.OrderLineGeneratedOwnIdAccessor.assignIfMissing(entity)"
+        val oneHook = "$packageName.PrimaryOrderLineGeneratedOwnIdAccessor.assignIfMissing(entity)"
+        assertEquals(1, Regex(Regex.escape(manyHook)).findAll(entityContent).count())
+        assertEquals(2, Regex(Regex.escape(oneHook)).findAll(entityContent).count())
+        listOf(entityContent, orderLineAccessor, primaryOrderLineAccessor).forEach(::assertReadableKotlin)
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("Order.kt", entityContent),
+                SourceFile.kotlin("OrderLineGeneratedOwnIdAccessor.kt", orderLineAccessor),
+                SourceFile.kotlin("PrimaryOrderLineGeneratedOwnIdAccessor.kt", primaryOrderLineAccessor),
+                SourceFile.kotlin(
+                    "OrderLineFixtures.kt",
+                    """
+                    package $packageName
+
+                    class OrderLineId private constructor(val value: String) {
+                        companion object { fun of(value: String) = OrderLineId(value) }
+                    }
+                    class PrimaryOrderLineId private constructor(val value: String) {
+                        companion object { fun of(value: String) = PrimaryOrderLineId(value) }
+                    }
+                    class OrderLine {
+                        lateinit var id: OrderLineId
+                            internal set
+                    }
+                    class PrimaryOrderLine {
+                        lateinit var id: PrimaryOrderLineId
+                            internal set
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "OwnedEntityList.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.aggregate
+
+                    import kotlin.reflect.KClass
+
+                    class OwnedEntityList<E : Any> private constructor(
+                        private val delegate: MutableList<E>,
+                    ) : List<E> by delegate {
+                        fun singleOrNull(): E? = delegate.singleOrNull()
+                        fun replace(value: E?) = Unit
+
+                        companion object {
+                            fun <E : Any> of(delegate: MutableList<E>, type: KClass<E>, path: String) =
+                                OwnedEntityList(delegate)
+                            fun <E : Any> of(
+                                delegate: MutableList<E>,
+                                type: KClass<E>,
+                                path: String,
+                                prepare: (E) -> Unit,
+                            ) = OwnedEntityList(delegate)
+                        }
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "GeneratedOwnIdContracts.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.id
+
+                    import kotlin.reflect.KClass
+
+                    interface IdentifierGenerator {
+                        fun <T : Any> next(strategy: String, type: KClass<T>): T
+                    }
+                    interface GeneratedOwnIdAccessor<E : Any, ID : Any> {
+                        val entityType: KClass<E>
+                        val label: String
+                        fun current(entity: E): ID?
+                        fun assign(entity: E, id: ID)
+                        fun next(): ID
+                        fun assignIfMissing(entity: E): ID {
+                            current(entity)?.let { return it }
+                            val id = next()
+                            assign(entity, id)
+                            return current(entity) ?: error("assignment failed")
+                        }
+                    }
+                    inline fun <ID : Any> readInitializedOrNull(read: () -> ID): ID? =
+                        try { read() } catch (_: UninitializedPropertyAccessException) { null }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Mediator.kt",
+                    """
+                    package com.only4.cap4k.ddd.core
+
+                    import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+                    import kotlin.reflect.KClass
+
+                    object Mediator {
+                        val identifiers = object : IdentifierGenerator {
+                            override fun <T : Any> next(strategy: String, type: KClass<T>): T = error("not invoked")
+                        }
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Jpa.kt",
+                    """
+                    package jakarta.persistence
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Entity
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Table(val name: String)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Id
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Column(val name: String)
+                    enum class FetchType { LAZY, EAGER }
+                    enum class CascadeType { PERSIST, MERGE, REMOVE }
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class OneToMany(
+                        val fetch: FetchType,
+                        val cascade: Array<CascadeType> = [],
+                        val orphanRemoval: Boolean = false,
+                    )
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class JoinColumn(val name: String, val nullable: Boolean = true)
+                    @Target(AnnotationTarget.PROPERTY_GETTER)
+                    annotation class Transient
+                    """.trimIndent(),
+                ),
+            )
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+    }
+
+    @Test
     fun `aggregate entity template omits aggregate element when metadata context is missing`() {
         val content = renderTemplate(
             templateId = "aggregate/entity.kt.peb",
