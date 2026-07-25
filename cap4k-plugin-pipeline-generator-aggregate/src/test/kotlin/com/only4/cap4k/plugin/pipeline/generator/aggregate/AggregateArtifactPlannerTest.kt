@@ -2290,7 +2290,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner omits application side snowflake long render keys on id field`() {
+    fun `entity planner omits application side snowflake render keys on Long id field`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -2316,7 +2316,7 @@ class AggregateArtifactPlannerTest {
                         tableName = "video_post",
                         idFieldName = "id",
                         idFieldType = "Long",
-                        strategy = "snowflake-long",
+                        strategy = "snowflake",
                         kind = AggregateIdPolicyKind.APPLICATION_SIDE,
                     )
                 ),
