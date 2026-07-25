@@ -151,6 +151,14 @@ class JpaUnitOfWorkTest {
         return threadLocal.get().size
     }
 
+    private fun assertRootOrder(message: String, first: Class<*>, second: Class<*>) {
+        val firstIndex = message.indexOf(first.name)
+        val secondIndex = message.indexOf(second.name)
+        assertTrue(firstIndex >= 0, "Expected ${first.name} in: $message")
+        assertTrue(secondIndex >= 0, "Expected ${second.name} in: $message")
+        assertTrue(firstIndex < secondIndex, "Expected ${first.name} before ${second.name} in: $message")
+    }
+
     @Test
     @DisplayName("repository observation records root and generated owned children")
     fun repositoryObservationRecordsRootAndGeneratedOwnedChildren() {
@@ -615,6 +623,8 @@ class JpaUnitOfWorkTest {
         verify { entityManager.persist(root) }
         verify(exactly = 0) { entityManager.persist(child) }
         verify(exactly = 0) { entityManager.persist(grandchild) }
+        verify(exactly = 0) { entityManager.merge(child) }
+        verify(exactly = 0) { entityManager.merge(grandchild) }
         verify {
             interceptor1.beforeTransaction(
                 match<Set<Any>> { it.size == 1 && it.single() === root },
@@ -628,8 +638,8 @@ class JpaUnitOfWorkTest {
     @Test
     fun `pending child shared by unrelated roots fails deterministically in registration order`() {
         val child = StrongChildEntity()
-        val firstRoot = StrongRootEntity().also { it.children += child }
-        val secondRoot = StrongRootEntity().also { it.children += child }
+        val firstRoot = FirstStrongRootEntity().also { it.children += child }
+        val secondRoot = SecondStrongRootEntity().also { it.children += child }
 
         jpaUnitOfWork.persist(child, PersistIntent.CREATE)
         jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
@@ -639,7 +649,7 @@ class JpaUnitOfWorkTest {
 
         assertTrue(error.message!!.contains("multiple unrelated pending roots"))
         assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
-        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
+        assertRootOrder(error.message!!, FirstStrongRootEntity::class.java, SecondStrongRootEntity::class.java)
         verify(exactly = 0) { entityManager.persist(any()) }
         verify(exactly = 0) { entityManager.flush() }
     }
@@ -647,8 +657,8 @@ class JpaUnitOfWorkTest {
     @Test
     fun `pending child shared by unrelated roots fails with reversed root registration`() {
         val child = StrongChildEntity()
-        val firstRoot = StrongRootEntity().also { it.children += child }
-        val secondRoot = StrongRootEntity().also { it.children += child }
+        val firstRoot = FirstStrongRootEntity().also { it.children += child }
+        val secondRoot = SecondStrongRootEntity().also { it.children += child }
 
         jpaUnitOfWork.persist(child, PersistIntent.CREATE)
         jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
@@ -658,7 +668,7 @@ class JpaUnitOfWorkTest {
 
         assertTrue(error.message!!.contains("multiple unrelated pending roots"))
         assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
-        assertTrue(error.message!!.contains(StrongRootEntity::class.java.name))
+        assertRootOrder(error.message!!, SecondStrongRootEntity::class.java, FirstStrongRootEntity::class.java)
         verify(exactly = 0) { entityManager.persist(any()) }
         verify(exactly = 0) { entityManager.flush() }
     }
@@ -1486,6 +1496,20 @@ class JpaUnitOfWorkTest {
 
         @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE], orphanRemoval = true)
         @JoinColumn(name = "root_id", nullable = false)
+        val children: MutableList<StrongChildEntity> = mutableListOf()
+    }
+
+    @jakarta.persistence.Entity
+    class FirstStrongRootEntity {
+        @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE], orphanRemoval = true)
+        @JoinColumn(name = "first_root_id", nullable = false)
+        val children: MutableList<StrongChildEntity> = mutableListOf()
+    }
+
+    @jakarta.persistence.Entity
+    class SecondStrongRootEntity {
+        @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE], orphanRemoval = true)
+        @JoinColumn(name = "second_root_id", nullable = false)
         val children: MutableList<StrongChildEntity> = mutableListOf()
     }
 
