@@ -600,6 +600,47 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    fun `reconciliation failure clears same-thread repository observation state`() {
+        val observedChild = StrongChildEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000098")
+        }
+        val observedRoot = StrongRootEntity().also {
+            it.id = TestStrongEntityId("018f0000-0000-7000-8000-000000000099")
+            it.children += observedChild
+        }
+        every { mockEntityInfo.isNew(observedRoot) } returns false
+        every { mockEntityInfo.getId(observedRoot) } returns observedRoot.id
+        every { mockEntityInfo.isNew(observedChild) } returns false
+        every { mockEntityInfo.getId(observedChild) } returns observedChild.id
+        jpaUnitOfWork.observeRepositoryLoad(observedRoot, AggregateLoadPlan.WHOLE_AGGREGATE)
+
+        val sharedChild = StrongChildEntity()
+        val firstRoot = StrongRootEntity().also { it.children += sharedChild }
+        val secondRoot = StrongRootEntity().also { it.children += sharedChild }
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(sharedChild, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) {
+            jpaUnitOfWork.save()
+        }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertAll(
+            {
+                assertFalse(
+                    jpaUnitOfWork.observedRepositoryBaseline().hasBaselineFor(observedRoot)
+                )
+            },
+            {
+                assertDoesNotThrow {
+                    jpaUnitOfWork.persist(observedChild, PersistIntent.CREATE)
+                }
+            },
+        )
+    }
+
+    @Test
     @DisplayName("save absorbs a Hibernate proxy alias of a pending owned child")
     fun saveShouldAbsorbHibernateProxyAliasOfPendingOwnedChild() {
         val implementation = ObservedChild(20L)

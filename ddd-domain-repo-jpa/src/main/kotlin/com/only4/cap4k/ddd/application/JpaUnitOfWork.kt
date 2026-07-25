@@ -236,18 +236,18 @@ open class JpaUnitOfWork(
 
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
-        val drainedEntries = pendingEntriesThreadLocal.get().drain()
-        val pendingEntries = reconcilePendingOwnedChildren(drainedEntries)
-        pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
-
-        val persistEntitySet = pendingEntries
-            .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
-            .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-        val deleteEntitySet = pendingEntries
-            .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
-            .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-
         try {
+            val drainedEntries = pendingEntriesThreadLocal.get().drain()
+            val pendingEntries = reconcilePendingOwnedChildren(drainedEntries)
+            pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
+
+            val persistEntitySet = pendingEntries
+                .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
+                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
+            val deleteEntitySet = pendingEntries
+                .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
+                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
+
             completeGeneratedOwnIds(pendingEntries)
             validateSameIdentityConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
