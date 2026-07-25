@@ -950,6 +950,258 @@ class PebbleArtifactRendererTest {
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
 
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `generated own id templates render typed accessors and one unambiguous catalog`() {
+        fun accessorContext(
+            packageName: String,
+            entityName: String,
+            idFieldName: String,
+            idTypeName: String,
+            idTypeFqn: String,
+            strategy: String,
+            backingType: String,
+        ): Map<String, Any?> =
+            mapOf(
+                "packageName" to packageName,
+                "typeName" to "${entityName}GeneratedOwnIdAccessor",
+                "entityName" to entityName,
+                "entityFqn" to "$packageName.$entityName",
+                "idFieldName" to idFieldName,
+                "idTypeName" to idTypeName,
+                "idTypeFqn" to idTypeFqn,
+                "label" to "$entityName.$idFieldName",
+                "strategy" to strategy,
+                "backingType" to backingType,
+                "backingTypeFqn" to if (backingType == "UUID") "java.util.UUID" else null,
+                "imports" to emptyList<String>(),
+            )
+
+        val uuidAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/orders/OrderGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.orders",
+                entityName = "Order",
+                idFieldName = "orderId",
+                idTypeName = "UuidOrderId",
+                idTypeFqn = "com.acme.demo.domain.ids.UuidOrderId",
+                strategy = "uuid7",
+                backingType = "UUID",
+            ),
+        )
+        val uuidTextAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/orders_text/OrderGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.orders_text",
+                entityName = "Order",
+                idFieldName = "orderId",
+                idTypeName = "UuidTextOrderId",
+                idTypeFqn = "com.acme.demo.domain.ids.UuidTextOrderId",
+                strategy = "uuid7",
+                backingType = "String",
+            ),
+        )
+        val snowflakeLongAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/payments/OrderGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.payments",
+                entityName = "Order",
+                idFieldName = "orderId",
+                idTypeName = "SnowflakeOrderId",
+                idTypeFqn = "com.acme.demo.domain.ids.SnowflakeOrderId",
+                strategy = "snowflake",
+                backingType = "Long",
+            ),
+        )
+        val snowflakeTextAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shipments/ShipmentGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.shipments",
+                entityName = "Shipment",
+                idFieldName = "shipmentId",
+                idTypeName = "SnowflakeTextShipmentId",
+                idTypeFqn = "com.acme.demo.domain.ids.SnowflakeTextShipmentId",
+                strategy = "snowflake",
+                backingType = "String",
+            ),
+        )
+        val catalog = renderTemplate(
+            templateId = "aggregate/generated_own_id_catalog.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain._share.identity",
+                "typeName" to "GeneratedOwnIdCatalogContribution",
+                "beanName" to "com.acme.demo.domain._share.identity.generatedOwnIdCatalogContribution",
+                "accessors" to listOf(
+                    mapOf("fqn" to "com.acme.demo.domain.orders.OrderGeneratedOwnIdAccessor"),
+                    mapOf("fqn" to "com.acme.demo.domain.orders_text.OrderGeneratedOwnIdAccessor"),
+                    mapOf("fqn" to "com.acme.demo.domain.payments.OrderGeneratedOwnIdAccessor"),
+                    mapOf("fqn" to "com.acme.demo.domain.shipments.ShipmentGeneratedOwnIdAccessor"),
+                ),
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertTrue(uuidAccessor.contains("Mediator.identifiers.next(\"uuid7\", UUID::class)"))
+        assertTrue(uuidTextAccessor.contains("Mediator.identifiers.next(\"uuid7\", String::class)"))
+        assertTrue(snowflakeLongAccessor.contains("Mediator.identifiers.next(\"snowflake\", Long::class)"))
+        assertTrue(snowflakeTextAccessor.contains("Mediator.identifiers.next(\"snowflake\", String::class)"))
+        assertTrue(uuidTextAccessor.contains("readInitializedOrNull { entity.orderId }"))
+        assertTrue(uuidTextAccessor.contains("entity.orderId = id"))
+        assertTrue(catalog.contains("class GeneratedOwnIdCatalogContribution : GeneratedOwnIdCatalog"))
+        assertFalse(catalog.contains("GeneratedOwnIdCatalogContributionImpl"))
+        assertTrue(catalog.contains("@Component(\"com.acme.demo.domain._share.identity.generatedOwnIdCatalogContribution\")"))
+        assertTrue(catalog.contains("com.acme.demo.domain.orders.OrderGeneratedOwnIdAccessor"))
+        assertTrue(catalog.contains("com.acme.demo.domain.orders_text.OrderGeneratedOwnIdAccessor"))
+        listOf(uuidAccessor, uuidTextAccessor, snowflakeLongAccessor, snowflakeTextAccessor, catalog)
+            .forEach(::assertReadableKotlin)
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("UuidOrderAccessor.kt", uuidAccessor),
+                SourceFile.kotlin("UuidTextOrderAccessor.kt", uuidTextAccessor),
+                SourceFile.kotlin("SnowflakeOrderAccessor.kt", snowflakeLongAccessor),
+                SourceFile.kotlin("SnowflakeTextShipmentAccessor.kt", snowflakeTextAccessor),
+                SourceFile.kotlin("GeneratedOwnIdCatalogContribution.kt", catalog),
+            ) + generatedOwnIdCompileFixtures
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+    }
+
+    private val generatedOwnIdCompileFixtures = listOf(
+        SourceFile.kotlin(
+            "GeneratedOwnIdRuntime.kt",
+            """
+            package com.only4.cap4k.ddd.core
+
+            import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+            import kotlin.reflect.KClass
+
+            object Mediator {
+                val identifiers: IdentifierGenerator = object : IdentifierGenerator {
+                    override fun <T : Any> next(strategy: String, type: KClass<T>): T = error("not invoked")
+                }
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdContracts.kt",
+            """
+            package com.only4.cap4k.ddd.core.domain.id
+
+            import kotlin.reflect.KClass
+
+            interface IdentifierGenerator {
+                fun <T : Any> next(strategy: String, type: KClass<T>): T
+            }
+
+            interface GeneratedOwnIdAccessor<E : Any, ID : Any> {
+                val entityType: KClass<E>
+                val label: String
+                fun current(entity: E): ID?
+                fun assign(entity: E, id: ID)
+                fun next(): ID
+            }
+
+            interface GeneratedOwnIdCatalog {
+                val accessors: List<GeneratedOwnIdAccessor<*, *>>
+            }
+
+            inline fun <ID : Any> readInitializedOrNull(read: () -> ID): ID? =
+                try { read() } catch (_: UninitializedPropertyAccessException) { null }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "Component.kt",
+            """
+            package org.springframework.stereotype
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Component(val value: String = "")
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdStrongIds.kt",
+            """
+            package com.acme.demo.domain.ids
+
+            import java.util.UUID
+
+            class UuidOrderId private constructor(val value: UUID) {
+                companion object { fun of(value: UUID) = UuidOrderId(value) }
+            }
+            class UuidTextOrderId private constructor(val value: String) {
+                companion object { fun of(value: String) = UuidTextOrderId(value) }
+            }
+            class SnowflakeOrderId private constructor(val value: Long) {
+                companion object { fun of(value: Long) = SnowflakeOrderId(value) }
+            }
+            class SnowflakeTextShipmentId private constructor(val value: String) {
+                companion object { fun of(value: String) = SnowflakeTextShipmentId(value) }
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdEntities.kt",
+            """
+            package com.acme.demo.domain.orders
+
+            import com.acme.demo.domain.ids.UuidOrderId
+
+            class Order {
+                lateinit var orderId: UuidOrderId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdTextEntities.kt",
+            """
+            package com.acme.demo.domain.orders_text
+
+            import com.acme.demo.domain.ids.UuidTextOrderId
+
+            class Order {
+                lateinit var orderId: UuidTextOrderId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdPaymentEntities.kt",
+            """
+            package com.acme.demo.domain.payments
+
+            import com.acme.demo.domain.ids.SnowflakeOrderId
+
+            class Order {
+                lateinit var orderId: SnowflakeOrderId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdShipmentEntities.kt",
+            """
+            package com.acme.demo.domain.shipments
+
+            import com.acme.demo.domain.ids.SnowflakeTextShipmentId
+
+            class Shipment {
+                lateinit var shipmentId: SnowflakeTextShipmentId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+    )
+
     private val strongIdCompileStubs = listOf(
         SourceFile.kotlin(
             "StrongId.kt",
