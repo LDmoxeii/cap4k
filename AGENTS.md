@@ -157,23 +157,23 @@ Recent durable decisions to preserve:
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - frontend TypeScript generation is currently not planned as a cap4k core slice unless a first-class endpoint tactical model or stable API-contract projection exists
 - public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
-- UUID7 is the default application-side ID policy, Snowflake remains explicit as `snowflake-long`, database `@IdGenerator` comments are unsupported, and field-level `@ApplicationSideId` is the runtime contract
+- Application-side entity IDs are generated Strong IDs. Supported strategies are `uuid7` and `snowflake`. The backing type follows JDBC storage; generated typed accessors allocate IDs, and generated catalogs feed the runtime registry.
 
 ## Known Test Fixture Debt
 
-Full `:cap4k-ddd-starter:test` currently fails because of old starter auto-configuration test fixture isolation problems, not because of the UUID7/application-side ID policy slice.
+Fresh Task 27 evidence for `:cap4k-ddd-starter:test` is 94 tests: 65 passed, 0 failures, 0 errors, and 29 configured skips.
 
-Observed shape:
+Observed skipped surface:
 
 - targeted UUID7 and application-side ID tests pass
-- full starter test run fails around old `@SpringBootTest` context startup tests
+- 29 legacy auto-configuration and context tests remain configured skipped around old `@SpringBootTest` fixture isolation
 - broad test applications under `com.only4.cap4k.ddd` use package-wide `@ComponentScan`, `@EntityScan`, and `@EnableJpaRepositories`, causing test fixtures and framework repositories to be scanned together
 - repeated repository bean names such as `sagaJpaRepository`, `requestJpaRepository`, and runtime fixture repositories collide across test contexts
 - some contexts start Snowflake auto-configuration without the `__worker_id` table because tests still use stale Snowflake property keys
 - some contexts create `DefaultEventSubscriberManager` with a blank event scan package and fail at `ScanUtils.scanClass`
 - one initialization test excludes Hibernate JPA auto-configuration while still enabling JPA repository scanning, so `entityManagerFactory` is missing
 
-Do not re-debug this as a functional regression without first checking the open issue for starter test fixture isolation. Treat it as a separate test-maintenance slice unless a fresh failure affects the focused UUID7/application-side ID tests or runtime fixtures.
+The configured skips are test-maintenance debt, not evidence that a fresh starter failure is expected. Do not dismiss a new failure as known debt; reproduce it before deciding whether it belongs to fixture isolation or the changed runtime behavior.
 
 ## Reading Order
 

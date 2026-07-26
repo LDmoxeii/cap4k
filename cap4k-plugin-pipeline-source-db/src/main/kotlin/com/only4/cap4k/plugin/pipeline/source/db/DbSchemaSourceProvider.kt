@@ -95,12 +95,19 @@ class DbSchemaSourceProvider : SourceProvider {
                     val name = rows.getString("COLUMN_NAME")
                     val comment = rows.getString("REMARKS") ?: ""
                     val typeName = rows.getString("TYPE_NAME")
+                    val jdbcType = rows.getInt("DATA_TYPE").let { value ->
+                        if (rows.wasNull()) null else value
+                    }
+                    val columnSize = rows.getInt("COLUMN_SIZE").let { value ->
+                        if (rows.wasNull()) null else value
+                    }
                     val columnMetadata = DbColumnAnnotationParser.parse(comment)
                     add(
                         DbColumnSnapshot(
                             name = name,
                             dbType = typeName,
-                            kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE"), typeName),
+                            kotlinType = jdbcType?.let { JdbcTypeMapper.toKotlinType(it, typeName) }
+                                ?: error("missing DATA_TYPE for $tableName.$name"),
                             nullable = rows.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                             defaultValue = rows.getString("COLUMN_DEF"),
                             comment = columnMetadata.cleanedComment,
@@ -113,6 +120,8 @@ class DbSchemaSourceProvider : SourceProvider {
                             idStrategy = columnMetadata.idStrategy,
                             managedRole = columnMetadata.managedRole,
                             inherited = columnMetadata.inherited,
+                            jdbcType = jdbcType,
+                            columnSize = columnSize,
                         )
                     )
                 }

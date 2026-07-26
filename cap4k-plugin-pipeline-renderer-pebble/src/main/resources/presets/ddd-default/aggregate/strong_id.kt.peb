@@ -5,11 +5,15 @@ package {{ packageName }}
 {% endif -%}
 {{ use("com.fasterxml.jackson.annotation.JsonCreator") -}}
 {{ use("com.fasterxml.jackson.annotation.JsonValue") -}}
+{{ use("com.fasterxml.jackson.databind.JsonNode") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.id.StrongId") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.id.StrongIds") -}}
 {{ use("jakarta.persistence.Column") -}}
 {{ use("jakarta.persistence.Embeddable") -}}
 {{ use("java.io.Serializable") -}}
+{% if uuidBacked -%}
+{{ use("java.util.UUID") -}}
+{% endif -%}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -25,26 +29,57 @@ import {{ import }}
 )
 {% endif -%}
 @Embeddable
-class {{ typeName }} protected constructor() : StrongId, Serializable {
-    @Column(name = "value", nullable = false, updatable = false, length = 36)
-    override lateinit var value: String
+class {{ typeName }} protected constructor() : StrongId<{{ valueType }}>, Serializable {
+    @Column(name = "value", nullable = false, updatable = false)
+{% if longBacked -%}
+    override var value: Long = 0L
         protected set
+{% else -%}
+    override lateinit var value: {{ valueType }}
+        protected set
+{% endif %}
 
-    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
-    constructor(value: String) : this() {
-        this.value = StrongIds.requireUuidV7(value, "{{ typeName }}")
+    @JsonCreator(mode = JsonCreator.Mode.DISABLED)
+    private constructor(value: {{ valueType }}) : this() {
+        this.value = value
     }
 
     @JsonValue
-    fun jsonValue(): String = value
+    fun jsonValue(): String = value.toString()
 
-    override fun toString(): String = value
+    override fun toString(): String = value.toString()
 
     companion object {
-        fun parse(value: String): {{ typeName }} = {{ typeName }}(value)
-{% if canGenerateNew %}
-        fun new(): {{ typeName }} = {{ typeName }}(StrongIds.newUuidV7String())
+{% if validationKind == "UUID7" and stringBacked -%}
+        fun of(value: String): {{ typeName }} =
+            {{ typeName }}(StrongIds.requireUuidV7(value, "{{ typeName }}"))
+
+        fun parse(value: String): {{ typeName }} = of(value)
+{% elseif validationKind == "UUID7" and uuidBacked -%}
+        fun of(value: UUID): {{ typeName }} =
+            {{ typeName }}(StrongIds.requireUuidV7(value, "{{ typeName }}"))
+
+        fun parse(value: String): {{ typeName }} =
+            of(UUID.fromString(StrongIds.requireUuidV7(value, "{{ typeName }}")))
+{% elseif validationKind == "SNOWFLAKE" and stringBacked -%}
+        fun of(value: String): {{ typeName }} =
+            {{ typeName }}(StrongIds.requireSnowflake(value, "{{ typeName }}"))
+
+        fun parse(value: String): {{ typeName }} = of(value)
+{% elseif validationKind == "SNOWFLAKE" and longBacked -%}
+        fun of(value: Long): {{ typeName }} =
+            {{ typeName }}(StrongIds.requireSnowflake(value, "{{ typeName }}"))
+
+        fun parse(value: String): {{ typeName }} =
+            of(StrongIds.requireSnowflake(value, "{{ typeName }}").toLong())
 {% endif %}
+
+        @JvmStatic
+        @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
+        fun fromJson(value: JsonNode): {{ typeName }} {
+            require(value.isTextual) { "{{ typeName }} JSON value must be a string" }
+            return parse(value.textValue())
+        }
     }
 
     override fun equals(other: Any?): Boolean =

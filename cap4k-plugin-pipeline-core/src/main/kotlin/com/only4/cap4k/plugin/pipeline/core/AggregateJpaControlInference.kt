@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverterKind
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
+import java.sql.Types
 import java.util.Locale
 
 internal object AggregateJpaControlInference {
@@ -69,11 +70,21 @@ internal object AggregateJpaControlInference {
                         isId = column.name.lowercase(Locale.ROOT) in primaryKeyColumnNames,
                         converterTypeFqn = converter?.typeFqn,
                         converterClassFqn = converter?.converterClassFqn,
+                        columnLength = column.columnSize.takeIf { column.jdbcType in characterJdbcTypes },
                     )
                 },
             )
         }
     }
+
+    private val characterJdbcTypes = setOf(
+        Types.CHAR,
+        Types.VARCHAR,
+        Types.LONGVARCHAR,
+        Types.NCHAR,
+        Types.NVARCHAR,
+        Types.LONGNVARCHAR,
+    )
 
     private fun resolveConverterBinding(
         typeBinding: String?,

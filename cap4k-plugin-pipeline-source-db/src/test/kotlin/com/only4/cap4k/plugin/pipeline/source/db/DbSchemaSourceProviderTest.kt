@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.sql.DriverManager
+import java.sql.Types
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -18,6 +19,56 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DbSchemaSourceProviderTest {
+
+    @Test
+    fun `collect retains jdbc type name and column capacity`() {
+        val url = "jdbc:h2:mem:cap4k-strong-id-metadata;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table strong_id_evidence (
+                        uuid_text varchar(36) not null,
+                        uuid_native uuid not null,
+                        snowflake_text varchar(19) not null,
+                        snowflake_long bigint not null,
+                        primary key (uuid_text)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("strong_id_evidence"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val columns = snapshot.tables.single().columns.associateBy { it.name.lowercase() }
+        assertEquals(Types.CHAR == columns.getValue("uuid_text").jdbcType || Types.VARCHAR == columns.getValue("uuid_text").jdbcType, true)
+        assertEquals(36, columns.getValue("uuid_text").columnSize)
+        assertEquals("UUID", columns.getValue("uuid_native").dbType.uppercase())
+        assertTrue(columns.getValue("uuid_native").jdbcType in setOf(Types.OTHER, Types.BINARY))
+        assertEquals(19, columns.getValue("snowflake_text").columnSize)
+        assertEquals(Types.BIGINT, columns.getValue("snowflake_long").jdbcType)
+    }
 
     @Test
     fun `metadata scope treats mysql database name as catalog`() {
@@ -636,7 +687,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -682,7 +733,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -826,7 +877,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -915,7 +966,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }

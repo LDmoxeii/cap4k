@@ -11,6 +11,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -57,6 +58,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import java.sql.Types
 
 class DefaultCanonicalAssemblerTest {
 
@@ -2861,7 +2863,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(StrongIdKind.OWN_ID, orderId.kind)
         assertEquals("Order", orderId.ownerEntityName)
         assertEquals("uuid7", orderId.idStrategy)
-        assertEquals(true, orderId.canGenerateNew)
         assertEquals(true, orderId.isEmbeddedId)
 
         val lineId = result.model.strongIds.single { it.typeName == "OrderLineId" }
@@ -2869,7 +2870,6 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("OrderLine", lineId.ownerEntityName)
         assertEquals("Order", lineId.ownerAggregateName)
         assertEquals("uuid7", lineId.idStrategy)
-        assertEquals(true, lineId.canGenerateNew)
         assertEquals(true, lineId.isEmbeddedId)
 
         val line = result.model.entities.single { it.name == "OrderLine" }
@@ -2923,7 +2923,7 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals(
-            "primary key video.id must declare @IdStrategy=uuid7 or @IdStrategy=db_identity",
+            "primary key video.id must declare @IdStrategy=uuid7, @IdStrategy=snowflake, or @IdStrategy=db_identity",
             error.message,
         )
     }
@@ -3142,37 +3142,6 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `uuid7 id strategy requires string physical id column`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
-                tables = listOf(
-                    table(
-                        name = "user_message",
-                        columns = listOf(
-                            column(
-                                "id",
-                                "UUID",
-                                "UUID",
-                                false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.UUID7,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
-            )
-        }
-
-        assertEquals(
-            "@IdStrategy=uuid7 currently requires String physical ID column on table user_message.id",
-            error.message,
-        )
-    }
-
-    @Test
     fun `non root primitive ids keep db explicit identity policy semantics`() {
         listOf("identity", "uuid7").forEach { defaultStrategy ->
             val result = assembleAggregate(
@@ -3337,7 +3306,7 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `generated value marker uses DSL default strategy with DB explicit source`() {
         val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake"),
             tables = listOf(
                 table(
                     name = "audit_log",
@@ -3892,7 +3861,7 @@ class DefaultCanonicalAssemblerTest {
     fun `explicit deleted marker overrides DSL default column name`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
-                idDefaultStrategy = "snowflake-long",
+                idDefaultStrategy = "snowflake",
                 deletedDefaultColumn = "deleted",
             ),
             tables = listOf(
@@ -3987,7 +3956,7 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler fails fast when multiple deleted columns are marked explicitly`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
-                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake"),
                 listOf(
                     DbSchemaSnapshot(
                         tables = listOf(
@@ -6170,6 +6139,33 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
     }
 
+    private fun assembleOrderWithId(idColumn: DbColumnSnapshot): CanonicalModel =
+        assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "order",
+                    columns = listOf(idColumn),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            ),
+        ).model
+
+    private fun assertOwnStrongId(
+        model: CanonicalModel,
+        expectedValueType: String,
+        expectedStrategy: String,
+    ) {
+        val strongId = model.strongIds.single { it.kind == StrongIdKind.OWN_ID }
+        assertEquals("OrderId", strongId.typeName)
+        assertEquals(expectedValueType, strongId.valueType)
+        assertEquals(expectedStrategy, strongId.idStrategy)
+        assertEquals("Order", strongId.ownerEntityName)
+        assertEquals("Order", strongId.ownerAggregateName)
+        assertTrue(strongId.isEmbeddedId)
+    }
+
     private fun assembleAggregate(
         config: ProjectConfig,
         tables: List<DbTableSnapshot>,
@@ -6245,6 +6241,8 @@ class DefaultCanonicalAssemblerTest {
         idStrategy: DbIdStrategy? = null,
         managedRole: DbManagedRole? = null,
         inherited: Boolean? = null,
+        jdbcType: Int? = defaultTestJdbcType(dbType),
+        columnSize: Int? = defaultTestColumnSize(dbType),
         // TODO(Task 4 cleanup): these stale relation parameters only keep disabled legacy tests compiling.
         // Active relation-contract tests should use parentRef/refAggregate/refId directly.
         referenceTable: String? = null,
@@ -6266,6 +6264,8 @@ class DefaultCanonicalAssemblerTest {
         idStrategy = idStrategy ?: defaultTestIdStrategy(isPrimaryKey, kotlinType),
         managedRole = managedRole,
         inherited = inherited,
+        jdbcType = jdbcType,
+        columnSize = columnSize,
     )
 
 
@@ -6291,6 +6291,8 @@ class DefaultCanonicalAssemblerTest {
         idStrategy: DbIdStrategy? = null,
         managedRole: DbManagedRole? = null,
         inherited: Boolean? = null,
+        jdbcType: Int? = defaultTestJdbcType(dbType),
+        columnSize: Int? = defaultTestColumnSize(dbType),
     ): DbColumnSnapshot = DbColumnSnapshot(
         name = name,
         dbType = dbType,
@@ -6314,7 +6316,173 @@ class DefaultCanonicalAssemblerTest {
             else -> null
         },
         inherited = inherited,
+        jdbcType = jdbcType,
+        columnSize = columnSize,
     )
+
+    private fun defaultTestJdbcType(dbType: String): Int? = when {
+        dbType.startsWith("VARCHAR", ignoreCase = true) -> Types.VARCHAR
+        dbType.startsWith("CHAR", ignoreCase = true) -> Types.CHAR
+        dbType.equals("UUID", ignoreCase = true) -> Types.OTHER
+        dbType.startsWith("BIGINT", ignoreCase = true) -> Types.BIGINT
+        dbType.startsWith("INTEGER", ignoreCase = true) || dbType.startsWith("INT", ignoreCase = true) -> Types.INTEGER
+        dbType.startsWith("SMALLINT", ignoreCase = true) -> Types.SMALLINT
+        else -> null
+    }
+
+    @Test
+    fun `uuid7 character storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "VARCHAR(36)",
+                    "String",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.UUID7,
+                    jdbcType = Types.VARCHAR,
+                    columnSize = 36,
+                )
+            ),
+            expectedValueType = "String",
+            expectedStrategy = "uuid7",
+        )
+    }
+
+    @Test
+    fun `uuid7 native storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "UUID",
+                    "java.util.UUID",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.UUID7,
+                    jdbcType = Types.OTHER,
+                    columnSize = 16,
+                )
+            ),
+            expectedValueType = "UUID",
+            expectedStrategy = "uuid7",
+        )
+    }
+
+    @Test
+    fun `snowflake character storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "VARCHAR(19)",
+                    "String",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.SNOWFLAKE,
+                    jdbcType = Types.VARCHAR,
+                    columnSize = 19,
+                )
+            ),
+            expectedValueType = "String",
+            expectedStrategy = "snowflake",
+        )
+    }
+
+    @Test
+    fun `snowflake bigint storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "BIGINT",
+                    "Long",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.SNOWFLAKE,
+                    jdbcType = Types.BIGINT,
+                    columnSize = 64,
+                )
+            ),
+            expectedValueType = "Long",
+            expectedStrategy = "snowflake",
+        )
+    }
+
+    @Test
+    fun `application side own id rejects missing jdbc evidence`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleOrderWithId(
+                column(
+                    "id",
+                    "VARCHAR(36)",
+                    "String",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.UUID7,
+                    jdbcType = null,
+                    columnSize = 36,
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("missing jdbcType"))
+    }
+
+    @Test
+    fun `aggregate reference rejects storage that differs from root backing`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "order",
+                        columns = listOf(
+                            column(
+                                "id",
+                                "UUID",
+                                "java.util.UUID",
+                                false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.UUID7,
+                            )
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "shipment",
+                        columns = listOf(
+                            column("id", "VARCHAR(36)", "String", false, primaryKey = true),
+                            column(
+                                "order_id",
+                                "VARCHAR(36)",
+                                "String",
+                                false,
+                                refAggregate = "Order",
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("aggregate reference shipment.order_id storage String"))
+        assertTrue(error.message!!.contains("does not match OrderId backing UUID"))
+    }
+
+    private fun defaultTestColumnSize(dbType: String): Int? {
+        Regex("\\((\\d+)\\)").find(dbType)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+        return when {
+            dbType.startsWith("VARCHAR", ignoreCase = true) || dbType.startsWith("CHAR", ignoreCase = true) -> 255
+            dbType.equals("UUID", ignoreCase = true) -> 16
+            dbType.startsWith("BIGINT", ignoreCase = true) -> 64
+            dbType.startsWith("INTEGER", ignoreCase = true) || dbType.startsWith("INT", ignoreCase = true) -> 32
+            dbType.startsWith("SMALLINT", ignoreCase = true) -> 16
+            else -> null
+        }
+    }
 
     private fun defaultTestIdStrategy(
         primaryKey: Boolean,
@@ -6357,7 +6525,7 @@ class DefaultCanonicalAssemblerTest {
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                idDefaultStrategy = "snowflake-long",
+                idDefaultStrategy = "snowflake",
             ),
         )
     }
@@ -6378,7 +6546,7 @@ class DefaultCanonicalAssemblerTest {
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
             aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                idDefaultStrategy = "snowflake-long",
+                idDefaultStrategy = "snowflake",
             ),
         )
     }

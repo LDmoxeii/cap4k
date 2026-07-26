@@ -6,7 +6,6 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.command.Command
-import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
@@ -140,7 +139,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
         jdbcTemplate.update("delete from `runtime_grandchild`")
         jdbcTemplate.update("delete from `runtime_child`")
         jdbcTemplate.update("delete from `runtime_root`")
-        jdbcTemplate.update("delete from `runtime_application_side_long_root`")
         JpaUnitOfWork.reset()
     }
 
@@ -164,41 +162,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
             },
             knownDefect = { failure ->
                 failure.hasCause<IdentifierGenerationException>() ||
-                    failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure is AssertionError
-            }
-        )
-
-        assertSupported(classification)
-    }
-
-    @Test
-    @DisplayName("preassigned application-side id is preserved for a new root")
-    fun preassignedApplicationSideIdIsPreservedForNewRoot() {
-        val preassignedId = 9_001_001L
-
-        val classification = classifyRuntimeBehavior(
-            label = "preassigned application-side generated id",
-            desiredContract = {
-                val root = RuntimeApplicationSideLongRoot(id = preassignedId, name = "preassigned-id")
-                unitOfWork.persist(root, PersistIntent.CREATE)
-                unitOfWork.save()
-                assertEquals(
-                    1,
-                    countRows(
-                        "select count(*) from `runtime_application_side_long_root` where `id` = ?",
-                        preassignedId
-                    ),
-                    "A preassigned id should be inserted"
-                )
-                assertEquals(
-                    preassignedId,
-                    queryLong("select `id` from `runtime_application_side_long_root` where `id` = ?", preassignedId)
-                )
-            },
-            knownDefect = { failure ->
-                failure.hasCause<PersistentObjectException>() ||
-                    failure.hasCause<IdentifierGenerationException>() ||
                     failure.hasCause<jakarta.persistence.PersistenceException>() ||
                     failure is AssertionError
             }
@@ -933,19 +896,6 @@ open class RuntimeFkMirrorChild(id: Long = 0L, rootId: Long = 0L, name: String =
 interface RuntimeRootJpaRepository :
     JpaRepository<RuntimeRoot, Long>,
     JpaSpecificationExecutor<RuntimeRoot>
-
-@Entity
-@Table(name = "`runtime_application_side_long_root`")
-open class RuntimeApplicationSideLongRoot(id: Long = 0L, name: String = "") {
-    @Id
-    @ApplicationSideId(strategy = "snowflake")
-    @Column(name = "`id`", nullable = false, updatable = false)
-    open var id: Long = id
-        protected set
-
-    @Column(name = "`name`", nullable = false)
-    open var name: String = name
-}
 
 interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, Long>
 

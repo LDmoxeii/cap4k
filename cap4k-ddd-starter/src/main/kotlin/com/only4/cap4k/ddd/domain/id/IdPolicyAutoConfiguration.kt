@@ -1,10 +1,13 @@
 package com.only4.cap4k.ddd.domain.id
 
 import com.only4.cap4k.ddd.core.domain.id.DefaultIdentifierGenerator
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
 import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -34,4 +37,9 @@ class IdPolicyAutoConfiguration {
     @ConditionalOnMissingBean
     fun identifierGenerator(identifierStrategyRegistry: IdentifierStrategyRegistry): IdentifierGenerator =
         DefaultIdentifierGenerator(identifierStrategyRegistry)
+
+    @Bean
+    @ConditionalOnMissingBean(GeneratedOwnIdRegistry::class)
+    fun generatedOwnIdRegistry(catalogs: List<GeneratedOwnIdCatalog>): GeneratedOwnIdRegistry =
+        MapBackedGeneratedOwnIdRegistry(catalogs)
 }

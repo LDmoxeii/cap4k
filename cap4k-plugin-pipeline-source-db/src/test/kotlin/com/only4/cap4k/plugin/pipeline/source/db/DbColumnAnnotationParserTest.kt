@@ -36,6 +36,23 @@ class DbColumnAnnotationParserTest {
     }
 
     @Test
+    fun `parses canonical snowflake id strategy`() {
+        val metadata = DbColumnAnnotationParser.parse("primary key @IdStrategy=snowflake;")
+
+        assertEquals(DbIdStrategy.SNOWFLAKE, metadata.idStrategy)
+        assertEquals("primary key", metadata.cleanedComment)
+    }
+
+    @Test
+    fun `unsupported annotation diagnostics list canonical id strategies`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DbColumnAnnotationParser.parse("@Unknown=value;")
+        }
+
+        assertTrue(error.message!!.contains("@IdStrategy=db_identity|uuid7|snowflake"))
+    }
+
+    @Test
     fun `column parser accepts type ref aggregate managed and inherited`() {
         val metadata = DbColumnAnnotationParser.parse(
             "status @Type=VideoPostVisibility;@RefAggregate=VideoPost;@Managed=system;@Inherited;"
@@ -65,7 +82,7 @@ class DbColumnAnnotationParserTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Reference. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Reference. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -108,7 +125,7 @@ class DbColumnAnnotationParserTest {
         }
 
         assertEquals(
-            "unsupported column annotation @CustomMarker. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @CustomMarker. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -138,15 +155,6 @@ class DbColumnAnnotationParserTest {
         }
 
         assertEquals("unsupported @IdStrategy value: sequence", error.message)
-    }
-
-    @Test
-    fun `column parser rejects unsupported application side id strategy`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbColumnAnnotationParser.parse("@IdStrategy=snowflake-long;")
-        }
-
-        assertEquals("unsupported @IdStrategy value: snowflake-long", error.message)
     }
 
     @Test

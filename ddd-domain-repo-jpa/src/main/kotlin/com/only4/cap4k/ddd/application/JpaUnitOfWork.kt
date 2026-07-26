@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.application
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategyRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdentifierStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
@@ -122,25 +122,13 @@ open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
-    idStrategyRegistry: IdentifierStrategyRegistry = MapBackedIdentifierStrategyRegistry(emptyList()),
+    generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
 ) : UnitOfWork, JpaRepositoryObservationRecorder {
-
-    constructor(
-        uowInterceptors: List<UnitOfWorkInterceptor>,
-        persistListenerManager: PersistListenerManager,
-        supportEntityInlinePersistListener: Boolean,
-    ) : this(
-        uowInterceptors,
-        persistListenerManager,
-        supportEntityInlinePersistListener,
-        MapBackedIdentifierStrategyRegistry(emptyList()),
-    )
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
 
-    private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
-    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport()
+    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport(generatedOwnIdRegistry)
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
     private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
         get() = repositoryObservationBaselineThreadLocal.get()
@@ -248,20 +236,20 @@ open class JpaUnitOfWork(
 
     override fun save(propagation: Propagation) {
         val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
-        val pendingEntries = pendingEntriesThreadLocal.get().drain()
-        pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
-
-        val persistEntitySet = pendingEntries
-            .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
-            .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-        val deleteEntitySet = pendingEntries
-            .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
-            .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-
         try {
-            prepareApplicationSideIds(pendingEntries)
+            val drainedEntries = pendingEntriesThreadLocal.get().drain()
+            val pendingEntries = reconcilePendingOwnedChildren(drainedEntries)
+            pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
+
+            val persistEntitySet = pendingEntries
+                .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
+                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
+            val deleteEntitySet = pendingEntries
+                .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
+                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
+
+            completeGeneratedOwnIds(pendingEntries)
             validateSameIdentityConflicts(pendingEntries)
-            validatePendingOwnedChildConflicts(pendingEntries)
             uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
             save(
@@ -275,8 +263,10 @@ open class JpaUnitOfWork(
             ) { input ->
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
-                validatePendingOwnedChildConflicts(input.entries)
-                prepareApplicationSideIds(input.entries)
+                val lateOwnership = analyzePendingOwnership(input.entries)
+                validateNoSharedReachableOwnership(input.entries, lateOwnership)
+                validateNoLatePendingOwnedChildEntries(input.entries)
+                completeGeneratedOwnIds(input.entries)
 
                 input.entries.forEach { entry ->
                     when (entry.kind) {
@@ -312,20 +302,17 @@ open class JpaUnitOfWork(
         }
     }
 
-    private fun prepareApplicationSideIds(entries: List<UnitOfWorkEntry>) {
+    private fun completeGeneratedOwnIds(entries: List<UnitOfWorkEntry>) {
         entries.forEach(::completeIdsForEntry)
     }
 
     private fun completeIdsForEntry(entry: UnitOfWorkEntry) {
         when (entry.kind) {
-            UnitOfWorkEntryKind.CREATE -> {
-                applicationSideIdSupport.assignMissingIds(entry.entity)
+            UnitOfWorkEntryKind.CREATE ->
                 generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
-            }
             UnitOfWorkEntryKind.EXISTING -> {
                 validateExistingEvidence(entry.entity)
                 validateObservedIdentityConsistency(entry.entity)
-                applicationSideIdSupport.assignMissingIdsToOwnedRelations(entry.entity)
                 generatedStrongIdSupport.completeExisting(
                     root = entry.entity,
                     traversal = ownedRelationTraversal,
@@ -368,7 +355,127 @@ open class JpaUnitOfWork(
         }
     }
 
-    private fun validatePendingOwnedChildConflicts(entries: List<UnitOfWorkEntry>) {
+    private data class PendingOwnership(
+        val ownersByChildIndex: Map<Int, Set<Int>>,
+        val reachableByOwnerIndex: Map<Int, List<Any>>,
+        val reachableOwnerships: List<ReachableOwnership>,
+    )
+
+    private data class ReachableOwnership(
+        val entity: Any,
+        val ownerIndexes: Set<Int>,
+    )
+
+    private fun analyzePendingOwnership(entries: List<UnitOfWorkEntry>): PendingOwnership {
+        val activeIndexes = entries.indices.filter { index ->
+            entries[index].kind == UnitOfWorkEntryKind.CREATE ||
+                entries[index].kind == UnitOfWorkEntryKind.EXISTING
+        }
+        val reachableByOwner = activeIndexes.associateWith { index ->
+            ownedRelationTraversal.reachableOwnedEntities(entries[index].entity)
+        }
+        val ownersByChild = linkedMapOf<Int, LinkedHashSet<Int>>()
+
+        activeIndexes.forEach { ownerIndex ->
+            val descendants = reachableByOwner.getValue(ownerIndex).drop(1)
+            activeIndexes.filter { it != ownerIndex }.forEach { childIndex ->
+                if (descendants.any { samePersistentEntity(it, entries[childIndex].entity) }) {
+                    ownersByChild.getOrPut(childIndex, ::linkedSetOf).add(ownerIndex)
+                }
+            }
+        }
+
+        val reachableEntities = mutableListOf<Any>()
+        reachableByOwner.values.forEach { reachable ->
+            reachable.drop(1).forEach { entity ->
+                if (reachableEntities.none { samePersistentEntity(it, entity) }) {
+                    reachableEntities += entity
+                }
+            }
+        }
+        val reachableOwnerships = reachableEntities.map { entity ->
+            ReachableOwnership(
+                entity = entity,
+                ownerIndexes = activeIndexes.filterTo(linkedSetOf()) { ownerIndex ->
+                    reachableByOwner.getValue(ownerIndex).any { samePersistentEntity(it, entity) }
+                },
+            )
+        }
+
+        return PendingOwnership(ownersByChild, reachableByOwner, reachableOwnerships)
+    }
+
+    private fun outermostOwners(
+        ownerIndexes: Set<Int>,
+        entries: List<UnitOfWorkEntry>,
+        reachableByOwnerIndex: Map<Int, List<Any>>,
+    ): List<Int> = ownerIndexes.filter { candidateIndex ->
+        ownerIndexes.none { otherIndex ->
+            otherIndex != candidateIndex &&
+                reachableByOwnerIndex.getValue(otherIndex).drop(1).any {
+                    samePersistentEntity(it, entries[candidateIndex].entity)
+                }
+        }
+    }
+
+    private fun reconcilePendingOwnedChildren(entries: List<UnitOfWorkEntry>): List<UnitOfWorkEntry> {
+        val ownership = analyzePendingOwnership(entries)
+        validateNoSharedReachableOwnership(entries, ownership)
+        validateNoPendingOwnedChildRemoval(entries, ownership.reachableByOwnerIndex)
+        val absorbedIndexes = linkedSetOf<Int>()
+
+        ownership.ownersByChildIndex.forEach { (childIndex, ownerIndexes) ->
+            val outermost = outermostOwners(
+                ownerIndexes = ownerIndexes,
+                entries = entries,
+                reachableByOwnerIndex = ownership.reachableByOwnerIndex,
+            )
+            check(outermost.size == 1) {
+                val childType = persistentEntityClass(entries[childIndex].entity).name
+                val roots = outermost.joinToString { persistentEntityClass(entries[it].entity).name }
+                "pending owned child $childType is reachable from multiple unrelated pending roots: $roots"
+            }
+            absorbedIndexes += childIndex
+        }
+
+        return entries.filterIndexed { index, _ -> index !in absorbedIndexes }
+    }
+
+    private fun validateNoSharedReachableOwnership(
+        entries: List<UnitOfWorkEntry>,
+        ownership: PendingOwnership,
+    ) {
+        ownership.reachableOwnerships.forEach { reachableOwnership ->
+            val outermost = outermostOwners(
+                ownerIndexes = reachableOwnership.ownerIndexes,
+                entries = entries,
+                reachableByOwnerIndex = ownership.reachableByOwnerIndex,
+            )
+            check(outermost.size <= 1) {
+                val childType = persistentEntityClass(reachableOwnership.entity).name
+                val roots = outermost.joinToString { persistentEntityClass(entries[it].entity).name }
+                "pending owned child $childType is reachable from multiple unrelated pending roots: $roots"
+            }
+        }
+    }
+
+    private fun validateNoPendingOwnedChildRemoval(
+        entries: List<UnitOfWorkEntry>,
+        reachableByOwnerIndex: Map<Int, List<Any>>,
+    ) {
+        val removeIndexes = entries.indices.filter { entries[it].kind == UnitOfWorkEntryKind.REMOVE }
+        removeIndexes.forEach { removeIndex ->
+            val owners = reachableByOwnerIndex.filterValues { reachable ->
+                reachable.drop(1).any { samePersistentEntity(it, entries[removeIndex].entity) }
+            }.keys
+            check(owners.isEmpty()) {
+                "UnitOfWork.remove cannot register an owned child while its aggregate root is pending: " +
+                    persistentEntityClass(entries[removeIndex].entity).name
+            }
+        }
+    }
+
+    private fun validateNoLatePendingOwnedChildEntries(entries: List<UnitOfWorkEntry>) {
         val rootEntries = entries.filter {
             it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
         }
@@ -381,12 +488,7 @@ open class JpaUnitOfWork(
                 .filterNot { it === traversalRoot }
                 .forEach { child ->
                     if (entries.any { samePersistentEntity(it.entity, child) }) {
-                        error(
-                            "UnitOfWork cannot register generated owned child " +
-                                "${persistentEntityClass(child).name} as a separate public UnitOfWork target " +
-                                "while aggregate root ${persistentEntityClass(rootEntry.entity).name} is pending; " +
-                                "persist the aggregate root only"
-                        )
+                        error("pending ownership changed after UnitOfWork interceptor input was constructed")
                     }
                 }
         }
@@ -399,12 +501,6 @@ open class JpaUnitOfWork(
     }
 
     private fun identityOf(entity: Any): EntityIdentity? {
-        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
-            if (applicationSideIdSupport.isDefaultId(member, entity)) return null
-            val id = member.get(entity) ?: return null
-            return EntityIdentity(member.ownerType, id)
-        }
-
         val entityClass = persistentEntityClass(entity)
         val entityInformation = getEntityInformation(entityClass)
         if (entityInformation.isNew(entity)) return null
@@ -413,17 +509,10 @@ open class JpaUnitOfWork(
     }
 
     private fun applyCreate(entity: Any, results: FlushResult) {
-        validateCreateApplicationSideId(entity)
         val entityClass = persistentEntityClass(entity)
-        val refreshRequired =
-            applicationSideIdSupport.findApplicationSideId(entity) == null &&
-                getEntityInformation(entityClass).isNew(entity)
-        if (!entityManager.contains(entity)) {
-            entityManager.persist(entity)
-        }
-        if (refreshRequired) {
-            results.refreshList.add(entity)
-        }
+        val refreshRequired = getEntityInformation(entityClass).isNew(entity)
+        if (!entityManager.contains(entity)) entityManager.persist(entity)
+        if (refreshRequired) results.refreshList.add(entity)
         results.created.add(entity)
         results.needsFlush = true
     }
@@ -447,23 +536,7 @@ open class JpaUnitOfWork(
         results.needsFlush = true
     }
 
-    private fun validateCreateApplicationSideId(entity: Any) {
-        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
-            check(!applicationSideIdSupport.isDefaultId(member, entity)) {
-                "Application-side ID remains default after assignment: " +
-                    "${member.ownerType.name}.${member.field.name}"
-            }
-        }
-    }
-
     private fun validateExistingRootIdentified(entity: Any) {
-        applicationSideIdSupport.findApplicationSideId(entity)?.let { member ->
-            check(!applicationSideIdSupport.isDefaultId(member, entity)) {
-                "Existing-intent application-side ID is default: ${member.ownerType.name}.${member.field.name}"
-            }
-            return
-        }
-
         val entityClass = persistentEntityClass(entity)
         check(!getEntityInformation(entityClass).isNew(entity)) {
             "Existing-intent entity appears new: ${entity.javaClass.name}"

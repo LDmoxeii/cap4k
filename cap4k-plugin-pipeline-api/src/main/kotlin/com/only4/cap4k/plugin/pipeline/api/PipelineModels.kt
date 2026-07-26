@@ -42,6 +42,7 @@ enum class DbManagedRole {
 enum class DbIdStrategy {
     DB_IDENTITY,
     UUID7,
+    SNOWFLAKE,
 }
 
 data class DbColumnSnapshot(
@@ -60,6 +61,8 @@ data class DbColumnSnapshot(
     val idStrategy: DbIdStrategy? = null,
     val managedRole: DbManagedRole? = null,
     val inherited: Boolean? = null,
+    val jdbcType: Int? = null,
+    val columnSize: Int? = null,
 )
 
 /**
@@ -331,6 +334,7 @@ data class AggregateColumnJpaModel(
     val isId: Boolean,
     val converterTypeFqn: String? = null,
     val converterClassFqn: String? = converterTypeFqn?.let { "$it.Converter" },
+    val columnLength: Int? = null,
 )
 
 data class AggregateEntityJpaModel(
@@ -579,7 +583,6 @@ data class StrongIdModel(
     val ownerAggregateName: String? = null,
     val ownerAggregatePackageName: String? = null,
     val idStrategy: String? = null,
-    val canGenerateNew: Boolean = false,
     val isEmbeddedId: Boolean = false,
 )
 

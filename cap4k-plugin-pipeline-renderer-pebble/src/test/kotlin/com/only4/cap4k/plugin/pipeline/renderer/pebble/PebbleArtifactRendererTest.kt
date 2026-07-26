@@ -555,8 +555,51 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate factory template renders strong id constructor mapping`() {
-        val content = renderTemplate(
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate templates omit generated own id construction and compile`() {
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.content",
+                "typeName" to "Content",
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "content"),
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasEmbeddedIdFields" to true,
+                "hasVersionFields" to false,
+                "hasConverterFields" to false,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.ContentId",
+                    "com.acme.demo.domain.shared.ids.AuthorId",
+                ),
+                "constructorFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false, "defaultValue" to null),
+                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false, "defaultValue" to null),
+                ),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "ContentId",
+                        "nullable" to false,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "strongId" to true,
+                        "embeddedId" to true,
+                        "generatedOwnId" to true,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to false,
+                    ),
+                    mapOf("name" to "title", "type" to "String", "nullable" to false, "columnName" to "title"),
+                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false, "columnName" to "author_id"),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+        val factoryContent = renderTemplate(
             templateId = "aggregate/factory.kt.peb",
             outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/factory/ContentFactory.kt",
             context = mapOf(
@@ -574,43 +617,105 @@ class PebbleArtifactRendererTest {
                     mapOf("name" to "title"),
                     mapOf("name" to "authorId"),
                 ),
-                "ownIdFieldName" to "id",
-                "ownIdInitializer" to "ContentId.new()",
-                "ownIdTypeRef" to "com.acme.demo.domain.aggregates.content.ContentId",
                 "entityName" to "Content",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
                 "aggregateName" to "Content",
                 "imports" to listOf(
-                    "com.acme.demo.domain.aggregates.content.ContentId",
                     "com.acme.demo.domain.shared.ids.AuthorId",
                 ),
             ),
         )
 
-        assertReadableKotlin(content)
-        assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
-        assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
-        assertTrue(content.contains("override fun create(entityPayload: Payload): Content ="))
-        assertTrue(content.contains("Content("))
+        assertReadableKotlin(entityContent)
+        assertReadableKotlin(factoryContent)
+        assertTrue(entityContent.contains("class Content internal constructor(\n    title: String,\n    authorId: AuthorId\n)"))
+        assertTrue(entityContent.contains("lateinit var id: ContentId\n        internal set"))
+        assertFalse(factoryContent.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
+        assertTrue(factoryContent.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(factoryContent.contains("override fun create(entityPayload: Payload): Content ="))
+        assertTrue(factoryContent.contains("Content("))
         assertTrue(
-            content.normalizedLineEndings().contains(
+            factoryContent.normalizedLineEndings().contains(
                 "override fun create(entityPayload: Payload): Content =\n        Content("
             )
         )
-        assertTrue(content.contains("id = ContentId.new()"))
-        assertTrue(content.contains("title = entityPayload.title"))
-        assertTrue(content.contains("authorId = entityPayload.authorId"))
-        assertTrue(content.contains("data class Payload("))
-        assertTrue(content.contains("val title: String,"))
-        assertTrue(content.contains("val authorId: AuthorId"))
-        assertTrue(content.contains(") : AggregatePayload<Content>"))
-        assertFalse(Regex("""data class Payload\(\n\n""").containsMatchIn(content))
-        assertFalse(Regex("""val title: String,\n\n\s*val authorId""").containsMatchIn(content))
-        assertFalse(content.normalizedLineEndings().contains("    )\n\n\n    data class Payload("))
-        assertFalse(content.normalizedLineEndings().contains("=\nContent("))
-        assertFalse(content.contains("AuthorId.new()"))
-        assertFalse(content.contains("TODO(\"Implement aggregate construction\")"))
-        assertFalse(content.contains("val id: ContentId"))
+        assertFalse(factoryContent.contains("id ="))
+        assertFalse(factoryContent.contains(".new()"))
+        assertTrue(factoryContent.contains("title = entityPayload.title"))
+        assertTrue(factoryContent.contains("authorId = entityPayload.authorId"))
+        assertTrue(factoryContent.contains("data class Payload("))
+        assertTrue(factoryContent.contains("val title: String,"))
+        assertTrue(factoryContent.contains("val authorId: AuthorId"))
+        assertFalse(factoryContent.contains("val id: ContentId"))
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("Content.kt", entityContent),
+                SourceFile.kotlin("ContentFactory.kt", factoryContent),
+                SourceFile.kotlin(
+                    "AggregateContracts.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.aggregate
+
+                    interface AggregatePayload<ENTITY : Any>
+                    interface AggregateFactory<PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> {
+                        fun create(entityPayload: PAYLOAD): ENTITY
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Service.kt",
+                    """
+                    package org.springframework.stereotype
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Service
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Jpa.kt",
+                    """
+                    package jakarta.persistence
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Entity
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Table(val name: String)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class EmbeddedId
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class AttributeOverride(val name: String, val column: Column)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Column(
+                        val name: String,
+                        val nullable: Boolean = true,
+                        val insertable: Boolean = true,
+                        val updatable: Boolean = true,
+                    )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Ids.kt",
+                    """
+                    package com.acme.demo.domain.aggregates.content
+
+                    class ContentId
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "AuthorId.kt",
+                    """
+                    package com.acme.demo.domain.shared.ids
+
+                    class AuthorId
+                    """.trimIndent(),
+                ),
+            )
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
 
     @Test
@@ -884,51 +989,719 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `aggregate strong id template renders embeddable validated wrapper`() {
-        val content = renderTemplate(
-            templateId = "aggregate/strong_id.kt.peb",
-            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt",
-            context = mapOf(
-                "packageName" to "com.acme.demo.domain.aggregates.content",
-                "typeName" to "ContentId",
-                "kind" to "OWN_ID",
-                "canGenerateNew" to true,
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `generated strong id consumer matrix compiles`() {
+        data class MatrixCell(
+            val packageName: String,
+            val entityName: String,
+            val idTypeName: String,
+            val idFieldName: String,
+            val strategy: String,
+            val valueType: String,
+            val validationKind: String,
+            val stringBacked: Boolean,
+            val uuidBacked: Boolean,
+            val longBacked: Boolean,
+        )
+
+        val cells = listOf(
+            MatrixCell(
+                packageName = "com.acme.demo.domain.orders",
+                entityName = "Order",
+                idTypeName = "OrderId",
+                idFieldName = "id",
+                strategy = "uuid7",
+                valueType = "String",
+                validationKind = "UUID7",
+                stringBacked = true,
+                uuidBacked = false,
+                longBacked = false,
+            ),
+            MatrixCell(
+                packageName = "com.acme.demo.domain.payments",
+                entityName = "Payment",
+                idTypeName = "PaymentId",
+                idFieldName = "id",
+                strategy = "uuid7",
+                valueType = "UUID",
+                validationKind = "UUID7",
+                stringBacked = false,
+                uuidBacked = true,
+                longBacked = false,
+            ),
+            MatrixCell(
+                packageName = "com.acme.demo.domain.orders.lines",
+                entityName = "OrderLine",
+                idTypeName = "OrderLineId",
+                idFieldName = "id",
+                strategy = "snowflake",
+                valueType = "Long",
+                validationKind = "SNOWFLAKE",
+                stringBacked = false,
+                uuidBacked = false,
+                longBacked = true,
+            ),
+            MatrixCell(
+                packageName = "com.acme.demo.domain.shipments",
+                entityName = "Shipment",
+                idTypeName = "ShipmentId",
+                idFieldName = "id",
+                strategy = "snowflake",
+                valueType = "String",
+                validationKind = "SNOWFLAKE",
+                stringBacked = true,
+                uuidBacked = false,
+                longBacked = false,
             ),
         )
 
-        assertReadableKotlin(content)
-        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
-        assertTrue(content.contains("@Embeddable"))
-        assertTrue(content.contains("class ContentId protected constructor() : StrongId, Serializable"))
-        assertTrue(content.contains("""@Column(name = "value", nullable = false, updatable = false, length = 36)"""))
-        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
-        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "ContentId")"""))
-        assertTrue(content.contains("fun parse(value: String): ContentId = ContentId(value)"))
-        assertTrue(content.contains("fun new(): ContentId = ContentId(StrongIds.newUuidV7String())"))
+        fun renderStrongId(cell: MatrixCell): String = renderTemplate(
+            templateId = "aggregate/strong_id.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idTypeName}.kt",
+            context = mapOf(
+                "packageName" to cell.packageName,
+                "typeName" to cell.idTypeName,
+                "valueType" to cell.valueType,
+                "validationKind" to cell.validationKind,
+                "stringBacked" to cell.stringBacked,
+                "uuidBacked" to cell.uuidBacked,
+                "longBacked" to cell.longBacked,
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        fun renderAccessor(cell: MatrixCell): String = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}GeneratedOwnIdAccessor.kt",
+            context = mapOf(
+                "packageName" to cell.packageName,
+                "typeName" to "${cell.entityName}GeneratedOwnIdAccessor",
+                "entityName" to cell.entityName,
+                "entityFqn" to "${cell.packageName}.${cell.entityName}",
+                "idFieldName" to cell.idFieldName,
+                "idTypeName" to cell.idTypeName,
+                "idTypeFqn" to "${cell.packageName}.${cell.idTypeName}",
+                "label" to "${cell.entityName}.${cell.idFieldName}",
+                "strategy" to cell.strategy,
+                "backingType" to cell.valueType,
+                "backingTypeFqn" to if (cell.uuidBacked) "java.util.UUID" else null,
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        fun renderEntity(cell: MatrixCell, relations: List<Map<String, Any?>> = emptyList()): String =
+            renderTemplate(
+                templateId = "aggregate/entity.kt.peb",
+                outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}.kt",
+                context = mapOf(
+                    "packageName" to cell.packageName,
+                    "typeName" to cell.entityName,
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to true,
+                        "tableName" to cell.entityName.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase(),
+                    ),
+                    "hasStrongIdFields" to true,
+                    "hasEmbeddedStrongIdFields" to false,
+                    "hasGeneratedValueFields" to false,
+                    "hasEmbeddedIdFields" to true,
+                    "hasVersionFields" to false,
+                    "hasConverterFields" to false,
+                    "softDelete" to mapOf("enabled" to false),
+                    "jpaImports" to if (relations.isEmpty()) emptyList() else listOf(
+                        "jakarta.persistence.CascadeType",
+                        "jakarta.persistence.FetchType",
+                        "jakarta.persistence.JoinColumn",
+                        "jakarta.persistence.OneToMany",
+                        "jakarta.persistence.Transient",
+                    ),
+                    "imports" to if (relations.isEmpty()) emptyList() else listOf(
+                        "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
+                    ),
+                    "constructorFields" to emptyList<Map<String, Any?>>(),
+                    "scalarFields" to listOf(
+                        mapOf(
+                            "name" to cell.idFieldName,
+                            "type" to cell.idTypeName,
+                            "nullable" to false,
+                            "columnName" to "id",
+                            "isId" to true,
+                            "strongId" to true,
+                            "embeddedId" to true,
+                            "generatedOwnId" to true,
+                            "attributeOverrideNullable" to false,
+                            "attributeOverrideInsertable" to null,
+                            "attributeOverrideUpdatable" to false,
+                        ),
+                    ),
+                    "relationFields" to relations,
+                ),
+            )
+
+        val orderRelations = listOf(
+            mapOf(
+                "name" to "lines",
+                "targetTypeRef" to "com.acme.demo.domain.orders.lines.OrderLine",
+                "relationType" to "ONE_TO_MANY",
+                "fetchType" to "LAZY",
+                "joinColumn" to "order_id",
+                "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                "orphanRemoval" to true,
+                "joinColumnNullable" to false,
+                "owned" to true,
+                "ownedCardinality" to "MANY",
+                "domainName" to "lines",
+                "backingCollectionName" to "_lines",
+                "singleAccessorName" to null,
+                "generatedOwnIdAccessorFqn" to
+                    "com.acme.demo.domain.orders.lines.OrderLineGeneratedOwnIdAccessor",
+            ),
+            mapOf(
+                "name" to "shipments",
+                "targetTypeRef" to "com.acme.demo.domain.shipments.Shipment",
+                "relationType" to "ONE_TO_MANY",
+                "fetchType" to "LAZY",
+                "joinColumn" to "order_id",
+                "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                "orphanRemoval" to true,
+                "joinColumnNullable" to false,
+                "owned" to true,
+                "ownedCardinality" to "ONE",
+                "domainName" to "shipment",
+                "backingCollectionName" to "_shipments",
+                "singleAccessorName" to "shipment",
+                "generatedOwnIdAccessorFqn" to
+                    "com.acme.demo.domain.shipments.ShipmentGeneratedOwnIdAccessor",
+            ),
+        )
+        val entitySources = cells.map { cell ->
+            renderEntity(cell, if (cell.entityName == "Order") orderRelations else emptyList())
+        }
+        val strongIdSources = cells.map(::renderStrongId)
+        val accessorSources = cells.map(::renderAccessor)
+        val factorySource = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/orders/factory/OrderFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.orders.factory",
+                "typeName" to "OrderFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "OrderPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to true,
+                "payloadFields" to emptyList<Map<String, Any?>>(),
+                "constructorPayloadFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "Order",
+                "entityTypeFqn" to "com.acme.demo.domain.orders.Order",
+                "aggregateName" to "Order",
+                "imports" to emptyList<String>(),
+            ),
+        )
+        val catalogFqn = "com.acme.demo.domain._share.identity.GeneratedOwnIdCatalogContribution"
+        val catalogSource = renderTemplate(
+            templateId = "aggregate/generated_own_id_catalog.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${catalogFqn.replace('.', '/')}.kt",
+            context = mapOf(
+                "packageName" to catalogFqn.substringBeforeLast('.'),
+                "typeName" to catalogFqn.substringAfterLast('.'),
+                "beanName" to "com.acme.demo.domain._share.identity.generatedOwnIdCatalogContribution",
+                "accessors" to cells.map { cell ->
+                    mapOf("fqn" to "${cell.packageName}.${cell.entityName}GeneratedOwnIdAccessor")
+                },
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertTrue(entitySources[0].contains("class Order internal constructor(\n)"))
+        assertTrue(entitySources[2].contains("class OrderLine internal constructor(\n)"))
+        assertFalse(factorySource.contains("OrderId"))
+        assertFalse(factorySource.contains("id ="))
+        assertFalse(factorySource.contains("Mediator.identifiers"))
+        assertTrue(
+            entitySources[0].contains(
+                "com.acme.demo.domain.orders.lines.OrderLineGeneratedOwnIdAccessor.assignIfMissing(entity)"
+            )
+        )
+        assertTrue(
+            entitySources[0].contains(
+                "com.acme.demo.domain.shipments.ShipmentGeneratedOwnIdAccessor.assignIfMissing(entity)"
+            )
+        )
+        assertTrue(catalogSource.contains("class GeneratedOwnIdCatalogContribution : GeneratedOwnIdCatalog"))
+        assertFalse(catalogSource.contains("GeneratedOwnIdCatalogContributionImpl"))
+
+        val boundaryFixtures = listOf(
+            """
+            package com.fasterxml.jackson.annotation
+
+            @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
+            annotation class JsonCreator(val mode: Mode = Mode.DEFAULT) {
+                enum class Mode { DEFAULT, DELEGATING, DISABLED }
+            }
+            @Target(AnnotationTarget.FUNCTION)
+            annotation class JsonValue
+            """.trimIndent(),
+            """
+            package com.fasterxml.jackson.databind
+
+            class JsonNode {
+                val isTextual: Boolean = true
+                fun textValue(): String = ""
+            }
+            """.trimIndent(),
+            """
+            package jakarta.persistence
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Embeddable
+            @Target(AnnotationTarget.CLASS)
+            annotation class Entity
+            @Target(AnnotationTarget.CLASS)
+            annotation class Table(val name: String)
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class EmbeddedId
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class AttributeOverride(val name: String, val column: Column)
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class Column(
+                val name: String,
+                val nullable: Boolean = true,
+                val insertable: Boolean = true,
+                val updatable: Boolean = true,
+                val length: Int = 255,
+            )
+            enum class FetchType { LAZY, EAGER }
+            enum class CascadeType { PERSIST, MERGE, REMOVE }
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class OneToMany(
+                val fetch: FetchType,
+                val cascade: Array<CascadeType> = [],
+                val orphanRemoval: Boolean = false,
+            )
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class JoinColumn(val name: String, val nullable: Boolean = true)
+            @Target(AnnotationTarget.PROPERTY_GETTER)
+            annotation class Transient
+            """.trimIndent(),
+            """
+            package org.springframework.stereotype
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Component(val value: String = "")
+            @Target(AnnotationTarget.CLASS)
+            annotation class Service
+            """.trimIndent(),
+            """
+            package org.springframework.context
+
+            interface ApplicationContext
+            """.trimIndent(),
+        )
+        val renderedSources = strongIdSources + entitySources + accessorSources +
+            listOf(factorySource, catalogSource) + boundaryFixtures
+
+        val result = KotlinCompilation().apply {
+            sources = renderedSources.mapIndexed { index, source ->
+                SourceFile.kotlin("Generated$index.kt", source)
+            }
+            inheritClassPath = true
+            messageOutputStream = System.out
+            jvmTarget = "17"
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        val catalogClass = result.classLoader.loadClass(catalogFqn)
+        assertEquals("GeneratedOwnIdCatalogContribution", catalogClass.simpleName)
+        assertFalse(catalogClass.simpleName.endsWith("Impl"))
     }
 
     @Test
-    fun `reference strong id template renders parse without new factory`() {
-        val content = renderTemplate(
-            templateId = "aggregate/strong_id.kt.peb",
-            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt",
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate strong id template renders four storage nearest variants with scalar string json`() {
+        fun renderStrongId(
+            packageName: String,
+            valueType: String,
+            validationKind: String,
+            stringBacked: Boolean,
+            uuidBacked: Boolean,
+            longBacked: Boolean,
+        ): String =
+            renderTemplate(
+                templateId = "aggregate/strong_id.kt.peb",
+                outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${packageName.replace('.', '/')}/OrderId.kt",
+                context = mapOf(
+                    "packageName" to packageName,
+                    "typeName" to "OrderId",
+                    "valueType" to valueType,
+                    "validationKind" to validationKind,
+                    "stringBacked" to stringBacked,
+                    "uuidBacked" to uuidBacked,
+                    "longBacked" to longBacked,
+                    "imports" to emptyList<String>(),
+                ),
+            )
+
+        val uuidText = renderStrongId("com.acme.demo.ids.uuidtext", "String", "UUID7", true, false, false)
+        val uuidNative = renderStrongId("com.acme.demo.ids.uuidnative", "UUID", "UUID7", false, true, false)
+        val snowflakeText = renderStrongId("com.acme.demo.ids.snowflaketext", "String", "SNOWFLAKE", true, false, false)
+        val snowflakeLong = renderStrongId("com.acme.demo.ids.snowflakelong", "Long", "SNOWFLAKE", false, false, true)
+
+        assertTrue(uuidText.contains("StrongId<String>"))
+        assertTrue(uuidText.contains("fun of(value: String): OrderId"))
+        assertTrue(uuidNative.contains("StrongId<UUID>"))
+        assertTrue(uuidNative.contains("fun of(value: UUID): OrderId"))
+        assertTrue(snowflakeText.contains("StrongIds.requireSnowflake(value, \"OrderId\")"))
+        assertTrue(snowflakeLong.contains("override var value: Long = 0L"))
+        assertTrue(snowflakeLong.contains("fun jsonValue(): String = value.toString()"))
+        listOf(uuidText, uuidNative, snowflakeText, snowflakeLong).forEach { source ->
+            assertReadableKotlin(source)
+            assertFalse(source.contains("fun new("))
+            assertFalse(source.contains("AttributeConverter"))
+            assertFalse(source.contains("length ="))
+            assertTrue(source.contains("value.isTextual"))
+            assertTrue(
+                source.contains(
+                    "@JsonCreator(mode = JsonCreator.Mode.DISABLED)\n    private constructor(value:"
+                )
+            )
+        }
+        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
+
+        val generatedSources = listOf(
+            SourceFile.kotlin("UuidTextOrderId.kt", uuidText),
+            SourceFile.kotlin("UuidNativeOrderId.kt", uuidNative),
+            SourceFile.kotlin("SnowflakeTextOrderId.kt", snowflakeText),
+            SourceFile.kotlin("SnowflakeLongOrderId.kt", snowflakeLong),
+        )
+        val result = KotlinCompilation().apply {
+            sources = generatedSources + strongIdCompileStubs
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+    }
+
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `generated own id templates render typed accessors and one unambiguous catalog`() {
+        fun accessorContext(
+            packageName: String,
+            entityName: String,
+            idFieldName: String,
+            idTypeName: String,
+            idTypeFqn: String,
+            strategy: String,
+            backingType: String,
+        ): Map<String, Any?> =
+            mapOf(
+                "packageName" to packageName,
+                "typeName" to "${entityName}GeneratedOwnIdAccessor",
+                "entityName" to entityName,
+                "entityFqn" to "$packageName.$entityName",
+                "idFieldName" to idFieldName,
+                "idTypeName" to idTypeName,
+                "idTypeFqn" to idTypeFqn,
+                "label" to "$entityName.$idFieldName",
+                "strategy" to strategy,
+                "backingType" to backingType,
+                "backingTypeFqn" to if (backingType == "UUID") "java.util.UUID" else null,
+                "imports" to emptyList<String>(),
+            )
+
+        val uuidAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/orders/OrderGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.orders",
+                entityName = "Order",
+                idFieldName = "orderId",
+                idTypeName = "UuidOrderId",
+                idTypeFqn = "com.acme.demo.domain.ids.UuidOrderId",
+                strategy = "uuid7",
+                backingType = "UUID",
+            ),
+        )
+        val uuidTextAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/orders_text/OrderGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.orders_text",
+                entityName = "Order",
+                idFieldName = "orderId",
+                idTypeName = "UuidTextOrderId",
+                idTypeFqn = "com.acme.demo.domain.ids.UuidTextOrderId",
+                strategy = "uuid7",
+                backingType = "String",
+            ),
+        )
+        val snowflakeLongAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/payments/OrderGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.payments",
+                entityName = "Order",
+                idFieldName = "orderId",
+                idTypeName = "SnowflakeOrderId",
+                idTypeFqn = "com.acme.demo.domain.ids.SnowflakeOrderId",
+                strategy = "snowflake",
+                backingType = "Long",
+            ),
+        )
+        val snowflakeTextAccessor = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shipments/ShipmentGeneratedOwnIdAccessor.kt",
+            context = accessorContext(
+                packageName = "com.acme.demo.domain.shipments",
+                entityName = "Shipment",
+                idFieldName = "shipmentId",
+                idTypeName = "SnowflakeTextShipmentId",
+                idTypeFqn = "com.acme.demo.domain.ids.SnowflakeTextShipmentId",
+                strategy = "snowflake",
+                backingType = "String",
+            ),
+        )
+        val catalog = renderTemplate(
+            templateId = "aggregate/generated_own_id_catalog.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt",
             context = mapOf(
-                "packageName" to "com.acme.demo.domain.shared.ids",
-                "typeName" to "AuthorId",
-                "kind" to "REFERENCE",
-                "canGenerateNew" to false,
+                "packageName" to "com.acme.demo.domain._share.identity",
+                "typeName" to "GeneratedOwnIdCatalogContribution",
+                "beanName" to "com.acme.demo.domain._share.identity.generatedOwnIdCatalogContribution",
+                "accessors" to listOf(
+                    mapOf("fqn" to "com.acme.demo.domain.orders.OrderGeneratedOwnIdAccessor"),
+                    mapOf("fqn" to "com.acme.demo.domain.orders_text.OrderGeneratedOwnIdAccessor"),
+                    mapOf("fqn" to "com.acme.demo.domain.payments.OrderGeneratedOwnIdAccessor"),
+                    mapOf("fqn" to "com.acme.demo.domain.shipments.ShipmentGeneratedOwnIdAccessor"),
+                ),
+                "imports" to emptyList<String>(),
             ),
         )
 
-        assertReadableKotlin(content)
-        assertMaintainableTemplateSource("aggregate/strong_id.kt.peb")
-        assertTrue(content.contains("@Embeddable"))
-        assertTrue(content.contains("class AuthorId protected constructor() : StrongId, Serializable"))
-        assertTrue(content.contains("@JsonCreator(mode = JsonCreator.Mode.DELEGATING)"))
-        assertTrue(content.contains("""this.value = StrongIds.requireUuidV7(value, "AuthorId")"""))
-        assertTrue(content.contains("fun parse(value: String): AuthorId = AuthorId(value)"))
-        assertFalse(content.contains("fun new(): AuthorId"))
+        assertTrue(uuidAccessor.contains("Mediator.identifiers.next(\"uuid7\", UUID::class)"))
+        assertTrue(uuidTextAccessor.contains("Mediator.identifiers.next(\"uuid7\", String::class)"))
+        assertTrue(snowflakeLongAccessor.contains("Mediator.identifiers.next(\"snowflake\", Long::class)"))
+        assertTrue(snowflakeTextAccessor.contains("Mediator.identifiers.next(\"snowflake\", String::class)"))
+        assertTrue(uuidTextAccessor.contains("readInitializedOrNull { entity.orderId }"))
+        assertTrue(uuidTextAccessor.contains("entity.orderId = id"))
+        assertTrue(catalog.contains("class GeneratedOwnIdCatalogContribution : GeneratedOwnIdCatalog"))
+        assertFalse(catalog.contains("GeneratedOwnIdCatalogContributionImpl"))
+        assertTrue(catalog.contains("@Component(\"com.acme.demo.domain._share.identity.generatedOwnIdCatalogContribution\")"))
+        assertTrue(catalog.contains("com.acme.demo.domain.orders.OrderGeneratedOwnIdAccessor"))
+        assertTrue(catalog.contains("com.acme.demo.domain.orders_text.OrderGeneratedOwnIdAccessor"))
+        listOf(uuidAccessor, uuidTextAccessor, snowflakeLongAccessor, snowflakeTextAccessor, catalog)
+            .forEach(::assertReadableKotlin)
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("UuidOrderAccessor.kt", uuidAccessor),
+                SourceFile.kotlin("UuidTextOrderAccessor.kt", uuidTextAccessor),
+                SourceFile.kotlin("SnowflakeOrderAccessor.kt", snowflakeLongAccessor),
+                SourceFile.kotlin("SnowflakeTextShipmentAccessor.kt", snowflakeTextAccessor),
+                SourceFile.kotlin("GeneratedOwnIdCatalogContribution.kt", catalog),
+            ) + generatedOwnIdCompileFixtures
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
+
+    private val generatedOwnIdCompileFixtures = listOf(
+        SourceFile.kotlin(
+            "GeneratedOwnIdRuntime.kt",
+            """
+            package com.only4.cap4k.ddd.core
+
+            import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+            import kotlin.reflect.KClass
+
+            object Mediator {
+                val identifiers: IdentifierGenerator = object : IdentifierGenerator {
+                    override fun <T : Any> next(strategy: String, type: KClass<T>): T = error("not invoked")
+                }
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdContracts.kt",
+            """
+            package com.only4.cap4k.ddd.core.domain.id
+
+            import kotlin.reflect.KClass
+
+            interface IdentifierGenerator {
+                fun <T : Any> next(strategy: String, type: KClass<T>): T
+            }
+
+            interface GeneratedOwnIdAccessor<E : Any, ID : Any> {
+                val entityType: KClass<E>
+                val label: String
+                fun current(entity: E): ID?
+                fun assign(entity: E, id: ID)
+                fun next(): ID
+            }
+
+            interface GeneratedOwnIdCatalog {
+                val accessors: List<GeneratedOwnIdAccessor<*, *>>
+            }
+
+            inline fun <ID : Any> readInitializedOrNull(read: () -> ID): ID? =
+                try { read() } catch (_: UninitializedPropertyAccessException) { null }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "Component.kt",
+            """
+            package org.springframework.stereotype
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Component(val value: String = "")
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdStrongIds.kt",
+            """
+            package com.acme.demo.domain.ids
+
+            import java.util.UUID
+
+            class UuidOrderId private constructor(val value: UUID) {
+                companion object { fun of(value: UUID) = UuidOrderId(value) }
+            }
+            class UuidTextOrderId private constructor(val value: String) {
+                companion object { fun of(value: String) = UuidTextOrderId(value) }
+            }
+            class SnowflakeOrderId private constructor(val value: Long) {
+                companion object { fun of(value: Long) = SnowflakeOrderId(value) }
+            }
+            class SnowflakeTextShipmentId private constructor(val value: String) {
+                companion object { fun of(value: String) = SnowflakeTextShipmentId(value) }
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdEntities.kt",
+            """
+            package com.acme.demo.domain.orders
+
+            import com.acme.demo.domain.ids.UuidOrderId
+
+            class Order {
+                lateinit var orderId: UuidOrderId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdTextEntities.kt",
+            """
+            package com.acme.demo.domain.orders_text
+
+            import com.acme.demo.domain.ids.UuidTextOrderId
+
+            class Order {
+                lateinit var orderId: UuidTextOrderId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdPaymentEntities.kt",
+            """
+            package com.acme.demo.domain.payments
+
+            import com.acme.demo.domain.ids.SnowflakeOrderId
+
+            class Order {
+                lateinit var orderId: SnowflakeOrderId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "GeneratedOwnIdShipmentEntities.kt",
+            """
+            package com.acme.demo.domain.shipments
+
+            import com.acme.demo.domain.ids.SnowflakeTextShipmentId
+
+            class Shipment {
+                lateinit var shipmentId: SnowflakeTextShipmentId
+                    internal set
+            }
+            """.trimIndent(),
+        ),
+    )
+
+    private val strongIdCompileStubs = listOf(
+        SourceFile.kotlin(
+            "StrongId.kt",
+            """
+            package com.only4.cap4k.ddd.core.domain.id
+
+            interface StrongId<T> {
+                val value: T
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "StrongIds.kt",
+            """
+            package com.only4.cap4k.ddd.core.domain.id
+
+            import java.util.UUID
+
+            object StrongIds {
+                fun requireUuidV7(value: String, typeName: String): String = value
+                fun requireUuidV7(value: UUID, typeName: String): UUID = value
+                fun requireSnowflake(value: String, typeName: String): String = value
+                fun requireSnowflake(value: Long, typeName: String): Long = value
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "JacksonAnnotationStubs.kt",
+            """
+            package com.fasterxml.jackson.annotation
+
+            @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
+            annotation class JsonCreator(val mode: Mode = Mode.DEFAULT) {
+                enum class Mode { DEFAULT, DELEGATING, DISABLED }
+            }
+
+            @Target(AnnotationTarget.FUNCTION)
+            annotation class JsonValue
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "JsonNodeStub.kt",
+            """
+            package com.fasterxml.jackson.databind
+
+            class JsonNode {
+                val isTextual: Boolean = true
+                fun textValue(): String = ""
+            }
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "JakartaPersistenceStubs.kt",
+            """
+            package jakarta.persistence
+
+            @Target(AnnotationTarget.CLASS)
+            annotation class Embeddable
+
+            @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+            annotation class Column(
+                val name: String,
+                val nullable: Boolean = true,
+                val updatable: Boolean = true,
+            )
+            """.trimIndent(),
+        ),
+    )
 
     @Test
     fun `renderer preserves artifact output ownership metadata`() {
@@ -1001,6 +1774,10 @@ class PebbleArtifactRendererTest {
                     "jakarta.persistence.OneToMany",
                 ),
                 "imports" to emptyList<String>(),
+                "constructorFields" to listOf(
+                    mapOf("name" to "id", "type" to "Long", "nullable" to false, "defaultValue" to "0L"),
+                    mapOf("name" to "name", "type" to "String", "nullable" to false, "defaultValue" to "\"\""),
+                ),
                 "scalarFields" to listOf(
                     mapOf(
                         "name" to "id",
@@ -1070,7 +1847,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -1183,7 +1959,6 @@ class PebbleArtifactRendererTest {
                 "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "video_post"),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -1243,6 +2018,236 @@ class PebbleArtifactRendererTest {
         assertFalse(content.normalizedLineEndings().contains("\n    val items: MutableList<VideoPostItem> = mutableListOf()"))
         assertFalse(content.contains("private val items: MutableList<VideoPostItem>"))
         assertFalse(content.contains("var item: VideoPostItem?"))
+    }
+
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `aggregate entity assigns generated ids before owned relation mutation and compiles with typed accessors`() {
+        val packageName = "com.acme.demo.domain.aggregates.order"
+        fun accessor(entityName: String, idTypeName: String): String = renderTemplate(
+            templateId = "aggregate/generated_own_id_accessor.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/${packageName.replace('.', '/')}/${entityName}GeneratedOwnIdAccessor.kt",
+            context = mapOf(
+                "packageName" to packageName,
+                "typeName" to "${entityName}GeneratedOwnIdAccessor",
+                "entityName" to entityName,
+                "entityFqn" to "$packageName.$entityName",
+                "idFieldName" to "id",
+                "idTypeName" to idTypeName,
+                "idTypeFqn" to "$packageName.$idTypeName",
+                "label" to "$entityName.id",
+                "strategy" to "uuid7",
+                "backingType" to "String",
+                "backingTypeFqn" to null,
+                "imports" to emptyList<String>(),
+            ),
+        )
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/${packageName.replace('.', '/')}/Order.kt",
+            context = mapOf(
+                "packageName" to packageName,
+                "typeName" to "Order",
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "orders"),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasEmbeddedIdFields" to false,
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasVersionFields" to false,
+                "softDelete" to mapOf("enabled" to false),
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "softDeleteSqlKotlinStringLiteral" to null,
+                "softDeleteWhereClauseKotlinStringLiteral" to null,
+                "jpaImports" to listOf(
+                    "jakarta.persistence.CascadeType",
+                    "jakarta.persistence.FetchType",
+                    "jakarta.persistence.JoinColumn",
+                    "jakarta.persistence.OneToMany",
+                    "jakarta.persistence.Transient",
+                ),
+                "imports" to listOf("com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"),
+                "constructorFields" to emptyList<Map<String, Any?>>(),
+                "scalarFields" to emptyList<Map<String, Any?>>(),
+                "relationFields" to listOf(
+                    mapOf(
+                        "name" to "lines",
+                        "targetType" to "OrderLine",
+                        "targetTypeRef" to "OrderLine",
+                        "targetPackageName" to packageName,
+                        "relationType" to "ONE_TO_MANY",
+                        "fetchType" to "LAZY",
+                        "joinColumn" to "order_id",
+                        "nullable" to false,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                        "orphanRemoval" to true,
+                        "joinColumnNullable" to false,
+                        "owned" to true,
+                        "ownedCardinality" to "MANY",
+                        "domainName" to "lines",
+                        "backingCollectionName" to "_lines",
+                        "singleAccessorName" to null,
+                        "generatedOwnIdAccessorFqn" to "$packageName.OrderLineGeneratedOwnIdAccessor",
+                    ),
+                    mapOf(
+                        "name" to "primaryLines",
+                        "targetType" to "PrimaryOrderLine",
+                        "targetTypeRef" to "PrimaryOrderLine",
+                        "targetPackageName" to packageName,
+                        "relationType" to "ONE_TO_MANY",
+                        "fetchType" to "LAZY",
+                        "joinColumn" to "primary_order_id",
+                        "nullable" to false,
+                        "cascadeTypes" to listOf("PERSIST", "MERGE", "REMOVE"),
+                        "orphanRemoval" to true,
+                        "joinColumnNullable" to false,
+                        "owned" to true,
+                        "ownedCardinality" to "ONE",
+                        "domainName" to "primaryLine",
+                        "backingCollectionName" to "_primaryLines",
+                        "singleAccessorName" to "primaryLine",
+                        "generatedOwnIdAccessorFqn" to "$packageName.PrimaryOrderLineGeneratedOwnIdAccessor",
+                    ),
+                ),
+            ),
+        )
+        val orderLineAccessor = accessor("OrderLine", "OrderLineId")
+        val primaryOrderLineAccessor = accessor("PrimaryOrderLine", "PrimaryOrderLineId")
+
+        val manyHook = "$packageName.OrderLineGeneratedOwnIdAccessor.assignIfMissing(entity)"
+        val oneHook = "$packageName.PrimaryOrderLineGeneratedOwnIdAccessor.assignIfMissing(entity)"
+        assertEquals(1, Regex(Regex.escape(manyHook)).findAll(entityContent).count())
+        assertEquals(2, Regex(Regex.escape(oneHook)).findAll(entityContent).count())
+        listOf(entityContent, orderLineAccessor, primaryOrderLineAccessor).forEach(::assertReadableKotlin)
+
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("Order.kt", entityContent),
+                SourceFile.kotlin("OrderLineGeneratedOwnIdAccessor.kt", orderLineAccessor),
+                SourceFile.kotlin("PrimaryOrderLineGeneratedOwnIdAccessor.kt", primaryOrderLineAccessor),
+                SourceFile.kotlin(
+                    "OrderLineFixtures.kt",
+                    """
+                    package $packageName
+
+                    class OrderLineId private constructor(val value: String) {
+                        companion object { fun of(value: String) = OrderLineId(value) }
+                    }
+                    class PrimaryOrderLineId private constructor(val value: String) {
+                        companion object { fun of(value: String) = PrimaryOrderLineId(value) }
+                    }
+                    class OrderLine {
+                        lateinit var id: OrderLineId
+                            internal set
+                    }
+                    class PrimaryOrderLine {
+                        lateinit var id: PrimaryOrderLineId
+                            internal set
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "OwnedEntityList.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.aggregate
+
+                    import kotlin.reflect.KClass
+
+                    class OwnedEntityList<E : Any> private constructor(
+                        private val delegate: MutableList<E>,
+                    ) : List<E> by delegate {
+                        fun singleOrNull(): E? = delegate.singleOrNull()
+                        fun replace(value: E?) = Unit
+
+                        companion object {
+                            fun <E : Any> of(delegate: MutableList<E>, type: KClass<E>, path: String) =
+                                OwnedEntityList(delegate)
+                            fun <E : Any> of(
+                                delegate: MutableList<E>,
+                                type: KClass<E>,
+                                path: String,
+                                prepare: (E) -> Unit,
+                            ) = OwnedEntityList(delegate)
+                        }
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "GeneratedOwnIdContracts.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.id
+
+                    import kotlin.reflect.KClass
+
+                    interface IdentifierGenerator {
+                        fun <T : Any> next(strategy: String, type: KClass<T>): T
+                    }
+                    interface GeneratedOwnIdAccessor<E : Any, ID : Any> {
+                        val entityType: KClass<E>
+                        val label: String
+                        fun current(entity: E): ID?
+                        fun assign(entity: E, id: ID)
+                        fun next(): ID
+                        fun assignIfMissing(entity: E): ID {
+                            current(entity)?.let { return it }
+                            val id = next()
+                            assign(entity, id)
+                            return current(entity) ?: error("assignment failed")
+                        }
+                    }
+                    inline fun <ID : Any> readInitializedOrNull(read: () -> ID): ID? =
+                        try { read() } catch (_: UninitializedPropertyAccessException) { null }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Mediator.kt",
+                    """
+                    package com.only4.cap4k.ddd.core
+
+                    import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
+                    import kotlin.reflect.KClass
+
+                    object Mediator {
+                        val identifiers = object : IdentifierGenerator {
+                            override fun <T : Any> next(strategy: String, type: KClass<T>): T = error("not invoked")
+                        }
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Jpa.kt",
+                    """
+                    package jakarta.persistence
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Entity
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Table(val name: String)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Id
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Column(val name: String)
+                    enum class FetchType { LAZY, EAGER }
+                    enum class CascadeType { PERSIST, MERGE, REMOVE }
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class OneToMany(
+                        val fetch: FetchType,
+                        val cascade: Array<CascadeType> = [],
+                        val orphanRemoval: Boolean = false,
+                    )
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class JoinColumn(val name: String, val nullable: Boolean = true)
+                    @Target(AnnotationTarget.PROPERTY_GETTER)
+                    annotation class Transient
+                    """.trimIndent(),
+                ),
+            )
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
     }
 
     @Test
@@ -1428,7 +2433,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to true,
                 "hasEmbeddedIdFields" to false,
                 "hasVersionFields" to false,
                 "dynamicInsert" to false,
@@ -1445,7 +2449,6 @@ class PebbleArtifactRendererTest {
                         "defaultValue" to null,
                         "columnName" to "id",
                         "isId" to true,
-                        "applicationSideIdStrategy" to "uuid7",
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to true,
@@ -1457,8 +2460,72 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertFalse(content.contains("ApplicationSideId"))
         assertTrue(content.contains("@Column(name = \"id\", insertable = true, updatable = false)"))
+    }
+
+    @Test
+    fun `aggregate entity template renders strong id override length only for string backing`() {
+        fun renderStrongIdEntity(
+            typeName: String,
+            columnName: String,
+            attributeOverrideLength: Int?,
+            embeddedId: Boolean,
+        ): String = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/$typeName.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo",
+                "typeName" to "${typeName}Entity",
+                "entityJpa" to mapOf(
+                    "entityEnabled" to true,
+                    "tableName" to columnName,
+                ),
+                "hasConverterFields" to false,
+                "hasGeneratedValueFields" to false,
+                "hasEmbeddedIdFields" to embeddedId,
+                "hasStrongIdFields" to true,
+                "hasEmbeddedStrongIdFields" to !embeddedId,
+                "hasVersionFields" to false,
+                "dynamicInsert" to false,
+                "dynamicUpdate" to false,
+                "softDeleteSql" to null,
+                "softDeleteWhereClause" to null,
+                "jpaImports" to emptyList<String>(),
+                "imports" to emptyList<String>(),
+                "scalarFields" to listOf(
+                    mapOf(
+                        "name" to "id",
+                        "type" to typeName,
+                        "nullable" to false,
+                        "defaultValue" to null,
+                        "columnName" to columnName,
+                        "isId" to embeddedId,
+                        "strongId" to true,
+                        "embeddedId" to embeddedId,
+                        "writePolicy" to if (embeddedId) "CREATE_ONLY" else "READ_WRITE",
+                        "isVersion" to false,
+                        "insertable" to null,
+                        "updatable" to null,
+                        "attributeOverrideNullable" to false,
+                        "attributeOverrideInsertable" to null,
+                        "attributeOverrideUpdatable" to !embeddedId,
+                        "attributeOverrideLength" to attributeOverrideLength,
+                        "converterClassRef" to null,
+                    )
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        val uuidTextEntity = renderStrongIdEntity("UuidTextId", "uuid_text", 40, embeddedId = true)
+        val uuidNativeEntity = renderStrongIdEntity("UuidNativeId", "uuid_native", null, embeddedId = false)
+        val snowflakeTextEntity = renderStrongIdEntity("SnowflakeTextId", "snowflake_text", 24, embeddedId = false)
+        val snowflakeLongEntity = renderStrongIdEntity("SnowflakeLongId", "snowflake_long", null, embeddedId = false)
+
+        assertTrue(uuidTextEntity.contains("updatable = false, length = 40"))
+        assertFalse(uuidNativeEntity.contains("length ="))
+        assertFalse(snowflakeLongEntity.contains("length ="))
+        assertTrue(snowflakeTextEntity.contains("length = 24"))
     }
 
     @Test
@@ -1475,7 +2542,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to true,
                 "hasStrongIdFields" to true,
                 "hasEmbeddedStrongIdFields" to true,
@@ -1500,7 +2566,6 @@ class PebbleArtifactRendererTest {
                         "isId" to true,
                         "strongId" to true,
                         "embeddedId" to true,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to null,
@@ -1508,6 +2573,7 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideNullable" to false,
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to false,
+                        "attributeOverrideLength" to 36,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -1519,7 +2585,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to false,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -1535,7 +2600,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to true,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -1543,6 +2607,7 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideNullable" to false,
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to true,
+                        "attributeOverrideLength" to 36,
                         "converterClassRef" to null,
                     ),
                     mapOf(
@@ -1554,7 +2619,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to true,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -1562,6 +2626,7 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideNullable" to true,
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to true,
+                        "attributeOverrideLength" to 36,
                         "converterClassRef" to null,
                     ),
                 ),
@@ -1599,7 +2664,6 @@ class PebbleArtifactRendererTest {
             )
         )
         assertFalse(content.contains("@Id"))
-        assertFalse(content.contains("ApplicationSideId"))
         assertFalse(content.contains("UUID(" + "0L, 0L)"))
         assertFalse(content.contains("@Column(name = \"id\")"))
         assertFalse(content.contains("@Column(name = \"author_id\")"))
@@ -1620,7 +2684,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to false,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to true,
                 "hasStrongIdFields" to true,
                 "hasEmbeddedStrongIdFields" to false,
@@ -1641,7 +2704,6 @@ class PebbleArtifactRendererTest {
                         "isId" to true,
                         "strongId" to true,
                         "embeddedId" to true,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to null,
@@ -1660,7 +2722,6 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("import jakarta.persistence.EmbeddedId"))
         assertTrue(content.contains("@EmbeddedId"))
         assertTrue(content.contains("var id: OrderLineId = id"))
-        assertFalse(content.contains("ApplicationSideId"))
     }
 
     @Test
@@ -1677,7 +2738,6 @@ class PebbleArtifactRendererTest {
                 ),
                 "hasConverterFields" to true,
                 "hasGeneratedValueFields" to false,
-                "hasApplicationSideIdFields" to false,
                 "hasEmbeddedIdFields" to false,
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
@@ -1699,7 +2759,6 @@ class PebbleArtifactRendererTest {
                         "isId" to true,
                         "strongId" to false,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "CREATE_ONLY",
                         "isVersion" to false,
                         "insertable" to null,
@@ -1717,7 +2776,6 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "strongId" to false,
                         "embeddedId" to false,
-                        "applicationSideIdStrategy" to null,
                         "writePolicy" to "READ_WRITE",
                         "isVersion" to false,
                         "insertable" to null,
@@ -3740,6 +4798,9 @@ class PebbleArtifactRendererTest {
                             "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
                             "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
                         ),
+                        "constructorFields" to listOf(
+                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
+                        ),
                         "scalarFields" to listOf(
                             mapOf(
                                 "name" to "id",
@@ -4653,7 +5714,6 @@ class PebbleArtifactRendererTest {
                         ),
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
-                        "hasApplicationSideIdFields" to true,
                         "hasEmbeddedIdFields" to false,
                         "hasVersionFields" to false,
                         "scalarFields" to listOf(
@@ -4665,7 +5725,6 @@ class PebbleArtifactRendererTest {
                                 "defaultValue" to null,
                                 "columnName" to "id",
                                 "isId" to true,
-                                "applicationSideIdStrategy" to "uuid7",
                                 "insertable" to true,
                                 "updatable" to false,
                             ),
@@ -4705,7 +5764,6 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
 
         assertTrue(content.contains("import java.util.UUID"))
-        assertFalse(content.contains("import com.only4.cap4k.ddd.core.domain.id.ApplicationSideId"))
         assertFalse(content.contains("import jakarta.persistence.GeneratedValue"))
         assertFalse(content.contains("import org.hibernate.annotations.Generic" + "Generator"))
         assertFalse(content.contains("import jakarta.persistence.GenerationType"))

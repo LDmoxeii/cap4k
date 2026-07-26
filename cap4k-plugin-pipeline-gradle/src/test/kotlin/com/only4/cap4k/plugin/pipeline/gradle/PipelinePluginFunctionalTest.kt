@@ -1671,7 +1671,7 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedVideoPost.contains("@EmbeddedId"))
-        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertGeneratedOwnIdShape(generatedVideoPost, "VideoPostId")
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
@@ -1704,7 +1704,7 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("UUID(" + "0L, 0L)"))
         assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedVideoPost.contains("@EmbeddedId"))
-        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertGeneratedOwnIdShape(generatedVideoPost, "VideoPostId")
         assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
@@ -1747,7 +1747,9 @@ class PipelinePluginFunctionalTest {
             .buildAndFail()
 
         assertTrue(
-            result.output.contains("@IdStrategy=uuid7 currently requires String physical ID column on table video.id"),
+            result.output.contains(
+                "unsupported UUID7 storage for video.id: jdbcType=-5, dbType=BIGINT, kotlinType=Long, columnSize=64"
+            ),
             result.output,
         )
     }
@@ -1854,7 +1856,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(generatedEntity.contains("@EmbeddedId"))
-        assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
+        assertGeneratedOwnIdShape(generatedEntity, "VideoPostId")
         assertFalse(generatedEntity.contains("@Id"))
         assertFalse(generatedEntity.contains("@Column(name = \"id\""))
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
@@ -3376,6 +3378,46 @@ class PipelinePluginFunctionalTest {
                 }
                 """.trimIndent()
         )
+    }
+
+    private fun assertGeneratedOwnIdShape(generatedEntity: String, idType: String) {
+        val normalizedEntity = generatedEntity.replace("\r\n", "\n")
+        val expectedPropertyBlock = "    lateinit var id: $idType\n        internal set"
+        assertTrue(
+            normalizedEntity.contains(expectedPropertyBlock),
+            "Expected generated own ID property block:\n$expectedPropertyBlock",
+        )
+        assertFalse(normalizedEntity.contains("var id: $idType = id"))
+
+        val constructorParameters = internalConstructorParameters(normalizedEntity)
+        assertFalse(
+            Regex("""\bid\s*:\s*${Regex.escape(idType)}\b""").containsMatchIn(constructorParameters),
+            "Expected internal constructor to exclude id: $idType, but parameters were:\n$constructorParameters",
+        )
+    }
+
+    private fun internalConstructorParameters(generatedEntity: String): String {
+        val constructorMarker = "internal constructor("
+        val constructorStart = generatedEntity.indexOf(constructorMarker)
+        if (constructorStart < 0) {
+            throw AssertionError("Expected generated entity to declare an internal constructor")
+        }
+
+        val parameterStart = constructorStart + constructorMarker.length
+        var depth = 1
+        for (index in parameterStart until generatedEntity.length) {
+            when (generatedEntity[index]) {
+                '(' -> depth += 1
+                ')' -> {
+                    depth -= 1
+                    if (depth == 0) {
+                        return generatedEntity.substring(parameterStart, index)
+                    }
+                }
+            }
+        }
+
+        throw AssertionError("Expected internal constructor parameters to have a matching closing parenthesis")
     }
 
     private fun assertNoFormattingRegression(file: Path) {

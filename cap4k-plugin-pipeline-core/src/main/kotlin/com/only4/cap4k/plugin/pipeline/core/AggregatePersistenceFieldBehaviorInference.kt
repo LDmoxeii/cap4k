@@ -45,6 +45,6 @@ internal object AggregatePersistenceFieldBehaviorInference {
 
     private fun DbIdStrategy.toPersistenceStrategy(): String? = when (this) {
         DbIdStrategy.DB_IDENTITY -> "IDENTITY"
-        DbIdStrategy.UUID7 -> null
+        DbIdStrategy.UUID7, DbIdStrategy.SNOWFLAKE -> null
     }
 }

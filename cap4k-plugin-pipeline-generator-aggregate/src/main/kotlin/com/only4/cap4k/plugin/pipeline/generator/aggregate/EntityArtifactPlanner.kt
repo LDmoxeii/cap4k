@@ -18,6 +18,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
         val defaultProjector = AggregateEntityDefaultProjector()
         val identifierQuoteStyle = resolveIdentifierQuoteStyle(config)
+        val generatedOwnIdsByEntity = GeneratedOwnIdPlanning.from(model).associateBy { it.entityFqn }
 
         return model.entities.map { entity ->
             val aggregateName = aggregateRootName(entity, model.entities)
@@ -42,6 +43,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 entity = entity,
                 relations = model.aggregateRelations,
                 inverseRelations = model.aggregateInverseRelations,
+                generatedOwnIdsByEntity = generatedOwnIdsByEntity,
             )
             val readOnlyInverseJoinColumns = relationPlan.relationFields
                 .filter {
@@ -114,8 +116,10 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         }
                         val typeRef = strongId?.fqn()
                         val embeddedId = strongId != null && isOwnIdField(entity, field, strongId)
+                        val generatedOwnId =
+                            generatedOwnIdsByEntity["${entity.packageName}.${entity.name}"] != null &&
+                                field.name == entity.idField.name
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
-                        val applicationSideIdStrategy: String? = null
                         val generatedValueStrategy = if (
                             strongId == null &&
                             idPolicyApplies &&
@@ -146,13 +150,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
-                            applicationSideIdStrategy != null -> true
                             else -> null
                         }
                         val updatable = when {
                             embeddedId -> null
                             jpa.columnName in readOnlyInverseJoinColumns -> false
-                            applicationSideIdStrategy != null -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true
                             else -> null
@@ -175,6 +177,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "typeRef" to typeRef,
                             "strongId" to (strongId != null),
                             "embeddedId" to embeddedId,
+                            "generatedOwnId" to generatedOwnId,
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
@@ -182,7 +185,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "converterTypeRef" to jpa.converterTypeFqn,
                             "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
-                            "applicationSideIdStrategy" to applicationSideIdStrategy,
                             "isVersion" to isVersionField,
                             "writePolicy" to writePolicy,
                             "parentRef" to field.parentRef,
@@ -199,6 +201,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 updatable != null -> updatable
                                 else -> true
                             },
+                            "attributeOverrideLength" to if (strongId?.valueType == "String") jpa.columnLength else null,
                         )
                     }
                 }
@@ -232,7 +235,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "hasGeneratedValueFields" to scalarFields.any {
                         it["isId"] == true && it["generatedValueStrategy"] == "IDENTITY"
                     },
-                    "hasApplicationSideIdFields" to scalarFields.any { it["applicationSideIdStrategy"] != null },
                     "hasEmbeddedIdFields" to scalarFields.any { it["embeddedId"] == true },
                     "hasStrongIdFields" to scalarFields.any { it["strongId"] == true },
                     "hasEmbeddedStrongIdFields" to scalarFields.any {
@@ -248,6 +250,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "imports" to scalarImports.distinct(),
                     "fields" to fieldContexts,
                     "scalarFields" to scalarFields,
+                    "constructorFields" to scalarFields.filterNot { it["generatedOwnId"] == true },
                     "relationFields" to relationPlan.relationFields,
                 ),
             )
