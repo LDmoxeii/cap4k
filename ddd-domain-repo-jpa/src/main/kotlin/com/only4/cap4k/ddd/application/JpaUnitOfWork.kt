@@ -356,6 +356,12 @@ open class JpaUnitOfWork(
     private data class PendingOwnership(
         val ownersByChildIndex: Map<Int, Set<Int>>,
         val reachableByOwnerIndex: Map<Int, List<Any>>,
+        val reachableOwnerships: List<ReachableOwnership>,
+    )
+
+    private data class ReachableOwnership(
+        val entity: Any,
+        val ownerIndexes: Set<Int>,
     )
 
     private fun analyzePendingOwnership(entries: List<UnitOfWorkEntry>): PendingOwnership {
@@ -376,7 +382,25 @@ open class JpaUnitOfWork(
                 }
             }
         }
-        return PendingOwnership(ownersByChild, reachableByOwner)
+
+        val reachableEntities = mutableListOf<Any>()
+        reachableByOwner.values.forEach { reachable ->
+            reachable.drop(1).forEach { entity ->
+                if (reachableEntities.none { samePersistentEntity(it, entity) }) {
+                    reachableEntities += entity
+                }
+            }
+        }
+        val reachableOwnerships = reachableEntities.map { entity ->
+            ReachableOwnership(
+                entity = entity,
+                ownerIndexes = activeIndexes.filterTo(linkedSetOf()) { ownerIndex ->
+                    reachableByOwner.getValue(ownerIndex).any { samePersistentEntity(it, entity) }
+                },
+            )
+        }
+
+        return PendingOwnership(ownersByChild, reachableByOwner, reachableOwnerships)
     }
 
     private fun outermostOwners(
@@ -394,6 +418,7 @@ open class JpaUnitOfWork(
 
     private fun reconcilePendingOwnedChildren(entries: List<UnitOfWorkEntry>): List<UnitOfWorkEntry> {
         val ownership = analyzePendingOwnership(entries)
+        validateNoSharedReachableOwnership(entries, ownership)
         validateNoPendingOwnedChildRemoval(entries, ownership.reachableByOwnerIndex)
         val absorbedIndexes = linkedSetOf<Int>()
 
@@ -412,6 +437,24 @@ open class JpaUnitOfWork(
         }
 
         return entries.filterIndexed { index, _ -> index !in absorbedIndexes }
+    }
+
+    private fun validateNoSharedReachableOwnership(
+        entries: List<UnitOfWorkEntry>,
+        ownership: PendingOwnership,
+    ) {
+        ownership.reachableOwnerships.forEach { reachableOwnership ->
+            val outermost = outermostOwners(
+                ownerIndexes = reachableOwnership.ownerIndexes,
+                entries = entries,
+                reachableByOwnerIndex = ownership.reachableByOwnerIndex,
+            )
+            check(outermost.size <= 1) {
+                val childType = persistentEntityClass(reachableOwnership.entity).name
+                val roots = outermost.joinToString { persistentEntityClass(entries[it].entity).name }
+                "pending owned child $childType is reachable from multiple unrelated pending roots: $roots"
+            }
+        }
     }
 
     private fun validateNoPendingOwnedChildRemoval(

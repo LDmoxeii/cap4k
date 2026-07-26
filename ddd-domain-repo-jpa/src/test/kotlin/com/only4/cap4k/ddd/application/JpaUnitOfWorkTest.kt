@@ -679,6 +679,42 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    fun `shared child without pending entry fails for unrelated roots in registration order`() {
+        val child = StrongChildEntity()
+        val firstRoot = FirstStrongRootEntity().also { it.children += child }
+        val secondRoot = SecondStrongRootEntity().also { it.children += child }
+
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        assertRootOrder(error.message!!, FirstStrongRootEntity::class.java, SecondStrongRootEntity::class.java)
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    fun `shared child without pending entry fails for unrelated roots in reversed registration order`() {
+        val child = StrongChildEntity()
+        val firstRoot = FirstStrongRootEntity().also { it.children += child }
+        val secondRoot = SecondStrongRootEntity().also { it.children += child }
+
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        assertRootOrder(error.message!!, SecondStrongRootEntity::class.java, FirstStrongRootEntity::class.java)
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     fun `isolated CREATE with no pending owner remains caller declared top level`() {
         val child = StrongChildEntity()
 

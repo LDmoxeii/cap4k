@@ -97,9 +97,9 @@ class StrongIdJpaRuntimeTest {
 
     @Test
     fun `hibernate persists and loads entity by strong id`() {
-        val id = StrongContentId.new()
-        val authorId = StrongAuthorId.new()
-        val mediaProcessingTaskId = StrongMediaProcessingTaskId.new()
+        val id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002")
+        val authorId = StrongAuthorId.parse("019c0000-0000-7000-8000-000000000003")
+        val mediaProcessingTaskId = StrongMediaProcessingTaskId.parse("019c0000-0000-7000-8000-000000000004")
 
         legacyRepository.saveAndFlush(
             StrongContent(
@@ -137,12 +137,12 @@ class StrongIdJpaRuntimeTest {
 
     @Test
     fun `hibernate persists owned child by strong id and parent fk storage`() {
-        val contentId = StrongContentId.new()
-        val itemId = StrongContentItemId.new()
+        val contentId = StrongContentId.parse("019c0000-0000-7000-8000-000000000002")
+        val itemId = StrongContentItemId.parse("019c0000-0000-7000-8000-000000000005")
         val content = StrongContent(
             id = contentId,
             title = "content-with-item",
-            authorId = StrongAuthorId.new(),
+            authorId = StrongAuthorId.parse("019c0000-0000-7000-8000-000000000003"),
             mediaProcessingTaskId = null,
         )
         content.items += StrongContentItem(itemId, "chapter-1")
@@ -321,8 +321,6 @@ class StrongContentId protected constructor() : StrongId<String>, Serializable {
     }
 
     companion object {
-        fun new(): StrongContentId = StrongContentId("019c0000-0000-7000-8000-000000000002")
-
         fun parse(value: String): StrongContentId = StrongContentId(value)
     }
 
@@ -345,7 +343,7 @@ class StrongAuthorId protected constructor() : StrongId<String>, Serializable {
     }
 
     companion object {
-        fun new(): StrongAuthorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003")
+        fun parse(value: String): StrongAuthorId = StrongAuthorId(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -367,8 +365,7 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId<String>, Se
     }
 
     companion object {
-        fun new(): StrongMediaProcessingTaskId =
-            StrongMediaProcessingTaskId("019c0000-0000-7000-8000-000000000004")
+        fun parse(value: String): StrongMediaProcessingTaskId = StrongMediaProcessingTaskId(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -390,8 +387,6 @@ class StrongContentItemId protected constructor() : StrongId<String>, Serializab
     }
 
     companion object {
-        fun new(): StrongContentItemId = StrongContentItemId("019c0000-0000-7000-8000-000000000005")
-
         fun parse(value: String): StrongContentItemId = StrongContentItemId(value)
     }
 
@@ -448,7 +443,7 @@ open class StrongContent protected constructor() {
         fun unassigned(title: String): StrongContent =
             StrongContent().also {
                 it.title = title
-                it.authorId = StrongAuthorId.new()
+                it.authorId = StrongAuthorId.parse("019c0000-0000-7000-8000-000000000003")
             }
     }
 
