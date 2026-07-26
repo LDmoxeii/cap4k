@@ -947,14 +947,16 @@ class PipelinePluginTest {
             generators = mapOf("aggregate" to GeneratorConfig()),
         )
 
-        ensureAggregateDomainJpaDependency(rootProject, config)
-        ensureAggregateDomainJpaDependency(rootProject, config)
-
-        val jacksonDatabindDependencies = domainProject.configurations.getByName("implementation").dependencies
-            .filter { dependency ->
+        fun jacksonDatabindDependencyCount(): Int =
+            domainProject.configurations.getByName("implementation").dependencies.count { dependency ->
                 dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
             }
-        assertEquals(1, jacksonDatabindDependencies.size)
+
+        ensureAggregateDomainJpaDependency(rootProject, config)
+        assertEquals(1, jacksonDatabindDependencyCount())
+
+        ensureAggregateDomainJpaDependency(rootProject, config)
+        assertEquals(1, jacksonDatabindDependencyCount())
     }
 
     @Test
