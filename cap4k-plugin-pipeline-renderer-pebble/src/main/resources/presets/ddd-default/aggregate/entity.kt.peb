@@ -91,7 +91,7 @@ class {{ typeName }} internal constructor(
 {% endif -%}
 {% endif %}{% if field.generatedOwnId %}    lateinit var {{ field.name }}: {{ type(field) | raw }}
         internal set
-{% else %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+{% else %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.propertyInitializer | raw }}
         internal set
 {% endif %}
 
