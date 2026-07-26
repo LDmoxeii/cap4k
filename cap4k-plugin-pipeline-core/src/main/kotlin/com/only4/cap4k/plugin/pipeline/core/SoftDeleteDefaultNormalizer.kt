@@ -22,11 +22,11 @@ internal object SoftDeleteDefaultNormalizer {
         rawDefaultValue: String,
         storageKind: AggregateIdStorageKind,
     ): SoftDeleteActiveSentinel? {
-        var expression = rawDefaultValue.trim()
+        var expression = rawDefaultValue.trimAsciiWhitespace()
         if (expression.isEmpty() || !isStructurallyValid(expression)) return null
 
         while (isWholeOuterPair(expression)) {
-            expression = expression.substring(1, expression.lastIndex).trim()
+            expression = expression.substring(1, expression.lastIndex).trimAsciiWhitespace()
             if (expression.isEmpty()) return null
         }
 
@@ -37,7 +37,7 @@ internal object SoftDeleteDefaultNormalizer {
             val castAt = postfixCasts.single()
             val target = normalizeTarget(expression.substring(castAt + 2)) ?: return null
             if (!targetAgreesWithStorage(target, storageKind)) return null
-            expression = expression.substring(0, castAt).trim()
+            expression = expression.substring(0, castAt).trimAsciiWhitespace()
             if (expression.isEmpty()) return null
         }
 
@@ -63,7 +63,7 @@ internal object SoftDeleteDefaultNormalizer {
             value == "0" && storageKind != AggregateIdStorageKind.NATIVE_UUID ->
                 SoftDeleteActiveSentinel.ZERO
 
-            literal != null && value.equals(NIL_UUID, ignoreCase = true) &&
+            literal != null && value == NIL_UUID &&
                 storageKind != AggregateIdStorageKind.INTEGRAL ->
                 SoftDeleteActiveSentinel.NIL_UUID
 
@@ -76,7 +76,7 @@ internal object SoftDeleteDefaultNormalizer {
         storageKind: AggregateIdStorageKind,
     ): String? {
         var openParenthesis = "CAST".length
-        while (openParenthesis < expression.length && expression[openParenthesis].isWhitespace()) {
+        while (openParenthesis < expression.length && expression[openParenthesis].isAsciiWhitespace()) {
             openParenthesis++
         }
         if (openParenthesis >= expression.length || expression[openParenthesis] != '(') return null
@@ -88,7 +88,7 @@ internal object SoftDeleteDefaultNormalizer {
         if (separators.size != 1) return null
 
         val separator = separators.single()
-        val value = body.substring(0, separator).trim()
+        val value = body.substring(0, separator).trimAsciiWhitespace()
         val target = normalizeTarget(body.substring(separator + "AS".length)) ?: return null
         if (value.isEmpty() || !targetAgreesWithStorage(target, storageKind)) return null
         return value
@@ -100,8 +100,8 @@ internal object SoftDeleteDefaultNormalizer {
     ): String? {
         if (storageKind != AggregateIdStorageKind.NATIVE_UUID) return null
         val keywordEnd = "UUID".length
-        if (expression.length <= keywordEnd || !expression[keywordEnd].isWhitespace()) return null
-        val literal = expression.substring(keywordEnd).trim()
+        if (expression.length <= keywordEnd || !expression[keywordEnd].isAsciiWhitespace()) return null
+        val literal = expression.substring(keywordEnd).trimAsciiWhitespace()
         if (unwrapSqlLiteral(literal) == null) return null
         return literal
     }
@@ -114,17 +114,17 @@ internal object SoftDeleteDefaultNormalizer {
         }
 
     private fun normalizeTarget(rawTarget: String): String? {
-        val target = rawTarget.trim()
-        if (target.isEmpty() || target.any { !it.isLetter() && !it.isWhitespace() }) return null
+        val target = rawTarget.trimAsciiWhitespace()
+        if (target.isEmpty() || target.any { !it.isAsciiLetter() && !it.isAsciiWhitespace() }) return null
 
         return buildString {
             var pendingSpace = false
             target.forEach { character ->
-                if (character.isWhitespace()) {
+                if (character.isAsciiWhitespace()) {
                     pendingSpace = isNotEmpty()
                 } else {
                     if (pendingSpace) append(' ')
-                    append(character.uppercaseChar())
+                    append(character.asciiUppercase())
                     pendingSpace = false
                 }
             }
@@ -172,8 +172,8 @@ internal object SoftDeleteDefaultNormalizer {
             val end = index + keyword.length
             if (
                 index > 0 && end < expression.length &&
-                expression[index - 1].isWhitespace() && expression[end].isWhitespace() &&
-                expression.regionMatches(index, keyword, 0, keyword.length, ignoreCase = true)
+                expression[index - 1].isAsciiWhitespace() && expression[end].isAsciiWhitespace() &&
+                expression.matchesAsciiKeyword(index, keyword)
             ) {
                 positions += index
                 keyword.length
@@ -214,9 +214,9 @@ internal object SoftDeleteDefaultNormalizer {
     }
 
     private fun startsWithKeyword(expression: String, keyword: String): Boolean {
-        if (!expression.startsWith(keyword, ignoreCase = true)) return false
+        if (!expression.matchesAsciiKeyword(0, keyword)) return false
         if (expression.length == keyword.length) return true
-        return expression[keyword.length].isWhitespace() || expression[keyword.length] == '('
+        return expression[keyword.length].isAsciiWhitespace() || expression[keyword.length] == '('
     }
 
     private fun isWholeOuterPair(expression: String): Boolean {
@@ -272,4 +272,27 @@ internal object SoftDeleteDefaultNormalizer {
         }
         return depth == 0 && !inQuote
     }
+
+    private fun String.matchesAsciiKeyword(startIndex: Int, keyword: String): Boolean {
+        if (startIndex < 0 || startIndex + keyword.length > length) return false
+        return keyword.indices.all { offset ->
+            this[startIndex + offset].asciiUppercase() == keyword[offset]
+        }
+    }
+
+    private fun String.trimAsciiWhitespace(): String {
+        var startIndex = 0
+        var endIndex = length
+        while (startIndex < endIndex && this[startIndex].isAsciiWhitespace()) startIndex++
+        while (endIndex > startIndex && this[endIndex - 1].isAsciiWhitespace()) endIndex--
+        return substring(startIndex, endIndex)
+    }
+
+    private fun Char.isAsciiLetter(): Boolean = this in 'A'..'Z' || this in 'a'..'z'
+
+    private fun Char.isAsciiWhitespace(): Boolean =
+        this == ' ' || this == '\t' || this == '\n' || this == '\r' || this == '\u000C'
+
+    private fun Char.asciiUppercase(): Char =
+        if (this in 'a'..'z') (code - ('a'.code - 'A'.code)).toChar() else this
 }

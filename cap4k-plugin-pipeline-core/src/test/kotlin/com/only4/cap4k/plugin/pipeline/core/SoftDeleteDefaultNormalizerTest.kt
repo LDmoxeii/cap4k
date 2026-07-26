@@ -161,6 +161,18 @@ class SoftDeleteDefaultNormalizerTest {
         assertRejected(cases)
     }
 
+    @Test
+    fun `rejects non ASCII homoglyphs in SQL grammar`() {
+        val nilUuid = "'00000000-0000-0000-0000-000000000000'"
+        val cases = listOf(
+            RejectionCase("0::bıgınt", AggregateIdStorageKind.INTEGRAL),
+            RejectionCase("caſt(0 aſ bıgınt)", AggregateIdStorageKind.INTEGRAL),
+            RejectionCase("uuıd $nilUuid", AggregateIdStorageKind.NATIVE_UUID),
+        )
+
+        assertRejected(cases)
+    }
+
     private fun assertRejected(cases: List<RejectionCase>) {
         cases.forEach { case ->
             assertNull(
