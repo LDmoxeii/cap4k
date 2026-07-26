@@ -1008,11 +1008,20 @@ class PipelinePluginCompileFunctionalTest {
         buildFile.writeText(patchedBuildFile)
         assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
         assertTrue(patchedBuildFile.contains("\"audit_log\""))
-        Files.deleteIfExists(
-            projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
-                    "AggregateProviderPersistenceCompileSmoke.kt"
-            )
+        projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
+                "AggregateProviderPersistenceCompileSmoke.kt"
+        ).writeText(
+            """
+            package com.acme.demo.domain.aggregates.video_post
+
+            import com.acme.demo.domain.aggregates.audit_log.AuditLog
+
+            object AggregateProviderPersistenceCompileSmoke {
+                fun verify(videoPost: VideoPost, auditLog: AuditLog): List<Any> =
+                    listOf(videoPost, auditLog)
+            }
+            """.trimIndent()
         )
 
         val compileResult = FunctionalFixtureSupport
@@ -1050,11 +1059,17 @@ class PipelinePluginCompileFunctionalTest {
                 "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
             ).replaceFirst("@Managed=deleted;", "")
         )
-        Files.deleteIfExists(
-            projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
-                    "AggregateProviderPersistenceCompileSmoke.kt"
-            )
+        projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
+                "AggregateProviderPersistenceCompileSmoke.kt"
+        ).writeText(
+            """
+            package com.acme.demo.domain.aggregates.video_post
+
+            object AggregateProviderPersistenceCompileSmoke {
+                fun verify(videoPost: VideoPost): VideoPost = videoPost
+            }
+            """.trimIndent()
         )
 
         val compileResult = FunctionalFixtureSupport

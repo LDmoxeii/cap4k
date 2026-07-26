@@ -2215,13 +2215,32 @@ class PipelinePluginFunctionalTest {
             ).replaceFirst(
                 "title varchar(128) not null",
                 "created_by varchar(64) not null,\n    title varchar(128) not null",
-            )
+            ) +
+                "\n\n" +
+                """
+                create table audit_log (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    content varchar(128) not null
+                );
+                """.trimIndent()
         )
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
+        val patchedBuildFile = buildFileContent
+            .replace(
+                """
+                |                    "uuid_native_record",
+                |                )
+                """.trimMargin(),
+                """
+                |                    "uuid_native_record",
+                |                    "audit_log",
+                |                )
+                """.trimMargin(),
+            )
+            .replace(
                 """
                 |        aggregate {
                 |            artifacts {
@@ -2239,8 +2258,9 @@ class PipelinePluginFunctionalTest {
                 |            }
                 |        }
                 """.trimMargin(),
-            ),
-        )
+            )
+        buildFile.writeText(patchedBuildFile)
+        assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -2265,7 +2285,18 @@ class PipelinePluginFunctionalTest {
         assertEquals("", defaults.get("deletedDefaultColumn").asString)
         assertEquals("", defaults.get("versionDefaultColumn").asString)
         assertEquals(listOf("created_by"), defaults.getAsJsonArray("managedDefaultColumns").map { it.asString })
-        assertEquals(5, resolvedPolicies.size)
+        assertEquals(6, resolvedPolicies.size)
+        assertEquals(
+            setOf(
+                "video_post",
+                "snowflake_long_record",
+                "snowflake_string_record",
+                "uuid_string_record",
+                "uuid_native_record",
+                "audit_log",
+            ),
+            resolvedPolicies.keys,
+        )
         assertTrue(firstResolvedPolicy.has("managedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonArray("managedFields").size() > 0)
         assertTrue(firstResolvedPolicy.has("writeSurface"))
@@ -2292,6 +2323,9 @@ class PipelinePluginFunctionalTest {
         assertEquals("DB_EXPLICIT", snowflakeLongPolicy.getAsJsonObject("id").get("source").asString)
         assertEquals("snowflake", snowflakeLongPolicy.getAsJsonObject("id").get("strategy").asString)
         assertEquals("NONE", snowflakeLongPolicy.getAsJsonObject("version").get("source").asString)
+        val auditLogPolicy = resolvedPolicies.getValue("audit_log")
+        assertEquals("DB_EXPLICIT", auditLogPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("NONE", auditLogPolicy.getAsJsonObject("version").get("source").asString)
     }
 
     @OptIn(ExperimentalPathApi::class)
