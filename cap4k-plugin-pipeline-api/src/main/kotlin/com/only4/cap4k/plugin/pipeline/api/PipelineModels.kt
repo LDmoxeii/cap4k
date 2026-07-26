@@ -374,10 +374,9 @@ enum class SoftDeleteActiveSentinel {
 data class AggregateSoftDeletePolicy(
     val fieldName: String,
     val columnName: String,
-    val activeValue: String,
+    val storageKind: AggregateIdStorageKind,
+    val activeSentinel: SoftDeleteActiveSentinel,
     val tombstoneStrategy: SoftDeleteTombstoneStrategy,
-    val activePredicateSql: String,
-    val deleteAssignmentSql: String,
 )
 
 data class AggregatePersistenceProviderControl(

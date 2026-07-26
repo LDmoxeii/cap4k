@@ -139,10 +139,9 @@ class PipelineModelsTest {
         val softDelete = AggregateSoftDeletePolicy(
             fieldName = "deleted",
             columnName = "deleted",
-            activeValue = "0",
+            storageKind = AggregateIdStorageKind.CHARACTER,
+            activeSentinel = SoftDeleteActiveSentinel.NIL_UUID,
             tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-            activePredicateSql = "\"deleted\" = 0",
-            deleteAssignmentSql = "\"deleted\" = \"id\"",
         )
         val control = AggregatePersistenceProviderControl(
             entityName = "VideoPost",
@@ -154,8 +153,20 @@ class PipelineModelsTest {
         )
 
         assertEquals(softDelete, control.softDelete)
+        assertEquals(AggregateIdStorageKind.CHARACTER, control.softDelete?.storageKind)
+        assertEquals(SoftDeleteActiveSentinel.NIL_UUID, control.softDelete?.activeSentinel)
         assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, control.softDelete?.tombstoneStrategy)
-        assertEquals("\"deleted\" = \"id\"", control.softDelete?.deleteAssignmentSql)
+
+        val domainFields = AggregateSoftDeletePolicy::class.java.declaredFields
+            .filterNot { it.isSynthetic }
+            .map { it.name }
+        assertEquals(
+            setOf("fieldName", "columnName", "storageKind", "activeSentinel", "tombstoneStrategy"),
+            domainFields.toSet(),
+        )
+        assertFalse(domainFields.contains("activeValue"))
+        assertFalse(domainFields.contains("activePredicateSql"))
+        assertFalse(domainFields.contains("deleteAssignmentSql"))
     }
 
     @Test
