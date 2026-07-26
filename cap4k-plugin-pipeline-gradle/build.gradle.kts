@@ -31,6 +31,7 @@ dependencies {
     testImplementation(gradleTestKit())
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation(libs.postgresql)
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
