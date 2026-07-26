@@ -263,6 +263,8 @@ open class JpaUnitOfWork(
             ) { input ->
                 val results = FlushResult()
                 uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
+                val lateOwnership = analyzePendingOwnership(input.entries)
+                validateNoSharedReachableOwnership(input.entries, lateOwnership)
                 validateNoLatePendingOwnedChildEntries(input.entries)
                 completeGeneratedOwnIds(input.entries)
 

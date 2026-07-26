@@ -715,6 +715,54 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
+    fun `shared child added by beforeTransaction fails for unrelated roots in registration order`() {
+        val child = StrongChildEntity()
+        val firstRoot = FirstStrongRootEntity()
+        val secondRoot = SecondStrongRootEntity()
+        every { interceptor1.beforeTransaction(any(), any()) } answers {
+            firstRoot.children += child
+            secondRoot.children += child
+        }
+
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        assertRootOrder(error.message!!, FirstStrongRootEntity::class.java, SecondStrongRootEntity::class.java)
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.remove(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
+    fun `shared child added by preInTransaction fails for unrelated roots in registration order`() {
+        val child = StrongChildEntity()
+        val firstRoot = FirstStrongRootEntity()
+        val secondRoot = SecondStrongRootEntity()
+        every { interceptor1.preInTransaction(any(), any()) } answers {
+            firstRoot.children += child
+            secondRoot.children += child
+        }
+
+        jpaUnitOfWork.persist(firstRoot, PersistIntent.CREATE)
+        jpaUnitOfWork.persist(secondRoot, PersistIntent.CREATE)
+
+        val error = assertThrows(IllegalStateException::class.java) { jpaUnitOfWork.save() }
+
+        assertTrue(error.message!!.contains("multiple unrelated pending roots"))
+        assertTrue(error.message!!.contains(StrongChildEntity::class.java.name))
+        assertRootOrder(error.message!!, FirstStrongRootEntity::class.java, SecondStrongRootEntity::class.java)
+        verify(exactly = 0) { entityManager.persist(any()) }
+        verify(exactly = 0) { entityManager.merge<Any>(any()) }
+        verify(exactly = 0) { entityManager.remove(any()) }
+        verify(exactly = 0) { entityManager.flush() }
+    }
+
+    @Test
     fun `isolated CREATE with no pending owner remains caller declared top level`() {
         val child = StrongChildEntity()
 
