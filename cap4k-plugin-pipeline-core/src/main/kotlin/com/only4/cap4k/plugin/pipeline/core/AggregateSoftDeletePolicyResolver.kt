@@ -14,18 +14,20 @@ internal object AggregateSoftDeletePolicyResolver {
         resolvedPolicy: AggregateSpecialFieldResolvedPolicy,
     ): AggregateSoftDeletePolicy? {
         val deleted = resolvedPolicy.deleted.takeIf { it.enabled } ?: return null
-        val idResolution = resolveEndpoint(
+        val idLocation = locateEndpoint(
             table = table,
             label = "ID",
             columnName = resolvedPolicy.id.columnName,
             unresolvedColumnName = "<unresolved-id-column>",
         )
-        val deletedResolution = resolveEndpoint(
+        val deletedLocation = locateEndpoint(
             table = table,
             label = "deleted",
             columnName = deleted.columnName,
             unresolvedColumnName = "<unresolved-deleted-column>",
         )
+        val idResolution = classifyEndpoint(table, idLocation)
+        val deletedResolution = classifyEndpoint(table, deletedLocation)
         val strategy = resolvedPolicy.id.strategy
         if (!idResolution.isResolved || !deletedResolution.isResolved) {
             reject(
@@ -263,39 +265,56 @@ internal object AggregateSoftDeletePolicyResolver {
             get() = column != null && storage != null
     }
 
-    private fun resolveEndpoint(
+    private data class EndpointLocation(
+        val path: String,
+        val column: DbColumnSnapshot?,
+        val unresolvedEvidence: String? = null,
+    )
+
+    private fun locateEndpoint(
         table: DbTableSnapshot,
         label: String,
         columnName: String?,
         unresolvedColumnName: String,
-    ): EndpointResolution {
+    ): EndpointLocation {
         val path = "${table.tableName}.${columnName ?: unresolvedColumnName}"
         if (columnName == null) {
-            return EndpointResolution(
+            return EndpointLocation(
                 path = path,
                 column = null,
-                storage = null,
-                storageEvidence = "unresolved[columnName=null]",
+                unresolvedEvidence = "unresolved[columnName=null]",
             )
         }
         val column = table.columns.firstOrNull { it.name == columnName }
-            ?: return EndpointResolution(
+            ?: return EndpointLocation(
                 path = path,
                 column = null,
-                storage = null,
-                storageEvidence = "unresolved[missing physical $label column]",
+                unresolvedEvidence = "unresolved[missing physical $label column]",
             )
+        return EndpointLocation(path = path, column = column)
+    }
+
+    private fun classifyEndpoint(
+        table: DbTableSnapshot,
+        location: EndpointLocation,
+    ): EndpointResolution {
+        val column = location.column ?: return EndpointResolution(
+            path = location.path,
+            column = null,
+            storage = null,
+            storageEvidence = checkNotNull(location.unresolvedEvidence),
+        )
         return try {
             val storage = AggregateIdStorageCatalog.resolve(table.tableName, column)
             EndpointResolution(
-                path = path,
+                path = location.path,
                 column = column,
                 storage = storage,
                 storageEvidence = describeStorage(storage, column),
             )
         } catch (error: IllegalArgumentException) {
             EndpointResolution(
-                path = path,
+                path = location.path,
                 column = column,
                 storage = null,
                 storageEvidence = "unsupported${physicalEvidence(column)}; reason=${error.message}",
