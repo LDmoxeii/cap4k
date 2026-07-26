@@ -95,7 +95,7 @@ internal object AggregateIdStorageCatalog {
         column: DbColumnSnapshot,
     ): ResolvedAggregateIdStorage.NativeUuid {
         if (
-            !column.dbType.trim().equals("uuid", ignoreCase = true) ||
+            !column.dbType.equals("uuid", ignoreCase = true) ||
             column.kotlinType !in setOf("UUID", "java.util.UUID")
         ) {
             unsupported(path, column)

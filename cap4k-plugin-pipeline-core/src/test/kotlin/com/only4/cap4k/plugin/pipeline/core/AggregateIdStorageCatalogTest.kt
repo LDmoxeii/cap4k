@@ -62,7 +62,7 @@ class AggregateIdStorageCatalogTest {
     fun `classifies native UUID storage from the permitted JDBC and vendor evidence`() {
         val cases = listOf(
             NativeUuidCase(Types.OTHER, "UUID", "UUID"),
-            NativeUuidCase(Types.BINARY, " uuid ", "java.util.UUID"),
+            NativeUuidCase(Types.BINARY, "uuid", "java.util.UUID"),
         )
 
         cases.forEach { case ->
@@ -92,6 +92,7 @@ class AggregateIdStorageCatalogTest {
             RejectedCase(Types.INTEGER, "INT", "String", 32),
             RejectedCase(Types.VARCHAR, "VARCHAR", "Int", 32),
             RejectedCase(Types.OTHER, "uuid", "String", 16),
+            RejectedCase(Types.OTHER, " uuid ", "UUID", 16),
             RejectedCase(Types.INTEGER, "INT(11) ZEROFILL", "Int", 32),
         )
 
