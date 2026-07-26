@@ -360,6 +360,17 @@ enum class SoftDeleteTombstoneStrategy {
     SELF_ID,
 }
 
+enum class AggregateIdStorageKind {
+    INTEGRAL,
+    CHARACTER,
+    NATIVE_UUID,
+}
+
+enum class SoftDeleteActiveSentinel {
+    ZERO,
+    NIL_UUID,
+}
+
 data class AggregateSoftDeletePolicy(
     val fieldName: String,
     val columnName: String,

@@ -159,6 +159,18 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `soft delete storage semantics expose stable public enum order`() {
+        assertEquals(
+            listOf("INTEGRAL", "CHARACTER", "NATIVE_UUID"),
+            AggregateIdStorageKind.entries.map { it.name },
+        )
+        assertEquals(
+            listOf("ZERO", "NIL_UUID"),
+            SoftDeleteActiveSentinel.entries.map { it.name },
+        )
+    }
+
+    @Test
     fun `aggregate relation model carries owned cardinality separately from persistence type`() {
         val relation = AggregateRelationModel(
             ownerEntityName = "VideoPost",
