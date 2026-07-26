@@ -1,5 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.google.gson.JsonParser
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -701,7 +702,6 @@ class PipelinePluginCompileFunctionalTest {
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
         val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText()
-
         assertTrue(applicationBuildFile == "// Functional fixture module.")
         assertTrue(adapterBuildFile == "// Functional fixture module.")
         assertTrue(domainBuildFile.contains("org.springframework:spring-context"))
@@ -728,34 +728,229 @@ class PipelinePluginCompileFunctionalTest {
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
         val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText()
+        val fixtureBuildFile = projectDir.resolve("build.gradle.kts")
 
         assertTrue(applicationBuildFile == "// Functional fixture module.")
         assertTrue(adapterBuildFile == "// Functional fixture module.")
         assertTrue(domainBuildFile.contains("org.hibernate.orm:hibernate-core"))
         assertTrue(domainBuildFile.contains("jakarta.persistence:jakarta.persistence-api"))
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-domain:compileKotlin")
+
+        data class ApplicationSideCell(
+            val tableName: String,
+            val entityName: String,
+            val backingType: String,
+            val deletedProperty: String,
+            val activeSqlLiteral: String,
+            val strategy: String,
+        ) {
+            val packageName: String = "com.acme.demo.domain.aggregates.$tableName"
+            val idType: String = "${entityName}Id"
+            val accessorType: String = "${entityName}GeneratedOwnIdAccessor"
+            val factoryType: String = "${entityName}Factory"
+        }
+
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        val applicationSideCells = listOf(
+            ApplicationSideCell(
+                tableName = "snowflake_long_record",
+                entityName = "SnowflakeLongRecord",
+                backingType = "Long",
+                deletedProperty = "var deleted: Long = 0L",
+                activeSqlLiteral = "0",
+                strategy = "snowflake",
+            ),
+            ApplicationSideCell(
+                tableName = "snowflake_string_record",
+                entityName = "SnowflakeStringRecord",
+                backingType = "String",
+                deletedProperty = "var deleted: String = \"0\"",
+                activeSqlLiteral = "'0'",
+                strategy = "snowflake",
+            ),
+            ApplicationSideCell(
+                tableName = "uuid_string_record",
+                entityName = "UuidStringRecord",
+                backingType = "String",
+                deletedProperty = "var deleted: String = \"$nilUuid\"",
+                activeSqlLiteral = "'$nilUuid'",
+                strategy = "uuid7",
+            ),
+            ApplicationSideCell(
+                tableName = "uuid_native_record",
+                entityName = "UuidNativeRecord",
+                backingType = "UUID",
+                deletedProperty = "var deleted: UUID = UUID(0L, 0L)",
+                activeSqlLiteral = "CAST('$nilUuid' AS UUID)",
+                strategy = "uuid7",
+            ),
+        )
+
+        val planResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kPlan")
+            .build()
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/demo", "h2/generate"))
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
             .build()
 
-        val generatedVideoPost = projectDir.resolve(
+        val entityPaths = listOf(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
-        ).readText()
-        val generatedAuditLog = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
-        ).readText()
+        ) + applicationSideCells.map { cell ->
+            generatedSource(
+                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}.kt"
+            )
+        }
+        val strongIdPaths = applicationSideCells.map { cell ->
+            generatedSource(
+                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idType}.kt"
+            )
+        }
+        val accessorPaths = applicationSideCells.map { cell ->
+            generatedSource(
+                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
+            )
+        }
+        val catalogPath = generatedSource(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt"
+        )
+        val applicationFactoryPaths = applicationSideCells.map { cell ->
+            "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/factory/${cell.factoryType}.kt"
+        }
 
+        assertGeneratedFilesExist(
+            projectDir,
+            *(entityPaths + strongIdPaths + accessorPaths + catalogPath + applicationFactoryPaths).toTypedArray(),
+        )
+
+        val generatedVideoPost = projectDir.resolve(entityPaths.first()).readText()
+        val generatedEntities = applicationSideCells.associateWith { cell ->
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}.kt"
+                )
+            ).readText()
+        }
+        val generatedStrongIds = applicationSideCells.associateWith { cell ->
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idType}.kt"
+                )
+            ).readText()
+        }
+        val generatedAccessors = applicationSideCells.associateWith { cell ->
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
+                )
+            ).readText()
+        }
+        val generatedCatalog = projectDir.resolve(catalogPath).readText()
+        val generatedFactories = applicationSideCells.associateWith { cell ->
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/factory/${cell.factoryType}.kt"
+            ).readText()
+        }
+        val identityFactoryPath =
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
+        assertTrue(
+            projectDir.resolve(identityFactoryPath).toFile().exists(),
+            "Expected generated identity factory boundary file to exist: $identityFactoryPath",
+        )
+        val generatedIdentityFactory = projectDir.resolve(identityFactoryPath).readText()
+        val factoryContexts = JsonParser.parseString(planContent)
+            .asJsonObject
+            .getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .filter { it.get("templateId").asString == "aggregate/factory.kt.peb" }
+            .associate { item ->
+                val context = item.getAsJsonObject("context")
+                context.get("entityName").asString to context
+            }
+
+        assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertFalse(generatedVideoPost.contains("@DynamicInsert"))
         assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
         assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.SQLDelete"))
         assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.Where"))
         assertTrue(generatedVideoPost.contains("""@SQLDelete(sql = "update `video_post` set `deleted` = `id` where `id` = ? and `version` = ?")"""))
         assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
+        assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedVideoPost.contains("@Version"))
+        assertTrue(generatedVideoPost.contains("var deleted: Long = 0L"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("deleted"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertTrue(generatedAuditLog.contains("import org.hibernate.annotations.SQLDelete"))
-        assertTrue(generatedAuditLog.contains("import org.hibernate.annotations.Where"))
-        assertTrue(generatedAuditLog.contains("""@SQLDelete(sql = "update `audit_log` set `deleted` = `id` where `id` = ?")"""))
-        assertTrue(generatedAuditLog.contains("""@Where(clause = "`deleted` = 0")"""))
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
+
+        applicationSideCells.forEach { cell ->
+            val entity = generatedEntities.getValue(cell)
+            val strongId = generatedStrongIds.getValue(cell)
+            val accessor = generatedAccessors.getValue(cell)
+            val factory = generatedFactories.getValue(cell)
+            val constructorParameters = internalConstructorParameters(entity)
+
+            assertTrue(entity.contains("@EmbeddedId"), cell.entityName)
+            assertGeneratedOwnIdShape(entity, cell.idType)
+            assertFalse(Regex("""\bid\s*:""").containsMatchIn(constructorParameters), cell.entityName)
+            assertFalse(constructorParameters.contains("deleted"), cell.entityName)
+            assertTrue(entity.contains(cell.deletedProperty), cell.entityName)
+            assertFalse(entity.contains("var deleted: ${cell.idType}"), cell.entityName)
+            assertTrue(
+                entity.contains(
+                    """@SQLDelete(sql = "update `${cell.tableName}` set `deleted` = `id` where `id` = ?")"""
+                ),
+                cell.entityName,
+            )
+            assertTrue(
+                entity.contains("""@Where(clause = "`deleted` = ${cell.activeSqlLiteral}")"""),
+                cell.entityName,
+            )
+            assertFalse(entity.contains("and `version` = ?"), cell.entityName)
+            assertFalse(entity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"), cell.entityName)
+            assertTrue(strongId.contains("StrongId<${cell.backingType}>"), cell.idType)
+            assertTrue(
+                accessor.contains(
+                    "Mediator.identifiers.next(\"${cell.strategy}\", ${cell.backingType}::class)"
+                ),
+                cell.accessorType,
+            )
+            assertTrue(accessor.contains("${cell.idType}.of("), cell.accessorType)
+            assertTrue(
+                generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
+                cell.accessorType,
+            )
+            assertEquals(true, factoryContexts.getValue(cell.entityName).get("constructorMappingResolved").asBoolean)
+            assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
+            assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
+            assertTrue(factory.contains("val title: String"), cell.factoryType)
+            assertFalse(factory.contains("TODO(\"Implement aggregate construction\")"), cell.factoryType)
+            assertFalse(factory.contains("deleted"), cell.factoryType)
+            assertFalse(factory.contains("val id:"), cell.factoryType)
+            assertFalse(factory.contains(cell.idType), cell.factoryType)
+        }
+
+        assertEquals(false, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
+        assertTrue(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
+        assertFalse(generatedIdentityFactory.contains("deleted"))
+
+        val allGeneratedEvidence = buildString {
+            append(generatedVideoPost)
+            generatedEntities.values.forEach { append(it) }
+            generatedStrongIds.values.forEach { append(it) }
+            generatedAccessors.values.forEach { append(it) }
+            append(generatedCatalog)
+            generatedFactories.values.forEach { append(it) }
+            append(generatedIdentityFactory)
+        }
+        assertFalse(allGeneratedEvidence.contains("ApplicationSideId"))
+        assertFalse(allGeneratedEvidence.contains("snowflake-long"))
+
+        fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/generate", "h2/compile"))
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+
+        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":demo-domain:compileKotlin")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
@@ -768,21 +963,57 @@ class PipelinePluginCompileFunctionalTest {
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
-            ).replaceFirst("@Managed=deleted;", "")
+            ).replaceFirst("@Managed=deleted;", "") +
+                "\n\n" +
+                """
+                create table audit_log (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    content varchar(128) not null
+                );
+                """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*}"""),
-            """
-            |aggregate {
-            |            specialFields {
-            |                idDefaultStrategy.set("identity")
-            |            }
-            |        }
-            """.trimMargin(),
-        )
+        val patchedBuildFile = buildFile.readText().replace("\r\n", "\n")
+            .replace(
+                """
+                |                    "uuid_native_record",
+                |                )
+                """.trimMargin(),
+                """
+                |                    "uuid_native_record",
+                |                    "audit_log",
+                |                )
+                """.trimMargin(),
+            )
+            .replace(
+                """
+                |        aggregate {
+                |            artifacts {
+                |                factory.set(true)
+                |            }
+                |        }
+                """.trimMargin(),
+                """
+                |        aggregate {
+                |            specialFields {
+                |                idDefaultStrategy.set("identity")
+                |            }
+                |            artifacts {
+                |                factory.set(true)
+                |            }
+                |        }
+                """.trimMargin(),
+            )
         buildFile.writeText(patchedBuildFile)
         assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
+        assertTrue(patchedBuildFile.contains("\"audit_log\""))
+        Files.deleteIfExists(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
+                    "AggregateProviderPersistenceCompileSmoke.kt"
+            )
+        )
 
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
@@ -818,6 +1049,12 @@ class PipelinePluginCompileFunctionalTest {
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
             ).replaceFirst("@Managed=deleted;", "")
+        )
+        Files.deleteIfExists(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
+                    "AggregateProviderPersistenceCompileSmoke.kt"
+            )
         )
 
         val compileResult = FunctionalFixtureSupport
