@@ -136,6 +136,49 @@ class AggregateSoftDeleteRenderingTest {
     }
 
     @Test
+    fun renderAcceptsCatalogQualifiedKotlinTypes() {
+        data class Case(
+            val storageKind: AggregateIdStorageKind,
+            val activeSentinel: SoftDeleteActiveSentinel,
+            val deletedKotlinType: String,
+            val expectedInitializer: String,
+        )
+
+        val cases = listOf(
+            Case(AggregateIdStorageKind.INTEGRAL, SoftDeleteActiveSentinel.ZERO, "kotlin.Byte", "0"),
+            Case(AggregateIdStorageKind.INTEGRAL, SoftDeleteActiveSentinel.ZERO, "kotlin.Short", "0"),
+            Case(AggregateIdStorageKind.INTEGRAL, SoftDeleteActiveSentinel.ZERO, "kotlin.Int", "0"),
+            Case(AggregateIdStorageKind.INTEGRAL, SoftDeleteActiveSentinel.ZERO, "kotlin.Long", "0L"),
+            Case(AggregateIdStorageKind.CHARACTER, SoftDeleteActiveSentinel.ZERO, "kotlin.String", "\"0\""),
+            Case(
+                AggregateIdStorageKind.CHARACTER,
+                SoftDeleteActiveSentinel.NIL_UUID,
+                "kotlin.String",
+                "\"00000000-0000-0000-0000-000000000000\"",
+            ),
+            Case(
+                AggregateIdStorageKind.NATIVE_UUID,
+                SoftDeleteActiveSentinel.NIL_UUID,
+                "java.util.UUID",
+                "UUID(0L, 0L)",
+            ),
+        )
+
+        cases.forEach { case ->
+            val rendered = AggregateSoftDeleteRendering.render(
+                policy = policy(case.storageKind, case.activeSentinel),
+                dialect = AggregateSqlDialect.H2,
+                tableName = "sample",
+                idColumnName = "id",
+                versionColumnName = null,
+                deletedKotlinType = case.deletedKotlinType,
+            )
+
+            assertEquals(case.expectedInitializer, rendered.propertyInitializer, case.deletedKotlinType)
+        }
+    }
+
+    @Test
     fun renderCharacterZeroAndNilUuidLiteralsAndInitializers() {
         val zero = AggregateSoftDeleteRendering.render(
             policy = policy(AggregateIdStorageKind.CHARACTER, SoftDeleteActiveSentinel.ZERO),
@@ -209,6 +252,7 @@ class AggregateSoftDeleteRenderingTest {
             Triple(AggregateIdStorageKind.CHARACTER, SoftDeleteActiveSentinel.NIL_UUID, "UUID"),
             Triple(AggregateIdStorageKind.NATIVE_UUID, SoftDeleteActiveSentinel.ZERO, "UUID"),
             Triple(AggregateIdStorageKind.INTEGRAL, SoftDeleteActiveSentinel.ZERO, "String"),
+            Triple(AggregateIdStorageKind.INTEGRAL, SoftDeleteActiveSentinel.ZERO, "com.acme.Long"),
         )
 
         cases.forEach { (storageKind, sentinel, deletedKotlinType) ->

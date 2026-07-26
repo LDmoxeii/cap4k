@@ -83,10 +83,11 @@ internal object AggregateSoftDeleteRendering {
     private fun renderPropertyInitializer(
         policy: AggregateSoftDeletePolicy,
         deletedKotlinType: String,
-    ): String =
-        when (policy.storageKind) {
+    ): String {
+        val normalizedKotlinType = normalizeApprovedKotlinType(deletedKotlinType)
+        return when (policy.storageKind) {
             AggregateIdStorageKind.INTEGRAL -> when (policy.activeSentinel) {
-                SoftDeleteActiveSentinel.ZERO -> when (deletedKotlinType) {
+                SoftDeleteActiveSentinel.ZERO -> when (normalizedKotlinType) {
                     "Byte", "Short", "Int" -> "0"
                     "Long" -> "0L"
                     else -> unsupported(policy, deletedKotlinType)
@@ -94,7 +95,7 @@ internal object AggregateSoftDeleteRendering {
                 SoftDeleteActiveSentinel.NIL_UUID -> unsupported(policy, deletedKotlinType)
             }
             AggregateIdStorageKind.CHARACTER -> {
-                if (deletedKotlinType != "String") {
+                if (normalizedKotlinType != "String") {
                     unsupported(policy, deletedKotlinType)
                 }
                 when (policy.activeSentinel) {
@@ -105,12 +106,24 @@ internal object AggregateSoftDeleteRendering {
             AggregateIdStorageKind.NATIVE_UUID -> {
                 if (
                     policy.activeSentinel != SoftDeleteActiveSentinel.NIL_UUID ||
-                    deletedKotlinType != "UUID"
+                    normalizedKotlinType != "UUID"
                 ) {
                     unsupported(policy, deletedKotlinType)
                 }
                 "UUID(0L, 0L)"
             }
+        }
+    }
+
+    private fun normalizeApprovedKotlinType(kotlinType: String): String =
+        when (kotlinType) {
+            "kotlin.Byte" -> "Byte"
+            "kotlin.Short" -> "Short"
+            "kotlin.Int" -> "Int"
+            "kotlin.Long" -> "Long"
+            "kotlin.String" -> "String"
+            "java.util.UUID" -> "UUID"
+            else -> kotlinType
         }
 
     private fun quoteIdentifier(
