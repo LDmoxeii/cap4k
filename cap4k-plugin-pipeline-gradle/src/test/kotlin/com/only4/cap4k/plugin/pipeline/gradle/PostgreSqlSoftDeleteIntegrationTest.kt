@@ -23,6 +23,8 @@ import java.util.UUID
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
@@ -39,22 +41,78 @@ class PostgreSqlSoftDeleteIntegrationTest {
             }
             val originalSchema = connection.schema
             var schemaCreated = false
-            try {
-                connection.createStatement().use { statement ->
-                    statement.execute("create schema \"$schemaName\"")
-                }
-                schemaCreated = true
-                createFixture(connection, schemaName)
-                connection.schema = schemaName
-
-                assertPipelineAndSqlLifecycle(connection, environment, schemaName)
-            } finally {
-                if (schemaCreated) {
-                    connection.schema = originalSchema ?: "public"
+            runWithCleanup(
+                action = {
                     connection.createStatement().use { statement ->
-                        statement.execute("drop schema if exists \"$schemaName\" cascade")
+                        statement.execute("create schema \"$schemaName\"")
                     }
+                    schemaCreated = true
+                    createFixture(connection, schemaName)
+                    connection.schema = schemaName
+
+                    assertPipelineAndSqlLifecycle(connection, environment, schemaName)
+                },
+                cleanup = {
+                    if (schemaCreated) {
+                        connection.schema = originalSchema ?: "public"
+                        connection.createStatement().use { statement ->
+                            statement.execute("drop schema if exists \"$schemaName\" cascade")
+                        }
+                    }
+                },
+            )
+        }
+    }
+
+    @Test
+    fun `cleanup failure is suppressed when the evidence body already failed`() {
+        val bodyFailure = IllegalStateException("body failed")
+        val cleanupFailure = IllegalStateException("cleanup failed")
+
+        val thrown = assertThrows(IllegalStateException::class.java) {
+            runWithCleanup(
+                action = { throw bodyFailure },
+                cleanup = { throw cleanupFailure },
+            )
+        }
+
+        assertSame(bodyFailure, thrown)
+        assertEquals(listOf(cleanupFailure), thrown.suppressed.toList())
+    }
+
+    @Test
+    fun `cleanup failure remains fatal when the evidence body succeeded`() {
+        val cleanupFailure = IllegalStateException("cleanup failed")
+
+        val thrown = assertThrows(IllegalStateException::class.java) {
+            runWithCleanup(
+                action = {},
+                cleanup = { throw cleanupFailure },
+            )
+        }
+
+        assertSame(cleanupFailure, thrown)
+    }
+
+    private inline fun <T> runWithCleanup(
+        action: () -> T,
+        cleanup: () -> Unit,
+    ): T {
+        var primaryFailure: Throwable? = null
+        try {
+            return action()
+        } catch (failure: Throwable) {
+            primaryFailure = failure
+            throw failure
+        } finally {
+            try {
+                cleanup()
+            } catch (cleanupFailure: Throwable) {
+                val failure = primaryFailure
+                if (failure == null) {
+                    throw cleanupFailure
                 }
+                failure.addSuppressed(cleanupFailure)
             }
         }
     }

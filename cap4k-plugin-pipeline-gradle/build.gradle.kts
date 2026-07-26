@@ -56,3 +56,8 @@ kotlin {
 tasks.withType<Test>().configureEach {
     timeout.set(Duration.ofMinutes(60))
 }
+
+tasks.named<Test>("test") {
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
+}
