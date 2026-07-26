@@ -14,40 +14,34 @@ internal object AggregateSoftDeletePolicyResolver {
         resolvedPolicy: AggregateSpecialFieldResolvedPolicy,
     ): AggregateSoftDeletePolicy? {
         val deleted = resolvedPolicy.deleted.takeIf { it.enabled } ?: return null
-        val deletedColumnName = requireNotNull(deleted.columnName) {
-            "missing soft delete column for table ${table.tableName}"
-        }
-        val deletedFieldName = requireNotNull(deleted.fieldName) {
-            "missing soft delete field for table ${table.tableName}"
-        }
-        val idColumn = table.columns.firstOrNull {
-            it.name == resolvedPolicy.id.columnName
-        } ?: throw IllegalArgumentException(
-            "missing id column ${resolvedPolicy.id.columnName} for soft delete table ${table.tableName}"
+        val idResolution = resolveEndpoint(
+            table = table,
+            label = "ID",
+            columnName = resolvedPolicy.id.columnName,
+            unresolvedColumnName = "<unresolved-id-column>",
         )
-        val deletedColumn = table.columns.firstOrNull {
-            it.name == deletedColumnName
-        } ?: throw IllegalArgumentException(
-            "missing soft delete column $deletedColumnName for table ${table.tableName}"
+        val deletedResolution = resolveEndpoint(
+            table = table,
+            label = "deleted",
+            columnName = deleted.columnName,
+            unresolvedColumnName = "<unresolved-deleted-column>",
         )
-
-        val idResolution = runCatching { AggregateIdStorageCatalog.resolve(table.tableName, idColumn) }
-        val deletedResolution = runCatching { AggregateIdStorageCatalog.resolve(table.tableName, deletedColumn) }
         val strategy = resolvedPolicy.id.strategy
-        if (idResolution.isFailure || deletedResolution.isFailure) {
+        if (!idResolution.isResolved || !deletedResolution.isResolved) {
             reject(
-                table = table,
-                idColumn = idColumn,
-                deletedColumn = deletedColumn,
+                idPath = idResolution.path,
+                deletedPath = deletedResolution.path,
                 strategy = strategy,
-                idStorage = describeResolution(idResolution, idColumn),
-                deletedStorage = describeResolution(deletedResolution, deletedColumn),
-                evidence = "unsupported physical storage",
-                cause = idResolution.exceptionOrNull() ?: deletedResolution.exceptionOrNull(),
+                idStorage = idResolution.storageEvidence,
+                deletedStorage = deletedResolution.storageEvidence,
+                evidence = "unresolved or unsupported physical storage",
+                failures = listOfNotNull(idResolution.failure, deletedResolution.failure),
             )
         }
-        val idStorage = idResolution.getOrThrow()
-        val deletedStorage = deletedResolution.getOrThrow()
+        val idColumn = checkNotNull(idResolution.column)
+        val deletedColumn = checkNotNull(deletedResolution.column)
+        val idStorage = checkNotNull(idResolution.storage)
+        val deletedStorage = checkNotNull(deletedResolution.storage)
         val idStorageDescription = describeStorage(idStorage, idColumn)
         val deletedStorageDescription = describeStorage(deletedStorage, deletedColumn)
         val activeSentinel = when (strategy) {
@@ -109,6 +103,15 @@ internal object AggregateSoftDeletePolicyResolver {
                     "normalizedDefault=$normalizedDefault, expectedSentinel=$activeSentinel",
             )
         }
+        val deletedFieldName = deleted.fieldName ?: reject(
+            table = table,
+            idColumn = idColumn,
+            deletedColumn = deletedColumn,
+            strategy = strategy,
+            idStorage = idStorageDescription,
+            deletedStorage = deletedStorageDescription,
+            evidence = "fieldName=null at semantic policy publication",
+        )
 
         return AggregateSoftDeletePolicy(
             fieldName = deletedFieldName,
@@ -249,13 +252,57 @@ internal object AggregateSoftDeletePolicyResolver {
         is ResolvedAggregateIdStorage.NativeUuid -> AggregateIdStorageKind.NATIVE_UUID
     }
 
-    private fun describeResolution(
-        resolution: Result<ResolvedAggregateIdStorage>,
-        column: DbColumnSnapshot,
-    ): String = resolution.fold(
-        onSuccess = { describeStorage(it, column) },
-        onFailure = { error -> "unsupported${physicalEvidence(column)}; reason=${error.message}" },
-    )
+    private data class EndpointResolution(
+        val path: String,
+        val column: DbColumnSnapshot?,
+        val storage: ResolvedAggregateIdStorage?,
+        val storageEvidence: String,
+        val failure: IllegalArgumentException? = null,
+    ) {
+        val isResolved: Boolean
+            get() = column != null && storage != null
+    }
+
+    private fun resolveEndpoint(
+        table: DbTableSnapshot,
+        label: String,
+        columnName: String?,
+        unresolvedColumnName: String,
+    ): EndpointResolution {
+        val path = "${table.tableName}.${columnName ?: unresolvedColumnName}"
+        if (columnName == null) {
+            return EndpointResolution(
+                path = path,
+                column = null,
+                storage = null,
+                storageEvidence = "unresolved[columnName=null]",
+            )
+        }
+        val column = table.columns.firstOrNull { it.name == columnName }
+            ?: return EndpointResolution(
+                path = path,
+                column = null,
+                storage = null,
+                storageEvidence = "unresolved[missing physical $label column]",
+            )
+        return try {
+            val storage = AggregateIdStorageCatalog.resolve(table.tableName, column)
+            EndpointResolution(
+                path = path,
+                column = column,
+                storage = storage,
+                storageEvidence = describeStorage(storage, column),
+            )
+        } catch (error: IllegalArgumentException) {
+            EndpointResolution(
+                path = path,
+                column = column,
+                storage = null,
+                storageEvidence = "unsupported${physicalEvidence(column)}; reason=${error.message}",
+                failure = error,
+            )
+        }
+    }
 
     private fun describeStorage(
         storage: ResolvedAggregateIdStorage,
@@ -274,14 +321,32 @@ internal object AggregateSoftDeletePolicyResolver {
         idStorage: String,
         deletedStorage: String,
         evidence: String,
-        cause: Throwable? = null,
+    ): Nothing = reject(
+        idPath = "${table.tableName}.${idColumn.name}",
+        deletedPath = "${table.tableName}.${deletedColumn.name}",
+        strategy = strategy,
+        idStorage = idStorage,
+        deletedStorage = deletedStorage,
+        evidence = evidence,
+    )
+
+    private fun reject(
+        idPath: String,
+        deletedPath: String,
+        strategy: String,
+        idStorage: String,
+        deletedStorage: String,
+        evidence: String,
+        failures: List<IllegalArgumentException> = emptyList(),
     ): Nothing {
-        throw IllegalArgumentException(
-            "soft delete policy rejected for ${table.tableName}.${deletedColumn.name}: " +
-                "id=${table.tableName}.${idColumn.name}, strategy=$strategy, " +
-                "idStorage=$idStorage, deletedStorage=$deletedStorage, evidence=$evidence",
-            cause,
+        val error = IllegalArgumentException(
+            "soft delete policy rejected for $deletedPath: " +
+                "id=$idPath, strategy=$strategy, idStorage=$idStorage, " +
+                "deleted=$deletedPath, deletedStorage=$deletedStorage, evidence=$evidence",
+            failures.firstOrNull(),
         )
+        failures.drop(1).forEach(error::addSuppressed)
+        throw error
     }
 
     private const val IDENTITY = "identity"

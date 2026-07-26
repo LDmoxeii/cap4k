@@ -3792,6 +3792,134 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `disabled soft delete marker returns null before resolving missing context`() {
+        assertNull(
+            resolveSoftDeleteDirect(
+                columns = emptyList(),
+                deletedEnabled = false,
+                deletedFieldName = null,
+                deletedColumnName = null,
+            )
+        )
+    }
+
+    @Test
+    fun `enabled soft delete marker validates missing field name after endpoint semantics`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.deleted",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "fieldName=null",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns(),
+                deletedFieldName = null,
+            )
+        }
+    }
+
+    @Test
+    fun `enabled soft delete marker reports unresolved deleted column name with endpoint context`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.<unresolved-deleted-column>",
+                "deletedStorage=unresolved",
+                "columnName=null",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns(),
+                deletedColumnName = null,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver reports missing physical id with both endpoint evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=unresolved",
+                "missing physical ID column",
+                "deleted=video_post.deleted",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns().filterNot { it.name == "id" },
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver reports missing physical deleted with both endpoint evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.deleted",
+                "deletedStorage=unresolved",
+                "missing physical deleted column",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns().filterNot { it.name == "deleted" },
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver preserves both catalog failures`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            resolveSoftDeleteDirect(
+                columns = listOf(
+                    column(
+                        name = "id",
+                        dbType = "DECIMAL(19, 0)",
+                        kotlinType = "Long",
+                        nullable = false,
+                        primaryKey = true,
+                        jdbcType = Types.DECIMAL,
+                        columnSize = 19,
+                    ),
+                    column(
+                        name = "deleted",
+                        dbType = "DECIMAL(19, 0)",
+                        kotlinType = "Long",
+                        nullable = false,
+                        defaultValue = "0",
+                        managedRole = DbManagedRole.DELETED,
+                        jdbcType = Types.DECIMAL,
+                        columnSize = 19,
+                    ),
+                )
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("id=video_post.id"), error.message)
+        assertTrue(error.message.orEmpty().contains("deleted=video_post.deleted"), error.message)
+        val cause = error.cause
+        assertTrue(cause is IllegalArgumentException, "expected first catalog IllegalArgumentException as cause")
+        assertTrue(cause?.message.orEmpty().contains("unsupported aggregate ID storage for video_post.id"), cause?.message)
+        assertEquals(1, error.suppressed.size)
+        assertTrue(error.suppressed.single() is IllegalArgumentException)
+        assertTrue(
+            error.suppressed.single().message.orEmpty()
+                .contains("unsupported aggregate ID storage for video_post.deleted"),
+            error.suppressed.single().message,
+        )
+    }
+
+    @Test
     fun `soft delete policy rejects unsupported strategy and strategy storage combinations`() {
         val cases = listOf(
             DirectSoftDeleteCase("sequence", "BIGINT", "Long", "BIGINT", "Long", "0", "accepted strategies"),
@@ -6347,59 +6475,91 @@ class DefaultCanonicalAssemblerTest {
         }
     }
 
-    private fun resolveSoftDeleteDirect(case: DirectSoftDeleteCase) {
-        val idColumn = column(
+    private fun directIntegralSoftDeleteColumns(): List<DbColumnSnapshot> = listOf(
+        column(
             name = "id",
-            dbType = case.idDbType,
-            kotlinType = case.idKotlinType,
+            dbType = "BIGINT",
+            kotlinType = "Long",
             nullable = false,
             primaryKey = true,
-        )
-        val deletedColumn = column(
+        ),
+        column(
             name = "deleted",
-            dbType = case.deletedDbType,
-            kotlinType = case.deletedKotlinType,
+            dbType = "BIGINT",
+            kotlinType = "Long",
             nullable = false,
-            defaultValue = case.defaultValue,
+            defaultValue = "0",
             managedRole = DbManagedRole.DELETED,
-        )
-        val table = table(
-            name = "video_post",
-            columns = listOf(idColumn, deletedColumn),
-            primaryKey = listOf("id"),
-        )
-        AggregateSoftDeletePolicyResolver.resolve(
-            table = table,
-            resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
-                entityName = "VideoPost",
-                entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                tableName = "video_post",
-                id = ResolvedIdPolicy(
-                    fieldName = "id",
-                    columnName = "id",
-                    strategy = case.strategy,
-                    kind = if (case.strategy == "identity") {
-                        AggregateIdPolicyKind.DATABASE_SIDE
-                    } else {
-                        AggregateIdPolicyKind.APPLICATION_SIDE
-                    },
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                ),
-                deleted = ResolvedMarkerPolicy(
-                    enabled = true,
-                    fieldName = "deleted",
-                    columnName = "deleted",
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-                ),
-                version = ResolvedMarkerPolicy(
-                    enabled = false,
-                    source = SpecialFieldSource.NONE,
-                ),
+        ),
+    )
+
+    private fun resolveSoftDeleteDirect(case: DirectSoftDeleteCase) = resolveSoftDeleteDirect(
+        columns = listOf(
+            column(
+                name = "id",
+                dbType = case.idDbType,
+                kotlinType = case.idKotlinType,
+                nullable = false,
+                primaryKey = true,
             ),
-        )
-    }
+            column(
+                name = "deleted",
+                dbType = case.deletedDbType,
+                kotlinType = case.deletedKotlinType,
+                nullable = false,
+                defaultValue = case.defaultValue,
+                managedRole = DbManagedRole.DELETED,
+            ),
+        ),
+        strategy = case.strategy,
+    )
+
+    private fun resolveSoftDeleteDirect(
+        columns: List<DbColumnSnapshot>,
+        strategy: String = "identity",
+        deletedEnabled: Boolean = true,
+        deletedFieldName: String? = "deleted",
+        deletedColumnName: String? = "deleted",
+        idColumnName: String = "id",
+    ) = AggregateSoftDeletePolicyResolver.resolve(
+        table = table(
+            name = "video_post",
+            columns = columns,
+            primaryKey = listOf(idColumnName),
+        ),
+        resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+            entityName = "VideoPost",
+            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            id = ResolvedIdPolicy(
+                fieldName = "id",
+                columnName = idColumnName,
+                strategy = strategy,
+                kind = if (strategy == "identity") {
+                    AggregateIdPolicyKind.DATABASE_SIDE
+                } else {
+                    AggregateIdPolicyKind.APPLICATION_SIDE
+                },
+                source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+            ),
+            deleted = ResolvedMarkerPolicy(
+                enabled = deletedEnabled,
+                fieldName = deletedFieldName,
+                columnName = deletedColumnName,
+                source = if (deletedEnabled) SpecialFieldSource.DB_EXPLICIT else SpecialFieldSource.NONE,
+                writePolicy = if (deletedEnabled) {
+                    SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+                } else {
+                    SpecialFieldWritePolicy.READ_WRITE
+                },
+            ),
+            version = ResolvedMarkerPolicy(
+                enabled = false,
+                source = SpecialFieldSource.NONE,
+            ),
+        ),
+    )
 
     private data class SoftDeleteStorageCase(
         val idStrategy: DbIdStrategy,
