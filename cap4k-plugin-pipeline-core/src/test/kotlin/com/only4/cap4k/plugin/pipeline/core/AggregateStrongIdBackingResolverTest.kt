@@ -27,6 +27,10 @@ class AggregateStrongIdBackingResolverTest {
             ResolvedStrongIdBacking("Long", null),
             resolve(DbIdStrategy.SNOWFLAKE, Types.BIGINT, "BIGINT", "Long", 64),
         )
+        assertEquals(
+            ResolvedStrongIdBacking("Long", null),
+            resolve(DbIdStrategy.SNOWFLAKE, Types.BIGINT, "BIGINT", "kotlin.Long", 64),
+        )
     }
 
     @Test
@@ -39,16 +43,19 @@ class AggregateStrongIdBackingResolverTest {
 
     @Test
     fun `rejects undersized character storage`() {
-        assertThrows(IllegalArgumentException::class.java) {
+        val uuid7Error = assertThrows(IllegalArgumentException::class.java) {
             resolve(DbIdStrategy.UUID7, Types.VARCHAR, "VARCHAR", "String", 35)
         }
-        assertThrows(IllegalArgumentException::class.java) {
+        assertDiagnostic(uuid7Error, DbIdStrategy.UUID7)
+
+        val snowflakeError = assertThrows(IllegalArgumentException::class.java) {
             resolve(DbIdStrategy.SNOWFLAKE, Types.VARCHAR, "VARCHAR", "String", 18)
         }
+        assertDiagnostic(snowflakeError, DbIdStrategy.SNOWFLAKE)
     }
 
     @Test
-    fun `rejects crossed and guessed storage`() {
+    fun `rejects crossed and guessed storage with strategy path diagnostics`() {
         val unsupported = listOf(
             UnsupportedCase(DbIdStrategy.UUID7, Types.BIGINT, "BIGINT", "Long", 64),
             UnsupportedCase(DbIdStrategy.UUID7, Types.OTHER, "jsonb", "String", 36),
@@ -58,7 +65,7 @@ class AggregateStrongIdBackingResolverTest {
         )
 
         unsupported.forEach { case ->
-            assertThrows(IllegalArgumentException::class.java) {
+            val error = assertThrows(IllegalArgumentException::class.java) {
                 resolve(
                     strategy = case.strategy,
                     jdbcType = case.jdbcType,
@@ -67,7 +74,40 @@ class AggregateStrongIdBackingResolverTest {
                     columnSize = case.columnSize,
                 )
             }
+            assertDiagnostic(error, case.strategy)
         }
+    }
+
+    @Test
+    fun `rejects Snowflake storage that is unsigned or not signed 64 bit Long`() {
+        val unsupported = listOf(
+            UnsupportedCase(DbIdStrategy.SNOWFLAKE, Types.BIGINT, "BIGINT UNSIGNED", "Long", 64),
+            UnsupportedCase(DbIdStrategy.SNOWFLAKE, Types.INTEGER, "INTEGER", "Int", 32),
+        )
+
+        unsupported.forEach { case ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                resolve(
+                    strategy = case.strategy,
+                    jdbcType = case.jdbcType,
+                    dbType = case.dbType,
+                    kotlinType = case.kotlinType,
+                    columnSize = case.columnSize,
+                )
+            }
+            assertDiagnostic(error, DbIdStrategy.SNOWFLAKE)
+        }
+    }
+
+    @Test
+    fun `surfaces shared catalog diagnostics when JDBC evidence is missing`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            resolve(DbIdStrategy.UUID7, null, "VARCHAR", "String", 36)
+        }
+
+        assertDiagnostic(error, DbIdStrategy.UUID7)
+        assertTrue(error.message!!.contains("missing jdbcType"))
+        assertTrue(error.message!!.contains("unsupported aggregate ID storage"))
     }
 
     private data class UnsupportedCase(
@@ -77,6 +117,11 @@ class AggregateStrongIdBackingResolverTest {
         val kotlinType: String,
         val columnSize: Int,
     )
+
+    private fun assertDiagnostic(error: IllegalArgumentException, strategy: DbIdStrategy) {
+        assertTrue(error.message!!.contains(strategy.name))
+        assertTrue(error.message!!.contains("orders.id"))
+    }
 
     private fun resolve(
         strategy: DbIdStrategy,

@@ -360,13 +360,23 @@ enum class SoftDeleteTombstoneStrategy {
     SELF_ID,
 }
 
+enum class AggregateIdStorageKind {
+    INTEGRAL,
+    CHARACTER,
+    NATIVE_UUID,
+}
+
+enum class SoftDeleteActiveSentinel {
+    ZERO,
+    NIL_UUID,
+}
+
 data class AggregateSoftDeletePolicy(
     val fieldName: String,
     val columnName: String,
-    val activeValue: String,
+    val storageKind: AggregateIdStorageKind,
+    val activeSentinel: SoftDeleteActiveSentinel,
     val tombstoneStrategy: SoftDeleteTombstoneStrategy,
-    val activePredicateSql: String,
-    val deleteAssignmentSql: String,
 )
 
 data class AggregatePersistenceProviderControl(

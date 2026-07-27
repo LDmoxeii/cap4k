@@ -583,6 +583,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "id",
                         "type" to "ContentId",
+                        "propertyInitializer" to "id",
                         "nullable" to false,
                         "columnName" to "id",
                         "isId" to true,
@@ -593,8 +594,20 @@ class PebbleArtifactRendererTest {
                         "attributeOverrideInsertable" to null,
                         "attributeOverrideUpdatable" to false,
                     ),
-                    mapOf("name" to "title", "type" to "String", "nullable" to false, "columnName" to "title"),
-                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false, "columnName" to "author_id"),
+                    mapOf(
+                        "name" to "title",
+                        "type" to "String",
+                        "propertyInitializer" to "title",
+                        "nullable" to false,
+                        "columnName" to "title",
+                    ),
+                    mapOf(
+                        "name" to "authorId",
+                        "type" to "AuthorId",
+                        "propertyInitializer" to "authorId",
+                        "nullable" to false,
+                        "columnName" to "author_id",
+                    ),
                 ),
                 "relationFields" to emptyList<Map<String, Any?>>(),
             ),
@@ -716,6 +729,427 @@ class PebbleArtifactRendererTest {
         }.compile()
 
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+    }
+
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `soft delete entity matrix initializes raw storage outside constructors and factories compile`() {
+        data class MatrixCell(
+            val typeName: String,
+            val backingType: String,
+            val deletedType: String,
+            val propertyInitializer: String,
+            val storageKind: String,
+            val activeSentinel: String,
+            val sqlActiveLiteral: String,
+            val applicationSideId: Boolean,
+            val needsUuidImport: Boolean = false,
+        ) {
+            val packageName: String =
+                "com.acme.demo.domain.aggregates.soft_delete.${typeName.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase()}"
+            val tableName: String = typeName.replace(Regex("([a-z])([A-Z])"), "$1_$2").lowercase()
+            val idType: String = if (applicationSideId) "${typeName}Id" else backingType
+        }
+
+        data class RenderedCell(
+            val cell: MatrixCell,
+            val entityContent: String,
+            val factoryContent: String?,
+            val sqlDelete: String,
+            val whereClause: String,
+        )
+
+        fun kotlinStringLiteral(value: String): String = buildString {
+            append('"')
+            value.forEach { char ->
+                when (char) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    '$' -> append("\\$")
+                    else -> append(char)
+                }
+            }
+            append('"')
+        }
+
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        val cells = listOf(
+            MatrixCell(
+                typeName = "IdentityLongRecord",
+                backingType = "Long",
+                deletedType = "Long",
+                propertyInitializer = "0L",
+                storageKind = "INTEGRAL",
+                activeSentinel = "ZERO",
+                sqlActiveLiteral = "0",
+                applicationSideId = false,
+            ),
+            MatrixCell(
+                typeName = "SnowflakeLongRecord",
+                backingType = "Long",
+                deletedType = "Long",
+                propertyInitializer = "0L",
+                storageKind = "INTEGRAL",
+                activeSentinel = "ZERO",
+                sqlActiveLiteral = "0",
+                applicationSideId = true,
+            ),
+            MatrixCell(
+                typeName = "SnowflakeStringRecord",
+                backingType = "String",
+                deletedType = "String",
+                propertyInitializer = "\"0\"",
+                storageKind = "CHARACTER",
+                activeSentinel = "ZERO",
+                sqlActiveLiteral = "'0'",
+                applicationSideId = true,
+            ),
+            MatrixCell(
+                typeName = "Uuid7StringRecord",
+                backingType = "String",
+                deletedType = "String",
+                propertyInitializer = "\"$nilUuid\"",
+                storageKind = "CHARACTER",
+                activeSentinel = "NIL_UUID",
+                sqlActiveLiteral = "'$nilUuid'",
+                applicationSideId = true,
+            ),
+            MatrixCell(
+                typeName = "Uuid7NativeRecord",
+                backingType = "UUID",
+                deletedType = "UUID",
+                propertyInitializer = "UUID(0L, 0L)",
+                storageKind = "NATIVE_UUID",
+                activeSentinel = "NIL_UUID",
+                sqlActiveLiteral = "CAST('$nilUuid' AS UUID)",
+                applicationSideId = true,
+                needsUuidImport = true,
+            ),
+        )
+
+        val compilationSources = mutableListOf<SourceFile>()
+        val renderedCells = cells.map { cell ->
+            val sqlDelete =
+                "update \"${cell.tableName}\" set \"deleted\" = \"id\" where \"id\" = ?"
+            val whereClause = "\"deleted\" = ${cell.sqlActiveLiteral}"
+            val constructorFields = buildList {
+                if (!cell.applicationSideId) {
+                    add(
+                        mapOf(
+                            "name" to "id",
+                            "type" to "Long",
+                            "nullable" to false,
+                            "defaultValue" to "0L",
+                        )
+                    )
+                }
+                add(
+                    mapOf(
+                        "name" to "title",
+                        "type" to "String",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                    )
+                )
+            }
+            val idField = mapOf(
+                "fieldName" to "id",
+                "fieldType" to cell.idType,
+                "name" to "id",
+                "type" to cell.idType,
+                "propertyInitializer" to "id",
+                "nullable" to false,
+                "defaultValue" to if (cell.applicationSideId) null else "0L",
+                "strongId" to cell.applicationSideId,
+                "embeddedId" to cell.applicationSideId,
+                "generatedOwnId" to cell.applicationSideId,
+                "columnName" to "id",
+                "columnNameKotlinStringLiteral" to kotlinStringLiteral("\"id\""),
+                "isId" to true,
+                "generatedValueStrategy" to if (cell.applicationSideId) null else "IDENTITY",
+                "isVersion" to false,
+                "attributeOverrideNullable" to false,
+                "attributeOverrideInsertable" to true,
+                "attributeOverrideUpdatable" to false,
+                "attributeOverrideLength" to if (cell.backingType == "String") 36 else null,
+            )
+            val titleField = mapOf(
+                "fieldName" to "title",
+                "fieldType" to "String",
+                "name" to "title",
+                "type" to "String",
+                "propertyInitializer" to "title",
+                "nullable" to false,
+                "defaultValue" to null,
+                "strongId" to false,
+                "embeddedId" to false,
+                "generatedOwnId" to false,
+                "columnName" to "title",
+                "columnNameKotlinStringLiteral" to kotlinStringLiteral("\"title\""),
+                "isId" to false,
+                "isVersion" to false,
+            )
+            val deletedField = mapOf(
+                "fieldName" to "deleted",
+                "fieldType" to cell.deletedType,
+                "name" to "deleted",
+                "type" to cell.deletedType,
+                "propertyInitializer" to cell.propertyInitializer,
+                "nullable" to false,
+                "defaultValue" to null,
+                "strongId" to false,
+                "embeddedId" to false,
+                "generatedOwnId" to false,
+                "columnName" to "deleted",
+                "columnNameKotlinStringLiteral" to kotlinStringLiteral("\"deleted\""),
+                "isId" to false,
+                "isVersion" to false,
+                "insertable" to true,
+                "updatable" to false,
+                "writePolicy" to "SYSTEM_TRANSITION_ONLY",
+            )
+            val entityContent = renderTemplate(
+                templateId = "aggregate/entity.kt.peb",
+                outputPath =
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.typeName}.kt",
+                context = mapOf(
+                    "packageName" to cell.packageName,
+                    "typeName" to cell.typeName,
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to true,
+                        "tableName" to cell.tableName,
+                        "tableNameKotlinStringLiteral" to
+                            kotlinStringLiteral("\"${cell.tableName}\""),
+                    ),
+                    "hasStrongIdFields" to cell.applicationSideId,
+                    "hasEmbeddedStrongIdFields" to false,
+                    "hasGeneratedValueFields" to !cell.applicationSideId,
+                    "hasEmbeddedIdFields" to cell.applicationSideId,
+                    "hasVersionFields" to false,
+                    "hasConverterFields" to false,
+                    "softDelete" to mapOf(
+                        "enabled" to true,
+                        "columnName" to "deleted",
+                        "storageKind" to cell.storageKind,
+                        "activeSentinel" to cell.activeSentinel,
+                        "tombstoneStrategy" to "SELF_ID",
+                    ),
+                    "softDeleteSql" to sqlDelete,
+                    "softDeleteWhereClause" to whereClause,
+                    "softDeleteSqlKotlinStringLiteral" to kotlinStringLiteral(sqlDelete),
+                    "softDeleteWhereClauseKotlinStringLiteral" to kotlinStringLiteral(whereClause),
+                    "jpaImports" to emptyList<String>(),
+                    "imports" to if (cell.needsUuidImport) listOf("java.util.UUID") else emptyList(),
+                    "constructorFields" to constructorFields,
+                    "scalarFields" to listOf(idField, titleField, deletedField),
+                    "relationFields" to emptyList<Map<String, Any?>>(),
+                ),
+            )
+
+            val constructorBlock = entityContent
+                .substringAfter("class ${cell.typeName} internal constructor(")
+                .substringBefore(") {")
+            assertFalse(constructorBlock.contains("deleted"), cell.typeName)
+            if (cell.applicationSideId) {
+                assertFalse(constructorBlock.contains(cell.idType), cell.typeName)
+                assertTrue(entityContent.contains("lateinit var id: ${cell.idType}"), cell.typeName)
+            } else {
+                assertTrue(constructorBlock.contains("id: Long = 0L"), cell.typeName)
+            }
+            assertTrue(
+                entityContent.contains("@SQLDelete(sql = ${kotlinStringLiteral(sqlDelete)})"),
+                cell.typeName,
+            )
+            assertTrue(
+                entityContent.contains("@Where(clause = ${kotlinStringLiteral(whereClause)})"),
+                cell.typeName,
+            )
+            if (cell.needsUuidImport) {
+                assertEquals(
+                    1,
+                    Regex("(?m)^import java\\.util\\.UUID$").findAll(entityContent.normalizedLineEndings()).count(),
+                    cell.typeName,
+                )
+            }
+
+            compilationSources += SourceFile.kotlin("${cell.typeName}.kt", entityContent)
+
+            val factoryContent = if (cell.applicationSideId) {
+                val renderedFactory = renderTemplate(
+                    templateId = "aggregate/factory.kt.peb",
+                    outputPath =
+                        "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/factory/${cell.typeName}Factory.kt",
+                    context = mapOf(
+                        "packageName" to "${cell.packageName}.factory",
+                        "typeName" to "${cell.typeName}Factory",
+                        "payloadTypeName" to "Payload",
+                        "payloadMetadataName" to "${cell.typeName}Payload",
+                        "payloadWriteSurfaceResolved" to true,
+                        "constructorMappingResolved" to true,
+                        "payloadFields" to listOf(
+                            mapOf("name" to "title", "type" to "String", "nullable" to false)
+                        ),
+                        "constructorPayloadFields" to listOf(mapOf("name" to "title")),
+                        "entityName" to cell.typeName,
+                        "entityTypeFqn" to "${cell.packageName}.${cell.typeName}",
+                        "aggregateName" to cell.typeName,
+                        "imports" to emptyList<String>(),
+                    ),
+                )
+                assertTrue(renderedFactory.contains("${cell.typeName}("), cell.typeName)
+                assertTrue(renderedFactory.contains("title = entityPayload.title"), cell.typeName)
+                assertFalse(renderedFactory.contains("TODO(\"Implement aggregate construction\")"), cell.typeName)
+                assertFalse(renderedFactory.contains("deleted"), cell.typeName)
+                assertFalse(renderedFactory.contains(cell.idType), cell.typeName)
+                compilationSources += SourceFile.kotlin("${cell.typeName}Factory.kt", renderedFactory)
+                compilationSources += SourceFile.kotlin(
+                    "${cell.typeName}Id.kt",
+                    """
+                    package ${cell.packageName}
+
+                    import com.only4.cap4k.ddd.core.domain.id.StrongId
+                    ${if (cell.needsUuidImport) "import java.util.UUID" else ""}
+
+                    class ${cell.idType}(override val value: ${cell.backingType}) : StrongId<${cell.backingType}>
+                    """.trimIndent(),
+                )
+                compilationSources += SourceFile.kotlin(
+                    "${cell.typeName}FactoryUsage.kt",
+                    """
+                    package ${cell.packageName}
+
+                    import ${cell.packageName}.factory.${cell.typeName}Factory
+
+                    fun create${cell.typeName}(factory: ${cell.typeName}Factory): ${cell.typeName} =
+                        factory.create(${cell.typeName}Factory.Payload(title = "demo"))
+                    """.trimIndent(),
+                )
+                renderedFactory
+            } else {
+                compilationSources += SourceFile.kotlin(
+                    "${cell.typeName}Construction.kt",
+                    """
+                    package ${cell.packageName}
+
+                    fun construct${cell.typeName}(): ${cell.typeName} = ${cell.typeName}(title = "demo")
+                    """.trimIndent(),
+                )
+                null
+            }
+
+            RenderedCell(cell, entityContent, factoryContent, sqlDelete, whereClause)
+        }
+
+        compilationSources += listOf(
+            SourceFile.kotlin(
+                "AggregateContracts.kt",
+                """
+                package com.only4.cap4k.ddd.core.domain.aggregate
+
+                interface AggregatePayload<ENTITY : Any>
+                interface AggregateFactory<PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> {
+                    fun create(entityPayload: PAYLOAD): ENTITY
+                }
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
+                "StrongId.kt",
+                """
+                package com.only4.cap4k.ddd.core.domain.id
+
+                interface StrongId<T> {
+                    val value: T
+                }
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
+                "Service.kt",
+                """
+                package org.springframework.stereotype
+
+                @Target(AnnotationTarget.CLASS)
+                annotation class Service
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
+                "JpaSoftDelete.kt",
+                """
+                package jakarta.persistence
+
+                @Target(AnnotationTarget.CLASS)
+                annotation class Entity
+                @Target(AnnotationTarget.CLASS)
+                annotation class Table(val name: String)
+                @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                annotation class Id
+                @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                annotation class EmbeddedId
+                @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                annotation class Embedded
+                @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                annotation class GeneratedValue(val strategy: GenerationType)
+                enum class GenerationType { IDENTITY }
+                @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                annotation class AttributeOverride(val name: String, val column: Column)
+                @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD, AnnotationTarget.ANNOTATION_CLASS)
+                annotation class Column(
+                    val name: String,
+                    val nullable: Boolean = true,
+                    val insertable: Boolean = true,
+                    val updatable: Boolean = true,
+                    val length: Int = 255,
+                )
+                """.trimIndent(),
+            ),
+            SourceFile.kotlin(
+                "HibernateSoftDelete.kt",
+                """
+                package org.hibernate.annotations
+
+                @Target(AnnotationTarget.CLASS)
+                annotation class SQLDelete(val sql: String)
+                @Target(AnnotationTarget.CLASS)
+                annotation class Where(val clause: String)
+                """.trimIndent(),
+            ),
+        )
+
+        val result = KotlinCompilation().apply {
+            sources = compilationSources
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+
+        renderedCells.forEach { rendered ->
+            val cell = rendered.cell
+            assertTrue(
+                rendered.entityContent.contains(
+                    "var deleted: ${cell.deletedType} = ${cell.propertyInitializer}"
+                ),
+                cell.typeName,
+            )
+            if (cell.applicationSideId) {
+                assertFalse(
+                    rendered.entityContent.contains("var deleted: ${cell.idType}"),
+                    cell.typeName,
+                )
+                assertFalse(rendered.factoryContent.orEmpty().contains(cell.idType), cell.typeName)
+            }
+            assertFalse(rendered.entityContent.contains("= deleted"), cell.typeName)
+            assertTrue(
+                rendered.entityContent.contains(kotlinStringLiteral(rendered.sqlDelete)),
+                cell.typeName,
+            )
+            assertTrue(
+                rendered.entityContent.contains(kotlinStringLiteral(rendered.whereClause)),
+                cell.typeName,
+            )
+        }
     }
 
     @Test
@@ -1782,6 +2216,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "id",
                         "type" to "Long",
+                        "propertyInitializer" to "id",
                         "nullable" to false,
                         "defaultValue" to "0L",
                         "columnName" to "id",
@@ -1794,6 +2229,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "name",
                         "type" to "String",
+                        "propertyInitializer" to "name",
                         "nullable" to false,
                         "defaultValue" to "\"\"",
                         "columnName" to "name",
@@ -2560,6 +2996,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "id",
                         "type" to "ContentId",
+                        "propertyInitializer" to "id",
                         "nullable" to false,
                         "defaultValue" to null,
                         "columnName" to "id",
@@ -2579,6 +3016,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "title",
                         "type" to "String",
+                        "propertyInitializer" to "title",
                         "nullable" to false,
                         "defaultValue" to null,
                         "columnName" to "title",
@@ -2594,6 +3032,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "authorId",
                         "type" to "AuthorId",
+                        "propertyInitializer" to "authorId",
                         "nullable" to false,
                         "defaultValue" to null,
                         "columnName" to "author_id",
@@ -2613,6 +3052,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "mediaProcessingTaskId",
                         "type" to "MediaProcessingTaskId",
+                        "propertyInitializer" to "mediaProcessingTaskId",
                         "nullable" to true,
                         "defaultValue" to null,
                         "columnName" to "media_processing_task_id",
@@ -2698,6 +3138,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "id",
                         "type" to "OrderLineId",
+                        "propertyInitializer" to "id",
                         "nullable" to false,
                         "defaultValue" to null,
                         "columnName" to "id",
@@ -2753,6 +3194,7 @@ class PebbleArtifactRendererTest {
                         "name" to "id",
                         "type" to "Long",
                         "renderedType" to "Long",
+                        "propertyInitializer" to "id",
                         "nullable" to false,
                         "defaultValue" to null,
                         "columnName" to "id",
@@ -2770,6 +3212,7 @@ class PebbleArtifactRendererTest {
                         "name" to "reviewStatus",
                         "type" to "com.acme.demo.domain.aggregates.content.enums.ReviewStatus",
                         "renderedType" to "ReviewStatus",
+                        "propertyInitializer" to "reviewStatus",
                         "nullable" to false,
                         "defaultValue" to null,
                         "columnName" to "review_status",
@@ -4511,8 +4954,18 @@ class PebbleArtifactRendererTest {
                         "jpaImports" to emptyList<String>(),
                         "imports" to emptyList<String>(),
                         "scalarFields" to listOf(
-                            mapOf("name" to "id", "type" to "Long", "nullable" to false),
-                            mapOf("name" to "orderNo", "type" to "String", "nullable" to true)
+                            mapOf(
+                                "name" to "id",
+                                "type" to "Long",
+                                "propertyInitializer" to "id",
+                                "nullable" to false,
+                            ),
+                            mapOf(
+                                "name" to "orderNo",
+                                "type" to "String",
+                                "propertyInitializer" to "orderNo",
+                                "nullable" to true,
+                            )
                         ),
                         "fields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false),
@@ -4782,6 +5235,7 @@ class PebbleArtifactRendererTest {
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
+                            "tableNameKotlinStringLiteral" to "\"\\\"video_post\\\"\"",
                         ),
                         "jpaImports" to listOf(
                             "jakarta.persistence.CascadeType",
@@ -4805,6 +5259,7 @@ class PebbleArtifactRendererTest {
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
+                                "propertyInitializer" to "id",
                                 "nullable" to false,
                                 "columnName" to "id",
                                 "isId" to true,
@@ -4959,6 +5414,7 @@ class PebbleArtifactRendererTest {
                             mapOf(
                                 "name" to "videoPostId",
                                 "type" to "Long",
+                                "propertyInitializer" to "videoPostId",
                                 "nullable" to false,
                                 "columnName" to "video_post_id",
                                 "isId" to false,
@@ -5895,10 +6351,9 @@ class PebbleArtifactRendererTest {
                         "softDelete" to mapOf(
                             "enabled" to true,
                             "columnName" to "deleted",
-                            "activeValue" to "0",
+                            "storageKind" to "INTEGRAL",
+                            "activeSentinel" to "ZERO",
                             "tombstoneStrategy" to "SELF_ID",
-                            "activePredicateSql" to "\"deleted\" = 0",
-                            "deleteAssignmentSql" to "\"deleted\" = \"id\"",
                         ),
                         "softDeleteSql" to "update \"video_post\" set \"deleted\" = \"id\" where \"id\" = ? and \"version\" = ?",
                         "softDeleteWhereClause" to "\"deleted\" = 0",
@@ -5937,6 +6392,121 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("import org.hibernate.annotations.DynamicUpdate"))
         assertFalse(content.contains("@DynamicInsert"))
         assertFalse(content.contains("@DynamicUpdate"))
+    }
+
+    @Test
+    fun `aggregate entity template renders exact quoted jpa identifiers for supported dialects`() {
+        data class Case(
+            val name: String,
+            val quote: (String) -> String,
+        )
+
+        val cases = listOf(
+            Case("h2") { value -> "\"$value\"" },
+            Case("postgresql") { value -> "\"$value\"" },
+            Case("mysql") { value -> "`$value`" },
+        )
+
+        cases.forEach { case ->
+            fun literal(value: String): String = case.quote(value).toTestKotlinStringLiteral()
+
+            val content = renderTemplate(
+                templateId = "aggregate/entity.kt.peb",
+                outputPath =
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/mixed_case/MixedCase.kt",
+                context = mapOf(
+                    "packageName" to "com.acme.demo.domain.aggregates.mixed_case",
+                    "typeName" to "MixedCase",
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to true,
+                        "tableName" to "MixedCase",
+                        "tableNameKotlinStringLiteral" to literal("MixedCase"),
+                    ),
+                    "hasConverterFields" to false,
+                    "hasGeneratedValueFields" to false,
+                    "hasVersionFields" to false,
+                    "hasStrongIdFields" to false,
+                    "hasEmbeddedIdFields" to false,
+                    "hasEmbeddedStrongIdFields" to false,
+                    "softDelete" to mapOf("enabled" to true),
+                    "softDeleteSqlKotlinStringLiteral" to "update quoted".toTestKotlinStringLiteral(),
+                    "softDeleteWhereClauseKotlinStringLiteral" to "quoted = 0".toTestKotlinStringLiteral(),
+                    "constructorFields" to emptyList<Map<String, Any?>>(),
+                    "scalarFields" to listOf(
+                        mapOf(
+                            "name" to "id",
+                            "type" to "Long",
+                            "propertyInitializer" to "0L",
+                            "nullable" to false,
+                            "columnName" to "PhysicalId",
+                            "columnNameKotlinStringLiteral" to literal("PhysicalId"),
+                            "isId" to true,
+                        ),
+                        mapOf(
+                            "name" to "deleted",
+                            "type" to "Long",
+                            "propertyInitializer" to "0L",
+                            "nullable" to false,
+                            "columnName" to "DeletedMarker",
+                            "columnNameKotlinStringLiteral" to literal("DeletedMarker"),
+                        ),
+                    ),
+                    "relationFields" to listOf(
+                        mapOf(
+                            "relationType" to "MANY_TO_ONE",
+                            "name" to "author",
+                            "targetTypeRef" to "Author",
+                            "fetchType" to "LAZY",
+                            "joinColumn" to "AuthorId",
+                            "joinColumnKotlinStringLiteral" to literal("AuthorId"),
+                            "nullable" to true,
+                        ),
+                        mapOf(
+                            "relationType" to "ONE_TO_ONE",
+                            "name" to "profile",
+                            "targetTypeRef" to "Profile",
+                            "fetchType" to "LAZY",
+                            "joinColumn" to "ProfileId",
+                            "joinColumnKotlinStringLiteral" to literal("ProfileId"),
+                            "nullable" to true,
+                        ),
+                        mapOf(
+                            "relationType" to "ONE_TO_MANY",
+                            "name" to "items",
+                            "targetTypeRef" to "MixedCaseItem",
+                            "fetchType" to "LAZY",
+                            "cascadeTypes" to emptyList<String>(),
+                            "orphanRemoval" to false,
+                            "joinColumn" to "OwnerId",
+                            "joinColumnKotlinStringLiteral" to literal("OwnerId"),
+                            "joinColumnNullable" to false,
+                            "owned" to false,
+                        ),
+                    ),
+                    "imports" to emptyList<String>(),
+                    "jpaImports" to emptyList<String>(),
+                ),
+            )
+
+            assertTrue(
+                content.contains("@Table(name = ${literal("MixedCase")})"),
+                case.name,
+            )
+            assertTrue(
+                content.contains("@Column(name = ${literal("PhysicalId")})"),
+                case.name,
+            )
+            assertTrue(
+                content.contains("@Column(name = ${literal("DeletedMarker")})"),
+                case.name,
+            )
+            listOf("AuthorId", "ProfileId", "OwnerId").forEach { joinColumn ->
+                assertTrue(
+                    content.contains("@JoinColumn(name = ${literal(joinColumn)}"),
+                    "${case.name}: $joinColumn",
+                )
+            }
+        }
     }
 
     @Test

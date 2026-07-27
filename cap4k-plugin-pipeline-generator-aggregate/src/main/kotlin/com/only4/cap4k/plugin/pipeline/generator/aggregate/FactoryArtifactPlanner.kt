@@ -121,6 +121,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         val missingRequiredFields = entity.fields
             .filterNot { ownStrongId != null && it.name == entity.idField.name }
             .filterNot { it.name in payloadFieldNames }
+            .filterNot { resolved && isSystemTransitionOnlyConstructorField(resolvedPolicy, it) }
             .filterNot { field ->
                 hasConstructorDefault(
                     entity = entity,
@@ -212,6 +213,20 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         return managedField.writePolicy == SpecialFieldWritePolicy.READ_ONLY ||
             managedField.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
     }
+
+    private fun isSystemTransitionOnlyConstructorField(
+        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
+        field: FieldModel,
+    ): Boolean =
+        (
+            resolvedPolicy?.deleted?.enabled == true &&
+                resolvedPolicy.deleted.fieldName == field.name &&
+                resolvedPolicy.deleted.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+            ) ||
+            resolvedPolicy?.managedFields?.any {
+                it.fieldName == field.name &&
+                    it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+            } == true
 
     private fun hasConstructorDefault(
         entity: EntityModel,

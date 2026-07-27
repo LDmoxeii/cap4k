@@ -1592,6 +1592,15 @@ class PipelinePluginFunctionalTest {
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
         val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
+        val fixtureBuildFile = projectDir.resolve("build.gradle.kts")
+
+        val planResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/demo", "h2/generate"))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1599,16 +1608,107 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .build()
 
+        data class ApplicationSideCell(
+            val tableName: String,
+            val entityName: String,
+            val backingType: String,
+            val deletedProperty: String,
+            val activeSqlLiteral: String,
+            val strategy: String,
+        ) {
+            val packageName: String = "com.acme.demo.domain.aggregates.$tableName"
+            val idType: String = "${entityName}Id"
+            val accessorType: String = "${entityName}GeneratedOwnIdAccessor"
+            val factoryType: String = "${entityName}Factory"
+        }
+
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        val applicationSideCells = listOf(
+            ApplicationSideCell(
+                tableName = "snowflake_long_record",
+                entityName = "SnowflakeLongRecord",
+                backingType = "Long",
+                deletedProperty = "var deleted: Long = 0L",
+                activeSqlLiteral = "0",
+                strategy = "snowflake",
+            ),
+            ApplicationSideCell(
+                tableName = "snowflake_string_record",
+                entityName = "SnowflakeStringRecord",
+                backingType = "String",
+                deletedProperty = "var deleted: String = \"0\"",
+                activeSqlLiteral = "'0'",
+                strategy = "snowflake",
+            ),
+            ApplicationSideCell(
+                tableName = "uuid_string_record",
+                entityName = "UuidStringRecord",
+                backingType = "String",
+                deletedProperty = "var deleted: String = \"$nilUuid\"",
+                activeSqlLiteral = "'$nilUuid'",
+                strategy = "uuid7",
+            ),
+            ApplicationSideCell(
+                tableName = "uuid_native_record",
+                entityName = "UuidNativeRecord",
+                backingType = "UUID",
+                deletedProperty = "var deleted: UUID = UUID(0L, 0L)",
+                activeSqlLiteral = "CAST('$nilUuid' AS UUID)",
+                strategy = "uuid7",
+            ),
+        )
+
         val generatedVideoPost = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
-        val generatedAuditLog = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
+        val generatedEntities = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}.kt"
+                )
+            ).readText()
+        }
+        val generatedStrongIds = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idType}.kt"
+                )
+            ).readText()
+        }
+        val generatedAccessors = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
+                )
+            ).readText()
+        }
+        val generatedCatalog = projectDir.generatedFile(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt"
+            )
         ).readText()
+        val generatedFactories = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/factory/${cell.factoryType}.kt"
+            ).readText()
+        }
+        val generatedIdentityFactory = projectDir.generatedFile(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
+        ).readText()
+        val factoryContexts = JsonParser.parseString(planContent)
+            .asJsonObject
+            .getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .filter { it.get("templateId").asString == "aggregate/factory.kt.peb" }
+            .associate { item ->
+                val context = item.getAsJsonObject("context")
+                context.get("entityName").asString to context
+            }
 
         assertTrue(domainBuildFile == "// Functional fixture module.")
         assertTrue(applicationBuildFile == "// Functional fixture module.")
         assertTrue(adapterBuildFile == "// Functional fixture module.")
+        assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(generatedVideoPost.contains("@DynamicInsert"))
         assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
@@ -1616,14 +1716,74 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.Where"))
         assertTrue(generatedVideoPost.contains("""@SQLDelete(sql = "update `video_post` set `deleted` = `id` where `id` = ? and `version` = ?")"""))
         assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
+        assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedVideoPost.contains("@Version"))
+        assertTrue(generatedVideoPost.contains("var deleted: Long = 0L"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("deleted"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertTrue(generatedAuditLog.contains("import org.hibernate.annotations.SQLDelete"))
-        assertTrue(generatedAuditLog.contains("import org.hibernate.annotations.Where"))
-        assertTrue(generatedAuditLog.contains("""@SQLDelete(sql = "update `audit_log` set `deleted` = `id` where `id` = ?")"""))
-        assertTrue(generatedAuditLog.contains("""@Where(clause = "`deleted` = 0")"""))
-        assertFalse(generatedAuditLog.contains("@DynamicInsert"))
-        assertFalse(generatedAuditLog.contains("@DynamicUpdate"))
-        assertFalse(generatedAuditLog.contains("@GenericGenerator"))
+
+        applicationSideCells.forEach { cell ->
+            val entity = generatedEntities.getValue(cell)
+            val strongId = generatedStrongIds.getValue(cell)
+            val accessor = generatedAccessors.getValue(cell)
+            val factory = generatedFactories.getValue(cell)
+            val constructorParameters = internalConstructorParameters(entity)
+
+            assertTrue(entity.contains("@EmbeddedId"), cell.entityName)
+            assertGeneratedOwnIdShape(entity, cell.idType)
+            assertFalse(Regex("""\bid\s*:""").containsMatchIn(constructorParameters), cell.entityName)
+            assertFalse(constructorParameters.contains("deleted"), cell.entityName)
+            assertTrue(entity.contains(cell.deletedProperty), cell.entityName)
+            assertFalse(entity.contains("var deleted: ${cell.idType}"), cell.entityName)
+            assertTrue(
+                entity.contains(
+                    """@SQLDelete(sql = "update `${cell.tableName}` set `deleted` = `id` where `id` = ?")"""
+                ),
+                cell.entityName,
+            )
+            assertTrue(
+                entity.contains("""@Where(clause = "`deleted` = ${cell.activeSqlLiteral}")"""),
+                cell.entityName,
+            )
+            assertFalse(entity.contains("and `version` = ?"), cell.entityName)
+            assertFalse(entity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"), cell.entityName)
+            assertTrue(strongId.contains("StrongId<${cell.backingType}>"), cell.idType)
+            assertTrue(
+                accessor.contains(
+                    "Mediator.identifiers.next(\"${cell.strategy}\", ${cell.backingType}::class)"
+                ),
+                cell.accessorType,
+            )
+            assertTrue(accessor.contains("${cell.idType}.of("), cell.accessorType)
+            assertTrue(
+                generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
+                cell.accessorType,
+            )
+            assertEquals(true, factoryContexts.getValue(cell.entityName).get("constructorMappingResolved").asBoolean)
+            assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
+            assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
+            assertTrue(factory.contains("val title: String"), cell.factoryType)
+            assertFalse(factory.contains("TODO(\"Implement aggregate construction\")"), cell.factoryType)
+            assertFalse(factory.contains("deleted"), cell.factoryType)
+            assertFalse(factory.contains("val id:"), cell.factoryType)
+            assertFalse(factory.contains(cell.idType), cell.factoryType)
+        }
+
+        assertEquals(false, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
+        assertTrue(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
+        assertFalse(generatedIdentityFactory.contains("deleted"))
+
+        val allGeneratedEvidence = buildString {
+            append(generatedVideoPost)
+            generatedEntities.values.forEach { append(it) }
+            generatedStrongIds.values.forEach { append(it) }
+            generatedAccessors.values.forEach { append(it) }
+            append(generatedCatalog)
+            generatedFactories.values.forEach { append(it) }
+            append(generatedIdentityFactory)
+        }
+        assertFalse(allGeneratedEvidence.contains("ApplicationSideId"))
+        assertFalse(allGeneratedEvidence.contains("snowflake-long"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1636,21 +1796,51 @@ class PipelinePluginFunctionalTest {
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
                 "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
-            ).replaceFirst("@Managed=deleted;", "")
+            ).replaceFirst("@Managed=deleted;", "") +
+                "\n\n" +
+                """
+                create table audit_log (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    content varchar(128) not null
+                );
+                """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*}"""),
-            """
-            |aggregate {
-            |            specialFields {
-            |                idDefaultStrategy.set("identity")
-            |            }
-            |        }
-            """.trimMargin(),
-        )
+        val patchedBuildFile = buildFile.readText().replace("\r\n", "\n")
+            .replace(
+                """
+                |                    "uuid_native_record",
+                |                )
+                """.trimMargin(),
+                """
+                |                    "uuid_native_record",
+                |                    "audit_log",
+                |                )
+                """.trimMargin(),
+            )
+            .replace(
+                """
+                |        aggregate {
+                |            artifacts {
+                |                factory.set(true)
+                |            }
+                |        }
+                """.trimMargin(),
+                """
+                |        aggregate {
+                |            specialFields {
+                |                idDefaultStrategy.set("identity")
+                |            }
+                |            artifacts {
+                |                factory.set(true)
+                |            }
+                |        }
+                """.trimMargin(),
+            )
         buildFile.writeText(patchedBuildFile)
         assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
+        assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1733,12 +1923,14 @@ class PipelinePluginFunctionalTest {
                         """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText().replace(
-                "includeTables.set(listOf(\"video_post\", \"audit_log\"))",
-                "includeTables.set(listOf(\"video\", \"audit_log\"))",
-            )
+        val patchedBuildFile = buildFile.readText().replace(
+            Regex(
+                """includeTables\.set\(\s*listOf\(\s*"video_post",\s*"snowflake_long_record",\s*"snowflake_string_record",\s*"uuid_string_record",\s*"uuid_native_record",\s*\)\s*\)"""
+            ),
+            "includeTables.set(listOf(\"video\", \"audit_log\"))",
         )
+        buildFile.writeText(patchedBuildFile)
+        assertTrue(patchedBuildFile.contains("includeTables.set(listOf(\"video\", \"audit_log\"))"))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -2023,23 +2215,52 @@ class PipelinePluginFunctionalTest {
             ).replaceFirst(
                 "title varchar(128) not null",
                 "created_by varchar(64) not null,\n    title varchar(128) not null",
-            )
+            ) +
+                "\n\n" +
+                """
+                create table audit_log (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    content varchar(128) not null
+                );
+                """.trimIndent()
         )
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                Regex("""aggregate\s*\{\s*}"""),
+        val patchedBuildFile = buildFileContent
+            .replace(
                 """
-                |aggregate {
-                |            specialFields {
-                |                managedDefaultColumns.set(listOf(" created_by "))
+                |                    "uuid_native_record",
+                |                )
+                """.trimMargin(),
+                """
+                |                    "uuid_native_record",
+                |                    "audit_log",
+                |                )
+                """.trimMargin(),
+            )
+            .replace(
+                """
+                |        aggregate {
+                |            artifacts {
+                |                factory.set(true)
                 |            }
                 |        }
                 """.trimMargin(),
-            ),
-        )
+                """
+                |        aggregate {
+                |            specialFields {
+                |                managedDefaultColumns.set(listOf(" created_by "))
+                |            }
+                |            artifacts {
+                |                factory.set(true)
+                |            }
+                |        }
+                """.trimMargin(),
+            )
+        buildFile.writeText(patchedBuildFile)
+        assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -2056,7 +2277,7 @@ class PipelinePluginFunctionalTest {
             .map { it.asJsonObject }
             .associateBy { it.get("tableName").asString }
         val videoPostPolicy = resolvedPolicies.getValue("video_post")
-        val auditLogPolicy = resolvedPolicies.getValue("audit_log")
+        val snowflakeLongPolicy = resolvedPolicies.getValue("snowflake_long_record")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
@@ -2064,7 +2285,18 @@ class PipelinePluginFunctionalTest {
         assertEquals("", defaults.get("deletedDefaultColumn").asString)
         assertEquals("", defaults.get("versionDefaultColumn").asString)
         assertEquals(listOf("created_by"), defaults.getAsJsonArray("managedDefaultColumns").map { it.asString })
-        assertEquals(2, resolvedPolicies.size)
+        assertEquals(6, resolvedPolicies.size)
+        assertEquals(
+            setOf(
+                "video_post",
+                "snowflake_long_record",
+                "snowflake_string_record",
+                "uuid_string_record",
+                "uuid_native_record",
+                "audit_log",
+            ),
+            resolvedPolicies.keys,
+        )
         assertTrue(firstResolvedPolicy.has("managedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonArray("managedFields").size() > 0)
         assertTrue(firstResolvedPolicy.has("writeSurface"))
@@ -2088,6 +2320,10 @@ class PipelinePluginFunctionalTest {
         assertEquals("READ_ONLY", videoPostPolicy.getAsJsonArray("managedFields").single {
             it.asJsonObject.get("columnName").asString == "created_by"
         }.asJsonObject.get("writePolicy").asString)
+        assertEquals("DB_EXPLICIT", snowflakeLongPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("snowflake", snowflakeLongPolicy.getAsJsonObject("id").get("strategy").asString)
+        assertEquals("NONE", snowflakeLongPolicy.getAsJsonObject("version").get("source").asString)
+        val auditLogPolicy = resolvedPolicies.getValue("audit_log")
         assertEquals("DB_EXPLICIT", auditLogPolicy.getAsJsonObject("id").get("source").asString)
         assertEquals("NONE", auditLogPolicy.getAsJsonObject("version").get("source").asString)
     }

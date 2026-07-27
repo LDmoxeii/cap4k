@@ -6,6 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
@@ -39,6 +40,7 @@ import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
+import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
@@ -3042,13 +3044,20 @@ class AggregateArtifactPlannerTest {
             comment = "video post",
             fields = listOf(
                 FieldModel("id", "Long", columnName = "id"),
-                FieldModel("version", "Long", columnName = "version"),
-                FieldModel("deleted", "Long", columnName = "deleted", managedRole = DbManagedRole.DELETED),
+                FieldModel("version", "Long", defaultValue = "0", columnName = "version"),
+                FieldModel(
+                    "deleted",
+                    "Long",
+                    defaultValue = "0::bigint",
+                    columnName = "deleted",
+                    managedRole = DbManagedRole.DELETED,
+                ),
+                FieldModel("title", "String", columnName = "title"),
             ),
             idField = FieldModel("id", "Long"),
         )
-        val artifact = AggregateArtifactPlanner().plan(
-            aggregateConfig(),
+        val planItems = AggregateArtifactPlanner().plan(
+            aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
@@ -3057,42 +3066,68 @@ class AggregateArtifactPlannerTest {
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        softDelete = AggregateSoftDeletePolicy(
-                            fieldName = "deleted",
-                            columnName = "deleted",
-                            activeValue = "0",
-                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                            activePredicateSql = "deleted = 0",
-                            deleteAssignmentSql = "deleted = id",
-                        ),
+                        softDelete = semanticSoftDeletePolicy(),
                         idFieldName = "id",
                         versionFieldName = "version",
                     )
                 ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    softDeleteResolvedPolicy(
+                        entity = entity,
+                        versionFieldName = "version",
+                        createAllowedFields = listOf("title"),
+                    )
+                ),
             )
-        ).single { it.templateId == "aggregate/entity.kt.peb" }
+        )
+        val artifact = planItems.single { it.templateId == "aggregate/entity.kt.peb" }
 
         @Suppress("UNCHECKED_CAST")
         val softDelete = artifact.context["softDelete"] as Map<String, Any?>
+        @Suppress("UNCHECKED_CAST")
+        val scalarFields = artifact.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorFields = artifact.context["constructorFields"] as List<Map<String, Any?>>
+        val deleted = scalarFields.single { it["name"] == "deleted" }
+        val title = scalarFields.single { it["name"] == "title" }
+        val factory = planItems.single { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = factory["payloadFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields = factory["constructorPayloadFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorUnresolvedFields = factory["constructorUnresolvedFields"] as List<Map<String, Any?>>
 
         assertEquals("update \"video_post\" set \"deleted\" = \"id\" where \"id\" = ? and \"version\" = ?", artifact.context["softDeleteSql"])
         assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
         assertEquals((artifact.context["softDeleteSql"] as String).toKotlinStringLiteral(), artifact.context["softDeleteSqlKotlinStringLiteral"])
         assertEquals((artifact.context["softDeleteWhereClause"] as String).toKotlinStringLiteral(), artifact.context["softDeleteWhereClauseKotlinStringLiteral"])
+        assertEquals(
+            setOf("enabled", "columnName", "storageKind", "activeSentinel", "tombstoneStrategy"),
+            softDelete.keys,
+        )
         assertEquals(true, softDelete["enabled"])
         assertEquals("deleted", softDelete["columnName"])
-        assertEquals("0", softDelete["activeValue"])
+        assertEquals("INTEGRAL", softDelete["storageKind"])
+        assertEquals("ZERO", softDelete["activeSentinel"])
         assertEquals("SELF_ID", softDelete["tombstoneStrategy"])
-        assertEquals("\"deleted\" = 0", softDelete["activePredicateSql"])
-        assertEquals("\"deleted\" = \"id\"", softDelete["deleteAssignmentSql"])
+        assertEquals("Long", deleted["fieldType"])
+        assertEquals(false, deleted["strongId"])
+        assertEquals(null, deleted["defaultValue"])
+        assertEquals("0L", deleted["propertyInitializer"])
+        assertEquals("title", title["propertyInitializer"])
+        assertFalse(constructorFields.any { it["name"] == "deleted" })
+        assertFalse(payloadFields.any { it["name"] == "deleted" })
+        assertFalse(constructorPayloadFields.any { it["name"] == "deleted" })
+        assertFalse(constructorUnresolvedFields.any { it["name"] == "deleted" })
     }
 
     @Test
-    fun `entity planner renders soft delete sql with physical id and version column names`() {
+    fun `entity planner preserves exact physical table id deleted and version case`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "video_post",
+            tableName = "Video_Post",
             comment = "video post",
             fields = listOf(
                 FieldModel("id", "Long"),
@@ -3102,7 +3137,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long"),
         )
         val artifact = AggregateArtifactPlanner().plan(
-            aggregateConfig(),
+            aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")),
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(
@@ -3112,9 +3147,9 @@ class AggregateArtifactPlannerTest {
                         entityEnabled = true,
                         tableName = entity.tableName,
                         columns = listOf(
-                            AggregateColumnJpaModel("id", "video_post_id", true, null),
-                            AggregateColumnJpaModel("lockVersion", "lock_version", false, null),
-                            AggregateColumnJpaModel("deleted", "deleted", false, null),
+                            AggregateColumnJpaModel("id", "Video_Post_ID", true, null),
+                            AggregateColumnJpaModel("lockVersion", "Lock_Version", false, null),
+                            AggregateColumnJpaModel("deleted", "DeLeted", false, null),
                         ),
                     )
                 ),
@@ -3122,14 +3157,9 @@ class AggregateArtifactPlannerTest {
                     AggregatePersistenceProviderControl(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        tableName = "video_post",
-                        softDelete = AggregateSoftDeletePolicy(
-                            fieldName = "deleted",
-                            columnName = "deleted",
-                            activeValue = "0",
-                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                            activePredicateSql = "deleted = 0",
-                            deleteAssignmentSql = "deleted = video_post_id",
+                        tableName = "Video_Post",
+                        softDelete = semanticSoftDeletePolicy(
+                            columnName = "DeLeted",
                         ),
                         idFieldName = "id",
                         versionFieldName = "lockVersion",
@@ -3138,7 +3168,11 @@ class AggregateArtifactPlannerTest {
             )
         ).single { it.templateId == "aggregate/entity.kt.peb" }
 
-        assertEquals("update \"video_post\" set \"deleted\" = \"video_post_id\" where \"video_post_id\" = ? and \"lock_version\" = ?", artifact.context["softDeleteSql"])
+        assertEquals(
+            "update \"Video_Post\" set \"DeLeted\" = \"Video_Post_ID\" where \"Video_Post_ID\" = ? and \"Lock_Version\" = ?",
+            artifact.context["softDeleteSql"],
+        )
+        assertEquals("\"DeLeted\" = 0", artifact.context["softDeleteWhereClause"])
     }
 
     @Test
@@ -3155,7 +3189,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("aggregateId", "Long"),
         )
         val artifact = AggregateArtifactPlanner().plan(
-            aggregateConfig(),
+            aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(
@@ -3175,14 +3209,7 @@ class AggregateArtifactPlannerTest {
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        softDelete = AggregateSoftDeletePolicy(
-                            fieldName = "deleted",
-                            columnName = "deleted",
-                            activeValue = "0",
-                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                            activePredicateSql = "deleted = 0",
-                            deleteAssignmentSql = "deleted = video_post_id",
-                        ),
+                        softDelete = semanticSoftDeletePolicy(),
                         idFieldName = "aggregateId",
                         versionFieldName = null,
                     )
@@ -3226,14 +3253,7 @@ class AggregateArtifactPlannerTest {
                         entityName = "Category",
                         entityPackageName = "com.acme.demo.domain.aggregates.category",
                         tableName = "category",
-                        softDelete = AggregateSoftDeletePolicy(
-                            fieldName = "deleted",
-                            columnName = "deleted",
-                            activeValue = "0",
-                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                            activePredicateSql = "deleted = 0",
-                            deleteAssignmentSql = "deleted = id",
-                        ),
+                        softDelete = semanticSoftDeletePolicy(),
                         idFieldName = "id",
                         versionFieldName = "version",
                     )
@@ -3259,7 +3279,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "i\"d"),
         )
         val artifact = AggregateArtifactPlanner().plan(
-            aggregateConfig(),
+            aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(
@@ -3279,13 +3299,8 @@ class AggregateArtifactPlannerTest {
                         entityName = entity.name,
                         entityPackageName = entity.packageName,
                         tableName = entity.tableName,
-                        softDelete = AggregateSoftDeletePolicy(
-                            fieldName = "deleted",
+                        softDelete = semanticSoftDeletePolicy(
                             columnName = "de\"leted",
-                            activeValue = "0",
-                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                            activePredicateSql = "de\"leted = 0",
-                            deleteAssignmentSql = "de\"leted = i\"d",
                         ),
                         idFieldName = "id",
                     )
@@ -3298,6 +3313,607 @@ class AggregateArtifactPlannerTest {
             artifact.context["softDeleteSql"],
         )
         assertEquals("\"de\"\"leted\" = 0", artifact.context["softDeleteWhereClause"])
+    }
+
+    @Test
+    fun `entity planner renders exact supported jdbc dialect matrix`() {
+        val entity = EntityModel(
+            name = "DialectEntity",
+            packageName = "com.acme.demo.domain.aggregates.dialect_entity",
+            tableName = "Dialect_Table",
+            comment = "dialect entity",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "Physical_ID"),
+                FieldModel("version", "Long", columnName = "Lock_Version"),
+                FieldModel("deleted", "Int", defaultValue = "0", columnName = "Deleted_Flag"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "Physical_ID"),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            aggregateEntityJpa = listOf(
+                AggregateEntityJpaModel(
+                    entityName = entity.name,
+                    entityPackageName = entity.packageName,
+                    entityEnabled = true,
+                    tableName = entity.tableName,
+                    columns = listOf(
+                        AggregateColumnJpaModel("id", "Physical_ID", true),
+                        AggregateColumnJpaModel("version", "Lock_Version", false),
+                        AggregateColumnJpaModel("deleted", "Deleted_Flag", false),
+                    ),
+                )
+            ),
+            aggregatePersistenceProviderControls = listOf(
+                AggregatePersistenceProviderControl(
+                    entityName = entity.name,
+                    entityPackageName = entity.packageName,
+                    tableName = entity.tableName,
+                    softDelete = semanticSoftDeletePolicy(columnName = "Deleted_Flag"),
+                    idFieldName = "id",
+                    versionFieldName = "version",
+                )
+            ),
+        )
+        val backtickSql =
+            "update \u0060Dialect_Table\u0060 set \u0060Deleted_Flag\u0060 = \u0060Physical_ID\u0060 " +
+                "where \u0060Physical_ID\u0060 = ? and \u0060Lock_Version\u0060 = ?"
+        val doubleQuoteSql =
+            "update \"Dialect_Table\" set \"Deleted_Flag\" = \"Physical_ID\" " +
+                "where \"Physical_ID\" = ? and \"Lock_Version\" = ?"
+        val cases = listOf(
+            Triple("jdbc:mysql://localhost/demo", backtickSql, "\u0060Deleted_Flag\u0060 = 0"),
+            Triple("jdbc:mariadb://localhost/demo", backtickSql, "\u0060Deleted_Flag\u0060 = 0"),
+            Triple("jdbc:h2:mem:demo", doubleQuoteSql, "\"Deleted_Flag\" = 0"),
+            Triple(
+                "jdbc:h2:mem:demo;MODE=MySQL;DATABASE_TO_UPPER=false",
+                backtickSql,
+                "\u0060Deleted_Flag\u0060 = 0",
+            ),
+            Triple("jdbc:postgresql://localhost/demo", doubleQuoteSql, "\"Deleted_Flag\" = 0"),
+        )
+
+        cases.forEach { (jdbcUrl, expectedSql, expectedWhereClause) ->
+            val artifact = EntityArtifactPlanner()
+                .plan(aggregateConfig(sources = dbSources(jdbcUrl)), model)
+                .single()
+
+            @Suppress("UNCHECKED_CAST")
+            val entityJpa = artifact.context["entityJpa"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val scalarFields = artifact.context["scalarFields"] as List<Map<String, Any?>>
+            val identifierDelimiter = if (
+                jdbcUrl.startsWith("jdbc:mysql:") ||
+                jdbcUrl.startsWith("jdbc:mariadb:") ||
+                jdbcUrl.contains("MODE=MySQL", ignoreCase = true)
+            ) {
+                "`"
+            } else {
+                "\""
+            }
+            fun quotedIdentifier(value: String): String =
+                "$identifierDelimiter$value$identifierDelimiter".toKotlinStringLiteral()
+
+            assertEquals(expectedSql, artifact.context["softDeleteSql"], jdbcUrl)
+            assertEquals(expectedWhereClause, artifact.context["softDeleteWhereClause"], jdbcUrl)
+            assertEquals(
+                quotedIdentifier("Dialect_Table"),
+                entityJpa["tableNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+            assertEquals(
+                quotedIdentifier("Physical_ID"),
+                scalarFields.single { it["name"] == "id" }["columnNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+            assertEquals(
+                quotedIdentifier("Lock_Version"),
+                scalarFields.single { it["name"] == "version" }["columnNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+            assertEquals(
+                quotedIdentifier("Deleted_Flag"),
+                scalarFields.single { it["name"] == "deleted" }["columnNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete entity planner quotes every mapped relation join column`() {
+        val entity = EntityModel(
+            name = "MixedRelation",
+            packageName = "com.acme.demo.domain.aggregates.mixed_relation",
+            tableName = "Mixed_Relation",
+            comment = "mixed relation",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "Physical_ID"),
+                FieldModel("authorId", "Long", columnName = "Author_ID"),
+                FieldModel("profileId", "Long", columnName = "Profile_ID"),
+                FieldModel("deleted", "Long", columnName = "Deleted_Flag"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "Physical_ID"),
+        )
+        val artifact = EntityArtifactPlanner().plan(
+            aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        softDelete = semanticSoftDeletePolicy(columnName = "Deleted_Flag"),
+                        idFieldName = "id",
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        fieldName = "author",
+                        targetEntityName = "Author",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.author",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "Author_ID",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        fieldName = "profile",
+                        targetEntityName = "Profile",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.profile",
+                        relationType = AggregateRelationType.ONE_TO_ONE,
+                        joinColumn = "Profile_ID",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = true,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        fieldName = "items",
+                        targetEntityName = "MixedRelationItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.mixed_relation_item",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "Owner_ID",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        joinColumnNullable = false,
+                    ),
+                ),
+            ),
+        ).single()
+
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = artifact.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(
+            mapOf(
+                "author" to "\"\\\"Author_ID\\\"\"",
+                "profile" to "\"\\\"Profile_ID\\\"\"",
+                "items" to "\"\\\"Owner_ID\\\"\"",
+            ),
+            relationFields.associate { it.getValue("name") to it["joinColumnKotlinStringLiteral"] },
+        )
+    }
+
+    @Test
+    fun `entity planner resolves jdbc dialect only for semantic soft delete`() {
+        val plainEntity = EntityModel(
+            name = "PlainEntity",
+            packageName = "com.acme.demo.domain.aggregates.plain_entity",
+            tableName = "plain_entity",
+            comment = "plain entity",
+            fields = listOf(FieldModel("id", "Long", columnName = "id")),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val plainModel = CanonicalModel(
+            entities = listOf(plainEntity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(plainEntity)),
+        )
+        val invalidConfigs = listOf(
+            aggregateConfig(),
+            aggregateConfig(sources = mapOf("db" to SourceConfig(options = emptyMap()))),
+            aggregateConfig(sources = dbSources("jdbc:oracle:thin:@localhost:1521:xe")),
+        )
+
+        invalidConfigs.forEach { config ->
+            assertEquals(1, EntityArtifactPlanner().plan(config, plainModel).size)
+        }
+
+        val deletedEntity = plainEntity.copy(
+            name = "DeletedEntity",
+            packageName = "com.acme.demo.domain.aggregates.deleted_entity",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("deleted", "Long", defaultValue = "0", columnName = "deleted"),
+            ),
+        )
+        val deletedModel = CanonicalModel(
+            entities = listOf(deletedEntity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(deletedEntity)),
+            aggregatePersistenceProviderControls = listOf(
+                AggregatePersistenceProviderControl(
+                    entityName = deletedEntity.name,
+                    entityPackageName = deletedEntity.packageName,
+                    tableName = deletedEntity.tableName,
+                    softDelete = semanticSoftDeletePolicy(),
+                    idFieldName = "id",
+                )
+            ),
+        )
+
+        invalidConfigs.forEach { config ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                EntityArtifactPlanner().plan(config, deletedModel)
+            }
+            assertTrue(error.message!!.contains("jdbc:mysql:"), error.message)
+            assertTrue(error.message!!.contains("jdbc:postgresql:"), error.message)
+        }
+    }
+
+    @Test
+    fun `entity planner keeps semantic deleted storage raw beside generated own strong ids`() {
+        data class Case(
+            val entityName: String,
+            val idType: String,
+            val idValueType: String,
+            val idStrategy: String,
+            val deletedType: String,
+            val deletedDefault: String?,
+            val storageKind: AggregateIdStorageKind,
+            val activeSentinel: SoftDeleteActiveSentinel,
+            val expectedInitializer: String,
+        )
+
+        val cases = listOf(
+            Case(
+                "LongMarker",
+                "LongMarkerId",
+                "Long",
+                "snowflake",
+                "Long",
+                "0",
+                AggregateIdStorageKind.INTEGRAL,
+                SoftDeleteActiveSentinel.ZERO,
+                "0L",
+            ),
+            Case(
+                "StringMarker",
+                "StringMarkerId",
+                "String",
+                "uuid7",
+                "String",
+                "'00000000-0000-0000-0000-000000000000'",
+                AggregateIdStorageKind.CHARACTER,
+                SoftDeleteActiveSentinel.NIL_UUID,
+                "\"00000000-0000-0000-0000-000000000000\"",
+            ),
+            Case(
+                "UuidMarker",
+                "UuidMarkerId",
+                "UUID",
+                "uuid7",
+                "UUID",
+                null,
+                AggregateIdStorageKind.NATIVE_UUID,
+                SoftDeleteActiveSentinel.NIL_UUID,
+                "UUID(0L, 0L)",
+            ),
+        )
+
+        cases.forEach { case ->
+            val packageName = "com.acme.demo.domain.aggregates.raw_deleted"
+            val entity = EntityModel(
+                name = case.entityName,
+                packageName = packageName,
+                tableName = case.entityName,
+                comment = case.entityName,
+                fields = listOf(
+                    FieldModel("id", case.idType, columnName = "id"),
+                    FieldModel(
+                        "deleted",
+                        case.deletedType,
+                        defaultValue = case.deletedDefault,
+                        columnName = "deleted",
+                        managedRole = DbManagedRole.DELETED,
+                    ),
+                    FieldModel("title", "String", columnName = "title"),
+                ),
+                idField = FieldModel("id", case.idType, columnName = "id"),
+            )
+            val model = CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        softDelete = semanticSoftDeletePolicy(
+                            storageKind = case.storageKind,
+                            activeSentinel = case.activeSentinel,
+                        ),
+                        idFieldName = "id",
+                    )
+                ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    softDeleteResolvedPolicy(
+                        entity = entity,
+                        idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                        idStrategy = case.idStrategy,
+                        createAllowedFields = listOf("title"),
+                    )
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = case.idType,
+                        packageName = packageName,
+                        valueType = case.idValueType,
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = packageName,
+                        ownerAggregateName = entity.name,
+                        ownerAggregatePackageName = packageName,
+                        idStrategy = case.idStrategy,
+                        isEmbeddedId = true,
+                    )
+                ),
+            )
+
+            val context = EntityArtifactPlanner()
+                .plan(aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")), model)
+                .single()
+                .context
+            @Suppress("UNCHECKED_CAST")
+            val scalarFields = context["scalarFields"] as List<Map<String, Any?>>
+            @Suppress("UNCHECKED_CAST")
+            val constructorFields = context["constructorFields"] as List<Map<String, Any?>>
+            val id = scalarFields.single { it["name"] == "id" }
+            val deleted = scalarFields.single { it["name"] == "deleted" }
+
+            assertAll(
+                { assertEquals(case.idType, id["fieldType"], case.entityName) },
+                { assertEquals(true, id["strongId"], case.entityName) },
+                { assertEquals(true, id["generatedOwnId"], case.entityName) },
+                { assertEquals(case.deletedType, deleted["fieldType"], case.entityName) },
+                { assertEquals(case.deletedType, deleted["type"], case.entityName) },
+                { assertEquals(false, deleted["strongId"], case.entityName) },
+                { assertEquals(case.expectedInitializer, deleted["propertyInitializer"], case.entityName) },
+                { assertFalse(constructorFields.any { it["name"] == "id" }, case.entityName) },
+                { assertFalse(constructorFields.any { it["name"] == "deleted" }, case.entityName) },
+            )
+        }
+    }
+
+    @Test
+    fun `soft deleted roots and owned children omit deleted from construction and root factory surfaces`() {
+        val packageName = "com.acme.demo.domain.aggregates.order"
+        val root = EntityModel(
+            name = "Order",
+            packageName = packageName,
+            tableName = "orders",
+            comment = "order",
+            fields = listOf(
+                FieldModel("id", "OrderId", columnName = "id"),
+                FieldModel(
+                    "deleted",
+                    "Long",
+                    defaultValue = "0",
+                    columnName = "deleted",
+                    managedRole = DbManagedRole.DELETED,
+                ),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "OrderId", columnName = "id"),
+            aggregateRoot = true,
+        )
+        val child = EntityModel(
+            name = "OrderLine",
+            packageName = packageName,
+            tableName = "order_line",
+            comment = "order line",
+            fields = listOf(
+                FieldModel("id", "OrderLineId", columnName = "id"),
+                FieldModel(
+                    "deleted",
+                    "Long",
+                    defaultValue = "0",
+                    columnName = "deleted",
+                    managedRole = DbManagedRole.DELETED,
+                ),
+                FieldModel("lineNo", "Int", columnName = "line_no"),
+            ),
+            idField = FieldModel("id", "OrderLineId", columnName = "id"),
+            aggregateRoot = false,
+            parentEntityName = root.name,
+        )
+        val plan = AggregateArtifactPlanner().plan(
+            aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")),
+            CanonicalModel(
+                entities = listOf(root, child),
+                aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(root),
+                    defaultAggregateEntityJpa(child),
+                ),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = root.name,
+                        entityPackageName = packageName,
+                        tableName = root.tableName,
+                        softDelete = semanticSoftDeletePolicy(),
+                        idFieldName = "id",
+                    ),
+                    AggregatePersistenceProviderControl(
+                        entityName = child.name,
+                        entityPackageName = packageName,
+                        tableName = child.tableName,
+                        softDelete = semanticSoftDeletePolicy(),
+                        idFieldName = "id",
+                    ),
+                ),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    softDeleteResolvedPolicy(
+                        entity = root,
+                        idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                        idStrategy = "snowflake",
+                        createAllowedFields = listOf("title"),
+                    ),
+                    softDeleteResolvedPolicy(
+                        entity = child,
+                        idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                        idStrategy = "snowflake",
+                        createAllowedFields = listOf("lineNo"),
+                    ),
+                ),
+                strongIds = listOf(
+                    StrongIdModel(
+                        typeName = "OrderId",
+                        packageName = packageName,
+                        valueType = "Long",
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = root.name,
+                        ownerEntityPackageName = packageName,
+                        ownerAggregateName = root.name,
+                        ownerAggregatePackageName = packageName,
+                        idStrategy = "snowflake",
+                        isEmbeddedId = true,
+                    ),
+                    StrongIdModel(
+                        typeName = "OrderLineId",
+                        packageName = packageName,
+                        valueType = "Long",
+                        kind = StrongIdKind.OWN_ID,
+                        ownerEntityName = child.name,
+                        ownerEntityPackageName = packageName,
+                        ownerAggregateName = root.name,
+                        ownerAggregatePackageName = packageName,
+                        idStrategy = "snowflake",
+                        isEmbeddedId = true,
+                    ),
+                ),
+            ),
+        )
+
+        val rootContext = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == root.name
+        }.context
+        val childContext = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == child.name
+        }.context
+        @Suppress("UNCHECKED_CAST")
+        val rootFields = rootContext["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val rootConstructorFields = rootContext["constructorFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val childFields = childContext["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val childConstructorFields = childContext["constructorFields"] as List<Map<String, Any?>>
+        val factory = plan.single { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = factory["payloadFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields = factory["constructorPayloadFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorUnresolvedFields = factory["constructorUnresolvedFields"] as List<Map<String, Any?>>
+
+        assertAll(
+            { assertEquals("OrderId", rootFields.single { it["name"] == "id" }["fieldType"]) },
+            { assertEquals(true, rootFields.single { it["name"] == "id" }["generatedOwnId"]) },
+            { assertEquals("OrderLineId", childFields.single { it["name"] == "id" }["fieldType"]) },
+            { assertEquals(true, childFields.single { it["name"] == "id" }["generatedOwnId"]) },
+            { assertFalse(rootConstructorFields.any { it["name"] == "deleted" }) },
+            { assertFalse(childConstructorFields.any { it["name"] == "deleted" }) },
+            { assertFalse(payloadFields.any { it["name"] == "deleted" }) },
+            { assertFalse(constructorPayloadFields.any { it["name"] == "deleted" }) },
+            { assertFalse(constructorUnresolvedFields.any { it["name"] == "deleted" }) },
+            { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
+            { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
+            {
+                assertFalse(
+                    plan.any {
+                        it.templateId == "aggregate/factory.kt.peb" &&
+                            it.context["entityName"] == child.name
+                    }
+                )
+            },
+            {
+                assertFalse(
+                    plan.any {
+                        it.templateId == "aggregate/specification.kt.peb" &&
+                            it.context["entityName"] == child.name
+                    }
+                )
+            },
+            {
+                assertFalse(
+                    plan.any {
+                        it.templateId.contains("persist", ignoreCase = true) &&
+                            it.context["entityName"] == child.name
+                    }
+                )
+            },
+        )
+    }
+
+    @Test
+    fun `entity planner fails for system transition only field without semantic initializer`() {
+        val entity = EntityModel(
+            name = "FutureManaged",
+            packageName = "com.acme.demo.domain.aggregates.future_managed",
+            tableName = "future_managed",
+            comment = "future managed",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("archived", "String", columnName = "archived"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val model = CanonicalModel(
+            entities = listOf(entity),
+            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+            aggregateSpecialFieldResolvedPolicies = listOf(
+                AggregateSpecialFieldResolvedPolicy(
+                    entityName = entity.name,
+                    entityPackageName = entity.packageName,
+                    tableName = entity.tableName,
+                    id = ResolvedIdPolicy(
+                        fieldName = "id",
+                        columnName = "id",
+                        strategy = "identity",
+                        kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                        source = SpecialFieldSource.DB_EXPLICIT,
+                        writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                    ),
+                    deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                    version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                    managedFields = listOf(
+                        ResolvedManagedFieldPolicy(
+                            fieldName = "archived",
+                            columnName = "archived",
+                            writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                            source = SpecialFieldSource.DB_EXPLICIT,
+                        )
+                    ),
+                    writeSurface = ResolvedWriteSurfacePolicy(),
+                )
+            ),
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            EntityArtifactPlanner().plan(aggregateConfig(), model)
+        }
+
+        assertTrue(
+            error.message!!.contains(
+                "com.acme.demo.domain.aggregates.future_managed.FutureManaged.archived"
+            ),
+            error.message,
+        )
+        assertTrue(error.message!!.contains("SYSTEM_TRANSITION_ONLY"), error.message)
     }
 
     @Test
@@ -4381,7 +4997,7 @@ class AggregateArtifactPlannerTest {
             uniqueConstraints = listOf(uniqueConstraint("category_uk_v_code", "code", "deleted")),
         )
         val planItems = AggregateArtifactPlanner().plan(
-            aggregateConfig(),
+            aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
                 schemas = listOf(
@@ -4407,14 +5023,7 @@ class AggregateArtifactPlannerTest {
                         entityName = "Category",
                         entityPackageName = "com.acme.demo.domain.aggregates.category",
                         tableName = "category",
-                        softDelete = AggregateSoftDeletePolicy(
-                            fieldName = "deleted",
-                            columnName = "deleted",
-                            activeValue = "0",
-                            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                            activePredicateSql = "deleted = 0",
-                            deleteAssignmentSql = "deleted = id",
-                        ),
+                        softDelete = semanticSoftDeletePolicy(),
                         idFieldName = "id",
                     )
                 ),
@@ -5036,14 +5645,7 @@ class AggregateArtifactPlannerTest {
                 entityName = "Category",
                 entityPackageName = "com.acme.demo.domain.aggregates.category",
                 tableName = "category",
-                softDelete = AggregateSoftDeletePolicy(
-                    fieldName = "deleted",
-                    columnName = "deleted",
-                    activeValue = "0",
-                    tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                    activePredicateSql = "deleted = 0",
-                    deleteAssignmentSql = "deleted = id",
-                ),
+                softDelete = semanticSoftDeletePolicy(),
                 idFieldName = "id",
             ),
         )
@@ -5346,14 +5948,7 @@ class AggregateArtifactPlannerTest {
                     entityName = "Category",
                     entityPackageName = "com.acme.demo.domain.aggregates.category",
                     tableName = "category",
-                    softDelete = AggregateSoftDeletePolicy(
-                        fieldName = "deleted",
-                        columnName = "deleted",
-                        activeValue = "0",
-                        tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                        activePredicateSql = "deleted = 0",
-                        deleteAssignmentSql = "deleted = id",
-                    ),
+                    softDelete = semanticSoftDeletePolicy(),
                     idFieldName = "id",
                 ),
             )
@@ -5385,14 +5980,7 @@ class AggregateArtifactPlannerTest {
                     entityName = "Category",
                     entityPackageName = "com.acme.demo.domain.aggregates.category",
                     tableName = "category",
-                    softDelete = AggregateSoftDeletePolicy(
-                        fieldName = "deleted",
-                        columnName = "deleted",
-                        activeValue = "0",
-                        tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-                        activePredicateSql = "deleted = 0",
-                        deleteAssignmentSql = "deleted = id",
-                    ),
+                    softDelete = semanticSoftDeletePolicy(),
                     idFieldName = "id",
                 ),
             )
@@ -6484,6 +7072,86 @@ class AggregateArtifactPlannerTest {
             "artifact.specification" to true,
             "artifact.unique" to true,
         )
+
+    private fun semanticSoftDeletePolicy(
+        fieldName: String = "deleted",
+        columnName: String = "deleted",
+        storageKind: AggregateIdStorageKind = AggregateIdStorageKind.INTEGRAL,
+        activeSentinel: SoftDeleteActiveSentinel = SoftDeleteActiveSentinel.ZERO,
+    ): AggregateSoftDeletePolicy =
+        AggregateSoftDeletePolicy(
+            fieldName = fieldName,
+            columnName = columnName,
+            storageKind = storageKind,
+            activeSentinel = activeSentinel,
+            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+        )
+
+    private fun softDeleteResolvedPolicy(
+        entity: EntityModel,
+        idFieldName: String = entity.idField.name,
+        idColumnName: String = entity.idField.columnName ?: idFieldName,
+        deletedFieldName: String = "deleted",
+        deletedColumnName: String = "deleted",
+        versionFieldName: String? = null,
+        versionColumnName: String? = versionFieldName,
+        idKind: AggregateIdPolicyKind = AggregateIdPolicyKind.DATABASE_SIDE,
+        idStrategy: String = if (idKind == AggregateIdPolicyKind.DATABASE_SIDE) "identity" else "uuid7",
+        createAllowedFields: List<String> = entity.fields
+            .map { it.name }
+            .filterNot { it == idFieldName || it == deletedFieldName || it == versionFieldName },
+    ): AggregateSpecialFieldResolvedPolicy =
+        AggregateSpecialFieldResolvedPolicy(
+            entityName = entity.name,
+            entityPackageName = entity.packageName,
+            tableName = entity.tableName,
+            id = ResolvedIdPolicy(
+                fieldName = idFieldName,
+                columnName = idColumnName,
+                strategy = idStrategy,
+                kind = idKind,
+                source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = if (idKind == AggregateIdPolicyKind.DATABASE_SIDE) {
+                    SpecialFieldWritePolicy.READ_ONLY
+                } else {
+                    SpecialFieldWritePolicy.CREATE_ONLY
+                },
+            ),
+            deleted = ResolvedMarkerPolicy(
+                enabled = true,
+                fieldName = deletedFieldName,
+                columnName = deletedColumnName,
+                source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+            ),
+            version = if (versionFieldName == null) {
+                ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE)
+            } else {
+                ResolvedMarkerPolicy(
+                    enabled = true,
+                    fieldName = versionFieldName,
+                    columnName = versionColumnName,
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                )
+            },
+            managedFields = listOf(
+                ResolvedManagedFieldPolicy(
+                    fieldName = deletedFieldName,
+                    columnName = deletedColumnName,
+                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                    managedRole = DbManagedRole.DELETED,
+                )
+            ),
+            writeSurface = ResolvedWriteSurfacePolicy(
+                createAllowedFields = createAllowedFields,
+                updateAllowedFields = createAllowedFields,
+            ),
+        )
+
+    private fun dbSources(jdbcUrl: String): Map<String, SourceConfig> =
+        mapOf("db" to SourceConfig(options = mapOf("url" to jdbcUrl)))
 
     private fun generatedOwnId(
         typeName: String,

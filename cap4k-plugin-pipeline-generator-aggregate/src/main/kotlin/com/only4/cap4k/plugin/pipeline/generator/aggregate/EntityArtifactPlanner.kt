@@ -8,16 +8,15 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
-import java.util.Locale
 
 internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
         val defaultProjector = AggregateEntityDefaultProjector()
-        val identifierQuoteStyle = resolveIdentifierQuoteStyle(config)
         val generatedOwnIdsByEntity = GeneratedOwnIdPlanning.from(model).associateBy { it.entityFqn }
 
         return model.entities.map { entity ->
@@ -73,31 +72,84 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${versionFieldName}"
                 }.columnName
             }
-            val softDeleteContext = providerControl?.softDelete?.let { policy ->
-                val quotedDeletedColumn = quoteIdentifier(policy.columnName, identifierQuoteStyle)
-                val quotedIdColumn = quoteIdentifier(requireNotNull(idColumnName), identifierQuoteStyle)
-                val activePredicateSql = "$quotedDeletedColumn = ${policy.activeValue}"
-                val deleteAssignmentSql = "$quotedDeletedColumn = $quotedIdColumn"
+            val softDeletePolicy = providerControl?.softDelete
+            val softDeleteDialect = softDeletePolicy?.let {
+                val jdbcUrl = config.sources["db"]
+                    ?.options
+                    ?.get("url")
+                    ?.toString()
+                    .orEmpty()
+                AggregateSqlDialectResolver.resolve(jdbcUrl)
+            }
+            fun jpaIdentifierKotlinStringLiteral(value: String): String {
+                val renderedIdentifier = softDeleteDialect
+                    ?.let { dialect -> AggregateSoftDeleteRendering.quoteIdentifier(value, dialect) }
+                    ?: value
+                return renderedIdentifier.toKotlinStringLiteral()
+            }
+            val renderedSoftDelete = softDeletePolicy?.let { policy ->
+                val control = requireNotNull(providerControl)
+                val deletedField = requireNotNull(entity.fields.singleOrNull { it.name == policy.fieldName }) {
+                    "missing aggregate field ${entity.packageName}.${entity.name}.${policy.fieldName}"
+                }
+                requireNotNull(scalarJpaByField[policy.fieldName]) {
+                    "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${policy.fieldName}"
+                }
+                AggregateSoftDeleteRendering.render(
+                    policy = policy,
+                    dialect = requireNotNull(softDeleteDialect),
+                    tableName = control.tableName,
+                    idColumnName = requireNotNull(idColumnName),
+                    versionColumnName = versionColumnName,
+                    deletedKotlinType = planning.resolveFieldType(entity.packageName, deletedField),
+                )
+            }
+            val renderedRelationFields = relationPlan.relationFields.map { relation ->
+                val joinColumn = relation["joinColumn"] as? String
+                if (joinColumn == null) {
+                    relation
+                } else {
+                    relation + mapOf(
+                        "joinColumnKotlinStringLiteral" to jpaIdentifierKotlinStringLiteral(joinColumn)
+                    )
+                }
+            }
+            val systemTransitionFieldNames = (
+                listOfNotNull(
+                    resolvedPolicy
+                        ?.deleted
+                        ?.takeIf {
+                            it.enabled &&
+                                it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+                        }
+                        ?.fieldName
+                ) +
+                    resolvedPolicy
+                        ?.managedFields
+                        .orEmpty()
+                        .filter { it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY }
+                        .map { it.fieldName }
+                ).distinct()
+            systemTransitionFieldNames.forEach { fieldName ->
+                require(
+                    renderedSoftDelete != null &&
+                        softDeletePolicy?.fieldName == fieldName
+                ) {
+                    "aggregate field ${entity.packageName}.${entity.name}.$fieldName has " +
+                        "SYSTEM_TRANSITION_ONLY write policy but no semantic property initializer"
+                }
+            }
+            val softDeleteContext = softDeletePolicy?.let { policy ->
                 mapOf(
                     "enabled" to true,
                     "columnName" to policy.columnName,
-                    "activeValue" to policy.activeValue,
+                    "storageKind" to policy.storageKind.name,
+                    "activeSentinel" to policy.activeSentinel.name,
                     "tombstoneStrategy" to policy.tombstoneStrategy.name,
-                    "activePredicateSql" to activePredicateSql,
-                    "deleteAssignmentSql" to deleteAssignmentSql,
                 )
             }
-            val softDeleteSql = softDeleteContext?.let { context ->
-                val control = requireNotNull(providerControl)
-                buildSoftDeleteSql(
-                    tableName = control.tableName,
-                    deleteAssignmentSql = requireNotNull(context["deleteAssignmentSql"] as? String),
-                    idColumnName = requireNotNull(idColumnName),
-                    versionColumnName = versionColumnName,
-                    identifierQuoteStyle = identifierQuoteStyle,
-                )
-            }
-            val softDeleteWhereClause = softDeleteContext?.get("activePredicateSql") as? String
+            val softDeleteSql = renderedSoftDelete?.sqlDelete
+            val softDeleteWhereClause = renderedSoftDelete?.whereClause
             val fieldContexts = entity.fields
                 .mapNotNull { field ->
                     val jpa = requireNotNull(scalarJpaByField[field.name]) {
@@ -107,7 +159,12 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         null
                     } else {
                         val control = controlsByField[field.name]
-                        val strongId = resolveStrongId(model, entity, field)
+                        val isSoftDeleteField = softDeletePolicy?.fieldName == field.name
+                        val strongId = if (isSoftDeleteField) {
+                            null
+                        } else {
+                            resolveStrongId(model, entity, field)
+                        }
                         val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
                         val renderedType = if (strongId != null) {
                             AggregateRenderedType(strongId.typeName, listOf(strongId.fqn()))
@@ -134,7 +191,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 resolvedPolicy.version.fieldName == field.name
                             else -> control?.version == true
                         }
-                        val defaultValue = if (strongId != null) {
+                        val defaultValue = if (strongId != null || isSoftDeleteField) {
                             null
                         } else {
                             defaultProjector.project(
@@ -162,8 +219,20 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         val writePolicy = when {
                             jpa.isId && resolvedPolicy != null -> resolvedPolicy.id.writePolicy.name
                             isVersionField && resolvedPolicy != null -> resolvedPolicy.version.writePolicy.name
+                            resolvedPolicy?.deleted?.enabled == true &&
+                                resolvedPolicy.deleted.fieldName == field.name ->
+                                resolvedPolicy.deleted.writePolicy.name
                             managedByField[field.name] != null -> managedByField.getValue(field.name).writePolicy.name
                             else -> "READ_WRITE"
+                        }
+                        val propertyInitializer = when {
+                            isSoftDeleteField -> requireNotNull(renderedSoftDelete).propertyInitializer
+                            writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name ->
+                                error(
+                                    "aggregate field ${entity.packageName}.${entity.name}.${field.name} has " +
+                                        "SYSTEM_TRANSITION_ONLY write policy but no semantic property initializer"
+                                )
+                            else -> field.name
                         }
                         mapOf(
                             "fieldName" to field.name,
@@ -174,6 +243,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "typeImports" to renderedType.imports,
                             "nullable" to field.nullable,
                             "defaultValue" to defaultValue,
+                            "propertyInitializer" to propertyInitializer,
                             "typeRef" to typeRef,
                             "strongId" to (strongId != null),
                             "embeddedId" to embeddedId,
@@ -181,6 +251,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
+                            "columnNameKotlinStringLiteral" to
+                                jpaIdentifierKotlinStringLiteral(jpa.columnName),
                             "isId" to jpa.isId,
                             "converterTypeRef" to jpa.converterTypeFqn,
                             "converterClassRef" to jpa.converterClassFqn,
@@ -229,6 +301,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "entityJpa" to mapOf(
                         "entityEnabled" to (entityJpa?.entityEnabled ?: true),
                         "tableName" to (entityJpa?.tableName ?: entity.tableName),
+                        "tableNameKotlinStringLiteral" to jpaIdentifierKotlinStringLiteral(
+                            entityJpa?.tableName ?: entity.tableName
+                        ),
                     ),
                     "idField" to entity.idField,
                     "hasConverterFields" to scalarFields.any { it["converterClassRef"] != null },
@@ -250,8 +325,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "imports" to scalarImports.distinct(),
                     "fields" to fieldContexts,
                     "scalarFields" to scalarFields,
-                    "constructorFields" to scalarFields.filterNot { it["generatedOwnId"] == true },
-                    "relationFields" to relationPlan.relationFields,
+                    "constructorFields" to scalarFields.filterNot {
+                        it["generatedOwnId"] == true ||
+                            it["writePolicy"] == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
+                    },
+                    "relationFields" to renderedRelationFields,
                 ),
             )
         }
@@ -332,50 +410,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
 
     private fun String.shortTypeName(): String = removeSuffix("?").substringAfterLast('.')
-
-    private fun buildSoftDeleteSql(
-        tableName: String,
-        deleteAssignmentSql: String,
-        idColumnName: String,
-        versionColumnName: String?,
-        identifierQuoteStyle: IdentifierQuoteStyle,
-    ): String {
-        val quotedTable = quoteIdentifier(tableName, identifierQuoteStyle)
-        val quotedIdColumn = quoteIdentifier(idColumnName, identifierQuoteStyle)
-        return if (versionColumnName != null) {
-            val quotedVersionColumn = quoteIdentifier(versionColumnName, identifierQuoteStyle)
-            "update $quotedTable set $deleteAssignmentSql where $quotedIdColumn = ? and $quotedVersionColumn = ?"
-        } else {
-            "update $quotedTable set $deleteAssignmentSql where $quotedIdColumn = ?"
-        }
-    }
-
-    private fun resolveIdentifierQuoteStyle(config: ProjectConfig): IdentifierQuoteStyle {
-        val dbUrl = config.sources["db"]
-            ?.options
-            ?.get("url")
-            ?.toString()
-            ?.lowercase(Locale.ROOT)
-            ?: return IdentifierQuoteStyle.DOUBLE_QUOTE
-
-        return when {
-            dbUrl.startsWith("jdbc:mysql:") -> IdentifierQuoteStyle.BACKTICK
-            dbUrl.startsWith("jdbc:mariadb:") -> IdentifierQuoteStyle.BACKTICK
-            dbUrl.startsWith("jdbc:h2:") && dbUrl.contains("mode=mysql") -> IdentifierQuoteStyle.BACKTICK
-            else -> IdentifierQuoteStyle.DOUBLE_QUOTE
-        }
-    }
-
-    private fun quoteIdentifier(value: String, style: IdentifierQuoteStyle): String =
-        when (style) {
-            IdentifierQuoteStyle.DOUBLE_QUOTE -> "\"${value.replace("\"", "\"\"")}\""
-            IdentifierQuoteStyle.BACKTICK -> "`${value.replace("`", "``")}`"
-        }
-
-    private enum class IdentifierQuoteStyle {
-        DOUBLE_QUOTE,
-        BACKTICK,
-    }
 }
 
 private data class ScalarImportCandidate(

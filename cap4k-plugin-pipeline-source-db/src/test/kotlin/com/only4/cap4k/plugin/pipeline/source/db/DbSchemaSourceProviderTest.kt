@@ -1,6 +1,7 @@
 ﻿package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
@@ -68,6 +69,26 @@ class DbSchemaSourceProviderTest {
         assertTrue(columns.getValue("uuid_native").jdbcType in setOf(Types.OTHER, Types.BINARY))
         assertEquals(19, columns.getValue("snowflake_text").columnSize)
         assertEquals(Types.BIGINT, columns.getValue("snowflake_long").jdbcType)
+    }
+
+    @Test
+    fun `h2 standard metadata preserves soft delete defaults and physical names`() {
+        val snapshot = collectSoftDeleteMetadata(
+            "jdbc:h2:mem:cap4k-soft-delete-h2-standard;DB_CLOSE_DELAY=-1;" +
+                "INIT=RUNSCRIPT FROM 'classpath:/soft-delete-h2-standard.sql'"
+        )
+
+        assertSoftDeleteMetadata(snapshot)
+    }
+
+    @Test
+    fun `h2 mysql metadata preserves soft delete defaults and physical names`() {
+        val snapshot = collectSoftDeleteMetadata(
+            "jdbc:h2:mem:cap4k-soft-delete-h2-mysql;MODE=MySQL;DB_CLOSE_DELAY=-1;" +
+                "INIT=RUNSCRIPT FROM 'classpath:/soft-delete-h2-mysql.sql'"
+        )
+
+        assertSoftDeleteMetadata(snapshot)
     }
 
     @Test
@@ -1394,4 +1415,116 @@ class DbSchemaSourceProviderTest {
         assertEquals(listOf("video_post"), snapshot.includedTables)
         assertEquals(listOf("audit_log"), snapshot.excludedTables)
     }
+
+    private fun collectSoftDeleteMetadata(url: String): DbSchemaSnapshot =
+        DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("soft_delete_evidence", "MixedCaseEvidence"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+    private fun assertSoftDeleteMetadata(snapshot: DbSchemaSnapshot) {
+        val evidence = actualDefaultWrappers(snapshot)
+        assertEquals(
+            listOf("MixedCaseEvidence", "SOFT_DELETE_EVIDENCE"),
+            snapshot.tables.map { it.tableName },
+            evidence,
+        )
+
+        val unquoted = snapshot.tables.single { it.tableName == "SOFT_DELETE_EVIDENCE" }
+        assertEquals(
+            listOf("BIGINT_DEFAULT", "VARCHAR_DEFAULT", "UUID_DEFAULT"),
+            unquoted.columns.map { it.name },
+            evidence,
+        )
+        assertSoftDeleteColumn(
+            column = unquoted.columns.single { it.name == "BIGINT_DEFAULT" },
+            expectedName = "BIGINT_DEFAULT",
+            expectedDbType = "BIGINT",
+            expectedJdbcType = Types.BIGINT,
+            expectedKotlinType = "Long",
+            expectedColumnSize = 64,
+            expectedNullable = false,
+            expectedDefaultValue = "0",
+            evidence = evidence,
+        )
+        assertSoftDeleteColumn(
+            column = unquoted.columns.single { it.name == "VARCHAR_DEFAULT" },
+            expectedName = "VARCHAR_DEFAULT",
+            expectedDbType = "CHARACTER VARYING",
+            expectedJdbcType = Types.VARCHAR,
+            expectedKotlinType = "String",
+            expectedColumnSize = 36,
+            expectedNullable = false,
+            expectedDefaultValue = "'00000000-0000-0000-0000-000000000000'",
+            evidence = evidence,
+        )
+        assertSoftDeleteColumn(
+            column = unquoted.columns.single { it.name == "UUID_DEFAULT" },
+            expectedName = "UUID_DEFAULT",
+            expectedDbType = "UUID",
+            expectedJdbcType = Types.BINARY,
+            expectedKotlinType = "UUID",
+            expectedColumnSize = 16,
+            expectedNullable = false,
+            expectedDefaultValue = "'00000000-0000-0000-0000-000000000000'",
+            evidence = evidence,
+        )
+
+        val quoted = snapshot.tables.single { it.tableName == "MixedCaseEvidence" }
+        assertSoftDeleteColumn(
+            column = quoted.columns.single(),
+            expectedName = "MixedCaseDefault",
+            expectedDbType = "BIGINT",
+            expectedJdbcType = Types.BIGINT,
+            expectedKotlinType = "Long",
+            expectedColumnSize = 64,
+            expectedNullable = false,
+            expectedDefaultValue = "0",
+            evidence = evidence,
+        )
+    }
+
+    private fun assertSoftDeleteColumn(
+        column: DbColumnSnapshot,
+        expectedName: String,
+        expectedDbType: String,
+        expectedJdbcType: Int,
+        expectedKotlinType: String,
+        expectedColumnSize: Int,
+        expectedNullable: Boolean,
+        expectedDefaultValue: String,
+        evidence: String,
+    ) {
+        assertEquals(expectedName, column.name, evidence)
+        assertEquals(expectedDbType, column.dbType, evidence)
+        assertEquals(expectedJdbcType, column.jdbcType, evidence)
+        assertEquals(expectedKotlinType, column.kotlinType, evidence)
+        assertEquals(expectedColumnSize, column.columnSize, evidence)
+        assertEquals(expectedNullable, column.nullable, evidence)
+        assertEquals(expectedDefaultValue, column.defaultValue, evidence)
+    }
+
+    private fun actualDefaultWrappers(snapshot: DbSchemaSnapshot): String =
+        snapshot.tables.joinToString(prefix = "actual default wrappers: ", separator = "; ") { table ->
+            table.columns.joinToString(prefix = "${table.tableName}[", postfix = "]") { column ->
+                "${column.name}=${column.defaultValue ?: "<null>"}"
+            }
+        }
 }

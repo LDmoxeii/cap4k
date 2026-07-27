@@ -3,8 +3,10 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
@@ -38,6 +40,9 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
+import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -3391,309 +3396,560 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `deleted marker resolves self id soft delete policy and provider control without version`() {
-        val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(
-                idDefaultStrategy = "identity",
-                deletedDefaultColumn = "",
+    fun `identity integral soft delete publishes zero semantic policy`() {
+        listOf("0", "0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = defaultValue,
+            )
+            val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
+            val control = result.model.aggregatePersistenceProviderControls.single()
+
+            assertEquals(SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY, resolved.deleted.writePolicy)
+            assertEquals(listOf("title"), resolved.writeSurface.createAllowedFields)
+            assertEquals(listOf("title"), resolved.writeSurface.updateAllowedFields)
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
+                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+            )
+            assertEquals("id", control.idFieldName)
+            assertNull(control.versionFieldName)
+        }
+    }
+
+    @Test
+    fun `snowflake Long soft delete keeps Long strong id backing and publishes zero integral semantics`() {
+        listOf("0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.SNOWFLAKE,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "Long")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
+                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+            )
+        }
+    }
+
+    @Test
+    fun `snowflake String soft delete keeps String strong id backing and publishes zero character semantics`() {
+        listOf("'0'", "'0'::character varying", "CAST('0' AS VARCHAR)", "((('0')))").forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.SNOWFLAKE,
+                idDbType = "VARCHAR(19)",
+                idKotlinType = "String",
+                deletedDbType = "VARCHAR(32)",
+                deletedKotlinType = "String",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "String")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.CHARACTER,
+                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+            )
+        }
+    }
+
+    @Test
+    fun `uuid7 String soft delete keeps String strong id backing and publishes nil UUID character semantics`() {
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        listOf(
+            "'$nilUuid'",
+            "'$nilUuid'::character varying",
+            "CAST('$nilUuid' AS VARCHAR)",
+            "((('$nilUuid')))",
+        ).forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.UUID7,
+                idDbType = "VARCHAR(36)",
+                idKotlinType = "String",
+                deletedDbType = "VARCHAR(40)",
+                deletedKotlinType = "String",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "String")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.CHARACTER,
+                expectedSentinel = SoftDeleteActiveSentinel.NIL_UUID,
+            )
+        }
+    }
+
+    @Test
+    fun `uuid7 UUID soft delete keeps UUID strong id backing and publishes nil UUID native semantics`() {
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        listOf(
+            "'$nilUuid'::uuid",
+            "CAST('$nilUuid' AS UUID)",
+            "UUID '$nilUuid'",
+            "((('$nilUuid')))",
+        ).forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.UUID7,
+                idDbType = "UUID",
+                idKotlinType = "java.util.UUID",
+                deletedDbType = "UUID",
+                deletedKotlinType = "java.util.UUID",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "UUID")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.NATIVE_UUID,
+                expectedSentinel = SoftDeleteActiveSentinel.NIL_UUID,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects nullable deleted column with semantic evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "nullable=true",
             ),
-            tables = listOf(
-                table(
-                    name = "video_post",
-                    columns = listOf(
-                        column(
-                            name = "id",
-                            dbType = "BIGINT",
-                            kotlinType = "Long",
-                            nullable = false,
-                            primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
-                        ),
-                        column(
-                            name = "deleted",
-                            dbType = "BIGINT",
-                            kotlinType = "Long",
-                            nullable = false,
-                            defaultValue = "0",
-                            managedRole = DbManagedRole.DELETED,
-                        ),
-                        column("title", "VARCHAR", "String", false),
-                    ),
-                    primaryKey = listOf("id"),
-                    aggregateRoot = true,
-                )
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = "0",
+                deletedNullable = true,
             )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects missing default with semantic evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "defaultValue=null",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = null,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects wrong and unsupported default expressions`() {
+        listOf("1", "uuid_nil()", "gen_random_uuid()", "current_timestamp").forEach { defaultValue ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.deleted",
+                    "strategy=identity",
+                    "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                    "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                    "defaultValue=$defaultValue",
+                    "expectedSentinel=ZERO",
+                ),
+            ) {
+                assembleSoftDelete(
+                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                    idDbType = "BIGINT",
+                    idKotlinType = "Long",
+                    deletedDbType = "BIGINT",
+                    deletedKotlinType = "Long",
+                    defaultValue = defaultValue,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects cross storage SELF_ID assignment in every direction`() {
+        val nilUuid = "'00000000-0000-0000-0000-000000000000'"
+        val cases = listOf(
+            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "BIGINT", "Long", "VARCHAR(19)", "String", "'0'"),
+            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "BIGINT", "Long", "UUID", "java.util.UUID", nilUuid),
+            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "VARCHAR(19)", "String", "BIGINT", "Long", "0"),
+            SoftDeleteStorageCase(DbIdStrategy.UUID7, "VARCHAR(36)", "String", "UUID", "java.util.UUID", nilUuid),
+            SoftDeleteStorageCase(DbIdStrategy.UUID7, "UUID", "java.util.UUID", "BIGINT", "Long", "0"),
+            SoftDeleteStorageCase(DbIdStrategy.UUID7, "UUID", "java.util.UUID", "VARCHAR(36)", "String", nilUuid),
         )
 
-        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
-        val control = result.model.aggregatePersistenceProviderControls.single()
-        assertNotNull(control.softDelete)
-        val softDelete = requireNotNull(control.softDelete)
-
-        assertEquals(true, resolved.deleted.enabled)
-        assertEquals("deleted", resolved.deleted.fieldName)
-        assertEquals(SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY, resolved.deleted.writePolicy)
-        assertEquals(listOf("title"), resolved.writeSurface.createAllowedFields)
-        assertEquals(listOf("title"), resolved.writeSurface.updateAllowedFields)
-        assertEquals("id", control.idFieldName)
-        assertEquals(null, control.versionFieldName)
-        assertEquals("deleted", softDelete.fieldName)
-        assertEquals("deleted", softDelete.columnName)
-        assertEquals("0", softDelete.activeValue)
-        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, softDelete.tombstoneStrategy)
-        assertEquals("deleted = 0", softDelete.activePredicateSql)
-        assertEquals("deleted = id", softDelete.deleteAssignmentSql)
+        cases.forEach { case ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.deleted",
+                    "strategy=${case.idStrategy.name.lowercase()}",
+                    "idStorage=",
+                    "deletedStorage=",
+                    "same storage kind",
+                ),
+            ) {
+                assembleSoftDelete(
+                    idStrategy = case.idStrategy,
+                    idDbType = case.idDbType,
+                    idKotlinType = case.idKotlinType,
+                    deletedDbType = case.deletedDbType,
+                    deletedKotlinType = case.deletedKotlinType,
+                    defaultValue = case.defaultValue,
+                )
+            }
+        }
     }
 
     @Test
-    fun `soft delete policy requires deleted column default zero`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-                tables = listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(
-                            column(
-                                name = "id",
-                                dbType = "BIGINT",
-                                kotlinType = "Long",
-                                nullable = false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
-                            ),
-                            column(
-                                name = "deleted",
-                                dbType = "BIGINT",
-                                kotlinType = "Long",
-                                nullable = false,
-                                managedRole = DbManagedRole.DELETED,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
+    fun `soft delete policy rejects character deleted capacity smaller than id capacity`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=uuid7",
+                "idStorage=Character(capacity=36, kotlinType=String)",
+                "deletedStorage=Character(capacity=35, kotlinType=String)",
+                "capacity",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.UUID7,
+                idDbType = "VARCHAR(36)",
+                idKotlinType = "String",
+                deletedDbType = "VARCHAR(35)",
+                deletedKotlinType = "String",
+                defaultValue = "'00000000-0000-0000-0000-000000000000'",
             )
         }
-
-        assertEquals("soft delete column video_post.deleted must declare default 0 for active value 0", error.message)
     }
 
     @Test
-    fun `soft delete policy rejects nullable deleted column`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-                tables = listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(
-                            column(
-                                name = "id",
-                                dbType = "BIGINT",
-                                kotlinType = "Long",
-                                nullable = false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
-                            ),
-                            column(
-                                name = "deleted",
-                                dbType = "BIGINT",
-                                kotlinType = "Long",
-                                nullable = true,
-                                defaultValue = "0",
-                                managedRole = DbManagedRole.DELETED,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
+    fun `soft delete policy rejects integral deleted range too small`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deletedStorage=Integral(bits=32, unsigned=false, kotlinType=Int)",
+                "range",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "INT",
+                deletedKotlinType = "Int",
+                defaultValue = "0",
             )
         }
-
-        assertEquals("soft delete column video_post.deleted must be non-null for active value 0", error.message)
     }
 
     @Test
-    fun `soft delete policy rejects id values wider than deleted discriminator`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-                tables = listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(
-                            column(
-                                name = "id",
-                                dbType = "BIGINT",
-                                kotlinType = "Long",
-                                nullable = false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
-                            ),
-                            column(
-                                name = "deleted",
-                                dbType = "INT",
-                                kotlinType = "Int",
-                                nullable = false,
-                                defaultValue = "0",
-                                managedRole = DbManagedRole.DELETED,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
+    fun `soft delete policy rejects signed id into same width unsigned deleted`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "idStorage=Integral(bits=32, unsigned=false, kotlinType=Int)",
+                "deletedStorage=Integral(bits=32, unsigned=true, kotlinType=Int)",
+                "range",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "INT",
+                idKotlinType = "Int",
+                deletedDbType = "INT UNSIGNED",
+                deletedKotlinType = "Int",
+                defaultValue = "0",
             )
         }
-
-        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
     }
 
     @Test
-    fun `soft delete policy uses integer storage range instead of mapped Kotlin type`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-                tables = listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(
-                            column(
-                                name = "id",
-                                dbType = "INTEGER",
-                                kotlinType = "Int",
-                                nullable = false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
-                            ),
-                            column(
-                                name = "deleted",
-                                dbType = "SMALLINT",
-                                kotlinType = "Int",
-                                nullable = false,
-                                defaultValue = "0",
-                                managedRole = DbManagedRole.DELETED,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
+    fun `soft delete policy rejects unsigned id into same width signed deleted`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "idStorage=Integral(bits=32, unsigned=true, kotlinType=Int)",
+                "deletedStorage=Integral(bits=32, unsigned=false, kotlinType=Int)",
+                "range",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "INT UNSIGNED",
+                idKotlinType = "Int",
+                deletedDbType = "INT",
+                deletedKotlinType = "Int",
+                defaultValue = "0",
             )
         }
-
-        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
     }
 
     @Test
-    fun `soft delete policy rejects smallint id stored in tinyint discriminator`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-                tables = listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(
-                            column(
-                                name = "id",
-                                dbType = "SMALLINT",
-                                kotlinType = "Int",
-                                nullable = false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
-                            ),
-                            column(
-                                name = "deleted",
-                                dbType = "TINYINT",
-                                kotlinType = "Int",
-                                nullable = false,
-                                defaultValue = "0",
-                                managedRole = DbManagedRole.DELETED,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
-            )
-        }
-
-        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
-    }
-
-    @Test
-    fun `soft delete policy rejects unsigned id stored in same width signed discriminator`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            assembleAggregate(
-                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-                tables = listOf(
-                    table(
-                        name = "video_post",
-                        columns = listOf(
-                            column(
-                                name = "id",
-                                dbType = "INT(11) UNSIGNED",
-                                kotlinType = "Long",
-                                nullable = false,
-                                primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
-                            ),
-                            column(
-                                name = "deleted",
-                                dbType = "INT",
-                                kotlinType = "Int",
-                                nullable = false,
-                                defaultValue = "0",
-                                managedRole = DbManagedRole.DELETED,
-                            ),
-                        ),
-                        primaryKey = listOf("id"),
-                        aggregateRoot = true,
-                    )
-                )
-            )
-        }
-
-        assertEquals("soft delete column video_post.deleted cannot store id column id value for SELF_ID tombstone strategy", error.message)
-    }
-
-    @Test
-    fun `soft delete policy allows unsigned int id stored in signed bigint discriminator`() {
-        val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
-            tables = listOf(
-                table(
-                    name = "video_post",
-                    columns = listOf(
-                        column(
-                            name = "id",
-                            dbType = "INT UNSIGNED",
-                            kotlinType = "Long",
-                            nullable = false,
-                            primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
-                        ),
-                        column(
-                            name = "deleted",
-                            dbType = "BIGINT",
-                            kotlinType = "Long",
-                            nullable = false,
-                            defaultValue = "0",
-                            managedRole = DbManagedRole.DELETED,
-                        ),
-                    ),
-                    primaryKey = listOf("id"),
-                    aggregateRoot = true,
-                )
-            )
+    fun `soft delete policy accepts unsigned id only when signed deleted is wider`() {
+        val result = assembleSoftDelete(
+            idStrategy = DbIdStrategy.DB_IDENTITY,
+            idDbType = "INT UNSIGNED",
+            idKotlinType = "Int",
+            deletedDbType = "BIGINT",
+            deletedKotlinType = "Long",
+            defaultValue = "0",
         )
 
-        val softDelete = requireNotNull(result.model.aggregatePersistenceProviderControls.single().softDelete)
-        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, softDelete.tombstoneStrategy)
-        assertEquals("deleted = id", softDelete.deleteAssignmentSql)
+        assertSemanticSoftDelete(
+            result = result.model,
+            expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
+            expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+        )
+    }
+
+    @Test
+    fun `soft delete policy rejects unsupported id and deleted storage evidence`() {
+        val cases = listOf(
+            Pair(
+                SoftDeletePhysicalCase("DECIMAL(19, 0)", "Long", Types.DECIMAL, 19),
+                SoftDeletePhysicalCase("BIGINT", "Long", Types.BIGINT, 64),
+            ),
+            Pair(
+                SoftDeletePhysicalCase("BIGINT", "Long", Types.BIGINT, 64),
+                SoftDeletePhysicalCase("DECIMAL(19, 0)", "Long", Types.DECIMAL, 19),
+            ),
+        )
+
+        cases.forEach { (id, deleted) ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.id",
+                    "video_post.deleted",
+                    "strategy=identity",
+                    "jdbcType=${id.jdbcType}",
+                    "jdbcType=${deleted.jdbcType}",
+                    "unsupported",
+                ),
+            ) {
+                assembleSoftDelete(
+                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                    idDbType = id.dbType,
+                    idKotlinType = id.kotlinType,
+                    idJdbcType = id.jdbcType,
+                    idColumnSize = id.columnSize,
+                    deletedDbType = deleted.dbType,
+                    deletedKotlinType = deleted.kotlinType,
+                    deletedJdbcType = deleted.jdbcType,
+                    deletedColumnSize = deleted.columnSize,
+                    defaultValue = "0",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects Kotlin JDBC storage contradiction`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "jdbcType=${Types.BIGINT}",
+                "dbType=BIGINT",
+                "kotlinType=String",
+                "unsupported",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "String",
+                deletedJdbcType = Types.BIGINT,
+                deletedColumnSize = 64,
+                defaultValue = "0",
+            )
+        }
+    }
+
+    @Test
+    fun `disabled soft delete marker returns null before resolving missing context`() {
+        assertNull(
+            resolveSoftDeleteDirect(
+                columns = emptyList(),
+                deletedEnabled = false,
+                deletedFieldName = null,
+                deletedColumnName = null,
+            )
+        )
+    }
+
+    @Test
+    fun `enabled soft delete marker validates missing field name after endpoint semantics`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.deleted",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "fieldName=null",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns(),
+                deletedFieldName = null,
+            )
+        }
+    }
+
+    @Test
+    fun `enabled soft delete marker reports unresolved deleted column name with endpoint context`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.<unresolved-deleted-column>",
+                "deletedStorage=unresolved",
+                "columnName=null",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns(),
+                deletedColumnName = null,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver reports missing physical id with both endpoint evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=unresolved",
+                "missing physical ID column",
+                "deleted=video_post.deleted",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns().filterNot { it.name == "id" },
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver reports missing physical deleted with both endpoint evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.deleted",
+                "deletedStorage=unresolved",
+                "missing physical deleted column",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns().filterNot { it.name == "deleted" },
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver preserves both catalog failures`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            resolveSoftDeleteDirect(
+                columns = listOf(
+                    column(
+                        name = "id",
+                        dbType = "DECIMAL(19, 0)",
+                        kotlinType = "Long",
+                        nullable = false,
+                        primaryKey = true,
+                        jdbcType = Types.DECIMAL,
+                        columnSize = 19,
+                    ),
+                    column(
+                        name = "deleted",
+                        dbType = "DECIMAL(19, 0)",
+                        kotlinType = "Long",
+                        nullable = false,
+                        defaultValue = "0",
+                        managedRole = DbManagedRole.DELETED,
+                        jdbcType = Types.DECIMAL,
+                        columnSize = 19,
+                    ),
+                )
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("id=video_post.id"), error.message)
+        assertTrue(error.message.orEmpty().contains("deleted=video_post.deleted"), error.message)
+        val cause = error.cause
+        assertTrue(cause is IllegalArgumentException, "expected first catalog IllegalArgumentException as cause")
+        assertTrue(cause?.message.orEmpty().contains("unsupported aggregate ID storage for video_post.id"), cause?.message)
+        assertEquals(1, error.suppressed.size)
+        assertTrue(error.suppressed.single() is IllegalArgumentException)
+        assertTrue(
+            error.suppressed.single().message.orEmpty()
+                .contains("unsupported aggregate ID storage for video_post.deleted"),
+            error.suppressed.single().message,
+        )
+    }
+
+    @Test
+    fun `soft delete policy rejects unsupported strategy and strategy storage combinations`() {
+        val cases = listOf(
+            DirectSoftDeleteCase("sequence", "BIGINT", "Long", "BIGINT", "Long", "0", "accepted strategies"),
+            DirectSoftDeleteCase("identity", "VARCHAR(19)", "String", "VARCHAR(19)", "String", "'0'", "integral"),
+            DirectSoftDeleteCase("snowflake", "INT", "Int", "INT", "Int", "0", "signed 64-bit Long"),
+            DirectSoftDeleteCase(
+                "snowflake",
+                "UUID",
+                "java.util.UUID",
+                "UUID",
+                "java.util.UUID",
+                "'00000000-0000-0000-0000-000000000000'",
+                "Long or String",
+            ),
+            DirectSoftDeleteCase("uuid7", "BIGINT", "Long", "BIGINT", "Long", "0", "String or UUID"),
+        )
+
+        cases.forEach { case ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.deleted",
+                    "strategy=${case.strategy}",
+                    "idStorage=",
+                    "deletedStorage=",
+                    case.rejectedEvidence,
+                ),
+            ) {
+                resolveSoftDeleteDirect(case)
+            }
+        }
     }
 
     @Test
@@ -6138,6 +6394,198 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("VideoPost"), assembly.model.entities.map { it.name })
         assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
     }
+
+    private fun assembleSoftDelete(
+        idStrategy: DbIdStrategy,
+        idDbType: String,
+        idKotlinType: String,
+        deletedDbType: String,
+        deletedKotlinType: String,
+        defaultValue: String?,
+        deletedNullable: Boolean = false,
+        idJdbcType: Int? = defaultTestJdbcType(idDbType),
+        idColumnSize: Int? = defaultTestColumnSize(idDbType),
+        deletedJdbcType: Int? = defaultTestJdbcType(deletedDbType),
+        deletedColumnSize: Int? = defaultTestColumnSize(deletedDbType),
+    ) = assembleAggregate(
+        config = projectConfigWithSpecialFieldDefaults(
+            idDefaultStrategy = idStrategy.name.lowercase(),
+            deletedDefaultColumn = "",
+        ),
+        tables = listOf(
+            table(
+                name = "video_post",
+                columns = listOf(
+                    column(
+                        name = "id",
+                        dbType = idDbType,
+                        kotlinType = idKotlinType,
+                        nullable = false,
+                        primaryKey = true,
+                        idStrategy = idStrategy,
+                        jdbcType = idJdbcType,
+                        columnSize = idColumnSize,
+                    ),
+                    column(
+                        name = "deleted",
+                        dbType = deletedDbType,
+                        kotlinType = deletedKotlinType,
+                        nullable = deletedNullable,
+                        defaultValue = defaultValue,
+                        managedRole = DbManagedRole.DELETED,
+                        jdbcType = deletedJdbcType,
+                        columnSize = deletedColumnSize,
+                    ),
+                    column("title", "VARCHAR(64)", "String", false),
+                ),
+                primaryKey = listOf("id"),
+                aggregateRoot = true,
+            )
+        ),
+    )
+
+    private fun assertSemanticSoftDelete(
+        result: CanonicalModel,
+        expectedStorageKind: AggregateIdStorageKind,
+        expectedSentinel: SoftDeleteActiveSentinel,
+    ) {
+        val softDelete = requireNotNull(result.aggregatePersistenceProviderControls.single().softDelete)
+        assertEquals("deleted", softDelete.fieldName)
+        assertEquals("deleted", softDelete.columnName)
+        assertEquals(expectedStorageKind, softDelete.storageKind)
+        assertEquals(expectedSentinel, softDelete.activeSentinel)
+        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, softDelete.tombstoneStrategy)
+    }
+
+    private fun assertStrongIdBacking(result: CanonicalModel, expectedBacking: String) {
+        val entity = result.entities.single()
+        val strongId = result.strongIds.single { it.ownerEntityName == entity.name }
+        assertEquals(strongId.typeName, entity.idField.type)
+        assertEquals(expectedBacking, strongId.valueType)
+    }
+
+    private fun assertSoftDeleteRejected(
+        expectedFragments: List<String>,
+        action: () -> Any?,
+    ) {
+        val error = assertThrows(IllegalArgumentException::class.java) { action() }
+        val message = error.message.orEmpty()
+        expectedFragments.forEach { fragment ->
+            assertTrue(message.contains(fragment), "expected <$fragment> in <$message>")
+        }
+    }
+
+    private fun directIntegralSoftDeleteColumns(): List<DbColumnSnapshot> = listOf(
+        column(
+            name = "id",
+            dbType = "BIGINT",
+            kotlinType = "Long",
+            nullable = false,
+            primaryKey = true,
+        ),
+        column(
+            name = "deleted",
+            dbType = "BIGINT",
+            kotlinType = "Long",
+            nullable = false,
+            defaultValue = "0",
+            managedRole = DbManagedRole.DELETED,
+        ),
+    )
+
+    private fun resolveSoftDeleteDirect(case: DirectSoftDeleteCase) = resolveSoftDeleteDirect(
+        columns = listOf(
+            column(
+                name = "id",
+                dbType = case.idDbType,
+                kotlinType = case.idKotlinType,
+                nullable = false,
+                primaryKey = true,
+            ),
+            column(
+                name = "deleted",
+                dbType = case.deletedDbType,
+                kotlinType = case.deletedKotlinType,
+                nullable = false,
+                defaultValue = case.defaultValue,
+                managedRole = DbManagedRole.DELETED,
+            ),
+        ),
+        strategy = case.strategy,
+    )
+
+    private fun resolveSoftDeleteDirect(
+        columns: List<DbColumnSnapshot>,
+        strategy: String = "identity",
+        deletedEnabled: Boolean = true,
+        deletedFieldName: String? = "deleted",
+        deletedColumnName: String? = "deleted",
+        idColumnName: String = "id",
+    ) = AggregateSoftDeletePolicyResolver.resolve(
+        table = table(
+            name = "video_post",
+            columns = columns,
+            primaryKey = listOf(idColumnName),
+        ),
+        resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+            entityName = "VideoPost",
+            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            id = ResolvedIdPolicy(
+                fieldName = "id",
+                columnName = idColumnName,
+                strategy = strategy,
+                kind = if (strategy == "identity") {
+                    AggregateIdPolicyKind.DATABASE_SIDE
+                } else {
+                    AggregateIdPolicyKind.APPLICATION_SIDE
+                },
+                source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+            ),
+            deleted = ResolvedMarkerPolicy(
+                enabled = deletedEnabled,
+                fieldName = deletedFieldName,
+                columnName = deletedColumnName,
+                source = if (deletedEnabled) SpecialFieldSource.DB_EXPLICIT else SpecialFieldSource.NONE,
+                writePolicy = if (deletedEnabled) {
+                    SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+                } else {
+                    SpecialFieldWritePolicy.READ_WRITE
+                },
+            ),
+            version = ResolvedMarkerPolicy(
+                enabled = false,
+                source = SpecialFieldSource.NONE,
+            ),
+        ),
+    )
+
+    private data class SoftDeleteStorageCase(
+        val idStrategy: DbIdStrategy,
+        val idDbType: String,
+        val idKotlinType: String,
+        val deletedDbType: String,
+        val deletedKotlinType: String,
+        val defaultValue: String,
+    )
+
+    private data class SoftDeletePhysicalCase(
+        val dbType: String,
+        val kotlinType: String,
+        val jdbcType: Int,
+        val columnSize: Int,
+    )
+
+    private data class DirectSoftDeleteCase(
+        val strategy: String,
+        val idDbType: String,
+        val idKotlinType: String,
+        val deletedDbType: String,
+        val deletedKotlinType: String,
+        val defaultValue: String,
+        val rejectedEvidence: String,
+    )
 
     private fun assembleOrderWithId(idColumn: DbColumnSnapshot): CanonicalModel =
         assembleAggregate(
