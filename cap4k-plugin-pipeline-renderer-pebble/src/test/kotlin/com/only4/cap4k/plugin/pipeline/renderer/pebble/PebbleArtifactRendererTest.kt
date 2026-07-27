@@ -18,6 +18,14 @@ class PebbleArtifactRendererTest {
         listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
     private val legacyAggregateCall = "@" + "Aggregate("
 
+    private fun entityScalarFields(vararg fields: Map<String, Any?>): List<Map<String, Any?>> =
+        fields.map { field ->
+            if ("propertyNullable" in field) {
+                field
+            } else {
+                field + ("propertyNullable" to (field["nullable"] == true))
+            }
+        }
 
     private fun assertReadableKotlin(content: String) {
         assertFalse(Regex("""(?m)[ \t]+$""").containsMatchIn(content), "Generated Kotlin must not contain trailing whitespace.")
@@ -579,7 +587,7 @@ class PebbleArtifactRendererTest {
                     mapOf("name" to "title", "type" to "String", "nullable" to false, "defaultValue" to null),
                     mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false, "defaultValue" to null),
                 ),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "ContentId",
@@ -729,6 +737,128 @@ class PebbleArtifactRendererTest {
         }.compile()
 
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+    }
+
+    @Test
+    @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
+    fun `provider assigned identity and version stay outside construction and compile nullable`() {
+        val entityContent = renderTemplate(
+            templateId = "aggregate/entity.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/article/Article.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.article",
+                "typeName" to "Article",
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "article"),
+                "hasStrongIdFields" to false,
+                "hasEmbeddedStrongIdFields" to false,
+                "hasGeneratedValueFields" to true,
+                "hasEmbeddedIdFields" to false,
+                "hasVersionFields" to true,
+                "hasConverterFields" to false,
+                "jpaImports" to emptyList<String>(),
+                "imports" to listOf("java.time.LocalDateTime"),
+                "constructorFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false, "defaultValue" to null),
+                    mapOf(
+                        "name" to "createdAt",
+                        "type" to "LocalDateTime",
+                        "nullable" to false,
+                        "defaultValue" to null,
+                    ),
+                ),
+                "scalarFields" to entityScalarFields(
+                    mapOf(
+                        "name" to "id",
+                        "type" to "Long",
+                        "propertyInitializer" to "null",
+                        "nullable" to false,
+                        "propertyNullable" to true,
+                        "columnName" to "id",
+                        "isId" to true,
+                        "generatedValueStrategy" to "IDENTITY",
+                        "isVersion" to false,
+                    ),
+                    mapOf(
+                        "name" to "version",
+                        "type" to "Long",
+                        "propertyInitializer" to "null",
+                        "nullable" to false,
+                        "propertyNullable" to true,
+                        "columnName" to "version",
+                        "isId" to false,
+                        "isVersion" to true,
+                    ),
+                    mapOf(
+                        "name" to "title",
+                        "type" to "String",
+                        "propertyInitializer" to "title",
+                        "nullable" to false,
+                        "propertyNullable" to false,
+                        "columnName" to "title",
+                        "isId" to false,
+                        "isVersion" to false,
+                    ),
+                    mapOf(
+                        "name" to "createdAt",
+                        "type" to "LocalDateTime",
+                        "propertyInitializer" to "createdAt",
+                        "nullable" to false,
+                        "propertyNullable" to false,
+                        "columnName" to "created_at",
+                        "isId" to false,
+                        "isVersion" to false,
+                    ),
+                ),
+                "relationFields" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertReadableKotlin(entityContent)
+        val result = KotlinCompilation().apply {
+            sources = listOf(
+                SourceFile.kotlin("Article.kt", entityContent),
+                SourceFile.kotlin(
+                    "Jpa.kt",
+                    """
+                    package jakarta.persistence
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Entity
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Table(val name: String)
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Id
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class GeneratedValue(val strategy: GenerationType)
+                    enum class GenerationType { IDENTITY }
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Version
+                    @Target(AnnotationTarget.PROPERTY, AnnotationTarget.FIELD)
+                    annotation class Column(
+                        val name: String,
+                        val insertable: Boolean = true,
+                        val updatable: Boolean = true,
+                    )
+                    """.trimIndent(),
+                ),
+            )
+            inheritClassPath = true
+            supportsK2 = true
+        }.compile()
+
+        assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
+        assertTrue(
+            entityContent.contains(
+                "class Article internal constructor(\n    title: String,\n    createdAt: LocalDateTime\n)"
+            ),
+            entityContent,
+        )
+        assertTrue(entityContent.contains("var id: Long? = null"), entityContent)
+        assertTrue(entityContent.contains("var version: Long? = null"), entityContent)
+        assertTrue(entityContent.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"), entityContent)
+        assertTrue(entityContent.contains("@Version"), entityContent)
+        assertFalse(entityContent.substringBefore(") {").contains("id:"), entityContent)
+        assertFalse(entityContent.substringBefore(") {").contains("version:"), entityContent)
     }
 
     @Test
@@ -944,7 +1074,7 @@ class PebbleArtifactRendererTest {
                     "jpaImports" to emptyList<String>(),
                     "imports" to if (cell.needsUuidImport) listOf("java.util.UUID") else emptyList(),
                     "constructorFields" to constructorFields,
-                    "scalarFields" to listOf(idField, titleField, deletedField),
+                    "scalarFields" to entityScalarFields(idField, titleField, deletedField),
                     "relationFields" to emptyList<Map<String, Any?>>(),
                 ),
             )
@@ -1229,7 +1359,7 @@ class PebbleArtifactRendererTest {
                 "hasConverterFields" to false,
                 "hasVersionFields" to false,
                 "imports" to listOf("com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus"),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "status",
                         "type" to "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
@@ -1552,7 +1682,7 @@ class PebbleArtifactRendererTest {
                         "com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList",
                     ),
                     "constructorFields" to emptyList<Map<String, Any?>>(),
-                    "scalarFields" to listOf(
+                    "scalarFields" to entityScalarFields(
                         mapOf(
                             "name" to cell.idFieldName,
                             "type" to cell.idTypeName,
@@ -2212,7 +2342,7 @@ class PebbleArtifactRendererTest {
                     mapOf("name" to "id", "type" to "Long", "nullable" to false, "defaultValue" to "0L"),
                     mapOf("name" to "name", "type" to "String", "nullable" to false, "defaultValue" to "\"\""),
                 ),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "Long",
@@ -2320,7 +2450,7 @@ class PebbleArtifactRendererTest {
                         "converterClassRef" to null,
                     ),
                 ),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "fieldName" to "id",
@@ -2737,7 +2867,7 @@ class PebbleArtifactRendererTest {
                 "hasConverterFields" to true,
                 "hasVersionFields" to true,
                 "imports" to emptyList<String>(),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "Long",
@@ -2819,7 +2949,7 @@ class PebbleArtifactRendererTest {
                 "hasConverterFields" to true,
                 "hasVersionFields" to true,
                 "imports" to emptyList<String>(),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "Long",
@@ -2877,7 +3007,7 @@ class PebbleArtifactRendererTest {
                 "softDeleteWhereClause" to null,
                 "jpaImports" to emptyList<String>(),
                 "imports" to emptyList<String>(),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "java.util.UUID",
@@ -2928,7 +3058,7 @@ class PebbleArtifactRendererTest {
                 "softDeleteWhereClause" to null,
                 "jpaImports" to emptyList<String>(),
                 "imports" to emptyList<String>(),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to typeName,
@@ -2992,7 +3122,7 @@ class PebbleArtifactRendererTest {
                     "com.acme.demo.domain.shared.ids.AuthorId",
                     "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
                 ),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "ContentId",
@@ -3134,7 +3264,7 @@ class PebbleArtifactRendererTest {
                 "softDeleteWhereClause" to null,
                 "jpaImports" to emptyList<String>(),
                 "imports" to listOf("com.demo.domain.order.OrderLineId"),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "OrderLineId",
@@ -3189,7 +3319,7 @@ class PebbleArtifactRendererTest {
                 "softDeleteWhereClause" to null,
                 "jpaImports" to emptyList<String>(),
                 "imports" to listOf("com.acme.demo.domain.aggregates.content.enums.ReviewStatus"),
-                "scalarFields" to listOf(
+                "scalarFields" to entityScalarFields(
                     mapOf(
                         "name" to "id",
                         "type" to "Long",
@@ -4953,7 +5083,7 @@ class PebbleArtifactRendererTest {
                         "idField" to FieldModel("id", "Long"),
                         "jpaImports" to emptyList<String>(),
                         "imports" to emptyList<String>(),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5255,7 +5385,7 @@ class PebbleArtifactRendererTest {
                         "constructorFields" to listOf(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false),
                         ),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5402,7 +5532,7 @@ class PebbleArtifactRendererTest {
                             "jakarta.persistence.ManyToOne",
                         ),
                         "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5515,7 +5645,7 @@ class PebbleArtifactRendererTest {
                             "com.acme.demo.domain.identity.user.UserProfile",
                             "com.acme.demo.domain.identity.user.CoverProfile",
                         ),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5615,7 +5745,7 @@ class PebbleArtifactRendererTest {
                         "imports" to listOf(
                             "com.acme.demo.domain.aggregates.video_post.item.VideoPostItem",
                         ),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5702,7 +5832,7 @@ class PebbleArtifactRendererTest {
                             "jakarta.persistence.ManyToOne",
                         ),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5797,7 +5927,7 @@ class PebbleArtifactRendererTest {
                             "jakarta.persistence.ManyToOne",
                         ),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -5884,7 +6014,7 @@ class PebbleArtifactRendererTest {
                         "tableName" to "video_post",
                         "jpaImports" to emptyList<String>(),
                         "imports" to listOf("com.acme.demo.domain.identity.user.UserProfile"),
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf("name" to "id", "type" to "Long", "nullable" to false)
                         ),
                         "fields" to listOf(
@@ -5952,7 +6082,7 @@ class PebbleArtifactRendererTest {
                             "tableName" to "video_post",
                         ),
                         "hasConverterFields" to true,
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "name" to "id",
                                 "type" to "Long",
@@ -6045,7 +6175,7 @@ class PebbleArtifactRendererTest {
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to true,
                         "hasVersionFields" to true,
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "fieldName" to "id",
                                 "fieldType" to "Long",
@@ -6172,7 +6302,7 @@ class PebbleArtifactRendererTest {
                         "hasGeneratedValueFields" to false,
                         "hasEmbeddedIdFields" to false,
                         "hasVersionFields" to false,
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "fieldName" to "id",
                                 "fieldType" to "UUID",
@@ -6262,7 +6392,7 @@ class PebbleArtifactRendererTest {
                         "hasConverterFields" to false,
                         "hasGeneratedValueFields" to false,
                         "hasVersionFields" to false,
-                        "scalarFields" to listOf(
+                        "scalarFields" to entityScalarFields(
                             mapOf(
                                 "fieldName" to "id",
                                 "fieldType" to "Long",
@@ -6432,7 +6562,7 @@ class PebbleArtifactRendererTest {
                     "softDeleteSqlKotlinStringLiteral" to "update quoted".toTestKotlinStringLiteral(),
                     "softDeleteWhereClauseKotlinStringLiteral" to "quoted = 0".toTestKotlinStringLiteral(),
                     "constructorFields" to emptyList<Map<String, Any?>>(),
-                    "scalarFields" to listOf(
+                    "scalarFields" to entityScalarFields(
                         mapOf(
                             "name" to "id",
                             "type" to "Long",
