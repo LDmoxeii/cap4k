@@ -1,9 +1,10 @@
 # cap4k Database-Entrusted Fields Construction Design
 
-**Status:** Design decisions approved; written specification awaiting human review
+**Status:** Design decisions approved; reconciled specification awaiting human review
 **Date:** 2026-07-26
-**Baseline:** `master` at `502ce172`, after PR #136 strong-ID create-time injection
-**Ordering:** Implement only after the approved soft-delete IdStrategy support iteration has completed and merged
+**Last reconciled:** 2026-07-27
+**Baseline:** `master` at `c49e12f5`, after PR #138 soft-delete implementation and PR #139 documentation merge
+**Ordering:** The soft-delete dependency is satisfied; implementation starts from this baseline
 
 ## Reader Contract
 
@@ -21,6 +22,8 @@ A new implementation agent with no access to prior chat history must be able to 
 10. Which old generated shapes and canonical API types are intentionally deleted.
 11. Which tests prove constructor, factory, persistence, nested owned-graph, Schema join, and fail-fast behavior.
 12. Which files an implementation agent may change and which adjacent feature lines must remain untouched.
+13. Why `READ_ONLY` governs the user write surface but does not by itself define constructor shape, assignment owner, or lifecycle timing.
+14. Why this iteration changes only resolved database identity and version roles, not generic managed audit fields or only-engine lifecycle behavior.
 
 This document is the complete contract for the iteration. Prior chat messages, old implementation plans, and historical inverse-navigation behavior are context only and must not override this specification.
 
@@ -28,9 +31,9 @@ This document is the complete contract for the iteration. Prior chat messages, o
 
 ### Baseline And Dependency
 
-The current baseline is commit `502ce172`, the merge commit for PR #136. That iteration completed Strong ID create-time injection. This design must not reopen or rewrite Phase 4.
+The current baseline is commit `c49e12f5`. PR #136 completed Strong ID create-time injection, PR #138 completed soft-delete IdStrategy support, and PR #139 merged the corresponding design and plan documents. This design must not reopen or rewrite either completed iteration.
 
-The approved soft-delete IdStrategy iteration is ordered before this work and overlaps generator/entity-template areas. Implementation must start from the merged soft-delete result rather than attempting a parallel conflicting implementation.
+The former soft-delete ordering dependency is now satisfied. Its merged planner and entity-template behavior is current evidence, not future work to be duplicated or replaced.
 
 Relevant documents:
 
@@ -71,21 +74,62 @@ The resolved write surface already excludes `READ_ONLY` and `SYSTEM_TRANSITION_O
 
 - `AggregateSpecialFieldPolicyResolver.kt:321-340`
 
-The missing behavior is therefore not policy discovery. The missing behavior is projection of those policies into generated constructors, properties, factory constructor mapping, and runtime evidence.
+The existing managed-write-surface design explicitly states that `writePolicy` is a user write-surface contract, not a complete ORM lifecycle contract:
+
+- `docs/superpowers/specs/2026-05-06-cap4k-aggregate-managed-write-surface-and-factory-payload-metadata-design.md:157-169`
+
+Therefore `READ_ONLY` alone is not permission to remove an arbitrary field from constructors, make it nullable, choose an initializer, or assign it during a persistence lifecycle event. The missing behavior in this iteration is role-specific projection for resolved database identity and version only.
+
+### Resolved Version Policy Already Precedes Provider Projection
+
+`AggregateSpecialFieldPolicyResolver` resolves version from either an explicit `DbManagedRole.VERSION` column or `versionDefaultColumn`, then publishes one `ResolvedMarkerPolicy`:
+
+- `AggregateSpecialFieldPolicyResolver.kt:99-106`
+- `AggregateSpecialFieldPolicyResolver.kt:188-233`
+
+`AggregatePersistenceProviderInference` consumes that resolved policy and copies its field name into `AggregatePersistenceProviderControl.versionFieldName`:
+
+- `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregatePersistenceProviderInference.kt:9-35`
+
+By contrast, `AggregatePersistenceFieldBehaviorInference` publishes `AggregatePersistenceFieldControl.version` only for a DB-explicit `DbManagedRole.VERSION` column:
+
+- `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregatePersistenceFieldBehaviorInference.kt:24-41`
+
+The entity planner therefore already prefers resolved version policy over the field-control fallback, and a committed test proves that a DSL-default resolved version works without an explicit version control:
+
+- `EntityArtifactPlanner.kt:189-193`
+- `AggregateArtifactPlannerTest.kt:2188-2248`
+
+This evidence fixes the direction of authority: resolved version policy classifies; provider control projects and must remain consistent; explicit field control cannot be a required second classifier.
+
+### Merged Soft-Delete Construction Behavior Is Role-Specific
+
+The merged soft-delete iteration excludes `SYSTEM_TRANSITION_ONLY` fields from entity constructors and supplies a semantic active-sentinel initializer:
+
+- `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/EntityArtifactPlanner.kt:194-235`
+- `EntityArtifactPlanner.kt:328-331`
+- `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/FactoryArtifactPlanner.kt:217-229`
+
+That behavior is valid because the resolved deleted role owns a complete transition and initialization contract. It must remain unchanged, but it must not be generalized into a rule that all `READ_ONLY` or managed fields leave constructors.
 
 ### Generated Entity Constructors Still Leak Entrusted Fields
 
-`EntityArtifactPlanner` currently selects constructor fields by removing only a generated application-side own Strong ID:
+`EntityArtifactPlanner` currently selects constructor fields by removing a generated application-side own Strong ID and merged `SYSTEM_TRANSITION_ONLY` fields:
 
-- `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/EntityArtifactPlanner.kt:208-253`
+- `cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/EntityArtifactPlanner.kt:328-331`
 
 The effective rule is:
 
 ~~~kotlin
-constructorFields = scalarFields.filterNot { it["generatedOwnId"] == true }
+constructorFields = scalarFields.filterNot {
+    it["generatedOwnId"] == true ||
+        it["writePolicy"] == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
+}
 ~~~
 
-Database identity, version, parentRef, and other database-entrusted fields can therefore still enter the constructor.
+Database identity and version are `READ_ONLY`, so they still enter the constructor. The current database-identity planner test proves that both `id` and `title` remain constructor fields:
+
+- `AggregateArtifactPlannerTest.kt:2343-2387`
 
 `entity.kt.peb` initializes each ordinary scalar property from the constructor parameter:
 
@@ -107,8 +151,8 @@ It has partial deferral logic for read-only managed fields:
 
 but the currently committed tests still prove that database identity and version factory construction remain unresolved:
 
-- database identity expectation: `AggregateArtifactPlannerTest.kt:5497-5569`
-- database identity plus version expectation: `AggregateArtifactPlannerTest.kt:5813-5907`
+- database identity expectation: `AggregateArtifactPlannerTest.kt:6084-6157`
+- read-only version expectation: `AggregateArtifactPlannerTest.kt:6400-6495`
 
 The current assertions require `constructorMappingResolved == false`.
 
@@ -295,12 +339,18 @@ This iteration does not:
 14. Change parent-side Schema join APIs.
 15. Clear provider-assigned identity/version values from in-memory entities after transaction rollback.
 16. Preserve source or binary compatibility for canonical API types deleted by this design.
+17. Define lifecycle, constructor, value-source, or assignment behavior for generic managed fields such as `createdAt`, `updatedAt`, `updatedBy`, or `createdBy`.
+18. Add a managed-field lifecycle SPI, clock/operator provider, audit convention, or field-name-based fill rule.
+19. Modify only-engine audit behavior or choose between UoW, JPA callback, and Hibernate event implementations for future generic managed fields.
+20. Change `UnitOfWorkInterceptor`, add generic create/update field-fill events, or replace the remaining technical uses of Spring Data `EntityInformation.isNew()`.
 
 ## Terms
 
 ### Database-Entrusted Field
 
 A field whose initial value is assigned by the database or JPA provider rather than by aggregate construction. In this iteration the term includes database identity and optimistic-lock version.
+
+This is a closed term for this iteration. A generic field does not become database-entrusted merely because its write policy is `READ_ONLY`.
 
 ### Database Identity
 
@@ -309,6 +359,20 @@ An own entity ID declared with `@IdStrategy=db_identity` and mapped with JPA `Ge
 ### Optimistic-Lock Version
 
 A field marked as the aggregate version and mapped with JPA `@Version`. Its initial value and subsequent increments are controlled by the persistence provider.
+
+### User Write-Surface Contract
+
+The resolved `SpecialFieldWritePolicy` governing whether a user-facing create or update input may write a field. It does not, by itself, define constructor inclusion, Kotlin nullability, assignment owner, lifecycle timing, JPA mutability, or refresh behavior.
+
+### Role Management Contract
+
+The complete behavior attached to one resolved semantic role. For this iteration:
+
+- database identity is assigned by the database during INSERT;
+- optimistic-lock version is initialized and advanced by the JPA provider;
+- both are absent from aggregate construction and represented as nullable entity properties initialized to `null`.
+
+No generic managed-field role management contract is introduced.
 
 ### Construction Nullability
 
@@ -367,6 +431,10 @@ The observable state required after a successful `UnitOfWork.save()` and flush: 
 17. Owned-one remains supported through uniqueness on parentRef with an independent child primary key.
 18. Parent-side Schema joins remain supported without child scalar FK properties or physical FK constraints.
 19. Future parent `ID` or `ENTITY` exposure requires a separate approved design and must not reactivate the old inference directly.
+20. `READ_ONLY` remains a user write-surface policy and is not a general constructor or lifecycle policy.
+21. Identity/version construction behavior is selected by their resolved semantic roles, not by scanning for every `READ_ONLY` field.
+22. Generic managed audit fields retain their current constructor, property, and lifecycle behavior in this iteration.
+23. No managed-field lifecycle SPI, only-engine audit change, UoW interceptor change, or generic `isNew()` replacement is part of this iteration.
 
 ## Supported Type Matrix
 
@@ -438,14 +506,27 @@ Provider behavior, transaction conflicts, and overflow consequences remain the a
 
 This iteration must use the existing resolved special-field policy as the semantic source of truth.
 
+### Classification And Projection Are Separate
+
+Semantic classification answers which field owns an identity or version role. Provider and renderer controls project that already-resolved role into downstream concerns; they do not independently rediscover it.
+
+| Concern | Source of truth | Required downstream projection |
+|---|---|---|
+| database identity role | resolved own-ID policy with `DATABASE_SIDE` kind | `IDENTITY` JPA generation plus entrusted construction shape |
+| version role | `AggregateSpecialFieldResolvedPolicy.version` | `@Version`, provider control consistency, and entrusted construction shape |
+| user write surface | resolved `SpecialFieldWritePolicy` | factory/update input filtering only |
+
+`READ_ONLY` is an invariant of the accepted identity/version roles, not the classifier that grants their construction shape.
+
 ### Database Identity Classification
 
 A field is a database-entrusted identity when all of the following hold:
 
 1. it is the entity's own ID field;
 2. the resolved ID policy kind is `DATABASE_SIDE`;
-3. the resolved write policy is `READ_ONLY`;
-4. the generated-value strategy is `IDENTITY`.
+3. the resolved ID strategy projects to JPA `IDENTITY` generation.
+
+The resolved ID write policy must be `READ_ONLY`; any other value is an internal-model inconsistency and must fail validation. It is not sufficient on its own to classify an ordinary field as identity.
 
 The implementation must not infer database identity merely from:
 
@@ -460,9 +541,13 @@ The implementation must not infer database identity merely from:
 A field is a database-entrusted version when all of the following hold:
 
 1. the resolved version policy is enabled;
-2. the resolved version field name matches the field;
-3. the resolved version write policy is `READ_ONLY`;
-4. the provider control marks the same field as the version field.
+2. the resolved version field name matches the field.
+
+The resolved version write policy must be `READ_ONLY`; any other value is an internal-model inconsistency and must fail validation. `READ_ONLY` is not sufficient to classify another managed field as version.
+
+`AggregatePersistenceProviderControl.versionFieldName` is derived from the resolved version policy by `AggregatePersistenceProviderInference`. When the resolved version policy is enabled, the canonical provider projection must carry the same field name. A mismatch is an internal-model error, but provider control is not a second classification source.
+
+`AggregatePersistenceFieldControl.version` is inferred directly only for a DB-explicit `DbManagedRole.VERSION`. It is absent for a version resolved through `versionDefaultColumn`, so it must not be required for aggregate construction classification. Any current fallback use outside the resolved aggregate path is not expanded by this design.
 
 The implementation must not treat an ordinary field named `version` as provider-assigned when the version marker/default policy is disabled.
 
@@ -615,7 +700,9 @@ Ordinary business fields continue to use existing constructor and default-projec
 
 Application-side Strong IDs continue to use the approved Phase 4 create-time injection shape.
 
-Soft-delete and other managed-field constructor behavior comes from the preceding soft-delete implementation and must not be redesigned here.
+Merged soft-delete constructor behavior remains exactly as implemented by the preceding iteration.
+
+Generic managed fields, including conventional audit names such as `createdAt`, `updatedAt`, and `updatedBy`, retain their current constructor, nullability, initializer, and lifecycle behavior. This iteration must not omit or initialize such a field merely because its resolved write policy is `READ_ONLY`.
 
 ### ParentRef And Inverse Shape
 
@@ -660,6 +747,8 @@ The entity planner must distinguish at least these render roles:
 | application-side own Strong ID | no | yes | Phase 4 assignment shape |
 | database identity | no | yes | `null` |
 | version | no | yes | `null` |
+| merged soft-delete role | no | yes | approved active sentinel |
+| generic managed `READ_ONLY` field | existing rule | yes | existing rule |
 | structural parentRef | no | no | none |
 | automatic inverse navigation | no | no | none |
 
@@ -682,7 +771,7 @@ The implementation must remove the current broad constructor rule:
 scalarFields.filterNot { it["generatedOwnId"] == true }
 ~~~
 
-and replace it with a policy-based constructor selection.
+and replace it with explicit role-based constructor selection. The selection may consume the resolved identity/version roles and the already-implemented soft-delete semantic context; it must not use `writePolicy == READ_ONLY` as a general exclusion predicate.
 
 ## Factory Contract
 
@@ -711,9 +800,11 @@ It must not treat the following as missing required constructor fields:
 - parentRef;
 - generated application-side own ID;
 - fields with valid existing constructor defaults;
-- fields already deferred by approved managed-field policy.
+- the merged soft-delete system-transition field with its approved semantic initializer.
 
-For every supported database-identity/version combination, `constructorMappingResolved` must be `true`.
+A generic managed `READ_ONLY` field is not automatically deferrable. If such a field is excluded from the payload but remains a required constructor input under current behavior, its factory mapping may remain unresolved; solving that known generic managed-field gap belongs to the future managed-field lifecycle SPI iteration.
+
+For every supported database-identity/version combination with no independent out-of-scope constructor blocker, `constructorMappingResolved` must be `true`. A generic managed `READ_ONLY` field that remains a required constructor input is an independent blocker and is not solved by this iteration.
 
 The generated factory must contain a real aggregate constructor call and must not contain:
 
@@ -796,6 +887,14 @@ This iteration must not reintroduce `CascadeType.REFRESH` through `CascadeType.A
 - `REMOVE`.
 
 Removing inverse navigation further reduces refresh cycles but is not permission to broaden cascade types.
+
+### PersistIntent And `isNew()` Boundary
+
+The UoW entry kind derived from `PersistIntent.CREATE` or `PersistIntent.EXISTING` remains responsible for choosing the create or existing persistence path. Application-side IDs being non-null does not change that routing.
+
+The current JPA UoW still uses Spring Data `EntityInformation.isNew()` for bounded technical purposes such as refresh selection, identity observation, and rejecting an unidentified `EXISTING` registration. This iteration neither treats that helper as a generic lifecycle truth nor replaces those existing uses.
+
+Identity/version construction support must not add audit-field filling, modify `UnitOfWorkInterceptor`, or infer generic create/update lifecycle events from `isNew()`.
 
 ### Rollback
 
@@ -1014,9 +1113,11 @@ The order matters. Removing parentRef from domain fields must not erase the evid
 For each entity:
 
 1. ID policy resolves application-side versus database-side ownership.
-2. Version policy resolves enabled/disabled and validates the integral type.
-3. Write surface excludes database identity and version from create/update inputs as already required.
-4. ParentRef does not enter the write surface because it is no longer a domain field.
+2. Resolved version policy is the sole version-role classifier; it resolves enabled/disabled, field identity, source, and write policy, then validates the integral type.
+3. Provider control projects the resolved version field name and must remain consistent with it; it does not reclassify the field.
+4. Write surface excludes database identity and version from create/update inputs as already required.
+5. ParentRef does not enter the write surface because it is no longer a domain field.
+6. Generic managed `READ_ONLY` fields gain no identity/version construction semantics.
 
 ### Artifact Planning
 
@@ -1024,6 +1125,7 @@ Entity planning:
 
 - keeps observable identity/version properties;
 - excludes them from constructor fields;
+- preserves merged soft-delete behavior and existing generic managed-field behavior;
 - excludes parentRef entirely;
 - receives only forward relations.
 
@@ -1037,7 +1139,8 @@ Schema planning:
 Factory planning:
 
 - excludes identity/version/parentRef from payload and constructor requirements;
-- resolves a real constructor call.
+- resolves a real constructor call for supported identity/version combinations;
+- does not claim to solve unresolved generic managed-field constructor mappings.
 
 Projection planning:
 
@@ -1305,6 +1408,29 @@ Video(
 
 Reason: initial version is provider-controlled.
 
+### Invalid: Generic `READ_ONLY` Becomes Entrusted
+
+Forbidden inference:
+
+~~~kotlin
+val constructorIncluded = field.writePolicy != READ_ONLY
+val propertyInitializer = if (field.writePolicy == READ_ONLY) null else field.name
+~~~
+
+Reason: `READ_ONLY` only governs the user write surface. A generic audit field has no approved assignment owner, lifecycle phase, construction nullability, or initializer in this iteration.
+
+### Invalid: Version Requires Two Independent Classifiers
+
+Forbidden inference:
+
+~~~kotlin
+val providerAssignedVersion =
+    resolvedPolicy.version.fieldName == field.name &&
+        persistenceFieldControl.version == true
+~~~
+
+Reason: `AggregatePersistenceFieldControl.version` exists only for a DB-explicit marker and is absent for a version resolved through `versionDefaultColumn`. Resolved version policy is authoritative; provider control is a derived consistency projection.
+
 ### Invalid: ParentRef Scalar Survives
 
 Forbidden:
@@ -1413,6 +1539,8 @@ ambiguous parent reference columns for table <table>: <columns>
 
 This is an implementation defect, not a supported generated outcome.
 
+For this error contract, a supported factory has no missing required constructor field other than roles explicitly handled by the approved Strong ID, soft-delete, identity/version, and parentRef decisions. An unrelated generic managed `READ_ONLY` constructor field keeps its existing out-of-scope behavior and does not make that broader combination supported here.
+
 Tests must fail if a supported database identity/version factory has:
 
 ~~~text
@@ -1424,6 +1552,10 @@ or renders:
 ~~~text
 TODO("Implement aggregate construction")
 ~~~
+
+### Resolved Version Projection Mismatch
+
+If resolved version policy is enabled but the canonical provider control names a different version field, fail as an internal canonical-model inconsistency before rendering. Do not choose one value heuristically and do not consult `AggregatePersistenceFieldControl.version` as a tie-breaker.
 
 ### Unique Addon Boundary
 
@@ -1518,6 +1650,12 @@ The unique family remains optional/default-off and unchanged in this iteration.
 
 Consumers that explicitly enabled `artifact.unique=true` for constraints containing parentRef must disable it until the addon redesign or accept that the combination is outside the supported contract.
 
+### Generic Managed Fields
+
+No migration is expected for ordinary managed audit/system fields. Their constructor inclusion, Kotlin nullability, initializer, and runtime fill behavior remain unchanged.
+
+If regeneration changes `createdAt`, `updatedAt`, `updatedBy`, or another generic field solely because its write policy is `READ_ONLY`, that change is an out-of-scope regression and must be reverted.
+
 ### Regeneration
 
 Generated outputs must be regenerated rather than manually edited.
@@ -1558,6 +1696,10 @@ Add tests for:
 - qualified type aliases accepted where the pipeline already accepts them;
 - unsupported version types rejected with required error data;
 - unmarked ordinary fields are not treated as version;
+- DB-explicit and `versionDefaultColumn` sources both resolve the same authoritative version role;
+- enabled resolved version policy projects the same field name into `AggregatePersistenceProviderControl.versionFieldName`;
+- a DSL-default version remains recognized even when no explicit `AggregatePersistenceFieldControl.version` exists;
+- a generic managed `READ_ONLY` field is not classified as identity or version;
 - application-side Strong ID policy unchanged.
 
 ### 3. Parent Binding And Cardinality Tests
@@ -1590,7 +1732,9 @@ Also prove:
 - parentRef absent from scalar fields;
 - parentRef absent from constructor fields;
 - inverse relation absent from relation fields;
-- forward owned relation retained.
+- forward owned relation retained;
+- merged soft-delete role retains its approved constructor exclusion and active-sentinel initializer;
+- a generic managed `READ_ONLY` field retains its existing constructor/nullability/initializer shape.
 
 ### 5. Factory Planner And Renderer Tests
 
@@ -1607,7 +1751,8 @@ Required assertions:
 3. generated factory contains a real constructor call;
 4. generated factory contains no construction TODO;
 5. ordinary business fields still map correctly;
-6. no child-spec feature is accidentally added.
+6. a generic managed `READ_ONLY` constructor gap is not silently treated as a supported entrusted-field mapping;
+7. no child-spec feature is accidentally added.
 
 ### 6. Entity Renderer Tests
 
@@ -1633,6 +1778,8 @@ Assert source does not contain:
 - parentRef scalar properties;
 - child `@ManyToOne` back-references for owned relations;
 - inverse-relation imports when no ordinary many-to-one exists.
+
+The same renderer suite must retain the merged soft-delete matrix and must prove that no generic managed `READ_ONLY` field receives a synthetic `null` or sentinel initializer from this iteration.
 
 ### 7. Schema Planner And Renderer Tests
 
@@ -1675,7 +1822,9 @@ Prove:
 3. save calls `EntityManager.persist(root)`;
 4. save does not independently call persist on absorbed child/grandchild;
 5. flush occurs once according to existing UoW semantics;
-6. no new public child persistence contract is introduced.
+6. no new public child persistence contract is introduced;
+7. no generic managed-field lifecycle callback or `UnitOfWorkInterceptor` contract is introduced;
+8. existing bounded `isNew()` uses are not repurposed as identity/version or audit lifecycle classifiers.
 
 ### 10. JPA Runtime Evidence
 
@@ -1760,9 +1909,11 @@ Stop implementation and return to design if any of the following evidence appear
 5. Parent-side Schema joins require the child scalar property despite the retained parent relation mapping.
 6. Removing inverse navigation breaks a runtime path that is not expressible through the forward owned graph and is required by a current accepted contract.
 7. ParentRef removal makes another default-enabled artifact family generate incorrect code or incorrect semantics.
-8. The soft-delete merged implementation changes entity-constructor or physical-storage contracts in a way that contradicts this spec.
+8. Identity/version construction support cannot be implemented without changing the merged soft-delete constructor or physical-storage contract.
 9. Supporting the accepted version matrix requires provider-specific branches beyond bounded type validation and rendering.
 10. The only implementation path requires modifying Phase 4 Strong ID create-time injection semantics.
+11. The only implementation path requires treating every generic `READ_ONLY` field as construction-nullable or provider-assigned.
+12. Resolved version policy cannot be projected consistently to provider control without introducing an independent second classifier.
 
 Do not respond to a rollback trigger with:
 
@@ -1779,8 +1930,8 @@ Bring the evidence back to design review.
 
 ### Required Implementation Order
 
-1. Start only after soft-delete IdStrategy support has merged.
-2. Re-read the merged entity planner/template before applying this spec.
+1. Start from baseline `c49e12f5` or a later descendant containing the merged soft-delete implementation.
+2. Re-read the current entity planner/template and preserve the role-specific soft-delete behavior before applying this spec.
 3. Add failing focused tests for one decision at a time.
 4. Implement canonical parentRef/shared-PK changes.
 5. Remove inverse canonical/planner infrastructure.
@@ -1819,6 +1970,9 @@ Do not change:
 9. repository ownership or aggregate boundary rules.
 10. general JPA relationship support such as ManyToMany, JoinTable, or MapsId.
 11. build dependencies or external infrastructure.
+12. generic managed-field constructor, nullability, initializer, or lifecycle semantics.
+13. only-engine audit configuration, operator providers, JPA callbacks, or Hibernate event listeners.
+14. `UnitOfWorkInterceptor`, generic create/update lifecycle events, or the existing bounded `EntityInformation.isNew()` uses.
 
 ### Implementation Discipline
 
@@ -1826,6 +1980,10 @@ Do not change:
 - Use TDD for each behavior change.
 - Do not keep deleted behavior behind fallback flags.
 - Do not broaden managed-field constructor policy beyond the accepted identity/version and preceding soft-delete contracts.
+- Use resolved identity/version roles for constructor projection; never use `READ_ONLY` as a general constructor-exclusion predicate.
+- Treat resolved version policy as authoritative and provider control as its derived consistency projection, not a second classifier.
+- Do not require `AggregatePersistenceFieldControl.version` for a DSL-default version.
+- Preserve generic managed audit fields exactly unless a separate approved managed-field lifecycle SPI design changes them later.
 - Do not infer semantic roles in templates.
 - Keep runtime assertions provider-observable rather than tied to a guessed exact version seed.
 - If generated fixture construction needs handwritten test support, keep it test-only.
@@ -1835,7 +1993,7 @@ Do not change:
 
 The following decisions are closed for implementation planning:
 
-1. The iteration follows soft-delete and does not modify completed Phase 4.
+1. The baseline contains completed soft-delete support and Phase 4; this iteration modifies neither contract.
 2. Database identity and version are database-entrusted.
 3. Both are absent from constructors and factory payloads.
 4. Both are nullable entity properties initialized to null.
@@ -1858,6 +2016,13 @@ The following decisions are closed for implementation planning:
 21. Future unique addon skips parentRef-containing constraints unless an explicit scoped design replaces that rule.
 22. Future parent ID/entity access requires a separate design.
 23. Entity construction nullability does not change Schema physical-query nullability.
+24. `READ_ONLY` governs the user write surface and does not by itself define construction or persistence lifecycle behavior.
+25. Database identity construction behavior is selected by the resolved database-side own-ID role.
+26. Resolved version policy is the sole semantic classifier for provider-assigned version construction behavior.
+27. `AggregatePersistenceProviderControl.versionFieldName` is a derived consistency projection, not an independent version classifier.
+28. `AggregatePersistenceFieldControl.version` is not required for a version resolved through `versionDefaultColumn`.
+29. Generic managed audit fields retain their current construction and lifecycle behavior.
+30. Managed-field lifecycle SPI, only-engine audit changes, UoW interceptor changes, and generic `isNew()` replacement are deferred to a separate iteration.
 
 ## Related Documents
 
@@ -1865,6 +2030,8 @@ The following decisions are closed for implementation planning:
 - `docs/superpowers/specs/2026-07-23-cap4k-uow-owned-entity-lifecycle-classification-design.md`
 - `docs/superpowers/specs/2026-07-24-cap4k-strong-id-create-time-injection-design.md`
 - `docs/superpowers/specs/2026-07-26-cap4k-soft-delete-id-strategy-support-design.md`
+- `docs/superpowers/specs/2026-05-06-cap4k-aggregate-managed-write-surface-and-factory-payload-metadata-design.md`
+- `docs/superpowers/specs/2026-05-03-cap4k-special-fields-managed-write-surface-and-only-engine-audit-alignment-design.md`
 - `docs/superpowers/specs/2026-07-23-cap4k-default-schema-owned-relation-join-design.md`
 - `docs/superpowers/specs/2026-04-20-cap4k-aggregate-inverse-relation-read-only-parity-design.md`
 - `docs/superpowers/specs/2026-05-04-cap4k-aggregate-inverse-navigation-owner-and-fetch-policy-design.md`
