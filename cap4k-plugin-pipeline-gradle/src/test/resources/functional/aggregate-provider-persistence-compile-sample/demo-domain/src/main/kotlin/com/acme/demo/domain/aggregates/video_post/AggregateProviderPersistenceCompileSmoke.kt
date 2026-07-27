@@ -31,7 +31,7 @@ object AggregateProviderPersistenceCompileSmoke {
         uuidNativeRecordFactory: UuidNativeRecordFactory,
         generatedOwnIdCatalogContribution: GeneratedOwnIdCatalogContribution,
     ): List<Any> {
-        val snowflakeLongPayload = SnowflakeLongRecordFactory.Payload(title = "snowflake-long")
+        val snowflakeLongPayload = SnowflakeLongRecordFactory.Payload(title = "snowflake long")
         val snowflakeStringPayload = SnowflakeStringRecordFactory.Payload(title = "snowflake-string")
         val uuidStringPayload = UuidStringRecordFactory.Payload(title = "uuid-string")
         val uuidNativePayload = UuidNativeRecordFactory.Payload(title = "uuid-native")
