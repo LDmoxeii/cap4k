@@ -867,6 +867,7 @@ class PebbleArtifactRendererTest {
                 "embeddedId" to cell.applicationSideId,
                 "generatedOwnId" to cell.applicationSideId,
                 "columnName" to "id",
+                "columnNameKotlinStringLiteral" to kotlinStringLiteral("\"id\""),
                 "isId" to true,
                 "generatedValueStrategy" to if (cell.applicationSideId) null else "IDENTITY",
                 "isVersion" to false,
@@ -887,6 +888,7 @@ class PebbleArtifactRendererTest {
                 "embeddedId" to false,
                 "generatedOwnId" to false,
                 "columnName" to "title",
+                "columnNameKotlinStringLiteral" to kotlinStringLiteral("\"title\""),
                 "isId" to false,
                 "isVersion" to false,
             )
@@ -902,6 +904,7 @@ class PebbleArtifactRendererTest {
                 "embeddedId" to false,
                 "generatedOwnId" to false,
                 "columnName" to "deleted",
+                "columnNameKotlinStringLiteral" to kotlinStringLiteral("\"deleted\""),
                 "isId" to false,
                 "isVersion" to false,
                 "insertable" to true,
@@ -915,7 +918,12 @@ class PebbleArtifactRendererTest {
                 context = mapOf(
                     "packageName" to cell.packageName,
                     "typeName" to cell.typeName,
-                    "entityJpa" to mapOf("entityEnabled" to true, "tableName" to cell.tableName),
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to true,
+                        "tableName" to cell.tableName,
+                        "tableNameKotlinStringLiteral" to
+                            kotlinStringLiteral("\"${cell.tableName}\""),
+                    ),
                     "hasStrongIdFields" to cell.applicationSideId,
                     "hasEmbeddedStrongIdFields" to false,
                     "hasGeneratedValueFields" to !cell.applicationSideId,
@@ -5227,6 +5235,7 @@ class PebbleArtifactRendererTest {
                         "entityJpa" to mapOf(
                             "entityEnabled" to true,
                             "tableName" to "video_post",
+                            "tableNameKotlinStringLiteral" to "\"\\\"video_post\\\"\"",
                         ),
                         "jpaImports" to listOf(
                             "jakarta.persistence.CascadeType",
@@ -6383,6 +6392,121 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("import org.hibernate.annotations.DynamicUpdate"))
         assertFalse(content.contains("@DynamicInsert"))
         assertFalse(content.contains("@DynamicUpdate"))
+    }
+
+    @Test
+    fun `aggregate entity template renders exact quoted jpa identifiers for supported dialects`() {
+        data class Case(
+            val name: String,
+            val quote: (String) -> String,
+        )
+
+        val cases = listOf(
+            Case("h2") { value -> "\"$value\"" },
+            Case("postgresql") { value -> "\"$value\"" },
+            Case("mysql") { value -> "`$value`" },
+        )
+
+        cases.forEach { case ->
+            fun literal(value: String): String = case.quote(value).toTestKotlinStringLiteral()
+
+            val content = renderTemplate(
+                templateId = "aggregate/entity.kt.peb",
+                outputPath =
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/mixed_case/MixedCase.kt",
+                context = mapOf(
+                    "packageName" to "com.acme.demo.domain.aggregates.mixed_case",
+                    "typeName" to "MixedCase",
+                    "entityJpa" to mapOf(
+                        "entityEnabled" to true,
+                        "tableName" to "MixedCase",
+                        "tableNameKotlinStringLiteral" to literal("MixedCase"),
+                    ),
+                    "hasConverterFields" to false,
+                    "hasGeneratedValueFields" to false,
+                    "hasVersionFields" to false,
+                    "hasStrongIdFields" to false,
+                    "hasEmbeddedIdFields" to false,
+                    "hasEmbeddedStrongIdFields" to false,
+                    "softDelete" to mapOf("enabled" to true),
+                    "softDeleteSqlKotlinStringLiteral" to "update quoted".toTestKotlinStringLiteral(),
+                    "softDeleteWhereClauseKotlinStringLiteral" to "quoted = 0".toTestKotlinStringLiteral(),
+                    "constructorFields" to emptyList<Map<String, Any?>>(),
+                    "scalarFields" to listOf(
+                        mapOf(
+                            "name" to "id",
+                            "type" to "Long",
+                            "propertyInitializer" to "0L",
+                            "nullable" to false,
+                            "columnName" to "PhysicalId",
+                            "columnNameKotlinStringLiteral" to literal("PhysicalId"),
+                            "isId" to true,
+                        ),
+                        mapOf(
+                            "name" to "deleted",
+                            "type" to "Long",
+                            "propertyInitializer" to "0L",
+                            "nullable" to false,
+                            "columnName" to "DeletedMarker",
+                            "columnNameKotlinStringLiteral" to literal("DeletedMarker"),
+                        ),
+                    ),
+                    "relationFields" to listOf(
+                        mapOf(
+                            "relationType" to "MANY_TO_ONE",
+                            "name" to "author",
+                            "targetTypeRef" to "Author",
+                            "fetchType" to "LAZY",
+                            "joinColumn" to "AuthorId",
+                            "joinColumnKotlinStringLiteral" to literal("AuthorId"),
+                            "nullable" to true,
+                        ),
+                        mapOf(
+                            "relationType" to "ONE_TO_ONE",
+                            "name" to "profile",
+                            "targetTypeRef" to "Profile",
+                            "fetchType" to "LAZY",
+                            "joinColumn" to "ProfileId",
+                            "joinColumnKotlinStringLiteral" to literal("ProfileId"),
+                            "nullable" to true,
+                        ),
+                        mapOf(
+                            "relationType" to "ONE_TO_MANY",
+                            "name" to "items",
+                            "targetTypeRef" to "MixedCaseItem",
+                            "fetchType" to "LAZY",
+                            "cascadeTypes" to emptyList<String>(),
+                            "orphanRemoval" to false,
+                            "joinColumn" to "OwnerId",
+                            "joinColumnKotlinStringLiteral" to literal("OwnerId"),
+                            "joinColumnNullable" to false,
+                            "owned" to false,
+                        ),
+                    ),
+                    "imports" to emptyList<String>(),
+                    "jpaImports" to emptyList<String>(),
+                ),
+            )
+
+            assertTrue(
+                content.contains("@Table(name = ${literal("MixedCase")})"),
+                case.name,
+            )
+            assertTrue(
+                content.contains("@Column(name = ${literal("PhysicalId")})"),
+                case.name,
+            )
+            assertTrue(
+                content.contains("@Column(name = ${literal("DeletedMarker")})"),
+                case.name,
+            )
+            listOf("AuthorId", "ProfileId", "OwnerId").forEach { joinColumn ->
+                assertTrue(
+                    content.contains("@JoinColumn(name = ${literal(joinColumn)}"),
+                    "${case.name}: $joinColumn",
+                )
+            }
+        }
     }
 
     @Test

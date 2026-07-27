@@ -126,7 +126,7 @@ internal object AggregateSoftDeleteRendering {
             else -> kotlinType
         }
 
-    private fun quoteIdentifier(
+    fun quoteIdentifier(
         value: String,
         dialect: AggregateSqlDialect,
     ): String =

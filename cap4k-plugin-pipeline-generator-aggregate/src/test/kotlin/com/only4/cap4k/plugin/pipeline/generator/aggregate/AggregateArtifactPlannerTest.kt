@@ -3378,9 +3378,126 @@ class AggregateArtifactPlannerTest {
                 .plan(aggregateConfig(sources = dbSources(jdbcUrl)), model)
                 .single()
 
+            @Suppress("UNCHECKED_CAST")
+            val entityJpa = artifact.context["entityJpa"] as Map<String, Any?>
+            @Suppress("UNCHECKED_CAST")
+            val scalarFields = artifact.context["scalarFields"] as List<Map<String, Any?>>
+            val identifierDelimiter = if (
+                jdbcUrl.startsWith("jdbc:mysql:") ||
+                jdbcUrl.startsWith("jdbc:mariadb:") ||
+                jdbcUrl.contains("MODE=MySQL", ignoreCase = true)
+            ) {
+                "`"
+            } else {
+                "\""
+            }
+            fun quotedIdentifier(value: String): String =
+                "$identifierDelimiter$value$identifierDelimiter".toKotlinStringLiteral()
+
             assertEquals(expectedSql, artifact.context["softDeleteSql"], jdbcUrl)
             assertEquals(expectedWhereClause, artifact.context["softDeleteWhereClause"], jdbcUrl)
+            assertEquals(
+                quotedIdentifier("Dialect_Table"),
+                entityJpa["tableNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+            assertEquals(
+                quotedIdentifier("Physical_ID"),
+                scalarFields.single { it["name"] == "id" }["columnNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+            assertEquals(
+                quotedIdentifier("Lock_Version"),
+                scalarFields.single { it["name"] == "version" }["columnNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
+            assertEquals(
+                quotedIdentifier("Deleted_Flag"),
+                scalarFields.single { it["name"] == "deleted" }["columnNameKotlinStringLiteral"],
+                jdbcUrl,
+            )
         }
+    }
+
+    @Test
+    fun `soft delete entity planner quotes every mapped relation join column`() {
+        val entity = EntityModel(
+            name = "MixedRelation",
+            packageName = "com.acme.demo.domain.aggregates.mixed_relation",
+            tableName = "Mixed_Relation",
+            comment = "mixed relation",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "Physical_ID"),
+                FieldModel("authorId", "Long", columnName = "Author_ID"),
+                FieldModel("profileId", "Long", columnName = "Profile_ID"),
+                FieldModel("deleted", "Long", columnName = "Deleted_Flag"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "Physical_ID"),
+        )
+        val artifact = EntityArtifactPlanner().plan(
+            aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregatePersistenceProviderControls = listOf(
+                    AggregatePersistenceProviderControl(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        softDelete = semanticSoftDeletePolicy(columnName = "Deleted_Flag"),
+                        idFieldName = "id",
+                    )
+                ),
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        fieldName = "author",
+                        targetEntityName = "Author",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.author",
+                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        joinColumn = "Author_ID",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        fieldName = "profile",
+                        targetEntityName = "Profile",
+                        targetEntityPackageName = "com.acme.demo.domain.identity.profile",
+                        relationType = AggregateRelationType.ONE_TO_ONE,
+                        joinColumn = "Profile_ID",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = true,
+                    ),
+                    AggregateRelationModel(
+                        ownerEntityName = entity.name,
+                        ownerEntityPackageName = entity.packageName,
+                        fieldName = "items",
+                        targetEntityName = "MixedRelationItem",
+                        targetEntityPackageName = "com.acme.demo.domain.aggregates.mixed_relation_item",
+                        relationType = AggregateRelationType.ONE_TO_MANY,
+                        joinColumn = "Owner_ID",
+                        fetchType = AggregateFetchType.LAZY,
+                        nullable = false,
+                        joinColumnNullable = false,
+                    ),
+                ),
+            ),
+        ).single()
+
+        @Suppress("UNCHECKED_CAST")
+        val relationFields = artifact.context["relationFields"] as List<Map<String, Any?>>
+
+        assertEquals(
+            mapOf(
+                "author" to "\"\\\"Author_ID\\\"\"",
+                "profile" to "\"\\\"Profile_ID\\\"\"",
+                "items" to "\"\\\"Owner_ID\\\"\"",
+            ),
+            relationFields.associate { it.getValue("name") to it["joinColumnKotlinStringLiteral"] },
+        )
     }
 
     @Test

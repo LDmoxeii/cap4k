@@ -73,6 +73,20 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 }.columnName
             }
             val softDeletePolicy = providerControl?.softDelete
+            val softDeleteDialect = softDeletePolicy?.let {
+                val jdbcUrl = config.sources["db"]
+                    ?.options
+                    ?.get("url")
+                    ?.toString()
+                    .orEmpty()
+                AggregateSqlDialectResolver.resolve(jdbcUrl)
+            }
+            fun jpaIdentifierKotlinStringLiteral(value: String): String {
+                val renderedIdentifier = softDeleteDialect
+                    ?.let { dialect -> AggregateSoftDeleteRendering.quoteIdentifier(value, dialect) }
+                    ?: value
+                return renderedIdentifier.toKotlinStringLiteral()
+            }
             val renderedSoftDelete = softDeletePolicy?.let { policy ->
                 val control = requireNotNull(providerControl)
                 val deletedField = requireNotNull(entity.fields.singleOrNull { it.name == policy.fieldName }) {
@@ -81,19 +95,24 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                 requireNotNull(scalarJpaByField[policy.fieldName]) {
                     "missing aggregate JPA metadata for ${entity.packageName}.${entity.name}.${policy.fieldName}"
                 }
-                val jdbcUrl = config.sources["db"]
-                    ?.options
-                    ?.get("url")
-                    ?.toString()
-                    .orEmpty()
                 AggregateSoftDeleteRendering.render(
                     policy = policy,
-                    dialect = AggregateSqlDialectResolver.resolve(jdbcUrl),
+                    dialect = requireNotNull(softDeleteDialect),
                     tableName = control.tableName,
                     idColumnName = requireNotNull(idColumnName),
                     versionColumnName = versionColumnName,
                     deletedKotlinType = planning.resolveFieldType(entity.packageName, deletedField),
                 )
+            }
+            val renderedRelationFields = relationPlan.relationFields.map { relation ->
+                val joinColumn = relation["joinColumn"] as? String
+                if (joinColumn == null) {
+                    relation
+                } else {
+                    relation + mapOf(
+                        "joinColumnKotlinStringLiteral" to jpaIdentifierKotlinStringLiteral(joinColumn)
+                    )
+                }
             }
             val systemTransitionFieldNames = (
                 listOfNotNull(
@@ -232,6 +251,8 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
                             "columnName" to jpa.columnName,
+                            "columnNameKotlinStringLiteral" to
+                                jpaIdentifierKotlinStringLiteral(jpa.columnName),
                             "isId" to jpa.isId,
                             "converterTypeRef" to jpa.converterTypeFqn,
                             "converterClassRef" to jpa.converterClassFqn,
@@ -280,6 +301,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "entityJpa" to mapOf(
                         "entityEnabled" to (entityJpa?.entityEnabled ?: true),
                         "tableName" to (entityJpa?.tableName ?: entity.tableName),
+                        "tableNameKotlinStringLiteral" to jpaIdentifierKotlinStringLiteral(
+                            entityJpa?.tableName ?: entity.tableName
+                        ),
                     ),
                     "idField" to entity.idField,
                     "hasConverterFields" to scalarFields.any { it["converterClassRef"] != null },
@@ -305,7 +329,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         it["generatedOwnId"] == true ||
                             it["writePolicy"] == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
                     },
-                    "relationFields" to relationPlan.relationFields,
+                    "relationFields" to renderedRelationFields,
                 ),
             )
         }
