@@ -21,7 +21,7 @@ internal object OwnedParentBindingResolver {
         return tables
             .mapNotNull { table ->
                 val parentTable = table.parentTable ?: return@mapNotNull null
-                if (tableKey(table.tableName) in ignoredTableNames || tableKey(parentTable) in ignoredTableNames) {
+                if (tableKey(table.tableName) in ignoredTableNames) {
                     return@mapNotNull null
                 }
 
@@ -29,17 +29,23 @@ internal object OwnedParentBindingResolver {
                     .filter { it.parentRef }
                     .sortedBy { it.name }
 
+                parentRefColumns.singleOrNull()?.let { parentRefColumn ->
+                    val parentRefKey = columnKey(parentRefColumn.name)
+                    require(table.primaryKey.map(::columnKey) != listOf(parentRefKey)) {
+                        "owned child ${table.tableName} cannot use parent reference column ${parentRefColumn.name} " +
+                            "as its primary key; declare an independent child primary key"
+                    }
+                }
+                if (tableKey(parentTable) in ignoredTableNames) {
+                    return@mapNotNull null
+                }
+
                 val parentRefColumn = when (parentRefColumns.size) {
                     0 -> throw IllegalArgumentException("missing parent reference column for table: ${table.tableName}")
                     1 -> parentRefColumns.single()
                     else -> throw IllegalArgumentException(
                         "ambiguous parent reference columns for table ${table.tableName}: ${parentRefColumns.joinToString(", ") { it.name }}"
                     )
-                }
-                val parentRefKey = columnKey(parentRefColumn.name)
-                require(table.primaryKey.map(::columnKey) != listOf(parentRefKey)) {
-                    "owned child ${table.tableName} cannot use parent reference column ${parentRefColumn.name} " +
-                        "as its primary key; declare an independent child primary key"
                 }
 
                 OwnedParentBinding(

@@ -33,6 +33,56 @@ class OwnedParentBindingResolverTest {
     }
 
     @Test
+    fun `rejects shared primary key before skipping ignored parent`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            OwnedParentBindingResolver.resolve(
+                tables = listOf(
+                    table(
+                        name = "video_file",
+                        parentTable = "video",
+                        columns = listOf(
+                            DbColumnSnapshot("video_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("VIDEO_ID"),
+                    )
+                ),
+                skippedTableNames = setOf("video"),
+            )
+        }
+
+        assertEquals(
+            "owned child video_file cannot use parent reference column video_id as its primary key; " +
+                "declare an independent child primary key",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects shared primary key before skipping out of scope parent`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            OwnedParentBindingResolver.resolve(
+                tables = listOf(
+                    table(
+                        name = "video_file",
+                        parentTable = "video",
+                        columns = listOf(
+                            DbColumnSnapshot("video_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("VIDEO_ID"),
+                    )
+                ),
+                outOfScopeTableNames = setOf("video"),
+            )
+        }
+
+        assertEquals(
+            "owned child video_file cannot use parent reference column video_id as its primary key; " +
+                "declare an independent child primary key",
+            error.message,
+        )
+    }
+
+    @Test
     fun `skips out of scope parent before requiring parent ref column`() {
         val bindings = OwnedParentBindingResolver.resolve(
             tables = listOf(
