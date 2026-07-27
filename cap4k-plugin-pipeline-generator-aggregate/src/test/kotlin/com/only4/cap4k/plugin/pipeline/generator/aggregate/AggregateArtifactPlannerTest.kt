@@ -7,7 +7,6 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
-import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl
 import com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceProviderControl
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
@@ -872,7 +871,6 @@ class AggregateArtifactPlannerTest {
             parentEntityName = "Order",
             fields = listOf(
                 FieldModel("id", "OrderLineId", nullable = false, columnName = "id"),
-                FieldModel("orderId", "String", nullable = false, columnName = "order_id", parentRef = true),
             ),
             idField = FieldModel("id", "OrderLineId", nullable = false, columnName = "id"),
         )
@@ -2518,87 +2516,84 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner keeps scalar foreign key and adds inverse read only relation`() {
-        val entity = EntityModel(
+    fun `entity planner keeps parent forward relation without child inverse relation`() {
+        val parent = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(FieldModel("id", "Long")),
+            idField = FieldModel("id", "Long"),
+        )
+        val child = EntityModel(
             name = "VideoPostItem",
-            packageName = "com.acme.demo.domain.aggregates.video_post_item",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
             tableName = "video_post_item",
             comment = "video post item",
             fields = listOf(
                 FieldModel("id", "Long"),
                 FieldModel("label", "String"),
-                FieldModel("videoPostId", "Long"),
             ),
             idField = FieldModel("id", "Long"),
+            aggregateRoot = false,
+            parentEntityName = "VideoPost",
         )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
             CanonicalModel(
-                entities = listOf(entity),
+                entities = listOf(parent, child),
                 aggregateEntityJpa = listOf(
+                    defaultAggregateEntityJpa(parent),
                     AggregateEntityJpaModel(
-                        entityName = entity.name,
-                        entityPackageName = entity.packageName,
+                        entityName = child.name,
+                        entityPackageName = child.packageName,
                         entityEnabled = true,
-                        tableName = entity.tableName,
+                        tableName = child.tableName,
                         columns = listOf(
                             AggregateColumnJpaModel("id", "id", true, null),
                             AggregateColumnJpaModel("label", "label", false, null),
-                            AggregateColumnJpaModel("videoPostId", "video_post_id", false, null),
                         ),
                     )
                 ),
-                aggregateInverseRelations = listOf(
-                    AggregateInverseRelationModel(
-                        ownerEntityName = "VideoPostItem",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        fieldName = "videoPost",
-                        targetEntityName = "VideoPost",
+                aggregateRelations = listOf(
+                    AggregateRelationModel(
+                        ownerEntityName = "VideoPost",
+                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+                        fieldName = "items",
+                        targetEntityName = "VideoPostItem",
                         targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        relationType = AggregateRelationType.MANY_TO_ONE,
+                        relationType = AggregateRelationType.ONE_TO_MANY,
                         joinColumn = "video_post_id",
                         fetchType = AggregateFetchType.LAZY,
                         nullable = false,
-                        insertable = false,
-                        updatable = false,
+                        owned = true,
+                        parentRefColumn = "video_post_id",
+                        ownedCardinality = OwnedRelationCardinality.MANY,
+                        persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                        backingCollectionName = "items",
                     )
                 ),
             )
         )
 
-        val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
+        val parentItem = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == "VideoPost"
+        }
+        val childItem = plan.single {
+            it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == "VideoPostItem"
+        }
         @Suppress("UNCHECKED_CAST")
-        val scalarFields = entityItem.context["scalarFields"] as List<Map<String, Any?>>
+        val childScalarFields = childItem.context["scalarFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val relationFields = entityItem.context["relationFields"] as List<Map<String, Any?>>
+        val parentRelationFields = parentItem.context["relationFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val imports = entityItem.context["imports"] as List<String>
-        @Suppress("UNCHECKED_CAST")
-        val jpaImports = entityItem.context["jpaImports"] as List<String>
+        val childRelationFields = childItem.context["relationFields"] as List<Map<String, Any?>>
 
-        val relation = relationFields.single()
-        assertEquals(listOf("id", "label", "videoPostId"), scalarFields.map { it["name"] })
-        assertEquals(listOf("id", "label", "video_post_id"), scalarFields.map { it["columnName"] })
-        assertEquals(listOf(null, null, false), scalarFields.map { it["insertable"] })
-        assertEquals(listOf(null, null, false), scalarFields.map { it["updatable"] })
-        assertEquals(listOf("videoPost"), relationFields.map { it["name"] })
-        assertEquals("MANY_TO_ONE", relation["relationType"])
-        assertEquals("video_post_id", relation["joinColumn"])
-        assertEquals("LAZY", relation["fetchType"])
-        assertEquals(false, relation["nullable"])
-        assertEquals("VideoPost", relation["targetType"])
-        assertEquals(true, relation["readOnly"])
-        assertEquals(false, relation["insertable"])
-        assertEquals(false, relation["updatable"])
-        assertEquals(listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"), imports)
-        assertEquals(
-            listOf(
-                "jakarta.persistence.FetchType",
-                "jakarta.persistence.JoinColumn",
-                "jakarta.persistence.ManyToOne",
-            ),
-            jpaImports,
-        )
+        assertEquals(listOf("id", "label"), childScalarFields.map { it["name"] })
+        assertEquals(listOf("items"), parentRelationFields.map { it["name"] })
+        assertEquals("ONE_TO_MANY", parentRelationFields.single()["relationType"])
+        assertEquals("video_post_id", parentRelationFields.single()["parentRefColumn"])
+        assertEquals(emptyList<Map<String, Any?>>(), childRelationFields)
     }
 
     @Test
@@ -4256,18 +4251,6 @@ class AggregateArtifactPlannerTest {
                     ownedMany("aggregateReferenceChildren", aggregateReferenceChild),
                     ownedMany("unregisteredChildren", unregisteredChild),
                 ),
-                aggregateInverseRelations = listOf(
-                    AggregateInverseRelationModel(
-                        ownerEntityName = order.name,
-                        ownerEntityPackageName = packageName,
-                        fieldName = "inverseEligibleChildren",
-                        targetEntityName = eligibleChild.name,
-                        targetEntityPackageName = packageName,
-                        relationType = AggregateRelationType.ONE_TO_MANY,
-                        joinColumn = "order_id",
-                        fetchType = AggregateFetchType.LAZY,
-                    ),
-                ),
                 aggregateIdPolicyControls = listOf(
                     AggregateIdPolicyControl(
                         entityName = databaseIdentityChild.name,
@@ -4301,7 +4284,6 @@ class AggregateArtifactPlannerTest {
             "databaseIdentityChildren",
             "aggregateReferenceChildren",
             "unregisteredChildren",
-            "inverseEligibleChildren",
         )
 
         excludedRelationNames.forEach { relationName ->
@@ -6264,7 +6246,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner exposes structural and managed field metadata`() {
+    fun `entity planner omits domain parent ref context while retaining managed field metadata`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -6277,12 +6259,6 @@ class AggregateArtifactPlannerTest {
                     type = "Long",
                     columnName = "tenant_id",
                     managedRole = DbManagedRole.SCOPE,
-                ),
-                FieldModel(
-                    name = "parentId",
-                    type = "Long",
-                    columnName = "parent_id",
-                    parentRef = true,
                 ),
                 FieldModel(
                     name = "createdBy",
@@ -6307,8 +6283,8 @@ class AggregateArtifactPlannerTest {
         val fields = entityContext["fields"] as List<Map<String, Any?>>
 
         assertAll(
-            { assertTrue(fields.any { it["parentRef"] == true }) },
-            { assertTrue(fields.any { it["structuralParentRef"] == true }) },
+            { assertTrue(fields.all { "parentRef" !in it }) },
+            { assertTrue(fields.all { "structural" + "ParentRef" !in it }) },
             { assertTrue(fields.any { it["managed"] == true }) },
             { assertTrue(fields.any { it["managedRole"] == "SCOPE" }) },
             { assertTrue(fields.any { it["inherited"] == true }) },
@@ -6316,7 +6292,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory planner marks unresolved constructor inputs explicitly`() {
+    fun `factory planner rejects ordinary required fields missing from resolved write surface`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -6325,19 +6301,19 @@ class AggregateArtifactPlannerTest {
             fields = listOf(
                 FieldModel("id", "VideoPostId", columnName = "id"),
                 FieldModel(
-                    name = "parentId",
+                    name = "externalCode",
                     type = "Long",
-                    columnName = "parent_id",
-                    parentRef = true,
+                    columnName = "external_code",
                 ),
                 FieldModel("title", "String", columnName = "title"),
             ),
             idField = FieldModel("id", "VideoPostId", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
-            aggregateConfig(),
-            CanonicalModel(
+        val error = assertThrows(IllegalStateException::class.java) {
+            AggregateArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
                 aggregateSpecialFieldResolvedPolicies = listOf(
@@ -6374,26 +6350,14 @@ class AggregateArtifactPlannerTest {
                         isEmbeddedId = true,
                     ),
                 ),
+                )
             )
-        )
+        }
 
-        val factoryContext = planItems.single { it.templateId == "aggregate/factory.kt.peb" }.context
-
-        assertAll(
-            { assertTrue(factoryContext.containsKey("constructorMappingResolved")) },
-            { assertTrue(factoryContext.containsKey("constructorUnresolvedFields")) },
-            { assertTrue(factoryContext.containsKey("constructorStructuralFields")) },
-            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val unresolvedFields = factoryContext["constructorUnresolvedFields"] as List<Map<String, Any?>>
-                assertEquals(listOf("parentId"), unresolvedFields.map { it["name"] })
-            },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val structuralFields = factoryContext["constructorStructuralFields"] as List<Map<String, Any?>>
-                assertEquals(listOf("parentId"), structuralFields.map { it["name"] })
-            },
+        assertEquals(
+            "factory com.acme.demo.domain.aggregates.video_post.VideoPost cannot derive constructor mapping " +
+                "for required fields: externalCode",
+            error.message,
         )
     }
 
@@ -6481,6 +6445,7 @@ class AggregateArtifactPlannerTest {
 
         assertAll(
             { assertEquals(false, factoryContext["constructorMappingResolved"]) },
+            { assertTrue("constructor" + "StructuralFields" !in factoryContext) },
             {
                 @Suppress("UNCHECKED_CAST")
                 val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
@@ -6540,7 +6505,6 @@ class AggregateArtifactPlannerTest {
                     name = "parentId",
                     type = "Long",
                     columnName = "parent_id",
-                    parentRef = true,
                 ),
             ),
             idField = FieldModel("id", "VideoPostId", columnName = "id"),
@@ -6718,7 +6682,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `schema planner omits ordinary and inverse relations from relation joins`() {
+    fun `schema planner omits ordinary relations from owned relation joins`() {
         val rootEntity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -6767,18 +6731,6 @@ class AggregateArtifactPlannerTest {
                         joinColumn = "author_id",
                         fetchType = AggregateFetchType.LAZY,
                         nullable = false,
-                    ),
-                ),
-                aggregateInverseRelations = listOf(
-                    AggregateInverseRelationModel(
-                        ownerEntityName = "VideoPost",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        fieldName = "readOnlyProfile",
-                        targetEntityName = "UserProfile",
-                        targetEntityPackageName = "com.acme.demo.domain.aggregates.user_profile",
-                        relationType = AggregateRelationType.MANY_TO_ONE,
-                        joinColumn = "author_id",
-                        fetchType = AggregateFetchType.LAZY,
                     ),
                 ),
             )

@@ -196,7 +196,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         typeBinding = column.typeBinding,
                         enumItems = column.enumItems,
                         columnName = column.name,
-                        parentRef = column.parentRef,
                         managedRole = column.managedRole,
                         inherited = column.inherited == true,
                     )
@@ -282,11 +281,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
             .toList()
-        val aggregateInverseRelations = AggregateInverseRelationInference.infer(
-            entities = entities,
-            relations = aggregateRelations,
-            tables = supportedTables,
-        )
         val aggregateEntityPackageByName = entities.associateBy(
             keySelector = { it.name },
             valueTransform = { it.packageName },
@@ -404,7 +398,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 drawingBoard = drawingBoard,
                 sharedEnums = sharedEnums,
                 aggregateRelations = aggregateRelations,
-                aggregateInverseRelations = aggregateInverseRelations,
                 aggregateEntityJpa = aggregateEntityJpa,
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,

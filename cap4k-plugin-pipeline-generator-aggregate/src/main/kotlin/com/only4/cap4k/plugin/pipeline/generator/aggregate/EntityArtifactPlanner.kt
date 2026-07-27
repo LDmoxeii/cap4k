@@ -41,22 +41,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val relationPlan = AggregateRelationPlanning.planFor(
                 entity = entity,
                 relations = model.aggregateRelations,
-                inverseRelations = model.aggregateInverseRelations,
                 generatedOwnIdsByEntity = generatedOwnIdsByEntity,
             )
-            val readOnlyInverseJoinColumns = relationPlan.relationFields
-                .filter {
-                    it["relationType"] == AggregateRelationType.MANY_TO_ONE.name &&
-                        it["readOnly"] == true
-                }
-                .mapNotNull { it["joinColumn"] as? String }
-                .toSet()
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
                     when (it["relationType"]) {
                         AggregateRelationType.MANY_TO_ONE.name,
                         AggregateRelationType.ONE_TO_ONE.name,
-                        -> it["readOnly"] != true
+                        -> true
                         else -> false
                     }
                 }
@@ -204,14 +196,12 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         }
                         val insertable = when {
                             embeddedId -> null
-                            jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
                             else -> null
                         }
                         val updatable = when {
                             embeddedId -> null
-                            jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true
                             else -> null
@@ -259,11 +249,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "generatedValueStrategy" to generatedValueStrategy,
                             "isVersion" to isVersionField,
                             "writePolicy" to writePolicy,
-                            "parentRef" to field.parentRef,
                             "managedRole" to field.managedRole?.name,
                             "managed" to (field.managedRole != null),
                             "inherited" to field.inherited,
-                            "structuralParentRef" to field.parentRef,
                             "insertable" to insertable,
                             "updatable" to updatable,
                             "attributeOverrideNullable" to field.nullable,

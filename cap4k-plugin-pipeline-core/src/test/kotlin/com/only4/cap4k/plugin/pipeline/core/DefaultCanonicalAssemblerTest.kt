@@ -4384,7 +4384,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler keeps direct parent binding out of owner side child relations`() {
+    fun `assembler keeps owned relation one way and parent binding out of child fields`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -4423,13 +4423,6 @@ class DefaultCanonicalAssemblerTest {
                 .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
                 .sorted(),
         )
-        assertEquals(
-            listOf("VideoPostItem|videoPost|VideoPost|MANY_TO_ONE"),
-            result.model.aggregateInverseRelations
-                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
-                .sorted(),
-        )
-
         val root = result.model.entities.first { it.name == "VideoPost" }
         assertEquals(true, root.aggregateRoot)
         assertEquals(null, root.parentEntityName)
@@ -4437,6 +4430,10 @@ class DefaultCanonicalAssemblerTest {
         val child = result.model.entities.first { it.name == "VideoPostItem" }
         assertEquals(false, child.aggregateRoot)
         assertEquals("VideoPost", child.parentEntityName)
+        assertEquals(listOf("id"), child.fields.map { it.name })
+
+        val childSchema = result.model.schemas.single { it.entityName == "VideoPostItem" }
+        assertEquals(listOf("id"), childSchema.fields.map { it.name })
     }
 
     @Test
@@ -4542,55 +4539,6 @@ class DefaultCanonicalAssemblerTest {
         )
         assertEquals(true, oneToMany.orphanRemoval)
         assertEquals(false, oneToMany.joinColumnNullable)
-    }
-
-    @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
-    fun `assembler derives inverse read only parent relation from parent child truth`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("title", "VARCHAR", "String", false),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                        DbTableSnapshot(
-                            tableName = "video_post_item",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
-                                DbColumnSnapshot("label", "VARCHAR", "String", false),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            parentTable = "video_post",
-                            aggregateRoot = false,
-                        ),
-                    )
-                )
-            )
-        )
-
-        val inverse = result.model.aggregateInverseRelations.single()
-
-        assertEquals("VideoPostItem", inverse.ownerEntityName)
-        assertEquals("videoPost", inverse.fieldName)
-        assertEquals("VideoPost", inverse.targetEntityName)
-        assertEquals(AggregateRelationType.MANY_TO_ONE, inverse.relationType)
-        assertEquals("video_post_id", inverse.joinColumn)
-        assertEquals(AggregateFetchType.LAZY, inverse.fetchType)
-        assertEquals(false, inverse.nullable)
-        assertEquals(false, inverse.insertable)
-        assertEquals(false, inverse.updatable)
     }
 
     @Test
@@ -4995,12 +4943,6 @@ class DefaultCanonicalAssemblerTest {
             ),
             result.model.aggregateRelations.single(),
         )
-        assertEquals(
-            "VideoPostItem|videoPost|VideoPost|MANY_TO_ONE|video_post_id|LAZY|false|false",
-            result.model.aggregateInverseRelations.single().let { inverse ->
-                "${inverse.ownerEntityName}|${inverse.fieldName}|${inverse.targetEntityName}|${inverse.relationType}|${inverse.joinColumn}|${inverse.fetchType}|${inverse.insertable}|${inverse.updatable}"
-            },
-        )
     }
 
     @Test
@@ -5050,294 +4992,6 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(
             "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `inverse inference keeps owned direct parent binding derived when explicit ref matches parent case insensitively`() {
-        val parentId = FieldModel(name = "id", type = "Long")
-        val childId = FieldModel(name = "id", type = "Long")
-
-        val inverseRelations = AggregateInverseRelationInference.infer(
-            entities = listOf(
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "com.acme.demo.domain.aggregates.video_post",
-                    tableName = "video_post",
-                    comment = "",
-                    fields = listOf(parentId),
-                    idField = parentId,
-                ),
-                EntityModel(
-                    name = "VideoPostItem",
-                    packageName = "com.acme.demo.domain.aggregates.video_post_item",
-                    tableName = "video_post_item",
-                    comment = "",
-                    fields = listOf(
-                        childId,
-                        FieldModel(name = "label", type = "String"),
-                    ),
-                    idField = childId,
-                    aggregateRoot = false,
-                    parentEntityName = "VideoPost",
-                ),
-            ),
-            relations = listOf(
-                AggregateRelationModel(
-                    ownerEntityName = "VideoPost",
-                    ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                    fieldName = "items",
-                    targetEntityName = "VideoPostItem",
-                    targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                    relationType = AggregateRelationType.ONE_TO_MANY,
-                    joinColumn = "video_post_id",
-                    fetchType = AggregateFetchType.LAZY,
-                    nullable = false,
-                    cascadeTypes = listOf(
-                        AggregateCascadeType.PERSIST,
-                        AggregateCascadeType.MERGE,
-                        AggregateCascadeType.REMOVE,
-                    ),
-                    orphanRemoval = true,
-                    joinColumnNullable = false,
-                ),
-            ),
-            tables = listOf(
-                DbTableSnapshot(
-                    tableName = "video_post",
-                    comment = "",
-                    columns = listOf(
-                        DbColumnSnapshot(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, isPrimaryKey = true),
-                    ),
-                    primaryKey = listOf("id"),
-                    uniqueConstraints = emptyList(),
-                ),
-                DbTableSnapshot(
-                    tableName = "video_post_item",
-                    comment = "",
-                    columns = listOf(
-                        DbColumnSnapshot(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, isPrimaryKey = true),
-                        DbColumnSnapshot(
-                            name = "VIDEO_POST_ID",
-                            dbType = "BIGINT",
-                            kotlinType = "Long",
-                            nullable = false,
-                            referenceTable = "video_post",
-                            explicitRelationType = "MANY_TO_ONE",
-                        ),
-                    ),
-                    primaryKey = listOf("id"),
-                    uniqueConstraints = emptyList(),
-                    parentTable = "video_post",
-                    aggregateRoot = false,
-                ),
-            ),
-        )
-
-        assertEquals(
-            listOf("VideoPostItem|videoPost|VideoPost|MANY_TO_ONE|video_post_id"),
-            inverseRelations.map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}|${it.joinColumn}" },
-        )
-    }
-
-    @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
-    fun `assembler fails fast when derived inverse field collides with scalar field`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
-                listOf(
-                    DbSchemaSnapshot(
-                        tables = listOf(
-                            DbTableSnapshot(
-                                tableName = "video_post",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                            ),
-                            DbTableSnapshot(
-                                tableName = "video_post_item",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("videoPost", "VARCHAR", "String", false),
-                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                                parentTable = "video_post",
-                                aggregateRoot = false,
-                            ),
-                        )
-                    )
-                )
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collides with scalar field: com.acme.demo.domain.aggregates.video_post.VideoPostItem.videoPost",
-            error.message,
-        )
-    }
-
-    @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
-    fun `assembler fails fast when derived inverse field collides with owner relation field`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
-                listOf(
-                    DbSchemaSnapshot(
-                        tables = listOf(
-                            DbTableSnapshot(
-                                tableName = "video_post",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                            ),
-                            DbTableSnapshot(
-                                tableName = "video_post_archive",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                            ),
-                            DbTableSnapshot(
-                                tableName = "video_post_item",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
-                                    DbColumnSnapshot("video_post", "BIGINT", "Long", false, referenceTable = "video_post_archive"),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                                parentTable = "video_post",
-                                aggregateRoot = false,
-                            ),
-                        )
-                    )
-                )
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collides with owner relation field: com.acme.demo.domain.aggregates.video_post.VideoPostItem.videoPost",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `inverse inference fails fast on duplicate derived field names for the same child entity`() {
-        val childId = FieldModel(name = "id", type = "Long")
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateInverseRelationInference.infer(
-                entities = listOf(
-                    EntityModel(
-                        name = "VideoPostItem",
-                        packageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        tableName = "video_post_item",
-                        comment = "",
-                        fields = listOf(
-                            childId,
-                            FieldModel(name = "label", type = "String"),
-                        ),
-                        idField = childId,
-                        aggregateRoot = false,
-                    )
-                ),
-                relations = listOf(
-                    AggregateRelationModel(
-                        ownerEntityName = "VideoPost",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        fieldName = "items",
-                        targetEntityName = "VideoPostItem",
-                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        relationType = AggregateRelationType.ONE_TO_MANY,
-                        joinColumn = "video_post_id",
-                        fetchType = AggregateFetchType.LAZY,
-                        nullable = false,
-                        cascadeTypes = listOf(
-                            AggregateCascadeType.PERSIST,
-                            AggregateCascadeType.MERGE,
-                            AggregateCascadeType.REMOVE,
-                        ),
-                        orphanRemoval = true,
-                        joinColumnNullable = false,
-                    ),
-                    AggregateRelationModel(
-                        ownerEntityName = "VideoPost",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post_archive",
-                        fieldName = "archivedItems",
-                        targetEntityName = "VideoPostItem",
-                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        relationType = AggregateRelationType.ONE_TO_MANY,
-                        joinColumn = "video_post_archive_id",
-                        fetchType = AggregateFetchType.LAZY,
-                        nullable = false,
-                        cascadeTypes = listOf(
-                            AggregateCascadeType.PERSIST,
-                            AggregateCascadeType.MERGE,
-                            AggregateCascadeType.REMOVE,
-                        ),
-                        orphanRemoval = true,
-                        joinColumnNullable = false,
-                    ),
-                ),
-                tables = emptyList(),
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collision: com.acme.demo.domain.aggregates.video_post_item.VideoPostItem.videoPost",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `inverse inference fails fast when derived inverse field collides with owned one accessor`() {
-        val orderId = FieldModel(name = "id", type = "Long")
-        val orderLineId = FieldModel(name = "id", type = "Long")
-        val orderLineOrderId = FieldModel(name = "id", type = "Long")
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateInverseRelationInference.infer(
-                entities = listOf(
-                    EntityModel("Order", "com.acme.demo.domain.aggregates.order", "order", "", listOf(orderId), orderId),
-                    EntityModel("OrderLine", "com.acme.demo.domain.aggregates.order", "order_line", "", listOf(orderLineId), orderLineId),
-                    EntityModel("OrderLineOrder", "com.acme.demo.domain.aggregates.order", "order_line_order", "", listOf(orderLineOrderId), orderLineOrderId),
-                ),
-                relations = listOf(
-                    AggregateRelationModel(
-                        ownerEntityName = "Order", ownerEntityPackageName = "com.acme.demo.domain.aggregates.order",
-                        fieldName = "lines", targetEntityName = "OrderLine", targetEntityPackageName = "com.acme.demo.domain.aggregates.order",
-                        relationType = AggregateRelationType.ONE_TO_MANY, joinColumn = "order_id", fetchType = AggregateFetchType.LAZY,
-                        nullable = false, cascadeTypes = emptyList(), orphanRemoval = true, joinColumnNullable = false,
-                    ),
-                    AggregateRelationModel(
-                        ownerEntityName = "OrderLine", ownerEntityPackageName = "com.acme.demo.domain.aggregates.order",
-                        fieldName = "orderLineOrders", targetEntityName = "OrderLineOrder", targetEntityPackageName = "com.acme.demo.domain.aggregates.order",
-                        relationType = AggregateRelationType.ONE_TO_MANY, joinColumn = "order_line_id", fetchType = AggregateFetchType.LAZY,
-                        nullable = true, cascadeTypes = emptyList(), orphanRemoval = true, joinColumnNullable = true,
-                        owned = true, ownedCardinality = OwnedRelationCardinality.ONE, singleAccessorName = "order",
-                    ),
-                ),
-                tables = emptyList(),
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collides with owned one single accessor: com.acme.demo.domain.aggregates.order.OrderLine.order",
             error.message,
         )
     }
