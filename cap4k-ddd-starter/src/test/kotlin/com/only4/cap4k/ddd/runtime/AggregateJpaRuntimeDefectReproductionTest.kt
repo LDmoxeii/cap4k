@@ -731,6 +731,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     private fun importedKeyCount(tableName: String): Int =
         requireNotNull(jdbcTemplate.dataSource).connection.use { connection ->
+            connection.metaData.getTables(null, null, tableName, null).use { tables ->
+                check(tables.next()) { "JDBC metadata did not find table $tableName" }
+            }
             connection.metaData.getImportedKeys(null, null, tableName).use { importedKeys ->
                 var count = 0
                 while (importedKeys.next()) count++
