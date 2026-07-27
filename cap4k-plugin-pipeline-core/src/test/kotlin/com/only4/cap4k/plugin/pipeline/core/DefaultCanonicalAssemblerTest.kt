@@ -2660,6 +2660,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("id"), controls.map { it.fieldName })
         assertEquals("IDENTITY", controls.single().generatedValueStrategy)
         assertNull(controls.single().version)
+        assertFalse(result.model.aggregateSpecialFieldResolvedPolicies.single().version.enabled)
     }
 
     @Test
@@ -2834,6 +2835,124 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
         assertNull(control.softDelete)
+    }
+
+    @Test
+    fun `database identity accepts all supported integral field types`() {
+        supportedVersionTypes().forEach { type ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", type, false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                        ),
+                        primaryKey = listOf("id"),
+                    )
+                ),
+            )
+
+            assertEquals(type, result.model.aggregateIdPolicyControls.single().idFieldType)
+        }
+    }
+
+    @Test
+    fun `explicit version accepts all supported integral field types and resolves authoritative controls`() {
+        supportedVersionTypes().forEach { type ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                            column("lock_version", "BIGINT", type, false, managedRole = DbManagedRole.VERSION),
+                        ),
+                        primaryKey = listOf("id"),
+                    )
+                ),
+            )
+
+            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single().version
+            assertTrue(policy.enabled)
+            assertEquals("lockVersion", policy.fieldName)
+            assertEquals("lock_version", policy.columnName)
+            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.writePolicy)
+            assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.source)
+            assertEquals("lockVersion", result.model.aggregatePersistenceFieldControls.single { it.version == true }.fieldName)
+            assertEquals("lockVersion", result.model.aggregatePersistenceProviderControls.single().versionFieldName)
+        }
+    }
+
+    @Test
+    fun `DSL default version accepts all supported integral field types without explicit persistence control`() {
+        supportedVersionTypes().forEach { type ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(
+                    idDefaultStrategy = "uuid7",
+                    versionDefaultColumn = "lock_version",
+                ),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                            column("lock_version", "BIGINT", type, false),
+                        ),
+                        primaryKey = listOf("id"),
+                    )
+                ),
+            )
+
+            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single().version
+            assertTrue(policy.enabled)
+            assertEquals("lockVersion", policy.fieldName)
+            assertEquals("lock_version", policy.columnName)
+            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.writePolicy)
+            assertEquals(SpecialFieldSource.DSL_DEFAULT, policy.source)
+            assertTrue(result.model.aggregatePersistenceFieldControls.none { it.version == true })
+            assertNull(result.model.aggregatePersistenceFieldControls.single().version)
+            assertEquals("lockVersion", result.model.aggregatePersistenceProviderControls.single().versionFieldName)
+        }
+    }
+
+    @Test
+    fun `resolved version rejects unsupported explicit and DSL default types with physical evidence`() {
+        listOf("String", "UUID").forEach { type ->
+            listOf(
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7") to DbManagedRole.VERSION,
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7", versionDefaultColumn = "lock_version") to null,
+            ).forEach { (config, managedRole) ->
+                val error = assertThrows(IllegalArgumentException::class.java) {
+                    assembleAggregate(
+                        config = config,
+                        tables = listOf(
+                            table(
+                                name = "video_post",
+                                columns = listOf(
+                                    column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                                    column("lock_version", "BIGINT", type, false, managedRole = managedRole),
+                                ),
+                                primaryKey = listOf("id"),
+                            )
+                        ),
+                    )
+                }
+
+                val message = error.message.orEmpty()
+                listOf(
+                    "video_post",
+                    "VideoPost",
+                    "lockVersion",
+                    "lock_version",
+                    type,
+                    "Short, Int, Long",
+                ).forEach { fragment ->
+                    assertTrue(message.contains(fragment), "expected <$fragment> in <$message>")
+                }
+            }
+        }
     }
 
     @Test
@@ -6648,6 +6767,12 @@ class DefaultCanonicalAssemblerTest {
             versionDefaultColumn = versionDefaultColumn,
             managedDefaultColumns = managedDefaultColumns,
         )
+    )
+
+    private fun supportedVersionTypes(): List<String> = listOf(
+        "Short", "kotlin.Short", "java.lang.Short",
+        "Int", "kotlin.Int", "Integer", "java.lang.Integer",
+        "Long", "kotlin.Long", "java.lang.Long",
     )
 
     private fun table(

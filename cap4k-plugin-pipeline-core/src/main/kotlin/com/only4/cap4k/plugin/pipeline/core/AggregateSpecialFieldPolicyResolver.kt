@@ -104,6 +104,7 @@ internal object AggregateSpecialFieldPolicyResolver {
             entity = entity,
             fieldByColumnName = fieldByColumnName,
         )
+        validateVersionType(entity, versionPolicy)
         val idPolicy = ResolvedIdPolicy(
             fieldName = entity.idField.name,
             columnName = idColumn.name,
@@ -155,6 +156,20 @@ internal object AggregateSpecialFieldPolicyResolver {
             )
 
             DbIdStrategy.UUID7, DbIdStrategy.SNOWFLAKE, null -> Unit
+        }
+    }
+
+    private fun validateVersionType(entity: EntityModel, policy: ResolvedMarkerPolicy) {
+        if (!policy.enabled) return
+        require(policy.writePolicy == SpecialFieldWritePolicy.READ_ONLY) {
+            "resolved version ${entity.packageName}.${entity.name}.${policy.fieldName} must be READ_ONLY"
+        }
+        val field = requireNotNull(entity.fields.singleOrNull { it.name == policy.fieldName }) {
+            "resolved version field ${policy.fieldName} is missing from ${entity.packageName}.${entity.name}"
+        }
+        require(field.type in SupportedVersionTypes) {
+            "unsupported version type for table ${entity.tableName}, entity ${entity.packageName}.${entity.name}, " +
+                "field ${field.name}, column ${policy.columnName}: ${field.type}; supported types: Short, Int, Long"
         }
     }
 
@@ -351,4 +366,10 @@ internal object AggregateSpecialFieldPolicyResolver {
             "missing canonical entity field identity for ${entity.name}.${column.name}"
         }
     }
+
+    private val SupportedVersionTypes = setOf(
+        "Short", "kotlin.Short", "java.lang.Short",
+        "Int", "kotlin.Int", "Integer", "java.lang.Integer",
+        "Long", "kotlin.Long", "java.lang.Long",
+    )
 }
