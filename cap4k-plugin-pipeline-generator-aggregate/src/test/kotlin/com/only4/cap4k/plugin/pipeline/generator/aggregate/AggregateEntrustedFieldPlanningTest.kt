@@ -250,6 +250,26 @@ class AggregateEntrustedFieldPlanningTest {
     }
 
     @Test
+    fun `rejects database identity application side ID control`() {
+        val entity = entity()
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            AggregateEntrustedFieldPlanning.resolve(
+                entity = entity,
+                model = model(
+                    entity = entity,
+                    resolvedPolicy = resolvedPolicy(entity = entity),
+                    idControl = idControl(entity, kind = AggregateIdPolicyKind.APPLICATION_SIDE),
+                ),
+            )
+        }
+
+        assertEquals(
+            "resolved database identity projection mismatch for com.acme.demo.Article.id",
+            error.message,
+        )
+    }
+
+    @Test
     fun `returns no roles for projection only model without resolved policy`() {
         val entity = entity()
 
