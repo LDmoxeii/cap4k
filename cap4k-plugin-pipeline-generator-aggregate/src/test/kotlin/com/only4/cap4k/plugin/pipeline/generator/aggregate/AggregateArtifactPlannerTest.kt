@@ -6293,7 +6293,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(
                 FieldModel("id", "Long", columnName = "id"),
                 FieldModel("title", "String", columnName = "title"),
-                FieldModel("createdBy", "String", columnName = "created_by"),
+                FieldModel("createdBy", "String", nullable = true, columnName = "created_by"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
@@ -6345,29 +6345,161 @@ class AggregateArtifactPlannerTest {
         )
 
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields =
+            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorUnresolvedFields =
+            (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
 
         assertAll(
             { assertEquals(true, factoryContext["payloadWriteSurfaceResolved"]) },
             { assertEquals("Payload", factoryContext["payloadTypeName"]) },
             { assertEquals("VideoPostPayload", factoryContext["payloadMetadataName"]) },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("title"), payloadFields.map { it["name"] })
-            },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("String"), payloadFields.map { it["typeName"] })
-            },
-            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val constructorPayloadFields =
-                    (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
-            },
+            { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
+            { assertEquals(listOf("String"), payloadFields.map { it["typeName"] }) },
+            { assertEquals(true, factoryContext["constructorMappingResolved"]) },
+            { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
+            { assertTrue(constructorUnresolvedFields.isEmpty()) },
+            { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
+            { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
         )
+    }
+
+    @Test
+    fun `factory planner resolves database identity version and soft delete construction matrix`() {
+        data class MatrixCell(
+            val versionType: String,
+            val softDelete: Boolean = false,
+        )
+
+        listOf(
+            MatrixCell(versionType = "Short"),
+            MatrixCell(versionType = "Int"),
+            MatrixCell(versionType = "Long"),
+            MatrixCell(versionType = "Long", softDelete = true),
+        ).forEach { cell ->
+            val entity = EntityModel(
+                name = "VideoPost",
+                packageName = "com.acme.demo.domain.aggregates.video_post",
+                tableName = "video_post",
+                comment = "video post",
+                fields = buildList {
+                    add(FieldModel("id", "Long", columnName = "id"))
+                    add(FieldModel("version", cell.versionType, columnName = "version"))
+                    add(FieldModel("title", "String", columnName = "title"))
+                    if (cell.softDelete) {
+                        add(
+                            FieldModel(
+                                "deleted",
+                                "Long",
+                                columnName = "deleted",
+                                managedRole = DbManagedRole.DELETED,
+                            )
+                        )
+                    }
+                },
+                idField = FieldModel("id", "Long", columnName = "id"),
+            )
+            val policy = AggregateSpecialFieldResolvedPolicy(
+                entityName = entity.name,
+                entityPackageName = entity.packageName,
+                tableName = entity.tableName,
+                id = ResolvedIdPolicy(
+                    fieldName = "id",
+                    columnName = "id",
+                    strategy = "database-identity",
+                    kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                ),
+                deleted = if (cell.softDelete) {
+                    ResolvedMarkerPolicy(
+                        enabled = true,
+                        fieldName = "deleted",
+                        columnName = "deleted",
+                        source = SpecialFieldSource.DB_EXPLICIT,
+                        writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                    )
+                } else {
+                    ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE)
+                },
+                version = ResolvedMarkerPolicy(
+                    enabled = true,
+                    fieldName = "version",
+                    columnName = "version",
+                    source = SpecialFieldSource.DB_EXPLICIT,
+                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                ),
+                managedFields = if (cell.softDelete) {
+                    listOf(
+                        ResolvedManagedFieldPolicy(
+                            fieldName = "deleted",
+                            columnName = "deleted",
+                            writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                            source = SpecialFieldSource.DB_EXPLICIT,
+                            managedRole = DbManagedRole.DELETED,
+                        )
+                    )
+                } else {
+                    emptyList()
+                },
+                writeSurface = ResolvedWriteSurfacePolicy(
+                    createAllowedFields = listOf("id", "title"),
+                    updateAllowedFields = listOf("title"),
+                ),
+            )
+
+            val factoryContext = AggregateArtifactPlanner().plan(
+                aggregateConfig(sources = dbSources("jdbc:h2:mem:factory_matrix")),
+                CanonicalModel(
+                    entities = listOf(entity),
+                    aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                    aggregateIdPolicyControls = listOf(
+                        AggregateIdPolicyControl(
+                            entityName = entity.name,
+                            entityPackageName = entity.packageName,
+                            tableName = entity.tableName,
+                            idFieldName = "id",
+                            idFieldType = "Long",
+                            strategy = "database-identity",
+                            kind = AggregateIdPolicyKind.DATABASE_SIDE,
+                        )
+                    ),
+                    aggregatePersistenceProviderControls = listOf(
+                        AggregatePersistenceProviderControl(
+                            entityName = entity.name,
+                            entityPackageName = entity.packageName,
+                            tableName = entity.tableName,
+                            idFieldName = "id",
+                            versionFieldName = "version",
+                            softDelete = if (cell.softDelete) semanticSoftDeletePolicy() else null,
+                        )
+                    ),
+                    aggregateSpecialFieldResolvedPolicies = listOf(policy),
+                ),
+            ).first { it.templateId == "aggregate/factory.kt.peb" }.context
+            @Suppress("UNCHECKED_CAST")
+            val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+            @Suppress("UNCHECKED_CAST")
+            val constructorPayloadFields =
+                (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+            @Suppress("UNCHECKED_CAST")
+            val unresolvedFields =
+                (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
+
+            assertAll(
+                "version=${cell.versionType}, softDelete=${cell.softDelete}",
+                { assertEquals(true, factoryContext["constructorMappingResolved"]) },
+                { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
+                { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
+                { assertTrue(unresolvedFields.isEmpty()) },
+                { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
+                { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
+            )
+        }
     }
 
     @Test
@@ -6604,7 +6736,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory planner falls back when strong id aggregate has read only version constructor field`() {
+    fun `factory planner resolves strong id aggregate with provider assigned version`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -6693,21 +6825,110 @@ class AggregateArtifactPlannerTest {
         )
 
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields =
+            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorUnresolvedFields =
+            (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
+
+        assertAll(
+            { assertEquals(true, factoryContext["constructorMappingResolved"]) },
+            { assertTrue("constructor" + "StructuralFields" !in factoryContext) },
+            { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
+            { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
+            { assertTrue(constructorUnresolvedFields.isEmpty()) },
+            { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
+            { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
+        )
+    }
+
+    @Test
+    fun `factory planner keeps unrelated generic managed read only field unresolved for strong id aggregate`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "VideoPostId", columnName = "id"),
+                FieldModel(
+                    name = "auditStamp",
+                    type = "String",
+                    columnName = "audit_stamp",
+                    managedRole = DbManagedRole.SYSTEM,
+                ),
+                FieldModel("title", "String", columnName = "title"),
+            ),
+            idField = FieldModel("id", "VideoPostId", columnName = "id"),
+        )
+
+        val factoryContext = AggregateArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                aggregateSpecialFieldResolvedPolicies = listOf(
+                    AggregateSpecialFieldResolvedPolicy(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        id = ResolvedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "uuid7",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = SpecialFieldSource.DSL_DEFAULT,
+                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        managedFields = listOf(
+                            ResolvedManagedFieldPolicy(
+                                fieldName = "auditStamp",
+                                columnName = "audit_stamp",
+                                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                                source = SpecialFieldSource.DB_EXPLICIT,
+                                managedRole = DbManagedRole.SYSTEM,
+                            )
+                        ),
+                        writeSurface = ResolvedWriteSurfacePolicy(
+                            createAllowedFields = listOf("id", "title"),
+                            updateAllowedFields = listOf("title"),
+                        ),
+                    )
+                ),
+                strongIds = listOf(
+                    generatedOwnId(
+                        typeName = "VideoPostId",
+                        packageName = entity.packageName,
+                        valueType = "UUID",
+                        entityName = entity.name,
+                        strategy = "uuid7",
+                    )
+                ),
+            ),
+        ).first { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val constructorPayloadFields =
+            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+        @Suppress("UNCHECKED_CAST")
+        val unresolvedFields =
+            (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
 
         assertAll(
             { assertEquals(false, factoryContext["constructorMappingResolved"]) },
-            { assertTrue("constructor" + "StructuralFields" !in factoryContext) },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(listOf("title"), payloadFields.map { it["name"] })
-            },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val constructorPayloadFields =
-                    (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
-                assertEquals(emptyList<String>(), constructorPayloadFields.map { it["name"] })
-            },
+            { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
+            { assertTrue(constructorPayloadFields.isEmpty()) },
+            { assertEquals(listOf("auditStamp"), unresolvedFields.map { it["name"] }) },
+            { assertEquals(listOf("SYSTEM"), unresolvedFields.map { it["managedRole"] }) },
+            { assertTrue(factoryContext.keys.none { it.contains("lifecycle", ignoreCase = true) }) },
+            { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
+            { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
         )
     }
 

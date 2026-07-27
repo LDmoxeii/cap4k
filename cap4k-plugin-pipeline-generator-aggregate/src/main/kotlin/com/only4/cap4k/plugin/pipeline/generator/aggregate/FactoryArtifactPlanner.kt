@@ -112,9 +112,11 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         ownStrongId: StrongIdModel?,
         payloadFields: List<Map<String, Any?>>,
     ): ConstructorMapping {
+        val entrustedFields = AggregateEntrustedFieldPlanning.resolve(entity, model)
         val payloadFieldNames = payloadFields.mapNotNull { it["name"] as? String }.toSet()
         val missingRequiredFields = entity.fields
             .filterNot { ownStrongId != null && it.name == entity.idField.name }
+            .filterNot { entrustedFields.isProviderAssigned(it.name) }
             .filterNot { it.name in payloadFieldNames }
             .filterNot { resolved && isSystemTransitionOnlyConstructorField(resolvedPolicy, it) }
             .filterNot { field ->
@@ -191,13 +193,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
         field: FieldModel,
     ): Boolean {
-        if (
-            resolvedPolicy?.version?.enabled == true &&
-            resolvedPolicy.version.fieldName == field.name &&
-            resolvedPolicy.version.writePolicy == SpecialFieldWritePolicy.READ_ONLY
-        ) {
-            return true
-        }
         val managedField = resolvedPolicy?.managedFields?.firstOrNull { it.fieldName == field.name } ?: return false
         return managedField.writePolicy == SpecialFieldWritePolicy.READ_ONLY ||
             managedField.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY

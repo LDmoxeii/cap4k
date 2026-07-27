@@ -744,14 +744,14 @@ class PebbleArtifactRendererTest {
 
     @Test
     @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
-    fun `provider assigned identity and version stay outside construction and compile nullable`() {
+    fun `provider assigned identity and version stay outside entity and factory construction and compile`() {
         val entityContent = renderTemplate(
             templateId = "aggregate/entity.kt.peb",
-            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/article/Article.kt",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
             context = mapOf(
-                "packageName" to "com.acme.demo.domain.aggregates.article",
-                "typeName" to "Article",
-                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "article"),
+                "packageName" to "com.acme.demo.domain.aggregates.video_post",
+                "typeName" to "VideoPost",
+                "entityJpa" to mapOf("entityEnabled" to true, "tableName" to "video_post"),
                 "hasStrongIdFields" to false,
                 "hasEmbeddedStrongIdFields" to false,
                 "hasGeneratedValueFields" to true,
@@ -759,15 +759,9 @@ class PebbleArtifactRendererTest {
                 "hasVersionFields" to true,
                 "hasConverterFields" to false,
                 "jpaImports" to emptyList<String>(),
-                "imports" to listOf("java.time.LocalDateTime"),
+                "imports" to emptyList<String>(),
                 "constructorFields" to listOf(
                     mapOf("name" to "title", "type" to "String", "nullable" to false, "defaultValue" to null),
-                    mapOf(
-                        "name" to "createdAt",
-                        "type" to "LocalDateTime",
-                        "nullable" to false,
-                        "defaultValue" to null,
-                    ),
                 ),
                 "scalarFields" to entityScalarFields(
                     mapOf(
@@ -801,25 +795,59 @@ class PebbleArtifactRendererTest {
                         "isId" to false,
                         "isVersion" to false,
                     ),
-                    mapOf(
-                        "name" to "createdAt",
-                        "type" to "LocalDateTime",
-                        "propertyInitializer" to "createdAt",
-                        "nullable" to false,
-                        "propertyNullable" to false,
-                        "columnName" to "created_at",
-                        "isId" to false,
-                        "isVersion" to false,
-                    ),
                 ),
                 "relationFields" to emptyList<Map<String, Any?>>(),
             ),
         )
+        val factoryContent = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath =
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
+                "typeName" to "VideoPostFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "VideoPostPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to true,
+                "payloadFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false)
+                ),
+                "constructorPayloadFields" to listOf(mapOf("name" to "title")),
+                "constructorUnresolvedFields" to emptyList<Map<String, Any?>>(),
+                "entityName" to "VideoPost",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
+                "aggregateName" to "VideoPost",
+                "imports" to emptyList<String>(),
+            ),
+        )
 
         assertReadableKotlin(entityContent)
+        assertReadableKotlin(factoryContent)
         val result = KotlinCompilation().apply {
             sources = listOf(
-                SourceFile.kotlin("Article.kt", entityContent),
+                SourceFile.kotlin("VideoPost.kt", entityContent),
+                SourceFile.kotlin("VideoPostFactory.kt", factoryContent),
+                SourceFile.kotlin(
+                    "AggregateContracts.kt",
+                    """
+                    package com.only4.cap4k.ddd.core.domain.aggregate
+
+                    interface AggregatePayload<ENTITY : Any>
+                    interface AggregateFactory<PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> {
+                        fun create(entityPayload: PAYLOAD): ENTITY
+                    }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Service.kt",
+                    """
+                    package org.springframework.stereotype
+
+                    @Target(AnnotationTarget.CLASS)
+                    annotation class Service
+                    """.trimIndent(),
+                ),
                 SourceFile.kotlin(
                     "Jpa.kt",
                     """
@@ -852,7 +880,7 @@ class PebbleArtifactRendererTest {
         assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode, result.messages)
         assertTrue(
             entityContent.contains(
-                "class Article internal constructor(\n    title: String,\n    createdAt: LocalDateTime\n)"
+                "class VideoPost internal constructor(\n    title: String\n)"
             ),
             entityContent,
         )
@@ -862,6 +890,49 @@ class PebbleArtifactRendererTest {
         assertTrue(entityContent.contains("@Version"), entityContent)
         assertFalse(entityContent.substringBefore(") {").contains("id:"), entityContent)
         assertFalse(entityContent.substringBefore(") {").contains("version:"), entityContent)
+        assertTrue(factoryContent.contains("VideoPost("), factoryContent)
+        assertTrue(factoryContent.contains("title = entityPayload.title"), factoryContent)
+        assertFalse(factoryContent.contains("id ="), factoryContent)
+        assertFalse(factoryContent.contains("version ="), factoryContent)
+        assertFalse(factoryContent.contains("TODO(\"Implement aggregate construction\")"), factoryContent)
+    }
+
+    @Test
+    fun `generic managed unresolved factory keeps explicit construction TODO boundary`() {
+        val content = renderTemplate(
+            templateId = "aggregate/factory.kt.peb",
+            outputPath =
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/managed_audit/factory/ManagedAuditRecordFactory.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.aggregates.managed_audit.factory",
+                "typeName" to "ManagedAuditRecordFactory",
+                "payloadTypeName" to "Payload",
+                "payloadMetadataName" to "ManagedAuditRecordPayload",
+                "payloadWriteSurfaceResolved" to true,
+                "constructorMappingResolved" to false,
+                "payloadFields" to listOf(
+                    mapOf("name" to "title", "type" to "String", "nullable" to false)
+                ),
+                "constructorPayloadFields" to emptyList<Map<String, Any?>>(),
+                "constructorUnresolvedFields" to listOf(
+                    mapOf(
+                        "name" to "auditStamp",
+                        "type" to "String",
+                        "managed" to true,
+                        "managedRole" to "SYSTEM",
+                    )
+                ),
+                "entityName" to "ManagedAuditRecord",
+                "entityTypeFqn" to "com.acme.demo.domain.aggregates.managed_audit.ManagedAuditRecord",
+                "aggregateName" to "ManagedAuditRecord",
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("val title: String"), content)
+        assertTrue(content.contains("TODO(\"Implement aggregate construction\")"), content)
+        assertFalse(content.contains("ManagedAuditRecord("), content)
     }
 
     @Test
