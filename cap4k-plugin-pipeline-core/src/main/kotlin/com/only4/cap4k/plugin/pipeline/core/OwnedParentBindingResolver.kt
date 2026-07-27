@@ -36,6 +36,11 @@ internal object OwnedParentBindingResolver {
                         "ambiguous parent reference columns for table ${table.tableName}: ${parentRefColumns.joinToString(", ") { it.name }}"
                     )
                 }
+                val parentRefKey = columnKey(parentRefColumn.name)
+                require(table.primaryKey.map(::columnKey) != listOf(parentRefKey)) {
+                    "owned child ${table.tableName} cannot use parent reference column ${parentRefColumn.name} " +
+                        "as its primary key; declare an independent child primary key"
+                }
 
                 OwnedParentBinding(
                     childTable = table,
@@ -46,4 +51,6 @@ internal object OwnedParentBindingResolver {
     }
 
     private fun tableKey(tableName: String): String = tableName.lowercase(Locale.ROOT)
+
+    private fun columnKey(columnName: String): String = columnName.lowercase(Locale.ROOT)
 }

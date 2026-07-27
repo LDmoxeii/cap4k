@@ -2998,7 +2998,7 @@ class DefaultCanonicalAssemblerTest {
 
         val line = result.model.entities.single { it.name == "OrderLine" }
         assertEquals("OrderLineId", line.idField.type)
-        assertEquals("String", line.fields.single { it.name == "orderId" }.type)
+        assertFalse(line.fields.any { it.name == "orderId" })
     }
 
     @Test
@@ -4644,6 +4644,39 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `owned parent binding rejects parent ref as shared primary key`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "video_file",
+                        parentTable = "video",
+                        columns = listOf(
+                            column("video_id", "BIGINT", "Long", false, primaryKey = true, parentRef = true),
+                        ),
+                        primaryKey = listOf("VIDEO_ID"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "owned child video_file cannot use parent reference column video_id as its primary key; " +
+                "declare an independent child primary key",
+            error.message,
+        )
+    }
+
+    @Test
     fun `owned parent binding ignores weak reference metadata without parent ref`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assembleAggregate(
@@ -4706,8 +4739,13 @@ class DefaultCanonicalAssemblerTest {
             ),
         )
 
+        val childEntity = result.model.entities.single { it.name == "VideoPostFile" }
+        val childSchema = result.model.schemas.single { it.entityName == "VideoPostFile" }
         val relation = result.model.aggregateRelations.single()
 
+        assertEquals(listOf("id", "storageKey"), childEntity.fields.map { it.name })
+        assertEquals(listOf("id", "storageKey"), childSchema.fields.map { it.name })
+        assertEquals(listOf("video_post_id"), childEntity.uniqueConstraints.single().columns)
         assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
         assertEquals("files", relation.fieldName)
         assertEquals("video_post_id", relation.joinColumn)
