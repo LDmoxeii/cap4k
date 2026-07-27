@@ -6,6 +6,7 @@ import com.only4.cap4k.ddd.core.application.RequestParam
 import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
@@ -15,14 +16,21 @@ import com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository
 import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
+import jakarta.persistence.ConstraintMode
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityManager
 import jakarta.persistence.FetchType
+import jakarta.persistence.ForeignKey
 import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.OneToMany
+import jakarta.persistence.PersistenceContext
 import jakarta.persistence.Table
+import jakarta.persistence.Transient
+import jakarta.persistence.Version
 import org.hibernate.HibernateException
 import org.hibernate.PersistentObjectException
 import org.hibernate.annotations.GenericGenerator
@@ -126,8 +134,14 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @Autowired
     private lateinit var transactionManager: PlatformTransactionManager
 
+    @PersistenceContext
+    private lateinit var entityManager: EntityManager
+
     @BeforeEach
     fun cleanDatabase() {
+        jdbcTemplate.update("delete from `runtime_entrusted_grandchild`")
+        jdbcTemplate.update("delete from `runtime_entrusted_child`")
+        jdbcTemplate.update("delete from `runtime_entrusted_root`")
         jdbcTemplate.update("delete from `runtime_safe_reverse_grandchild`")
         jdbcTemplate.update("delete from `runtime_safe_reverse_child`")
         jdbcTemplate.update("delete from `runtime_safe_reverse_root`")
@@ -560,6 +574,134 @@ class AggregateJpaRuntimeDefectReproductionTest {
         assertSupported(classification)
     }
 
+    @Test
+    @DisplayName("root-only create completes entrusted identity version and forward joins")
+    fun rootOnlyCreateCompletesEntrustedIdentityVersionAndForwardJoins() {
+        val root = newEntrustedRoot("entrusted-create")
+        val children = root.children.toList()
+        val grandchildrenByChild = children.associateWith { it.grandchildren.toList() }
+
+        unitOfWork.persist(root, PersistIntent.CREATE)
+        unitOfWork.save()
+
+        val rootId = checkNotNull(root.id)
+        assertNotNull(root.version)
+        children.forEach { child ->
+            val childId = checkNotNull(child.id)
+            assertNotNull(child.version)
+            assertEquals(
+                rootId,
+                queryLong("select `root_id` from `runtime_entrusted_child` where `id` = ?", childId)
+            )
+            grandchildrenByChild.getValue(child).forEach { grandchild ->
+                val grandchildId = checkNotNull(grandchild.id)
+                assertNotNull(grandchild.version)
+                assertEquals(
+                    childId,
+                    queryLong(
+                        "select `child_id` from `runtime_entrusted_grandchild` where `id` = ?",
+                        grandchildId
+                    )
+                )
+            }
+        }
+        assertEquals(0, importedKeyCount("runtime_entrusted_child"))
+        assertEquals(0, importedKeyCount("runtime_entrusted_grandchild"))
+        assertEquals(
+            listOf(
+                "entrusted-create-grandchild-a1",
+                "entrusted-create-grandchild-a2",
+                "entrusted-create-grandchild-b1"
+            ),
+            queryEntrustedGrandchildren(rootId).map { it.name }.sorted()
+        )
+    }
+
+    @Test
+    @DisplayName("existing root save completes a newly attached entrusted child")
+    fun existingRootSaveCompletesANewlyAttachedEntrustedChild() {
+        val root = newEntrustedRoot("entrusted-existing")
+        unitOfWork.persist(root, PersistIntent.CREATE)
+        unitOfWork.save()
+        val rootId = checkNotNull(root.id)
+        JpaUnitOfWork.reset()
+
+        lateinit var newChild: RuntimeEntrustedChild
+        lateinit var newGrandchild: RuntimeEntrustedGrandchild
+        TransactionTemplate(transactionManager).executeWithoutResult {
+            val loaded = entityManager.find(RuntimeEntrustedRoot::class.java, rootId)
+            newGrandchild = RuntimeEntrustedGrandchild("entrusted-existing-grandchild-new")
+            newChild = RuntimeEntrustedChild("entrusted-existing-child-new").apply {
+                grandchildren.add(newGrandchild)
+            }
+            loaded.children.add(newChild)
+
+            unitOfWork.persist(loaded)
+            unitOfWork.save()
+        }
+
+        val childId = checkNotNull(newChild.id)
+        assertNotNull(newChild.version)
+        assertNotNull(newGrandchild.id)
+        assertNotNull(newGrandchild.version)
+        assertEquals(
+            rootId,
+            queryLong("select `root_id` from `runtime_entrusted_child` where `id` = ?", childId)
+        )
+        assertEquals(
+            childId,
+            queryLong(
+                "select `child_id` from `runtime_entrusted_grandchild` where `id` = ?",
+                checkNotNull(newGrandchild.id)
+            )
+        )
+    }
+
+    @Test
+    @DisplayName("outer rollback keeps assigned entrusted state but removes rows")
+    fun outerRollbackKeepsAssignedEntrustedStateButRemovesRows() {
+        val root = newEntrustedRoot("entrusted-rollback")
+        val children = root.children.toList()
+        val grandchildren = children.flatMap { it.grandchildren }
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            TransactionTemplate(transactionManager).executeWithoutResult {
+                unitOfWork.persist(root, PersistIntent.CREATE)
+                unitOfWork.save()
+
+                assertNotNull(root.id)
+                assertNotNull(root.version)
+                children.forEach { child ->
+                    assertNotNull(child.id)
+                    assertNotNull(child.version)
+                }
+                grandchildren.forEach { grandchild ->
+                    assertNotNull(grandchild.id)
+                    assertNotNull(grandchild.version)
+                }
+                throw IllegalStateException("rollback entrusted graph")
+            }
+        }
+
+        assertEquals("rollback entrusted graph", failure.message)
+        assertNotNull(root.id)
+        assertNotNull(root.version)
+        assertTrue(children.all { it.id != null && it.version != null })
+        assertTrue(grandchildren.all { it.id != null && it.version != null })
+        assertEquals(
+            0,
+            countRows("select count(*) from `runtime_entrusted_root` where `name` = ?", "entrusted-rollback")
+        )
+        assertEquals(
+            0,
+            countRows("select count(*) from `runtime_entrusted_child` where `name` like ?", "entrusted-rollback%")
+        )
+        assertEquals(
+            0,
+            countRows("select count(*) from `runtime_entrusted_grandchild` where `name` like ?", "entrusted-rollback%")
+        )
+    }
+
     private fun saveRoot(root: RuntimeRoot): RuntimeRoot {
         unitOfWork.persist(root, PersistIntent.CREATE)
         unitOfWork.save()
@@ -586,6 +728,37 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     private fun queryLongs(sql: String, vararg args: Any): List<Long> =
         jdbcTemplate.queryForList(sql, Long::class.java, *args).map { it.toLong() }
+
+    private fun importedKeyCount(tableName: String): Int =
+        requireNotNull(jdbcTemplate.dataSource).connection.use { connection ->
+            connection.metaData.getImportedKeys(null, null, tableName).use { importedKeys ->
+                var count = 0
+                while (importedKeys.next()) count++
+                count
+            }
+        }
+
+    private fun queryEntrustedGrandchildren(rootId: Long): List<RuntimeEntrustedGrandchild> =
+        requireNotNull(TransactionTemplate(transactionManager).execute {
+            val builder = entityManager.criteriaBuilder
+            val query = builder.createQuery(RuntimeEntrustedGrandchild::class.java)
+            val root = query.from(RuntimeEntrustedRoot::class.java)
+            val children = root.join<RuntimeEntrustedRoot, RuntimeEntrustedChild>("_children")
+            val grandchildren = children.join<RuntimeEntrustedChild, RuntimeEntrustedGrandchild>("_grandchildren")
+            query.select(grandchildren).where(builder.equal(root.get<Long>("id"), rootId))
+            entityManager.createQuery(query).resultList
+        })
+
+    private fun newEntrustedRoot(name: String): RuntimeEntrustedRoot =
+        RuntimeEntrustedRoot(name).apply {
+            children.add(RuntimeEntrustedChild("$name-child-a").apply {
+                grandchildren.add(RuntimeEntrustedGrandchild("$name-grandchild-a1"))
+                grandchildren.add(RuntimeEntrustedGrandchild("$name-grandchild-a2"))
+            })
+            children.add(RuntimeEntrustedChild("$name-child-b").apply {
+                grandchildren.add(RuntimeEntrustedGrandchild("$name-grandchild-b1"))
+            })
+        }
 
     private fun newThreeLevelRoot(name: String): RuntimeRoot =
         RuntimeRoot(name = name).apply {
@@ -676,6 +849,111 @@ class AggregateJpaRuntimeDefectReproductionTest {
             snowflakeIdGenerator: SnowflakeIdGenerator
         ): SnowflakeIdentifierStrategy =
             SnowflakeIdentifierStrategy(snowflakeIdGenerator)
+    }
+}
+
+@Entity
+@Table(name = "`runtime_entrusted_root`")
+open class RuntimeEntrustedRoot protected constructor() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`", nullable = false)
+    open var id: Long? = null
+        protected set
+
+    @Version
+    @Column(name = "`version`", nullable = false)
+    open var version: Long? = null
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open lateinit var name: String
+        protected set
+
+    @OneToMany(
+        cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE],
+        fetch = FetchType.LAZY,
+        orphanRemoval = true
+    )
+    @JoinColumn(
+        name = "`root_id`",
+        nullable = false,
+        foreignKey = ForeignKey(value = ConstraintMode.NO_CONSTRAINT)
+    )
+    private var _children: MutableList<RuntimeEntrustedChild> = mutableListOf()
+
+    @get:Transient
+    val children: OwnedEntityList<RuntimeEntrustedChild>
+        get() = OwnedEntityList.of(_children, RuntimeEntrustedChild::class, "RuntimeEntrustedRoot.children")
+
+    constructor(name: String) : this() {
+        this.name = name
+    }
+}
+
+@Entity
+@Table(name = "`runtime_entrusted_child`")
+open class RuntimeEntrustedChild protected constructor() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`", nullable = false)
+    open var id: Long? = null
+        protected set
+
+    @Version
+    @Column(name = "`version`", nullable = false)
+    open var version: Long? = null
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open lateinit var name: String
+        protected set
+
+    @OneToMany(
+        cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE],
+        fetch = FetchType.LAZY,
+        orphanRemoval = true
+    )
+    @JoinColumn(
+        name = "`child_id`",
+        nullable = false,
+        foreignKey = ForeignKey(value = ConstraintMode.NO_CONSTRAINT)
+    )
+    private var _grandchildren: MutableList<RuntimeEntrustedGrandchild> = mutableListOf()
+
+    @get:Transient
+    val grandchildren: OwnedEntityList<RuntimeEntrustedGrandchild>
+        get() = OwnedEntityList.of(
+            _grandchildren,
+            RuntimeEntrustedGrandchild::class,
+            "RuntimeEntrustedChild.grandchildren"
+        )
+
+    constructor(name: String) : this() {
+        this.name = name
+    }
+}
+
+@Entity
+@Table(name = "`runtime_entrusted_grandchild`")
+open class RuntimeEntrustedGrandchild protected constructor() {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "`id`", nullable = false)
+    open var id: Long? = null
+        protected set
+
+    @Version
+    @Column(name = "`version`", nullable = false)
+    open var version: Long? = null
+        protected set
+
+    @Column(name = "`name`", nullable = false)
+    open lateinit var name: String
+        protected set
+
+    constructor(name: String) : this() {
+        this.name = name
     }
 }
 
