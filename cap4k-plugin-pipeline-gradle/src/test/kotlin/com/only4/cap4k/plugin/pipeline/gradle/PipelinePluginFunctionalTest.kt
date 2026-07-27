@@ -1418,7 +1418,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate aligns owned direct parent bindings with scalar fk and read only inverse relation`() {
+    fun `cap4kGenerate keeps owned direct parent bindings forward only`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
         copyFixture(projectDir, "aggregate-relation-sample")
 
@@ -1487,18 +1487,13 @@ class PipelinePluginFunctionalTest {
         assertFalse(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
         assertFalse(rootEntityContent.contains("mappedBy ="))
         assertFalse(rootEntityContent.contains("ManyToMany"))
-        assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
-        assertTrue(childEntityContent.contains("var videoPostId: Long = videoPostId"))
-        assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(
-            childEntityContent.contains(
-                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
-            )
-        )
-        assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
-        assertFalse(childEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
-        assertTrue(oneChildEntityContent.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
-        assertTrue(oneChildEntityContent.contains("var videoPostId: Long = videoPostId"))
+        assertFalse(childEntityContent.contains("videoPostId"))
+        assertFalse(childEntityContent.contains("@ManyToOne"))
+        assertFalse(childEntityContent.contains("import jakarta.persistence.ManyToOne"))
+        assertFalse(childEntityContent.contains("lateinit var videoPost: VideoPost"))
+        assertFalse(oneChildEntityContent.contains("videoPostId"))
+        assertFalse(oneChildEntityContent.contains("@ManyToOne"))
+        assertFalse(oneChildEntityContent.contains("import jakarta.persistence.ManyToOne"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1718,6 +1713,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
         assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedVideoPost.contains("@Version"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("id"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("version"))
+        assertTrue(generatedVideoPost.contains("var id: Long? = null"))
+        assertTrue(generatedVideoPost.contains("var version: Long? = null"))
         assertTrue(generatedVideoPost.contains("var deleted: Long = 0L"))
         assertFalse(internalConstructorParameters(generatedVideoPost).contains("deleted"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
@@ -1769,8 +1768,8 @@ class PipelinePluginFunctionalTest {
             assertFalse(factory.contains(cell.idType), cell.factoryType)
         }
 
-        assertEquals(false, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
-        assertTrue(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
+        assertEquals(true, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
+        assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(generatedIdentityFactory.contains("deleted"))
 
         val allGeneratedEvidence = buildString {
