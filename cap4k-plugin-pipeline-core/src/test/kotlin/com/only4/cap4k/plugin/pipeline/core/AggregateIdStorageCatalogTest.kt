@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -33,6 +34,36 @@ class AggregateIdStorageCatalogTest {
                 "${case.jdbcType}/${case.dbType}/${case.kotlinType}",
             )
         }
+    }
+
+    @Test
+    fun `accepts provider shaped Int types for narrow integral metadata`() {
+        assertAll(
+            {
+                assertEquals(
+                    ResolvedAggregateIdStorage.Integral(8, false, "Int"),
+                    resolve(Types.TINYINT, "TINYINT", "Int"),
+                )
+            },
+            {
+                assertEquals(
+                    ResolvedAggregateIdStorage.Integral(8, false, "kotlin.Int"),
+                    resolve(Types.TINYINT, "TINYINT", "kotlin.Int"),
+                )
+            },
+            {
+                assertEquals(
+                    ResolvedAggregateIdStorage.Integral(16, false, "Int"),
+                    resolve(Types.SMALLINT, "SMALLINT", "Int"),
+                )
+            },
+            {
+                assertEquals(
+                    ResolvedAggregateIdStorage.Integral(16, false, "kotlin.Int"),
+                    resolve(Types.SMALLINT, "SMALLINT", "kotlin.Int"),
+                )
+            },
+        )
     }
 
     @Test
@@ -90,6 +121,10 @@ class AggregateIdStorageCatalogTest {
             RejectedCase(Types.VARCHAR, "VARCHAR", "String", -1),
             RejectedCase(Types.VARCHAR, "INT", "Int", 32),
             RejectedCase(Types.INTEGER, "INT", "String", 32),
+            RejectedCase(Types.TINYINT, "TINYINT", "Long", 8),
+            RejectedCase(Types.SMALLINT, "SMALLINT", "Number", 16),
+            RejectedCase(Types.SMALLINT, "TINYINT", "Int", 8),
+            RejectedCase(Types.TINYINT, "SMALLINT", "Int", 16),
             RejectedCase(Types.VARCHAR, "VARCHAR", "Int", 32),
             RejectedCase(Types.OTHER, "uuid", "String", 16),
             RejectedCase(Types.OTHER, " uuid ", "UUID", 16),

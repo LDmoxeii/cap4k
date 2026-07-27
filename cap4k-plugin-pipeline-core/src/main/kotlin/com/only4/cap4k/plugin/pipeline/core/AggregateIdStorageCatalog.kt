@@ -63,8 +63,8 @@ internal object AggregateIdStorageCatalog {
         val name = match.groupValues[1].uppercase(Locale.ROOT)
         val unsigned = match.groupValues[2].isNotEmpty()
         val (bits, expectedJdbcType, acceptedKotlinTypes) = when (name) {
-            "TINYINT" -> IntegralStorage(8, Types.TINYINT, setOf("Byte", "kotlin.Byte"))
-            "SMALLINT" -> IntegralStorage(16, Types.SMALLINT, setOf("Short", "kotlin.Short"))
+            "TINYINT" -> IntegralStorage(8, Types.TINYINT, setOf("Byte", "kotlin.Byte", "Int", "kotlin.Int"))
+            "SMALLINT" -> IntegralStorage(16, Types.SMALLINT, setOf("Short", "kotlin.Short", "Int", "kotlin.Int"))
             "MEDIUMINT" -> IntegralStorage(24, Types.INTEGER, setOf("Int", "kotlin.Int"))
             "INT", "INTEGER" -> IntegralStorage(32, Types.INTEGER, setOf("Int", "kotlin.Int"))
             "BIGINT" -> IntegralStorage(64, Types.BIGINT, setOf("Long", "kotlin.Long"))
