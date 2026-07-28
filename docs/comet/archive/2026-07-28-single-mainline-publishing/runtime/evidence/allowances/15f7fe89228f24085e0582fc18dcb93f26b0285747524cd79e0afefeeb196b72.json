@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.partial-allowance.v1",
+  "change": "single-mainline-publishing",
+  "scopeHash": "9f045005c9bfed5a8d95e4b537a82ea227103af94832c1b6a30cfbcfed019654",
+  "scopeIds": [
+    "scope:61df998b26afcbc1c62f92454cf49f277f9f92e9766825211be13917f6c20a76",
+    "scope:9b0e5d8fd38bbdbce028aded75f907af3f01e39e95513eb78b186268a8f79946",
+    "scope:bfd76c4387bdbbca6f799312baf24a909a18c0c5119f41560b1ee6c75eaaeb7c"
+  ],
+  "reason": "The only unattributed paths are three intentionally deleted Aliyun publishing artifacts. Comet requires build artifacts to exist, so deletions cannot be passed through --artifact; the confirmed contract explicitly removes the Aliyun workflow and unfinished Aliyun version policy files.",
+  "confirmedSummary": "Unified cap4k release governance on master: Maven Central releases now require exact vX.Y.Z tags contained in origin/master, Aliyun and publish-branch paths are removed, contributor governance targets master only, and an official multi-module Composite Build fixture proves local consumer substitution without remote snapshots.",
+  "sourceRevision": 2,
+  "confirmedAt": "2026-07-28T15:58:20.446Z",
+  "allowanceHash": "15f7fe89228f24085e0582fc18dcb93f26b0285747524cd79e0afefeeb196b72"
+}

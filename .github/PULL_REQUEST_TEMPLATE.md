@@ -5,14 +5,11 @@
 ## Target Branch
 
 - [ ] `master`
-- [ ] `publish/aliyun-private`
-- [ ] `publish/maven-central`
 
 ## Change Type
 
 - [ ] Code, build, scripts, workflow, tests, fixtures, or templates
 - [ ] Documentation-only
-- [ ] Release promotion from `master`
 - [ ] Repository governance or GitHub configuration
 
 ## Verification

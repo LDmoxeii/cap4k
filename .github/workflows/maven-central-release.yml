@@ -43,12 +43,12 @@ jobs:
           fi
           echo "RELEASE_VERSION=${TAG_NAME#v}" >> "$GITHUB_ENV"
 
-      - name: Verify tagged commit is on publish branch
+      - name: Verify tagged commit is on master
         shell: bash
         run: |
-          git fetch --no-tags origin publish/maven-central:refs/remotes/origin/publish/maven-central
-          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "origin/publish/maven-central"; then
-            echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/publish/maven-central." >&2
+          git fetch --no-tags origin master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" "origin/master"; then
+            echo "Tag ${GITHUB_REF_NAME} points to ${GITHUB_SHA}, which is not contained in origin/master." >&2
             exit 1
           fi
 

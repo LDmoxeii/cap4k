@@ -126,27 +126,17 @@ function Assert-PrBranchPolicy {
         [string] $HeadBranch
     )
 
-    $publishBranches = @("publish/aliyun-private", "publish/maven-central")
-    $protectedBranches = @("master") + $publishBranches
-
-    if ($BaseBranch -ceq "master") {
-        if ($HeadBranch -match ":") {
-            throw "Working branch pull requests to master must use an unqualified same-repository head branch, not '$HeadBranch'."
-        }
-        if ($protectedBranches -ccontains $HeadBranch) {
-            throw "Working branch pull requests to master must use a short-lived head branch, not protected head '$HeadBranch'."
-        }
-        return
+    if ($BaseBranch -cne "master") {
+        throw "Unsupported base branch '$BaseBranch'. Allowed base: master."
     }
 
-    if ($publishBranches -ccontains $BaseBranch) {
-        if ($HeadBranch -cne "master" -or $HeadBranch -match ":") {
-            throw "Publish branch pull requests must use same-repository master as the head branch."
-        }
-        return
+    if ($HeadBranch -match ":") {
+        throw "Working branch pull requests to master must use an unqualified same-repository head branch, not '$HeadBranch'."
     }
 
-    throw "Unsupported base branch '$BaseBranch'. Allowed bases: master, publish/aliyun-private, publish/maven-central."
+    if ($HeadBranch -ceq "master" -or $HeadBranch -match "^publish/") {
+        throw "Working branch pull requests to master must use a short-lived head branch, not '$HeadBranch'."
+    }
 }
 
 function Invoke-ValidationScript {

@@ -1,0 +1,957 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "e24bb696e2a6a2317dc7e4ea231d947d9b6ecf89e73bb3ee42917ed4441153be",
+  "baselineProjectionRef": "runtime/evidence/snapshots/3383747398e3f0b4f4f02fd9404f825751effde949c305cb1252022ec1fe1ad1.json",
+  "baselineProjectionHash": "3383747398e3f0b4f4f02fd9404f825751effde949c305cb1252022ec1fe1ad1",
+  "currentProjectionRef": "runtime/evidence/snapshots/bff9c03ae2d4cd1fc04d26a28d49a4a170f88c21f8b88f83c3961521aa0c5a2b.json",
+  "currentProjectionHash": "bff9c03ae2d4cd1fc04d26a28d49a4a170f88c21f8b88f83c3961521aa0c5a2b",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": ".github/workflows/maven-central-release.yml",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/CompositeBuildConsumerFunctionalTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "docs/superpowers/analysis/local-composite-development.md",
+      "kind": "file"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/create-pr.ps1",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": ".github/ISSUE_TEMPLATE/release.yml",
+      "kind": "modified",
+      "before": {
+        "hash": "b9f00217e1cf1d1baa90f847fc7020c433b1991be52a344811055a216114a0ec",
+        "size": 758
+      },
+      "after": {
+        "hash": "e5eb384142b0fe901a6335d7b95ea8cd1c34f58e0844d691bcb2d9c1376c5e73",
+        "size": 799
+      },
+      "attributedTo": []
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "kind": "modified",
+      "before": {
+        "hash": "0ba120fc5533a641656be51bddb820f2297e8dee324818160cf92d1f65efbf4a",
+        "size": 667
+      },
+      "after": {
+        "hash": "4f0c4a90a50c62afbf2948954197ced95a4c0cdeb489c8f4b8e042686fad7cb9",
+        "size": 559
+      },
+      "attributedTo": []
+    },
+    {
+      "path": ".github/workflows/aliyun-snapshot.yml",
+      "kind": "removed",
+      "before": {
+        "hash": "e3c8f9f0fa34af1b0efb494b2c54c8f61119f58221a4695e4285d3d461c0129c",
+        "size": 1939
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "kind": "modified",
+      "before": {
+        "hash": "fa23bc338303b12f95661ae8a4f1093e536ae87e79bcf55a586f3f9d2a347719",
+        "size": 5412
+      },
+      "after": {
+        "hash": "41abceaa04eeaeaac246ec6c9a5b3556ce36d9b9ec33f07058de8ad230ee0e76",
+        "size": 4189
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "AGENTS.md",
+      "kind": "modified",
+      "before": {
+        "hash": "c6066cab31ea606e2ffbb9ca5bc1ffc8f004bfc55ba6fe1de39ff1b551423b51",
+        "size": 11994
+      },
+      "after": {
+        "hash": "3853d84384e268abf3d6287e6817daf95fa077a5e4ab918fb35962a0b18876b3",
+        "size": 11388
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "buildSrc/src/main/kotlin/buildsrc/convention/AliyunPublishVersion.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "3647b2cbd90c6ae73203db851067c28ddec96cba46d80fc11ce1fa8cceec44e9",
+        "size": 625
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "76c4e7d81dad3c6cd8ddfe9327b334e3834808d9d3a224580051f8baf9a3d601",
+        "size": 5901
+      },
+      "after": {
+        "hash": "b10a71737e6d28322f34913514167ab060eadf0e7705b0329ee34d85fcf50780",
+        "size": 4944
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "buildSrc/src/test/kotlin/buildsrc/convention/AliyunPublishVersionTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "f7a39e79c59f230a8325f018bbf720071afa84abb1e12ee189e61c3adff63d26",
+        "size": 1109
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/CompositeBuildConsumerFunctionalTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "fb718f440dad678b4812e491c01a2c1ddb86e51fea3bc59eac047de9fba88ee5",
+        "size": 3040
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/CompositeBuildConsumerFunctionalTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "a950b21eed86cf96376cd67dc1790834242886ec0f470c5e8c286217c34aadd5",
+        "size": 6961
+      },
+      "after": {
+        "hash": "f23c7562274367958f15a12a71b367a3d4ad4dc71dd41241faf281570ace8cd9",
+        "size": 7009
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c6ba5feb9629513b67c6d02be5bfc34f71245ac382109c0f6d80268b0e9b6d18",
+        "size": 497
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/src/main/kotlin/com/example/demo/adapter/AdapterMarker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "74dfe58f3cb4545a7ec83c7948cf888da7c94bd75e4ca50c6fe3997101b88f62",
+        "size": 55
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "f47b0692cc599e92d31c7df6b14b4e8a40602756ede90cdebe8cbba93ed06d7e",
+        "size": 360
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/src/main/kotlin/com/example/demo/application/ApplicationMarker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c09b9c0a928968fc3962ead5f7d1a3fc9dad005fbbd4e68e835548ac9ba740fc",
+        "size": 63
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "876c49f1dbb0804e3969c647ad866b3eaf7c23a2c2db89d8e4bd4fb253099522",
+        "size": 255
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "72081ca43ae0bace982295966c85c74acaa6f39ab9c8dad51e981892a6ae5d41",
+        "size": 491
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/src/main/kotlin/com/example/demo/domain/DomainMarker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "ffb5ece308b8ae7d24930f3d21845a4503dd286d56bc6becae4e23b9edfee72f",
+        "size": 53
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/gradle/libs.versions.toml",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "a4d33cdaaf17eb5dc80616bf768d31f817461787576f16d112fc01f3d2592d97",
+        "size": 1878
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/settings.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "b153b93e7d1ab001e8e6882673c601e0a665f4cac936c4516acd70b12353230d",
+        "size": 521
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "a80831ab69142f9a9afce43752c187ef24f06cc9423b91ab11eb9fc25672ef14",
+        "size": 595
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/kotlin/com/example/demo/DemoApplication.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "cc642bb74d33f4cd8b1a2b4b318d29a0fb8c0ac3f295ab41c8a559158a7c8ac8",
+        "size": 265
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/resources/application.yml",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "a0935eacfe6631d37654b77dda16625526d69fd26aa69e7a581593bddae228e3",
+        "size": 79
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/test/kotlin/com/example/demo/DemoApplicationTests.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "d5bc51160fdd6c0c317c015a8cb8282feb4b6866c1e99295d306f2e2ccdcb2e7",
+        "size": 210
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/analysis/README.md",
+      "kind": "modified",
+      "before": {
+        "hash": "0605487c6cc7461ff9a6296d5b800b95bad355a557afde984eefad5d59044b4f",
+        "size": 2463
+      },
+      "after": {
+        "hash": "23f53d8ab18b8c822fd0424fcf9e7d176e95015c42285bf385de16dd1bcaefd3",
+        "size": 2696
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/analysis/local-composite-development.md",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "d3dde9f71e73e3867ccd27624685d191d1bffda2f3a17926f793a9c8e7afae3a",
+        "size": 2625
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/analysis/local-composite-development.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "docs/superpowers/analysis/release-map.md",
+      "kind": "modified",
+      "before": {
+        "hash": "e59bce926d3ca1958c1c29d409f2c2c01ccb8bc878e84a5e3ef829de36ad531a",
+        "size": 7936
+      },
+      "after": {
+        "hash": "910d0ea21d1e318c41cba41570f52a43ee37936c3a3ea17297cc8fdbf3f37541",
+        "size": 7791
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-21-cap4k-github-workflow-governance.md",
+      "kind": "modified",
+      "before": {
+        "hash": "3465f847fcbfb78a5fd74349638a2525603589d48472120a7ba48c6a2f88fbec",
+        "size": 5624
+      },
+      "after": {
+        "hash": "c0d04fdc49a93ce33175ffa0ce3c4dba28aad00dff9c72a6fac04081f4058cb7",
+        "size": 5854
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-28-cap4k-single-mainline-release-governance.md",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "325b485ccfd365f033d2cec275ec4b4aef6eb443bab8bde936b795cd0050287c",
+        "size": 6123
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/specs/2026-05-22-cap4k-publish-channel-governance-design.md",
+      "kind": "modified",
+      "before": {
+        "hash": "5dfc4c7de20aefea187e851b78cd0f9183fc817f77eae1c90073c2c5a1c78117",
+        "size": 4497
+      },
+      "after": {
+        "hash": "fca9fca400531e3d1861865089e9e77033f92f710bf30a75982824bf6d9d33d8",
+        "size": 4728
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-21-cap4k-github-workflow-governance-design.md",
+      "kind": "modified",
+      "before": {
+        "hash": "3ffd2eb51221c24236f1e13595416cdf355ee1c607a39549b90409957235d686",
+        "size": 4034
+      },
+      "after": {
+        "hash": "aa2f8815422abbb36f58d59874abcf6a08c8b06c6987ec05e0fc998cc48679b9",
+        "size": 4305
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c7c90b9009ac35c7e3a1f69276de5eae5ed5999f32bca40cff88ad7737f093a6",
+        "size": 8856
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "scripts/create-pr.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "0e27057e9c69432ba6a2bdcfe4d77074ad10f43d9dbf37d9e8041537da890478",
+        "size": 7984
+      },
+      "after": {
+        "hash": "c97a3b758be858faae26cb040e79eafad38aafdc897fa93b20048bc50543cbfe",
+        "size": 7498
+      },
+      "attributedTo": [
+        {
+          "path": "scripts/create-pr.ps1",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "scripts/test-pr-workflow.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "48ab4ec03a816bd16a74b70cada69bcd530ca8fd49fcea81c7a25daa7101787d",
+        "size": 9315
+      },
+      "after": {
+        "hash": "af941cdc97d8dc249233dd33fcd0851dc03ac4b13ad49ca9ea75691847f4dcf8",
+        "size": 9498
+      },
+      "attributedTo": []
+    }
+  ],
+  "unattributed": [
+    {
+      "path": ".github/ISSUE_TEMPLATE/release.yml",
+      "kind": "modified",
+      "before": {
+        "hash": "b9f00217e1cf1d1baa90f847fc7020c433b1991be52a344811055a216114a0ec",
+        "size": 758
+      },
+      "after": {
+        "hash": "e5eb384142b0fe901a6335d7b95ea8cd1c34f58e0844d691bcb2d9c1376c5e73",
+        "size": 799
+      },
+      "attributedTo": []
+    },
+    {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "kind": "modified",
+      "before": {
+        "hash": "0ba120fc5533a641656be51bddb820f2297e8dee324818160cf92d1f65efbf4a",
+        "size": 667
+      },
+      "after": {
+        "hash": "4f0c4a90a50c62afbf2948954197ced95a4c0cdeb489c8f4b8e042686fad7cb9",
+        "size": 559
+      },
+      "attributedTo": []
+    },
+    {
+      "path": ".github/workflows/aliyun-snapshot.yml",
+      "kind": "removed",
+      "before": {
+        "hash": "e3c8f9f0fa34af1b0efb494b2c54c8f61119f58221a4695e4285d3d461c0129c",
+        "size": 1939
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "kind": "modified",
+      "before": {
+        "hash": "fa23bc338303b12f95661ae8a4f1093e536ae87e79bcf55a586f3f9d2a347719",
+        "size": 5412
+      },
+      "after": {
+        "hash": "41abceaa04eeaeaac246ec6c9a5b3556ce36d9b9ec33f07058de8ad230ee0e76",
+        "size": 4189
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "AGENTS.md",
+      "kind": "modified",
+      "before": {
+        "hash": "c6066cab31ea606e2ffbb9ca5bc1ffc8f004bfc55ba6fe1de39ff1b551423b51",
+        "size": 11994
+      },
+      "after": {
+        "hash": "3853d84384e268abf3d6287e6817daf95fa077a5e4ab918fb35962a0b18876b3",
+        "size": 11388
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "buildSrc/src/main/kotlin/buildsrc/convention/AliyunPublishVersion.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "3647b2cbd90c6ae73203db851067c28ddec96cba46d80fc11ce1fa8cceec44e9",
+        "size": 625
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "76c4e7d81dad3c6cd8ddfe9327b334e3834808d9d3a224580051f8baf9a3d601",
+        "size": 5901
+      },
+      "after": {
+        "hash": "b10a71737e6d28322f34913514167ab060eadf0e7705b0329ee34d85fcf50780",
+        "size": 4944
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "buildSrc/src/test/kotlin/buildsrc/convention/AliyunPublishVersionTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "f7a39e79c59f230a8325f018bbf720071afa84abb1e12ee189e61c3adff63d26",
+        "size": 1109
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "a950b21eed86cf96376cd67dc1790834242886ec0f470c5e8c286217c34aadd5",
+        "size": 6961
+      },
+      "after": {
+        "hash": "f23c7562274367958f15a12a71b367a3d4ad4dc71dd41241faf281570ace8cd9",
+        "size": 7009
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c6ba5feb9629513b67c6d02be5bfc34f71245ac382109c0f6d80268b0e9b6d18",
+        "size": 497
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/src/main/kotlin/com/example/demo/adapter/AdapterMarker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "74dfe58f3cb4545a7ec83c7948cf888da7c94bd75e4ca50c6fe3997101b88f62",
+        "size": 55
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "f47b0692cc599e92d31c7df6b14b4e8a40602756ede90cdebe8cbba93ed06d7e",
+        "size": 360
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/src/main/kotlin/com/example/demo/application/ApplicationMarker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c09b9c0a928968fc3962ead5f7d1a3fc9dad005fbbd4e68e835548ac9ba740fc",
+        "size": 63
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "876c49f1dbb0804e3969c647ad866b3eaf7c23a2c2db89d8e4bd4fb253099522",
+        "size": 255
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "72081ca43ae0bace982295966c85c74acaa6f39ab9c8dad51e981892a6ae5d41",
+        "size": 491
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/src/main/kotlin/com/example/demo/domain/DomainMarker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "ffb5ece308b8ae7d24930f3d21845a4503dd286d56bc6becae4e23b9edfee72f",
+        "size": 53
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/gradle/libs.versions.toml",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "a4d33cdaaf17eb5dc80616bf768d31f817461787576f16d112fc01f3d2592d97",
+        "size": 1878
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/settings.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "b153b93e7d1ab001e8e6882673c601e0a665f4cac936c4516acd70b12353230d",
+        "size": 521
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "a80831ab69142f9a9afce43752c187ef24f06cc9423b91ab11eb9fc25672ef14",
+        "size": 595
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/kotlin/com/example/demo/DemoApplication.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "cc642bb74d33f4cd8b1a2b4b318d29a0fb8c0ac3f295ab41c8a559158a7c8ac8",
+        "size": 265
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/resources/application.yml",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "a0935eacfe6631d37654b77dda16625526d69fd26aa69e7a581593bddae228e3",
+        "size": 79
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/test/kotlin/com/example/demo/DemoApplicationTests.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "d5bc51160fdd6c0c317c015a8cb8282feb4b6866c1e99295d306f2e2ccdcb2e7",
+        "size": 210
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/analysis/README.md",
+      "kind": "modified",
+      "before": {
+        "hash": "0605487c6cc7461ff9a6296d5b800b95bad355a557afde984eefad5d59044b4f",
+        "size": 2463
+      },
+      "after": {
+        "hash": "23f53d8ab18b8c822fd0424fcf9e7d176e95015c42285bf385de16dd1bcaefd3",
+        "size": 2696
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/analysis/release-map.md",
+      "kind": "modified",
+      "before": {
+        "hash": "e59bce926d3ca1958c1c29d409f2c2c01ccb8bc878e84a5e3ef829de36ad531a",
+        "size": 7936
+      },
+      "after": {
+        "hash": "910d0ea21d1e318c41cba41570f52a43ee37936c3a3ea17297cc8fdbf3f37541",
+        "size": 7791
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-21-cap4k-github-workflow-governance.md",
+      "kind": "modified",
+      "before": {
+        "hash": "3465f847fcbfb78a5fd74349638a2525603589d48472120a7ba48c6a2f88fbec",
+        "size": 5624
+      },
+      "after": {
+        "hash": "c0d04fdc49a93ce33175ffa0ce3c4dba28aad00dff9c72a6fac04081f4058cb7",
+        "size": 5854
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/plans/2026-07-28-cap4k-single-mainline-release-governance.md",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "325b485ccfd365f033d2cec275ec4b4aef6eb443bab8bde936b795cd0050287c",
+        "size": 6123
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/specs/2026-05-22-cap4k-publish-channel-governance-design.md",
+      "kind": "modified",
+      "before": {
+        "hash": "5dfc4c7de20aefea187e851b78cd0f9183fc817f77eae1c90073c2c5a1c78117",
+        "size": 4497
+      },
+      "after": {
+        "hash": "fca9fca400531e3d1861865089e9e77033f92f710bf30a75982824bf6d9d33d8",
+        "size": 4728
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-21-cap4k-github-workflow-governance-design.md",
+      "kind": "modified",
+      "before": {
+        "hash": "3ffd2eb51221c24236f1e13595416cdf355ee1c607a39549b90409957235d686",
+        "size": 4034
+      },
+      "after": {
+        "hash": "aa2f8815422abbb36f58d59874abcf6a08c8b06c6987ec05e0fc998cc48679b9",
+        "size": 4305
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "scripts/test-pr-workflow.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "48ab4ec03a816bd16a74b70cada69bcd530ca8fd49fcea81c7a25daa7101787d",
+        "size": 9315
+      },
+      "after": {
+        "hash": "af941cdc97d8dc249233dd33fcd0851dc03ac4b13ad49ca9ea75691847f4dcf8",
+        "size": 9498
+      },
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:4110c4477be2fe7fe4b3d51b5943dffdc3908fa0d905604cea553b04df32f8fe",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": ".github/ISSUE_TEMPLATE/release.yml",
+      "reason": "Changed path is not covered by a declared artifact: .github/ISSUE_TEMPLATE/release.yml"
+    },
+    {
+      "id": "scope:b095d5507b18d32a25957f5faf25e364717908fa4a9ed4674502407b6ed92e5a",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "reason": "Changed path is not covered by a declared artifact: .github/PULL_REQUEST_TEMPLATE.md"
+    },
+    {
+      "id": "scope:bfd76c4387bdbbca6f799312baf24a909a18c0c5119f41560b1ee6c75eaaeb7c",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": ".github/workflows/aliyun-snapshot.yml",
+      "reason": "Changed path is not covered by a declared artifact: .github/workflows/aliyun-snapshot.yml"
+    },
+    {
+      "id": "scope:ff11a76896e3bc193dc1007000679bd00b495ea1fdb770e3993d96b593f03172",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": ".github/workflows/ci.yml",
+      "reason": "Changed path is not covered by a declared artifact: .github/workflows/ci.yml"
+    },
+    {
+      "id": "scope:cb3a679c4fa03fd805cb098c28427ec933e9cb166972d41eb52ac77b042b9b4b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "AGENTS.md",
+      "reason": "Changed path is not covered by a declared artifact: AGENTS.md"
+    },
+    {
+      "id": "scope:9b0e5d8fd38bbdbce028aded75f907af3f01e39e95513eb78b186268a8f79946",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "buildSrc/src/main/kotlin/buildsrc/convention/AliyunPublishVersion.kt",
+      "reason": "Changed path is not covered by a declared artifact: buildSrc/src/main/kotlin/buildsrc/convention/AliyunPublishVersion.kt"
+    },
+    {
+      "id": "scope:7b474607a25f2281852f537e97f1f28ffedc428820a3db4f8205b26259324b2b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts"
+    },
+    {
+      "id": "scope:61df998b26afcbc1c62f92454cf49f277f9f92e9766825211be13917f6c20a76",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "buildSrc/src/test/kotlin/buildsrc/convention/AliyunPublishVersionTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: buildSrc/src/test/kotlin/buildsrc/convention/AliyunPublishVersionTest.kt"
+    },
+    {
+      "id": "scope:365a2a2024751020c6bcc50fbde092fdd2a4d6cac7e03df878ae8f5ef84b2e32",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt"
+    },
+    {
+      "id": "scope:b2a17d208358fd36085fe302068d99c99851397b452b9848c1bdc7ad0d914982",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/build.gradle.kts"
+    },
+    {
+      "id": "scope:1dbeb06a8c1ac32be1e9f3c28eac81f165814b4da9def961c64f55b671f035f0",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/src/main/kotlin/com/example/demo/adapter/AdapterMarker.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/adapter/src/main/kotlin/com/example/demo/adapter/AdapterMarker.kt"
+    },
+    {
+      "id": "scope:25937b9481282e2fc9421db516dde40b04fe414d7a9095d53bda9c8627a2d6f6",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/build.gradle.kts"
+    },
+    {
+      "id": "scope:29b87765ff1c85b72331379a3bb0d51dea94b9207c60155f891f471b86cd4dcd",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/src/main/kotlin/com/example/demo/application/ApplicationMarker.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/application/src/main/kotlin/com/example/demo/application/ApplicationMarker.kt"
+    },
+    {
+      "id": "scope:4a23754776a0b19480ac71f7f6d861e8724c56b5d3abb8edb2360d594c16dfd6",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/build.gradle.kts"
+    },
+    {
+      "id": "scope:168eb536c8a061828c6fd0f6b1fb1d6ac84a82773bc4a2d59257e43df23d83b5",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/build.gradle.kts"
+    },
+    {
+      "id": "scope:dcc3adac2e4326d5bdb061e3ae50622cf8667bf81b5e30dd05932f776757e05f",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/src/main/kotlin/com/example/demo/domain/DomainMarker.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/domain/src/main/kotlin/com/example/demo/domain/DomainMarker.kt"
+    },
+    {
+      "id": "scope:561d84b9bdad622d43e748d6ab2df494bd273a9df1d5f33eaf326bf85db544cc",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/gradle/libs.versions.toml",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/gradle/libs.versions.toml"
+    },
+    {
+      "id": "scope:ca89a6c2e31d388d7cc8b78003cf9d6ba15d43c3878d754deb826927c6b87aad",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/settings.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/settings.gradle.kts"
+    },
+    {
+      "id": "scope:b7a2f8cc8a1ff9b6dbd12757aff823905f2ef9fa0d0a29f1ce8aa59f4c33c688",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/build.gradle.kts"
+    },
+    {
+      "id": "scope:7ed172d52de4e9eaaf903b7f2d06637553868eccaab4fdfa5c34fe09de8ed293",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/kotlin/com/example/demo/DemoApplication.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/kotlin/com/example/demo/DemoApplication.kt"
+    },
+    {
+      "id": "scope:23fcd178ff288a1d2397d45ad8ebbb4895a5d823329c8b638aafcfd56a4ceb61",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/resources/application.yml",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/main/resources/application.yml"
+    },
+    {
+      "id": "scope:9c512f04617ed9081c596e194d37d920a16d90c40ff9ccc7fc0c852066273779",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/test/kotlin/com/example/demo/DemoApplicationTests.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/start/src/test/kotlin/com/example/demo/DemoApplicationTests.kt"
+    },
+    {
+      "id": "scope:e744928f03ccf3d987863179dd988c79d156edbf188ae3444e15d827318ee3c6",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/superpowers/analysis/README.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/superpowers/analysis/README.md"
+    },
+    {
+      "id": "scope:13531c9fb37e21e867d17c320c697ddfef9bfb0527c137335999675a6ff5bf2a",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/superpowers/analysis/release-map.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/superpowers/analysis/release-map.md"
+    },
+    {
+      "id": "scope:6e869be4020c35f07efa1c79f330fabe101c4b2bbd7a386fbc62f9aaab99a419",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/superpowers/plans/2026-07-21-cap4k-github-workflow-governance.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/superpowers/plans/2026-07-21-cap4k-github-workflow-governance.md"
+    },
+    {
+      "id": "scope:d500da5c84f107beaa2013692c8541872d7363eca0502668449f068c841cbbfe",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/superpowers/plans/2026-07-28-cap4k-single-mainline-release-governance.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/superpowers/plans/2026-07-28-cap4k-single-mainline-release-governance.md"
+    },
+    {
+      "id": "scope:6b7a941e1f0fcd4a56f52e6c38ecc5f6b3547ec66a674ff18491928dea7bb425",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/superpowers/specs/2026-05-22-cap4k-publish-channel-governance-design.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/superpowers/specs/2026-05-22-cap4k-publish-channel-governance-design.md"
+    },
+    {
+      "id": "scope:27fc639bf8eb8c15d5a0751dd2edb9b42b331f511c1f85cdeb4df6a0e4204d4e",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/superpowers/specs/2026-07-21-cap4k-github-workflow-governance-design.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/superpowers/specs/2026-07-21-cap4k-github-workflow-governance-design.md"
+    },
+    {
+      "id": "scope:64bc95c3a0e182d48d52e571685f4dcb3f9c9e9c270b48d3b2c6dba746b4be4c",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "scripts/test-pr-workflow.ps1",
+      "reason": "Changed path is not covered by a declared artifact: scripts/test-pr-workflow.ps1"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "bed2335345b25d4bde07d8291b1e64c90f04f7d9c760c732d74034a6728c3844"
+}

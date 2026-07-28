@@ -2,6 +2,8 @@
 
 Date: 2026-05-22
 
+> **Superseded on 2026-07-28:** This document preserves the historical publish-branch design only. Current governance is defined by [Single-Mainline Release Governance](2026-07-28-cap4k-single-mainline-release-governance-design.md).
+
 ## Purpose
 
 This document records the current effective release-channel governance for `cap4k`.

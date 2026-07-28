@@ -77,6 +77,21 @@ try {
         throw "CI must validate pull-request bodies before Gradle checks."
     }
 
+    if (-not $workflowText.Contains('if [[ "$BASE_REF" != "master" ]]; then')) {
+        throw "CI workflow must reject pull requests whose base is not master."
+    }
+
+    $retiredPromotionTerms = @(
+        ("publish" + "_promotion"),
+        ("publish" + "/aliyun-private"),
+        ("publish" + "/maven-central")
+    )
+    foreach ($term in $retiredPromotionTerms) {
+        if ($workflowText.Contains($term)) {
+            throw "CI workflow must not retain publish-promotion branch semantics: $term"
+        }
+    }
+
     $template = Join-Path $tempRoot "template.md"
     $validBody = Join-Path $tempRoot "valid-body.md"
     $missingBody = Join-Path $tempRoot "missing-body.md"
@@ -138,14 +153,11 @@ try {
 ## Target Branch
 
 - [x] ``master``
-- [ ] ``publish/aliyun-private``
-- [ ] ``publish/maven-central``
 
 ## Change Type
 
 - [ ] Code, build, scripts, workflow, tests, fixtures, or templates
 - [ ] Documentation-only
-- [ ] Release promotion from ``master``
 - [x] Repository governance or GitHub configuration
 
 ## Verification
@@ -181,8 +193,6 @@ allow CI to skip Gradle:
 ## Target Branch
 
 - [ ] ``master``
-- [x] ``publish/aliyun-private``
-- [ ] ``publish/maven-central``
 
 ## Change Type
 
@@ -214,8 +224,6 @@ allow CI to skip Gradle:
 ## Target Branch
 
 - [x] ``Master``
-- [ ] ``publish/aliyun-private``
-- [ ] ``publish/maven-central``
 
 ## Change Type
 
@@ -289,21 +297,21 @@ allow CI to skip Gradle:
 
     Invoke-ScriptProcess `
         -Script $createScript `
-        -Arguments @("-Base", "publish/aliyun-private", "-Head", "fix/pr-template-guard", "-Title", "test", "-BodyFile", $dryRunBody, "-DryRun", "-AllowDirty") `
+        -Arguments @("-Base", "release/candidate", "-Head", "fix/pr-template-guard", "-Title", "test", "-BodyFile", $dryRunBody, "-DryRun", "-AllowDirty") `
         -ExpectedExitCode 1 `
-        -ExpectedOutputPattern "Publish branch pull requests must use same-repository master as the head branch" | Out-Null
+        -ExpectedOutputPattern "Unsupported base branch 'release/candidate'. Allowed base: master" | Out-Null
 
     Invoke-ScriptProcess `
         -Script $createScript `
-        -Arguments @("-Base", "publish/aliyun-private", "-Head", "LDmoxeii:master", "-Title", "test", "-BodyFile", $dryRunBody, "-DryRun", "-AllowDirty") `
+        -Arguments @("-Base", "master", "-Head", "LDmoxeii:fix/pr-template-guard", "-Title", "test", "-BodyFile", $dryRunBody, "-DryRun", "-AllowDirty") `
         -ExpectedExitCode 1 `
-        -ExpectedOutputPattern "Publish branch pull requests must use same-repository master as the head branch" | Out-Null
+        -ExpectedOutputPattern "must use an unqualified same-repository head branch" | Out-Null
 
     Invoke-ScriptProcess `
         -Script $createScript `
-        -Arguments @("-Base", "Publish/Aliyun-Private", "-Head", "master", "-Title", "test", "-BodyFile", $dryRunBody, "-DryRun", "-AllowDirty") `
+        -Arguments @("-Base", "master", "-Head", "master", "-Title", "test", "-BodyFile", $dryRunBody, "-DryRun", "-AllowDirty") `
         -ExpectedExitCode 1 `
-        -ExpectedOutputPattern "Unsupported base branch 'Publish/Aliyun-Private'" | Out-Null
+        -ExpectedOutputPattern "must use a short-lived head branch, not 'master'" | Out-Null
 }
 finally {
     if ($detachedWorktree -and (Test-Path -LiteralPath $detachedWorktree)) {

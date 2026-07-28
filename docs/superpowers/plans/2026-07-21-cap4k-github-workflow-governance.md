@@ -1,5 +1,7 @@
 # cap4k GitHub Workflow Governance Implementation Plan
 
+> **Superseded on 2026-07-28:** This plan records the previous publish-promotion implementation. Use [Single-Mainline Release Governance Implementation Plan](2026-07-28-cap4k-single-mainline-release-governance.md) for current work.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make cap4k GitHub checks branch-aware and change-aware, and add issue/PR templates for predictable collaboration.

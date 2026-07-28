@@ -57,9 +57,6 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
-          HEAD_REF: ${{ github.head_ref }}
-          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || '' }}
-          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
 
@@ -78,57 +75,40 @@ jobs:
 
           run_gradle=true
           docs_only=false
-          publish_promotion=false
 
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            case "$BASE_REF" in
-              publish/aliyun-private|publish/maven-central)
-                publish_promotion=true
-                run_gradle=false
+            if [[ "$BASE_REF" != "master" ]]; then
+              echo "Pull requests must target master; got ${BASE_REF}." >&2
+              exit 1
+            fi
 
-                if [[ "$HEAD_REF" != "master" ]]; then
-                  echo "Publish branch PRs must use master as the head branch; got ${HEAD_REF}." >&2
-                  exit 1
-                fi
+            git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+            changed_files_file="$(mktemp)"
+            git diff --name-only "origin/${BASE_REF}...HEAD" > "$changed_files_file"
+            mapfile -t changed_files < "$changed_files_file"
 
-                if [[ "$HEAD_REPOSITORY" != "$REPOSITORY" ]]; then
-                  echo "Publish branch PRs must come from ${REPOSITORY}; got ${HEAD_REPOSITORY}." >&2
-                  exit 1
-                fi
-                ;;
-              master)
-                git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-                changed_files_file="$(mktemp)"
-                git diff --name-only "origin/${BASE_REF}...HEAD" > "$changed_files_file"
-                mapfile -t changed_files < "$changed_files_file"
+            docs_only=true
+            for changed_file in "${changed_files[@]}"; do
+              if ! is_docs_only_path "$changed_file"; then
+                docs_only=false
+                break
+              fi
+            done
 
-                docs_only=true
-                for changed_file in "${changed_files[@]}"; do
-                  if ! is_docs_only_path "$changed_file"; then
-                    docs_only=false
-                    break
-                  fi
-                done
-
-                if [[ "$docs_only" == "true" ]]; then
-                  run_gradle=false
-                fi
-                ;;
-            esac
+            if [[ "$docs_only" == "true" ]]; then
+              run_gradle=false
+            fi
           fi
 
           {
             echo "run_gradle=${run_gradle}"
             echo "docs_only=${docs_only}"
-            echo "publish_promotion=${publish_promotion}"
           } >> "$GITHUB_OUTPUT"
 
           echo "run_gradle=${run_gradle}"
           echo "docs_only=${docs_only}"
-          echo "publish_promotion=${publish_promotion}"
 
       - name: Test PR workflow guard
-        if: steps.classify.outputs.publish_promotion != 'true'
         shell: pwsh
         run: ./scripts/test-pr-workflow.ps1
 
@@ -158,9 +138,4 @@ jobs:
 
       - name: Skip Gradle
         if: steps.classify.outputs.run_gradle != 'true'
-        run: |
-          if [[ "${{ steps.classify.outputs.publish_promotion }}" == "true" ]]; then
-            echo "Publish promotion PR validated; Gradle check already belongs to master."
-          else
-            echo "Docs-only change detected; Gradle check skipped."
-          fi
+        run: echo "Docs-only change detected; Gradle check skipped."

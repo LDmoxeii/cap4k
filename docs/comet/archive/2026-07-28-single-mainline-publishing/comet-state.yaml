@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: single-mainline-publishing
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: e24bb696e2a6a2317dc7e4ea231d947d9b6ecf89e73bb3ee42917ed4441153be
+spec_changes:
+  - capability: single-mainline-publishing
+    operation: create
+    source: specs/single-mainline-publishing/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/9f045005c9bfed5a8d95e4b537a82ea227103af94832c1b6a30cfbcfed019654.json
+verification_evidence: runtime/evidence/verifications/b65a978d6d18305567261cdcd69384ef751c66e325f46b3b68df83042d6bc102.json
+partial_allowance: runtime/evidence/allowances/15f7fe89228f24085e0582fc18dcb93f26b0285747524cd79e0afefeeb196b72.json
+archived: true
+created_at: 2026-07-28
+run_id: 26c320f4-324a-4ccb-8b97-dc2ee5fe34eb

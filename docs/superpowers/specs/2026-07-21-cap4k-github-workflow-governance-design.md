@@ -1,5 +1,7 @@
 # cap4k GitHub Workflow Governance Design
 
+> **Superseded on 2026-07-28:** The docs-only `check` behavior remains useful, but the publish-branch and Aliyun contracts are historical. Current governance is defined by [Single-Mainline Release Governance](2026-07-28-cap4k-single-mainline-release-governance-design.md).
+
 ## Context
 
 cap4k has three long-lived branches:

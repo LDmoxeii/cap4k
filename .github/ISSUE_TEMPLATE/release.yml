@@ -1,29 +1,28 @@
-name: Release or publish
-description: Track a release promotion or publish-lane task.
+name: Maven Central release
+description: Track a tag-driven Maven Central release from master.
 title: "[Release]: "
 labels:
   - release
 body:
-  - type: dropdown
-    id: lane
+  - type: input
+    id: version
     attributes:
-      label: Publish lane
-      options:
-        - publish/aliyun-private
-        - publish/maven-central
+      label: Release version
+      description: Plain semantic version and matching tag, for example 2.0.2 / v2.0.2.
+      placeholder: 2.0.2 / v2.0.2
     validations:
       required: true
   - type: textarea
     id: source
     attributes:
       label: Source
-      description: Master commit, PR, tag, or version involved in the release.
+      description: Accepted master commit and pull requests included in this release.
     validations:
       required: true
   - type: textarea
     id: checks
     attributes:
       label: Required checks
-      description: List the master CI evidence and publish-specific checks needed before promotion.
+      description: List master CI evidence, tag containment, Central publication, and GitHub Release checks.
     validations:
       required: true

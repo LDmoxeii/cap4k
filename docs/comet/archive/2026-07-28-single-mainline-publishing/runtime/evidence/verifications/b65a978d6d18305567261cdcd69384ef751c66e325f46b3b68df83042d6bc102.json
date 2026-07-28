@@ -1,0 +1,124 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "single-mainline-publishing",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "partial",
+  "contractHash": "e24bb696e2a6a2317dc7e4ea231d947d9b6ecf89e73bb3ee42917ed4441153be",
+  "acceptanceCriteriaHash": "a5951982f9c06764343d3ee43da0171fd51709ebe8b73b21f6535a79eaf24b2e",
+  "implementationScopeRef": "runtime/evidence/scopes/9f045005c9bfed5a8d95e4b537a82ea227103af94832c1b6a30cfbcfed019654.json",
+  "implementationScopeHash": "9f045005c9bfed5a8d95e4b537a82ea227103af94832c1b6a30cfbcfed019654",
+  "reportRef": "verification.md",
+  "reportHash": "3cf4fb4e8609503261af3c66eb293544776dae0361e053bdf32046758923998c",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "a5951982f9c06764343d3ee43da0171fd51709ebe8b73b21f6535a79eaf24b2e",
+    "total": 8,
+    "evidenced": 8,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-0d8a580287e2dfa059c526631d80c42c550c8d097d025c77538e98f4394c1035",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          ".github/workflows/maven-central-release.yml",
+          "buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts",
+          "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4913a5220decf3ddd47c9d80ff5ad30f30bf563a971e6cbf587bd522d85e2adf",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          ".github/PULL_REQUEST_TEMPLATE.md",
+          ".github/workflows/ci.yml",
+          "scripts/create-pr.ps1",
+          "scripts/test-pr-workflow.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a177aa754f944530424950479e604b1613bc90c1213d8e3093f308e070562963",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/CompositeBuildConsumerFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/FunctionalFixtureSupport.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/build.gradle.kts",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/gradle/libs.versions.toml",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/settings.gradle.kts"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a6309dbb6f8b2dbba8519882c61d29557f92c1d2168ab3c59d831c1db8e53900",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          ".github/workflows/maven-central-release.yml",
+          "AGENTS.md",
+          "buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts",
+          "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e782b5f6e319721b5b64459cce79d049fc39be406e89614e38ff54dec52b67ef",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "docs/superpowers/analysis/release-map.md",
+          "docs/superpowers/plans/2026-07-21-cap4k-github-workflow-governance.md",
+          "docs/superpowers/plans/2026-07-28-cap4k-single-mainline-release-governance.md",
+          "docs/superpowers/specs/2026-05-22-cap4k-publish-channel-governance-design.md",
+          "docs/superpowers/specs/2026-07-21-cap4k-github-workflow-governance-design.md",
+          "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e94efeae4c4cda7064f1d8575f91243f485a66e503127c247ea7226223a206d3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/official-composite-consumer-sample/settings.gradle.kts",
+          "docs/superpowers/analysis/local-composite-development.md",
+          "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f90b153d22242f6ad644dfd29334ac999f3237bffc515c39cc40a431d99ac941",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          ".github/workflows/maven-central-release.yml",
+          "buildSrc/src/main/kotlin/kotlin-jvm.gradle.kts",
+          "docs/superpowers/analysis/local-composite-development.md",
+          "docs/superpowers/specs/2026-07-28-cap4k-single-mainline-release-governance-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-fafeeefcef47d1c463e05ed5c45258c75cd632cf299f40ace7dd49ec7567a5e5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          ".github/workflows/maven-central-release.yml"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "9eb65ffb37b63c2bac78a6c66cdb497fd002e37a2fafc2d6e56be7a86f12590e"
+  },
+  "partialAllowanceRef": "runtime/evidence/allowances/15f7fe89228f24085e0582fc18dcb93f26b0285747524cd79e0afefeeb196b72.json",
+  "partialAllowanceHash": "15f7fe89228f24085e0582fc18dcb93f26b0285747524cd79e0afefeeb196b72",
+  "receiptRef": "runtime/evidence/check-receipts/a6bdbea2a7151dbc2f58038565d8735623e2588d9c5ed802b0cd0535d9e59df1.json",
+  "createdAt": "2026-07-28T16:08:56.748Z",
+  "envelopeHash": "b65a978d6d18305567261cdcd69384ef751c66e325f46b3b68df83042d6bc102"
+}
