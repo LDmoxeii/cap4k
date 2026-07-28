@@ -226,6 +226,7 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
     }
     ensureJpaDependency(project, config, moduleRole = "domain")
     ensureJacksonAnnotationsDependency(project, config, moduleRole = "domain")
+    ensureJacksonDatabindDependency(project, config, moduleRole = "domain")
 }
 
 internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, config: ProjectConfig) {

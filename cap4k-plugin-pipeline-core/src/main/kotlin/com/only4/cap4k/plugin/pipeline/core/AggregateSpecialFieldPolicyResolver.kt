@@ -73,9 +73,11 @@ internal object AggregateSpecialFieldPolicyResolver {
 
         val idStrategy = when (idColumn.idStrategy) {
             DbIdStrategy.UUID7 -> "uuid7"
+            DbIdStrategy.SNOWFLAKE -> "snowflake"
             DbIdStrategy.DB_IDENTITY -> "identity"
             null -> throw IllegalArgumentException(
-                "primary key ${table.tableName}.${idColumn.name} must declare @IdStrategy=uuid7 or @IdStrategy=db_identity"
+                "primary key ${table.tableName}.${idColumn.name} must declare " +
+                    "@IdStrategy=uuid7, @IdStrategy=snowflake, or @IdStrategy=db_identity"
             )
         }
         val idSource = SpecialFieldSource.DB_EXPLICIT
@@ -102,6 +104,7 @@ internal object AggregateSpecialFieldPolicyResolver {
             entity = entity,
             fieldByColumnName = fieldByColumnName,
         )
+        validateVersionType(entity, versionPolicy)
         val idPolicy = ResolvedIdPolicy(
             fieldName = entity.idField.name,
             columnName = idColumn.name,
@@ -152,11 +155,21 @@ internal object AggregateSpecialFieldPolicyResolver {
                 strategy = strategy,
             )
 
-            DbIdStrategy.UUID7 -> require(idColumn.kotlinType == "String") {
-                "@IdStrategy=uuid7 currently requires String physical ID column on table ${entity.tableName}.${idColumn.name}"
-            }
+            DbIdStrategy.UUID7, DbIdStrategy.SNOWFLAKE, null -> Unit
+        }
+    }
 
-            null -> Unit
+    private fun validateVersionType(entity: EntityModel, policy: ResolvedMarkerPolicy) {
+        if (!policy.enabled) return
+        require(policy.writePolicy == SpecialFieldWritePolicy.READ_ONLY) {
+            "resolved version ${entity.packageName}.${entity.name}.${policy.fieldName} must be READ_ONLY"
+        }
+        val field = requireNotNull(entity.fields.singleOrNull { it.name == policy.fieldName }) {
+            "resolved version field ${policy.fieldName} is missing from ${entity.packageName}.${entity.name}"
+        }
+        require(field.type in SupportedVersionTypes) {
+            "unsupported version type for table ${entity.tableName}, entity ${entity.packageName}.${entity.name}, " +
+                "field ${field.name}, column ${policy.columnName}: ${field.type}; supported types: Short, Int, Long"
         }
     }
 
@@ -353,4 +366,10 @@ internal object AggregateSpecialFieldPolicyResolver {
             "missing canonical entity field identity for ${entity.name}.${column.name}"
         }
     }
+
+    private val SupportedVersionTypes = setOf(
+        "Short", "kotlin.Short", "java.lang.Short",
+        "Int", "kotlin.Int", "Integer", "java.lang.Integer",
+        "Long", "kotlin.Long", "java.lang.Long",
+    )
 }

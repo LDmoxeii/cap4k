@@ -3,10 +3,20 @@ package com.only4.cap4k.plugin.pipeline.api
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
+    @Test
+    fun `canonical API omits domain parent ref and automatic inverse relation models`() {
+        assertFalse(FieldModel::class.java.declaredFields.any { it.name == "parentRef" })
+        assertFalse(CanonicalModel::class.java.declaredFields.any { it.name == "aggregate" + "InverseRelations" })
+        assertThrows(ClassNotFoundException::class.java) {
+            Class.forName("com.only4.cap4k.plugin.pipeline.api.Aggregate" + "InverseRelationModel")
+        }
+    }
+
     @Test
     fun `unique constraint metadata distinguishes complete unconditional indexes`() {
         val unconditional = UniqueConstraintModel(
@@ -139,10 +149,9 @@ class PipelineModelsTest {
         val softDelete = AggregateSoftDeletePolicy(
             fieldName = "deleted",
             columnName = "deleted",
-            activeValue = "0",
+            storageKind = AggregateIdStorageKind.CHARACTER,
+            activeSentinel = SoftDeleteActiveSentinel.NIL_UUID,
             tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
-            activePredicateSql = "\"deleted\" = 0",
-            deleteAssignmentSql = "\"deleted\" = \"id\"",
         )
         val control = AggregatePersistenceProviderControl(
             entityName = "VideoPost",
@@ -154,8 +163,32 @@ class PipelineModelsTest {
         )
 
         assertEquals(softDelete, control.softDelete)
+        assertEquals(AggregateIdStorageKind.CHARACTER, control.softDelete?.storageKind)
+        assertEquals(SoftDeleteActiveSentinel.NIL_UUID, control.softDelete?.activeSentinel)
         assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, control.softDelete?.tombstoneStrategy)
-        assertEquals("\"deleted\" = \"id\"", control.softDelete?.deleteAssignmentSql)
+
+        val domainFields = AggregateSoftDeletePolicy::class.java.declaredFields
+            .filterNot { it.isSynthetic }
+            .map { it.name }
+        assertEquals(
+            setOf("fieldName", "columnName", "storageKind", "activeSentinel", "tombstoneStrategy"),
+            domainFields.toSet(),
+        )
+        assertFalse(domainFields.contains("activeValue"))
+        assertFalse(domainFields.contains("activePredicateSql"))
+        assertFalse(domainFields.contains("deleteAssignmentSql"))
+    }
+
+    @Test
+    fun `soft delete storage semantics expose stable public enum order`() {
+        assertEquals(
+            listOf("INTEGRAL", "CHARACTER", "NATIVE_UUID"),
+            AggregateIdStorageKind.entries.map { it.name },
+        )
+        assertEquals(
+            listOf("ZERO", "NIL_UUID"),
+            SoftDeleteActiveSentinel.entries.map { it.name },
+        )
     }
 
     @Test

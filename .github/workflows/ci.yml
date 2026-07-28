@@ -17,6 +17,24 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cap4k_test
+          POSTGRES_USER: cap4k
+          POSTGRES_PASSWORD: cap4k
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cap4k -d cap4k_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      CAP4K_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/cap4k_test
+      CAP4K_TEST_POSTGRES_USER: cap4k
+      CAP4K_TEST_POSTGRES_PASSWORD: cap4k
 
     steps:
       - name: Checkout

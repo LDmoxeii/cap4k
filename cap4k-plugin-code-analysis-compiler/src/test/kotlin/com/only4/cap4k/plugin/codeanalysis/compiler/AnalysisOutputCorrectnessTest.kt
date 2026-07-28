@@ -160,57 +160,6 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
-    fun `top level behavior on generated style entity keeps exact domain event edge`() {
-        val rels = compileRelationships(
-            categorySources(
-                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
-                useTopLevelBehavior = true,
-                behaviorBody = """
-                    fun Category.changeSort(sort: Int) {
-                        CategorySortChanged(sort)
-                    }
-                """.trimIndent()
-            )
-        )
-
-        assertMethodEdgeShape(
-            rels = rels,
-            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
-            aggregateId = "demo.domain.aggregates.category.Category",
-            methodId = "demo.domain.aggregates.category.Category::changeSort",
-            eventId = "demo.domain.aggregates.category.events.CategorySortChanged",
-            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
-        )
-    }
-
-    @Test
-    fun `command handler calling cross module top level behavior extension on generated style entity emits exact entity method edges`() {
-        val domainOutput = compileLibrary(
-            categoryDomainLibrarySources(
-                behaviorBody = """
-                    fun Category.changeSort(sort: Int) {
-                        CategorySortChanged(sort)
-                    }
-                """.trimIndent(),
-                categoryBody = GENERATED_STYLE_CATEGORY_BODY,
-            )
-        )
-
-        val rels = compileRelationships(
-            categoryAppSources(useTopLevelBehavior = true),
-            classpaths = listOf(domainOutput),
-        )
-
-        assertCrossModuleMethodEdgeShape(
-            rels = rels,
-            handlerId = "demo.application.commands.category.UpdateCategorySortCmd.Handler",
-            aggregateId = "demo.domain.aggregates.category.Category",
-            methodId = "demo.domain.aggregates.category.Category::changeSort",
-            wrongMethodIds = setOf("changeSort", "demo.domain.aggregates.category.CategoryBehaviorKt::changeSort")
-        )
-    }
-
-    @Test
     fun `top level behavior on aggregate annotated generated style entity without application side id keeps exact domain event edge`() {
         val rels = compileRelationships(
             categorySources(
@@ -758,14 +707,6 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "ApplicationSideId.kt",
-                """
-                    package com.only4.cap4k.ddd.core.domain.id
-
-                    annotation class ApplicationSideId(val strategy: String = "")
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
                 "JpaAnnotations.kt",
                 """
                     package jakarta.persistence
@@ -869,14 +810,6 @@ class AnalysisOutputCorrectnessTest {
                         val packageName: String = "",
                         val root: Boolean = false
                     )
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
-                "ApplicationSideId.kt",
-                """
-                    package com.only4.cap4k.ddd.core.domain.id
-
-                    annotation class ApplicationSideId(val strategy: String = "")
                 """.trimIndent()
             ),
             SourceFile.kotlin(

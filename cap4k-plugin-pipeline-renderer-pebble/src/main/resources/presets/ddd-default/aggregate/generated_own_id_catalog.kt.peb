@@ -1,0 +1,17 @@
+package {{ packageName }}
+
+{{ use("com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog") -}}
+{{ use("org.springframework.stereotype.Component") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+@Component("{{ beanName }}")
+class {{ typeName }} : GeneratedOwnIdCatalog {
+    override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
+{% for accessor in accessors -%}
+        {{ accessor.fqn }}{% if not loop.last %},{% endif %}
+{% endfor -%}
+    )
+}

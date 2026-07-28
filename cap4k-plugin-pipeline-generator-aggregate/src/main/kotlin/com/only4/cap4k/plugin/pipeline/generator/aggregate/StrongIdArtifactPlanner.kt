@@ -9,6 +9,21 @@ internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         return model.strongIds.map { strongId ->
+            val validationKind = when (strongId.idStrategy) {
+                null, "uuid7" -> {
+                    require(strongId.valueType in setOf("String", "UUID")) {
+                        "unsupported Strong ID backing ${strongId.valueType} for UUID7 ${strongId.packageName}.${strongId.typeName}"
+                    }
+                    "UUID7"
+                }
+                "snowflake" -> {
+                    require(strongId.valueType in setOf("String", "Long")) {
+                        "unsupported Strong ID backing ${strongId.valueType} for Snowflake ${strongId.packageName}.${strongId.typeName}"
+                    }
+                    "SNOWFLAKE"
+                }
+                else -> error("unsupported Strong ID strategy ${strongId.idStrategy} for ${strongId.packageName}.${strongId.typeName}")
+            }
             generatedKotlinArtifact(
                 config = config,
                 artifactLayout = artifactLayout,
@@ -21,7 +36,11 @@ internal class StrongIdArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "typeName" to strongId.typeName,
                     "aggregateElement" to strongIdAggregateElementContext(strongId),
                     "kind" to strongId.kind.name,
-                    "canGenerateNew" to strongId.canGenerateNew,
+                    "valueType" to strongId.valueType,
+                    "validationKind" to validationKind,
+                    "stringBacked" to (strongId.valueType == "String"),
+                    "uuidBacked" to (strongId.valueType == "UUID"),
+                    "longBacked" to (strongId.valueType == "Long"),
                 ),
             )
         }

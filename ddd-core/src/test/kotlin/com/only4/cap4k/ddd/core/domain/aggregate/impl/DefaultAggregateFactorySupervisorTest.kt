@@ -41,6 +41,25 @@ class DefaultAggregateFactorySupervisorTest {
     }
 
     @Test
+    fun `create returns only after UoW makes the aggregate graph id ready`() {
+        val uow = mockk<UnitOfWork>()
+        every { uow.persist(any(), PersistIntent.CREATE) } answers {
+            firstArg<ReadyRoot>().also { root ->
+                root.id = "ROOT-1"
+                root.children.forEachIndexed { index, child -> child.id = "CHILD-${index + 1}" }
+            }
+            Unit
+        }
+        val supervisor = DefaultAggregateFactorySupervisor(listOf(ReadyAggregateFactory()), uow)
+
+        val result = supervisor.create(ReadyPayload(2))
+
+        assertEquals("ROOT-1", result.id)
+        assertEquals(listOf("CHILD-1", "CHILD-2"), result.children.map { it.id })
+        verify(exactly = 1) { uow.persist(result, PersistIntent.CREATE) }
+    }
+
+    @Test
     @DisplayName("当没有匹配的工厂时应该抛出异常")
     fun `should throw exception when no matching factory found`() {
         // Given
@@ -152,5 +171,17 @@ class DefaultAggregateFactorySupervisorTest {
         override fun create(entityPayload: AnotherPayload): AnotherEntity {
             return AnotherEntity(entityPayload.data)
         }
+    }
+
+    private data class ReadyChild(var id: String? = null)
+    private data class ReadyRoot(
+        var id: String? = null,
+        val children: MutableList<ReadyChild>,
+    )
+    private data class ReadyPayload(val childCount: Int) : AggregatePayload<ReadyRoot>
+
+    private class ReadyAggregateFactory : AggregateFactory<ReadyPayload, ReadyRoot> {
+        override fun create(entityPayload: ReadyPayload): ReadyRoot =
+            ReadyRoot(children = MutableList(entityPayload.childCount) { ReadyChild() })
     }
 }

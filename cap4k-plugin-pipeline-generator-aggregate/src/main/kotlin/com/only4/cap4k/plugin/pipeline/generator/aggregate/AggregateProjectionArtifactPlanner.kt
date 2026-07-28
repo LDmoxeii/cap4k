@@ -27,7 +27,6 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
             val relationPlan = AggregateRelationPlanning.planFor(
                 entity = entity,
                 relations = model.aggregateRelations,
-                inverseRelations = model.aggregateInverseRelations,
             )
             val relationFields = projectionRelationFields(config, entity.packageName, relationPlan.relationFields)
             val scalarFields = entity.fields.map { field ->
@@ -97,7 +96,6 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                     "idField" to entity.idField,
                     "hasConverterFields" to scalarFields.any { it["converterClassRef"] != null },
                     "hasGeneratedValueFields" to false,
-                    "hasApplicationSideIdFields" to false,
                     "hasVersionFields" to scalarFields.any { it["isVersion"] == true },
                     "dynamicInsert" to false,
                     "dynamicUpdate" to false,

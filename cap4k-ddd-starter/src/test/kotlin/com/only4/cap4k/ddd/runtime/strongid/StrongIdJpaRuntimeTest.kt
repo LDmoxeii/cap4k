@@ -9,10 +9,12 @@ import jakarta.persistence.Embeddable
 import jakarta.persistence.Embedded
 import jakarta.persistence.EmbeddedId
 import jakarta.persistence.Entity
+import jakarta.persistence.EntityManager
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToMany
 import jakarta.persistence.Table
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -22,6 +24,10 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import java.io.Serializable
+import java.util.UUID
+
+private const val UUID7_TEXT = "019c0000-0000-7000-8000-000000000001"
+private const val SNOWFLAKE_TEXT = "7288198123456789012"
 
 @DataJpaTest(
     properties = [
@@ -34,18 +40,68 @@ import java.io.Serializable
 )
 class StrongIdJpaRuntimeTest {
     @Autowired
-    private lateinit var repository: StrongIdJpaRepository
+    private lateinit var repository: StrongIdMatrixRepository
+
+    @Autowired
+    private lateinit var legacyRepository: StrongIdJpaRepository
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @Test
-    fun `hibernate persists and loads entity by strong id`() {
-        val id = StrongContentId.new()
-        val authorId = StrongAuthorId.new()
-        val mediaProcessingTaskId = StrongMediaProcessingTaskId.new()
+    fun `hibernate persists reloads and exposes direct strong id backing values`() {
+        val id = UuidTextId.parse(UUID7_TEXT)
+        val nativeUuid = UuidNativeId.parse(UUID7_TEXT)
+        val snowflakeText = SnowflakeTextId.parse(SNOWFLAKE_TEXT)
+        val snowflakeLong = SnowflakeLongId.parse(SNOWFLAKE_TEXT)
 
-        repository.saveAndFlush(
+        repository.save(
+            StrongIdMatrix(
+                id = id,
+                nativeUuid = nativeUuid,
+                snowflakeText = snowflakeText,
+                snowflakeLong = snowflakeLong,
+            )
+        )
+        entityManager.flush()
+        entityManager.clear()
+
+        val loaded = repository.findById(id).orElseThrow()
+        val persistedValues = jdbcTemplate.queryForObject(
+            """select "id", "native_uuid", "snowflake_text", "snowflake_long" from "strong_id_matrix""""
+        ) { resultSet, _ ->
+            listOf(
+                resultSet.getObject("id"),
+                resultSet.getObject("native_uuid"),
+                resultSet.getObject("snowflake_text"),
+                resultSet.getObject("snowflake_long"),
+            )
+        } ?: error("strong id matrix row was not persisted")
+
+        assertEquals(id, loaded.id)
+        assertEquals(nativeUuid, loaded.nativeUuid)
+        assertEquals(snowflakeText, loaded.snowflakeText)
+        assertEquals(snowflakeLong, loaded.snowflakeLong)
+        assertTrue(persistedValues[0] is String)
+        assertTrue(persistedValues[1] is UUID)
+        assertTrue(persistedValues[2] is String)
+        assertTrue(persistedValues[3] is Long)
+        assertEquals(UUID7_TEXT, persistedValues[0])
+        assertEquals(UUID.fromString(UUID7_TEXT), persistedValues[1])
+        assertEquals(SNOWFLAKE_TEXT, persistedValues[2])
+        assertEquals(SNOWFLAKE_TEXT.toLong(), persistedValues[3])
+    }
+
+    @Test
+    fun `hibernate persists and loads entity by strong id`() {
+        val id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002")
+        val authorId = StrongAuthorId.parse("019c0000-0000-7000-8000-000000000003")
+        val mediaProcessingTaskId = StrongMediaProcessingTaskId.parse("019c0000-0000-7000-8000-000000000004")
+
+        legacyRepository.saveAndFlush(
             StrongContent(
                 id = id,
                 title = "content",
@@ -53,7 +109,7 @@ class StrongIdJpaRuntimeTest {
                 mediaProcessingTaskId = mediaProcessingTaskId,
             )
         )
-        val loaded = repository.findById(id).orElseThrow()
+        val loaded = legacyRepository.findById(id).orElseThrow()
         val persistedId = jdbcTemplate.queryForObject(
             """select "id" from "strong_content" where "title" = ?""",
             String::class.java,
@@ -81,17 +137,17 @@ class StrongIdJpaRuntimeTest {
 
     @Test
     fun `hibernate persists owned child by strong id and parent fk storage`() {
-        val contentId = StrongContentId.new()
-        val itemId = StrongContentItemId.new()
+        val contentId = StrongContentId.parse("019c0000-0000-7000-8000-000000000002")
+        val itemId = StrongContentItemId.parse("019c0000-0000-7000-8000-000000000005")
         val content = StrongContent(
             id = contentId,
             title = "content-with-item",
-            authorId = StrongAuthorId.new(),
+            authorId = StrongAuthorId.parse("019c0000-0000-7000-8000-000000000003"),
             mediaProcessingTaskId = null,
         )
         content.items += StrongContentItem(itemId, "chapter-1")
 
-        repository.saveAndFlush(content)
+        legacyRepository.saveAndFlush(content)
 
         val persistedItemId = jdbcTemplate.queryForObject(
             """select "id" from "strong_content_item" where "label" = ?""",
@@ -109,13 +165,153 @@ class StrongIdJpaRuntimeTest {
     }
 
     @SpringBootApplication
-    @EntityScan(basePackageClasses = [StrongContent::class])
-    @EnableJpaRepositories(basePackageClasses = [StrongIdJpaRepository::class])
+    @EntityScan(basePackageClasses = [StrongIdMatrix::class])
+    @EnableJpaRepositories(basePackageClasses = [StrongIdMatrixRepository::class])
     class TestApplication
 }
 
 @Embeddable
-class StrongContentId protected constructor() : StrongId, Serializable {
+class UuidTextId protected constructor() : StrongId<String>, Serializable {
+    @Column(name = "value", nullable = false, updatable = false)
+    override lateinit var value: String
+        protected set
+
+    private constructor(value: String) : this() {
+        this.value = value
+    }
+
+    override fun toString(): String = value.toString()
+
+    companion object {
+        fun of(value: String): UuidTextId =
+            UuidTextId(StrongIds.requireUuidV7(value, "UuidTextId"))
+
+        fun parse(value: String): UuidTextId = of(value)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is UuidTextId && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
+}
+
+@Embeddable
+class UuidNativeId protected constructor() : StrongId<UUID>, Serializable {
+    @Column(name = "value", nullable = false, updatable = false)
+    override lateinit var value: UUID
+        protected set
+
+    private constructor(value: UUID) : this() {
+        this.value = value
+    }
+
+    override fun toString(): String = value.toString()
+
+    companion object {
+        fun of(value: UUID): UuidNativeId =
+            UuidNativeId(StrongIds.requireUuidV7(value, "UuidNativeId"))
+
+        fun parse(value: String): UuidNativeId =
+            of(UUID.fromString(StrongIds.requireUuidV7(value, "UuidNativeId")))
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is UuidNativeId && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
+}
+
+@Embeddable
+class SnowflakeTextId protected constructor() : StrongId<String>, Serializable {
+    @Column(name = "value", nullable = false, updatable = false)
+    override lateinit var value: String
+        protected set
+
+    private constructor(value: String) : this() {
+        this.value = value
+    }
+
+    override fun toString(): String = value.toString()
+
+    companion object {
+        fun of(value: String): SnowflakeTextId =
+            SnowflakeTextId(StrongIds.requireSnowflake(value, "SnowflakeTextId"))
+
+        fun parse(value: String): SnowflakeTextId = of(value)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is SnowflakeTextId && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
+}
+
+@Embeddable
+class SnowflakeLongId protected constructor() : StrongId<Long>, Serializable {
+    @Column(name = "value", nullable = false, updatable = false)
+    override var value: Long = 0L
+        protected set
+
+    private constructor(value: Long) : this() {
+        this.value = value
+    }
+
+    override fun toString(): String = value.toString()
+
+    companion object {
+        fun of(value: Long): SnowflakeLongId =
+            SnowflakeLongId(StrongIds.requireSnowflake(value, "SnowflakeLongId"))
+
+        fun parse(value: String): SnowflakeLongId =
+            of(StrongIds.requireSnowflake(value, "SnowflakeLongId").toLong())
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || (other is SnowflakeLongId && value == other.value)
+
+    override fun hashCode(): Int = value.hashCode()
+}
+
+@Entity
+@Table(name = "`strong_id_matrix`")
+open class StrongIdMatrix protected constructor() {
+    @EmbeddedId
+    @AttributeOverride(name = "value", column = Column(name = "`id`", updatable = false, length = 36))
+    open lateinit var id: UuidTextId
+        protected set
+
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "`native_uuid`", updatable = false))
+    open lateinit var nativeUuid: UuidNativeId
+        protected set
+
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "`snowflake_text`", updatable = false, length = 19))
+    open lateinit var snowflakeText: SnowflakeTextId
+        protected set
+
+    @Embedded
+    @AttributeOverride(name = "value", column = Column(name = "`snowflake_long`", updatable = false))
+    open lateinit var snowflakeLong: SnowflakeLongId
+        protected set
+
+    constructor(
+        id: UuidTextId,
+        nativeUuid: UuidNativeId,
+        snowflakeText: SnowflakeTextId,
+        snowflakeLong: SnowflakeLongId,
+    ) : this() {
+        this.id = id
+        this.nativeUuid = nativeUuid
+        this.snowflakeText = snowflakeText
+        this.snowflakeLong = snowflakeLong
+    }
+}
+
+interface StrongIdMatrixRepository : JpaRepository<StrongIdMatrix, UuidTextId>
+
+@Embeddable
+class StrongContentId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -125,8 +321,6 @@ class StrongContentId protected constructor() : StrongId, Serializable {
     }
 
     companion object {
-        fun new(): StrongContentId = StrongContentId(StrongIds.newUuidV7String())
-
         fun parse(value: String): StrongContentId = StrongContentId(value)
     }
 
@@ -139,7 +333,7 @@ class StrongContentId protected constructor() : StrongId, Serializable {
 }
 
 @Embeddable
-class StrongAuthorId protected constructor() : StrongId, Serializable {
+class StrongAuthorId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -149,7 +343,7 @@ class StrongAuthorId protected constructor() : StrongId, Serializable {
     }
 
     companion object {
-        fun new(): StrongAuthorId = StrongAuthorId(StrongIds.newUuidV7String())
+        fun parse(value: String): StrongAuthorId = StrongAuthorId(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -161,7 +355,7 @@ class StrongAuthorId protected constructor() : StrongId, Serializable {
 }
 
 @Embeddable
-class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializable {
+class StrongMediaProcessingTaskId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -171,7 +365,7 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializab
     }
 
     companion object {
-        fun new(): StrongMediaProcessingTaskId = StrongMediaProcessingTaskId(StrongIds.newUuidV7String())
+        fun parse(value: String): StrongMediaProcessingTaskId = StrongMediaProcessingTaskId(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -183,7 +377,7 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId, Serializab
 }
 
 @Embeddable
-class StrongContentItemId protected constructor() : StrongId, Serializable {
+class StrongContentItemId protected constructor() : StrongId<String>, Serializable {
     @Column(name = "value", nullable = false, updatable = false, length = 36)
     override lateinit var value: String
         protected set
@@ -193,8 +387,6 @@ class StrongContentItemId protected constructor() : StrongId, Serializable {
     }
 
     companion object {
-        fun new(): StrongContentItemId = StrongContentItemId(StrongIds.newUuidV7String())
-
         fun parse(value: String): StrongContentItemId = StrongContentItemId(value)
     }
 
@@ -251,7 +443,7 @@ open class StrongContent protected constructor() {
         fun unassigned(title: String): StrongContent =
             StrongContent().also {
                 it.title = title
-                it.authorId = StrongAuthorId.new()
+                it.authorId = StrongAuthorId.parse("019c0000-0000-7000-8000-000000000003")
             }
     }
 

@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
 import java.nio.file.Path
+import java.sql.Types
 
 class DefaultPipelineRunnerTest {
 
@@ -995,6 +996,7 @@ class DefaultPipelineRunnerTest {
 
     @Test
     fun `pipeline result carries aggregate diagnostics and resolved special field policies`() {
+        var capturedModel: CanonicalModel? = null
         val result = DefaultPipelineRunner(
             sources = listOf(
                 object : SourceProvider {
@@ -1025,6 +1027,8 @@ class DefaultPipelineRunnerTest {
                                             comment = "",
                                             isPrimaryKey = true,
                                             idStrategy = DbIdStrategy.UUID7,
+                                            jdbcType = Types.VARCHAR,
+                                            columnSize = 40,
                                         ),
                                         DbColumnSnapshot("created_by", "VARCHAR", "String", false),
                                         DbColumnSnapshot("title", "VARCHAR", "String", false),
@@ -1032,9 +1036,28 @@ class DefaultPipelineRunnerTest {
                                     primaryKey = listOf("id"),
                                     uniqueConstraints = emptyList(),
                                 ),
+                                DbTableSnapshot(
+                                    "audit_record",
+                                    "",
+                                    columns = listOf(
+                                        DbColumnSnapshot(
+                                            name = "id",
+                                            dbType = "UUID",
+                                            kotlinType = "UUID",
+                                            nullable = false,
+                                            comment = "",
+                                            isPrimaryKey = true,
+                                            idStrategy = DbIdStrategy.UUID7,
+                                            jdbcType = Types.OTHER,
+                                            columnSize = 16,
+                                        ),
+                                    ),
+                                    primaryKey = listOf("id"),
+                                    uniqueConstraints = emptyList(),
+                                ),
                             ),
-                            discoveredTables = listOf("audit_log", "video_post"),
-                            includedTables = listOf("audit_log", "video_post"),
+                            discoveredTables = listOf("audit_log", "audit_record", "video_post"),
+                            includedTables = listOf("audit_log", "audit_record", "video_post"),
                             excludedTables = emptyList(),
                         )
                 }
@@ -1042,7 +1065,10 @@ class DefaultPipelineRunnerTest {
             generators = listOf(
                 object : GeneratorProvider {
                     override val id: String = "aggregate"
-                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> = emptyList()
+                    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+                        capturedModel = model
+                        return emptyList()
+                    }
                 }
             ),
             assembler = DefaultCanonicalAssembler(),
@@ -1063,22 +1089,31 @@ class DefaultPipelineRunnerTest {
                 ),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
                 aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                    idDefaultStrategy = "snowflake-long",
+                    idDefaultStrategy = "snowflake",
                     managedDefaultColumns = listOf("created_by"),
                 ),
             )
         )
 
-        val policy = result.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.aggregateSpecialFieldResolvedPolicies.single { it.tableName == "video_post" }
+        val aggregateEntityJpa = requireNotNull(capturedModel).aggregateEntityJpa
+        val textId = aggregateEntityJpa
+            .single { it.entityName == "VideoPost" }
+            .columns.single { it.isId }
+        val nativeId = aggregateEntityJpa
+            .single { it.entityName == "AuditRecord" }
+            .columns.single { it.isId }
 
-        assertEquals(listOf("video_post"), result.diagnostics!!.aggregate!!.supportedTables)
+        assertEquals(listOf("audit_record", "video_post"), result.diagnostics!!.aggregate!!.supportedTables)
         assertEquals("composite_primary_key", result.diagnostics!!.aggregate!!.unsupportedTables.single().reason)
-        assertEquals(1, result.aggregateSpecialFieldResolvedPolicies.size)
+        assertEquals(2, result.aggregateSpecialFieldResolvedPolicies.size)
         assertEquals("video_post", policy.tableName)
         assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, policy.id.writePolicy)
         assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
         assertEquals(listOf("id", "title"), policy.writeSurface.createAllowedFields)
         assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
+        assertEquals(40, textId.columnLength)
+        assertEquals(null, nativeId.columnLength)
     }
 
     private fun runnerWithSingleArtifact(

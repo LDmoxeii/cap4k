@@ -12,7 +12,7 @@ internal object AggregateUniqueAdapterCompileSmoke {
     ): UniqueVideoPostSlugQry.Response {
         val request = UniqueVideoPostSlugQry.Request(
             slug = "demo",
-            excludeVideoPostId = VideoPostId.new(),
+            excludeVideoPostId = VideoPostId.parse("018f3b6a-7c00-7abc-8def-0123456789ab"),
         )
         return handler.exec(request)
     }

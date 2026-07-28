@@ -26,9 +26,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val ownStrongId = resolveOwnStrongId(model, entity)
-            val ownIdFieldName = ownStrongId?.let { entity.idField.name }
-            val ownIdInitializer = ownStrongId?.let { "${it.typeName}.new()" }
-            val ownIdTypeRef = ownStrongId?.fqn()
             val payloadFields = resolvedPolicy
                 ?.writeSurface
                 ?.createAllowedFields
@@ -65,8 +62,7 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 payloadFields = payloadFields,
             )
             val imports = (
-                listOfNotNull(ownIdTypeRef) +
-                    payloadFields.flatMap { field ->
+                payloadFields.flatMap { field ->
                         (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
                     } +
                     payloadFields.mapNotNull { it["typeRef"] as? String }
@@ -96,10 +92,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "constructorMappingResolved" to constructorMapping.resolved,
                     "constructorPayloadFields" to constructorMapping.payloadFields,
                     "constructorUnresolvedFields" to constructorMapping.unresolvedFields,
-                    "constructorStructuralFields" to constructorMapping.structuralFields,
-                    "ownIdFieldName" to ownIdFieldName,
-                    "ownIdInitializer" to ownIdInitializer,
-                    "ownIdTypeRef" to ownIdTypeRef,
                     "entityName" to entity.name,
                     "entityTypeFqn" to entityTypeFqn,
                     "aggregateName" to entity.name,
@@ -120,14 +112,13 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         ownStrongId: StrongIdModel?,
         payloadFields: List<Map<String, Any?>>,
     ): ConstructorMapping {
-        val structuralFields = entity.fields
-            .filter { it.parentRef }
-            .map { field -> constructorFieldContext(entity, model, planning, field) }
-
+        val entrustedFields = AggregateEntrustedFieldPlanning.resolve(entity, model)
         val payloadFieldNames = payloadFields.mapNotNull { it["name"] as? String }.toSet()
         val missingRequiredFields = entity.fields
             .filterNot { ownStrongId != null && it.name == entity.idField.name }
+            .filterNot { entrustedFields.isProviderAssigned(it.name) }
             .filterNot { it.name in payloadFieldNames }
+            .filterNot { resolved && isSystemTransitionOnlyConstructorField(resolvedPolicy, it) }
             .filterNot { field ->
                 hasConstructorDefault(
                     entity = entity,
@@ -145,13 +136,11 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 unresolvedFields = missingRequiredFields.map { field ->
                     constructorFieldContext(entity, model, planning, field)
                 },
-                structuralFields = structuralFields,
             )
         }
 
         if (missingRequiredFields.isNotEmpty()) {
             val blockingRequiredFields = missingRequiredFields
-                .filterNot { it.parentRef }
                 .filterNot { field -> canDeferManagedConstructorField(resolvedPolicy, field) }
             if (ownStrongId != null && blockingRequiredFields.isNotEmpty()) {
                 val fieldNames = blockingRequiredFields.joinToString(", ") { it.name }
@@ -166,7 +155,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 unresolvedFields = missingRequiredFields.map { field ->
                     constructorFieldContext(entity, model, planning, field)
                 },
-                structuralFields = structuralFields,
             )
         }
 
@@ -174,7 +162,6 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             resolved = true,
             payloadFields = payloadFields,
             unresolvedFields = emptyList(),
-            structuralFields = structuralFields,
         )
     }
 
@@ -196,11 +183,9 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
             "typeRef" to strongId?.fqn(),
             "strongId" to (strongId != null),
             "nullable" to field.nullable,
-            "parentRef" to field.parentRef,
             "managedRole" to field.managedRole?.name,
             "managed" to (field.managedRole != null),
             "inherited" to field.inherited,
-            "structuralParentRef" to field.parentRef,
         )
     }
 
@@ -208,17 +193,24 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
         field: FieldModel,
     ): Boolean {
-        if (
-            resolvedPolicy?.version?.enabled == true &&
-            resolvedPolicy.version.fieldName == field.name &&
-            resolvedPolicy.version.writePolicy == SpecialFieldWritePolicy.READ_ONLY
-        ) {
-            return true
-        }
         val managedField = resolvedPolicy?.managedFields?.firstOrNull { it.fieldName == field.name } ?: return false
         return managedField.writePolicy == SpecialFieldWritePolicy.READ_ONLY ||
             managedField.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
     }
+
+    private fun isSystemTransitionOnlyConstructorField(
+        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
+        field: FieldModel,
+    ): Boolean =
+        (
+            resolvedPolicy?.deleted?.enabled == true &&
+                resolvedPolicy.deleted.fieldName == field.name &&
+                resolvedPolicy.deleted.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+            ) ||
+            resolvedPolicy?.managedFields?.any {
+                it.fieldName == field.name &&
+                    it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+            } == true
 
     private fun hasConstructorDefault(
         entity: EntityModel,
@@ -271,6 +263,5 @@ internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
         val resolved: Boolean,
         val payloadFields: List<Map<String, Any?>>,
         val unresolvedFields: List<Map<String, Any?>>,
-        val structuralFields: List<Map<String, Any?>>,
     )
 }

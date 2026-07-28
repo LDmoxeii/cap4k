@@ -3,6 +3,14 @@ package com.only4.cap4k.ddd.runtime.strongid
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
@@ -52,23 +60,59 @@ class StrongIdUowRuntimeTest {
     }
 
     @Test
-    fun `create intent completes root strong id before save`() {
-        val content = StrongContent.unassigned("uow-create")
+    fun `CREATE persist completes and reloads generated root and children`() {
+        val content = StrongContent.unassigned("uow-create").also {
+            it.items += StrongContentItem.unassigned("first-child")
+            it.items += StrongContentItem.unassigned("second-child")
+        }
 
         unitOfWork.persist(content, PersistIntent.CREATE)
 
         assertTrue(content.hasAssignedId())
+        assertTrue(content.items.all { it.hasAssignedId() })
+        val assignedRootId = content.id
+        val assignedChildIds = content.items.map { it.id }
+
         unitOfWork.save()
-        assertTrue(repository.findById(content.id).isPresent)
+        entityManager.clear()
+        val loaded = repository.findById(assignedRootId).orElseThrow()
+        assertEquals(assignedRootId, loaded.id)
+        assertEquals(assignedChildIds, loaded.items.map { it.id })
+    }
+
+    @Test
+    fun `factory supervisor returns an id ready root graph before save`() {
+        val factorySupervisor = DefaultAggregateFactorySupervisor(
+            factories = listOf(StrongContentFactory()),
+            unitOfWork = unitOfWork,
+        ).apply { init() }
+
+        val content = factorySupervisor.create(
+            StrongContentFactory.Payload(
+                title = "factory-create",
+                itemLabels = listOf("first-child", "second-child"),
+            )
+        )
+
+        assertTrue(content.hasAssignedId())
+        assertTrue(content.items.all { it.hasAssignedId() })
+        val assignedRootId = content.id
+        val assignedChildIds = content.items.map { it.id }
+
+        unitOfWork.save()
+        entityManager.clear()
+        val loaded = repository.findById(assignedRootId).orElseThrow()
+        assertEquals(assignedRootId, loaded.id)
+        assertEquals(assignedChildIds, loaded.items.map { it.id })
     }
 
     @Test
     fun `existing enrollment completes new owned child before flush`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "existing-root",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -87,9 +131,9 @@ class StrongIdUowRuntimeTest {
     fun `existing enrollment accepts uninitialized strong id proxy`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "proxy-root",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -107,9 +151,9 @@ class StrongIdUowRuntimeTest {
     fun `existing enrollment completes owned child reached through initialized proxy implementation`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "initialized-proxy-root",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -131,9 +175,9 @@ class StrongIdUowRuntimeTest {
     fun `clean existing enrollment does not emit update listener`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "clean-root",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -155,9 +199,9 @@ class StrongIdUowRuntimeTest {
     fun `clean detached existing enrollment does not emit update listener`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "clean-detached-root",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -178,9 +222,9 @@ class StrongIdUowRuntimeTest {
     fun `dirty loaded existing enrollment emits update listener`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "original-title",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -206,9 +250,9 @@ class StrongIdUowRuntimeTest {
     fun `dirty managed proxy emits update listener for initialized implementation`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "proxy-original-title",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -234,9 +278,9 @@ class StrongIdUowRuntimeTest {
     fun `dirty detached existing enrollment emits update listener for managed merge result`() {
         val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.new(),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
                 title = "detached-original-title",
-                authorId = StrongAuthorId.new(),
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000003"),
                 mediaProcessingTaskId = null,
             )
         )
@@ -267,9 +311,78 @@ class StrongIdUowRuntimeTest {
         fun persistListenerManager(): RecordingPersistListenerManager = RecordingPersistListenerManager()
 
         @Bean
-        fun jpaUnitOfWork(persistListenerManager: PersistListenerManager): JpaUnitOfWork =
-            JpaUnitOfWork(emptyList<UnitOfWorkInterceptor>(), persistListenerManager, true)
+        fun generatedOwnIdCatalog(): GeneratedOwnIdCatalog = object : GeneratedOwnIdCatalog {
+            override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
+                StrongContentGeneratedOwnIdAccessor(),
+                StrongContentItemGeneratedOwnIdAccessor(),
+            )
+        }
+
+        @Bean
+        fun generatedOwnIdRegistry(catalog: GeneratedOwnIdCatalog): GeneratedOwnIdRegistry =
+            MapBackedGeneratedOwnIdRegistry(listOf(catalog))
+
+        @Bean
+        fun jpaUnitOfWork(
+            persistListenerManager: PersistListenerManager,
+            generatedOwnIdRegistry: GeneratedOwnIdRegistry,
+        ): JpaUnitOfWork = JpaUnitOfWork(
+            emptyList<UnitOfWorkInterceptor>(),
+            persistListenerManager,
+            true,
+            generatedOwnIdRegistry,
+        )
     }
+}
+
+private class StrongContentFactory :
+    AggregateFactory<StrongContentFactory.Payload, StrongContent> {
+    override fun create(entityPayload: Payload): StrongContent =
+        StrongContent.unassigned(entityPayload.title).also { content ->
+            entityPayload.itemLabels.forEach { label ->
+                content.items += StrongContentItem.unassigned(label)
+            }
+        }
+
+    data class Payload(
+        val title: String,
+        val itemLabels: List<String>,
+    ) : AggregatePayload<StrongContent>
+}
+
+private class StrongContentGeneratedOwnIdAccessor : GeneratedOwnIdAccessor<StrongContent, StrongContentId> {
+    override val entityType = StrongContent::class
+    override val label = "StrongContent.id"
+    private val idField = StrongContent::class.java.getDeclaredField("id").apply { isAccessible = true }
+    private var sequence = 0L
+
+    override fun current(entity: StrongContent): StrongContentId? =
+        readInitializedOrNull { entity.id }
+
+    override fun assign(entity: StrongContent, id: StrongContentId) {
+        idField.set(entity, id)
+    }
+
+    override fun next(): StrongContentId =
+        StrongContentId.parse("019c0000-0000-7000-8001-${(++sequence).toString(16).padStart(12, '0')}")
+}
+
+private class StrongContentItemGeneratedOwnIdAccessor :
+    GeneratedOwnIdAccessor<StrongContentItem, StrongContentItemId> {
+    override val entityType = StrongContentItem::class
+    override val label = "StrongContentItem.id"
+    private val idField = StrongContentItem::class.java.getDeclaredField("id").apply { isAccessible = true }
+    private var sequence = 0L
+
+    override fun current(entity: StrongContentItem): StrongContentItemId? =
+        readInitializedOrNull { entity.id }
+
+    override fun assign(entity: StrongContentItem, id: StrongContentItemId) {
+        idField.set(entity, id)
+    }
+
+    override fun next(): StrongContentItemId =
+        StrongContentItemId.parse("019c0000-0000-7000-8002-${(++sequence).toString(16).padStart(12, '0')}")
 }
 
 class RecordingPersistListenerManager : PersistListenerManager {

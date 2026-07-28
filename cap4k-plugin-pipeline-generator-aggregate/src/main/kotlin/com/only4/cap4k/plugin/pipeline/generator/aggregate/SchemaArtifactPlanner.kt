@@ -112,7 +112,6 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
         val relationPlan = AggregateRelationPlanning.planFor(
             entity = entity,
             relations = model.aggregateRelations,
-            inverseRelations = emptyList(),
         )
 
         return relationPlan.relationFields

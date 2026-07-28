@@ -8,7 +8,6 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
-    val parentRef: Boolean = false,
     val managedRole: DbManagedRole? = null,
     val inherited: Boolean = false,
 )
@@ -42,6 +41,7 @@ enum class DbManagedRole {
 enum class DbIdStrategy {
     DB_IDENTITY,
     UUID7,
+    SNOWFLAKE,
 }
 
 data class DbColumnSnapshot(
@@ -60,6 +60,8 @@ data class DbColumnSnapshot(
     val idStrategy: DbIdStrategy? = null,
     val managedRole: DbManagedRole? = null,
     val inherited: Boolean? = null,
+    val jdbcType: Int? = null,
+    val columnSize: Int? = null,
 )
 
 /**
@@ -299,20 +301,6 @@ data class AggregateRelationModel(
     val singleAccessorName: String? = null,
 )
 
-data class AggregateInverseRelationModel(
-    val ownerEntityName: String,
-    val ownerEntityPackageName: String,
-    val fieldName: String,
-    val targetEntityName: String,
-    val targetEntityPackageName: String,
-    val relationType: AggregateRelationType,
-    val joinColumn: String,
-    val fetchType: AggregateFetchType,
-    val nullable: Boolean = false,
-    val insertable: Boolean = false,
-    val updatable: Boolean = false,
-)
-
 data class EntityModel(
     val name: String,
     val packageName: String,
@@ -331,6 +319,7 @@ data class AggregateColumnJpaModel(
     val isId: Boolean,
     val converterTypeFqn: String? = null,
     val converterClassFqn: String? = converterTypeFqn?.let { "$it.Converter" },
+    val columnLength: Int? = null,
 )
 
 data class AggregateEntityJpaModel(
@@ -356,13 +345,23 @@ enum class SoftDeleteTombstoneStrategy {
     SELF_ID,
 }
 
+enum class AggregateIdStorageKind {
+    INTEGRAL,
+    CHARACTER,
+    NATIVE_UUID,
+}
+
+enum class SoftDeleteActiveSentinel {
+    ZERO,
+    NIL_UUID,
+}
+
 data class AggregateSoftDeletePolicy(
     val fieldName: String,
     val columnName: String,
-    val activeValue: String,
+    val storageKind: AggregateIdStorageKind,
+    val activeSentinel: SoftDeleteActiveSentinel,
     val tombstoneStrategy: SoftDeleteTombstoneStrategy,
-    val activePredicateSql: String,
-    val deleteAssignmentSql: String,
 )
 
 data class AggregatePersistenceProviderControl(
@@ -579,7 +578,6 @@ data class StrongIdModel(
     val ownerAggregateName: String? = null,
     val ownerAggregatePackageName: String? = null,
     val idStrategy: String? = null,
-    val canGenerateNew: Boolean = false,
     val isEmbeddedId: Boolean = false,
 )
 
@@ -595,7 +593,6 @@ data class CanonicalModel(
     val drawingBoard: DrawingBoardModel? = null,
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
-    val aggregateInverseRelations: List<AggregateInverseRelationModel> = emptyList(),
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),

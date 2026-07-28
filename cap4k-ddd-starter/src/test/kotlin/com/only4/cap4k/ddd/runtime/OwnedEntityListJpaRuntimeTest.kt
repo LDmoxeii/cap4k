@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.runtime
 
+import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
 import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListFile
 import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListItem
 import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListRoot
@@ -7,6 +9,9 @@ import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListRootRep
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -62,6 +67,56 @@ class OwnedEntityListJpaRuntimeTest {
         assertNull(afterRemoval.file)
     }
 
+    @Test
+    fun `owned relation facades assign generated ids before mutation`() {
+        val accessor = TimingChildGeneratedOwnIdAccessor()
+        val parent = TimingParent(accessor)
+
+        val child = parent.addChild("line")
+        assertTrue(child.hasAssignedId())
+
+        val replacement = TimingChild.unassigned("replacement")
+        parent.primaryChild = replacement
+        assertTrue(replacement.hasAssignedId())
+    }
+
+    @Test
+    fun `failed generated id allocation preserves owned relation backing values`() {
+        val accessor = TimingChildGeneratedOwnIdAccessor()
+        val parent = TimingParent(accessor)
+        val oldChild = TimingChild.preassigned("old-line", "line-existing")
+        val oldPrimaryChild = TimingChild.preassigned("old-primary", "primary-existing")
+        parent.children.add(oldChild)
+        parent.primaryChild = oldPrimaryChild
+        accessor.failAllocation = true
+
+        assertThrows(IllegalStateException::class.java) {
+            parent.children.add(TimingChild.unassigned("failed-line"))
+        }
+        assertEquals(listOf(oldChild), parent.childrenBackingSnapshot())
+
+        assertThrows(IllegalStateException::class.java) {
+            parent.primaryChild = TimingChild.unassigned("failed-primary")
+        }
+        assertEquals(listOf(oldPrimaryChild), parent.primaryBackingSnapshot())
+        assertSame(oldPrimaryChild, parent.primaryChild)
+    }
+
+    @Test
+    fun `owned relation facades preserve preassigned ids`() {
+        val accessor = TimingChildGeneratedOwnIdAccessor()
+        val parent = TimingParent(accessor)
+        val child = TimingChild.preassigned("line", "line-existing")
+        val primaryChild = TimingChild.preassigned("primary", "primary-existing")
+
+        parent.children.add(child)
+        parent.primaryChild = primaryChild
+
+        assertEquals("line-existing", child.assignedId())
+        assertEquals("primary-existing", primaryChild.assignedId())
+        assertEquals(0, accessor.nextCalls)
+    }
+
     private fun rowCount(tableName: String): Long =
         jdbcTemplate.queryForObject("""select count(*) from "$tableName"""", Long::class.java)!!
 
@@ -69,4 +124,83 @@ class OwnedEntityListJpaRuntimeTest {
     @EntityScan(basePackageClasses = [OwnedEntityListRoot::class])
     @EnableJpaRepositories(basePackageClasses = [OwnedEntityListRootRepository::class])
     class TestApplication
+}
+
+private class TimingParent(
+    private val accessor: TimingChildGeneratedOwnIdAccessor,
+) {
+    private val childrenBacking = mutableListOf<TimingChild>()
+    private val primaryBacking = mutableListOf<TimingChild>()
+
+    val children: OwnedEntityList<TimingChild>
+        get() = OwnedEntityList.of(childrenBacking, TimingChild::class, "TimingParent.children") { child ->
+            accessor.assignIfMissing(child)
+        }
+
+    var primaryChild: TimingChild?
+        get() = OwnedEntityList.of(primaryBacking, TimingChild::class, "TimingParent.primaryChild") { child ->
+            accessor.assignIfMissing(child)
+        }.singleOrNull()
+        set(value) {
+            OwnedEntityList.of(primaryBacking, TimingChild::class, "TimingParent.primaryChild") { child ->
+                accessor.assignIfMissing(child)
+            }.replace(value)
+        }
+
+    fun addChild(name: String): TimingChild =
+        TimingChild.unassigned(name).also(children::add)
+
+    fun childrenBackingSnapshot(): List<TimingChild> = childrenBacking.toList()
+
+    fun primaryBackingSnapshot(): List<TimingChild> = primaryBacking.toList()
+}
+
+private class TimingChild private constructor(
+    val name: String,
+    initialId: String?,
+) {
+    private lateinit var id: String
+
+    init {
+        if (initialId != null) id = initialId
+    }
+
+    fun hasAssignedId(): Boolean = currentId() != null
+
+    fun assignedId(): String = id
+
+    fun currentId(): String? =
+        try {
+            id
+        } catch (_: UninitializedPropertyAccessException) {
+            null
+        }
+
+    fun assignId(value: String) {
+        id = value
+    }
+
+    companion object {
+        fun unassigned(name: String): TimingChild = TimingChild(name, null)
+
+        fun preassigned(name: String, id: String): TimingChild = TimingChild(name, id)
+    }
+}
+
+private class TimingChildGeneratedOwnIdAccessor : GeneratedOwnIdAccessor<TimingChild, String> {
+    override val entityType = TimingChild::class
+    override val label: String = "TimingChild.id"
+    var failAllocation: Boolean = false
+    var nextCalls: Int = 0
+        private set
+
+    override fun current(entity: TimingChild): String? = entity.currentId()
+
+    override fun assign(entity: TimingChild, id: String) = entity.assignId(id)
+
+    override fun next(): String {
+        nextCalls++
+        check(!failAllocation) { "allocation failed" }
+        return "timing-child-$nextCalls"
+    }
 }
