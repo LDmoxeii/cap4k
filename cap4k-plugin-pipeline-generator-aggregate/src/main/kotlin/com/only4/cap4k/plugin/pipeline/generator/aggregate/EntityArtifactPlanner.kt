@@ -27,6 +27,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
+            val entrustedFields = AggregateEntrustedFieldPlanning.resolve(entity, model)
             val scalarJpaByField = entityJpa?.columns.orEmpty().associateBy { it.fieldName }
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
@@ -41,22 +42,14 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val relationPlan = AggregateRelationPlanning.planFor(
                 entity = entity,
                 relations = model.aggregateRelations,
-                inverseRelations = model.aggregateInverseRelations,
                 generatedOwnIdsByEntity = generatedOwnIdsByEntity,
             )
-            val readOnlyInverseJoinColumns = relationPlan.relationFields
-                .filter {
-                    it["relationType"] == AggregateRelationType.MANY_TO_ONE.name &&
-                        it["readOnly"] == true
-                }
-                .mapNotNull { it["joinColumn"] as? String }
-                .toSet()
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
                     when (it["relationType"]) {
                         AggregateRelationType.MANY_TO_ONE.name,
                         AggregateRelationType.ONE_TO_ONE.name,
-                        -> it["readOnly"] != true
+                        -> true
                         else -> false
                     }
                 }
@@ -176,6 +169,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         val generatedOwnId =
                             generatedOwnIdsByEntity["${entity.packageName}.${entity.name}"] != null &&
                                 field.name == entity.idField.name
+                        val providerAssignedIdentity = entrustedFields.isDatabaseIdentity(field.name)
+                        val providerAssignedVersion = entrustedFields.isVersion(field.name)
+                        val providerAssigned = providerAssignedIdentity || providerAssignedVersion
                         val idPolicyApplies = jpa.isId && idPolicyControl?.idFieldName == field.name
                         val generatedValueStrategy = if (
                             strongId == null &&
@@ -185,11 +181,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "IDENTITY"
                         } else {
                             control?.generatedValueStrategy
-                        }
-                        val isVersionField = when {
-                            resolvedPolicy?.version?.enabled == true ->
-                                resolvedPolicy.version.fieldName == field.name
-                            else -> control?.version == true
                         }
                         val defaultValue = if (strongId != null || isSoftDeleteField) {
                             null
@@ -204,28 +195,31 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         }
                         val insertable = when {
                             embeddedId -> null
-                            jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
                             else -> null
                         }
                         val updatable = when {
                             embeddedId -> null
-                            jpa.columnName in readOnlyInverseJoinColumns -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true
                             else -> null
                         }
                         val writePolicy = when {
                             jpa.isId && resolvedPolicy != null -> resolvedPolicy.id.writePolicy.name
-                            isVersionField && resolvedPolicy != null -> resolvedPolicy.version.writePolicy.name
+                            providerAssignedVersion -> requireNotNull(resolvedPolicy).version.writePolicy.name
                             resolvedPolicy?.deleted?.enabled == true &&
                                 resolvedPolicy.deleted.fieldName == field.name ->
                                 resolvedPolicy.deleted.writePolicy.name
                             managedByField[field.name] != null -> managedByField.getValue(field.name).writePolicy.name
                             else -> "READ_WRITE"
                         }
+                        val constructorIncluded =
+                            !generatedOwnId && !providerAssigned &&
+                                writePolicy != SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
+                        val propertyNullable = providerAssigned || field.nullable
                         val propertyInitializer = when {
+                            providerAssigned -> "null"
                             isSoftDeleteField -> requireNotNull(renderedSoftDelete).propertyInitializer
                             writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name ->
                                 error(
@@ -243,7 +237,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "typeImports" to renderedType.imports,
                             "nullable" to field.nullable,
                             "defaultValue" to defaultValue,
+                            "propertyNullable" to propertyNullable,
                             "propertyInitializer" to propertyInitializer,
+                            "constructorIncluded" to constructorIncluded,
                             "typeRef" to typeRef,
                             "strongId" to (strongId != null),
                             "embeddedId" to embeddedId,
@@ -257,13 +253,13 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "converterTypeRef" to jpa.converterTypeFqn,
                             "converterClassRef" to jpa.converterClassFqn,
                             "generatedValueStrategy" to generatedValueStrategy,
-                            "isVersion" to isVersionField,
+                            "providerAssignedIdentity" to providerAssignedIdentity,
+                            "providerAssignedVersion" to providerAssignedVersion,
+                            "isVersion" to providerAssignedVersion,
                             "writePolicy" to writePolicy,
-                            "parentRef" to field.parentRef,
                             "managedRole" to field.managedRole?.name,
                             "managed" to (field.managedRole != null),
                             "inherited" to field.inherited,
-                            "structuralParentRef" to field.parentRef,
                             "insertable" to insertable,
                             "updatable" to updatable,
                             "attributeOverrideNullable" to field.nullable,
@@ -325,10 +321,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "imports" to scalarImports.distinct(),
                     "fields" to fieldContexts,
                     "scalarFields" to scalarFields,
-                    "constructorFields" to scalarFields.filterNot {
-                        it["generatedOwnId"] == true ||
-                            it["writePolicy"] == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
-                    },
+                    "constructorFields" to scalarFields.filter { it["constructorIncluded"] == true },
                     "relationFields" to renderedRelationFields,
                 ),
             )

@@ -27,7 +27,6 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
             val relationPlan = AggregateRelationPlanning.planFor(
                 entity = entity,
                 relations = model.aggregateRelations,
-                inverseRelations = model.aggregateInverseRelations,
             )
             val relationFields = projectionRelationFields(config, entity.packageName, relationPlan.relationFields)
             val scalarFields = entity.fields.map { field ->

@@ -17,6 +17,7 @@ import com.acme.demo.domain.aggregates.uuid_string_record.UuidStringRecord
 import com.acme.demo.domain.aggregates.uuid_string_record.UuidStringRecordGeneratedOwnIdAccessor
 import com.acme.demo.domain.aggregates.uuid_string_record.UuidStringRecordId
 import com.acme.demo.domain.aggregates.uuid_string_record.factory.UuidStringRecordFactory
+import com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory
 
 object AggregateProviderPersistenceCompileSmoke {
     fun verify(
@@ -25,17 +26,20 @@ object AggregateProviderPersistenceCompileSmoke {
         snowflakeStringRecord: SnowflakeStringRecord,
         uuidStringRecord: UuidStringRecord,
         uuidNativeRecord: UuidNativeRecord,
+        videoPostFactory: VideoPostFactory,
         snowflakeLongRecordFactory: SnowflakeLongRecordFactory,
         snowflakeStringRecordFactory: SnowflakeStringRecordFactory,
         uuidStringRecordFactory: UuidStringRecordFactory,
         uuidNativeRecordFactory: UuidNativeRecordFactory,
         generatedOwnIdCatalogContribution: GeneratedOwnIdCatalogContribution,
     ): List<Any> {
+        val videoPostPayload = VideoPostFactory.Payload(title = "identity")
         val snowflakeLongPayload = SnowflakeLongRecordFactory.Payload(title = "snowflake long")
         val snowflakeStringPayload = SnowflakeStringRecordFactory.Payload(title = "snowflake-string")
         val uuidStringPayload = UuidStringRecordFactory.Payload(title = "uuid-string")
         val uuidNativePayload = UuidNativeRecordFactory.Payload(title = "uuid-native")
 
+        val createdVideoPost = videoPostFactory.create(videoPostPayload)
         val createdSnowflakeLongRecord = snowflakeLongRecordFactory.create(snowflakeLongPayload)
         val createdSnowflakeStringRecord = snowflakeStringRecordFactory.create(snowflakeStringPayload)
         val createdUuidStringRecord = uuidStringRecordFactory.create(uuidStringPayload)
@@ -47,6 +51,7 @@ object AggregateProviderPersistenceCompileSmoke {
             snowflakeStringRecord,
             uuidStringRecord,
             uuidNativeRecord,
+            createdVideoPost,
             createdSnowflakeLongRecord,
             createdSnowflakeStringRecord,
             createdUuidStringRecord,

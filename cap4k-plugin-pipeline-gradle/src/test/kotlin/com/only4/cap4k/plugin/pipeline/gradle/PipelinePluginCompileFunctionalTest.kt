@@ -435,7 +435,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate relation generation keeps owned direct parent bindings scalar plus read only inverse relation`() {
+    fun `aggregate relation generation keeps owned parent bindings forward only`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")
@@ -455,8 +455,27 @@ class PipelinePluginCompileFunctionalTest {
         val generatedOneChildEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt")
         ).readText()
+        val generatedVariantEntity = projectDir.resolve(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFileVariant.kt"
+            )
+        ).readText()
         val generatedContentEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt")
+        ).readText()
+        val generatedRootSchema = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
+        ).readText()
+        val generatedChildSchema = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostItem.kt")
+        ).readText()
+        val generatedFileSchema = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostFile.kt")
+        ).readText()
+        val generatedVariantSchema = projectDir.resolve(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostFileVariant.kt"
+            )
         ).readText()
 
         assertGeneratedFilesExist(
@@ -464,6 +483,7 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt"),
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFileVariant.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_profile/UserProfile.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/Content.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/content/ContentId.kt"),
@@ -507,19 +527,32 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedRootEntity.contains(".replace(value)"))
         assertFalse(generatedRootEntity.contains("_files.clear()"))
         assertFalse(generatedRootEntity.contains("_files.add(value)"))
-        assertTrue(generatedChildEntity.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
-        assertTrue(generatedChildEntity.contains("var videoPostId: Long = videoPostId"))
-        assertTrue(generatedChildEntity.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(
-            generatedChildEntity.contains(
-                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
-            )
-        )
-        assertFalse(generatedChildEntity.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
-        assertFalse(generatedChildEntity.contains("@Column(name = \"video_post_id\")\n    var videoPostId: Long = videoPostId"))
+        assertFalse(generatedChildEntity.contains("videoPostId"))
+        assertFalse(generatedChildEntity.contains("@ManyToOne"))
+        assertFalse(generatedChildEntity.contains("import jakarta.persistence.ManyToOne"))
+        assertFalse(generatedChildSchema.contains("videoPostId"))
         assertFalse(generatedChildEntity.contains("mappedBy ="))
-        assertTrue(generatedOneChildEntity.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
-        assertTrue(generatedOneChildEntity.contains("var videoPostId: Long = videoPostId"))
+        assertFalse(generatedOneChildEntity.contains("videoPostId"))
+        assertFalse(generatedOneChildEntity.contains("@ManyToOne"))
+        assertFalse(generatedOneChildEntity.contains("import jakarta.persistence.ManyToOne"))
+        assertFalse(generatedFileSchema.contains("videoPostId"))
+        assertFalse(generatedVariantEntity.contains("videoPostFileId"))
+        assertFalse(generatedVariantEntity.contains("@ManyToOne"))
+        assertFalse(generatedVariantEntity.contains("import jakarta.persistence.ManyToOne"))
+        assertFalse(generatedVariantSchema.contains("videoPostFileId"))
+        assertTrue(generatedRootSchema.contains("fun joinItems()"))
+        assertTrue(generatedRootSchema.contains("fun joinFile("))
+        assertTrue(generatedFileSchema.contains("fun joinVariants()"))
+        listOf(generatedRootEntity, generatedChildEntity, generatedOneChildEntity, generatedVariantEntity).forEach {
+            assertTrue(it.contains("var id: Long? = null"))
+            assertTrue(it.contains("var version: Long? = null"))
+            assertFalse(internalConstructorParameters(it).contains("id"))
+            assertFalse(internalConstructorParameters(it).contains("version"))
+        }
+        listOf(generatedRootSchema, generatedChildSchema, generatedFileSchema, generatedVariantSchema).forEach {
+            assertTrue(it.contains("val version: Field<Long>"))
+            assertFalse(it.contains("val version: Field<Long?>"))
+        }
         assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
         assertTrue(generatedContentEntity.contains("import com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId"))
         assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
@@ -532,27 +565,6 @@ class PipelinePluginCompileFunctionalTest {
     fun `aggregate schema owned relation joins compile for owned many owned one and chained children`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-schema-relation-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText().replace(
-                """includeTables.set(listOf("video_post", "video_post_item", "video_post_file", "user_profile", "content", "media_processing_task"))""",
-                """includeTables.set(listOf("video_post", "video_post_item", "video_post_file", "video_post_item_adjustment", "user_profile", "content", "media_processing_task"))""",
-            )
-        )
-        val schemaFile = projectDir.resolve("schema.sql")
-        schemaFile.writeText(
-            schemaFile.readText() +
-                """
-
-                create table video_post_item_adjustment (
-                    id bigint primary key comment '@IdStrategy=db_identity;',
-                    video_post_item_id bigint not null comment '@ParentRef;',
-                    reason varchar(64) not null
-                );
-
-                comment on table video_post_item_adjustment is '@Parent=video_post_item;';
-                """.trimIndent()
-        )
         val smokeFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/SchemaRelationCompileSmoke.kt"
         )
@@ -564,18 +576,18 @@ class PipelinePluginCompileFunctionalTest {
             import com.only4.cap4k.ddd.domain.repo.schema.JoinType
 
             class SchemaRelationCompileSmoke {
-                fun compileOwnedRelationQueries(label: String, storageKey: String, reason: String) {
+                fun compileOwnedRelationQueries(label: String, storageKey: String, variantKey: String) {
                     SVideoPost.predicate(distinct = true) { post ->
                         val item = post.joinItems()
                         val file = post.joinFile(JoinType.LEFT)
-                        val adjustment = item.joinAdjustments()
+                        val variant = file.joinVariants()
 
                         post.all(
                             post.items.isNotEmpty(),
                             post.file.isNotNull(),
                             item.label eq label,
                             file.storageKey eq storageKey,
-                            adjustment.reason eq reason,
+                            variant.variantKey eq variantKey,
                         )
                     }
                 }
@@ -589,8 +601,8 @@ class PipelinePluginCompileFunctionalTest {
         val rootSchema = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt")
         ).readText()
-        val itemSchema = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostItem.kt")
+        val fileSchema = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPostFile.kt")
         ).readText()
 
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
@@ -601,7 +613,7 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(rootSchema.contains("fun joinItems(): SVideoPostItem = joinItems(JoinType.INNER)"))
         assertTrue(rootSchema.contains("fun joinFile(joinType: JoinType): SVideoPostFile"))
         assertTrue(rootSchema.contains("root.join<VideoPost, T>(persistencePathName, joinType.toJpaJoinType())"))
-        assertTrue(itemSchema.contains("fun joinAdjustments(): SVideoPostItemAdjustment = joinAdjustments(JoinType.INNER)"))
+        assertTrue(fileSchema.contains("fun joinVariants(): SVideoPostFileVariant = joinVariants(JoinType.INNER)"))
         assertFalse(rootSchema.contains("val _items: RelationCollectionField"))
         assertFalse(rootSchema.contains("val _files: RelationOptionalField"))
         assertFalse(rootSchema.contains("fun join_items"))
@@ -892,6 +904,10 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
         assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedVideoPost.contains("@Version"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("id"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("version"))
+        assertTrue(generatedVideoPost.contains("var id: Long? = null"))
+        assertTrue(generatedVideoPost.contains("var version: Long? = null"))
         assertTrue(generatedVideoPost.contains("var deleted: Long = 0L"))
         assertFalse(internalConstructorParameters(generatedVideoPost).contains("deleted"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
@@ -943,8 +959,8 @@ class PipelinePluginCompileFunctionalTest {
             assertFalse(factory.contains(cell.idType), cell.factoryType)
         }
 
-        assertEquals(false, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
-        assertTrue(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
+        assertEquals(true, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
+        assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(generatedIdentityFactory.contains("deleted"))
 
         val allGeneratedEvidence = buildString {
@@ -1168,18 +1184,17 @@ class PipelinePluginCompileFunctionalTest {
                                 var ownerId = 0L
                                 sessionFactory.openSession().use { session ->
                                     val transaction = session.beginTransaction()
-                                    val owner = MixedCaseOwner(id = 0L, name = "owner")
+                                    val owner = MixedCaseOwner(name = "owner")
                                     session.persist(owner)
                                     session.flush()
-                                    ownerId = owner.id
+                                    ownerId = checkNotNull(owner.id)
                                     val entity = MixedCaseRecord(
-                                        id = 0L,
                                         title = "active",
                                     )
                                     entity.owner = owner
                                     session.persist(entity)
                                     session.flush()
-                                    id = entity.id
+                                    id = checkNotNull(entity.id)
                                     transaction.commit()
                                 }
 
@@ -1555,7 +1570,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate child unique query handler generation participates in adapter compileKotlin without child repository`() {
+    fun `aggregate child business unique query handler generation participates without child repository`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-child-unique-adapter-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
         val buildFile = projectDir.resolve("build.gradle.kts")
@@ -1574,7 +1589,7 @@ class PipelinePluginCompileFunctionalTest {
                     id bigint primary key comment '@IdStrategy=db_identity;',
                     video_post_id bigint not null comment '@ParentRef;',
                     file_index int not null,
-                    constraint uq_video_file_parent_index unique (video_post_id, file_index)
+                    constraint uq_video_file_index unique (file_index)
                 );
 
                 comment on table video_file is '@Parent=video_post;';
@@ -1595,7 +1610,7 @@ class PipelinePluginCompileFunctionalTest {
         )
         val handlerFile = projectDir.resolve(
             generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoFileVideoPostIdFileIndexQryHandler.kt"
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoFileFileIndexQryHandler.kt"
             )
         )
         val handlerContent = handlerFile.readText()

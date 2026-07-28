@@ -9,10 +9,6 @@ internal object OwnedRelationCardinalityInference {
         val child = binding.childTable
         val parentRefKey = columnKey(binding.parentRefColumn.name)
 
-        if (child.primaryKey.map(::columnKey) == listOf(parentRefKey)) {
-            return OwnedRelationCardinality.ONE
-        }
-
         val columnsByKey = child.columns.associateBy { columnKey(it.name) }
         val scopeColumnKeys = child.columns
             .filter { it.managedRole == DbManagedRole.SCOPE }

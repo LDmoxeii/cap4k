@@ -1,6 +1,5 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
-import com.only4.cap4k.plugin.pipeline.api.AggregateInverseRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
@@ -27,22 +26,15 @@ internal object AggregateRelationPlanning {
     fun planFor(
         entity: EntityModel,
         relations: List<AggregateRelationModel>,
-        inverseRelations: List<AggregateInverseRelationModel>,
         generatedOwnIdsByEntity: Map<String, GeneratedOwnIdDescriptor> = emptyMap(),
     ): AggregateRelationRenderPlan {
         val entityRelations = relations
             .filter { it.ownerEntityName == entity.name && it.ownerEntityPackageName == entity.packageName }
-        val entityInverseRelations = inverseRelations
-            .filter { it.ownerEntityName == entity.name && it.ownerEntityPackageName == entity.packageName }
         require(entityRelations.all { it.relationType in supportedRelationTypes }) {
             "Unsupported aggregate relation type for ${entity.packageName}.${entity.name}"
         }
-        require(entityInverseRelations.all { it.relationType in supportedRelationTypes }) {
-            "Unsupported aggregate relation type for ${entity.packageName}.${entity.name}"
-        }
-        val allEntityRelations = entityRelations.map { it.targetEntityName to it.targetEntityPackageName } +
-            entityInverseRelations.map { it.targetEntityName to it.targetEntityPackageName }
-        val targetPackagesByType = allEntityRelations
+        val targetPackagesByType = entityRelations
+            .map { it.targetEntityName to it.targetEntityPackageName }
             .groupBy { it.first }
             .mapValues { (_, matchingRelations) -> matchingRelations.map { it.second }.distinct() }
         val hasOwnedCollectionFacadeRelations = entityRelations.any {
@@ -109,45 +101,9 @@ internal object AggregateRelationPlanning {
                 "generatedOwnIdAccessorFqn" to generatedOwnIdAccessorFqn,
             )
         }
-        val inverseRelationFields = entityInverseRelations.map { relation ->
-            val targetTypeRef = when {
-                relation.targetEntityPackageName == entity.packageName -> relation.targetEntityName
-                targetPackagesByType.getValue(relation.targetEntityName).size == 1 -> relation.targetEntityName
-                else -> "${relation.targetEntityPackageName}.${relation.targetEntityName}"
-            }
-
-            mapOf(
-                "name" to relation.fieldName,
-                "domainName" to relation.fieldName,
-                "persistencePathName" to relation.fieldName,
-                "targetType" to relation.targetEntityName,
-                "targetTypeRef" to targetTypeRef,
-                "targetPackageName" to relation.targetEntityPackageName,
-                "relationType" to relation.relationType.name,
-                "fetchType" to relation.fetchType.name,
-                "joinColumn" to relation.joinColumn,
-                "nullable" to relation.nullable,
-                "readOnly" to true,
-                "insertable" to relation.insertable,
-                "updatable" to relation.updatable,
-                "cascadeTypes" to emptyList<String>(),
-                "orphanRemoval" to false,
-                "joinColumnNullable" to null,
-                "owned" to false,
-                "parentRefColumn" to null,
-                "ownedCardinality" to null,
-                "persistenceShape" to null,
-                "backingCollectionName" to null,
-                "singleAccessorName" to null,
-                "generatedOwnIdAccessorFqn" to null,
-            )
+        val relationTargetImports = entityRelations.map {
+            it.targetEntityName to it.targetEntityPackageName
         }
-        val relationFields = ownerRelationFields + inverseRelationFields
-        val relationTargetImports = (entityRelations.map {
-            it.targetEntityName to it.targetEntityPackageName
-        } + entityInverseRelations.map {
-            it.targetEntityName to it.targetEntityPackageName
-        })
             .mapNotNull { relation ->
                 val targetEntityName = relation.first
                 val targetEntityPackageName = relation.second
@@ -164,7 +120,7 @@ internal object AggregateRelationPlanning {
                 add(OWNED_ENTITY_LIST_FQN)
             }
         }.distinct()
-        val relationTypes = (entityRelations.map { it.relationType } + entityInverseRelations.map { it.relationType }).toSet()
+        val relationTypes = entityRelations.map { it.relationType }.toSet()
         val hasCascadeTypes = entityRelations.any { it.cascadeTypes.isNotEmpty() }
         val jpaImports = buildList {
             if (relationTypes.isNotEmpty()) {
@@ -189,7 +145,7 @@ internal object AggregateRelationPlanning {
         }
 
         return AggregateRelationRenderPlan(
-            relationFields = relationFields,
+            relationFields = ownerRelationFields,
             imports = imports,
             jpaImports = jpaImports,
         )

@@ -36,12 +36,16 @@ The DB comment contract is a strict, exact-name allow-list. Unsupported annotati
 - `@Ignore`, `@ParentRef`, and `@Inherited` do not take explicit values.
 - A table with `@Parent=<table>` must declare exactly one `@ParentRef` column.
 - `@ParentRef` is valid only on child tables with `@Parent=<table>`.
+- `@ParentRef` is structural owned-relation metadata. It does not generate a child parent-ID scalar or inverse parent navigation by default.
+- An owned child must declare an independent primary key. Using its `@ParentRef` column as the primary key is rejected.
+- Parent-owned persistence mappings and Schema joins continue to use the physical `@ParentRef` column.
 - `@ParentRef` cannot combine with `@RefAggregate`, `@RefId`, or `@IdStrategy`.
 - `@RefAggregate` and `@RefId` cannot be declared on the same column.
 - `@IdStrategy` currently supports only `db_identity` and is valid only on a primary-key column.
 - `@Managed` supports only `system`, `scope`, `deleted`, and `version`.
 - `@Inherited` is valid only with `@Managed=system`, `@Managed=scope`, `@Managed=deleted`, or `@Managed=version`.
 - `@Managed=deleted` requires a numeric, non-null column with a DB default compatible with `0`.
+- Fields resolved as `@IdStrategy=db_identity` or `@Managed=version` are omitted from generated constructors and factory payloads. Their Entity properties are readable nullable state until the persistence provider assigns them; physical Schema nullability remains unchanged.
 - For the `SELF_ID` tombstone strategy, the deleted column must be wide enough to store the id column value.
 - Generated constructors may mirror an actual DB default discovered from schema, but must not synthesize `deleted = 0` when the DB default is absent.
 - Aggregate projections do not inherit the active soft-delete filter in this iteration.

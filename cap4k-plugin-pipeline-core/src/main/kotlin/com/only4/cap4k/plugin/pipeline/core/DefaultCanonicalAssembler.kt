@@ -175,30 +175,31 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val segment = AggregateNaming.tableSegment(aggregateOwnerTable.tableName)
             val parentTable = table.parentTable
             val generatedOwnId = generatedOwnStrongIdsByTableName[table.tableName.lowercase(Locale.ROOT)]
-            val fields = table.columns.map {
-                val fieldName = lowerCamelIdentifier(it.name)
-                val resolvedType = resolveStrongIdFieldType(
-                    tableName = table.tableName,
-                    column = it,
-                    aggregateRootIdsByName = aggregateRootIdsByName,
-                ) ?: if (isTablePrimaryKeyColumn(table, it) && generatedOwnId != null) {
-                    generatedOwnId.typeName
-                } else {
-                    it.kotlinType
+            val fields = table.columns
+                .filterNot { it.parentRef }
+                .map { column ->
+                    val fieldName = lowerCamelIdentifier(column.name)
+                    val resolvedType = resolveStrongIdFieldType(
+                        tableName = table.tableName,
+                        column = column,
+                        aggregateRootIdsByName = aggregateRootIdsByName,
+                    ) ?: if (isTablePrimaryKeyColumn(table, column) && generatedOwnId != null) {
+                        generatedOwnId.typeName
+                    } else {
+                        column.kotlinType
+                    }
+                    FieldModel(
+                        name = fieldName,
+                        type = resolvedType,
+                        nullable = column.nullable,
+                        defaultValue = column.defaultValue,
+                        typeBinding = column.typeBinding,
+                        enumItems = column.enumItems,
+                        columnName = column.name,
+                        managedRole = column.managedRole,
+                        inherited = column.inherited == true,
+                    )
                 }
-                FieldModel(
-                    name = fieldName,
-                    type = resolvedType,
-                    nullable = it.nullable,
-                    defaultValue = it.defaultValue,
-                    typeBinding = it.typeBinding,
-                    enumItems = it.enumItems,
-                    columnName = it.name,
-                    parentRef = it.parentRef,
-                    managedRole = it.managedRole,
-                    inherited = it.inherited == true,
-                )
-            }
             val primaryKeyColumn = table.primaryKey.first()
             val idField = fields.first { (it.columnName ?: it.name).equals(primaryKeyColumn, ignoreCase = true) }
 
@@ -280,11 +281,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
             .toList()
-        val aggregateInverseRelations = AggregateInverseRelationInference.infer(
-            entities = entities,
-            relations = aggregateRelations,
-            tables = supportedTables,
-        )
         val aggregateEntityPackageByName = entities.associateBy(
             keySelector = { it.name },
             valueTransform = { it.packageName },
@@ -402,7 +398,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 drawingBoard = drawingBoard,
                 sharedEnums = sharedEnums,
                 aggregateRelations = aggregateRelations,
-                aggregateInverseRelations = aggregateInverseRelations,
                 aggregateEntityJpa = aggregateEntityJpa,
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,

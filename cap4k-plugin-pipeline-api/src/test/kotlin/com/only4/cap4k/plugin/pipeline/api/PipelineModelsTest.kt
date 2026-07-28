@@ -3,10 +3,20 @@ package com.only4.cap4k.plugin.pipeline.api
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
+    @Test
+    fun `canonical API omits domain parent ref and automatic inverse relation models`() {
+        assertFalse(FieldModel::class.java.declaredFields.any { it.name == "parentRef" })
+        assertFalse(CanonicalModel::class.java.declaredFields.any { it.name == "aggregate" + "InverseRelations" })
+        assertThrows(ClassNotFoundException::class.java) {
+            Class.forName("com.only4.cap4k.plugin.pipeline.api.Aggregate" + "InverseRelationModel")
+        }
+    }
+
     @Test
     fun `unique constraint metadata distinguishes complete unconditional indexes`() {
         val unconditional = UniqueConstraintModel(

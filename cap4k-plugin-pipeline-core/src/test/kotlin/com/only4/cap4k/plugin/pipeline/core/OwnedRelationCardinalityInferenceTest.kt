@@ -10,13 +10,15 @@ import org.junit.jupiter.api.Test
 
 class OwnedRelationCardinalityInferenceTest {
     @Test
-    fun `primary key parent ref infers one`() {
+    fun `parent ref without unique constraint infers many`() {
         val binding = binding(
-            columns = listOf(parentRef("video_post_id")),
-            primaryKey = listOf("VIDEO_POST_ID"),
+            columns = listOf(
+                id(),
+                parentRef("video_post_id"),
+            ),
         )
 
-        assertEquals(OwnedRelationCardinality.ONE, OwnedRelationCardinalityInference.infer(binding))
+        assertEquals(OwnedRelationCardinality.MANY, OwnedRelationCardinalityInference.infer(binding))
     }
 
     @Test
