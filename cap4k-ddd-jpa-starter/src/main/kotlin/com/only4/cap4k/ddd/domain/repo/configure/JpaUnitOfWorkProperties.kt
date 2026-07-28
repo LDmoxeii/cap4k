@@ -1,0 +1,9 @@
+package com.only4.cap4k.ddd.domain.repo.configure
+
+import org.springframework.boot.context.properties.ConfigurationProperties
+
+@ConfigurationProperties("cap4k.ddd.application.jpa-uow")
+class JpaUnitOfWorkProperties(
+    var retrieveCountWarnThreshold: Int = 3000,
+    var supportEntityInlinePersistListener: Boolean = true,
+)

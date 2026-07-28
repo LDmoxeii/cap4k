@@ -186,7 +186,17 @@ Assert-NoForbiddenPattern `
 
 $runtimeSourceRoots = @(
   'ddd-core',
-  'cap4k-ddd-starter',
+  'cap4k-ddd-core-starter',
+  'cap4k-ddd-jpa-starter',
+  'cap4k-ddd-request-jpa-starter',
+  'cap4k-ddd-domain-event-jpa-starter',
+  'cap4k-ddd-saga-jpa-starter',
+  'cap4k-ddd-locker-jdbc-starter',
+  'cap4k-ddd-snowflake-starter',
+  'cap4k-ddd-integration-event-http-starter',
+  'cap4k-ddd-integration-event-http-jpa-starter',
+  'cap4k-ddd-integration-event-rabbitmq-starter',
+  'cap4k-ddd-integration-event-rocketmq-starter',
   'ddd-application-request-jpa',
   'ddd-domain-event-jpa',
   'ddd-integration-event-http',

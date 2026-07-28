@@ -206,7 +206,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `aggregate planner keeps fixed baseline families when optional artifacts are disabled`() {
+    fun `aggregate planner always includes factory when optional artifacts are disabled`() {
         val entity = EntityModel(
             name = "UserMessage",
             packageName = "com.acme.demo.domain.aggregates.user_message",
@@ -221,13 +221,7 @@ class AggregateArtifactPlannerTest {
             uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
         )
         val plan = AggregateArtifactPlanner().plan(
-            aggregateConfig(
-                options = mapOf(
-                    "artifact.factory" to false,
-                    "artifact.specification" to false,
-                    "artifact.unique" to false,
-                )
-            ),
+            aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
                 schemas = listOf(
@@ -254,11 +248,7 @@ class AggregateArtifactPlannerTest {
         assertTrue(plan.any { it.templateId == "aggregate/entity.kt.peb" })
         assertTrue(plan.any { it.templateId == "aggregate/schema.kt.peb" })
         assertTrue(plan.any { it.templateId == "aggregate/repository.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/factory.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/specification.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/unique_query.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/unique_query_handler.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/unique_validator.kt.peb" })
+        assertTrue(plan.any { it.templateId == "aggregate/factory.kt.peb" })
     }
 
     @Test
@@ -278,7 +268,6 @@ class AggregateArtifactPlannerTest {
                 FieldModel("visibility", "Int", typeBinding = "VideoPostVisibility", enumItems = enumItems, columnName = "visibility"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_slug", "slug")),
         )
         val plan = AggregateArtifactPlanner().plan(
             aggregateConfig(),
@@ -316,9 +305,6 @@ class AggregateArtifactPlannerTest {
             plan.single { it.templateId == "aggregate/entity.kt.peb" },
             plan.single { it.templateId == "aggregate/schema.kt.peb" },
             plan.single { it.templateId == "aggregate/repository.kt.peb" },
-            plan.single { it.templateId == "aggregate/unique_query.kt.peb" },
-            plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" },
-            plan.single { it.templateId == "aggregate/unique_validator.kt.peb" },
             plan.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" },
         )
 
@@ -329,7 +315,6 @@ class AggregateArtifactPlannerTest {
             assertTrue(item.resolvedOutputRoot.endsWith("build/generated/cap4k/main/kotlin"), item.resolvedOutputRoot)
         }
         assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/factory.kt.peb" }.outputKind)
-        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, plan.single { it.templateId == "aggregate/specification.kt.peb" }.outputKind)
         assertAggregateElement(
             plan.single { it.templateId == "aggregate/entity.kt.peb" },
             aggregate = "VideoPost",
@@ -364,42 +349,6 @@ class AggregateArtifactPlannerTest {
             packageName = "com.acme.demo.domain.aggregates.video_post.factory",
             description = "video \"post\" \\source ${'$'}status",
             type = "factory",
-            root = false,
-        )
-        assertAggregateElement(
-            plan.single { it.templateId == "aggregate/specification.kt.peb" },
-            aggregate = "VideoPost",
-            name = "VideoPostSpecification",
-            packageName = "com.acme.demo.domain.aggregates.video_post.specification",
-            description = "video \"post\" \\source ${'$'}status",
-            type = "specification",
-            root = false,
-        )
-        assertAggregateElement(
-            plan.single { it.templateId == "aggregate/unique_query.kt.peb" },
-            aggregate = "VideoPost",
-            name = "UniqueVideoPostSlugQry",
-            packageName = "com.acme.demo.application.queries.video_post.unique",
-            description = "",
-            type = "unique-query",
-            root = false,
-        )
-        assertAggregateElement(
-            plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" },
-            aggregate = "VideoPost",
-            name = "UniqueVideoPostSlugQryHandler",
-            packageName = "com.acme.demo.adapter.queries.video_post.unique",
-            description = "",
-            type = "unique-query-handler",
-            root = false,
-        )
-        assertAggregateElement(
-            plan.single { it.templateId == "aggregate/unique_validator.kt.peb" },
-            aggregate = "VideoPost",
-            name = "UniqueVideoPostSlug",
-            packageName = "com.acme.demo.application.validators.video_post.unique",
-            description = "",
-            type = "unique-validator",
             root = false,
         )
         assertFalse(
@@ -1331,58 +1280,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(plan.any { it.outputPath.endsWith("VideoFileBehavior.kt") })
     }
 
-    @Test
-    fun `aggregate planner expands unique capability into three concrete artifact items`() {
-        val entity = EntityModel(
-            name = "UserMessage",
-            packageName = "com.acme.demo.domain.aggregates.user_message",
-            tableName = "user_message",
-            comment = "user message",
-            fields = listOf(
-                FieldModel("id", "Long", columnName = "id"),
-                FieldModel("tenantId", "Long", columnName = "tenant_id"),
-                FieldModel("slug", "String", columnName = "slug"),
-            ),
-            idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
-        )
-        val plan = AggregateArtifactPlanner().plan(
-            aggregateConfig(
-                options = mapOf(
-                    "artifact.factory" to false,
-                    "artifact.specification" to false,
-                    "artifact.unique" to true,
-                )
-            ),
-            CanonicalModel(
-                entities = listOf(entity),
-                schemas = listOf(
-                    SchemaModel(
-                        name = "SUserMessage",
-                        packageName = "com.acme.demo.domain._share.meta.user_message",
-                        entityName = "UserMessage",
-                        comment = "user message",
-                        fields = entity.fields,
-                    )
-                ),
-                repositories = listOf(
-                    RepositoryModel(
-                        name = "UserMessageRepository",
-                        packageName = "com.acme.demo.adapter.domain.repositories",
-                        entityName = "UserMessage",
-                        idType = "Long",
-                    )
-                ),
-                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-            )
-        )
-
-        assertEquals(1, plan.count { it.templateId == "aggregate/unique_query.kt.peb" })
-        assertEquals(1, plan.count { it.templateId == "aggregate/unique_query_handler.kt.peb" })
-        assertEquals(1, plan.count { it.templateId == "aggregate/unique_validator.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/factory.kt.peb" })
-        assertFalse(plan.any { it.templateId == "aggregate/specification.kt.peb" })
-    }
 
     @Test
     fun `aggregate planner routes custom canonical layout through artifact layout`() {
@@ -1390,9 +1287,6 @@ class AggregateArtifactPlannerTest {
             aggregate = PackageLayout("domain.model"),
             aggregateSchema = PackageLayout("domain.meta"),
             aggregateRepository = PackageLayout("adapter.persistence.repositories"),
-            aggregateUniqueQuery = PackageLayout("application.readmodels", packageSuffix = "unique"),
-            aggregateUniqueQueryHandler = PackageLayout("adapter.readmodels", packageSuffix = "unique"),
-            aggregateUniqueValidator = PackageLayout("application.rules", packageSuffix = "unique"),
         )
         val entity = EntityModel(
             name = "UserMessage",
@@ -1405,7 +1299,6 @@ class AggregateArtifactPlannerTest {
                 FieldModel("slug", "String", columnName = "slug"),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
         )
         val schema = SchemaModel(
             name = "SUserMessage",
@@ -1433,12 +1326,8 @@ class AggregateArtifactPlannerTest {
 
         val entityItem = plan.single { it.templateId == "aggregate/entity.kt.peb" }
         val factory = plan.single { it.templateId == "aggregate/factory.kt.peb" }
-        val specification = plan.single { it.templateId == "aggregate/specification.kt.peb" }
         val repositoryItem = plan.single { it.templateId == "aggregate/repository.kt.peb" }
         val schemaItem = plan.single { it.templateId == "aggregate/schema.kt.peb" }
-        val uniqueQuery = plan.single { it.templateId == "aggregate/unique_query.kt.peb" }
-        val uniqueQueryHandler = plan.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
-        val uniqueValidator = plan.single { it.templateId == "aggregate/unique_validator.kt.peb" }
 
         assertFalse(plan.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
@@ -1450,10 +1339,6 @@ class AggregateArtifactPlannerTest {
             factory.outputPath,
         )
         assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/model/user_message/specification/UserMessageSpecification.kt",
-            specification.outputPath,
-        )
-        assertEquals(
             "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/persistence/repositories/UserMessageRepository.kt",
             repositoryItem.outputPath,
         )
@@ -1461,34 +1346,7 @@ class AggregateArtifactPlannerTest {
         assertEquals(false, schemaItem.context.containsKey("schemaBasePackage"))
         assertEquals("com.acme.demo.domain.model.user_message", entityItem.context["packageName"])
         assertEquals("com.acme.demo.domain.model.user_message.factory", factory.context["packageName"])
-        assertEquals(
-            "com.acme.demo.domain.model.user_message.specification",
-            specification.context["packageName"],
-        )
         assertEquals("com.acme.demo.adapter.persistence.repositories", repositoryItem.context["packageName"])
-        assertEquals(
-            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/readmodels/user_message/unique/UniqueUserMessageTenantSlugQry.kt",
-            uniqueQuery.outputPath,
-        )
-        assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/readmodels/user_message/unique/UniqueUserMessageTenantSlugQryHandler.kt",
-            uniqueQueryHandler.outputPath,
-        )
-        assertEquals(
-            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/rules/user_message/unique/UniqueUserMessageTenantSlug.kt",
-            uniqueValidator.outputPath,
-        )
-        assertEquals("com.acme.demo.application.readmodels.user_message.unique", uniqueQuery.context["packageName"])
-        assertEquals("com.acme.demo.adapter.readmodels.user_message.unique", uniqueQueryHandler.context["packageName"])
-        assertEquals("com.acme.demo.application.rules.user_message.unique", uniqueValidator.context["packageName"])
-        assertEquals(
-            "com.acme.demo.application.readmodels.user_message.unique.UniqueUserMessageTenantSlugQry",
-            uniqueQueryHandler.context["queryTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.application.readmodels.user_message.unique.UniqueUserMessageTenantSlugQry",
-            uniqueValidator.context["queryTypeFqn"],
-        )
     }
 
     @Test
@@ -1542,13 +1400,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "id"),
         )
         val plan = AggregateArtifactPlanner().plan(
-            aggregateConfig(
-                options = mapOf(
-                    "artifact.factory" to false,
-                    "artifact.specification" to false,
-                    "artifact.unique" to false,
-                )
-            ),
+            aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
                 schemas = listOf(
@@ -4047,14 +3899,6 @@ class AggregateArtifactPlannerTest {
             {
                 assertFalse(
                     plan.any {
-                        it.templateId == "aggregate/specification.kt.peb" &&
-                            it.context["entityName"] == child.name
-                    }
-                )
-            },
-            {
-                assertFalse(
-                    plan.any {
                         it.templateId.contains("persist", ignoreCase = true) &&
                             it.context["entityName"] == child.name
                     }
@@ -4742,7 +4586,7 @@ class AggregateArtifactPlannerTest {
                 "adapter" to "demo-adapter",
             ),
             sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(options = allAggregateArtifactsEnabled())),
+            generators = mapOf("aggregate" to GeneratorConfig()),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
 
@@ -4789,7 +4633,7 @@ class AggregateArtifactPlannerTest {
 
         val planItems = AggregateArtifactPlanner().plan(config, model)
 
-        assertEquals(6, planItems.size)
+        assertEquals(5, planItems.size)
         assertFalse(planItems.any { it.templateId == "aggregate/schema_base.kt.peb" })
         assertEquals(
             "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoPost.kt",
@@ -4843,10 +4687,6 @@ class AggregateArtifactPlannerTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             planItems.first { it.templateId == "aggregate/factory.kt.peb" }.outputPath,
         )
-        assertEquals(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
-            planItems.first { it.templateId == "aggregate/specification.kt.peb" }.outputPath,
-        )
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
         assertEquals("com.acme.demo.domain.aggregates.video_post.factory", factoryContext["packageName"])
         assertEquals("VideoPostFactory", factoryContext["typeName"])
@@ -4854,12 +4694,6 @@ class AggregateArtifactPlannerTest {
         assertEquals("VideoPost", factoryContext["entityName"])
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", factoryContext["entityTypeFqn"])
         assertEquals("VideoPost", factoryContext["aggregateName"])
-        val specificationContext = planItems.first { it.templateId == "aggregate/specification.kt.peb" }.context
-        assertEquals("com.acme.demo.domain.aggregates.video_post.specification", specificationContext["packageName"])
-        assertEquals("VideoPostSpecification", specificationContext["typeName"])
-        assertEquals("VideoPost", specificationContext["entityName"])
-        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
-        assertEquals("VideoPost", specificationContext["aggregateName"])
     }
 
     @Test
@@ -5010,413 +4844,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(item.context.containsKey("aggregateElement"))
     }
 
-    @Test
-    fun `unique planners keep child entity artifacts in root aggregate package without child repository`() {
-        val rootEntity = EntityModel(
-            name = "Video",
-            packageName = "com.acme.demo.domain.aggregates.video",
-            tableName = "video",
-            comment = "video aggregate",
-            fields = listOf(FieldModel("id", "Long")),
-            idField = FieldModel("id", "Long"),
-            aggregateRoot = true,
-        )
-        val childEntity = EntityModel(
-            name = "VideoFile",
-            packageName = "com.acme.demo.domain.aggregates.video",
-            tableName = "video_file",
-            comment = "video file entity",
-            fields = listOf(FieldModel("id", "Long"), FieldModel("videoId", "Long", columnName = "video_id")),
-            idField = FieldModel("id", "Long"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_video_id", "video_id")),
-            aggregateRoot = false,
-            parentEntityName = "Video",
-        )
-        val model = CanonicalModel(
-            schemas = listOf(
-                SchemaModel(
-                    name = "SVideo",
-                    packageName = "com.acme.demo.domain._share.meta.video",
-                    entityName = "Video",
-                    comment = "video schema",
-                    fields = rootEntity.fields,
-                ),
-                SchemaModel(
-                    name = "SVideoFile",
-                    packageName = "com.acme.demo.domain._share.meta.video",
-                    entityName = "VideoFile",
-                    comment = "video file schema",
-                    fields = childEntity.fields,
-                ),
-            ),
-            entities = listOf(rootEntity, childEntity),
-            aggregateEntityJpa = listOf(
-                defaultAggregateEntityJpa(rootEntity),
-                defaultAggregateEntityJpa(childEntity),
-            ),
-            repositories = listOf(
-                RepositoryModel(
-                    name = "VideoRepository",
-                    packageName = "com.acme.demo.adapter.domain.repositories",
-                    entityName = "Video",
-                    idType = "Long",
-                )
-            ),
-        )
-
-        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
-
-        val query = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoIdQry" }
-        val handler = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoIdQryHandler" }
-        val validator = planItems.single { it.context["typeName"] == "UniqueVideoFileVideoId" }
-        assertEquals(
-            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/queries/video/unique/UniqueVideoFileVideoIdQry.kt",
-            query.outputPath,
-        )
-        assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/queries/video/unique/UniqueVideoFileVideoIdQryHandler.kt",
-            handler.outputPath,
-        )
-        assertEquals(
-            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/validators/video/unique/UniqueVideoFileVideoId.kt",
-            validator.outputPath,
-        )
-        assertEquals(null, handler.context["repositoryTypeName"])
-        assertEquals(null, handler.context["repositoryTypeFqn"])
-        assertEquals("com.acme.demo.domain.aggregates.video.VideoFile", handler.context["entityTypeFqn"])
-        assertEquals("com.acme.demo.domain._share.meta.video.SVideoFile", handler.context["schemaTypeFqn"])
-    }
-
-    @Test
-    fun `plans unique query handler and validator artifacts from entity unique constraints`() {
-        val config = ProjectConfig(
-            basePackage = "com.acme.demo",
-            layout = ProjectLayout.MULTI_MODULE,
-            modules = mapOf(
-                "domain" to "demo-domain",
-                "application" to "demo-application",
-                "adapter" to "demo-adapter",
-            ),
-            sources = emptyMap(),
-            generators = mapOf("aggregate" to GeneratorConfig(options = allAggregateArtifactsEnabled())),
-            templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-        )
-
-        val entity = EntityModel(
-            name = "VideoPost",
-            packageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "Video_Post",
-            comment = "Video post entity",
-            fields = listOf(
-                FieldModel("id", "Long"),
-                FieldModel("slug", "String", nullable = true),
-                FieldModel("title", "String"),
-            ),
-            idField = FieldModel("id", "Long"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_slug", "slug")),
-        )
-        val model = CanonicalModel(
-            entities = listOf(entity),
-            schemas = listOf(
-                SchemaModel(
-                    name = "SVideoPost",
-                    packageName = "com.acme.demo.domain._share.meta.video_post",
-                    entityName = "VideoPost",
-                    comment = "Video post schema",
-                    fields = entity.fields,
-                )
-            ),
-            repositories = listOf(
-                RepositoryModel(
-                    name = "VideoPostRepository",
-                    packageName = "com.acme.demo.adapter.domain.repositories",
-                    entityName = "VideoPost",
-                    idType = "Long",
-                )
-            ),
-            aggregateEntityJpa = listOf(
-                AggregateEntityJpaModel(
-                    entityName = "VideoPost",
-                    entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                    entityEnabled = true,
-                    tableName = "Video_Post",
-                    columns = listOf(
-                        AggregateColumnJpaModel("id", "id", true, null),
-                        AggregateColumnJpaModel("slug", "slug", false, null),
-                        AggregateColumnJpaModel("title", "title", false, null),
-                    ),
-                )
-            )
-        )
-
-        val planItems = AggregateArtifactPlanner().plan(config, model)
-
-        val query = planItems.first { it.templateId == "aggregate/unique_query.kt.peb" }
-        val handler = planItems.first { it.templateId == "aggregate/unique_query_handler.kt.peb" }
-        val validator = planItems.first { it.templateId == "aggregate/unique_validator.kt.peb" }
-
-        assertEquals(
-            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt",
-            query.outputPath,
-        )
-        assertEquals(
-            "demo-adapter/build/generated/cap4k/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt",
-            handler.outputPath,
-        )
-        assertEquals(
-            "demo-application/build/generated/cap4k/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt",
-            validator.outputPath,
-        )
-
-        assertEquals("UniqueVideoPostSlugQry", query.context["typeName"])
-        assertEquals("UniqueVideoPostSlugQryHandler", handler.context["typeName"])
-        assertEquals("UniqueVideoPostSlug", validator.context["typeName"])
-        assertEquals("Long", query.context["idType"])
-        assertEquals("excludeVideoPostId", query.context["excludeIdParamName"])
-        assertEquals(
-            "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
-            handler.context["queryTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry",
-            validator.context["queryTypeFqn"],
-        )
-    }
-
-    @Test
-    fun `aggregate unique artifacts share resolved db unique family metadata`() {
-        val entity = EntityModel(
-            name = "Category",
-            packageName = "com.acme.demo.domain.aggregates.category",
-            tableName = "category",
-            comment = "Category",
-            fields = listOf(
-                FieldModel("id", "Long", columnName = "id"),
-                FieldModel("code", "String", columnName = "code"),
-                FieldModel("deleted", "Long", columnName = "deleted"),
-            ),
-            idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("category_uk_v_code", "code", "deleted")),
-        )
-        val planItems = AggregateArtifactPlanner().plan(
-            aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
-            CanonicalModel(
-                entities = listOf(entity),
-                schemas = listOf(
-                    SchemaModel(
-                        name = "SCategory",
-                        packageName = "com.acme.demo.domain._share.meta.category",
-                        entityName = "Category",
-                        comment = "Category",
-                        fields = entity.fields,
-                    )
-                ),
-                repositories = listOf(
-                    RepositoryModel(
-                        name = "CategoryRepository",
-                        packageName = "com.acme.demo.adapter.domain.repositories",
-                        entityName = "Category",
-                        idType = "Long",
-                    )
-                ),
-                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-                aggregatePersistenceProviderControls = listOf(
-                    AggregatePersistenceProviderControl(
-                        entityName = "Category",
-                        entityPackageName = "com.acme.demo.domain.aggregates.category",
-                        tableName = "category",
-                        softDelete = semanticSoftDeletePolicy(),
-                        idFieldName = "id",
-                    )
-                ),
-            ),
-        )
-
-        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
-        val handler = planItems.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
-        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
-
-        listOf(query, handler, validator).forEach { item ->
-            assertEquals("category_uk_v_code", item.context["uniquePhysicalName"])
-            assertEquals("uk_v_code", item.context["uniqueNormalizedName"])
-            assertEquals("Code", item.context["uniqueResolvedSuffix"])
-            assertEquals(listOf("code"), item.context["uniqueSelectedBusinessFields"])
-            assertEquals(listOf("deleted"), item.context["uniqueFilteredControlFields"])
-        }
-        assertEquals("UniqueCategoryCodeQry", query.context["typeName"])
-        assertEquals("UniqueCategoryCodeQryHandler", handler.context["typeName"])
-        assertEquals("UniqueCategoryCode", validator.context["typeName"])
-        assertEquals(listOf("code"), handler.context["whereProps"])
-    }
-
-    @Test
-    fun `unique query and validator import UUID request and exclude id types`() {
-        val entity = EntityModel(
-            name = "VideoPost",
-            packageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "video_post",
-            comment = "Video post entity",
-            fields = listOf(
-                FieldModel("id", "UUID", columnName = "id"),
-                FieldModel("uploadId", "UUID", columnName = "upload_id"),
-                FieldModel("slug", "String", columnName = "slug"),
-            ),
-            idField = FieldModel("id", "UUID", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_upload_slug", "upload_id", "slug")),
-        )
-        val model = CanonicalModel(
-            entities = listOf(entity),
-            schemas = listOf(
-                SchemaModel(
-                    name = "SVideoPost",
-                    packageName = "com.acme.demo.domain._share.meta.video_post",
-                    entityName = "VideoPost",
-                    comment = "Video post schema",
-                    fields = entity.fields,
-                )
-            ),
-            repositories = listOf(
-                RepositoryModel(
-                    name = "VideoPostRepository",
-                    packageName = "com.acme.demo.adapter.domain.repositories",
-                    entityName = "VideoPost",
-                    idType = "UUID",
-                )
-            ),
-            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-        )
-
-        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
-        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
-        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
-        val repository = planItems.single { it.templateId == "aggregate/repository.kt.peb" }
-
-        assertEquals(listOf("java.util.UUID"), query.context["imports"])
-        assertEquals(listOf("java.util.UUID"), validator.context["imports"])
-        assertEquals(listOf("java.util.UUID"), repository.context["imports"])
-    }
-
-    @Test
-    fun `unique query and validator import strong id request prop types`() {
-        val entity = EntityModel(
-            name = "Content",
-            packageName = "com.acme.demo.domain.aggregates.content",
-            tableName = "content",
-            comment = "Content entity",
-            fields = listOf(
-                FieldModel("id", "Long", columnName = "id"),
-                FieldModel("authorId", "AuthorId", columnName = "author_id"),
-                FieldModel("slug", "String", columnName = "slug"),
-            ),
-            idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("content_uk_author_slug", "author_id", "slug")),
-        )
-        val model = CanonicalModel(
-            entities = listOf(entity),
-            schemas = listOf(
-                SchemaModel(
-                    name = "SContent",
-                    packageName = "com.acme.demo.domain._share.meta.content",
-                    entityName = "Content",
-                    comment = "Content schema",
-                    fields = entity.fields,
-                )
-            ),
-            repositories = listOf(
-                RepositoryModel(
-                    name = "ContentRepository",
-                    packageName = "com.acme.demo.adapter.domain.repositories",
-                    entityName = "Content",
-                    idType = "Long",
-                )
-            ),
-            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-            strongIds = listOf(
-                StrongIdModel(
-                    typeName = "AuthorId",
-                    packageName = "com.acme.demo.domain.shared.ids",
-                    kind = StrongIdKind.REFERENCE,
-                )
-            ),
-        )
-
-        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
-        val query = planItems.single { it.templateId == "aggregate/unique_query.kt.peb" }
-        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
-
-        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), query.context["imports"])
-        assertEquals(listOf("com.acme.demo.domain.shared.ids.AuthorId"), validator.context["imports"])
-    }
-
-    @Test
-    fun `unique planners expose business validator and repository backed handler context`() {
-        val entity = EntityModel(
-            name = "UserMessage",
-            packageName = "com.acme.demo.domain.aggregates.user_message",
-            tableName = "user_message",
-            comment = "user message",
-            fields = listOf(
-                FieldModel("id", "Long", columnName = "id"),
-                FieldModel("messageKey", "String", columnName = "message_key"),
-            ),
-            idField = FieldModel("id", "Long", columnName = "id"),
-            uniqueConstraints = listOf(uniqueConstraint("uk_v_message_key", "message_key")),
-        )
-        val model = CanonicalModel(
-            entities = listOf(entity),
-            schemas = listOf(
-                SchemaModel(
-                    name = "SUserMessage",
-                    packageName = "com.acme.demo.domain._share.meta.user_message",
-                    entityName = "UserMessage",
-                    comment = "user message",
-                    fields = entity.fields,
-                )
-            ),
-            repositories = listOf(
-                RepositoryModel(
-                    name = "UserMessageRepository",
-                    packageName = "com.acme.demo.adapter.domain.repositories",
-                    entityName = "UserMessage",
-                    idType = "Long",
-                )
-            ),
-            aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-        )
-
-        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
-        val validator = planItems.single { it.templateId == "aggregate/unique_validator.kt.peb" }
-        val handler = planItems.single { it.templateId == "aggregate/unique_query_handler.kt.peb" }
-
-        assertEquals("UniqueUserMessageMessageKey", validator.context["typeName"])
-        assertEquals("UniqueUserMessageMessageKeyQry", validator.context["queryTypeName"])
-        @Suppress("UNCHECKED_CAST")
-        val validatorRequestProps = validator.context["requestProps"] as List<Map<String, Any?>>
-        val validatorRequestProp = validatorRequestProps.single()
-        assertEquals("messageKey", validatorRequestProp["name"])
-        assertEquals("String", validatorRequestProp["type"])
-        assertEquals(true, validatorRequestProp["isString"])
-        assertEquals("messageKeyField", validatorRequestProp["param"])
-        assertEquals("messageKeyProperty", validatorRequestProp["varName"])
-        @Suppress("UNCHECKED_CAST")
-        val fieldParams = validator.context["fieldParams"] as List<Map<String, Any?>>
-        assertEquals(mapOf("param" to "messageKeyField", "default" to "messageKey"), fieldParams.single())
-        assertEquals("userMessageIdField", validator.context["entityIdParam"])
-        assertEquals("userMessageId", validator.context["entityIdDefault"])
-        assertEquals("userMessageIdProperty", validator.context["entityIdVar"])
-
-        assertEquals("UserMessageRepository", handler.context["repositoryTypeName"])
-        assertEquals(
-            "com.acme.demo.adapter.domain.repositories.UserMessageRepository",
-            handler.context["repositoryTypeFqn"],
-        )
-        assertEquals("SUserMessage", handler.context["schemaTypeName"])
-        assertEquals(
-            "com.acme.demo.domain._share.meta.user_message.SUserMessage",
-            handler.context["schemaTypeFqn"],
-        )
-        assertEquals("id", handler.context["idPropName"])
-    }
 
     @Test
     fun `aggregate planner emits shared enum and local enum artifacts with stable ownership`() {
@@ -5777,453 +5204,9 @@ class AggregateArtifactPlannerTest {
         assertEquals("com.acme.demo.domain.shared.enums", enumPlan.context["packageName"])
     }
 
-    @Test
-    fun `shared unique planning normalizes raw constraint identifiers while preserving composite order and family names`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "VideoPost",
-                packageName = "com.acme.demo.domain.aggregates.video_post",
-                tableName = "video_post",
-                comment = "Video post entity",
-                fields = listOf(
-                    FieldModel("id", "Long"),
-                    FieldModel("tenantId", "Long", columnName = "tenant_id"),
-                    FieldModel("slug", "String"),
-                ),
-                idField = FieldModel("id", "Long"),
-                uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
-            )
-        )
-
-        val selection = planning.single()
-        assertEquals("TenantSlug", selection.suffix)
-        assertEquals(listOf("tenantId", "slug"), selection.requestProps.map { it.name })
-        assertEquals("UniqueVideoPostTenantSlugQry", selection.queryTypeName)
-        assertEquals("UniqueVideoPostTenantSlugQryHandler", selection.queryHandlerTypeName)
-        assertEquals("UniqueVideoPostTenantSlug", selection.validatorTypeName)
-    }
 
     @Test
-    fun `unique planning ignores incomplete and filtered constraints`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "VideoPost",
-                packageName = "com.acme.demo.domain.aggregates.video_post",
-                tableName = "video_post",
-                comment = "Video post entity",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("slug", "String", columnName = "slug"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(
-                    uniqueConstraint("uk_incomplete_slug", "slug").copy(complete = false),
-                    uniqueConstraint("uk_filtered_slug", "slug").copy(filterCondition = "deleted = 0"),
-                    uniqueConstraint("uk_v_slug", "slug"),
-                ),
-            )
-        )
-
-        assertEquals(listOf("uk_v_slug"), planning.map { it.physicalName })
-    }
-
-    @Test
-    fun `unique planning uses table prefixed uk_v fragment and filters soft delete fields`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("code", "String", columnName = "code"),
-                    FieldModel("deleted", "Long", columnName = "deleted"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("category_uk_v_code", "code", "deleted")),
-            ),
-            providerControl = AggregatePersistenceProviderControl(
-                entityName = "Category",
-                entityPackageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                softDelete = semanticSoftDeletePolicy(),
-                idFieldName = "id",
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("category_uk_v_code", selection.physicalName)
-        assertEquals("uk_v_code", selection.normalizedName)
-        assertEquals("Code", selection.suffix)
-        assertEquals(listOf("code"), selection.requestProps.map { it.name })
-        assertEquals(listOf("deleted"), selection.filteredControlFields.map { it.name })
-        assertEquals("UniqueCategoryCode", selection.validatorTypeName)
-        assertEquals("UniqueCategoryCodeQry", selection.queryTypeName)
-        assertEquals("UniqueCategoryCodeQryHandler", selection.queryHandlerTypeName)
-    }
-
-    @Test
-    fun `unique planning narrows h2 backing index suffix normalization to explicit db fragments`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("code", "String", columnName = "code"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("category_uk_v_code_INDEX_C", "code")),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("uk_v_code", selection.normalizedName)
-        assertEquals("Code", selection.suffix)
-        assertEquals("UniqueCategoryCode", selection.validatorTypeName)
-    }
-
-    @Test
-    fun `unique planning does not strip legal index fragment names`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("email", "String", columnName = "email"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("uk_index_email", "email")),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("uk_index_email", selection.normalizedName)
-        assertEquals("IndexEmail", selection.suffix)
-        assertEquals("UniqueCategoryIndexEmail", selection.validatorTypeName)
-    }
-
-    @Test
-    fun `unique planning does not strip uppercase legal index fragment names`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("email", "String", columnName = "email"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("CATEGORY_UK_INDEX_EMAIL", "email")),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("UK_INDEX_EMAIL", selection.normalizedName)
-        assertEquals("IndexEmail", selection.suffix)
-        assertEquals("UniqueCategoryIndexEmail", selection.validatorTypeName)
-    }
-
-    @Test
-    fun `unique planning uses table prefixed uk fragment without v marker`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("code", "String", columnName = "code"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("category_uk_code", "code")),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("uk_code", selection.normalizedName)
-        assertEquals("Code", selection.suffix)
-        assertEquals("UniqueCategoryCode", selection.validatorTypeName)
-    }
-
-    @Test
-    fun `unique planning uses uk as empty suffix`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "VideoPostProcessing",
-                packageName = "com.acme.demo.domain.aggregates.video_post_processing",
-                tableName = "video_post_processing",
-                comment = "Video post processing",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("videoPostId", "Long", columnName = "video_post_id"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("video_post_processing_uk", "video_post_id")),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("uk", selection.normalizedName)
-        assertEquals("", selection.suffix)
-        assertEquals("UniqueVideoPostProcessing", selection.validatorTypeName)
-        assertEquals("UniqueVideoPostProcessingQry", selection.queryTypeName)
-        assertEquals(listOf("videoPostId"), selection.requestProps.map { it.name })
-    }
-
-    @Test
-    fun `unique planning explicit uk keeps empty suffix with business fields`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("code", "String", columnName = "code"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("category_uk", "code")),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("uk", selection.normalizedName)
-        assertEquals("", selection.suffix)
-        assertEquals("UniqueCategory", selection.validatorTypeName)
-        assertEquals(listOf("code"), selection.requestProps.map { it.name })
-    }
-
-    @Test
-    fun `unique planning fallback filters version fields`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "UserMessage",
-                packageName = "com.acme.demo.domain.aggregates.user_message",
-                tableName = "user_message",
-                comment = "User message",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("messageKey", "String", columnName = "message_key"),
-                    FieldModel("version", "Long", columnName = "version"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("uq_message_version", "message_key", "version")),
-            ),
-            providerControl = AggregatePersistenceProviderControl(
-                entityName = "UserMessage",
-                entityPackageName = "com.acme.demo.domain.aggregates.user_message",
-                tableName = "user_message",
-                idFieldName = "id",
-                versionFieldName = "version",
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("MessageKey", selection.suffix)
-        assertEquals(listOf("messageKey"), selection.requestProps.map { it.name })
-        assertEquals(listOf("version"), selection.filteredControlFields.map { it.name })
-    }
-
-    @Test
-    fun `unique planning filters version fields from resolved policy without provider control`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "UserMessage",
-                packageName = "com.acme.demo.domain.aggregates.user_message",
-                tableName = "user_message",
-                comment = "User message",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("messageKey", "String", columnName = "message_key"),
-                    FieldModel("lockVersion", "Long", columnName = "lock_version"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("uq_message_version", "message_key", "lock_version")),
-            ),
-            resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
-                entityName = "UserMessage",
-                entityPackageName = "com.acme.demo.domain.aggregates.user_message",
-                tableName = "user_message",
-                id = ResolvedIdPolicy(
-                    fieldName = "id",
-                    columnName = "id",
-                    strategy = "identity",
-                    kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                    source = SpecialFieldSource.NONE,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                ),
-                deleted = ResolvedMarkerPolicy(
-                    enabled = false,
-                    source = SpecialFieldSource.NONE,
-                ),
-                version = ResolvedMarkerPolicy(
-                    enabled = true,
-                    fieldName = "lockVersion",
-                    columnName = "lock_version",
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                ),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals("MessageKey", selection.suffix)
-        assertEquals(listOf("messageKey"), selection.requestProps.map { it.name })
-        assertEquals(listOf("lockVersion"), selection.filteredControlFields.map { it.name })
-    }
-
-    @Test
-    fun `unique planning keeps resolved deleted marker without semantic soft delete control`() {
-        val planning = AggregateUniqueConstraintPlanning.from(
-            entity = EntityModel(
-                name = "Category",
-                packageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                comment = "Category",
-                fields = listOf(
-                    FieldModel("id", "Long", columnName = "id"),
-                    FieldModel("code", "String", columnName = "code"),
-                    FieldModel("deleted", "Long", columnName = "deleted"),
-                ),
-                idField = FieldModel("id", "Long", columnName = "id"),
-                uniqueConstraints = listOf(uniqueConstraint("uq_code_deleted", "code", "deleted")),
-            ),
-            resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
-                entityName = "Category",
-                entityPackageName = "com.acme.demo.domain.aggregates.category",
-                tableName = "category",
-                id = ResolvedIdPolicy(
-                    fieldName = "id",
-                    columnName = "id",
-                    strategy = "identity",
-                    kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                    source = SpecialFieldSource.NONE,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                ),
-                deleted = ResolvedMarkerPolicy(
-                    enabled = true,
-                    fieldName = "deleted",
-                    columnName = "deleted",
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-                ),
-                version = ResolvedMarkerPolicy(
-                    enabled = false,
-                    source = SpecialFieldSource.NONE,
-                ),
-            ),
-        )
-
-        val selection = planning.single()
-        assertEquals(listOf("code", "deleted"), selection.requestProps.map { it.name })
-        assertEquals(emptyList<String>(), selection.filteredControlFields.map { it.name })
-    }
-
-    @Test
-    fun `unique planning fails when fallback has only control fields`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateUniqueConstraintPlanning.from(
-                entity = EntityModel(
-                    name = "Category",
-                    packageName = "com.acme.demo.domain.aggregates.category",
-                    tableName = "category",
-                    comment = "Category",
-                    fields = listOf(
-                        FieldModel("id", "Long", columnName = "id"),
-                        FieldModel("deleted", "Long", columnName = "deleted"),
-                    ),
-                    idField = FieldModel("id", "Long", columnName = "id"),
-                    uniqueConstraints = listOf(uniqueConstraint("uq_deleted", "deleted")),
-                ),
-                providerControl = AggregatePersistenceProviderControl(
-                    entityName = "Category",
-                    entityPackageName = "com.acme.demo.domain.aggregates.category",
-                    tableName = "category",
-                    softDelete = semanticSoftDeletePolicy(),
-                    idFieldName = "id",
-                ),
-            )
-        }
-
-        assertEquals(
-            "Unique constraint uq_deleted on entity Category has no business fields after filtering control fields.",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `unique planning explicit uk fails when all fields are control fields`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateUniqueConstraintPlanning.from(
-                entity = EntityModel(
-                    name = "Category",
-                    packageName = "com.acme.demo.domain.aggregates.category",
-                    tableName = "category",
-                    comment = "Category",
-                    fields = listOf(
-                        FieldModel("id", "Long", columnName = "id"),
-                        FieldModel("deleted", "Long", columnName = "deleted"),
-                    ),
-                    idField = FieldModel("id", "Long", columnName = "id"),
-                    uniqueConstraints = listOf(uniqueConstraint("category_uk", "deleted")),
-                ),
-                providerControl = AggregatePersistenceProviderControl(
-                    entityName = "Category",
-                    entityPackageName = "com.acme.demo.domain.aggregates.category",
-                    tableName = "category",
-                    softDelete = semanticSoftDeletePolicy(),
-                    idFieldName = "id",
-                ),
-            )
-        }
-
-        assertEquals(
-            "Unique constraint category_uk on entity Category has no business fields after filtering control fields.",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `unique planning fails on duplicate generated type names`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateUniqueConstraintPlanning.from(
-                entity = EntityModel(
-                    name = "Category",
-                    packageName = "com.acme.demo.domain.aggregates.category",
-                    tableName = "category",
-                    comment = "Category",
-                    fields = listOf(
-                        FieldModel("id", "Long", columnName = "id"),
-                        FieldModel("code", "String", columnName = "code"),
-                    ),
-                    idField = FieldModel("id", "Long", columnName = "id"),
-                    uniqueConstraints = listOf(
-                        uniqueConstraint("category_uk_v_code", "code"),
-                        uniqueConstraint("uk_v_code", "code"),
-                    ),
-                )
-            )
-        }
-
-        assertEquals(
-            "Duplicate aggregate unique validator names for entity Category: UniqueCategoryCode",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `derived aggregate references are exposed only to schema entity factory and specification contexts`() {
+    fun `derived aggregate references are exposed only to schema entity factory and repository contexts`() {
         val config = aggregateConfig()
         val model = CanonicalModel(
             schemas = listOf(
@@ -6269,7 +5252,6 @@ class AggregateArtifactPlannerTest {
         val planItems = AggregateArtifactPlanner().plan(config, model)
         val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
-        val specificationContext = planItems.first { it.templateId == "aggregate/specification.kt.peb" }.context
         val entityContext = planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context
         val repositoryContext = planItems.first { it.templateId == "aggregate/repository.kt.peb" }.context
 
@@ -6277,7 +5259,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(schemaContext.containsKey("qEntityTypeFqn"))
         assertFalse(schemaContext.containsKey("repositorySupportQuerydsl"))
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", factoryContext["entityTypeFqn"])
-        assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", specificationContext["entityTypeFqn"])
         assertEquals(false, entityContext.containsKey("entityTypeFqn"))
         assertEquals("com.acme.demo.domain.aggregates.video_post.VideoPost", repositoryContext["entityTypeFqn"])
         assertFalse(repositoryContext.containsKey("supportQuerydsl"))
@@ -7327,7 +6308,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory and specification planners use the current entity when names collide`() {
+    fun `factory planner uses the current entity when names collide`() {
         val config = aggregateConfig()
         val primaryEntity = EntityModel(
             name = "VideoPost",
@@ -7364,14 +6345,6 @@ class AggregateArtifactPlannerTest {
             it.templateId == "aggregate/factory.kt.peb" &&
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.factory"
         }.context
-        val primarySpecificationContext = planItems.first {
-            it.templateId == "aggregate/specification.kt.peb" &&
-                it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post.specification"
-        }.context
-        val secondarySpecificationContext = planItems.first {
-            it.templateId == "aggregate/specification.kt.peb" &&
-                it.context["packageName"] == "com.acme.demo.domain.aggregates.secondary_video_post.specification"
-        }.context
         assertEquals(
             "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
             primaryFactoryContext["entityTypeFqn"],
@@ -7379,14 +6352,6 @@ class AggregateArtifactPlannerTest {
         assertEquals(
             "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
             secondaryFactoryContext["entityTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.primary_video_post.VideoPost",
-            primarySpecificationContext["entityTypeFqn"],
-        )
-        assertEquals(
-            "com.acme.demo.domain.aggregates.secondary_video_post.VideoPost",
-            secondarySpecificationContext["entityTypeFqn"],
         )
     }
 
@@ -7474,7 +6439,7 @@ class AggregateArtifactPlannerTest {
         adapterModule: String? = "demo-adapter",
         artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
         sources: Map<String, SourceConfig> = emptyMap(),
-        options: Map<String, Any?> = allAggregateArtifactsEnabled(),
+        options: Map<String, Any?> = emptyMap(),
     ): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",
@@ -7488,13 +6453,6 @@ class AggregateArtifactPlannerTest {
             generators = mapOf("aggregate" to GeneratorConfig(options = options)),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
-        )
-
-    private fun allAggregateArtifactsEnabled(): Map<String, Any?> =
-        mapOf(
-            "artifact.factory" to true,
-            "artifact.specification" to true,
-            "artifact.unique" to true,
         )
 
     private fun semanticSoftDeletePolicy(

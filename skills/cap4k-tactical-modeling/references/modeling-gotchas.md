@@ -1,6 +1,6 @@
 # Modeling Gotchas
 
-Generic DDD concepts must map to cap4k carriers. Do not accept `aggregate`, `event`, `service`, `specification`, `workflow`, or `boundary` as sufficient unless the model also records generator input surface, expected skeleton or plan evidence, handwritten logic location, verification evidence, and rollback trigger.
+Generic DDD concepts must map to current cap4k carriers. Do not accept `aggregate`, `event`, `service`, `workflow`, or `boundary` as sufficient unless the model also records generator input surface, expected skeleton or plan evidence, handwritten logic location, verification evidence, and rollback trigger. A generic `specification` must be reassigned to an Aggregate / Value Object invariant, Domain Service decision, repository query predicate, or database constraint; it is not a generated carrier.
 
 ## High-Risk Words
 

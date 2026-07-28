@@ -78,18 +78,6 @@ data class ArtifactLayoutConfig(
         defaultPackage = "shared",
         packageSuffix = "enums",
     ),
-    val aggregateUniqueQuery: PackageLayout = PackageLayout(
-        packageRoot = "application.queries",
-        packageSuffix = "unique",
-    ),
-    val aggregateUniqueQueryHandler: PackageLayout = PackageLayout(
-        packageRoot = "adapter.queries",
-        packageSuffix = "unique",
-    ),
-    val aggregateUniqueValidator: PackageLayout = PackageLayout(
-        packageRoot = "application.validators",
-        packageSuffix = "unique",
-    ),
     val flow: OutputRootLayout = OutputRootLayout("flows"),
     val drawingBoard: OutputRootLayout = OutputRootLayout("design"),
     val designCommand: PackageLayout = PackageLayout("application.commands"),

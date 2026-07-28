@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.renderer.pebble
 import com.only4.cap4k.plugin.pipeline.api.BootstrapPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import java.nio.file.Files
+import kotlin.io.path.createDirectories
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -11,14 +12,14 @@ import org.junit.jupiter.api.Test
 class PebbleBootstrapRendererTest {
 
     @Test
-    fun `render resolves fixed preset template ids through bootstrap preset resolver`() {
+    fun `render resolves fixed template ids through explicit override`() {
+        val templateId = "bootstrap/root/settings.gradle.kts.peb"
         val item = BootstrapPlanItem(
             presetId = "ddd-multi-module",
-            templateId = "bootstrap/root/settings.gradle.kts.peb",
+            templateId = templateId,
             outputPath = "only-danmuku/settings.gradle.kts",
             conflictPolicy = ConflictPolicy.FAIL,
             context = mapOf(
-                "projectName" to "only-danmuku",
                 "domainModuleName" to "only-danmuku-domain",
                 "applicationModuleName" to "only-danmuku-application",
                 "adapterModuleName" to "only-danmuku-adapter",
@@ -26,7 +27,14 @@ class PebbleBootstrapRendererTest {
         )
 
         val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+            customTemplateResolver(
+                templateId,
+                """
+                include(":{{ domainModuleName }}")
+                include(":{{ applicationModuleName }}")
+                include(":{{ adapterModuleName }}")
+                """.trimIndent(),
+            )
         )
 
         val artifact = renderer.render(listOf(item)).single()
@@ -51,7 +59,7 @@ class PebbleBootstrapRendererTest {
         )
 
         val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+            PresetTemplateResolver("test-bootstrap", emptyList())
         )
 
         val artifact = renderer.render(listOf(item)).single()
@@ -60,105 +68,30 @@ class PebbleBootstrapRendererTest {
 
     @Test
     fun `render falls back to template id when source path is blank`() {
+        val templateId = "bootstrap/root/settings.gradle.kts.peb"
         val item = BootstrapPlanItem(
             presetId = "ddd-multi-module",
-            templateId = "bootstrap/root/settings.gradle.kts.peb",
+            templateId = templateId,
             sourcePath = "   ",
             outputPath = "only-danmuku/settings.gradle.kts",
             conflictPolicy = ConflictPolicy.FAIL,
-            context = mapOf(
-                "projectName" to "only-danmuku",
-                "domainModuleName" to "only-danmuku-domain",
-                "applicationModuleName" to "only-danmuku-application",
-                "adapterModuleName" to "only-danmuku-adapter",
-            ),
+            context = mapOf("projectName" to "only-danmuku"),
         )
 
         val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
+            customTemplateResolver(templateId, "rootProject.name = \"{{ projectName }}\"")
         )
 
         val artifact = renderer.render(listOf(item)).single()
 
-        assertTrue(artifact.content.contains("include(\":only-danmuku-domain\")"))
-        assertTrue(artifact.content.contains("include(\":only-danmuku-application\")"))
-        assertTrue(artifact.content.contains("include(\":only-danmuku-adapter\")"))
+        assertEquals("rootProject.name = \"only-danmuku\"", artifact.content)
     }
 
-    @Test
-    fun `render default application module build with generated code dependencies`() {
-        val item = BootstrapPlanItem(
-            presetId = "ddd-multi-module",
-            templateId = "bootstrap/module/application-build.gradle.kts.peb",
-            outputPath = "only-danmuku/only-danmuku-application/build.gradle.kts",
-            conflictPolicy = ConflictPolicy.FAIL,
-            context = mapOf(
-                "basePackage" to "edu.only4.danmuku",
-                "domainModuleName" to "only-danmuku-domain",
-            ),
-        )
-
-        val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
-        )
-
-        val artifact = renderer.render(listOf(item)).single()
-
-        assertTrue(artifact.content.contains("implementation(project(\":only-danmuku-domain\"))"))
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:1.0.0\")"))
-        assertTrue(artifact.content.contains("implementation(\"jakarta.validation:jakarta.validation-api:3.0.2\")"))
-        assertTrue(artifact.content.contains("implementation(\"org.jetbrains.kotlin:kotlin-reflect:2.2.20\")"))
-        assertTrue(artifact.content.contains("implementation(\"org.springframework:spring-context\")"))
-    }
-
-    @Test
-    fun `render default domain module build with value object json converter dependencies`() {
-        val item = BootstrapPlanItem(
-            presetId = "ddd-multi-module",
-            templateId = "bootstrap/module/domain-build.gradle.kts.peb",
-            outputPath = "only-danmuku/only-danmuku-domain/build.gradle.kts",
-            conflictPolicy = ConflictPolicy.FAIL,
-            context = mapOf(
-                "basePackage" to "edu.only4.danmuku",
-            ),
-        )
-
-        val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
-        )
-
-        val artifact = renderer.render(listOf(item)).single()
-
-        assertTrue(artifact.content.contains("implementation(\"jakarta.persistence:jakarta.persistence-api:3.1.0\")"))
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-core:1.0.0\")"))
-        assertTrue(artifact.content.contains("implementation(\"io.github.ldmoxeii:ddd-domain-repo-jpa:1.0.0\")"))
-        assertTrue(artifact.content.contains("implementation(\"com.fasterxml.jackson.core:jackson-databind:2.17.2\")"))
-        assertTrue(artifact.content.contains("implementation(\"com.fasterxml.jackson.module:jackson-module-kotlin:2.17.2\")"))
-    }
-
-    @Test
-    fun `render default start module build with spring boot dependency platform`() {
-        val item = BootstrapPlanItem(
-            presetId = "ddd-multi-module",
-            templateId = "bootstrap/module/start-build.gradle.kts.peb",
-            outputPath = "only-danmuku/only-danmuku-start/build.gradle.kts",
-            conflictPolicy = ConflictPolicy.FAIL,
-            context = mapOf(
-                "basePackage" to "edu.only4.danmuku",
-                "domainModuleName" to "only-danmuku-domain",
-                "applicationModuleName" to "only-danmuku-application",
-                "adapterModuleName" to "only-danmuku-adapter",
-            ),
-        )
-
-        val renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver("ddd-default-bootstrap", emptyList())
-        )
-
-        val artifact = renderer.render(listOf(item)).single()
-
-        assertTrue(artifact.content.contains("implementation(platform(\"org.springframework.boot:spring-boot-dependencies:3.5.6\"))"))
-        assertTrue(artifact.content.contains("implementation(\"org.springframework.boot:spring-boot-starter\")"))
-        assertTrue(artifact.content.contains("implementation(\"org.springframework.boot:spring-boot-starter-data-jpa\")"))
+    private fun customTemplateResolver(templateId: String, content: String): PresetTemplateResolver {
+        val overrideDir = Files.createTempDirectory("bootstrap-renderer-override")
+        val templateFile = overrideDir.resolve(templateId)
+        templateFile.parent.createDirectories()
+        templateFile.writeText(content)
+        return PresetTemplateResolver("test-bootstrap", listOf(overrideDir.toString()))
     }
 }

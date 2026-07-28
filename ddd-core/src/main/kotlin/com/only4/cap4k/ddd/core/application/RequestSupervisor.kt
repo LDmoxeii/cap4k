@@ -47,7 +47,7 @@ interface RequestSupervisor {
     fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> schedule(
         request: REQUEST,
         schedule: LocalDateTime
-    ): String
+    ): String = ReliableRequestSupervisor.instance.schedule(request, schedule)
 
     /**
      * 延迟执行请求
@@ -69,7 +69,7 @@ interface RequestSupervisor {
      * @param requestId 请求ID
      * @return 请求结果
     </R> */
-    fun <R : Any> result(requestId: String): R?
+    fun <R : Any> result(requestId: String): R? = ReliableRequestSupervisor.instance.result(requestId)
 
     companion object {
         /**
@@ -79,6 +79,7 @@ interface RequestSupervisor {
          * @return 请求监督者实例
          */
         @JvmStatic
-        val instance: RequestSupervisor by lazy { RequestSupervisorSupport.instance }
+        val instance: RequestSupervisor
+            get() = RequestSupervisorSupport.instance
     }
 }

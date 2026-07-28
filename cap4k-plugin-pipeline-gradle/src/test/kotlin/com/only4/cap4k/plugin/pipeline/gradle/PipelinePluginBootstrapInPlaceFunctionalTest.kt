@@ -47,7 +47,7 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         assertTrue(buildFile.contains("// [cap4k-bootstrap:managed-begin:root-host]"))
         assertTrue(buildFile.contains("mode.set(BootstrapMode.IN_PLACE)"))
         assertTrue(buildFile.contains("templates {"))
-        assertTrue(buildFile.contains("preset.set(\"ddd-default-bootstrap\")"))
+        assertTrue(buildFile.contains("preset.set(\"test-bootstrap\")"))
         assertTrue(buildFile.contains("overrideDirs.from(\"codegen/bootstrap-templates\")"))
         assertFalse(buildFile.contains(expectedOverrideDirPath))
         assertFalse(buildFile.contains(expectedOverrideDirPath.replace("/", "\\")))
@@ -127,8 +127,9 @@ class PipelinePluginBootstrapInPlaceFunctionalTest {
         assertTrue(
             normalizedRerunBuild.contains(
                 "        templates {\n" +
-                    "            preset.set(\"ddd-default-bootstrap\")\n" +
+                    "            preset.set(\"test-bootstrap\")\n" +
                     "            overrideDirs.from(\"codegen/bootstrap-templates\")\n" +
+                    "            overrideDirs.from(\"codegen/zz-bootstrap-defaults\")\n" +
                     "        }\n" +
                     "        slots {\n" +
                     "            root.from(\"codegen/bootstrap-slots/root\")\n" +

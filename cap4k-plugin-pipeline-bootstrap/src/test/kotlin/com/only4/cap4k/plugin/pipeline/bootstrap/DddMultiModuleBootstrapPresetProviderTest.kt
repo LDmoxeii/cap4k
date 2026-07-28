@@ -24,7 +24,7 @@ class DddMultiModuleBootstrapPresetProviderTest {
             adapterModuleName = "only-danmuku-adapter",
             startModuleName = "only-danmuku-start",
         ),
-        templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
+        templates = BootstrapTemplateConfig("test-bootstrap", emptyList()),
         slots = listOf(
             BootstrapSlotBinding(BootstrapSlotKind.ROOT, sourceDir = "src/test/resources/slots/root"),
             BootstrapSlotBinding(

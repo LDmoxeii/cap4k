@@ -145,7 +145,7 @@ class BootstrapRootStateGuardTest {
             projectName = "demo",
             basePackage = "com.acme.demo",
             modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
-            templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
+            templates = BootstrapTemplateConfig("test-bootstrap", emptyList()),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,
             mode = BootstrapMode.IN_PLACE,

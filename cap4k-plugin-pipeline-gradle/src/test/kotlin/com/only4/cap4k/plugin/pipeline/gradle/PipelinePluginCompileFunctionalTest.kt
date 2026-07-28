@@ -28,6 +28,20 @@ import kotlin.io.path.writeText
 class PipelinePluginCompileFunctionalTest {
 
     @Test
+    fun `empty configured project keeps generation in the compile lifecycle as a no-op`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-empty-project-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "empty-project-compile-sample")
+
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+
+        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
+        assertEquals(TaskOutcome.NO_SOURCE, compileResult.task(":demo-domain:compileKotlin")?.outcome)
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `request and query variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
@@ -331,7 +345,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate factory and specification generation participates in domain compileKotlin`() {
+    fun `aggregate factory generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
 
@@ -343,7 +357,6 @@ class PipelinePluginCompileFunctionalTest {
             beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome
         )
         assertTrue(beforeGenerateCompileResult.output.contains("VideoPostFactory"))
-        assertTrue(beforeGenerateCompileResult.output.contains("VideoPostSpecification"))
         assertFalse(beforeGenerateCompileResult.output.contains("AggVideoPost"))
 
         val generateResult = FunctionalFixtureSupport
@@ -384,7 +397,6 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt"),
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
         )
         assertFalse(
@@ -1069,9 +1081,6 @@ class PipelinePluginCompileFunctionalTest {
             generators = mapOf(
                 "aggregate" to GeneratorConfig(
                     options = mapOf(
-                        "artifact.factory" to false,
-                        "artifact.specification" to false,
-                        "artifact.unique" to false,
                     )
                 )
             ),
@@ -1300,19 +1309,12 @@ class PipelinePluginCompileFunctionalTest {
             )
             .replace(
                 """
-                |        aggregate {
-                |            artifacts {
-                |                factory.set(true)
-                |            }
-                |        }
+                |        aggregate { }
                 """.trimMargin(),
                 """
                 |        aggregate {
                 |            specialFields {
                 |                idDefaultStrategy.set("identity")
-                |            }
-                |            artifacts {
-                |                factory.set(true)
                 |            }
                 |        }
                 """.trimMargin(),
@@ -1483,150 +1485,6 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
-    @Test
-    fun `aggregate unique query and validator generation participates in application compileKotlin`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-application-compile")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
-
-        val generateResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .build()
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-application:compileKotlin")
-            .build()
-        val queryContent = projectDir.resolve(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
-            )
-        ).readText()
-        val validatorContent = projectDir.resolve(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
-            )
-        ).readText()
-
-        assertGeneratedFilesExist(
-            projectDir,
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
-            ),
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
-            ),
-        )
-        assertTrue(queryContent.contains("data class Request("))
-        assertTrue(queryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
-        assertTrue(queryContent.contains("val excludeVideoPostId: VideoPostId?"))
-        assertTrue(queryContent.contains(") : RequestParam<Response>"))
-        assertTrue(validatorContent.contains("annotation class UniqueVideoPostSlug"))
-        assertTrue(
-            validatorContent.contains("import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry")
-        )
-        assertTrue(
-            validatorContent.contains("class Validator : ConstraintValidator<UniqueVideoPostSlug, Any>")
-        )
-        assertTrue(validatorContent.contains("value::class.memberProperties.associateBy"))
-        assertTrue(validatorContent.contains("Mediator.queries.send("))
-        assertTrue(validatorContent.contains("return !result.exists"))
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-    }
-
-    @Test
-    fun `aggregate unique query handler generation participates in adapter compileKotlin`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-unique-adapter-compile")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
-        val generateResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .build()
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-adapter:compileKotlin")
-            .build()
-        val handlerContent = projectDir.resolve(
-            generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
-            )
-        ).readText()
-
-        assertGeneratedFilesExist(
-            projectDir,
-            generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
-            ),
-        )
-        assertTrue(handlerContent.contains("class UniqueVideoPostSlugQryHandler("))
-        assertTrue(
-            handlerContent.contains(
-                "override fun exec(request: UniqueVideoPostSlugQry.Request): UniqueVideoPostSlugQry.Response"
-            )
-        )
-        assertTrue(handlerContent.contains("private val repository: VideoPostRepository"))
-        assertTrue(handlerContent.contains("repository.exists("))
-        assertTrue(handlerContent.contains("SVideoPost.specify"))
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-    }
-
-    @Test
-    fun `aggregate child business unique query handler generation participates without child repository`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-child-unique-adapter-compile")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText().replace(
-                """includeTables.set(listOf("video_post", "content", "media_processing_task"))""",
-                """includeTables.set(listOf("video_post", "content", "media_processing_task", "video_file"))""",
-            )
-        )
-        val schemaFile = projectDir.resolve("schema.sql")
-        schemaFile.writeText(
-            schemaFile.readText() +
-                """
-
-                create table if not exists video_file (
-                    id bigint primary key comment '@IdStrategy=db_identity;',
-                    video_post_id bigint not null comment '@ParentRef;',
-                    file_index int not null,
-                    constraint uq_video_file_index unique (file_index)
-                );
-
-                comment on table video_file is '@Parent=video_post;';
-                """.trimIndent()
-        )
-
-        val generateResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .build()
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-adapter:compileKotlin")
-            .build()
-        val childEntityFile = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoFile.kt")
-        )
-        val childSchemaFile = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/video_post/SVideoFile.kt")
-        )
-        val handlerFile = projectDir.resolve(
-            generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoFileFileIndexQryHandler.kt"
-            )
-        )
-        val handlerContent = handlerFile.readText()
-
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(childEntityFile.toFile().exists())
-        assertTrue(childSchemaFile.toFile().exists())
-        assertTrue(handlerFile.toFile().exists())
-        assertTrue(handlerContent.contains("private val entityManager: EntityManager"))
-        assertTrue(handlerContent.contains("criteriaQuery.from(VideoFile::class.java)"))
-        assertTrue(handlerContent.contains("SVideoFile.specify"))
-        assertFalse(handlerContent.contains("private val repository"))
-        assertFalse(handlerContent.contains("VideoFileRepository"))
-    }
 
     @Test
     fun `integrated compile sample keeps migrated design families compile-safe together`() {

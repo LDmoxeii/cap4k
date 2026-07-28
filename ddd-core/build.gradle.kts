@@ -13,9 +13,6 @@ dependencies {
     compileOnly(libs.spring.context)
     compileOnly(libs.spring.tx)
     compileOnly(libs.spring.messaging)
-    // 由 Spring-Data-JPA 替换而成
-    compileOnly(libs.jpa)
-    compileOnly(libs.aspectjweaver)
 
     // Common dependencies
     implementation(libs.slf4j)
@@ -34,5 +31,4 @@ dependencies {
     testImplementation(libs.spring.tx)
     testImplementation(libs.spring.messaging)
     testImplementation(libs.jpa)
-    testImplementation(libs.aspectjweaver)
 }

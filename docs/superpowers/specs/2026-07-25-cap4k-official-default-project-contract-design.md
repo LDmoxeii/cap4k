@@ -4,7 +4,7 @@
 **最近修订：** 2026-07-28
 **状态：** 已批准，等待二次书面审阅
 **实施顺序：** Runtime -> Generator -> GitHub Template
-**二次修订源码基线：** `master@01d2cb99`（包含 PR #136、#138、#140）
+**二次修订源码基线：** `master@e8cc1247`（包含 PR #136、#138、#140；PR #141 只迁移 Comet/workspace 治理，不改变本文产品合同）
 
 ## 1. 文档权威与冷启动契约
 
@@ -105,6 +105,7 @@ cap4k 需要低门槛的项目初始化体验，但 GitHub Template、Bootstrap�
 - 软删除的 ID/storage 支持矩阵、sentinel、SQL dialect 和 Hibernate `SQLDelete`/`Where` 语义。
 - 数据库托管 identity/version、structural parentRef、自动 inverse navigation 删除和 owned relation 业务契约。
 - 新增 owned-child Factory payload、父 ID/Entity 暴露模式或 managed-field lifecycle SPI。
+- 新建 Unique addon、`cap4kAddon` 选择面或 ServiceLoader 集成；本轮只删除 aggregate generator 主线中的 Unique 生成功能。
 
 高级能力和上述已合并 Generator/Runtime 能力的既有业务语义在模块边界迁移时保持不变；只有本文明确否定的耦合、启停方式、依赖关系和默认生成表面需要改变。
 
@@ -165,8 +166,8 @@ start
 - JPA Repository、查询事务和 UoW 写事务。
 - 同线程、事务提交前的本地 Domain Event。
 - Aggregate Factory 和 `PersistIntent.CREATE`。
-- 官方默认的应用侧 ID 模型为每个生成实体生成专属 Strong ID 类型。
-- 应用侧 generated-own-ID 的 UUIDv7 默认策略；Factory 完成 CREATE 登记后，根聚合图中的缺失 ID 在 `create(...)` 返回前可用。
+- 凡模型选择 application-side own ID 的生成实体，都生成该实体专属的 Strong ID；database identity 不因此被强制包装为 Strong ID。
+- application-side generated-own-ID 的官方默认策略是 UUIDv7；Factory、直接 CREATE 登记、generated owned relation mutation 和最终 UoW backstop 按第 9 节保证缺失 ID 在对应生命周期返回点可用。
 - `Mediator.ioc` 对当前 Spring `ApplicationContext` 的静态访问。
 
 默认项目不包含：
@@ -262,6 +263,8 @@ Core 中需要兼容 Spring Web 的代码只能使用 `compileOnly`，并由条�
 
 `cap4k-ddd-core-starter` 拥有默认 UUIDv7 strategy、`IdentifierStrategyRegistry`、`IdentifierGenerator` 和 `GeneratedOwnIdRegistry` 聚合装配。它不得编译依赖或探测 Snowflake 实现；Snowflake starter 只能以附加 `IdentifierStrategy` 的方式扩展同一 registry。
 
+`GeneratedOwnIdAccessor`、catalog 和 registry 是 generated-own-ID 的唯一发现与分配协议。generated owning relation 可以在 mutation 前直接调用其 child typed accessor，但 `OwnedEntityList` 本身保持基础设施中立，不注入或定位 Mediator、UoW、Spring 或 JPA 服务。
+
 ### 6.2 `ddd-domain-repo-jpa`
 
 `ddd-domain-repo-jpa` 只实现：
@@ -271,8 +274,9 @@ Core 中需要兼容 Spring Web 的代码只能使用 `compileOnly`，并由条�
 - 查询只读事务。
 - 写事务和本地事件提交时序的 JPA 集成。
 - Aggregate Factory 与 JPA UoW 的连接。
-- 使用 Core `GeneratedOwnIdRegistry` 在 CREATE 登记和保存前协调根聚合图的应用侧 ID 补齐。
-- flush 后观察数据库托管 identity/version，并保持根聚合单一最终 UoW entry。
+- 使用 Core `GeneratedOwnIdRegistry` 在 CREATE、EXISTING 和保存前协调根聚合图中新可达实体的应用侧 ID 补齐。
+- 在能够由 pending root 证明 child 归属时，把 separately pending child 吸收到最外层 root entry，并拒绝无关 root 共享同一 child。
+- 依靠现有 JPA persist/cascade/flush 和必要的 root refresh 使数据库托管 identity/version 可观察；不得为此新增通用 managed-field lifecycle SPI。
 
 必须删除 `ddd-domain-repo-jpa -> ddd-domain-event-jpa` 依赖。选择业务 Repository 不得被动选择可靠事件持久化。
 
@@ -347,7 +351,7 @@ Mediator.queries.send(query)
 Mediator.repositories.find(...)
 Mediator.factories.create(payload)
 Mediator.uow.save()
-Mediator.events.publish(...)
+Mediator.events.attach(...)
 Mediator.ioc.getBean(...)
 ```
 
@@ -446,9 +450,13 @@ Mediator 请求调度本身不自动创建写事务。Repository 调用具有独
 
 - Factory 只根据业务输入构造聚合根及当前 Generator 已支持的 owned graph，不直接分配 ID、不 flush，也不访问 `EntityManager`。
 - Factory provider 对返回的根聚合执行 `persist(root, PersistIntent.CREATE)`；这是生命周期登记，不是写事务。
-- JPA UoW 使用 Core `GeneratedOwnIdRegistry` 和生成的 typed accessor/catalog，为根聚合图中缺失的应用侧 own ID 调用模型所选 strategy；官方默认模型选择 UUIDv7。分配在 CREATE 登记期间完成，因此 `create(...)` 返回时可读取。
+- Factory provider 和调用方直接执行 `persist(root, PersistIntent.CREATE)` 时，JPA UoW 使用 Core `GeneratedOwnIdRegistry` 与生成的 typed accessor/catalog 补齐 root 和当前可达 owned graph 的缺失应用侧 own ID；登记调用返回时即可读取。
+- generated owning relation 的 `add(child)` 和非空 `replace(child)` 在修改 relation 前直接调用 child typed accessor；失败时 relation 保持不变，`replace(null)` 不分配 ID，mutation 返回时 child ID 可读取。
+- 对 `EXISTING` root，UoW 保留 repository observation 或 provider-managed evidence，保护既有 root/child identity，只为新可达且缺失 ID 的 owned child 分配，并在最终 save 前再次进行幂等补齐。
 - 已由高级调用方预先赋值的应用侧 ID 保持不变；不得使用反射、Strong ID companion 查找或 JPA annotation 扫描作为 fallback。
-- owned child 由根图拥有，不创建独立公共 child Factory，也不保留独立最终 UoW entry。
+- 若 separately pending child 可由 pending root 的 forward owned graph 证明归属，save 前必须吸收到最外层 root entry；child 不独立进入 interceptor、listener 或 JPA persist/merge 集合。同一 child 属于两个无关 root 时确定性失败，reachable child 的直接 remove 仍失败。
+- 没有 pending owner 的孤立 caller-declared `persist(child, CREATE)` 继续按 caller-declared top-level entry 处理；本文不新增静态 root/child marker 或公共 child-persist API 来猜测其归属。
+- owned child 由根图拥有，不创建独立公共 child Factory；在归属可证明时不保留独立最终 UoW entry。
 - 数据库托管 identity/version 不由 Factory 或 ID capability 合成；创建后保持 `null`。
 - UoW 记录 `CREATE`、`EXISTING` 和 remove intent。
 - `Mediator.uow.save()` 执行最终写事务。
@@ -462,9 +470,10 @@ Mediator 请求调度本身不自动创建写事务。Repository 调用具有独
 JPA provider-assigned 字段满足以下观察契约：
 
 - `create(...)` 返回后，数据库 identity/version 仍为 `null`。
-- 成功 `save()` 必须 persist 根图并 flush，使根和 owned child 的数据库 identity/version 可观察为非空。
-- 最终 UoW entry 保持最外层根聚合；owned child 依靠 forward cascade 持久化，不独立调用 `EntityManager.persist`。
+- 成功 `save()` 必须 persist 或 merge 根图并 flush，使根、初始 owned child 和既有 root 新增的 owned child 的数据库 identity/version 可观察为非空。
+- 当 owned child 的归属可由 pending root 证明时，最终 UoW entry 保持最外层根聚合；child 依靠 forward cascade 持久化，不独立调用 `EntityManager.persist`。
 - 若 provider 已赋值后事务回滚，cap4k 不清空实体内存中的 identity/version；调用方必须丢弃或重新加载回滚后的实例。
+- 上述行为依赖现有 JPA provider 生命周期，不把普通 managed `READ_ONLY` 字段提升为 identity/version，也不建立新的通用字段观察 SPI。
 
 ## 10. Domain Event 与 Integration Event
 
@@ -611,6 +620,19 @@ Factory payload 只包含用户创建时允许写入的业务输入。下列字�
 - structural parentRef 和已删除的 automatic inverse navigation。
 - 具有合法生成构造默认值的字段。
 
+这些字段不能被统一归类为一个模糊的“框架管理字段”。Generator 必须保持以下角色差异：
+
+| 角色 | Factory payload / constructor | Entity property | Schema / 物理模型 | Runtime 生命周期 |
+|---|---|---|---|---|
+| application-side generated own ID | 排除 own ID 输入 | 实体专属 Strong ID，保持既有 generated-own-ID shape | backing 服从 JDBC storage evidence | typed accessor 在 lifecycle entry 分配，UoW 幂等补齐 |
+| resolved database identity | 排除 | nullable，初始 `null` | 保留 DB 物理类型和 nullability | JPA persist/flush 后赋值并可观察 |
+| resolved version | 排除 | nullable，初始 `null` | 保留 DB 物理类型和 nullability | JPA provider 在 save/flush 生命周期赋值 |
+| soft-delete `SYSTEM_TRANSITION_ONLY` | 排除 | mapped property 使用已批准 active initializer | 保留 deleted column | Hibernate soft-delete transition 使用已批准 sentinel/SQL |
+| structural parentRef | 不作为 domain/Factory scalar | 不生成默认 scalar 或 automatic inverse navigation | 保留 relation binding/cardinality 的物理证据 | parent-side forward owned relation 和 cascade 使用 |
+| ordinary managed `READ_ONLY` | 维持当前 constructor 规则；无法推导时仍是 blocker | 不自动变成 nullable/null | 维持当前物理模型 | 不获得 identity/version lifecycle，等待独立设计 |
+
+provider-assigned 分类只由 resolved database-side own-ID role 和 resolved version policy 决定；`READ_ONLY` 本身不构成分类。Entity 的 Kotlin nullable construction shape 不得改变 Schema/DB 的物理 nullability。
+
 构造映射必须比较 payload 与生成实体的实际构造要求，而不是把 canonical model 的全部字段都视为构造参数。对于已经支持的 application-side ID、数据库 identity/version、soft-delete system-transition field 和 structural parentRef 组合，只要没有独立的业务字段或 managed-field blocker，就必须生成真实聚合构造调用，不允许退回 `TODO`。
 
 只有在业务构造输入或尚未设计 lifecycle 的 managed field 确实无法安全推导时，才生成可编译的 `TODO("Implement aggregate construction")`。此时：
@@ -623,7 +645,20 @@ Generator 必须继续生成 application-side own ID 所需的 typed accessor �
 
 本阶段只统一 Factory 的必生成默认值和 unresolved 处理，不重新设计已合并的 Strong ID、soft-delete、数据库托管字段、parentRef 或 owned relation 语义。
 
-### 12.5 删除 Aggregate Specification
+### 12.5 Structural parentRef 与 owned relation
+
+parentRef 的物理关系证据与 domain/API 投影必须分开：
+
+- parentRef 物理列继续作为 direct owned-parent binding 和 cardinality inference 的必需证据，即使数据库没有物理 FK constraint。
+- parentRef 不投影为默认 Entity scalar、Schema scalar、Factory payload 或自动 child-to-parent inverse navigation。
+- parent-side forward owned relation、Schema join、nested forward join 和 cascade 保留。
+- parentRef 等于 child primary key 的 shared-primary-key owned child 必须拒绝。
+- owned-one 由 unique parentRef 加独立 child primary key 证明；其他已支持 parentRef 形态按现有 owned-many 规则处理。
+- 删除 domain scalar 或 inverse API 不得删除 relation binding、cardinality inference、physical unique constraint 或 forward join 所需的 metadata。
+
+新增 parent ID/entity 访问模式、owned-child Factory payload 或 public child Factory 仍是非目标。
+
+### 12.6 删除 Aggregate Specification
 
 删除当前“UoW 保存前自动校验”Specification 的全部表面：
 
@@ -637,23 +672,18 @@ Generator 必须继续生成 application-side own ID 所需的 typed accessor �
 
 只清理 cap4k 仓库中的模板、测试和受控 fixture。本文不建设通用历史生成文件删除机制。
 
-### 12.6 Unique addon
+### 12.7 删除 Unique 生成主线
 
-根据数据库唯一约束生成 Query、Handler 和 Validator 的能力迁移到独立 artifact：
+完整删除 aggregate generator 主线中根据数据库唯一约束生成 Query、Handler 和 Validator 的能力：
 
-```text
-cap4k-plugin-pipeline-addon-aggregate-unique
-```
+- 删除 `generators.aggregate.artifacts.unique` 配置表面。
+- 删除 `AggregateArtifactSelection.uniqueEnabled`、`AggregateUniqueConstraintPlanning`、Unique Query/Handler/Validator planner 和 renderer template。
+- 删除相关 fixture、functional/compile test、public docs、skill 和 capability map 承诺。
+- 不创建替代 addon artifact，不引入 `cap4kAddon`、ServiceLoader 或新的依赖选择面。
 
-使用者通过 `cap4kAddon` 显式选择。核心生成器不再暴露 `artifacts.unique`。
+删除生成能力不删除 DB schema/canonical model 中的 physical unique constraint metadata。数据库唯一约束继续承担最终存储完整性，owned relation cardinality inference 继续使用 unique parentRef 等已批准物理证据。
 
-Unique addon 只是写入前的友好预检：
-
-- 数据库唯一约束是最终一致性保证。
-- 查询成功且记录存在时，Validator 返回校验失败。
-- 查询、路由、反射或基础设施异常原样向上传播。
-- 异常不得伪装为“记录重复”，也不得静默放行。
-- addon 生成源码直接使用的 `kotlin-reflect` 等依赖，由使用该源码的业务模块显式声明。
+若未来重新提供 Unique 生成能力，必须作为独立 change 重新定义输入、作用域、异常传播、parent-scoped/global 语义和产物所有权；本文不预先给出该答案。
 
 ## 13. 删除 `Reentrant`
 
@@ -770,6 +800,7 @@ Template 阶段可以随已经验证的新 cap4k release 原子升级这些版�
 | 默认 Event 实现需要 Event repository | 本地 Core provider 与可靠 Event provider 分离 |
 | 旧 `IdPolicyAutoConfiguration` 同时引用 UUIDv7、Snowflake 和 generated-own-ID registry | Core starter 拥有 UUIDv7/registry，Snowflake starter 独立贡献 strategy |
 | generated-own-ID 生命周期测试位于旧聚合 starter | Core 保留中立契约测试，JPA starter 保留 CREATE/根图/UoW 集成测试 |
+| aggregate generator 主线包含可选 Unique Query/Handler/Validator | 完整删除配置、planner、template、fixture、测试和文档承诺；不创建 addon |
 | `event-scan-package` | 删除，使用 Boot 扫描根 |
 | Aggregate Specification | 完整删除 |
 | `Reentrant` | 完整删除 |
@@ -792,6 +823,7 @@ Runtime 阶段必须新增第 6.3 节列出的全部 starter；正式发布在�
 - 对 `Mediator` 短别名、`X`、Specification 和 Reentrant 的源码引用。
 - 旧 starter 下的 Strong ID、soft-delete、数据库 identity/version、owned graph 和 UoW runtime 测试。
 - generator 中对 generated-own-ID accessor/catalog、system-transition field、entrusted field 和 structural parentRef 的既有处理。
+- generator 主线中的 Unique option、planner、template、fixture、测试和文档/skill 调用方。
 
 不存在外部用户兼容要求。迁移时不得保留已删除 API 的 deprecated 壳。
 
@@ -799,9 +831,20 @@ Runtime 阶段必须新增第 6.3 节列出的全部 starter；正式发布在�
 
 阶段边界不允许留下不可构建仓库。若 Runtime 删除会使 generator template、fixture 或文档引用不存在的 API，相关引用随 Runtime 阶段一起删除或迁移，即使文件位于 generator 模块。
 
-Generator 阶段只负责仍可独立演进的生成器产品契约，例如 Factory 必生成和 Unique addon。
+Generator 阶段只负责仍可独立演进的生成器产品契约，例如 Factory 必生成、字段角色保持和 Unique 主线完整删除。
 
 ## 17. 分阶段实施
+
+### 17.0 当前实施状态
+
+截至 2026-07-28，本文对应的仓库内阶段已经在当前工作分支实现并通过全仓验证：
+
+- 阶段一 Runtime 边界已完成：静态 Mediator、同步/可靠 Request 分离、本地/可靠 Domain Event 分离、capability-specific starter、旧 `cap4k-ddd-starter`/Specification/Reentrant/事件包扫描删除均已落地。
+- 阶段二 Generator 契约已完成：Factory 必生成、无输入 compile/no-op、Aggregate Specification 删除、Unique 主线生成能力完整删除且没有新增 addon、内置官方 Bootstrap preset 删除并保留通用 Bootstrap API 均已落地。
+- `.\gradlew.bat check --console=plain` 已通过；Core/JPA runtime classpath 均确认不包含 Snowflake 实现。
+- 阶段三 GitHub Template 尚未开始。它仍以阶段二能力发布为正式仓库中的稳定版本为前置条件，不允许用本地工程依赖、snapshot 或未发布坐标提前创建远程模板。
+
+下面保留分阶段范围和门槛，作为回归审查以及阶段三实施的权威边界，而不是待执行的阶段一/阶段二计划。
 
 ### 17.1 总体规则
 
@@ -833,7 +876,7 @@ Runtime -> Generator -> GitHub Template
 - Mediator capability provider 重构。
 - Core/JPA 及全部高级 starter 拆分。
 - ID policy 自动装配拆分：Core 提供 UUIDv7/registry，Snowflake starter 只贡献 Snowflake strategy。
-- generated-own-ID CREATE 登记、根图补齐和数据库托管字段的 UoW 生命周期保持不变。
+- generated-own-ID CREATE/EXISTING 登记、relation mutation 前分配、根图补齐、pending child reconciliation 和数据库托管字段的 UoW 生命周期保持不变。
 - Repository、UoW、Factory 和本地事件事务语义。
 - 同步 Request 与可靠 Request 分离。
 - 本地 Event 与可靠 Event 分离。
@@ -845,7 +888,7 @@ Runtime -> Generator -> GitHub Template
 #### 明确不做
 
 - Factory generator 默认值重构。
-- Unique addon 迁移。
+- 新建或设计 Unique addon。
 - GitHub Template 仓库创建。
 - 高级可靠能力业务语义重写。
 - Strong ID/storage、soft-delete、数据库托管字段、parentRef 或 owned relation 语义重写。
@@ -859,7 +902,9 @@ Runtime -> Generator -> GitHub Template
 - 安装 Snowflake starter 后只增加 Snowflake strategy；移除后 UUIDv7 默认路径仍可用。
 - Repository 完整聚合加载测试通过。
 - UoW 写事务和 Domain Event 回滚测试通过。
-- Factory CREATE 后 application-side root/owned ID 可用，预赋值 ID 保持不变，根聚合保持唯一最终 UoW entry。
+- Factory 和直接 `persist(root, CREATE)` 返回后 application-side root/当前可达 owned ID 可用，预赋值 ID 保持不变。
+- generated owned relation `add/replace` 在 mutation 返回前完成 child ID，失败不改变 relation；`EXISTING` root 的新 child 由 UoW backstop 补齐。
+- 能证明归属的 separately pending child 吸收到最外层 root entry；无关 root 共享 child 失败；孤立 caller-declared child 不通过新增 marker 重新分类。
 - 数据库 identity/version 在 create 后为 `null`、成功 save 后可观察，回滚不承诺清空已赋值内存状态。
 - Strong ID、soft-delete 和数据库托管 owned graph 的现有 JPA runtime 回归测试迁入新所有者并通过。
 - capability 缺失、冲突及高级 starter 安装错误测试通过。
@@ -880,7 +925,7 @@ Runtime -> Generator -> GitHub Template
 - generated-own-ID typed accessor/catalog 继续生成并接入 Runtime registry。
 - 无输入 `cap4kGenerateSources` no-op。
 - 生成源码和手写骨架 ownership。
-- Unique addon artifact 和 ServiceLoader 集成。
+- 删除 aggregate generator 主线中的 Unique 配置、planner、template、fixture、测试和文档承诺。
 - 删除核心 Factory/Unique 配置开关。
 - 验证 Runtime 阶段删除内置官方 Bootstrap preset 后，slots、managed block 和冲突 API 仍可独立工作。
 
@@ -892,6 +937,7 @@ Runtime -> Generator -> GitHub Template
 - 自动清理历史生成文件。
 - 重新设计 Strong ID、soft-delete、entrusted field、parent access、owned relation 或 managed-field lifecycle。
 - 新增 owned-child Factory payload 或父 ID/Entity 暴露模式。
+- 创建或设计 Unique addon、`cap4kAddon` 或 ServiceLoader 集成。
 
 #### 完成门槛
 
@@ -901,7 +947,8 @@ Runtime -> Generator -> GitHub Template
 - application-side ID、数据库 identity/version、soft-delete 和 structural parentRef 的已支持组合生成真实 Factory 构造调用并通过编译测试。
 - 只有真正 unresolved 的业务或 managed field 进入 TODO 路径，plan 明确列出 blocker，并有编译测试。
 - generated-own-ID accessor/catalog 生成与 Runtime registry 集成测试通过。
-- Unique addon 加载、产物和异常传播测试通过。
+- Unique option、planner、template、fixture、测试和文档生成承诺没有残留；physical unique metadata 和 owned-one 推导回归仍通过。
+- soft-delete 五种 ID/storage 组合的 planner/renderer/compile 证据保持，H2 生命周期和真实 PostgreSQL native UUID evidence 继续通过。
 - Bootstrap 通用 API 回归测试通过。
 - cap4k 完整构建通过。
 - runtime、starter、plugin 和 addon 以一致版本发布到正式仓库。
@@ -963,8 +1010,11 @@ Runtime -> Generator -> GitHub Template
 - Repository 查询事务关闭前完成 WHOLE_AGGREGATE 加载。
 - MINIMAL 不被默认选择。
 - Factory 创建登记根聚合 CREATE intent，但不打开事务、flush 或直接访问 `EntityManager`。
-- application-side generated own ID 在 CREATE 登记期间覆盖根和 owned graph，`create(...)` 返回前可用，预赋值 ID 不被覆盖。
-- owned child 不作为独立最终 UoW entry，也不独立调用 `EntityManager.persist`。
+- application-side generated own ID 在 Factory 和直接 CREATE 登记期间覆盖根和当前可达 owned graph，调用返回前可用，预赋值 ID 不被覆盖。
+- generated owned relation `add/replace` 在 mutation 前完成 child ID，失败不改变 relation；`replace(null)` 不分配。
+- `EXISTING` root 只为新可达且缺失 ID 的 child 分配，既有 observed identity 保持不变，save 前再次幂等补齐。
+- separately pending reachable child 吸收到最外层 root entry，不独立调用 `EntityManager.persist/merge`；同一 child 属于两个无关 root 时失败。
+- 没有 pending owner 的孤立 caller-declared `persist(child, CREATE)` 不通过新增静态 marker 猜测归属。
 - 数据库 identity/version 在 create 后为 `null`，成功 save/flush 后根和 owned child 可观察为非空。
 - provider 已赋值后回滚不触发 cap4k 清空内存 identity/version。
 - 现有 soft-delete ID/storage 矩阵的 create/query/delete 行为在 starter 迁移后不回归。
@@ -987,12 +1037,14 @@ Runtime -> Generator -> GitHub Template
 - 已支持的 application-side ID、数据库 identity/version、soft-delete 和 parentRef 组合生成真实构造调用，不产生 TODO。
 - 真正不可推导的业务或 managed field 产生明确 TODO、未解析字段列表和 plan 标记。
 - generated-own-ID typed accessor 和 module catalog 继续生成。
+- generated owning relation 继续渲染 typed accessor mutation hook。
 - soft-delete 字段保持 mapped initializer，但不进入 constructor 或用户写表面。
-- structural parentRef scalar 与 automatic inverse navigation 不被 Factory 或 Entity planner 恢复。
+- soft-delete 保留 identity、Snowflake Long/String、UUID7 String、native UUID 五种 ID/storage 组合、精确 dialect/quoting、H2 生命周期和真实 PostgreSQL native UUID evidence。
+- structural parentRef scalar 与 automatic inverse navigation 不被 Factory、Entity 或 Schema planner 恢复；physical parentRef、forward relation/Schema join、shared-PK rejection 和 owned-one unique-parentRef inference 保持。
+- 普通 managed `READ_ONLY` field 不被泛化成 provider-assigned 或 synthetic nullable/null field。
 - Aggregate Specification 不再存在。
-- 核心 generator 不再存在 Unique 开关和模板。
-- Unique addon 只在显式依赖时加载。
-- Unique 查询异常原样传播。
+- aggregate generator 不再存在 Unique 配置、planner、template、fixture、测试或文档生成承诺，且没有替代 addon。
+- 删除 Unique 产物后 physical unique constraint metadata 与 owned relation cardinality inference 仍保留。
 - Bootstrap slots API 未回归。
 
 ### 18.4 Template 验证
@@ -1010,73 +1062,76 @@ Runtime -> Generator -> GitHub Template
 
 ## 19. 当前源码事实索引
 
-以下链接只说明规划阶段需要审计的当前事实，不具有目标规范效力：
+以下链接说明实施后的当前事实，不替代本文的目标规范：
 
-- [旧聚合 starter 依赖](../../../cap4k-ddd-starter/build.gradle.kts)
-- [旧聚合 starter 自动配置导入](../../../cap4k-ddd-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports)
-- [当前混合 ID policy 自动配置](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/IdPolicyAutoConfiguration.kt)
-- [当前 UUIDv7 strategy](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/Uuid7IdentifierStrategy.kt)
-- [当前 Snowflake strategy](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/SnowflakeIdentifierStrategy.kt)
-- [当前 JPA Repository/UoW 自动配置](../../../cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt)
+- [Core starter 自动配置导入](../../../cap4k-ddd-core-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports)
+- [Core capability binder](../../../cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt)
+- [UUIDv7 strategy](../../../cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/Uuid7IdentifierStrategy.kt)
+- [Snowflake starter 自动配置](../../../cap4k-ddd-snowflake-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/distributed/SnowflakeAutoConfiguration.kt)
+- [Snowflake strategy](../../../cap4k-ddd-snowflake-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/SnowflakeIdentifierStrategy.kt)
+- [JPA Repository/UoW 自动配置](../../../cap4k-ddd-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt)
 - [JPA Repository 当前依赖](../../../ddd-domain-repo-jpa/build.gradle.kts)
 - [GeneratedOwnIdAccessor 契约](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/GeneratedOwnIdAccessor.kt)
 - [GeneratedOwnIdCatalog 契约](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/GeneratedOwnIdCatalog.kt)
 - [GeneratedOwnIdRegistry 契约和默认实现](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/GeneratedOwnIdRegistry.kt)
 - [当前 JPA generated-own-ID 支持](../../../ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaGeneratedStrongIdSupport.kt)
 - [当前 JpaUnitOfWork](../../../ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt)
-- [旧 starter Strong ID/UoW runtime 测试](../../../cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt)
-- [旧 starter soft-delete runtime 测试目录](../../../cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/softdelete)
-- [数据库托管字段和 owned graph runtime 测试](../../../cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt)
-- [当前同步与可靠 Request 混合实现](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/impl/DefaultRequestSupervisor.kt)
-- [当前事件订阅扫描实现](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventSubscriberManager.kt)
-- [当前 Mediator](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt)
-- [当前 X 门面](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/X.kt)
+- [JPA starter Strong ID/UoW runtime 测试](../../../cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt)
+- [JPA starter soft-delete runtime 测试目录](../../../cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/softdelete)
+- [数据库托管字段和 owned graph runtime 测试](../../../cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt)
+- [同步 Request 实现](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/impl/DefaultRequestSupervisor.kt)
+- [可靠 Request 实现](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/impl/DefaultReliableRequestSupervisor.kt)
+- [本地 Domain Event 实现](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultDomainEventSupervisor.kt)
+- [显式 EventTypeCatalog](../../../cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/SpringEventTypeCatalog.kt)
+- [静态 Mediator](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt)
 - [AggregateLoadPlan](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/repo/AggregateLoadPlan.kt)
-- [当前 Specification](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/aggregate/Specification.kt)
-- [当前 Specification UoW interceptor](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/aggregate/impl/SpecificationUnitOfWorkInterceptor.kt)
-- [当前 Reentrant](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/distributed/annotation/Reentrant.kt)
-- [当前 ReentrantAspect](../../../ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/distributed/impl/ReentrantAspect.kt)
 - [当前 Gradle extension](../../../cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt)
 - [Factory planner](../../../cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/FactoryArtifactPlanner.kt)
 - [Entity planner](../../../cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/EntityArtifactPlanner.kt)
 - [数据库托管字段规划](../../../cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateEntrustedFieldPlanning.kt)
 - [soft-delete SQL 和 initializer 渲染](../../../cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateSoftDeleteRendering.kt)
 - [generated-own-ID accessor 规划](../../../cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/GeneratedOwnIdArtifactPlanner.kt)
-- [Unique Validator template](../../../cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/unique_validator.kt.peb)
-- [当前 Bootstrap templates](../../../cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default-bootstrap)
+- [Aggregate artifact planner](../../../cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlanner.kt)
+- [无输入编译接线](../../../cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt)
+- [Bootstrap 通用 provider](../../../cap4k-plugin-pipeline-bootstrap/src/main/kotlin/com/only4/cap4k/plugin/pipeline/bootstrap/DddMultiModuleBootstrapPresetProvider.kt)
+- [Bootstrap test-only template bundle](../../../cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-template-bundle)
 
 计划会话必须重新搜索相关调用方，不能把本索引当成完整文件清单。
 
-## 20. 新会话规划协议
+## 20. 后续会话协议
 
-为某一阶段编写实施计划的新会话必须：
+继续本文相关工作的会话必须：
 
 1. 完整阅读本文。
-2. 确认当前要规划的阶段以及前置阶段 Git 状态。
+2. 确认当前工作属于已实现能力的回归修复，还是阶段三 GitHub Template。
 3. 读取该阶段源码事实，不信任历史 spec。
 4. 搜索所有生产、测试、fixture、template、文档和 skill 调用方。
-   - Runtime 阶段必须先为 Strong ID、soft-delete、数据库托管字段和 owned graph runtime 测试确定新的 starter 所有者。
-   - Generator 阶段必须先盘点 generated-own-ID、system-transition field、entrusted field 和 structural parentRef 的现有 planner/renderer 覆盖。
+   - Runtime 回归必须保持 Strong ID、soft-delete、数据库托管字段和 owned graph runtime 测试的新 starter 所有权。
+   - Generator 回归必须保持 generated-own-ID、system-transition field、entrusted field 和 structural parentRef 的 planner/renderer 覆盖，并防止 Unique option/planner/template/fixture/test/docs 被恢复。
 5. 将本文中的完成门槛转换成可执行验证任务。
 6. 明确列出本阶段非目标。
 7. 保证每个计划任务结束时仓库可构建。
 8. 不引入兼容壳、临时 API 或下一阶段才会删除的过渡设计。
 
-阶段一的下一步是调用 `superpowers:writing-plans`，为 Runtime 边界编写实施计划。阶段二和阶段三只能在各自前置阶段验收通过后规划。
+阶段一和阶段二不得作为待实施计划重新执行。阶段三只有在 Runtime、Generator、plugin 和 starter 以一致稳定版本发布到正式仓库后才能开始；届时应在独立 GitHub Template 仓库中规划和验收。
 
 ## 21. 文档自检标准
 
-本文只有在以下检查全部通过后才可以交给实施计划会话：
+本文只有在以下检查全部通过后才可以作为后续回归或阶段三规划的权威输入：
 
 - 没有 `TBD`、`TODO` 或未决占位符；示例 Factory 中规范要求的 `TODO("Implement aggregate construction")` 不属于文档占位符。
 - 模块矩阵和 starter 依赖规则不矛盾。
 - UUIDv7/ID registry 归 Core starter，Snowflake 只从独立 starter 单向扩展，JPA UoW 只消费 Core 契约。
 - 默认项目能力与默认依赖一致。
 - 事务边界与事件时序一致。
+- generated-own-ID 的 Factory/direct CREATE、relation mutation、EXISTING backstop 和 pending child reconciliation 生命周期没有缺口或绝对化矛盾。
+- provider-assigned 分类只覆盖 resolved database identity/version，普通 `READ_ONLY` 字段和 Schema 物理 nullability 不被误改。
+- parentRef physical evidence、forward join、shared-PK rejection 和 owned-one inference 与 scalar/inverse 删除规则一致。
 - Factory payload、构造映射和 TODO 边界不允许回归已支持的 ID、soft-delete、entrusted field 或 parentRef 组合。
+- Unique 主线生成功能完整删除且没有替代 addon；physical unique metadata 和 relation inference 仍保留。
 - 删除清单覆盖生产、测试、fixture、template 和文档。
 - 每个阶段都有输入、范围、非目标和完成门槛。
 - GitHub Template 不依赖未发布或本地 cap4k 制品。
-- 新会话无需历史会话即可编写阶段一计划。
+- 新会话无需历史会话即可确认阶段一和阶段二已实现，并识别阶段三的正式发布前置条件。
 
 本文没有未决产品问题。未来能力只以明确非目标或后置项出现，不允许在实施计划中自行扩张。

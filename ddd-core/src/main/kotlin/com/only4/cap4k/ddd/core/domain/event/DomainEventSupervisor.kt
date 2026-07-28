@@ -70,13 +70,15 @@ interface DomainEventSupervisor {
          * @return 领域事件管理器
          */
         @JvmStatic
-        val instance: DomainEventSupervisor by lazy { DomainEventSupervisorSupport.instance }
+        val instance: DomainEventSupervisor
+            get() = DomainEventSupervisorSupport.instance
 
         /**
          * 获取领域事件发布管理器
          * @return
          */
         @JvmStatic
-        val manager: DomainEventManager by lazy { DomainEventSupervisorSupport.manager }
+        val manager: DomainEventManager
+            get() = DomainEventSupervisorSupport.manager
     }
 }

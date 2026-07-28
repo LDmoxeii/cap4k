@@ -1,0 +1,50 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "official-default-project-contract-implementation",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "5214ece66a1dd97ccd87f4773fed665f50b34660d6911a93c903373bd44af314",
+  "status": "failed",
+  "startedAt": "2026-07-28T12:45:33.029Z",
+  "endedAt": "2026-07-28T12:45:35.421Z",
+  "contract": {
+    "expectedHash": "df14587e8204bf867a823b8f984efdd0cd060f2539dca2e1ef0b5fd3f70d1008",
+    "beforeHash": "df14587e8204bf867a823b8f984efdd0cd060f2539dca2e1ef0b5fd3f70d1008",
+    "afterHash": "df14587e8204bf867a823b8f984efdd0cd060f2539dca2e1ef0b5fd3f70d1008"
+  },
+  "implementation": {
+    "scopeHash": "a0c353dcdaa92b71279dde151561df28d0a3057d1a0becd8a1542896d069edf4",
+    "expectedSnapshotHash": "84868e01c3751fccb403746ad1db73df38ee0efa034347bcd4a96e242575834f",
+    "beforeSnapshotHash": "84868e01c3751fccb403746ad1db73df38ee0efa034347bcd4a96e242575834f",
+    "afterSnapshotHash": "84868e01c3751fccb403746ad1db73df38ee0efa034347bcd4a96e242575834f"
+  },
+  "counts": {
+    "filesSelected": 72,
+    "filesScanned": 0,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 0,
+    "issueCount": 1,
+    "recordedIssueCount": 1
+  },
+  "issues": [
+    {
+      "path": "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt",
+      "line": 1,
+      "kind": "scan-limit"
+    }
+  ],
+  "issuesTruncated": false,
+  "stale": false,
+  "staleReasons": [],
+  "receiptHash": "97c92b65a2a953a912415adfd5e8971b9d34e1cc65ec55d64d97b3bfbf7149bc"
+}

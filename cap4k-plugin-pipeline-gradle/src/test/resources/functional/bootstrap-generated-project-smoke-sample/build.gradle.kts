@@ -18,6 +18,10 @@ cap4k {
             adapterModuleName.set("only-danmuku-adapter")
             startModuleName.set("only-danmuku-start")
         }
+        templates {
+            preset.set("test-bootstrap")
+            overrideDirs.from("codegen/zz-bootstrap-defaults")
+        }
         slots {
             root.from("codegen/bootstrap-slots/root")
             modulePackage("domain").from("codegen/bootstrap-slots/domain-package")

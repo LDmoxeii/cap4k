@@ -156,7 +156,7 @@ class BootstrapFilesystemArtifactExporterTest {
                 "demo-adapter",
                 "demo-start",
             ),
-            templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
+            templates = BootstrapTemplateConfig("test-bootstrap", emptyList()),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,
             mode = BootstrapMode.IN_PLACE,

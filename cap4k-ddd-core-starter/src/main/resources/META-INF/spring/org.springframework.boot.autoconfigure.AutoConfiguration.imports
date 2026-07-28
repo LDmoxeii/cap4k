@@ -1,0 +1,3 @@
+com.only4.cap4k.ddd.core.autoconfigure.CoreIdAutoConfiguration
+com.only4.cap4k.ddd.core.autoconfigure.CoreRuntimeAutoConfiguration
+com.only4.cap4k.ddd.core.autoconfigure.CoreDomainEventAutoConfiguration

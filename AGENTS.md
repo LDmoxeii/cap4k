@@ -161,19 +161,16 @@ Recent durable decisions to preserve:
 
 ## Known Test Fixture Debt
 
-Fresh Task 27 evidence for `:cap4k-ddd-starter:test` is 94 tests: 65 passed, 0 failures, 0 errors, and 29 configured skips.
+The old aggregate `cap4k-ddd-starter` fixture and its configured skips were deleted with the starter split. Do not use its historical 94-test/29-skip result as current evidence.
 
-Observed skipped surface:
+Current ownership evidence:
 
-- targeted UUID7 and application-side ID tests pass
-- 29 legacy auto-configuration and context tests remain configured skipped around old `@SpringBootTest` fixture isolation
-- broad test applications under `com.only4.cap4k.ddd` use package-wide `@ComponentScan`, `@EntityScan`, and `@EnableJpaRepositories`, causing test fixtures and framework repositories to be scanned together
-- repeated repository bean names such as `sagaJpaRepository`, `requestJpaRepository`, and runtime fixture repositories collide across test contexts
-- some contexts start Snowflake auto-configuration without the `__worker_id` table because tests still use stale Snowflake property keys
-- some contexts create `DefaultEventSubscriberManager` with a blank event scan package and fail at `ScanUtils.scanClass`
-- one initialization test excludes Hibernate JPA auto-configuration while still enabling JPA repository scanning, so `entityManagerFactory` is missing
+- Core starter tests cover UUID7, ID registries, static Mediator binding, synchronous Request, local Domain Event, missing reliable capability, and provider conflict failure.
+- JPA starter owns the migrated Strong ID, soft-delete, OwnedEntityList, aggregate graph, provider-assigned field, and UoW runtime fixtures.
+- Request/Event/Saga/Locker/Snowflake and each Integration Event transport starter own focused auto-configuration tests.
+- event package scanning and capability enable properties are removed; a new failure involving them is a stale reference, not expected fixture debt.
 
-The configured skips are test-maintenance debt, not evidence that a fresh starter failure is expected. Do not dismiss a new failure as known debt; reproduce it before deciding whether it belongs to fixture isolation or the changed runtime behavior.
+Do not dismiss a fresh failure as known debt. Reproduce it in the capability owner and distinguish framework behavior from test-context isolation with current evidence.
 
 ## Reading Order
 

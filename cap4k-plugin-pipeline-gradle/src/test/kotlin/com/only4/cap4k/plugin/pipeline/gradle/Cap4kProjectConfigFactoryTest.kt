@@ -23,9 +23,6 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("uuid7", extension.generators.aggregate.specialFields.idDefaultStrategy.get())
         assertEquals("", extension.generators.aggregate.specialFields.deletedDefaultColumn.get())
         assertEquals("", extension.generators.aggregate.specialFields.versionDefaultColumn.get())
-        assertFalse(extension.generators.aggregate.artifacts.factory.get())
-        assertFalse(extension.generators.aggregate.artifacts.specification.get())
-        assertFalse(extension.generators.aggregate.artifacts.unique.get())
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
         assertTrue(extension.templates.templateConflictPolicies.get().isEmpty())
@@ -947,45 +944,6 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `aggregate artifact selection maps into generator options`() {
-        val project = ProjectBuilder.builder().build()
-        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
-
-        extension.project {
-            basePackage.set("com.acme.demo")
-            domainModulePath.set("demo-domain")
-            applicationModulePath.set("demo-application")
-            adapterModulePath.set("demo-adapter")
-        }
-        extension.sources {
-            db {
-                enabled.set(true)
-                url.set("jdbc:h2:mem:test")
-                username.set("sa")
-                password.set("secret")
-            }
-        }
-        extension.generators {
-            aggregate {
-                artifacts {
-                    factory.set(true)
-                    specification.set(true)
-                    unique.set(true)
-                }
-            }
-        }
-
-        val config = Cap4kProjectConfigFactory().build(project, extension)
-        val options = config.generators.getValue("aggregate").options
-
-        assertEquals(true, options["artifact.factory"])
-        assertEquals(true, options["artifact.specification"])
-        assertEquals(true, options["artifact.unique"])
-        assertFalse(options.containsKey("artifact.enum" + "Translation"))
-        assertFalse(options.containsKey("artifact.wrapper"))
-    }
-
-    @Test
     fun `factory includes domain application and adapter modules when aggregate is enabled`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
@@ -1173,6 +1131,32 @@ class Cap4kProjectConfigFactoryTest {
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(emptyMap<String, String>(), config.modules)
+        assertEquals(emptySet<String>(), config.sources.keys)
+        assertEquals(emptySet<String>(), config.generators.keys)
+    }
+
+    @Test
+    fun `configured module paths remain available when generation inputs are absent`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+            applicationModulePath.set("demo-application")
+            adapterModulePath.set("demo-adapter")
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(
+            mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            config.modules,
+        )
         assertEquals(emptySet<String>(), config.sources.keys)
         assertEquals(emptySet<String>(), config.generators.keys)
     }

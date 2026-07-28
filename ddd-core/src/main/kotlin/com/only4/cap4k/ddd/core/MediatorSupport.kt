@@ -10,19 +10,20 @@ import org.springframework.context.ApplicationContext
  * @date 2025/07/22
  */
 object MediatorSupport {
-    lateinit var instance: Mediator
-    lateinit var ioc: ApplicationContext
-    lateinit var identifiers: IdentifierGenerator
+    private val iocSlot = CapabilitySlot<ApplicationContext>("ioc", "cap4k-ddd-core-starter")
+    private val identifierSlot = CapabilitySlot<IdentifierGenerator>("identifiers", "cap4k-ddd-core-starter")
 
-    fun configure(mediator: Mediator) {
-        instance = mediator
-    }
+    val ioc: ApplicationContext
+        get() = iocSlot.get()
+
+    val identifiers: IdentifierGenerator
+        get() = identifierSlot.get()
 
     fun configure(applicationContext: ApplicationContext) {
-        ioc = applicationContext
+        iocSlot.configure(applicationContext)
     }
 
     fun configure(identifierGenerator: IdentifierGenerator) {
-        identifiers = identifierGenerator
+        identifierSlot.configure(identifierGenerator)
     }
 }

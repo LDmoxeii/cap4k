@@ -4,7 +4,7 @@ This map captures runtime boundaries that installed cap4k authoring skills may r
 
 ## Repository
 
-Repository capability is read/access/load oriented. A repository can restore aggregates by identity, IDs, or specification and may use aggregate load plans where supported. It is not the owner of commit semantics.
+Repository capability is read/access/load oriented. A repository can restore aggregates by identity, IDs, or query predicates and may use aggregate load plans where supported. It is not the owner of commit semantics.
 
 Agent rule: do not describe Repository as the save owner. Command paths load aggregates through Repository and persist intent through Unit of Work.
 
@@ -16,15 +16,15 @@ Agent rule: application handlers record persistence or delete intent through Uni
 
 ## Mediator
 
-Mediator is a framework facade and delegation entrypoint across runtime supervisors such as repository, aggregate factory, domain service, Unit of Work, integration event, and request capabilities. It is not a separate business engine.
+Mediator is a static framework namespace across independently configured repository, aggregate factory, domain service, Unit of Work, integration event, request, IoC, and identifier capabilities. It has no aggregate runtime instance or all-capabilities implementation and is not a separate business engine.
 
-Agent rule: use Mediator as framework-facing convenience when appropriate, but keep business decisions in domain/application code.
+Agent rule: use only canonical names (`commands`, `queries`, `requests`, `repositories`, `factories`, `services`, `uow`, `events`, `ioc`, `identifiers`). Keep business decisions in domain/application code. An uninstalled optional capability fails when called; do not assume a monolithic starter or silent fallback.
 
-## Specification
+## Request And Event Reliability
 
-Specification and unique helper behavior can participate in pre-save checks through Unit of Work interception. This makes pre-save constraints a domain/runtime boundary, not a controller-only validation rule.
+Core Request dispatch is synchronous and does not create persistence records. Reliable schedule/result requires the Request JPA capability. Local Domain Event delivery is synchronous through Spring inside the Unit of Work transaction; persisted or delayed events require the Domain Event JPA capability.
 
-Agent rule: when a pre-save constraint is needed, prefer generator-supported specification/unique helper surfaces or record a technical design exception before handwritten structure.
+Agent rule: do not describe reliable Request/Event calls as Core behavior and do not downgrade them when their provider is absent. Event payload types come from explicit Spring listener signatures or a supplied event catalog, never an event-scan package.
 
 ## Integration Event Transport Split
 
