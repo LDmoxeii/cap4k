@@ -1,6 +1,9 @@
 package com.only4.cap4k.ddd.core.application.impl
 
-import com.only4.cap4k.ddd.core.application.*
+import com.only4.cap4k.ddd.core.application.RequestHandler
+import com.only4.cap4k.ddd.core.application.RequestInterceptor
+import com.only4.cap4k.ddd.core.application.RequestParam
+import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.NoneResultCommandParam
 import com.only4.cap4k.ddd.core.application.query.Query
@@ -10,86 +13,48 @@ import com.only4.cap4k.ddd.core.domain.event.impl.EventDispatchException
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
 import com.only4.cap4k.ddd.core.domain.event.impl.RequestDispatchException
-import com.only4.cap4k.ddd.core.share.DomainException
-import com.only4.cap4k.ddd.core.share.misc.createScheduledThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import jakarta.validation.ConstraintViolationException
 import jakarta.validation.Validator
-import java.time.Duration
-import java.time.LocalDateTime
-import java.util.concurrent.TimeUnit
 
 /**
- * 默认请求管理器
- *
- * @author LD_moxeii
- * @date 2025/07/27
+ * Current-thread request dispatcher. It has no persisted request, scheduler or locker dependency.
  */
 open class DefaultRequestSupervisor(
     private val requestHandlers: List<RequestHandler<*, *>>,
     private val requestInterceptors: List<RequestInterceptor<*, *>>,
     private val validator: Validator?,
-    private val requestRecordRepository: RequestRecordRepository,
-    private val svcName: String,
-    private val threadPoolSize: Int,
-    private val threadFactoryClassName: String
-) : RequestSupervisor, RequestManager {
-
-    companion object {
-        /**
-         * 默认Request过期时间（分钟）
-         * 一天 60*24 = 1440
-         */
-        private const val DEFAULT_REQUEST_EXPIRE_MINUTES = 1440
-
-        /**
-         * 默认Request重试次数
-         */
-        private const val DEFAULT_REQUEST_RETRY_TIMES = 200
-
-        /**
-         * 本地调度时间阈值
-         */
-        private const val LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLDS_MINUTES = 2
-    }
+) : RequestSupervisor {
 
     private val requestHandlerMap by lazy {
         requestHandlers.associateBy { handler ->
-            // 获取请求处理器的请求参数类型
             resolveGenericTypeClass(
-                handler, 0,
+                handler,
+                0,
                 RequestHandler::class.java,
-                Command::class.java, NoneResultCommandParam::class.java,
-                Query::class.java
+                Command::class.java,
+                NoneResultCommandParam::class.java,
+                Query::class.java,
             )
         }
     }
 
     private val requestInterceptorMap by lazy {
-        requestInterceptors
-            .groupBy { requestInterceptor ->
-                // 获取请求拦截器的请求参数类型
-                resolveGenericTypeClass(
-                    requestInterceptor, 0,
-                    RequestInterceptor::class.java,
-                    Command::class.java, NoneResultCommandParam::class.java,
-                    Query::class.java
-                )
-            }
-    }
-
-    private val executorService by lazy {
-        createScheduledThreadPool(
-            threadPoolSize,
-            threadFactoryClassName,
-            this::class.java.classLoader
-        )
+        requestInterceptors.groupBy { interceptor ->
+            resolveGenericTypeClass(
+                interceptor,
+                0,
+                RequestInterceptor::class.java,
+                Command::class.java,
+                NoneResultCommandParam::class.java,
+                Query::class.java,
+            )
+        }
     }
 
     fun init() {
         requestHandlerMap
         requestInterceptorMap
-        executorService
     }
 
     override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE {
@@ -98,156 +63,26 @@ open class DefaultRequestSupervisor(
             return SagaSupervisor.instance.send(request as SagaParam<RESPONSE>)
         }
 
-        validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
-            throw ConstraintViolationException(violations)
-        }
-
+        validate(request)
         return internalSend(request)
     }
 
-    override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> schedule(
-        request: REQUEST,
-        schedule: LocalDateTime
-    ): String {
-        if (request is SagaParam<*>) {
-            return SagaSupervisor.instance.schedule(request as SagaParam<*>, schedule)
-        }
-
+    private fun validate(request: Any) {
         validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
             throw ConstraintViolationException(violations)
-        }
-
-        val requestRecord = createRequestRecord(
-            requestType = request::class.java.name,
-            request = request,
-            scheduleAt = schedule
-        )
-
-        if (requestRecord.isExecuting) {
-            scheduleExecution(request, requestRecord)
-        }
-
-        return requestRecord.id
-    }
-
-    override fun <R : Any> result(requestId: String): R? = requestRecordRepository.getById(requestId).getResult()
-
-    override fun resume(request: RequestRecord, minNextTryTime: LocalDateTime) {
-        val now = LocalDateTime.now()
-        val requestTime = Duration.between(request.nextTryTime, now).let {
-            if (it.isNegative) now else request.nextTryTime
-        }
-
-        request.beginRequest(requestTime)
-
-        var maxTry = 65535
-        while (request.nextTryTime.isBefore(minNextTryTime) && request.isValid) {
-            request.beginRequest(request.nextTryTime)
-            if (maxTry-- <= 0) {
-                throw DomainException("疑似死循环")
-            }
-        }
-
-        requestRecordRepository.save(request)
-
-        val param = request.param
-
-        // 参数验证
-        validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
-            throw ConstraintViolationException(violations)
-        }
-
-        if (request.isExecuting) {
-            scheduleExecution(param, request)
-        }
-    }
-
-    override fun retry(uuid: String) {
-        val request = requestRecordRepository.getById(uuid)
-
-        val param = request.param
-
-        validator?.validate(request)?.takeIf { it.isNotEmpty() }?.let { violations ->
-            throw ConstraintViolationException(violations)
-        }
-
-        internalSend(param, request)
-    }
-
-    override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<RequestRecord> =
-        requestRecordRepository.getByNextTryTime(svcName, maxNextTryTime, limit)
-
-    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int =
-        requestRecordRepository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-    protected open fun createRequestRecord(
-        requestType: String,
-        request: RequestParam<*>,
-        scheduleAt: LocalDateTime
-    ): RequestRecord {
-        val requestRecord = requestRecordRepository.create()
-
-        requestRecord.init(
-            requestParam = request,
-            svcName = svcName,
-            requestType = requestType,
-            scheduleAt = scheduleAt,
-            expireAfter = Duration.ofMinutes(DEFAULT_REQUEST_EXPIRE_MINUTES.toLong()),
-            retryTimes = DEFAULT_REQUEST_RETRY_TIMES
-        )
-
-        val now = LocalDateTime.now()
-        val shouldExecuteImmediately = Duration.between(now, scheduleAt).let {
-            it.isNegative || it.toMinutes() < LOCAL_SCHEDULE_ON_INIT_TIME_THRESHOLDS_MINUTES
-        }
-
-        if (shouldExecuteImmediately) {
-            requestRecord.beginRequest(scheduleAt)
-        }
-
-        requestRecordRepository.save(requestRecord)
-        return requestRecord
-    }
-
-    private fun scheduleExecution(
-        request: RequestParam<*>,
-        requestRecord: RequestRecord
-    ) {
-        val duration = Duration.between(LocalDateTime.now(), requestRecord.scheduleTime).let {
-            if (it.isNegative) Duration.ZERO else it
-        }
-
-        executorService.schedule({
-            internalSend(request, requestRecord)
-        }, duration.toMillis(), TimeUnit.MILLISECONDS)
-    }
-
-    protected open fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> internalSend(
-        request: REQUEST,
-        requestRecord: RequestRecord
-    ): RESPONSE {
-        return try {
-            val response = internalSend(request)
-            requestRecord.endRequest(LocalDateTime.now(), response)
-            requestRecordRepository.save(requestRecord)
-            response
-        } catch (throwable: Throwable) {
-            requestRecord.occurredException(LocalDateTime.now(), throwable)
-            requestRecordRepository.save(requestRecord)
-            throw throwable
         }
     }
 
     protected open fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> internalSend(request: REQUEST): RESPONSE {
         val requestClass = request::class.java
-        val interceptors = requestInterceptorMap[requestClass] ?: emptyList()
+        val interceptors = requestInterceptorMap[requestClass].orEmpty()
         @Suppress("UNCHECKED_CAST")
         val handler = requestHandlerMap[requestClass] as? RequestHandler<REQUEST, RESPONSE>
             ?: throw RequestDispatchException(
                 requestParamClass = requestClass,
                 requestHandlerClass = null,
                 diagnosticContext = EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
-                cause = IllegalStateException("No handler found for request type: ${requestClass.name}")
+                cause = IllegalStateException("No handler found for request type: ${requestClass.name}"),
             )
 
         val outerScope = EventRuntimeContext.currentOrNull()
@@ -255,31 +90,18 @@ open class DefaultRequestSupervisor(
         outerScope?.captureListenerMetadata()?.let(requestScope::restoreListenerMetadata)
 
         return try {
-            // 前置拦截器处理
             interceptors.forEach { interceptor ->
                 @Suppress("UNCHECKED_CAST")
                 (interceptor as RequestInterceptor<REQUEST, RESPONSE>).preRequest(request)
             }
 
-            // 执行请求处理
             val response = handler.exec(request)
 
-            // 后置拦截器处理
             interceptors.forEach { interceptor ->
                 @Suppress("UNCHECKED_CAST")
                 (interceptor as RequestInterceptor<REQUEST, RESPONSE>).postRequest(request, response)
             }
-
             response
-        } catch (error: Error) {
-            throw error
-        } catch (throwable: Throwable) {
-            throw RequestDispatchException(
-                requestParamClass = requestClass,
-                requestHandlerClass = handler::class.java,
-                diagnosticContext = EventDispatchException.snapshot(requestScope),
-                cause = throwable
-            )
         } finally {
             EventRuntimeContext.restoreTo(outerScope)
         }

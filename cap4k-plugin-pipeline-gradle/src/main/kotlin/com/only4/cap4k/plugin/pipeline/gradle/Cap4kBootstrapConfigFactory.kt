@@ -64,7 +64,7 @@ class Cap4kBootstrapConfigFactory {
                 startModuleName = extension.bootstrap.modules.startModuleName.required("bootstrap.modules.startModuleName"),
             ),
             templates = BootstrapTemplateConfig(
-                preset = extension.bootstrap.templates.preset.orNull?.trim().orEmpty().ifEmpty { "ddd-default-bootstrap" },
+                preset = extension.bootstrap.templates.preset.orNull?.trim().orEmpty(),
                 overrideDirs = extension.bootstrap.templates.overrideDirs.files
                     .map { file -> relativizeIfUnderProject(project, file) }
                     .sorted(),

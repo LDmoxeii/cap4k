@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
-import com.only4.cap4k.ddd.core.share.misc.findIntegrationEventClasses
+import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import org.slf4j.LoggerFactory
 import org.springframework.core.Ordered
@@ -26,7 +26,7 @@ class HttpIntegrationEventSubscriberAdapter(
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
     private val httpIntegrationEventSubscriberRegister: HttpIntegrationEventSubscriberRegister,
     private val environment: Environment,
-    private val scanPath: String,
+    private val eventTypeCatalog: EventTypeCatalog,
     private val applicationName: String,
     private val httpBaseUrl: String,
     private val httpSubscribePath: String,
@@ -42,7 +42,7 @@ class HttpIntegrationEventSubscriberAdapter(
     }
 
     fun init() {
-        findIntegrationEventClasses(scanPath)
+        eventTypeCatalog.integrationEventTypes()
             .filter { cls ->
                 val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
                 integrationEvent.value.isNotBlank() &&

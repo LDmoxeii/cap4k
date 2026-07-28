@@ -64,7 +64,7 @@ bootstrap 相关审查见 [Bootstrap Project Structure](bootstrap-project-struct
 <module>/src/main/kotlin
 ```
 
-这些 skeleton 可以成为长期维护的入口，例如 Command、Query、Subscriber、client、client-handler、Saga、API payload、Repository adapter、Factory、Specification、Domain Event、Value Object 或 enum。很多 skeleton 会用 `SKIP` 保护已有 handwritten logic。
+这些 skeleton 可以成为长期维护的入口，例如 Command、Query、Subscriber、client、client-handler、Saga、API payload、Repository adapter、Factory、Domain Event、Value Object 或 enum。很多 skeleton 会用 `SKIP` 保护已有 handwritten logic。
 
 生成后仍要在 intended handwritten slot 中写业务实现。不要把“文件生成了”解释成“业务完成了”。
 

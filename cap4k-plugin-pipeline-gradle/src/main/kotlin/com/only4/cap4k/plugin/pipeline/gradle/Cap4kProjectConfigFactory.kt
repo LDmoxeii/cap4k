@@ -98,6 +98,9 @@ class Cap4kProjectConfigFactory {
         sources: SourceStates,
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
+        extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
+        extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
+        extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
         if (sources.designJsonConfigured) {
             extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
             extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
@@ -183,9 +186,6 @@ class Cap4kProjectConfigFactory {
                             .normalized()
                             .uppercase(Locale.ROOT)
                             .ifEmpty { "FAIL" },
-                        "artifact.factory" to aggregate.artifacts.factory.get(),
-                        "artifact.specification" to aggregate.artifacts.specification.get(),
-                        "artifact.unique" to aggregate.artifacts.unique.get(),
                     ),
                 )
             )
@@ -201,13 +201,6 @@ class Cap4kProjectConfigFactory {
             aggregateSchema = extension.layout.aggregateSchema.toPackageLayout("aggregateSchema"),
             aggregateRepository = extension.layout.aggregateRepository.toPackageLayout("aggregateRepository"),
             aggregateSharedEnum = extension.layout.aggregateSharedEnum.toPackageLayout("aggregateSharedEnum"),
-            aggregateUniqueQuery = extension.layout.aggregateUniqueQuery.toPackageLayout("aggregateUniqueQuery"),
-            aggregateUniqueQueryHandler = extension.layout.aggregateUniqueQueryHandler.toPackageLayout(
-                "aggregateUniqueQueryHandler"
-            ),
-            aggregateUniqueValidator = extension.layout.aggregateUniqueValidator.toPackageLayout(
-                "aggregateUniqueValidator"
-            ),
             flow = extension.layout.flow.toOutputRootLayout("flow"),
             drawingBoard = extension.layout.drawingBoard.toOutputRootLayout("drawing-board"),
             designCommand = extension.layout.designCommand.toPackageLayout("designCommand"),

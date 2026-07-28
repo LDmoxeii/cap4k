@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.application
 
+import com.only4.cap4k.ddd.core.CapabilitySlot
+
 /**
  * 工作单元配置支持类
  * 用于配置和管理工作单元实例
@@ -13,7 +15,10 @@ object UnitOfWorkSupport {
      * 工作单元实例
      * 负责管理实体的持久化操作和事务控制
      */
-    lateinit var instance: UnitOfWork
+    private val slot = CapabilitySlot<UnitOfWork>("uow", "cap4k-ddd-jpa-starter")
+
+    val instance: UnitOfWork
+        get() = slot.get()
 
     /**
      * 配置工作单元实例
@@ -23,6 +28,6 @@ object UnitOfWorkSupport {
      * @throws IllegalStateException 当实例已经被初始化时
      */
     fun configure(unitOfWork: UnitOfWork) {
-        instance = unitOfWork
+        slot.configure(unitOfWork)
     }
 }

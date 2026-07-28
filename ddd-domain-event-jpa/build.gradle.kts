@@ -13,6 +13,8 @@ dependencies {
     // Compile-only dependencies
     compileOnly(libs.jpa)
     compileOnly(libs.spring.messaging)
+    compileOnly(libs.spring.context)
+    compileOnly(libs.spring.tx)
 
     // Common dependencies
     implementation(libs.slf4j)
@@ -29,5 +31,7 @@ dependencies {
 
     testImplementation(libs.jpa)
     testImplementation(libs.spring.messaging)
+    testImplementation(libs.spring.context)
+    testImplementation(libs.spring.tx)
 }
 

@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.rabbitmq.client.Channel
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
@@ -32,6 +33,9 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     private lateinit var connectionFactory: ConnectionFactory
     private lateinit var environment: Environment
     private lateinit var adapter: RabbitMqIntegrationEventSubscriberAdapter
+    private val eventTypeCatalog = object : EventTypeCatalog {
+        override fun integrationEventTypes(): Set<Class<*>> = setOf(TestEventPayload::class.java)
+    }
 
     @BeforeEach
     fun setUp() {
@@ -48,7 +52,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
             connectionFactory = connectionFactory,
             environment = environment,
-            scanPath = "com.only4.cap4k.test",
+            eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app",
             msgCharset = "UTF-8",
             autoDeclareQueue = false
@@ -128,7 +132,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
             connectionFactory = connectionFactory,
             environment = environment,
-            scanPath = "com.only4.cap4k.test",
+            eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app",
             msgCharset = "UTF-8",
             autoDeclareQueue = true
@@ -260,7 +264,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
             connectionFactory = connectionFactory,
             environment = environment,
-            scanPath = "com.only4.cap4k.test",
+            eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app"
         )
 
@@ -332,7 +336,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
             connectionFactory = connectionFactory,
             environment = environment,
-            scanPath = "com.only4.cap4k.test",
+            eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app"
         )
 

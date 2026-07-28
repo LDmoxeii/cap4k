@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.application.event
 
+import com.only4.cap4k.ddd.core.CapabilitySlot
+
 /**
  * 集成事件管理器配置支持类
  * 用于配置和管理集成事件的监督者和管理器实例
@@ -13,13 +15,27 @@ object IntegrationEventSupervisorSupport {
      * 集成事件监督者实例
      * 负责监督和管理集成事件的生命周期
      */
-    lateinit var instance: IntegrationEventSupervisor
+    private val supervisorSlot = CapabilitySlot<IntegrationEventSupervisor>(
+        "events",
+        "a cap4k Integration Event transport starter",
+    )
+
+    val instance: IntegrationEventSupervisor
+        get() = supervisorSlot.get()
 
     /**
      * 集成事件管理器实例
      * 负责管理集成事件的发布和存储
      */
-    lateinit var manager: IntegrationEventManager
+    private val managerSlot = CapabilitySlot<IntegrationEventManager>(
+        "integration-event-manager",
+        "a cap4k Integration Event transport starter",
+    )
+
+    val manager: IntegrationEventManager
+        get() = managerSlot.get()
+
+    fun managerOrNull(): IntegrationEventManager? = managerSlot.getOrNull()
 
     /**
      * 配置集成事件监督者
@@ -29,7 +45,7 @@ object IntegrationEventSupervisorSupport {
      * @throws IllegalStateException 如果实例已经被初始化
      */
     fun configure(integrationEventSupervisor: IntegrationEventSupervisor) {
-        instance = integrationEventSupervisor
+        supervisorSlot.configure(integrationEventSupervisor)
     }
 
     /**
@@ -40,6 +56,6 @@ object IntegrationEventSupervisorSupport {
      * @throws IllegalStateException 如果实例已经被初始化
      */
     fun configure(integrationEventManager: IntegrationEventManager) {
-        manager = integrationEventManager
+        managerSlot.configure(integrationEventManager)
     }
 }

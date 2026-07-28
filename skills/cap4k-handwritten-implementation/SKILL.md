@@ -3,7 +3,7 @@ name: cap4k-handwritten-implementation
 description: >
   Use when implementing cap4k handwritten business logic inside approved
   generated skeletons after human generated-output review: command handlers,
-  query handlers, subscribers, jobs, controllers, factories, specifications,
+  query handlers, subscribers, jobs, controllers, factories,
   domain services, Repository access, Mediator routing, and UoW persistence.
 ---
 

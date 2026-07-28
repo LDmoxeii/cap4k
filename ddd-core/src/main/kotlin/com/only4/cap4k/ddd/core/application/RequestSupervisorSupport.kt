@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.application
 
+import com.only4.cap4k.ddd.core.CapabilitySlot
+
 /**
  * 请求管理器配置支持类
  * 用于配置和管理请求相关的组件实例
@@ -13,13 +15,30 @@ object RequestSupervisorSupport {
      * 请求监督者实例
      * 负责管理和控制请求的执行流程
      */
-    lateinit var instance: RequestSupervisor
+    private val supervisorSlot = CapabilitySlot<RequestSupervisor>("requests", "cap4k-ddd-core-starter")
+
+    val instance: RequestSupervisor
+        get() = supervisorSlot.get()
+
+    private val reliableSlot = CapabilitySlot<ReliableRequestSupervisor>(
+        "reliable-requests",
+        "cap4k-ddd-request-jpa-starter",
+    )
+
+    val reliable: ReliableRequestSupervisor
+        get() = reliableSlot.get()
 
     /**
      * 请求管理器实例
      * 负责管理请求的执行、重试和归档
      */
-    lateinit var requestManager: RequestManager
+    private val managerSlot = CapabilitySlot<RequestManager>(
+        "request-manager",
+        "cap4k-ddd-request-jpa-starter",
+    )
+
+    val requestManager: RequestManager
+        get() = managerSlot.get()
 
     /**
      * 配置请求监督者
@@ -29,7 +48,11 @@ object RequestSupervisorSupport {
      * @throws IllegalStateException 当实例已经被初始化时
      */
     fun configure(requestSupervisor: RequestSupervisor) {
-        instance = requestSupervisor
+        supervisorSlot.configure(requestSupervisor)
+    }
+
+    fun configure(reliableRequestSupervisor: ReliableRequestSupervisor) {
+        reliableSlot.configure(reliableRequestSupervisor)
     }
 
     /**
@@ -40,6 +63,6 @@ object RequestSupervisorSupport {
      * @throws IllegalStateException 当实例已经被初始化时
      */
     fun configure(requestManager: RequestManager) {
-        RequestSupervisorSupport.requestManager = requestManager
+        managerSlot.configure(requestManager)
     }
 }

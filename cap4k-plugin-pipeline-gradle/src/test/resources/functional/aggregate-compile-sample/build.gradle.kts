@@ -35,11 +35,6 @@ cap4k {
             specialFields {
                 idDefaultStrategy.set("identity")
             }
-            artifacts {
-                factory.set(true)
-                specification.set(true)
-                unique.set(true)
-            }
         }
     }
 }

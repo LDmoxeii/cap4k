@@ -28,7 +28,6 @@ cap4k {
     generators {
         aggregate {
             artifacts {
-                unique.set(false)
             }
             specialFields {
                 idDefaultStrategy.set("identity")

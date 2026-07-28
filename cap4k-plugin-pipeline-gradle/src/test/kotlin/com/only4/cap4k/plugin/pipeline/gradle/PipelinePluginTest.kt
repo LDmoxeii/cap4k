@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
 import java.net.URLClassLoader
+import java.nio.file.Path
 import java.util.jar.JarEntry
 import java.util.jar.JarOutputStream
 
@@ -209,7 +210,7 @@ class PipelinePluginTest {
             parent = ArtifactAddonProvider::class.java.classLoader,
         )
         val resolver = PresetTemplateResolver(
-            preset = "ddd-default-bootstrap",
+            preset = "test-bootstrap",
             overrideDirs = emptyList(),
             addonTemplateClassLoaders = runtime.templateClassLoaders,
         )
@@ -253,6 +254,15 @@ class PipelinePluginTest {
 
     @Test
     fun `pipeline dependency inference is enabled by input presence or configured generator blocks`() {
+        val emptyProject = ProjectBuilder.builder().build()
+        emptyProject.pluginManager.apply(PipelinePlugin::class.java)
+        val emptyProjectExtension = emptyProject.extensions.getByType(Cap4kExtension::class.java)
+        emptyProjectExtension.project {
+            basePackage.set("com.acme.demo")
+            domainModulePath.set("demo-domain")
+        }
+        assertTrue(shouldInferPipelineDependencies(emptyProjectExtension))
+
         val irProject = ProjectBuilder.builder().build()
         irProject.pluginManager.apply(PipelinePlugin::class.java)
         val irExtension = irProject.extensions.getByType(Cap4kExtension::class.java)
@@ -310,29 +320,7 @@ class PipelinePluginTest {
                 projectConfig(
                     modules = mapOf("domain" to "demo-domain", "application" to "demo-application", "adapter" to "demo-adapter"),
                     sources = mapOf("db" to SourceConfig()),
-                    generators = mapOf(
-                        "aggregate" to GeneratorConfig(
-                            options = mapOf(
-                                "artifact.unique" to false,
-                            ),
-                        )
-                    ),
-                )
-            )
-        )
-        assertEquals(
-            setOf("domain", "application", "adapter"),
-            generatedSourceModuleRoles(
-                projectConfig(
-                    modules = mapOf("domain" to "demo-domain", "application" to "demo-application", "adapter" to "demo-adapter"),
-                    sources = mapOf("db" to SourceConfig()),
-                    generators = mapOf(
-                        "aggregate" to GeneratorConfig(
-                            options = mapOf(
-                                "artifact.unique" to true,
-                            ),
-                        )
-                    ),
+                    generators = mapOf("aggregate" to GeneratorConfig()),
                 )
             )
         )
@@ -603,7 +591,6 @@ class PipelinePluginTest {
                 "aggregate" to GeneratorConfig(
                     options = mapOf(
                         "unsupportedTablePolicy" to "FAIL",
-                        "artifact.unique" to true,
                     ),
                 ),
                 "aggregate-projection" to GeneratorConfig(),
@@ -622,7 +609,6 @@ class PipelinePluginTest {
         assertTrue(snapshot.contains("cap4k"))
         assertTrue(snapshot.contains("video_post"))
         assertTrue(snapshot.contains("com.acme.Money"))
-        assertTrue(snapshot.contains("artifact.unique"))
         assertTrue(snapshot.contains("aggregateProjection"))
         assertTrue(snapshot.contains("demo-domain/build/generated/cap4k/main/kotlin"))
         assertFalse(snapshot.contains("\"enabled\""))
@@ -738,7 +724,7 @@ class PipelinePluginTest {
             projectName = "demo",
             basePackage = "com.acme.demo",
             modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
-            templates = BootstrapTemplateConfig("ddd-default-bootstrap", emptyList()),
+            templates = BootstrapTemplateConfig("test-bootstrap", emptyList()),
             slots = emptyList(),
             conflictPolicy = ConflictPolicy.FAIL,
             mode = BootstrapMode.IN_PLACE,
@@ -1326,7 +1312,14 @@ class PipelinePluginTest {
                 startModuleName.set("only-danmuku-start")
             }
             templates {
-                preset.set("ddd-default-bootstrap")
+                preset.set("test-bootstrap")
+                overrideDirs.from(
+                    Path.of(
+                        requireNotNull(PipelinePluginTest::class.java.getResource("/functional/bootstrap-template-bundle")) {
+                            "Missing shared bootstrap template bundle."
+                        }.toURI()
+                    ).toFile()
+                )
             }
         }
     }

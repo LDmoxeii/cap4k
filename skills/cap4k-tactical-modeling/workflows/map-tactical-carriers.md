@@ -36,11 +36,11 @@ Use `../../shared/references/tactical-affordance-map.md` as the carrier authorit
 - Use Scheduled Reaction for time, cron, timeout, compensation scan, or polling fallback.
 - Reject central listener or process-router ownership when independent reactions and zero-trust commands are sufficient.
 
-## Domain Service/Specification Decision
+## Domain Service Decision
 
 - Use Domain Service only when a domain decision spans aggregates or has no natural aggregate owner.
-- Use Specification when a validation policy must guard saved aggregate state before persistence.
-- Do not create either carrier because code feels procedural or a rule is merely a UI filter.
+- Keep aggregate and value-object invariants on their natural owners; use database constraints for physical integrity guarantees.
+- Do not create a Domain Service because code feels procedural or a rule is merely a UI filter.
 
 ## Rollback Notes
 
@@ -55,6 +55,6 @@ Record one of these notes for every unclear or risky row:
 ## Exit Criteria
 
 - The carrier selection table covers each business signal and marked risk word.
-- Command/Query, event, reaction, Domain Service, and Specification decisions are explicit.
+- Command/Query, event, reaction, and Domain Service decisions are explicit.
 - Each generic DDD concept maps to a cap4k carrier or open decision.
 - Rollback notes identify where to return if later evidence conflicts.

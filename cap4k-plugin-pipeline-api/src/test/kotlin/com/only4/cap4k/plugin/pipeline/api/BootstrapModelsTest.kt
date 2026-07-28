@@ -20,7 +20,7 @@ class BootstrapModelsTest {
                 startModuleName = "demo-start",
             ),
             templates = BootstrapTemplateConfig(
-                preset = "ddd-default-bootstrap",
+                preset = "test-bootstrap",
                 overrideDirs = emptyList(),
             ),
             slots = emptyList(),

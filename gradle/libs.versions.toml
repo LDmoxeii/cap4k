@@ -73,7 +73,6 @@ postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" 
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
 
 # AOP
-aspectjweaver = { module = "org.aspectj:aspectjweaver" }
 
 # Validation
 validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "validation" }

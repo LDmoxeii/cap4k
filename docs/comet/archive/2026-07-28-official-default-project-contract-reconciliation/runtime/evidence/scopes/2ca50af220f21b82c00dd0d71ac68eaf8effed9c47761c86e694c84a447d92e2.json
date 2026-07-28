@@ -1,0 +1,39 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "1d07bd705aaba14678f86da67906c714bf8ca80c1fa1e69484187e15ac2e5f0e",
+  "baselineProjectionRef": "runtime/evidence/snapshots/dd197417c966ddd99c63f139d0e6a15e6c6e173f76090a2aae087239bb5695ab.json",
+  "baselineProjectionHash": "dd197417c966ddd99c63f139d0e6a15e6c6e173f76090a2aae087239bb5695ab",
+  "currentProjectionRef": "runtime/evidence/snapshots/b75684ea6cb2dd098589ecbd2416d7f03d2d668d12d14db18879b36d4a249ae0.json",
+  "currentProjectionHash": "b75684ea6cb2dd098589ecbd2416d7f03d2d668d12d14db18879b36d4a249ae0",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md",
+      "kind": "modified",
+      "before": {
+        "hash": "6f661ccc4d86feebce0d90930f99f1bb08898801f6f45fb1b42a8b696a806b2d",
+        "size": 52572
+      },
+      "after": {
+        "hash": "bd812e7c719bff888836eb1d562c01eb3f9f98d94c3b8568efd73ba225966833",
+        "size": 61543
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "2ca50af220f21b82c00dd0d71ac68eaf8effed9c47761c86e694c84a447d92e2"
+}

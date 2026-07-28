@@ -5,7 +5,7 @@ import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
-import com.only4.cap4k.ddd.core.share.misc.findIntegrationEventClasses
+import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
@@ -30,7 +30,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
     private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure?,
     private val environment: Environment,
-    private val scanPath: String,
+    private val eventTypeCatalog: EventTypeCatalog,
     private val applicationName: String,
     private val defaultNameSrv: String,
     private val msgCharset: String
@@ -41,7 +41,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
     }
 
     private val mqPushConsumers by lazy {
-        findIntegrationEventClasses(scanPath)
+        eventTypeCatalog.integrationEventTypes()
             .filter { cls ->
                 val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
                 integrationEvent.value.isNotBlank() &&

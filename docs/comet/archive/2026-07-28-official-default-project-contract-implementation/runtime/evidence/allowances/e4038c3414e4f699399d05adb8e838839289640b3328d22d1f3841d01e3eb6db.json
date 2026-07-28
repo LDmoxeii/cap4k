@@ -1,0 +1,13 @@
+{
+  "schema": "comet.native.partial-allowance.v1",
+  "change": "official-default-project-contract-implementation",
+  "scopeHash": "a0c353dcdaa92b71279dde151561df28d0a3057d1a0becd8a1542896d069edf4",
+  "scopeIds": [
+    "scope:b46616a0c7a9995758256c9f003f7896de1c3407b377ae8801fcf92b3fd3bde0"
+  ],
+  "reason": "当前 Git 变更超过 Comet 明细展示预算，额外 160 条由内容哈希表示；0 个未归因项，所列项目根覆盖全部实现、测试、删除和文档改动。",
+  "confirmedSummary": "已完成实现并确认压缩后的全部当前变更均属于本 change。",
+  "sourceRevision": 2,
+  "confirmedAt": "2026-07-28T12:42:47.517Z",
+  "allowanceHash": "e4038c3414e4f699399d05adb8e838839289640b3328d22d1f3841d01e3eb6db"
+}

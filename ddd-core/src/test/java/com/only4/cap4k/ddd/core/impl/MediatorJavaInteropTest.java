@@ -17,13 +17,6 @@ class MediatorJavaInteropTest {
     }
 
     @Test
-    void instanceAccessorUsesGetIdentifiers() {
-        Mediator mediator = new DefaultMediator();
-
-        assertEquals("ID-java-instance", mediator.getIdentifiers().next("java-instance", String.class));
-    }
-
-    @Test
     void staticAccessorUsesGetIdentifierGenerator() {
         assertEquals(
             "ID-java-static",

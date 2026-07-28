@@ -5,7 +5,7 @@ import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
-import com.only4.cap4k.ddd.core.share.misc.findIntegrationEventClasses
+import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import com.rabbitmq.client.Channel
 import org.slf4j.LoggerFactory
@@ -34,7 +34,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     private val rabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory,
     private val connectionFactory: ConnectionFactory,
     private val environment: Environment,
-    private val scanPath: String,
+    private val eventTypeCatalog: EventTypeCatalog,
     private val applicationName: String,
     private val msgCharset: String = "UTF-8",
     private val autoDeclareQueue: Boolean = false
@@ -45,7 +45,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     }
 
     private val simpleMessageListenerContainers by lazy {
-        findIntegrationEventClasses(scanPath)
+        eventTypeCatalog.integrationEventTypes()
             .filter { cls ->
                 val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
                 integrationEvent != null &&

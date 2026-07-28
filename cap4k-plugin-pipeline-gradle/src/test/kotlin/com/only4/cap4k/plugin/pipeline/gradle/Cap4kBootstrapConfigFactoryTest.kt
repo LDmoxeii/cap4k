@@ -29,7 +29,7 @@ class Cap4kBootstrapConfigFactoryTest {
                 startModuleName.set("only-danmuku-start")
             }
             templates {
-                preset.set("ddd-default-bootstrap")
+                preset.set("test-bootstrap")
             }
             slots {
                 root.from("codegen/bootstrap-slots/root")
@@ -371,7 +371,7 @@ class Cap4kBootstrapConfigFactoryTest {
     }
 
     @Test
-    fun `build falls back to default bootstrap template preset when blank`() {
+    fun `build leaves bootstrap template preset blank when omitted`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -393,7 +393,7 @@ class Cap4kBootstrapConfigFactoryTest {
 
         val config = Cap4kBootstrapConfigFactory().build(project, extension)
 
-        assertEquals("ddd-default-bootstrap", config.templates.preset)
+        assertEquals("", config.templates.preset)
     }
 
     @Test

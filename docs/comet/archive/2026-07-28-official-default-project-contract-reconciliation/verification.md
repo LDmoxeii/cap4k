@@ -1,0 +1,101 @@
+# Acceptance evidence
+
+<!-- comet-native:acceptance-evidence:start -->
+[
+  {
+    "acceptance_id": "acceptance-2fa65ca7c8bb31aeeaa3d30952ebfb6957a040f20c393a6ae9fb08080b13e8dc",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactSelection.kt",
+      "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateUniqueConstraintPlanning.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-41fdc8a06123af3fb08d296df3e59d152d7c8af202b4b193669ac780744c45ea",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/entity.kt.peb",
+      "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/aggregate/OwnedEntityList.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-6f0a53394df8e85cfbe981d049b0da96ecb263de7e6b5e1a6026837ba5a46fd3",
+    "evidence_refs": [
+      "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-8100ec3b68997a87e4ac3cafa1d1fa03498a8d49e6a51c0fc964d24a370b3ee8",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedParentBindingResolver.kt",
+      "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-862cb58d71ebc8a3ec921b9af079cafc4bb1d097d40c557f40976533af12ecf3",
+    "evidence_refs": [
+      "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/softdelete/mysql/SoftDeleteH2MySqlRuntimeTest.kt",
+      "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PostgreSqlSoftDeleteIntegrationTest.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-daa0d36e7f2049347ed35983c0c74a95d0a2f72413201ebff028418bdf601eb1",
+    "evidence_refs": [
+      "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt",
+      "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateEntrustedFieldPlanning.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-e3b4cbbe47a2eab7bf3dcc14bf9b9291e4381136ee84e09f6117c42f42956e76",
+    "evidence_refs": [
+      "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+      "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-f1f611127bb07c690cfe418edd681163068472878836284b2359d8de6f699d5e",
+    "evidence_refs": [
+      "cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/IdPolicyAutoConfiguration.kt",
+      "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/GeneratedOwnIdRegistry.kt",
+      "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+    ]
+  }
+]
+<!-- comet-native:acceptance-evidence:end -->
+
+# Commands and results
+
+- `comet native check official-default-project-contract-reconciliation --json`：通过；扫描当前实现范围内 1 个文本文件、61,543 bytes，0 issues，receipt 为 `runtime/evidence/check-receipts/c8ed2e7daa96eeba9800e6ba877e83d554aa0876c8a2d1738d7567f7646bcaee.json`。
+- `git diff --check`：通过；仅报告 Git 的 LF→CRLF 工作区提示，没有 whitespace error。
+- PowerShell 本地 Markdown 链接检查：通过；目标 spec 中全部仓库内链接当前均可解析。
+- 必需合同与 stale Unique-addon commitment scan：首跑因检查脚本错误地搜索非实际文案“direct CREATE 登记”而失败；将断言修正为准确 API 文案 `Factory 和直接 persist(root, CREATE)` 后通过。该失败是验证脚本误报，没有引起产品合同变更。
+- 源码证据交叉检查：通过；确认 `OwnedEntityList.prepareEntry`、generated entity `assignIfMissing` hook、`JpaGeneratedStrongIdSupport.completeExisting`、`JpaUnitOfWork.reconcilePendingOwnedChildren`、真实 PostgreSQL soft-delete test、entrusted `READ_ONLY` classifier 和当前 `uniqueEnabled` 主线入口均存在并与修订内容一致。
+- `rg` 复核：通过；目标 spec 包含 relation mutation、EXISTING backstop、pending child/孤立 child 边界、field-role taxonomy、shared-PK rejection、owned-one inference、五种 soft-delete 组合及 Unique 主线删除合同；不存在旧的 addon artifact、显式依赖加载或 addon 验收正向承诺。
+
+# Skipped checks
+
+- 未运行 Gradle test/check：本次实现只修订权威 Markdown spec 和 Comet 工作流产物，没有修改 Runtime、Generator、starter、fixture 或测试代码；Gradle 结果不能进一步证明文档合同正确性。
+- 未重新执行 H2 或真实 PostgreSQL integration test：本文只把已合并的 PR #138 回归证据提升为后续 Generator 阶段门槛，不声称本轮重新运行了数据库测试。
+- 未运行 Markdown lint：仓库没有在本任务中指定现成的 Markdown lint 命令；以 `git diff --check`、链接解析、标题/关键合同扫描和 Native text check 代替。
+
+# Spec consistency
+
+- 目标 superpowers spec 与已确认的 Native brief/proposed specification 一致：PR #136/#138/#140 的交叉合同得到补强，Unique 范围变为只删除 aggregate generator 主线功能且不创建 addon。
+- Runtime 与 Generator 阶段仍保持先后顺序；本轮没有把 Generator 实现提前放入 Runtime，也没有把未来 addon 设计塞入当前产品答案。
+- physical unique constraint metadata 与 Unique 生成产物被明确区分，既满足用户要求的主线删除，也保留 PR #140 的 owned-one cardinality evidence。
+- provider-assigned identity/version、soft-delete system-transition、structural parentRef、generated own ID 和普通 managed `READ_ONLY` 的生命周期没有被统一或互相覆盖。
+
+# Known limitations and risks
+
+- 当前代码仍包含旧聚合 starter 和 Unique 生成实现；本次完成的是权威 spec 修订，不是 Runtime/Generator 实施。目标能力只有在后续阶段按本文实施并通过相应测试后才算落地。
+- 源码事实索引包含若干未来将删除的文件链接；它们在当前修订基线上有效，实施阶段删除文件后应按计划重新审计引用，而不能把索引当成永久 API 文档。
+- LF→CRLF 提示来自 Windows Git 工作区设置，不是当前 diff 的 whitespace defect。
+
+# Conclusion
+
+通过。修订后的权威 spec 已准确反映当前源码与 PR #136/#138/#140 的已发布边界，并按用户确认删除本轮 Unique addon 设计，只保留“完整删除生成主线 Unique、保留 physical unique metadata”的合同。验证证据足以支持该文档变更进入 Archive。

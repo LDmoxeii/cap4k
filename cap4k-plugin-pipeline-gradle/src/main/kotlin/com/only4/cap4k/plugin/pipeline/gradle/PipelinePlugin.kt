@@ -146,7 +146,9 @@ class PipelinePlugin : Plugin<Project> {
 }
 
 internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean =
-    hasEnabledRegularSource(extension) || hasEnabledRegularGenerator(extension)
+    hasConfiguredProjectLayout(extension) ||
+        hasEnabledRegularSource(extension) ||
+        hasEnabledRegularGenerator(extension)
 
 private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
 private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
@@ -201,6 +203,13 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean =
     extension.generators.aggregate.configured ||
         extension.generators.aggregateProjection.configured
+
+private fun hasConfiguredProjectLayout(extension: Cap4kExtension): Boolean =
+    extension.project.basePackage.isPresent && listOf(
+        extension.project.domainModulePath,
+        extension.project.applicationModulePath,
+        extension.project.adapterModulePath,
+    ).any { it.isPresent }
 
 internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
     config.copy(
@@ -321,9 +330,6 @@ internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     if (aggregate != null) {
         roles += "domain"
         roles += "adapter"
-        if (aggregate.options["artifact.unique"] as? Boolean == true) {
-            roles += "application"
-        }
     }
     if ("aggregate-projection" in config.generators) {
         roles += "adapter"
@@ -394,7 +400,7 @@ internal fun wireGeneratedSourceCompilation(
     config: ProjectConfig,
     generateSourcesTask: TaskProvider<out Task>,
 ) {
-    generatedSourceModuleRoles(config).forEach { role ->
+    config.modules.keys.forEach { role ->
         val modulePath = config.modules[role] ?: return@forEach
         val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return@forEach
         moduleProject.tasks.matching { it.name in GENERATED_SOURCE_CONSUMER_TASK_NAMES }.configureEach { task ->

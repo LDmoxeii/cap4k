@@ -2,7 +2,6 @@ package com.only4.cap4k.ddd.core.domain.repo.impl
 
 import com.only4.cap4k.ddd.core.domain.repo.PersistListener
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
-import com.only4.cap4k.ddd.core.share.misc.findDomainEventClasses
 import io.mockk.*
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -18,7 +17,6 @@ class DefaultPersistListenerManagerTest {
     @AfterEach
     fun tearDown() {
         // 清理所有Mock
-        unmockkStatic(::findDomainEventClasses)
         clearAllMocks()
     }
 
@@ -27,9 +25,6 @@ class DefaultPersistListenerManagerTest {
         // 清理调用记录
         TestPersistListenerBase.callOrder.clear()
 
-        // Mock扫描方法
-        mockkStatic(::findDomainEventClasses)
-        every { findDomainEventClasses(any()) } returns emptySet()
     }
 
     @Nested
@@ -67,21 +62,6 @@ class DefaultPersistListenerManagerTest {
             assertEquals(expectedOrder, actualOrder)
         }
 
-        @Test
-        @DisplayName("初始化不应该扫描领域事件类")
-        fun `initialization should not scan domain event classes`() {
-            // given
-            val listener = TestPersistListenerWithOrder1()
-            manager = DefaultPersistListenerManager(listOf(listener))
-
-            // when
-            manager.init()
-            manager.init()
-            manager.init()
-
-            // then
-            verify(exactly = 0) { findDomainEventClasses(any()) }
-        }
     }
 
     @Nested
@@ -174,7 +154,6 @@ class DefaultPersistListenerManagerTest {
             manager.onChange(TestEntity(), PersistType.DELETE)
 
             // then
-            verify(exactly = 0) { findDomainEventClasses(any()) }
         }
     }
 

@@ -16,7 +16,7 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 
 - Command / Query skeletons。
 - Subscriber / Saga / client / handler surfaces。
-- Domain Event, Value Object, enum, factory, specification, repository adapter skeletons。
+- Domain Event, Value Object, enum, factory, behavior、repository adapter skeletons。
 
 典型 conflict policy 是 `SKIP`，用于保护 existing handwritten logic。`<module>/src/main/kotlin` 下的文件仍可能包含 generator-managed sections，所以 ownership 不能只靠路径判断。
 

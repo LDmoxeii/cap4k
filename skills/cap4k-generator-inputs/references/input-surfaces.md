@@ -21,7 +21,7 @@ Use these surfaces as source inputs only when the technical design contract supp
 
 ## Source Notes
 
-- DB/schema carries aggregate, entity, relation, repository, factory, specification, enum binding, unique helper, and primary-key identity facts.
+- DB/schema carries aggregate, entity, relation, repository, factory, enum binding, physical unique-constraint metadata, and primary-key identity facts.
 - `design/design.json` carries command, query, client, api payload, domain event, integration event, domain service, and saga contracts.
 - Value-object manifests carry JSON-backed value-object source definitions.
 - Enum manifests carry shared enum definitions referenced by schema type annotations.

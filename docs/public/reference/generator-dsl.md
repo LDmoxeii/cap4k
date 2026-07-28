@@ -96,7 +96,7 @@ sources {
 
 | Block | Fields | 说明 |
 | --- | --- | --- |
-| `aggregate` | `unsupportedTablePolicy`, `specialFields`, `artifacts` | DB/schema driven aggregate family。 |
+| `aggregate` | `unsupportedTablePolicy`, `specialFields` | DB/schema driven aggregate family。 |
 | `aggregateProjection` | block presence | aggregate projection generator configuration marker。 |
 | `flow` | none | analysis output generator id `flow`。 |
 | `drawingBoard` | none | analysis output generator id `drawing-board`。 |
@@ -111,18 +111,11 @@ generators {
             versionDefaultColumn.set("")
             managedDefaultColumns.set(emptyList())
         }
-        artifacts {
-            factory.set(true)
-            specification.set(false)
-            unique.set(false)
-        }
     }
     flow { }
     drawingBoard { }
 }
 ```
-
-`aggregate.artifacts.unique` 生成 aggregate unique helper surfaces。
 
 ## `templates { }`
 
@@ -149,7 +142,7 @@ addon template override 与 built-in template override 共用 `templates.overrid
 | Field | 说明 |
 | --- | --- |
 | `enabled` | 是否启用 bootstrap configuration。 |
-| `preset` | bootstrap preset，常用 `ddd-multi-module`。 |
+| `preset` | bootstrap structure planner；当前通用 planner 为 `ddd-multi-module`，它不携带官方项目文件。 |
 | `mode` | `BootstrapMode.IN_PLACE` 或 `BootstrapMode.PREVIEW_SUBTREE`。 |
 | `previewDir` | `PREVIEW_SUBTREE` 输出目录。 |
 | `projectName` | root project name。 |
@@ -158,8 +151,8 @@ addon template override 与 built-in template override 共用 `templates.overrid
 | `modules.applicationModuleName` | application module name。 |
 | `modules.adapterModuleName` | adapter module name。 |
 | `modules.startModuleName` | start module name。 |
-| `templates.preset` | bootstrap template preset。 |
-| `templates.overrideDirs` | bootstrap template override dirs。 |
+| `templates.preset` | 用户自定义 bootstrap template namespace；没有内置默认值。 |
+| `templates.overrideDirs` | 用户自定义 bootstrap template override dirs；固定结构模板必须能够从这些目录解析。 |
 | `slots` | `root`, `buildLogic`, `moduleRoot(role)`, `modulePackage(role)`, `moduleResources(role)`。 |
 | `conflictPolicy` | bootstrap write conflict policy，默认 `FAIL`。 |
 
@@ -177,13 +170,14 @@ bootstrap {
         startModuleName.set("demo-start")
     }
     templates {
-        preset.set("ddd-default-bootstrap")
+        preset.set("team-bootstrap")
+        overrideDirs.from("codegen/bootstrap-templates")
     }
     conflictPolicy.set("SKIP")
 }
 ```
 
-`cap4kBootstrapPlan` 写出 `build/cap4k/bootstrap-plan.json`；`cap4kBootstrap` 写出 bootstrap project structure。
+官方默认项目使用独立 GitHub Template，不使用这个 block。`cap4kBootstrapPlan` 写出 `build/cap4k/bootstrap-plan.json`；`cap4kBootstrap` 按显式自定义模板写出 bootstrap project structure。
 
 ## `layout { }`
 
@@ -213,7 +207,7 @@ layout {
 }
 ```
 
-公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `aggregateUniqueQuery`, `aggregateUniqueQueryHandler`, `aggregateUniqueValidator`, `designCommand`, `designQuery`, `designClient`, `designQueryHandler`, `designClientHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
+公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designClient`, `designQueryHandler`, `designClientHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
 
 ## `addons { }`
 

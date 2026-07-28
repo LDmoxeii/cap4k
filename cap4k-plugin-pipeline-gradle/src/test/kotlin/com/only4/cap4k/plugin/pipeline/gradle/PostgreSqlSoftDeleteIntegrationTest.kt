@@ -145,9 +145,6 @@ class PostgreSqlSoftDeleteIntegrationTest {
             generators = mapOf(
                 "aggregate" to GeneratorConfig(
                     options = mapOf(
-                        "artifact.factory" to false,
-                        "artifact.specification" to false,
-                        "artifact.unique" to false,
                     )
                 )
             ),

@@ -34,10 +34,6 @@ cap4k {
         }
     }
     generators {
-        aggregate {
-            artifacts {
-                factory.set(true)
-            }
-        }
+        aggregate { }
     }
 }

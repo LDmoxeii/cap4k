@@ -2,8 +2,6 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
-import com.only4.cap4k.ddd.core.share.misc.findDomainEventClasses
-import com.only4.cap4k.ddd.core.share.misc.findIntegrationEventClasses
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.Ordered
@@ -19,7 +17,6 @@ import java.util.concurrent.ConcurrentHashMap
 class DefaultEventSubscriberManager(
     private val subscribers: List<EventSubscriber<*>>,
     private val applicationEventPublisher: ApplicationEventPublisher,
-    private val scanPath: String
 ) : EventSubscriberManager {
 
     private val subscriberMap by lazy {
@@ -48,20 +45,6 @@ class DefaultEventSubscriberManager(
             subscribeInternal(subscriberMap, eventClass, subscriber)
         }
 
-        // 处理领域事件
-        findDomainEventClasses(scanPath).forEach { domainEventClass ->
-            // 自动实现 Spring EventListener 适配
-            subscribeInternal(subscriberMap, domainEventClass) { event ->
-                applicationEventPublisher.publishEvent(event)
-            }
-        }
-
-        // 处理集成事件
-        findIntegrationEventClasses(scanPath).forEach { integrationEventClass ->
-            subscribeInternal(subscriberMap, integrationEventClass) { event ->
-                applicationEventPublisher.publishEvent(event)
-            }
-        }
     }
 
     override fun subscribe(eventPayloadClass: Class<*>, subscriber: EventSubscriber<*>): Boolean {
@@ -83,12 +66,8 @@ class DefaultEventSubscriberManager(
 
 
     override fun dispatch(eventPayload: Any) {
-        val subscribersForEvent = subscriberMap[eventPayload.javaClass] ?: return
-
-        if (subscribersForEvent.isEmpty()) return
-
         val failures = mutableListOf<EventSubscriberFailure>()
-        subscribersForEvent.forEach { subscriber ->
+        subscriberMap[eventPayload.javaClass].orEmpty().forEach { subscriber ->
             try {
                 @Suppress("UNCHECKED_CAST")
                 (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
@@ -98,6 +77,11 @@ class DefaultEventSubscriberManager(
                 // 可以根据需要添加日志记录
                 // log.error("Subscriber ${subscriber.javaClass.simpleName} failed to handle event", ex)
             }
+        }
+        try {
+            applicationEventPublisher.publishEvent(eventPayload)
+        } catch (ex: Exception) {
+            failures.add(EventSubscriberFailure(applicationEventPublisher.javaClass, ex))
         }
         if (failures.isNotEmpty()) {
             throw EventDispatchException(

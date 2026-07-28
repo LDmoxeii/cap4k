@@ -13,8 +13,11 @@ class PresetTemplateResolverTest {
 
     @Test
     fun `resolver keeps two argument jvm constructor for existing callers`() {
+        val overrideDir = Files.createTempDirectory("bootstrap-constructor-override")
+        val templateDir = Files.createDirectories(overrideDir.resolve("bootstrap/root"))
+        templateDir.resolve("settings.gradle.kts.peb").writeText("rootProject.name = \"{{ projectName }}\"")
         val constructor = PresetTemplateResolver::class.java.getConstructor(String::class.java, List::class.java)
-        val resolver = constructor.newInstance("ddd-default-bootstrap", emptyList<String>())
+        val resolver = constructor.newInstance("test-bootstrap", listOf(overrideDir.toString()))
 
         val resolved = resolver.resolve("bootstrap/root/settings.gradle.kts.peb")
 
@@ -31,7 +34,7 @@ class PresetTemplateResolverTest {
         overrideTemplateDir.resolve("settings.gradle.kts.peb").writeText("override={{ projectName }}")
 
         val resolver = PresetTemplateResolver(
-            preset = "ddd-default-bootstrap",
+            preset = "test-bootstrap",
             overrideDirs = listOf(overrideDir.toString())
         )
 
@@ -53,7 +56,7 @@ class PresetTemplateResolverTest {
 
         URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
             val resolver = PresetTemplateResolver(
-                preset = "ddd-default-bootstrap",
+                preset = "test-bootstrap",
                 overrideDirs = listOf(overrideDir.toString()),
                 addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
@@ -73,7 +76,7 @@ class PresetTemplateResolverTest {
 
         URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
             val resolver = PresetTemplateResolver(
-                preset = "ddd-default-bootstrap",
+                preset = "test-bootstrap",
                 overrideDirs = emptyList(),
                 addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
@@ -88,7 +91,7 @@ class PresetTemplateResolverTest {
     fun `resolve rejects addon template when addon id is not registered`() {
         val templateId = "addons/sample-addon/missing.kt.peb"
         val resolver = PresetTemplateResolver(
-            preset = "ddd-default-bootstrap",
+            preset = "test-bootstrap",
             overrideDirs = emptyList()
         )
 
@@ -108,7 +111,7 @@ class PresetTemplateResolverTest {
 
         URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
             val resolver = PresetTemplateResolver(
-                preset = "ddd-default-bootstrap",
+                preset = "test-bootstrap",
                 overrideDirs = emptyList(),
                 addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
@@ -128,7 +131,7 @@ class PresetTemplateResolverTest {
     fun `resolve fails fast for missing addon template without preset fallback`() {
         val templateId = "addons/sample-addon/missing.kt.peb"
         val resolver = PresetTemplateResolver(
-            preset = "ddd-default-bootstrap",
+            preset = "test-bootstrap",
             overrideDirs = emptyList(),
             addonTemplateClassLoaders = mapOf("sample-addon" to javaClass.classLoader)
         )
@@ -141,15 +144,15 @@ class PresetTemplateResolverTest {
     }
 
     @Test
-    fun `resolve keeps built in preset resource resolution for non addon template`() {
+    fun `resolve keeps built in source generation preset resolution`() {
         val resolver = PresetTemplateResolver(
-            preset = "ddd-default-bootstrap",
+            preset = "ddd-default",
             overrideDirs = emptyList()
         )
 
-        val resolved = resolver.resolve("bootstrap/root/settings.gradle.kts.peb")
+        val resolved = resolver.resolve("types/value_object.kt.peb")
 
-        assertTrue(resolved.contains("rootProject.name"))
+        assertTrue(resolved.contains("data class {{ typeName }}"))
     }
 
     @Test

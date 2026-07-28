@@ -477,7 +477,7 @@ Domain Service / Specification：
 
 source notes：
 
-- DB/schema 承载 aggregate、entity、relation、repository、factory、specification、enum binding、unique helper、primary-key identity 事实。
+- DB/schema 承载 aggregate、entity、relation、repository、factory、enum binding、physical unique constraints、primary-key identity 事实。
 - `design/design.json` 承载 command、query、client、api payload、domain event、integration event、domain service、saga contract。
 - Value-object manifests 承载 JSON-backed value-object source definitions。
 - Enum manifests 承载 schema type annotation 引用的 shared enum definitions。
@@ -675,7 +675,7 @@ Value-Object Manifest：
 
 ### `skills/cap4k-handwritten-implementation/SKILL.md`
 
-用途：在人工审过 generated output 后，在已批准 generated skeleton 内实现手写业务逻辑，包括 command handler、query handler、subscriber、job、controller、factory、specification、domain service、Repository access、Mediator routing、UoW persistence。
+用途：在人工审过 generated output 后，在已批准 generated skeleton 内实现手写业务逻辑，包括 command handler、query handler、subscriber、job、controller、factory、domain service、Repository access、Mediator routing、UoW persistence。
 
 始终读取：
 
@@ -1184,7 +1184,7 @@ compile、test、analysis、HTTP、generation evidence 只有用户指令和环�
 - domain event、integration event、subscriber skeleton。
 - domain service、saga、scheduled reaction。
 - aggregate、entity、relation、projection。
-- factory、specification、unique helper。
+- factory。
 - repository、controller、adapter、start skeleton。
 - package 或 directory skeleton。
 - 任何只为修编译而新增的 class/interface。
@@ -1259,7 +1259,6 @@ Gate 问题：
 | aggregate | DB/schema aggregate markers 和 aggregate generator input | generator input 能表达时不手写 aggregate root structure |
 | entity | DB/schema entity/table relation inference | entity structure 跟随 aggregate modeling 和 schema input |
 | factory | aggregate generator family 或 design-supported factory skeleton | 可用时 creation policy 放 generated factory slots |
-| specification | aggregate/specification generator family 或 unique helper input | 预保存约束缺 skeleton 时回到 generator inputs |
 | repository | aggregate persistence generator family | Repository 负责 read/access/load；save ownership 属于 Unit of Work |
 | controller | API/adapter generator family 或 addon-supported adapter input | controller skeleton 属于 adapter protocol mapping，不拥有业务规则 |
 | job | scheduled reaction、compensation、polling 或 addon-supported job input | 缺 job support 时，手写前回到 technical design |
@@ -1340,12 +1339,6 @@ Mediator：
 - 它不是独立 business engine。
 - Agent 规则：需要时把 Mediator 当 framework-facing convenience，但业务决策留在 domain/application code。
 
-Specification：
-
-- Specification 和 unique helper 可通过 Unit of Work interception 参与 pre-save checks。
-- 这让 pre-save constraints 成为 domain/runtime boundary，而不是 controller-only validation。
-- Agent 规则：需要 pre-save constraint 时，优先 generator-supported specification/unique helper surfaces，或先记录 technical design exception 再手写结构。
-
 Integration Event Transport Split：
 
 - Framework/runtime transport adapter 消费外部 HTTP/message input，解析/注册 events，存储 event records，并通过已配置 adapters 分发 typed Integration Event payloads。
@@ -1380,7 +1373,6 @@ Analysis Evidence：
 | scheduled/polling trigger | Scheduled Reaction | time、cron、timeout、compensation scan 或 polling fallback 触发 application behavior | user command、external callback 或无时间边界的 domain event reaction | addon/options、job/scheduled skeleton input；job 直接写 aggregate、复制 callback truth 或补建模缺口时回滚 |
 | cross-service call | External Capability | application logic 要通过 anti-corruption boundary 请求外部系统 | 内部 domain service、repository read 或 protocol controller entrypoint | `client` block 或 adapter capability input；application-facing request model 和 adapter client handler 翻译 protocol；aggregate 直接调外部服务或 adapter 决定业务事实时回滚 |
 | stable external contract | Open Host Service / Published Language | 其他系统依赖稳定 command、callback、payload、event 或 vocabulary | 内部 DTO 变动、private aggregate state 或一次性 adapter convenience | API payload、integration event、controller/client inputs 和 Published Language design；adapter 映射 protocol，application/domain 拥有语义；暴露内部字段或无兼容审查时回滚 |
-| pre-save constraint | Specification | 保存前必须检查 domain rule，或 uniqueness/eligibility 守卫 saved aggregate state | 一次性 UI validation、read filter 或 post-save reaction | DB/schema uniqueness markers、specification generator input 或 unique helper input；只在 controller/query/path 或保存后检查时回滚 |
 | domain collaboration not owned by one aggregate | Domain Service | 领域决策跨 aggregates 或 policies，且没有单一 aggregate owner | application orchestration、external protocol translation、persistence query 或简单 aggregate method | `domain_service` block；domain service 由 application orchestration 调用，aggregate 保留自身 invariant；变 transaction script、repository facade 或 external client wrapper 时回滚 |
 
 ## 校验脚本职责摘要

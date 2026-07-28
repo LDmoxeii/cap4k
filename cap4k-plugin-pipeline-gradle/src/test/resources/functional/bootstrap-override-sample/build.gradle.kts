@@ -19,7 +19,8 @@ cap4k {
             startModuleName.set("only-danmuku-start")
         }
         templates {
-            overrideDirs.from("codegen/bootstrap-templates")
+            preset.set("test-bootstrap")
+            overrideDirs.from("codegen/bootstrap-templates", "codegen/zz-bootstrap-defaults")
         }
     }
 }

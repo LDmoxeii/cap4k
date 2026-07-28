@@ -10,7 +10,7 @@
 
 - Gradle root project name 是 `cap4k`，当前 `settings.gradle.kts` 显式 include 了运行时、pipeline、code analysis、starter/console 等子项目。
 - 运行时 tactical framework 行为主要在 `ddd-*` 模块中维护，包括 `ddd-core`、`ddd-domain-*`、`ddd-application-*`、`ddd-distributed-*`、`ddd-integration-*`。这些模块承载运行期 DDD tactical behavior、repository、event、request、saga、locker、snowflake、integration adapter 等能力。
-- `cap4k-ddd-starter` 和 `cap4k-ddd-console` 是运行时装配/启动侧模块。`cap4k-ddd-starter` 通过 `cap4k-ddd-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 导入 Spring Boot autoconfiguration entries。
+- `cap4k-ddd-*-starter` 是按 capability 拆分的运行时装配模块，`cap4k-ddd-console` 是控制台模块。每个 starter 通过自己的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 暴露且只暴露其所有能力；仓库不保留聚合 starter。
 - `cap4k-plugin-pipeline-*` 是 compile-time generation pipeline 相关模块。它们覆盖 API、core runner、bootstrap、renderer、source providers、generators 和 Gradle plugin，不属于运行时 tactical framework。
 - `cap4k-plugin-code-analysis-*` 是 code analysis 相关模块。当前目录包括 `cap4k-plugin-code-analysis-core`、`cap4k-plugin-code-analysis-compiler`、`cap4k-plugin-code-analysis-flow-export`，用于分析/导出代码结构事实，不是业务运行时模块。
 - generated output 是 pipeline 运行后的产物，不等同于 pipeline 源码，也不等同于 handwritten runtime framework。判断文件所有权时要回到 `plan.json`、`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy` 等生成计划字段。
@@ -21,11 +21,22 @@
 ## Source Anchors
 
 - `settings.gradle.kts`: 子项目 include 列表和 root project name。
-- `cap4k-ddd-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`: starter autoconfiguration import list。
+- `cap4k-ddd-core-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`: Core starter autoconfiguration import list。
+- `cap4k-ddd-jpa-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`: JPA starter autoconfiguration import list。
 - `cap4k-plugin-pipeline-gradle/build.gradle.kts`: Gradle plugin module，包含 `java-gradle-plugin` 和 plugin id `io.github.ldmoxeii.cap4k.pipeline`。
 - Representative module roots from `Get-ChildItem -Directory -Filter 'cap4k-*'`:
   - `cap4k-ddd-console`
-  - `cap4k-ddd-starter`
+  - `cap4k-ddd-core-starter`
+  - `cap4k-ddd-jpa-starter`
+  - `cap4k-ddd-request-jpa-starter`
+  - `cap4k-ddd-domain-event-jpa-starter`
+  - `cap4k-ddd-saga-jpa-starter`
+  - `cap4k-ddd-locker-jdbc-starter`
+  - `cap4k-ddd-snowflake-starter`
+  - `cap4k-ddd-integration-event-http-starter`
+  - `cap4k-ddd-integration-event-http-jpa-starter`
+  - `cap4k-ddd-integration-event-rabbitmq-starter`
+  - `cap4k-ddd-integration-event-rocketmq-starter`
   - `cap4k-plugin-code-analysis-compiler`
   - `cap4k-plugin-code-analysis-core`
   - `cap4k-plugin-code-analysis-flow-export`
@@ -61,8 +72,8 @@
 ## Contracts
 
 - Code wins over this map. If this page disagrees with Kotlin source, Gradle files, Spring resource files, or tests, update this page after verifying the code.
-- Runtime tactical framework behavior belongs to `ddd-*`, `cap4k-ddd-starter`, and `cap4k-ddd-console`; compile-time generation behavior belongs to `cap4k-plugin-pipeline-*`; analysis extraction/export behavior belongs to `cap4k-plugin-code-analysis-*`.
-- `cap4k-ddd-starter` autoconfiguration must be verified from `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, not inferred from package names.
+- Runtime tactical framework behavior belongs to `ddd-*`, capability-specific `cap4k-ddd-*-starter`, and `cap4k-ddd-console`; compile-time generation behavior belongs to `cap4k-plugin-pipeline-*`; analysis extraction/export behavior belongs to `cap4k-plugin-code-analysis-*`.
+- starter autoconfiguration must be verified from each module's `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, not inferred from package names or a removed aggregate entry point.
 - Generated output ownership must be verified from pipeline plan/output contracts, not from physical location alone.
 - Analysis maps should stay 70% AI-friendly and 30% human-maintainer-friendly: compact facts, stable anchors, explicit drift checks, and minimal narrative.
 
@@ -80,7 +91,8 @@ Run these commands from the cap4k worktree root:
 
 ```powershell
 Get-ChildItem -Directory -Filter 'cap4k-*' | Select-Object Name
-Get-Content cap4k-ddd-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+$starterDirs = Get-ChildItem -Directory -Filter 'cap4k-ddd-*-starter' | Select-Object -ExpandProperty Name
+Get-ChildItem $starterDirs -Recurse -Filter 'org.springframework.boot.autoconfigure.AutoConfiguration.imports' | ForEach-Object { Get-Content $_.FullName }
 ```
 
 Additional useful checks:

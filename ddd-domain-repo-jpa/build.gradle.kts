@@ -6,9 +6,6 @@ dependencies {
     // Project dependencies - API exposure
     api(project(":ddd-core"))
 
-    // Project dependencies - Implementation only
-    implementation(project(":ddd-domain-event-jpa"))
-
     implementation(kotlin("reflect"))
     // Source: https://mvnrepository.com/artifact/com.github.f4b6a3/uuid-creator
     implementation("com.github.f4b6a3:uuid-creator:6.1.1")

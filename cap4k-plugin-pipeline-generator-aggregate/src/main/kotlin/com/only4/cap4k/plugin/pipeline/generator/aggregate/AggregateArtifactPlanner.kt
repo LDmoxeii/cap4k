@@ -14,31 +14,13 @@ class AggregateArtifactPlanner : GeneratorProvider {
         BehaviorArtifactPlanner(),
         RepositoryArtifactPlanner(),
         FactoryArtifactPlanner(),
-        SpecificationArtifactPlanner(),
-        UniqueQueryArtifactPlanner(),
-        UniqueQueryHandlerArtifactPlanner(),
-        UniqueValidatorArtifactPlanner(),
         StrongIdArtifactPlanner(),
         GeneratedOwnIdArtifactPlanner(),
         LocalEnumArtifactPlanner(),
     )
 
-    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        val selection = AggregateArtifactSelection.from(config)
-        return delegates.flatMap { delegate ->
-            when (delegate) {
-                is FactoryArtifactPlanner ->
-                    if (selection.factoryEnabled) delegate.plan(config, model) else emptyList()
-                is SpecificationArtifactPlanner ->
-                    if (selection.specificationEnabled) delegate.plan(config, model) else emptyList()
-                is UniqueQueryArtifactPlanner,
-                is UniqueQueryHandlerArtifactPlanner,
-                is UniqueValidatorArtifactPlanner ->
-                    if (selection.uniqueEnabled) delegate.plan(config, model) else emptyList()
-                else -> delegate.plan(config, model)
-            }
-        }
-    }
+    override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> =
+        delegates.flatMap { delegate -> delegate.plan(config, model) }
 }
 
 internal interface AggregateArtifactFamilyPlanner {

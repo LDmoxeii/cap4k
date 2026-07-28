@@ -14,6 +14,10 @@ cap4k {
             adapterModuleName.set("only-danmuku-adapter")
             startModuleName.set("only-danmuku-start")
         }
+        templates {
+            preset.set("test-bootstrap")
+            overrideDirs.from("codegen/zz-bootstrap-defaults")
+        }
         slots {
             moduleRoot("portal").from("codegen/bootstrap-slots/portal-root")
         }
