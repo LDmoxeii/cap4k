@@ -819,9 +819,6 @@ class PipelinePluginFunctionalTest {
         val factoryFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
         )
-        val specificationFile = projectDir.resolve(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt"
-        )
         val behaviorFile = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
         )
@@ -837,21 +834,6 @@ class PipelinePluginFunctionalTest {
         val strongIdFile = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostId.kt")
         )
-        val uniqueQueryFile = projectDir.resolve(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
-            )
-        )
-        val uniqueQueryHandlerFile = projectDir.resolve(
-            generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
-            )
-        )
-        val uniqueValidatorFile = projectDir.resolve(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
-            )
-        )
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
@@ -861,19 +843,11 @@ class PipelinePluginFunctionalTest {
         assertTrue(repositoryFile.toFile().exists())
         assertTrue(strongIdFile.toFile().exists())
         assertTrue(factoryFile.toFile().exists())
-        assertTrue(specificationFile.toFile().exists())
         assertTrue(behaviorFile.toFile().exists())
-        assertTrue(uniqueQueryFile.toFile().exists())
-        assertTrue(uniqueQueryHandlerFile.toFile().exists())
-        assertTrue(uniqueValidatorFile.toFile().exists())
         val schemaContent = schemaFile.readText()
         val repositoryContent = repositoryFile.readText()
         val strongIdContent = strongIdFile.readText()
         val factoryContent = factoryFile.readText()
-        val specificationContent = specificationFile.readText()
-        val uniqueQueryContent = uniqueQueryFile.readText()
-        val uniqueQueryHandlerContent = uniqueQueryHandlerFile.readText()
-        val uniqueValidatorContent = uniqueValidatorFile.readText()
         assertFalse(generatedVideoPostContent.contains(legacyAggregateAnnotationFq))
         assertFalse(generatedVideoPostContent.contains(legacyAggregateCall))
         assertFalse(generatedVideoPostContent.contains(legacyAggregateTypeEntity))
@@ -917,114 +891,22 @@ class PipelinePluginFunctionalTest {
             type = "factory",
             root = false,
         )
-        assertAggregateElementContent(
-            specificationContent,
-            aggregate = "VideoPost",
-            name = "VideoPostSpecification",
-            packageName = "com.acme.demo.domain.aggregates.video_post.specification",
-            type = "specification",
-            root = false,
-        )
-        assertAggregateElementContent(
-            uniqueQueryContent,
-            aggregate = "VideoPost",
-            name = "UniqueVideoPostSlugQry",
-            packageName = "com.acme.demo.application.queries.video_post.unique",
-            type = "unique-query",
-            root = false,
-        )
-        assertAggregateElementContent(
-            uniqueQueryHandlerContent,
-            aggregate = "VideoPost",
-            name = "UniqueVideoPostSlugQryHandler",
-            packageName = "com.acme.demo.adapter.queries.video_post.unique",
-            type = "unique-query-handler",
-            root = false,
-        )
-        assertAggregateElementContent(
-            uniqueValidatorContent,
-            aggregate = "VideoPost",
-            name = "UniqueVideoPostSlug",
-            packageName = "com.acme.demo.application.validators.video_post.unique",
-            type = "unique-validator",
-            root = false,
-        )
         assertTrue(planFile.readText().contains("\"items\""))
         assertTrue(planFile.readText().contains("\"diagnostics\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/entity.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/factory.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/specification.kt.peb\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"aggregate/wrapper.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/unique_query.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/unique_query_handler.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"aggregate/unique_validator.kt.peb\""))
         assertTrue(
             factoryContent.contains("class VideoPostFactory : AggregateFactory<VideoPostFactory.Payload, VideoPost>")
         )
         assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPost"))
-        assertTrue(specificationContent.contains("class VideoPostSpecification : Specification<VideoPost>"))
-        assertTrue(specificationContent.contains("return Result.pass()"))
         assertTrue(behaviorFile.readText().contains("Place behavior for VideoPost and its owned entities here."))
         assertFalse(
             projectDir.resolve(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
             ).toFile().exists()
         )
-        assertTrue(uniqueQueryContent.contains("object UniqueVideoPostSlugQry"))
-        assertTrue(uniqueQueryContent.contains(") : RequestParam<Response>"))
-        assertTrue(uniqueQueryContent.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
-        assertTrue(uniqueQueryContent.contains("val excludeVideoPostId: VideoPostId?"))
-        assertTrue(uniqueQueryContent.contains("val exists: Boolean"))
-        assertFalse(uniqueQueryContent.contains("val deleted"))
-        assertFalse(uniqueQueryContent.contains("val version"))
-        assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler"))
-        assertTrue(uniqueQueryHandlerContent.contains("class UniqueVideoPostSlugQryHandler("))
-        assertTrue(
-            uniqueQueryHandlerContent.contains(
-                "override fun exec(request: UniqueVideoPostSlugQry.Request): UniqueVideoPostSlugQry.Response"
-            )
-        )
-        assertTrue(uniqueQueryHandlerContent.contains("return UniqueVideoPostSlugQry.Response("))
-        assertFalse(uniqueQueryHandlerContent.contains("request.deleted"))
-        assertFalse(uniqueQueryHandlerContent.contains("request.version"))
-        assertTrue(uniqueValidatorContent.contains("annotation class UniqueVideoPostSlug"))
-        assertTrue(
-            uniqueValidatorContent.contains(
-                "@Constraint(validatedBy = [UniqueVideoPostSlug.Validator::class])"
-            )
-        )
-        assertTrue(uniqueValidatorContent.contains("class Validator : ConstraintValidator<UniqueVideoPostSlug, Any>"))
-        assertTrue(uniqueValidatorContent.contains("slug = slugTrimmed!!"))
-        assertTrue(uniqueValidatorContent.contains("excludeVideoPostId = excludeId"))
-        assertFalse(uniqueValidatorContent.contains("deletedField"))
-        assertFalse(uniqueValidatorContent.contains("versionField"))
-        assertTrue(
-            uniqueValidatorContent.contains(
-                "import com.acme.demo.application.queries.video_post.unique.UniqueVideoPostSlugQry"
-            )
-        )
         val planContent = planFile.readText()
-        assertUniqueArtifactPlanItemMetadata(
-            planContent = planContent,
-            templateId = "aggregate/unique_query.kt.peb",
-            outputPathSuffix = generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
-            ),
-        )
-        assertUniqueArtifactPlanItemMetadata(
-            planContent = planContent,
-            templateId = "aggregate/unique_query_handler.kt.peb",
-            outputPathSuffix = generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostSlugQryHandler.kt"
-            ),
-        )
-        assertUniqueArtifactPlanItemMetadata(
-            planContent = planContent,
-            templateId = "aggregate/unique_validator.kt.peb",
-            outputPathSuffix = generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostSlug.kt"
-            ),
-        )
         assertPlanItemMetadata(
             planContent = planContent,
             templateId = "aggregate/entity.kt.peb",
@@ -1132,12 +1014,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(planContent.contains("\"templateId\": \"aggregate/schema.kt.peb\""))
         assertTrue(planContent.contains("\"templateId\": \"aggregate/repository.kt.peb\""))
         assertTrue(planContent.contains("\"templateId\": \"aggregate/behavior.kt.peb\""))
-        assertFalse(planContent.contains("\"templateId\": \"aggregate/factory.kt.peb\""))
-        assertFalse(planContent.contains("\"templateId\": \"aggregate/specification.kt.peb\""))
+        assertTrue(planContent.contains("\"templateId\": \"aggregate/factory.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/wrapper.kt.peb\""))
-        assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_query.kt.peb\""))
-        assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_query_handler.kt.peb\""))
-        assertFalse(planContent.contains("\"templateId\": \"aggregate/unique_validator.kt.peb\""))
         assertFalse(planContent.contains("\"templateId\": \"aggregate/schema_base.kt.peb\""))
         assertTrue(
             projectDir.resolve(
@@ -1155,26 +1033,14 @@ class PipelinePluginFunctionalTest {
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt"
             ).toFile().exists()
         )
-        assertFalse(
+        assertTrue(
             projectDir.resolve(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
             ).toFile().exists()
         )
         assertFalse(
             projectDir.resolve(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/specification/VideoPostSpecification.kt"
-            ).toFile().exists()
-        )
-        assertFalse(
-            projectDir.resolve(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/AggVideoPost.kt"
-            ).toFile().exists()
-        )
-        assertFalse(
-            projectDir.resolve(
-                generatedSource(
-                    "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostSlugQry.kt"
-                )
             ).toFile().exists()
         )
         assertFalse(
@@ -1224,7 +1090,7 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(secondGenerateSourcesResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedEntityFile.readText().contains("class VideoPost("))
+        assertTrue(generatedEntityFile.readText().contains("class VideoPost internal constructor("))
         assertFalse(generatedEntityFile.readText().contains("sentinel"))
         assertFalse(behaviorFile.toFile().exists())
 
@@ -1418,7 +1284,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate aligns owned direct parent bindings with scalar fk and read only inverse relation`() {
+    fun `cap4kGenerate keeps owned direct parent bindings forward only`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-relation")
         copyFixture(projectDir, "aggregate-relation-sample")
 
@@ -1432,19 +1298,24 @@ class PipelinePluginFunctionalTest {
         val childEntityFile = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostItem.kt")
         )
+        val oneChildEntityFile = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostFile.kt")
+        )
         val rootEntityContent = rootEntityFile.readText()
         val childEntityContent = childEntityFile.readText()
+        val oneChildEntityContent = oneChildEntityFile.readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(rootEntityFile.toFile().exists())
         assertTrue(childEntityFile.toFile().exists())
+        assertTrue(oneChildEntityFile.toFile().exists())
         assertFalse(
             projectDir.resolve("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
                 .toFile()
                 .exists()
         )
         assertTrue(rootEntityContent.contains("title: String"))
-        assertTrue(rootEntityContent.contains("class VideoPost("))
+        assertTrue(rootEntityContent.contains("class VideoPost internal constructor("))
         assertFalse(rootEntityContent.contains("data class VideoPost("))
         assertTrue(rootEntityContent.contains("import jakarta.persistence.CascadeType"))
         assertTrue(
@@ -1454,7 +1325,23 @@ class PipelinePluginFunctionalTest {
         )
         assertFalse(rootEntityContent.contains("CascadeType.ALL"))
         assertTrue(rootEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)"))
-        assertTrue(rootEntityContent.contains("val items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(rootEntityContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList"))
+        assertTrue(rootEntityContent.contains("private var _items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(rootEntityContent.contains("val items: OwnedEntityList<VideoPostItem>"))
+        assertTrue(rootEntityContent.contains("get() = OwnedEntityList.of(_items, VideoPostItem::class, \"VideoPost.items\")"))
+        assertFalse(rootEntityContent.replace("\r\n", "\n").contains("\n    val items: MutableList<VideoPostItem> = mutableListOf()"))
+        assertTrue(rootEntityContent.contains("import jakarta.persistence.Transient"))
+        assertTrue(rootEntityContent.contains("private var _files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertFalse(rootEntityContent.replace("\r\n", "\n").contains("\n    val files: MutableList<VideoPostFile> = mutableListOf()"))
+        assertTrue(rootEntityContent.contains("@get:Transient"))
+        assertTrue(rootEntityContent.contains("var file: VideoPostFile?"))
+        assertTrue(rootEntityContent.contains("get() = OwnedEntityList.of(_files, VideoPostFile::class, \"VideoPost.file\")"))
+        assertTrue(rootEntityContent.contains(".singleOrNull()"))
+        assertTrue(rootEntityContent.contains("OwnedEntityList.of(_files, VideoPostFile::class, \"VideoPost.file\")"))
+        assertTrue(rootEntityContent.contains("set(value)"))
+        assertTrue(rootEntityContent.contains(".replace(value)"))
+        assertFalse(rootEntityContent.contains("_files.clear()"))
+        assertFalse(rootEntityContent.contains("_files.add(value)"))
         assertTrue(rootEntityContent.contains("import com.acme.demo.domain.aggregates.user_profile.UserProfileId"))
         assertTrue(rootEntityContent.contains("var authorId: UserProfileId = authorId"))
         assertTrue(rootEntityContent.contains("var coverProfileId: UserProfileId? = coverProfileId"))
@@ -1466,16 +1353,13 @@ class PipelinePluginFunctionalTest {
         assertFalse(rootEntityContent.contains("var coverProfile: UserProfile? = null"))
         assertFalse(rootEntityContent.contains("mappedBy ="))
         assertFalse(rootEntityContent.contains("ManyToMany"))
-        assertTrue(childEntityContent.contains("@Column(name = \"video_post_id\", insertable = false, updatable = false)"))
-        assertTrue(childEntityContent.contains("var videoPostId: Long = videoPostId"))
-        assertTrue(childEntityContent.contains("@ManyToOne(fetch = FetchType.LAZY)"))
-        assertTrue(
-            childEntityContent.contains(
-                "@JoinColumn(name = \"video_post_id\", nullable = false, insertable = false, updatable = false)"
-            )
-        )
-        assertTrue(childEntityContent.contains("lateinit var videoPost: VideoPost"))
-        assertFalse(childEntityContent.contains("@JoinColumn(name = \"video_post_id\", nullable = false)\n    lateinit var videoPost: VideoPost"))
+        assertFalse(childEntityContent.contains("videoPostId"))
+        assertFalse(childEntityContent.contains("@ManyToOne"))
+        assertFalse(childEntityContent.contains("import jakarta.persistence.ManyToOne"))
+        assertFalse(childEntityContent.contains("lateinit var videoPost: VideoPost"))
+        assertFalse(oneChildEntityContent.contains("videoPostId"))
+        assertFalse(oneChildEntityContent.contains("@ManyToOne"))
+        assertFalse(oneChildEntityContent.contains("import jakarta.persistence.ManyToOne"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1483,8 +1367,8 @@ class PipelinePluginFunctionalTest {
     fun `cap4kGenerate fails fast when parent table has no parent ref`() {
         val result = runCap4kGenerateWithSchema(
             """
-            create table video_post (id bigint primary key);
-            create table video_post_item (id bigint primary key, video_post_id bigint not null);
+            create table video_post (id bigint primary key comment '@IdStrategy=db_identity;');
+            create table video_post_item (id bigint primary key comment '@IdStrategy=db_identity;', video_post_id bigint not null);
             comment on table video_post_item is '@Parent=video_post;';
             """.trimIndent()
         )
@@ -1502,7 +1386,7 @@ class PipelinePluginFunctionalTest {
         val tableResult = runCap4kGenerateWithSchema(
             """
             create table video_post (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=db_identity;',
                 version bigint,
                 deleted boolean
             );
@@ -1512,7 +1396,7 @@ class PipelinePluginFunctionalTest {
         val columnResult = runCap4kGenerateWithSchema(
             """
             create table video_post (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=db_identity;',
                 version bigint,
                 deleted boolean
             );
@@ -1569,6 +1453,15 @@ class PipelinePluginFunctionalTest {
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
         val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
+        val fixtureBuildFile = projectDir.resolve("build.gradle.kts")
+
+        val planResult = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kPlan")
+            .build()
+        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
+        fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/demo", "h2/generate"))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1576,27 +1469,186 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .build()
 
+        data class ApplicationSideCell(
+            val tableName: String,
+            val entityName: String,
+            val backingType: String,
+            val deletedProperty: String,
+            val activeSqlLiteral: String,
+            val strategy: String,
+        ) {
+            val packageName: String = "com.acme.demo.domain.aggregates.$tableName"
+            val idType: String = "${entityName}Id"
+            val accessorType: String = "${entityName}GeneratedOwnIdAccessor"
+            val factoryType: String = "${entityName}Factory"
+        }
+
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        val applicationSideCells = listOf(
+            ApplicationSideCell(
+                tableName = "snowflake_long_record",
+                entityName = "SnowflakeLongRecord",
+                backingType = "Long",
+                deletedProperty = "var deleted: Long = 0L",
+                activeSqlLiteral = "0",
+                strategy = "snowflake",
+            ),
+            ApplicationSideCell(
+                tableName = "snowflake_string_record",
+                entityName = "SnowflakeStringRecord",
+                backingType = "String",
+                deletedProperty = "var deleted: String = \"0\"",
+                activeSqlLiteral = "'0'",
+                strategy = "snowflake",
+            ),
+            ApplicationSideCell(
+                tableName = "uuid_string_record",
+                entityName = "UuidStringRecord",
+                backingType = "String",
+                deletedProperty = "var deleted: String = \"$nilUuid\"",
+                activeSqlLiteral = "'$nilUuid'",
+                strategy = "uuid7",
+            ),
+            ApplicationSideCell(
+                tableName = "uuid_native_record",
+                entityName = "UuidNativeRecord",
+                backingType = "UUID",
+                deletedProperty = "var deleted: UUID = UUID(0L, 0L)",
+                activeSqlLiteral = "CAST('$nilUuid' AS UUID)",
+                strategy = "uuid7",
+            ),
+        )
+
         val generatedVideoPost = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
-        val generatedAuditLog = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/audit_log/AuditLog.kt")
+        val generatedEntities = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.entityName}.kt"
+                )
+            ).readText()
+        }
+        val generatedStrongIds = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idType}.kt"
+                )
+            ).readText()
+        }
+        val generatedAccessors = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
+                )
+            ).readText()
+        }
+        val generatedCatalog = projectDir.generatedFile(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt"
+            )
         ).readText()
+        val generatedFactories = applicationSideCells.associateWith { cell ->
+            projectDir.generatedFile(
+                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/factory/${cell.factoryType}.kt"
+            ).readText()
+        }
+        val generatedIdentityFactory = projectDir.generatedFile(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
+        ).readText()
+        val factoryContexts = JsonParser.parseString(planContent)
+            .asJsonObject
+            .getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .filter { it.get("templateId").asString == "aggregate/factory.kt.peb" }
+            .associate { item ->
+                val context = item.getAsJsonObject("context")
+                context.get("entityName").asString to context
+            }
 
         assertTrue(domainBuildFile == "// Functional fixture module.")
         assertTrue(applicationBuildFile == "// Functional fixture module.")
         assertTrue(adapterBuildFile == "// Functional fixture module.")
+        assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(generatedVideoPost.contains("@DynamicInsert"))
         assertFalse(generatedVideoPost.contains("@DynamicUpdate"))
-        assertFalse(generatedVideoPost.contains("@SQLDelete"))
-        assertFalse(generatedVideoPost.contains("@Where"))
+        assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.SQLDelete"))
+        assertTrue(generatedVideoPost.contains("import org.hibernate.annotations.Where"))
+        assertTrue(generatedVideoPost.contains("""@SQLDelete(sql = "update `video_post` set `deleted` = `id` where `id` = ? and `version` = ?")"""))
+        assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
+        assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
+        assertTrue(generatedVideoPost.contains("@Version"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("id"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("version"))
+        assertTrue(generatedVideoPost.contains("var id: Long? = null"))
+        assertTrue(generatedVideoPost.contains("var version: Long? = null"))
+        assertTrue(generatedVideoPost.contains("var deleted: Long = 0L"))
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("deleted"))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
-        assertFalse(generatedAuditLog.contains("@SQLDelete"))
-        assertFalse(generatedAuditLog.contains("@Where"))
-        assertFalse(generatedAuditLog.contains("@DynamicInsert"))
-        assertFalse(generatedAuditLog.contains("@DynamicUpdate"))
-        assertFalse(generatedAuditLog.contains("@GenericGenerator"))
+
+        applicationSideCells.forEach { cell ->
+            val entity = generatedEntities.getValue(cell)
+            val strongId = generatedStrongIds.getValue(cell)
+            val accessor = generatedAccessors.getValue(cell)
+            val factory = generatedFactories.getValue(cell)
+            val constructorParameters = internalConstructorParameters(entity)
+
+            assertTrue(entity.contains("@EmbeddedId"), cell.entityName)
+            assertGeneratedOwnIdShape(entity, cell.idType)
+            assertFalse(Regex("""\bid\s*:""").containsMatchIn(constructorParameters), cell.entityName)
+            assertFalse(constructorParameters.contains("deleted"), cell.entityName)
+            assertTrue(entity.contains(cell.deletedProperty), cell.entityName)
+            assertFalse(entity.contains("var deleted: ${cell.idType}"), cell.entityName)
+            assertTrue(
+                entity.contains(
+                    """@SQLDelete(sql = "update `${cell.tableName}` set `deleted` = `id` where `id` = ?")"""
+                ),
+                cell.entityName,
+            )
+            assertTrue(
+                entity.contains("""@Where(clause = "`deleted` = ${cell.activeSqlLiteral}")"""),
+                cell.entityName,
+            )
+            assertFalse(entity.contains("and `version` = ?"), cell.entityName)
+            assertFalse(entity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"), cell.entityName)
+            assertTrue(strongId.contains("StrongId<${cell.backingType}>"), cell.idType)
+            assertTrue(
+                accessor.contains(
+                    "Mediator.identifiers.next(\"${cell.strategy}\", ${cell.backingType}::class)"
+                ),
+                cell.accessorType,
+            )
+            assertTrue(accessor.contains("${cell.idType}.of("), cell.accessorType)
+            assertTrue(
+                generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
+                cell.accessorType,
+            )
+            assertEquals(true, factoryContexts.getValue(cell.entityName).get("constructorMappingResolved").asBoolean)
+            assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
+            assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
+            assertTrue(factory.contains("val title: String"), cell.factoryType)
+            assertFalse(factory.contains("TODO(\"Implement aggregate construction\")"), cell.factoryType)
+            assertFalse(factory.contains("deleted"), cell.factoryType)
+            assertFalse(factory.contains("val id:"), cell.factoryType)
+            assertFalse(factory.contains(cell.idType), cell.factoryType)
+        }
+
+        assertEquals(true, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
+        assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
+        assertFalse(generatedIdentityFactory.contains("deleted"))
+
+        val allGeneratedEvidence = buildString {
+            append(generatedVideoPost)
+            generatedEntities.values.forEach { append(it) }
+            generatedStrongIds.values.forEach { append(it) }
+            generatedAccessors.values.forEach { append(it) }
+            append(generatedCatalog)
+            generatedFactories.values.forEach { append(it) }
+            append(generatedIdentityFactory)
+        }
+        assertFalse(allGeneratedEvidence.contains("ApplicationSideId"))
+        assertFalse(allGeneratedEvidence.contains("snowflake-long"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1608,22 +1660,45 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id bigint primary key,",
-            )
+                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
+            ).replaceFirst("@Managed=deleted;", "") +
+                "\n\n" +
+                """
+                create table audit_log (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    content varchar(128) not null
+                );
+                """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
-        val patchedBuildFile = buildFile.readText().replace(
-            Regex("""aggregate\s*\{\s*}"""),
-            """
-            |aggregate {
-            |            specialFields {
-            |                idDefaultStrategy.set("identity")
-            |            }
-            |        }
-            """.trimMargin(),
-        )
+        val patchedBuildFile = buildFile.readText().replace("\r\n", "\n")
+            .replace(
+                """
+                |                    "uuid_native_record",
+                |                )
+                """.trimMargin(),
+                """
+                |                    "uuid_native_record",
+                |                    "audit_log",
+                |                )
+                """.trimMargin(),
+            )
+            .replace(
+                """
+                |        aggregate { }
+                """.trimMargin(),
+                """
+                |        aggregate {
+                |            specialFields {
+                |                idDefaultStrategy.set("identity")
+                |            }
+                |        }
+                """.trimMargin(),
+            )
         buildFile.writeText(patchedBuildFile)
         assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
+        assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -1644,7 +1719,7 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
         assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedVideoPost.contains("@EmbeddedId"))
-        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertGeneratedOwnIdShape(generatedVideoPost, "VideoPostId")
         assertFalse(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedAuditLog.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertFalse(generatedAuditLog.contains("GenericGenerator"))
@@ -1659,8 +1734,8 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id uuid primary key,",
-            )
+                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
+            ).replaceFirst("@Managed=deleted;", "")
         )
 
         val result = GradleRunner.create()
@@ -1677,10 +1752,12 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedVideoPost.contains("UUID(" + "0L, 0L)"))
         assertTrue(generatedVideoPost.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedVideoPost.contains("@EmbeddedId"))
-        assertTrue(generatedVideoPost.contains("var id: VideoPostId = id"))
+        assertGeneratedOwnIdShape(generatedVideoPost, "VideoPostId")
         assertFalse(generatedVideoPost.contains("id: UUID"))
         assertFalse(generatedVideoPost.contains("@GeneratedValue(generator ="))
         assertFalse(generatedVideoPost.contains("@GenericGenerator"))
+        assertFalse(generatedVideoPost.contains("@SQLDelete"))
+        assertFalse(generatedVideoPost.contains("@Where"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1692,94 +1769,39 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             """
             create table video (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=uuid7;',
                 title varchar(128) not null
             );
 
             create table audit_log (
                 id bigint primary key comment '@IdStrategy=db_identity;',
-                deleted int not null comment '@Managed=deleted;',
+                deleted bigint not null default 0 comment '@Managed=deleted;',
                 content varchar(128) not null
             );
                         """.trimIndent()
         )
         val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText().replace(
-                "includeTables.set(listOf(\"video_post\", \"audit_log\"))",
-                "includeTables.set(listOf(\"video\", \"audit_log\"))",
-            )
+        val patchedBuildFile = buildFile.readText().replace(
+            Regex(
+                """includeTables\.set\(\s*listOf\(\s*"video_post",\s*"snowflake_long_record",\s*"snowflake_string_record",\s*"uuid_string_record",\s*"uuid_native_record",\s*\)\s*\)"""
+            ),
+            "includeTables.set(listOf(\"video\", \"audit_log\"))",
         )
+        buildFile.writeText(patchedBuildFile)
+        assertTrue(patchedBuildFile.contains("includeTables.set(listOf(\"video\", \"audit_log\"))"))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
             .withArguments("cap4kGenerate")
-            .build()
+            .buildAndFail()
 
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(
-            projectDir.resolve(
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video/VideoId.kt")
-            ).toFile().exists()
+            result.output.contains(
+                "unsupported UUID7 storage for video.id: jdbcType=-5, dbType=BIGINT, kotlinType=Long, columnSize=64"
+            ),
+            result.output,
         )
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan and cap4kGenerate preserve aggregate composite unique constraint order end to end`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-composite-unique")
-        copyFixture(projectDir, "aggregate-sample")
-
-        projectDir.resolve("schema.sql").writeText(
-            """
-            create table if not exists video_post (
-                id bigint primary key,
-                slug varchar(128) not null unique,
-                tenant_id bigint not null,
-                title varchar(255) not null,
-                published boolean default false,
-                constraint uq_video_post_tenant_slug unique (tenant_id, slug)
-            );
-            """.trimIndent()
-        )
-
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
-            .withArguments("cap4kPlan", "cap4kGenerate")
-            .build()
-
-        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
-        val compositeQueryFile = projectDir.resolve(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/queries/video_post/unique/UniqueVideoPostTenantIdSlugQry.kt"
-            )
-        )
-        val compositeQueryHandlerFile = projectDir.resolve(
-            generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/video_post/unique/UniqueVideoPostTenantIdSlugQryHandler.kt"
-            )
-        )
-        val compositeValidatorFile = projectDir.resolve(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/validators/video_post/unique/UniqueVideoPostTenantIdSlug.kt"
-            )
-        )
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planContent.contains("UniqueVideoPostTenantIdSlugQry"))
-        assertTrue(planContent.contains("UniqueVideoPostTenantIdSlugQryHandler"))
-        assertTrue(planContent.contains("UniqueVideoPostTenantIdSlug"))
-        assertTrue(compositeQueryFile.toFile().exists())
-        assertTrue(compositeQueryHandlerFile.toFile().exists())
-        assertTrue(compositeValidatorFile.toFile().exists())
-        val compositeQueryContent = compositeQueryFile.readText()
-        val tenantParamIndex = compositeQueryContent.indexOf("val tenantId: Long")
-        val slugParamIndex = compositeQueryContent.indexOf("val slug: String")
-        assertTrue(tenantParamIndex >= 0)
-        assertTrue(slugParamIndex >= 0)
-        assertTrue(tenantParamIndex < slugParamIndex)
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1827,7 +1849,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.aggregates.video_post.VideoPostId"))
         assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
         assertTrue(generatedEntity.contains("@EmbeddedId"))
-        assertTrue(generatedEntity.contains("var id: VideoPostId = id"))
+        assertGeneratedOwnIdShape(generatedEntity, "VideoPostId")
         assertFalse(generatedEntity.contains("@Id"))
         assertFalse(generatedEntity.contains("@Column(name = \"id\""))
         assertTrue(generatedEntity.contains("@Column(name = \"status\")"))
@@ -1990,27 +2012,49 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
                 "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id bigint primary key,",
+                "id bigint primary key comment '@IdStrategy=db_identity;',",
             ).replaceFirst(
                 "title varchar(128) not null",
                 "created_by varchar(64) not null,\n    title varchar(128) not null",
-            )
+            ) +
+                "\n\n" +
+                """
+                create table audit_log (
+                    id bigint primary key comment '@IdStrategy=db_identity;',
+                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    content varchar(128) not null
+                );
+                """.trimIndent()
         )
 
         val buildFile = projectDir.resolve("build.gradle.kts")
         val buildFileContent = buildFile.readText().replace("\r\n", "\n")
-        buildFile.writeText(
-            buildFileContent.replace(
-                Regex("""aggregate\s*\{\s*}"""),
+        val patchedBuildFile = buildFileContent
+            .replace(
                 """
-                |aggregate {
+                |                    "uuid_native_record",
+                |                )
+                """.trimMargin(),
+                """
+                |                    "uuid_native_record",
+                |                    "audit_log",
+                |                )
+                """.trimMargin(),
+            )
+            .replace(
+                """
+                |        aggregate { }
+                """.trimMargin(),
+                """
+                |        aggregate {
                 |            specialFields {
                 |                managedDefaultColumns.set(listOf(" created_by "))
                 |            }
                 |        }
                 """.trimMargin(),
-            ),
-        )
+            )
+        buildFile.writeText(patchedBuildFile)
+        assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
@@ -2027,7 +2071,7 @@ class PipelinePluginFunctionalTest {
             .map { it.asJsonObject }
             .associateBy { it.get("tableName").asString }
         val videoPostPolicy = resolvedPolicies.getValue("video_post")
-        val auditLogPolicy = resolvedPolicies.getValue("audit_log")
+        val snowflakeLongPolicy = resolvedPolicies.getValue("snowflake_long_record")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
@@ -2035,21 +2079,32 @@ class PipelinePluginFunctionalTest {
         assertEquals("", defaults.get("deletedDefaultColumn").asString)
         assertEquals("", defaults.get("versionDefaultColumn").asString)
         assertEquals(listOf("created_by"), defaults.getAsJsonArray("managedDefaultColumns").map { it.asString })
-        assertEquals(2, resolvedPolicies.size)
+        assertEquals(6, resolvedPolicies.size)
+        assertEquals(
+            setOf(
+                "video_post",
+                "snowflake_long_record",
+                "snowflake_string_record",
+                "uuid_string_record",
+                "uuid_native_record",
+                "audit_log",
+            ),
+            resolvedPolicies.keys,
+        )
         assertTrue(firstResolvedPolicy.has("managedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonArray("managedFields").size() > 0)
         assertTrue(firstResolvedPolicy.has("writeSurface"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
-        assertEquals("DSL_DEFAULT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
-        assertEquals("uuid7", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
+        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("identity", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("deleted").get("source").asString)
         assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("version").get("source").asString)
         assertEquals(listOf("id", "deleted", "version", "created_by"), videoPostPolicy.getAsJsonArray("managedFields").map {
             it.asJsonObject.get("columnName").asString
         })
         assertEquals(
-            listOf("id", "title"),
+            listOf("title"),
             videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("createAllowedFields").map { it.asString }
         )
         assertEquals(
@@ -2059,6 +2114,10 @@ class PipelinePluginFunctionalTest {
         assertEquals("READ_ONLY", videoPostPolicy.getAsJsonArray("managedFields").single {
             it.asJsonObject.get("columnName").asString == "created_by"
         }.asJsonObject.get("writePolicy").asString)
+        assertEquals("DB_EXPLICIT", snowflakeLongPolicy.getAsJsonObject("id").get("source").asString)
+        assertEquals("snowflake", snowflakeLongPolicy.getAsJsonObject("id").get("strategy").asString)
+        assertEquals("NONE", snowflakeLongPolicy.getAsJsonObject("version").get("source").asString)
+        val auditLogPolicy = resolvedPolicies.getValue("audit_log")
         assertEquals("DB_EXPLICIT", auditLogPolicy.getAsJsonObject("id").get("source").asString)
         assertEquals("NONE", auditLogPolicy.getAsJsonObject("version").get("source").asString)
     }
@@ -2846,7 +2905,7 @@ class PipelinePluginFunctionalTest {
         projectDir.resolve("schema.sql").writeText(
             """
             create table if not exists video_post (
-                id bigint primary key,
+                id bigint primary key comment '@IdStrategy=db_identity;',
                 title varchar(255) not null
             );
             """.trimIndent()
@@ -2937,16 +2996,6 @@ class PipelinePluginFunctionalTest {
         val schemaFile = projectDir.generatedFile(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/_share/meta/user_message/SUserMessage.kt")
         )
-        val uniqueValidatorFile = projectDir.generatedFile(
-            generatedSource(
-                "demo-application/src/main/kotlin/com/acme/demo/application/validators/user_message/unique/UniqueUserMessageMessageKey.kt"
-            )
-        )
-        val uniqueHandlerFile = projectDir.generatedFile(
-            generatedSource(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/queries/user_message/unique/UniqueUserMessageMessageKeyQryHandler.kt"
-            )
-        )
         val queryFile = projectDir.generatedFile(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/message/read/FindUserMessageQry.kt"
         )
@@ -2976,8 +3025,6 @@ class PipelinePluginFunctionalTest {
             repositoryFile,
             entityFile,
             schemaFile,
-            uniqueValidatorFile,
-            uniqueHandlerFile,
             queryFile,
             commandFile,
             clientFile,
@@ -3011,22 +3058,6 @@ class PipelinePluginFunctionalTest {
         assertTrue(schemaContent.contains("import com.only4.cap4k.ddd.domain.repo.schema.PredicateBuilder"))
         assertTrue(schemaContent.contains("val messageKey: Field<String>"))
         assertFalse(schemaContent.contains("val message_key"))
-
-        val uniqueValidatorContent = uniqueValidatorFile.readText()
-        assertTrue(uniqueValidatorContent.contains("ConstraintValidator<UniqueUserMessageMessageKey, Any>"))
-        assertTrue(uniqueValidatorContent.contains("Mediator.queries.send("))
-        assertTrue(uniqueValidatorContent.contains("return !result.exists"))
-        assertFalse(
-            uniqueValidatorContent.contains(
-                "ConstraintValidator<UniqueUserMessageMessageKey, UniqueUserMessageMessageKeyQry.Request>"
-            )
-        )
-
-        val uniqueHandlerContent = uniqueHandlerFile.readText()
-        assertTrue(uniqueHandlerContent.contains("private val repository: UserMessageRepository"))
-        assertTrue(uniqueHandlerContent.contains("repository.exists("))
-        assertTrue(uniqueHandlerContent.contains("SUserMessage.specify"))
-        assertFalse(uniqueHandlerContent.contains("exists = false"))
 
         val queryContent = queryFile.readText()
         assertTrue(queryContent.contains(") : RequestParam<Response>"))
@@ -3122,36 +3153,6 @@ class PipelinePluginFunctionalTest {
         assertEquals(outputKind, item.get("outputKind").asString)
         assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asString)
         assertEquals(conflictPolicy, item.get("conflictPolicy").asString)
-    }
-
-    private fun assertUniqueArtifactPlanItemMetadata(
-        planContent: String,
-        templateId: String,
-        outputPathSuffix: String,
-    ) {
-        val context = JsonParser.parseString(planContent)
-            .asJsonObject
-            .getAsJsonArray("items")
-            .map { it.asJsonObject }
-            .single {
-                it.get("templateId").asString == templateId &&
-                    it.get("outputPath").asString.endsWith(outputPathSuffix)
-            }
-            .getAsJsonObject("context")
-
-        assertEquals(
-            listOf("slug"),
-            context.getAsJsonArray("uniqueSelectedBusinessFields").map { it.asString },
-        )
-        assertEquals(
-            listOf("deleted", "version"),
-            context.getAsJsonArray("uniqueFilteredControlFields").map { it.asString },
-        )
-        assertEquals("uk_v_slug", context.get("uniqueNormalizedName").asString)
-        assertEquals("Slug", context.get("uniqueResolvedSuffix").asString)
-        val uniquePhysicalName = context.get("uniquePhysicalName").asString
-        assertTrue(uniquePhysicalName.startsWith("video_post_uk_v_slug"))
-        assertTrue(uniquePhysicalName.contains("_INDEX_"))
     }
 
     private fun functionalAddonJar(projectDir: Path): Path {
@@ -3349,6 +3350,46 @@ class PipelinePluginFunctionalTest {
                 }
                 """.trimIndent()
         )
+    }
+
+    private fun assertGeneratedOwnIdShape(generatedEntity: String, idType: String) {
+        val normalizedEntity = generatedEntity.replace("\r\n", "\n")
+        val expectedPropertyBlock = "    lateinit var id: $idType\n        internal set"
+        assertTrue(
+            normalizedEntity.contains(expectedPropertyBlock),
+            "Expected generated own ID property block:\n$expectedPropertyBlock",
+        )
+        assertFalse(normalizedEntity.contains("var id: $idType = id"))
+
+        val constructorParameters = internalConstructorParameters(normalizedEntity)
+        assertFalse(
+            Regex("""\bid\s*:\s*${Regex.escape(idType)}\b""").containsMatchIn(constructorParameters),
+            "Expected internal constructor to exclude id: $idType, but parameters were:\n$constructorParameters",
+        )
+    }
+
+    private fun internalConstructorParameters(generatedEntity: String): String {
+        val constructorMarker = "internal constructor("
+        val constructorStart = generatedEntity.indexOf(constructorMarker)
+        if (constructorStart < 0) {
+            throw AssertionError("Expected generated entity to declare an internal constructor")
+        }
+
+        val parameterStart = constructorStart + constructorMarker.length
+        var depth = 1
+        for (index in parameterStart until generatedEntity.length) {
+            when (generatedEntity[index]) {
+                '(' -> depth += 1
+                ')' -> {
+                    depth -= 1
+                    if (depth == 0) {
+                        return generatedEntity.substring(parameterStart, index)
+                    }
+                }
+            }
+        }
+
+        throw AssertionError("Expected internal constructor parameters to have a matching closing parenthesis")
     }
 
     private fun assertNoFormattingRegression(file: Path) {

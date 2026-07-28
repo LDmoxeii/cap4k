@@ -25,6 +25,10 @@ package {{ packageName }}
 {{ use("jakarta.persistence.Id") -}}
 {% endif -%}
 {{ use("jakarta.persistence.Table") -}}
+{% if softDelete is defined and softDelete.enabled -%}
+{{ use("org.hibernate.annotations.SQLDelete") -}}
+{{ use("org.hibernate.annotations.Where") -}}
+{% endif -%}
 {% if hasVersionFields -%}
 {{ use("jakarta.persistence.Version") -}}
 {% endif -%}
@@ -61,50 +65,77 @@ import {{ import }}
 )
 {% endif -%}
 {% if entityJpa.entityEnabled %}@Entity
-@Table(name = "{{ entityJpa.tableName }}")
+@Table(name = {% if softDelete is defined and softDelete.enabled %}{{ entityJpa.tableNameKotlinStringLiteral | raw }}{% else %}"{{ entityJpa.tableName }}"{% endif %})
+{% if softDelete is defined and softDelete.enabled %}@SQLDelete(sql = {{ softDeleteSqlKotlinStringLiteral | raw }})
+@Where(clause = {{ softDeleteWhereClauseKotlinStringLiteral | raw }})
 {% endif -%}
-class {{ typeName }}(
-{% for field in scalarFields -%}
+{% endif -%}
+class {{ typeName }} internal constructor(
+{% for field in constructorFields -%}
 {{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
 {% if field.embeddedId %}    @EmbeddedId
-    @AttributeOverride(name = "value", column = Column(name = "{{ field.columnName }}", nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}, length = 36))
+    @AttributeOverride(name = "value", column = Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %}, nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}{% if field.attributeOverrideLength is not null %}, length = {{ field.attributeOverrideLength }}{% endif %}))
 {% elseif field.strongId %}    @Embedded
-    @AttributeOverride(name = "value", column = Column(name = "{{ field.columnName }}", nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}, length = 36))
+    @AttributeOverride(name = "value", column = Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %}, nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}{% if field.attributeOverrideLength is not null %}, length = {{ field.attributeOverrideLength }}{% endif %}))
 {% elseif field.isId %}    @Id
 {% endif %}{% if field.isId and field.generatedValueStrategy == "IDENTITY" %}    @GeneratedValue(strategy = GenerationType.IDENTITY)
 {% endif %}{% if field.isVersion %}    @Version
 {% endif %}{% if field.embeddedId or field.strongId -%}
-{% elseif field.insertable is not null or field.updatable is not null %}    @Column(name = "{{ field.columnName }}", insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
-{% else %}    @Column(name = "{{ field.columnName }}")
+{% elseif field.insertable is not null or field.updatable is not null %}    @Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %}, insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
+{% else %}    @Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %})
 {% endif %}{% if field.converterClassRef %}{% if field.converterTypeRef and field.converterClassRef == field.converterTypeRef ~ ".Converter" %}    @Convert(converter = {{ type(field.converterTypeRef) | raw }}.Converter::class)
 {% else %}    @Convert(converter = {{ type(field.converterClassRef) | raw }}::class)
 {% endif -%}
-{% endif %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %} = {{ field.name }}
+{% endif %}{% if field.generatedOwnId %}    lateinit var {{ field.name }}: {{ type(field) | raw }}
         internal set
+{% else %}    var {{ field.name }}: {{ type(field) | raw }}{% if field.propertyNullable %}?{% endif %} = {{ field.propertyInitializer | raw }}
+        internal set
+{% endif %}
 
 {% endfor -%}
 {% for relation in relationFields -%}
 {% if relation.relationType == "MANY_TO_ONE" %}    @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
-{% if relation.insertable is not null or relation.updatable is not null %}    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %}, insertable = {{ relation.insertable }}, updatable = {{ relation.updatable }})
-{% else %}    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
+{% if relation.insertable is not null or relation.updatable is not null %}    @JoinColumn(name = {% if softDelete is defined and softDelete.enabled %}{{ relation.joinColumnKotlinStringLiteral | raw }}{% else %}"{{ relation.joinColumn }}"{% endif %}, nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %}, insertable = {{ relation.insertable }}, updatable = {{ relation.updatable }})
+{% else %}    @JoinColumn(name = {% if softDelete is defined and softDelete.enabled %}{{ relation.joinColumnKotlinStringLiteral | raw }}{% else %}"{{ relation.joinColumn }}"{% endif %}, nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
 {% endif %}{% if relation.nullable %}    var {{ relation.name }}: {{ relation.targetTypeRef }}? = null
         internal set
 {% else %}    lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}
         internal set
 {% endif %}
 {% elseif relation.relationType == "ONE_TO_ONE" %}    @OneToOne(fetch = FetchType.{{ relation.fetchType }})
-    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
+    @JoinColumn(name = {% if softDelete is defined and softDelete.enabled %}{{ relation.joinColumnKotlinStringLiteral | raw }}{% else %}"{{ relation.joinColumn }}"{% endif %}, nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})
 {% if relation.nullable %}    var {{ relation.name }}: {{ relation.targetTypeRef }}? = null
         internal set
 {% else %}    lateinit var {{ relation.name }}: {{ relation.targetTypeRef }}
         internal set
 {% endif %}
 {% elseif relation.relationType == "ONE_TO_MANY" %}    @OneToMany(fetch = FetchType.{{ relation.fetchType }}{% if relation.cascadeTypes|length > 0 %}, cascade = [{% for cascadeType in relation.cascadeTypes %}CascadeType.{{ cascadeType }}{% if not loop.last %}, {% endif %}{% endfor %}]{% endif %}, orphanRemoval = {{ relation.orphanRemoval }})
-    @JoinColumn(name = "{{ relation.joinColumn }}", nullable = {{ relation.joinColumnNullable }})
-    val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+    @JoinColumn(name = {% if softDelete is defined and softDelete.enabled %}{{ relation.joinColumnKotlinStringLiteral | raw }}{% else %}"{{ relation.joinColumn }}"{% endif %}, nullable = {{ relation.joinColumnNullable }})
+{% if relation.owned %}    private var {{ relation.backingCollectionName }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+
+{% if relation.ownedCardinality == "ONE" %}    @get:Transient
+    var {{ relation.singleAccessorName }}: {{ relation.targetTypeRef }}?
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
+                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
+            }{% endif %})
+            .singleOrNull()
+        set(value) {
+            OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
+                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
+            }{% endif %})
+                .replace(value)
+        }
+{% else %}    @get:Transient
+    val {{ relation.name }}: OwnedEntityList<{{ relation.targetTypeRef }}>
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
+                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
+            }{% endif %})
+{% endif %}
+{% else %}    val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
+{% endif %}
 {% endif %}
 {% endfor -%}
 }

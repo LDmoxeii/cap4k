@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.CapabilityUnavailableException
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
@@ -31,7 +32,7 @@ open class DefaultEventPublisher(
     private val eventMessageInterceptorManager: EventMessageInterceptorManager,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
-    private val integrationEventManager: IntegrationEventManager,
+    private val integrationEventManager: IntegrationEventManager? = null,
     private val integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
     private val threadPoolSize: Int
 ) : EventPublisher {
@@ -165,9 +166,16 @@ open class DefaultEventPublisher(
 
             // 进程内消息
             val now = LocalDateTime.now()
-            scope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            val dispatchScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+            scope = dispatchScope
             eventSubscriberManager.dispatch(event.payload)
-            integrationEventManager.release()
+            if (dispatchScope.integrationAttachments.isNotEmpty()) {
+                (integrationEventManager
+                    ?: throw CapabilityUnavailableException(
+                        "integration-event-manager",
+                        "a cap4k Integration Event transport starter",
+                    )).release()
+            }
             event.endDelivery(now)
 
             if (persist) {

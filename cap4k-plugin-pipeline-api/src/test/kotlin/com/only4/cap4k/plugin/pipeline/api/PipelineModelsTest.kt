@@ -3,10 +3,39 @@ package com.only4.cap4k.plugin.pipeline.api
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
+    @Test
+    fun `canonical API omits domain parent ref and automatic inverse relation models`() {
+        assertFalse(FieldModel::class.java.declaredFields.any { it.name == "parentRef" })
+        assertFalse(CanonicalModel::class.java.declaredFields.any { it.name == "aggregate" + "InverseRelations" })
+        assertThrows(ClassNotFoundException::class.java) {
+            Class.forName("com.only4.cap4k.plugin.pipeline.api.Aggregate" + "InverseRelationModel")
+        }
+    }
+
+    @Test
+    fun `unique constraint metadata distinguishes complete unconditional indexes`() {
+        val unconditional = UniqueConstraintModel(
+            physicalName = "uk_video_post_slug",
+            columns = listOf("slug"),
+        )
+        val filtered = UniqueConstraintModel(
+            physicalName = "uk_video_post_slug_active",
+            columns = listOf("slug"),
+            complete = false,
+            filterCondition = "deleted = 0",
+        )
+
+        assertTrue(unconditional.complete)
+        assertNull(unconditional.filterCondition)
+        assertFalse(filtered.complete)
+        assertEquals("deleted = 0", filtered.filterCondition)
+    }
+
     @Test
     fun `db column snapshot carries parent ref managed role and id strategy`() {
         val column = DbColumnSnapshot(
@@ -22,6 +51,20 @@ class PipelineModelsTest {
         assertTrue(column.parentRef)
         assertEquals(DbManagedRole.SCOPE, column.managedRole)
         assertEquals(DbIdStrategy.DB_IDENTITY, column.idStrategy)
+    }
+
+    @Test
+    fun `db id strategy carries uuid7 application side strategy`() {
+        val column = DbColumnSnapshot(
+            name = "id",
+            dbType = "varchar(36)",
+            kotlinType = "String",
+            nullable = false,
+            isPrimaryKey = true,
+            idStrategy = DbIdStrategy.UUID7,
+        )
+
+        assertEquals(DbIdStrategy.UUID7, column.idStrategy)
     }
 
     @Test
@@ -99,5 +142,81 @@ class PipelineModelsTest {
         val model = CanonicalModel()
 
         assertEquals(emptyList<DesignBlockModel>(), model.designBlocks)
+    }
+
+    @Test
+    fun `aggregate persistence provider control carries semantic soft delete policy`() {
+        val softDelete = AggregateSoftDeletePolicy(
+            fieldName = "deleted",
+            columnName = "deleted",
+            storageKind = AggregateIdStorageKind.CHARACTER,
+            activeSentinel = SoftDeleteActiveSentinel.NIL_UUID,
+            tombstoneStrategy = SoftDeleteTombstoneStrategy.SELF_ID,
+        )
+        val control = AggregatePersistenceProviderControl(
+            entityName = "VideoPost",
+            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            softDelete = softDelete,
+            idFieldName = "id",
+            versionFieldName = "version",
+        )
+
+        assertEquals(softDelete, control.softDelete)
+        assertEquals(AggregateIdStorageKind.CHARACTER, control.softDelete?.storageKind)
+        assertEquals(SoftDeleteActiveSentinel.NIL_UUID, control.softDelete?.activeSentinel)
+        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, control.softDelete?.tombstoneStrategy)
+
+        val domainFields = AggregateSoftDeletePolicy::class.java.declaredFields
+            .filterNot { it.isSynthetic }
+            .map { it.name }
+        assertEquals(
+            setOf("fieldName", "columnName", "storageKind", "activeSentinel", "tombstoneStrategy"),
+            domainFields.toSet(),
+        )
+        assertFalse(domainFields.contains("activeValue"))
+        assertFalse(domainFields.contains("activePredicateSql"))
+        assertFalse(domainFields.contains("deleteAssignmentSql"))
+    }
+
+    @Test
+    fun `soft delete storage semantics expose stable public enum order`() {
+        assertEquals(
+            listOf("INTEGRAL", "CHARACTER", "NATIVE_UUID"),
+            AggregateIdStorageKind.entries.map { it.name },
+        )
+        assertEquals(
+            listOf("ZERO", "NIL_UUID"),
+            SoftDeleteActiveSentinel.entries.map { it.name },
+        )
+    }
+
+    @Test
+    fun `aggregate relation model carries owned cardinality separately from persistence type`() {
+        val relation = AggregateRelationModel(
+            ownerEntityName = "VideoPost",
+            ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            fieldName = "files",
+            targetEntityName = "VideoPostFile",
+            targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            relationType = AggregateRelationType.ONE_TO_MANY,
+            joinColumn = "video_post_id",
+            fetchType = AggregateFetchType.LAZY,
+            nullable = false,
+            owned = true,
+            parentRefColumn = "video_post_id",
+            ownedCardinality = OwnedRelationCardinality.ONE,
+            persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+            backingCollectionName = "files",
+            singleAccessorName = "file",
+        )
+
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertTrue(relation.owned)
+        assertEquals("video_post_id", relation.parentRefColumn)
+        assertEquals(OwnedRelationCardinality.ONE, relation.ownedCardinality)
+        assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals("file", relation.singleAccessorName)
     }
 }

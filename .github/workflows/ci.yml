@@ -17,6 +17,24 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cap4k_test
+          POSTGRES_USER: cap4k
+          POSTGRES_PASSWORD: cap4k
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U cap4k -d cap4k_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      CAP4K_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/cap4k_test
+      CAP4K_TEST_POSTGRES_USER: cap4k
+      CAP4K_TEST_POSTGRES_PASSWORD: cap4k
 
     steps:
       - name: Checkout
@@ -108,6 +126,22 @@ jobs:
           echo "run_gradle=${run_gradle}"
           echo "docs_only=${docs_only}"
           echo "publish_promotion=${publish_promotion}"
+
+      - name: Test PR workflow guard
+        if: steps.classify.outputs.publish_promotion != 'true'
+        shell: pwsh
+        run: ./scripts/test-pr-workflow.ps1
+
+      - name: Validate PR body
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          $bodyFile = Join-Path $env:RUNNER_TEMP 'pr-body.md'
+          Set-Content -LiteralPath $bodyFile -Value $env:PR_BODY -Encoding utf8NoBOM
+          ./scripts/validate-pr-body.ps1 -BodyFile $bodyFile -Base $env:BASE_REF -RequireChangeType
 
       - name: Make Gradle wrapper executable
         if: steps.classify.outputs.run_gradle == 'true'

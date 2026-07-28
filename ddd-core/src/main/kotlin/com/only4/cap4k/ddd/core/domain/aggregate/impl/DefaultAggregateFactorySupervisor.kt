@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.aggregate.impl
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
@@ -35,7 +36,7 @@ class DefaultAggregateFactorySupervisor(
         @Suppress("UNCHECKED_CAST")
         val instance = (factory as AggregateFactory<ENTITY_PAYLOAD, ENTITY>).create(entityPayload)
 
-        unitOfWork.persist(instance)
+        unitOfWork.persist(instance, PersistIntent.CREATE)
         return instance
     }
 }

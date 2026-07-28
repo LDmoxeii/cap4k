@@ -274,8 +274,6 @@ private class GraphCollector(
     private val domainEventAnn = FqName(options.domainEventAnnFq)
     private val integrationEventAnn = FqName(options.integrationEventAnnFq)
     private val eventListenerAnn = FqName(options.eventListenerAnnFq)
-    private val applicationSideIdAnn = FqName("com.only4.cap4k.ddd.core.domain.id.ApplicationSideId")
-
     private val commandInterfaceFq = FqName("com.only4.cap4k.ddd.core.application.command.Command")
     private val queryInterfaceFq = FqName("com.only4.cap4k.ddd.core.application.query.Query")
     private val requestHandlerFq = FqName("com.only4.cap4k.ddd.core.application.RequestHandler")
@@ -778,7 +776,6 @@ private class GraphCollector(
         return aggregateInfoCache.getOrPut(fq) {
             index.aggregateInfoByClass[fq]
                 ?: readAggregateElementInfo(aggregateElementAnn)
-                ?: inferGeneratedEntityAggregateInfo(applicationSideIdAnn)
         }
     }
 }
@@ -982,38 +979,6 @@ private fun IrClass.readAggregateElementInfo(aggregateElementAnn: FqName): Aggre
     val root = ann.getBooleanArg("root") ?: false
     val resolvedName = if (aggregateName.isNotEmpty()) aggregateName else name.asString()
     return AggregateInfo(resolvedName, type, root)
-}
-
-private fun IrClass.inferGeneratedEntityAggregateInfo(applicationSideIdAnn: FqName): AggregateInfo? {
-    val fq = fqNameWhenAvailable?.asString() ?: return null
-    if (!fq.contains(".domain.aggregates.")) return null
-    if (!hasApplicationSideIdMember(applicationSideIdAnn)) return null
-
-    val packageName = fq.substringBeforeLast('.', missingDelimiterValue = "")
-    val aggregateToken = packageName.substringAfter(".domain.aggregates.", missingDelimiterValue = "")
-    if (aggregateToken.isBlank() || aggregateToken.contains('.')) return null
-
-    val aggregateName = aggregateToken.toUpperCamelCase()
-    val root = name.asString() == aggregateName
-    return AggregateInfo(aggregateName, AGG_TYPE_ENTITY, root)
-}
-
-private fun IrClass.hasApplicationSideIdMember(applicationSideIdAnn: FqName): Boolean {
-    return declarations.any { declaration ->
-        when (declaration) {
-            is IrProperty -> declaration.annotations.any {
-                it.symbol.owner.parentAsClass.fqNameWhenAvailable == applicationSideIdAnn
-            } || declaration.backingField?.annotations?.any {
-                it.symbol.owner.parentAsClass.fqNameWhenAvailable == applicationSideIdAnn
-            } == true
-
-            is IrField -> declaration.annotations.any {
-                it.symbol.owner.parentAsClass.fqNameWhenAvailable == applicationSideIdAnn
-            }
-
-            else -> false
-        }
-    }
 }
 
 private fun inferGeneratedAggregateRootFq(entityFq: String, aggregateName: String): String? {

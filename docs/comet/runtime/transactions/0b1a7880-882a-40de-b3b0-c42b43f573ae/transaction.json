@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "0b1a7880-882a-40de-b3b0-c42b43f573ae",
+  "kind": "archive",
+  "status": "committed",
+  "change": "official-default-project-contract-reconciliation",
+  "createdAt": "2026-07-28T10:01:16.779Z",
+  "preflightHash": "d83a8784c88348e19f00c0f8aed04c8b0b7a79f82778865eda42abcc0ef0f798",
+  "operations": [
+    {
+      "id": "spec-1-official-default-project-contract-reconciliation",
+      "type": "write",
+      "target": "specs/official-default-project-contract-reconciliation/spec.md",
+      "staged": "runtime/transactions/0b1a7880-882a-40de-b3b0-c42b43f573ae/staged/specs/official-default-project-contract-reconciliation/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "0027927bd5f7dae2cee62a7e163056de6f8fb3b0852e42efe4ef0dd0cbd58bfa"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/official-default-project-contract-reconciliation",
+      "target": "archive/2026-07-28-official-default-project-contract-reconciliation",
+      "expectedSourceHash": "2b0762f3312db455aa6045dea2d99baea1ed856c70b6bb51303602ed79fa9c83",
+      "expectedTargetHash": null
+    }
+  ]
+}

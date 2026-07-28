@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.aggregate.impl
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
@@ -36,7 +37,26 @@ class DefaultAggregateFactorySupervisorTest {
         // Then
         assertNotNull(result)
         assertEquals("test-data", result!!.data)
-        verify { unitOfWork.persist(result) }
+        verify { unitOfWork.persist(result, PersistIntent.CREATE) }
+    }
+
+    @Test
+    fun `create returns only after UoW makes the aggregate graph id ready`() {
+        val uow = mockk<UnitOfWork>()
+        every { uow.persist(any(), PersistIntent.CREATE) } answers {
+            firstArg<ReadyRoot>().also { root ->
+                root.id = "ROOT-1"
+                root.children.forEachIndexed { index, child -> child.id = "CHILD-${index + 1}" }
+            }
+            Unit
+        }
+        val supervisor = DefaultAggregateFactorySupervisor(listOf(ReadyAggregateFactory()), uow)
+
+        val result = supervisor.create(ReadyPayload(2))
+
+        assertEquals("ROOT-1", result.id)
+        assertEquals(listOf("CHILD-1", "CHILD-2"), result.children.map { it.id })
+        verify(exactly = 1) { uow.persist(result, PersistIntent.CREATE) }
     }
 
     @Test
@@ -52,7 +72,7 @@ class DefaultAggregateFactorySupervisorTest {
         }
 
         assertTrue(exception.message!!.contains("No factory found for payload"))
-        verify(exactly = 0) { unitOfWork.persist(any()) }
+        verify(exactly = 0) { unitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -75,8 +95,8 @@ class DefaultAggregateFactorySupervisorTest {
         assertNotNull(result2)
         assertEquals("test-data", result1!!.data)
         assertEquals("another-data", result2!!.data)
-        verify { unitOfWork.persist(result1) }
-        verify { unitOfWork.persist(result2) }
+        verify { unitOfWork.persist(result1, PersistIntent.CREATE) }
+        verify { unitOfWork.persist(result2, PersistIntent.CREATE) }
     }
 
     @Test
@@ -87,7 +107,7 @@ class DefaultAggregateFactorySupervisorTest {
         supervisor = DefaultAggregateFactorySupervisor(listOf(factory), unitOfWork)
         val payload = TestPayload("test-data")
 
-        every { unitOfWork.persist(any()) } throws RuntimeException("Database error")
+        every { unitOfWork.persist(any(), PersistIntent.CREATE) } throws RuntimeException("Database error")
 
         // When & Then
         val exception = assertThrows(RuntimeException::class.java) {
@@ -110,7 +130,7 @@ class DefaultAggregateFactorySupervisorTest {
         }
 
         assertTrue(exception.message!!.contains("No factory found for payload"))
-        verify(exactly = 0) { unitOfWork.persist(any()) }
+        verify(exactly = 0) { unitOfWork.persist(any(), any()) }
     }
 
     @Test
@@ -131,7 +151,7 @@ class DefaultAggregateFactorySupervisorTest {
         threads.forEach { it.join() }
 
         // Then
-        verify(exactly = 10) { unitOfWork.persist(any()) }
+        verify(exactly = 10) { unitOfWork.persist(any(), PersistIntent.CREATE) }
     }
 
     // Test data classes and factories
@@ -151,5 +171,17 @@ class DefaultAggregateFactorySupervisorTest {
         override fun create(entityPayload: AnotherPayload): AnotherEntity {
             return AnotherEntity(entityPayload.data)
         }
+    }
+
+    private data class ReadyChild(var id: String? = null)
+    private data class ReadyRoot(
+        var id: String? = null,
+        val children: MutableList<ReadyChild>,
+    )
+    private data class ReadyPayload(val childCount: Int) : AggregatePayload<ReadyRoot>
+
+    private class ReadyAggregateFactory : AggregateFactory<ReadyPayload, ReadyRoot> {
+        override fun create(entityPayload: ReadyPayload): ReadyRoot =
+            ReadyRoot(children = MutableList(entityPayload.childCount) { ReadyChild() })
     }
 }

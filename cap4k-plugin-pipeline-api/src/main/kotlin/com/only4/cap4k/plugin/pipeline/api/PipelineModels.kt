@@ -8,7 +8,6 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
-    val parentRef: Boolean = false,
     val managedRole: DbManagedRole? = null,
     val inherited: Boolean = false,
 )
@@ -41,6 +40,8 @@ enum class DbManagedRole {
 
 enum class DbIdStrategy {
     DB_IDENTITY,
+    UUID7,
+    SNOWFLAKE,
 }
 
 data class DbColumnSnapshot(
@@ -59,11 +60,22 @@ data class DbColumnSnapshot(
     val idStrategy: DbIdStrategy? = null,
     val managedRole: DbManagedRole? = null,
     val inherited: Boolean? = null,
+    val jdbcType: Int? = null,
+    val columnSize: Int? = null,
 )
 
+/**
+ * Unique-index metadata captured from a source. [complete] is true only when every index part is
+ * represented by a physical column; [filterCondition] preserves any conditional uniqueness predicate.
+ *
+ * The defaulted metadata fields preserve Kotlin source compatibility for in-repository call sites only.
+ * No Java constructor or cross-version JVM binary compatibility is guaranteed for compiled addons.
+ */
 data class UniqueConstraintModel(
     val physicalName: String,
     val columns: List<String>,
+    val complete: Boolean = true,
+    val filterCondition: String? = null,
 )
 
 data class DbTableSnapshot(
@@ -253,6 +265,21 @@ enum class AggregateCascadeType {
     REMOVE,
 }
 
+enum class OwnedRelationCardinality {
+    ONE,
+    MANY,
+}
+
+enum class OwnedRelationPersistenceShape {
+    ONE_TO_MANY_JOIN_COLUMN,
+}
+
+/**
+ * Canonical aggregate relation metadata.
+ *
+ * Defaulted owned-relation fields preserve Kotlin source compatibility for in-repository call sites only.
+ * No Java constructor or cross-version JVM binary compatibility is guaranteed for compiled addons.
+ */
 data class AggregateRelationModel(
     val ownerEntityName: String,
     val ownerEntityPackageName: String,
@@ -266,20 +293,12 @@ data class AggregateRelationModel(
     val cascadeTypes: List<AggregateCascadeType> = emptyList(),
     val orphanRemoval: Boolean = false,
     val joinColumnNullable: Boolean? = null,
-)
-
-data class AggregateInverseRelationModel(
-    val ownerEntityName: String,
-    val ownerEntityPackageName: String,
-    val fieldName: String,
-    val targetEntityName: String,
-    val targetEntityPackageName: String,
-    val relationType: AggregateRelationType,
-    val joinColumn: String,
-    val fetchType: AggregateFetchType,
-    val nullable: Boolean = false,
-    val insertable: Boolean = false,
-    val updatable: Boolean = false,
+    val owned: Boolean = false,
+    val parentRefColumn: String? = null,
+    val ownedCardinality: OwnedRelationCardinality? = null,
+    val persistenceShape: OwnedRelationPersistenceShape? = null,
+    val backingCollectionName: String? = null,
+    val singleAccessorName: String? = null,
 )
 
 data class EntityModel(
@@ -300,6 +319,7 @@ data class AggregateColumnJpaModel(
     val isId: Boolean,
     val converterTypeFqn: String? = null,
     val converterClassFqn: String? = converterTypeFqn?.let { "$it.Converter" },
+    val columnLength: Int? = null,
 )
 
 data class AggregateEntityJpaModel(
@@ -321,11 +341,34 @@ data class AggregatePersistenceFieldControl(
     val updatable: Boolean? = null,
 )
 
+enum class SoftDeleteTombstoneStrategy {
+    SELF_ID,
+}
+
+enum class AggregateIdStorageKind {
+    INTEGRAL,
+    CHARACTER,
+    NATIVE_UUID,
+}
+
+enum class SoftDeleteActiveSentinel {
+    ZERO,
+    NIL_UUID,
+}
+
+data class AggregateSoftDeletePolicy(
+    val fieldName: String,
+    val columnName: String,
+    val storageKind: AggregateIdStorageKind,
+    val activeSentinel: SoftDeleteActiveSentinel,
+    val tombstoneStrategy: SoftDeleteTombstoneStrategy,
+)
+
 data class AggregatePersistenceProviderControl(
     val entityName: String,
     val entityPackageName: String,
     val tableName: String,
-    val softDeleteColumn: String? = null,
+    val softDelete: AggregateSoftDeletePolicy? = null,
     val idFieldName: String,
     val versionFieldName: String? = null,
 )
@@ -520,7 +563,7 @@ data class DomainEventModel(
 )
 
 enum class StrongIdKind {
-    AGGREGATE_ROOT,
+    OWN_ID,
     AGGREGATE_REFERENCE,
     REFERENCE,
 }
@@ -530,8 +573,12 @@ data class StrongIdModel(
     val packageName: String,
     val valueType: String = "String",
     val kind: StrongIdKind,
+    val ownerEntityName: String? = null,
+    val ownerEntityPackageName: String? = null,
     val ownerAggregateName: String? = null,
     val ownerAggregatePackageName: String? = null,
+    val idStrategy: String? = null,
+    val isEmbeddedId: Boolean = false,
 )
 
 data class CanonicalModel(
@@ -546,7 +593,6 @@ data class CanonicalModel(
     val drawingBoard: DrawingBoardModel? = null,
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
-    val aggregateInverseRelations: List<AggregateInverseRelationModel> = emptyList(),
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),

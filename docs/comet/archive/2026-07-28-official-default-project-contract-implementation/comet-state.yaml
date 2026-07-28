@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: official-default-project-contract-implementation
+language: zh-CN
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: df14587e8204bf867a823b8f984efdd0cd060f2539dca2e1ef0b5fd3f70d1008
+spec_changes:
+  - capability: official-default-project-contract
+    operation: create
+    source: specs/official-default-project-contract/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/a0c353dcdaa92b71279dde151561df28d0a3057d1a0becd8a1542896d069edf4.json
+verification_evidence: runtime/evidence/verifications/b2c08420c2a32fbc846e72eb3fa24001332173fb3fda9d6388b093feb6f2a11a.json
+partial_allowance: runtime/evidence/allowances/e4038c3414e4f699399d05adb8e838839289640b3328d22d1f3841d01e3eb6db.json
+archived: true
+created_at: 2026-07-28
+run_id: 5ab6bf8d-895b-41e0-8382-23fa7629a600

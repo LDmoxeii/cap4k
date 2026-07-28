@@ -7,6 +7,7 @@ plugins {
 dependencies {
     implementation(project(":cap4k-plugin-pipeline-api"))
 
+    testImplementation(project(":cap4k-plugin-pipeline-core"))
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")

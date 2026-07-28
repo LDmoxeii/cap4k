@@ -2,8 +2,6 @@
 
 package com.only4.cap4k.ddd.core.share.misc
 
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 import org.springframework.core.io.support.ResourcePatternResolver
 import org.springframework.core.type.classreading.MetadataReaderFactory
@@ -50,25 +48,3 @@ fun scanClass(scanPath: String, concrete: Boolean): Set<Class<*>> {
         }
         .toSet()
 }
-
-/**
- * 查找领域事件类
- *
- * @param scanPath 扫描路径
- * @return 领域事件类集合
- */
-fun findDomainEventClasses(scanPath: String): Set<Class<*>> =
-    scanClass(scanPath, true)
-        .filter { cls -> cls.getAnnotation(DomainEvent::class.java) != null }
-        .toSet()
-
-/**
- * 查找集成事件类
- *
- * @param scanPath 扫描路径
- * @return 集成事件类集合
- */
-fun findIntegrationEventClasses(scanPath: String): Set<Class<*>> =
-    scanClass(scanPath, true)
-        .filter { cls -> cls.getAnnotation(IntegrationEvent::class.java) != null }
-        .toSet()

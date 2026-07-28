@@ -16,7 +16,7 @@ Record each Aggregate candidate, identity concept, owned Entities, invariants, a
 
 ## cap4kCarriers
 
-List Command, Query, Domain Event, Integration Event, Subscriber, Saga, Scheduled Reaction, Domain Service, Specification, Value Object, Strong ID, External Capability, and Open Host Service decisions that apply.
+List Command, Query, Domain Event, Integration Event, Subscriber, Saga, Scheduled Reaction, Domain Service, Value Object, Strong ID, External Capability, and Open Host Service decisions that apply.
 
 ## cleanArchitecturePlacement
 

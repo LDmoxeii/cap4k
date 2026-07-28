@@ -80,7 +80,7 @@ internal fun aggregateRootNameOrNull(entity: EntityModel, entities: List<EntityM
 internal fun strongIdAggregateElementContext(strongId: StrongIdModel): Map<String, Any?> =
     aggregateElementContext(
         aggregate = when (strongId.kind) {
-            StrongIdKind.AGGREGATE_ROOT,
+            StrongIdKind.OWN_ID,
             StrongIdKind.AGGREGATE_REFERENCE,
             -> strongId.ownerAggregateName.orEmpty()
             StrongIdKind.REFERENCE -> ""
@@ -89,7 +89,9 @@ internal fun strongIdAggregateElementContext(strongId: StrongIdModel): Map<Strin
         packageName = strongId.packageName,
         description = "",
         type = "strong-id",
-        root = strongId.kind == StrongIdKind.AGGREGATE_ROOT,
+        root = strongId.kind == StrongIdKind.OWN_ID &&
+            strongId.ownerEntityName == strongId.ownerAggregateName &&
+            strongId.ownerEntityPackageName == strongId.ownerAggregatePackageName,
     )
 
 private data class EntityRootKey(

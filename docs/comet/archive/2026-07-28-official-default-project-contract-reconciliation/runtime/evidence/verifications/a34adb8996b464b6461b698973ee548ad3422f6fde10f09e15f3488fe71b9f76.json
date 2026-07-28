@@ -1,0 +1,116 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "official-default-project-contract-reconciliation",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "1d07bd705aaba14678f86da67906c714bf8ca80c1fa1e69484187e15ac2e5f0e",
+  "acceptanceCriteriaHash": "964ee5636347fd5293c5e13ba6063af1580242595dc22a7fecdad0813a575d08",
+  "implementationScopeRef": "runtime/evidence/scopes/2ca50af220f21b82c00dd0d71ac68eaf8effed9c47761c86e694c84a447d92e2.json",
+  "implementationScopeHash": "2ca50af220f21b82c00dd0d71ac68eaf8effed9c47761c86e694c84a447d92e2",
+  "reportRef": "verification.md",
+  "reportHash": "2cbb4706fc00900eb3dd0b0ec50cc87dd9e1b0709f487b8b1ff5b498a78e3fe6",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "964ee5636347fd5293c5e13ba6063af1580242595dc22a7fecdad0813a575d08",
+    "total": 8,
+    "evidenced": 8,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-2fa65ca7c8bb31aeeaa3d30952ebfb6957a040f20c393a6ae9fb08080b13e8dc",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactSelection.kt",
+          "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateUniqueConstraintPlanning.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-41fdc8a06123af3fb08d296df3e59d152d7c8af202b4b193669ac780744c45ea",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/entity.kt.peb",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/aggregate/OwnedEntityList.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6f0a53394df8e85cfbe981d049b0da96ecb263de7e6b5e1a6026837ba5a46fd3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-8100ec3b68997a87e4ac3cafa1d1fa03498a8d49e6a51c0fc964d24a370b3ee8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedParentBindingResolver.kt",
+          "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/OwnedRelationCardinalityInference.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-862cb58d71ebc8a3ec921b9af079cafc4bb1d097d40c557f40976533af12ecf3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/softdelete/mysql/SoftDeleteH2MySqlRuntimeTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PostgreSqlSoftDeleteIntegrationTest.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-daa0d36e7f2049347ed35983c0c74a95d0a2f72413201ebff028418bdf601eb1",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt",
+          "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateEntrustedFieldPlanning.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e3b4cbbe47a2eab7bf3dcc14bf9b9291e4381136ee84e09f6117c42f42956e76",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f1f611127bb07c690cfe418edd681163068472878836284b2359d8de6f699d5e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/id/IdPolicyAutoConfiguration.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/GeneratedOwnIdRegistry.kt",
+          "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-contract-design.md"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "016a3aad829c0f0872fe509f6b50cb852a501e908792d6148565a4267228c231"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/c8ed2e7daa96eeba9800e6ba877e83d554aa0876c8a2d1738d7567f7646bcaee.json",
+  "createdAt": "2026-07-28T10:00:28.921Z",
+  "envelopeHash": "a34adb8996b464b6461b698973ee548ad3422f6fde10f09e15f3488fe71b9f76"
+}

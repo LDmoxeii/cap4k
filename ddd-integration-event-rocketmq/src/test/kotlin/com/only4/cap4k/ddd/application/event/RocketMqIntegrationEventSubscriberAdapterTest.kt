@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application.event
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import io.mockk.*
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -26,10 +27,12 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     private val eventMessageInterceptor1: EventMessageInterceptor = mockk()
     private val eventMessageInterceptor2: EventMessageInterceptor = mockk()
 
-    private val scanPath = "com.only4.cap4k.test"
     private val applicationName = "test-app"
     private val defaultNameSrv = "localhost:9876"
     private val msgCharset = "UTF-8"
+    private val eventTypeCatalog = object : EventTypeCatalog {
+        override fun integrationEventTypes(): Set<Class<*>> = setOf(TestEventPayload::class.java)
+    }
 
     private lateinit var adapter: RocketMqIntegrationEventSubscriberAdapter
 
@@ -42,7 +45,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             eventMessageInterceptors = listOf(eventMessageInterceptor1, eventMessageInterceptor2),
             rocketMqIntegrationEventConfigure = rocketMqIntegrationEventConfigure,
             environment = environment,
-            scanPath = scanPath,
+            eventTypeCatalog = eventTypeCatalog,
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset
@@ -173,7 +176,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             eventMessageInterceptors = emptyList(),
             rocketMqIntegrationEventConfigure = rocketMqIntegrationEventConfigure,
             environment = environment,
-            scanPath = scanPath,
+            eventTypeCatalog = eventTypeCatalog,
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset

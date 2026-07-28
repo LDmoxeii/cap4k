@@ -1,6 +1,7 @@
-package com.only4.cap4k.plugin.pipeline.source.db
+﻿package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
@@ -9,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.sql.DriverManager
+import java.sql.Types
 import java.nio.file.Files
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -18,6 +20,76 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DbSchemaSourceProviderTest {
+
+    @Test
+    fun `collect retains jdbc type name and column capacity`() {
+        val url = "jdbc:h2:mem:cap4k-strong-id-metadata;DB_CLOSE_DELAY=-1"
+        DriverManager.getConnection(url, "sa", "").use { connection ->
+            connection.createStatement().use { statement ->
+                statement.execute(
+                    """
+                    create table strong_id_evidence (
+                        uuid_text varchar(36) not null,
+                        uuid_native uuid not null,
+                        snowflake_text varchar(19) not null,
+                        snowflake_long bigint not null,
+                        primary key (uuid_text)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val snapshot = DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("strong_id_evidence"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+        val columns = snapshot.tables.single().columns.associateBy { it.name.lowercase() }
+        assertEquals(Types.CHAR == columns.getValue("uuid_text").jdbcType || Types.VARCHAR == columns.getValue("uuid_text").jdbcType, true)
+        assertEquals(36, columns.getValue("uuid_text").columnSize)
+        assertEquals("UUID", columns.getValue("uuid_native").dbType.uppercase())
+        assertTrue(columns.getValue("uuid_native").jdbcType in setOf(Types.OTHER, Types.BINARY))
+        assertEquals(19, columns.getValue("snowflake_text").columnSize)
+        assertEquals(Types.BIGINT, columns.getValue("snowflake_long").jdbcType)
+    }
+
+    @Test
+    fun `h2 standard metadata preserves soft delete defaults and physical names`() {
+        val snapshot = collectSoftDeleteMetadata(
+            "jdbc:h2:mem:cap4k-soft-delete-h2-standard;DB_CLOSE_DELAY=-1;" +
+                "INIT=RUNSCRIPT FROM 'classpath:/soft-delete-h2-standard.sql'"
+        )
+
+        assertSoftDeleteMetadata(snapshot)
+    }
+
+    @Test
+    fun `h2 mysql metadata preserves soft delete defaults and physical names`() {
+        val snapshot = collectSoftDeleteMetadata(
+            "jdbc:h2:mem:cap4k-soft-delete-h2-mysql;MODE=MySQL;DB_CLOSE_DELAY=-1;" +
+                "INIT=RUNSCRIPT FROM 'classpath:/soft-delete-h2-mysql.sql'"
+        )
+
+        assertSoftDeleteMetadata(snapshot)
+    }
 
     @Test
     fun `metadata scope treats mysql database name as catalog`() {
@@ -314,7 +386,7 @@ class DbSchemaSourceProviderTest {
             )
         }
 
-        assertEquals("@IdStrategy=db_identity is valid only on a primary-key column", error.message)
+        assertEquals("@IdStrategy is valid only on a primary-key column", error.message)
     }
 
     @Test
@@ -636,7 +708,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -682,7 +754,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -826,7 +898,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -915,7 +987,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
             error.message,
         )
     }
@@ -1209,6 +1281,96 @@ class DbSchemaSourceProviderTest {
         assertTrue(unique.physicalName.startsWith("UQ_ACCOUNT_ENTRY", ignoreCase = true))
         assertTrue(unique.physicalName.contains("_INDEX_", ignoreCase = true))
         assertEquals(listOf("REGION_ID", "CODE"), unique.columns)
+        assertTrue(unique.complete)
+        assertNull(unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows preserve filters and mark null terms incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_parent_active",
+                    columnName = "VIDEO_POST_ID",
+                    ordinalPosition = 1,
+                    metadataSequence = 0,
+                    filterCondition = " deleted = 0 ",
+                ),
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_parent_active",
+                    columnName = null,
+                    ordinalPosition = 2,
+                    metadataSequence = 1,
+                    filterCondition = " deleted = 0 ",
+                ),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "deleted"),
+        )
+
+        val unique = constraints.single()
+        assertEquals("uk_video_post_parent_active", unique.physicalName)
+        assertEquals(listOf("video_post_id"), unique.columns)
+        assertFalse(unique.complete)
+        assertEquals("deleted = 0", unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows mark non physical expression terms incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_slug_expression",
+                    columnName = "video_post_id",
+                    ordinalPosition = 1,
+                    metadataSequence = 0,
+                    filterCondition = null,
+                ),
+                UniqueIndexMetadataRow(
+                    indexName = "uk_video_post_slug_expression",
+                    columnName = "lower(slug)",
+                    ordinalPosition = 2,
+                    metadataSequence = 1,
+                    filterCondition = null,
+                ),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        val unique = constraints.single()
+        assertEquals("uk_video_post_slug_expression", unique.physicalName)
+        assertEquals(listOf("video_post_id"), unique.columns)
+        assertFalse(unique.complete)
+        assertNull(unique.filterCondition)
+    }
+
+    @Test
+    fun `unique index rows mark ordinal gaps incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow("uk_video_post_parent", "video_post_id", 1, 0, null),
+                UniqueIndexMetadataRow("uk_video_post_parent", "slug", 3, 1, null),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        assertFalse(constraints.single().complete)
+    }
+
+    @Test
+    fun `unique index rows mark duplicate ordinals incomplete`() {
+        val constraints = uniqueConstraintsFromIndexRows(
+            rows = listOf(
+                UniqueIndexMetadataRow("uk_video_post_parent", "video_post_id", 1, 0, null),
+                UniqueIndexMetadataRow("uk_video_post_parent", "slug", 1, 1, null),
+            ),
+            primaryKey = setOf("id"),
+            physicalColumns = setOf("id", "video_post_id", "slug"),
+        )
+
+        assertFalse(constraints.single().complete)
     }
 
     @Test
@@ -1253,4 +1415,116 @@ class DbSchemaSourceProviderTest {
         assertEquals(listOf("video_post"), snapshot.includedTables)
         assertEquals(listOf("audit_log"), snapshot.excludedTables)
     }
+
+    private fun collectSoftDeleteMetadata(url: String): DbSchemaSnapshot =
+        DbSchemaSourceProvider().collect(
+            ProjectConfig(
+                basePackage = "com.acme.demo",
+                layout = ProjectLayout.MULTI_MODULE,
+                modules = emptyMap(),
+                sources = mapOf(
+                    "db" to SourceConfig(
+                        options = mapOf(
+                            "url" to url,
+                            "username" to "sa",
+                            "password" to "",
+                            "schema" to "PUBLIC",
+                            "includeTables" to listOf("soft_delete_evidence", "MixedCaseEvidence"),
+                            "excludeTables" to emptyList<String>(),
+                        )
+                    )
+                ),
+                generators = emptyMap(),
+                templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
+            )
+        ) as DbSchemaSnapshot
+
+    private fun assertSoftDeleteMetadata(snapshot: DbSchemaSnapshot) {
+        val evidence = actualDefaultWrappers(snapshot)
+        assertEquals(
+            listOf("MixedCaseEvidence", "SOFT_DELETE_EVIDENCE"),
+            snapshot.tables.map { it.tableName },
+            evidence,
+        )
+
+        val unquoted = snapshot.tables.single { it.tableName == "SOFT_DELETE_EVIDENCE" }
+        assertEquals(
+            listOf("BIGINT_DEFAULT", "VARCHAR_DEFAULT", "UUID_DEFAULT"),
+            unquoted.columns.map { it.name },
+            evidence,
+        )
+        assertSoftDeleteColumn(
+            column = unquoted.columns.single { it.name == "BIGINT_DEFAULT" },
+            expectedName = "BIGINT_DEFAULT",
+            expectedDbType = "BIGINT",
+            expectedJdbcType = Types.BIGINT,
+            expectedKotlinType = "Long",
+            expectedColumnSize = 64,
+            expectedNullable = false,
+            expectedDefaultValue = "0",
+            evidence = evidence,
+        )
+        assertSoftDeleteColumn(
+            column = unquoted.columns.single { it.name == "VARCHAR_DEFAULT" },
+            expectedName = "VARCHAR_DEFAULT",
+            expectedDbType = "CHARACTER VARYING",
+            expectedJdbcType = Types.VARCHAR,
+            expectedKotlinType = "String",
+            expectedColumnSize = 36,
+            expectedNullable = false,
+            expectedDefaultValue = "'00000000-0000-0000-0000-000000000000'",
+            evidence = evidence,
+        )
+        assertSoftDeleteColumn(
+            column = unquoted.columns.single { it.name == "UUID_DEFAULT" },
+            expectedName = "UUID_DEFAULT",
+            expectedDbType = "UUID",
+            expectedJdbcType = Types.BINARY,
+            expectedKotlinType = "UUID",
+            expectedColumnSize = 16,
+            expectedNullable = false,
+            expectedDefaultValue = "'00000000-0000-0000-0000-000000000000'",
+            evidence = evidence,
+        )
+
+        val quoted = snapshot.tables.single { it.tableName == "MixedCaseEvidence" }
+        assertSoftDeleteColumn(
+            column = quoted.columns.single(),
+            expectedName = "MixedCaseDefault",
+            expectedDbType = "BIGINT",
+            expectedJdbcType = Types.BIGINT,
+            expectedKotlinType = "Long",
+            expectedColumnSize = 64,
+            expectedNullable = false,
+            expectedDefaultValue = "0",
+            evidence = evidence,
+        )
+    }
+
+    private fun assertSoftDeleteColumn(
+        column: DbColumnSnapshot,
+        expectedName: String,
+        expectedDbType: String,
+        expectedJdbcType: Int,
+        expectedKotlinType: String,
+        expectedColumnSize: Int,
+        expectedNullable: Boolean,
+        expectedDefaultValue: String,
+        evidence: String,
+    ) {
+        assertEquals(expectedName, column.name, evidence)
+        assertEquals(expectedDbType, column.dbType, evidence)
+        assertEquals(expectedJdbcType, column.jdbcType, evidence)
+        assertEquals(expectedKotlinType, column.kotlinType, evidence)
+        assertEquals(expectedColumnSize, column.columnSize, evidence)
+        assertEquals(expectedNullable, column.nullable, evidence)
+        assertEquals(expectedDefaultValue, column.defaultValue, evidence)
+    }
+
+    private fun actualDefaultWrappers(snapshot: DbSchemaSnapshot): String =
+        snapshot.tables.joinToString(prefix = "actual default wrappers: ", separator = "; ") { table ->
+            table.columns.joinToString(prefix = "${table.tableName}[", postfix = "]") { column ->
+                "${column.name}=${column.defaultValue ?: "<null>"}"
+            }
+        }
 }

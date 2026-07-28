@@ -49,7 +49,9 @@ cap4k {
 }
 ```
 
-## 最小 Bootstrap 入口
+## 自定义 Bootstrap 入口
+
+官方默认项目来自独立 GitHub Template。下面的配置只适用于团队维护了自己的完整 Bootstrap template override 时；cap4k plugin 不再内置官方默认项目模板。
 
 ```kotlin
 import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
@@ -68,14 +70,15 @@ cap4k {
             startModuleName.set("demo-start")
         }
         templates {
-            preset.set("ddd-default-bootstrap")
+            preset.set("team-bootstrap")
+            overrideDirs.from("codegen/bootstrap-templates")
         }
         conflictPolicy.set("SKIP")
     }
 }
 ```
 
-bootstrap 合同归入本页、[Generator DSL](generator-dsl.md)、[Plan JSON](plan-json.md) 和 [Common Mistakes](common-mistakes.md)。本章没有单独的 `reference/bootstrap.md`。
+`templates.preset` 不再提供内置默认值。固定结构 template id 必须能够从显式 `overrideDirs`（或团队提供的其他自定义 template source）解析。Bootstrap 合同归入本页、[Generator DSL](generator-dsl.md)、[Plan JSON](plan-json.md) 和 [Common Mistakes](common-mistakes.md)。本章没有单独的 `reference/bootstrap.md`。
 
 ## 任务边界
 

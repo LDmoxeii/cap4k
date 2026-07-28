@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: official-default-project-contract-reconciliation
+language: zh-CN
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 1d07bd705aaba14678f86da67906c714bf8ca80c1fa1e69484187e15ac2e5f0e
+spec_changes:
+  - capability: official-default-project-contract-reconciliation
+    operation: create
+    source: specs/official-default-project-contract-reconciliation/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/2ca50af220f21b82c00dd0d71ac68eaf8effed9c47761c86e694c84a447d92e2.json
+verification_evidence: runtime/evidence/verifications/a34adb8996b464b6461b698973ee548ad3422f6fde10f09e15f3488fe71b9f76.json
+partial_allowance: null
+archived: true
+created_at: 2026-07-28
+run_id: 1dac5922-0212-472e-aa89-147d4a8577ae

@@ -1,272 +1,154 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.CapabilityUnavailableException
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.event.*
+import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
+import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.findMethod
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.data.domain.AbstractAggregateRoot
-import org.springframework.transaction.event.TransactionalEventListener
-import java.time.Duration
 import java.time.LocalDateTime
 
 /**
- * 默认领域事件管理器
- *
- * @author LD_moxeii
- * @date 2025/07/24
+ * Default local domain-event provider. Immediate non-persistent events are published synchronously.
  */
 open class DefaultDomainEventSupervisor(
-    private val eventRecordRepository: EventRecordRepository,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
-    private val eventPublisher: EventPublisher,
     private val applicationEventPublisher: ApplicationEventPublisher,
-    private val svcName: String
+    private val reliableDomainEventProvider: ReliableDomainEventProvider? = null,
+    private val integrationEventManager: IntegrationEventManager? = null,
 ) : DomainEventSupervisor, DomainEventManager {
 
     companion object {
-        /**
-         * 默认事件过期时间（分钟）
-         */
-        private const val DEFAULT_EVENT_EXPIRE_MINUTES = 30
-
-        /**
-         * 默认事件重试次数
-         */
-        private const val DEFAULT_EVENT_RETRY_TIMES = 16
-
-        /**
-         * 重置线程本地变量
-         */
         @JvmStatic
-        fun reset() {
-            EventRuntimeContextManager.reset()
-        }
+        fun reset() = EventRuntimeContextManager.reset()
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         domainEventPayload: DOMAIN_EVENT,
         entity: ENTITY,
-        schedule: LocalDateTime
+        schedule: LocalDateTime,
     ) {
-        if (domainEventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
-            throw DomainException("事件类型不能为集成事件")
-        }
-
+        validateDomainEvent(domainEventPayload)
         EventRuntimeContext.currentOrCreateAmbient()
             .attachDomain(entity, EventAttachment.eager(domainEventPayload, schedule))
         domainEventInterceptorManager.orderedDomainEventInterceptors
-            .forEach { interceptor -> interceptor.onAttach(domainEventPayload, entity, schedule) }
+            .forEach { it.onAttach(domainEventPayload, entity, schedule) }
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> attach(
         entity: ENTITY,
         schedule: LocalDateTime,
-        domainEventPayloadSupplier: () -> DOMAIN_EVENT
+        domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     ) {
         EventRuntimeContext.currentOrCreateAmbient()
             .attachDomain(entity, EventAttachment.lazy(schedule, domainEventPayloadSupplier))
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
-        val domainAttachments = EventRuntimeContext.currentOrNull()?.domainAttachments ?: return
-        val eventPayloads = domainAttachments[entity] ?: return
-
-        val identityIndex = eventPayloads.indexOfFirst { attachment -> attachment.matchesIdentity(domainEventPayload) }
-        val removeIndex = if (identityIndex >= 0) {
-            identityIndex
-        } else {
-            eventPayloads.indexOfFirst { attachment -> attachment.matches(domainEventPayload) }
-        }
+        val eventPayloads = EventRuntimeContext.currentOrNull()?.domainAttachments?.get(entity) ?: return
+        val identityIndex = eventPayloads.indexOfFirst { it.matchesIdentity(domainEventPayload) }
+        val removeIndex = if (identityIndex >= 0) identityIndex else eventPayloads.indexOfFirst { it.matches(domainEventPayload) }
         if (removeIndex < 0) return
-
         eventPayloads.removeAt(removeIndex)
         domainEventInterceptorManager.orderedDomainEventInterceptors
-            .forEach { interceptor -> interceptor.onDetach(domainEventPayload, entity) }
+            .forEach { it.onDetach(domainEventPayload, entity) }
     }
 
     override fun release(entities: Set<Any>) {
-        val scope = EventRuntimeContext.currentOrNull()
-        val shouldPopAmbientScope = scope?.type == EventRuntimeScopeType.AMBIENT
+        val ambientScope = EventRuntimeContext.currentOrNull()
+        val popAmbient = ambientScope?.type == EventRuntimeScopeType.AMBIENT
         var completed = false
         try {
-        val attachments = mutableListOf<EventAttachment<Any>>()
-        val springDataEventPayloads = mutableListOf<Any>()
-
-        for (entity in entities) {
-            attachments.addAll(popEvents(entity))
-
-            // 处理 Spring Data 的 AbstractAggregateRoot
-            if (entity is AbstractAggregateRoot<*>) {
-                val domainEventsMethod = findMethod(
-                    AbstractAggregateRoot::class.java,
-                    "domainEvents"
-                ) { it.parameterCount == 0 }
-
-                if (domainEventsMethod != null) {
-                    domainEventsMethod.isAccessible = true
-                    try {
-                        val domainEvents = domainEventsMethod.invoke(entity)
-                        if (domainEvents != null && domainEvents is Collection<*>) {
-                            @Suppress("UNCHECKED_CAST")
-                            springDataEventPayloads.addAll(domainEvents as Collection<Any>)
-                        }
-                    } catch (throwable: Throwable) {
-                        // 忽略异常，继续处理
-                        continue
-                    }
-
-                    val clearDomainEventsMethod = findMethod(
-                        AbstractAggregateRoot::class.java,
-                        "clearDomainEvents"
-                    ) { it.parameterCount == 0 }
-
-                    try {
-                        clearDomainEventsMethod?.invoke(entity)
-                    } catch (throwable: Throwable) {
-                        // 忽略异常，继续处理
-                        continue
-                    }
+            val attachments = buildList {
+                entities.forEach { entity ->
+                    addAll(popEvents(entity))
+                    addAll(popSpringDataEvents(entity))
                 }
             }
-        }
-
-        val persistedEvents = mutableListOf<EventRecord>()
-        val transientEvents = mutableListOf<EventRecord>()
-        val now = LocalDateTime.now()
-
-        for (attachment in attachments) {
-            val eventPayload = attachment.resolve()
-            validateDomainEvent(eventPayload)
-            createEventRecord(eventPayload, attachment.schedule, now, persistedEvents, transientEvents)
-        }
-
-        for (eventPayload in springDataEventPayloads) {
-            validateDomainEvent(eventPayload)
-            createEventRecord(eventPayload, now, now, persistedEvents, transientEvents)
-        }
-
-        val domainEventAttachedTransactionCommittingEvent =
-            DomainEventAttachedTransactionCommittingEvent(this, transientEvents)
-        val domainEventAttachedTransactionCommittedEvent =
-            DomainEventAttachedTransactionCommittedEvent(this, persistedEvents)
-
-        onTransactionCommiting(domainEventAttachedTransactionCommittingEvent)
-        applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittingEvent)
-        applicationEventPublisher.publishEvent(domainEventAttachedTransactionCommittedEvent)
-
+            val now = LocalDateTime.now()
+            attachments.forEach { attachment ->
+                val eventPayload = attachment.resolve()
+                validateDomainEvent(eventPayload)
+                if (requiresReliableProvider(eventPayload, attachment.schedule, now)) {
+                    reliableProvider().publish(eventPayload, attachment.schedule)
+                } else {
+                    publishLocal(eventPayload)
+                }
+            }
             completed = true
         } finally {
-            cleanupAmbientScope(scope, shouldPopAmbientScope, completed)
+            cleanupAmbientScope(ambientScope, popAmbient, completed)
         }
     }
 
-    private fun createEventRecord(
+    protected open fun requiresReliableProvider(
         eventPayload: Any,
-        deliverTime: LocalDateTime,
+        schedule: LocalDateTime,
         now: LocalDateTime,
-        persistedEvents: MutableList<EventRecord>,
-        transientEvents: MutableList<EventRecord>,
-    ) {
-            val event = eventRecordRepository.create()
-            event.init(
-                eventPayload,
-                svcName,
-                deliverTime,
-                Duration.ofMinutes(DEFAULT_EVENT_EXPIRE_MINUTES.toLong()),
-                DEFAULT_EVENT_RETRY_TIMES
-            )
+    ): Boolean = eventPayload.javaClass.getAnnotation(DomainEvent::class.java)?.persist == true || schedule.isAfter(now)
 
-            val isDelayDeliver = deliverTime.isAfter(now)
-            if (!isDomainEventNeedPersist(eventPayload) && !isDelayDeliver) {
-                event.markPersist(false)
-                transientEvents.add(event)
-            } else {
-                event.markPersist(true)
-                domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
-                    .forEach { interceptor -> interceptor.prePersist(event) }
-                eventRecordRepository.save(event)
-                domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
-                    .forEach { interceptor -> interceptor.postPersist(event) }
-                persistedEvents.add(event)
+    private fun reliableProvider(): ReliableDomainEventProvider = reliableDomainEventProvider
+        ?: throw CapabilityUnavailableException("reliable-domain-events", "cap4k-ddd-domain-event-jpa-starter")
+
+    private fun publishLocal(eventPayload: Any) {
+        val outerScope = EventRuntimeContext.currentOrNull()
+        val dispatchScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+        outerScope?.captureListenerMetadata()?.let(dispatchScope::restoreListenerMetadata)
+        var completed = false
+        try {
+            applicationEventPublisher.publishEvent(eventPayload)
+            if (dispatchScope.integrationAttachments.isNotEmpty()) {
+                (integrationEventManager
+                    ?: throw CapabilityUnavailableException(
+                        "integration-event-manager",
+                        "a cap4k Integration Event transport starter",
+                    )).release()
             }
+            completed = true
+        } finally {
+            if (!completed) EventRuntimeContext.discard(dispatchScope)
+            if (EventRuntimeContext.currentOrNull() === dispatchScope) EventRuntimeContext.pop(dispatchScope)
+        }
     }
 
-    /**
-     * 判断事件是否需要持久化
-     * - 延迟或定时领域事件视情况进行持久化
-     * - 显式指定persist=true的领域事件必须持久化
-     */
-    protected open fun isDomainEventNeedPersist(payload: Any): Boolean {
-        val domainEvent = payload.javaClass.getAnnotation(DomainEvent::class.java)
-        return domainEvent?.persist ?: false
-    }
+    private fun popEvents(entity: Any): List<EventAttachment<Any>> =
+        EventRuntimeContext.currentOrNull()?.domainAttachments?.remove(entity)?.toList().orEmpty()
 
-    protected open fun onTransactionCommiting(domainEventAttachedTransactionCommittingEvent: DomainEventAttachedTransactionCommittingEvent) {
-        val events = domainEventAttachedTransactionCommittingEvent.events
-        publish(events)
-    }
-
-    @TransactionalEventListener(
-        fallbackExecution = true,
-        classes = [DomainEventAttachedTransactionCommittedEvent::class]
-    )
-    fun onTransactionCommitted(domainEventAttachedTransactionCommittedEvent: DomainEventAttachedTransactionCommittedEvent) {
-        val events = domainEventAttachedTransactionCommittedEvent.events
-        publish(events)
-    }
-
-    private fun publish(events: List<EventRecord>) {
-        events.forEach(eventPublisher::publish)
-    }
-
-    /**
-     * 弹出实体绑定的事件列表
-     *
-     * @param entity 关联实体
-     * @return 事件列表
-     */
-    private fun popEvents(entity: Any): List<EventAttachment<Any>> {
-        val entityEventPayloads = EventRuntimeContext.currentOrNull()?.domainAttachments
+    private fun popSpringDataEvents(entity: Any): List<EventAttachment<Any>> {
+        val aggregateRootType = generateSequence(entity.javaClass) { it.superclass }
+            .firstOrNull { it.name == "org.springframework.data.domain.AbstractAggregateRoot" }
             ?: return emptyList()
-
-        return entityEventPayloads.remove(entity)?.toList() ?: emptyList()
+        val domainEventsMethod = findMethod(aggregateRootType, "domainEvents") { it.parameterCount == 0 } ?: return emptyList()
+        val clearDomainEventsMethod = findMethod(aggregateRootType, "clearDomainEvents") { it.parameterCount == 0 }
+        domainEventsMethod.isAccessible = true
+        clearDomainEventsMethod?.isAccessible = true
+        val events = (domainEventsMethod.invoke(entity) as? Collection<*>)?.filterNotNull().orEmpty()
+        clearDomainEventsMethod?.invoke(entity)
+        val now = LocalDateTime.now()
+        return events.map { EventAttachment.eager(it, now) }
     }
 
     private fun validateDomainEvent(eventPayload: Any) {
-        if (eventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
+        if (eventPayload.javaClass.isAnnotationPresent(IntegrationEvent::class.java)) {
             throw DomainException("事件类型不能为集成事件")
         }
     }
 
-    private fun cleanupAmbientScope(scope: EventRuntimeScope?, shouldPopAmbientScope: Boolean, completed: Boolean) {
-        if (!shouldPopAmbientScope || scope == null || EventRuntimeContext.currentOrNull() !== scope) {
-            return
-        }
-
+    private fun cleanupAmbientScope(scope: EventRuntimeScope?, shouldPop: Boolean, completed: Boolean) {
+        if (!shouldPop || scope == null || EventRuntimeContext.currentOrNull() !== scope) return
         if (!completed) {
             EventRuntimeContext.discard(scope)
             EventRuntimeContext.pop(scope)
             return
         }
-
         if (scope.domainAttachments.isEmpty() && scope.integrationAttachments.isEmpty()) {
             EventRuntimeContext.pop(scope)
         }
-    }
-
-    /**
-     * 获取事件发送时间
-     */
-    fun getDeliverTime(eventPayload: Any): LocalDateTime {
-        val attachment = EventRuntimeContext.currentOrNull()
-            ?.domainAttachments
-            ?.values
-            ?.asSequence()
-            ?.flatten()
-            ?.firstOrNull { it.matches(eventPayload) }
-        return attachment?.schedule ?: LocalDateTime.now()
     }
 }

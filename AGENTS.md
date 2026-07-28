@@ -8,6 +8,20 @@ When continuing work in `cap4k`, read this file first, then read:
 - the relevant GitHub issue that now acts as backlog source of truth
 - the most recent relevant spec or plan under `docs/superpowers/`
 
+## Repository Entry Guard
+
+Before modifying files, committing, pushing, or opening a pull request, check the current branch and worktree state:
+
+- run `git status --short --branch`
+- run `git branch --show-current`
+- if the current branch is `master`, `publish/aliyun-private`, or `publish/maven-central`, stop and create or switch to an isolated worktree before editing
+- normal implementation and documentation work starts from `origin/master`
+- use a short-lived branch such as `feature/*`, `fix/*`, or `docs/*`; docs/spec/plan edits are not an exception to this rule
+- use the existing `.worktrees/` directory for project-local worktrees when it is available and ignored
+- do not reuse a worktree that is currently checked out on a publish branch for mainline work
+
+Reading, searching, and review-only commands may run on `master`. Any repository mutation must happen on a non-protected working branch.
+
 ## Cap4k Skill Routing
 
 When a task involves cap4k business-project authoring, use the repo-local skill router as the only routing source:
@@ -52,45 +66,65 @@ There are three kinds of work in this repo now:
 
 ## Branch And Release Policy
 
-`cap4k` does not use a long-lived `develop` branch as a standard integration stage. Do not introduce or revive a `feature -> develop -> master -> publish` flow for normal work.
+`cap4k` has three long-lived branches:
 
-`cap4k` also does not use `release/vX.Y.Z` or other intermediate release-promotion branches as the normal path from `master` to Maven Central. If a release needs ordinary framework code that already landed on `master`, promote `master` directly to `publish/maven-central` through the defined PR flow below.
+- `master`
+- `publish/aliyun-private`
+- `publish/maven-central`
+
+`cap4k` does not use a long-lived `develop` branch, `release/vX.Y.Z` branch, or `verify/* -> publish/*` lane as a normal integration or release-promotion path.
 
 Use these branch roles instead:
 
-- `feature/*`: short-lived implementation branches for normal code changes
+- `feature/*`, `fix/*`, `docs/*`: short-lived working branches for normal changes
 - `master`: the main integration branch for framework development
-- `publish/maven-central`: the Central release channel branch
-- `publish/aliyun-private`: optional self-use private-repository release branch
-- `verify/*`: temporary verification branches for release-pipeline or publication-flow changes
+- `publish/aliyun-private`: private Aliyun snapshot publish channel
+- `publish/maven-central`: Maven Central release channel
 
 Expected promotion flow:
 
 1. `feature/* -> master`
-2. `master -> publish/maven-central`
-3. `publish/maven-central` commit -> `v*` tag -> Maven Central release
+2. `master -> publish/aliyun-private` when the Aliyun snapshot channel needs the accepted master content
+3. `master -> publish/maven-central` when the Central release channel needs the accepted master content
+4. `publish/aliyun-private` push -> Aliyun snapshot publish
+5. `publish/maven-central` commit -> `v*` tag -> Maven Central release
 
 Direct-development rules:
 
-- do not implement normal work directly on `master`; start from a `feature/*` branch
+- do not implement normal work directly on `master`; start from a short-lived branch in an isolated worktree
 - do not commit directly on `master`; land mainline code through `feature/* -> master` pull requests
-- do not implement normal work directly on `publish/maven-central`; that branch is a release channel, not a feature branch
-- do not commit directly on `publish/maven-central`; release-channel updates should come through the allowed PR paths below
-- if a branch is an issue branch, ad-hoc branch, docs branch, or any other non-`verify/*` working branch, treat it like `feature/*`: it must land on `master`, not directly on `publish/maven-central`
+- do not implement normal work directly on either publish branch; publish branches are release channels, not feature branches
+- do not commit directly on either publish branch; publish-channel updates must come from `master` by pull request
+- if a branch is an issue branch, ad-hoc branch, docs branch, or any other working branch, treat it like `feature/*`: it must land on `master`, not directly on a publish branch
 
 Pull request policy:
 
-- `feature/* -> master`: required
-- `master -> publish/maven-central`: required, even when this is only a clean promotion of already-verified code
-- `verify/* -> publish/*`: allowed only for release-pipeline or publication-flow changes, and required by pull request
-- do not open `feature/* -> publish/maven-central` pull requests
-- do not open issue-branch, ad-hoc-branch, docs-branch, or other ordinary iteration pull requests into `publish/maven-central`
-- if work is not specifically a release-pipeline fix, it belongs on `master` first
+- working branch -> `master`: required
+- `master -> publish/aliyun-private`: required for Aliyun promotion
+- `master -> publish/maven-central`: required for Central promotion
+- do not open working-branch, issue-branch, ad-hoc-branch, docs-branch, or `verify/*` pull requests into either publish branch
+- publish-branch pull requests must use same-repository `master` as the head branch
+- before opening a pull request, use `scripts/create-pr.ps1` so tracked PR templates are discovered case-insensitively, the completed body is validated against the template headings, and the created PR body is checked after creation
+- direct `gh pr create` usage is reserved for cases where `scripts/create-pr.ps1` cannot run; when using it directly, first discover templates with `git ls-files | rg -i '(^|/)(pull_request_template\.md|pull_request_template/.*\.md)$'`, fill the tracked template, and validate the final body with `scripts/validate-pr-body.ps1 -Base <base-branch> -RequireChangeType`
+
+CI and branch protection contract:
+
+- the required status check context is `check`
+- `master`, `publish/aliyun-private`, and `publish/maven-central` are protected by required PRs, strict `check`, and admin enforcement
+- PRs into `master` run Gradle only when the change can affect code, build, scripts, workflows, tests, fixtures, or template resources
+- docs-only PRs into `master` skip Gradle but still complete the required `check` job
+- PR workflow guard tests run in the required `check` job for normal and docs-only pull requests so PR template and PR creation scripts stay aligned
+- docs-only includes `docs/**`, `README*`, root Markdown files, `.github/ISSUE_TEMPLATE/**`, and `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/workflows/**`, `scripts/**`, `buildSrc/**`, `gradle/**`, Gradle files, source files, test files, fixtures, and template resources are not docs-only
+- PRs into publish branches only validate that the head is same-repository `master`; they do not run Gradle because `master` already carried the full check
+- if GitHub rejects a publish PR because the head is not `master`, do not bypass protection; land the work on `master` first and promote `master`
 
 Release safety rules:
 
 - `master` should stay free of mandatory Central or private-repository publishing credentials
-- Central release workflow changes belong on `verify/maven-central` first, then promote into `publish/maven-central`
+- publish workflow changes are normal mainline changes: working branch -> `master`, then `master -> publish/*`
+- publish workflows do not run duplicate Gradle `check`
+- Aliyun snapshot publish is branch-push-driven from `publish/aliyun-private`
 - Maven Central release is tag-driven, not branch-push-driven
 - only push release tags for commits that are contained in `origin/publish/maven-central`
 - do not use `develop` as the default base branch for new work, release prep, or issue execution
@@ -109,12 +143,7 @@ GitHub issues are now the backlog source of truth. Repository docs remain design
 - specs and plans track design and implementation detail
 - before starting implementation, re-read the target issue plus the newest relevant spec/plan against current `master`
 
-Current high-signal issues include:
-
-- `#15` framework capability audit
-- `#16` README rewrite after capability positioning stabilizes
-- `#17` DDD + cap4k + AI collaboration guide
-- other open issues only when their boundaries are still current after reading the latest specs/plans
+Do not rely on a static issue list in this file. Query the current issue state or use the issue/spec/plan explicitly named by the user.
 
 Do not execute an old historical plan just because it exists. Re-read the relevant spec and plan against current `master`, update them if the repository or user's latest decisions changed the boundary, and then execute from the refreshed plan.
 
@@ -128,23 +157,20 @@ Recent durable decisions to preserve:
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - frontend TypeScript generation is currently not planned as a cap4k core slice unless a first-class endpoint tactical model or stable API-contract projection exists
 - public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
-- UUID7 is the default application-side ID policy, Snowflake remains explicit as `snowflake-long`, database `@IdGenerator` comments are unsupported, and field-level `@ApplicationSideId` is the runtime contract
+- Application-side entity IDs are generated Strong IDs. Supported strategies are `uuid7` and `snowflake`. The backing type follows JDBC storage; generated typed accessors allocate IDs, and generated catalogs feed the runtime registry.
 
 ## Known Test Fixture Debt
 
-Full `:cap4k-ddd-starter:test` currently fails because of old starter auto-configuration test fixture isolation problems, not because of the UUID7/application-side ID policy slice.
+The old aggregate `cap4k-ddd-starter` fixture and its configured skips were deleted with the starter split. Do not use its historical 94-test/29-skip result as current evidence.
 
-Observed shape:
+Current ownership evidence:
 
-- targeted UUID7 and application-side ID tests pass
-- full starter test run fails around old `@SpringBootTest` context startup tests
-- broad test applications under `com.only4.cap4k.ddd` use package-wide `@ComponentScan`, `@EntityScan`, and `@EnableJpaRepositories`, causing test fixtures and framework repositories to be scanned together
-- repeated repository bean names such as `sagaJpaRepository`, `requestJpaRepository`, and runtime fixture repositories collide across test contexts
-- some contexts start Snowflake auto-configuration without the `__worker_id` table because tests still use stale Snowflake property keys
-- some contexts create `DefaultEventSubscriberManager` with a blank event scan package and fail at `ScanUtils.scanClass`
-- one initialization test excludes Hibernate JPA auto-configuration while still enabling JPA repository scanning, so `entityManagerFactory` is missing
+- Core starter tests cover UUID7, ID registries, static Mediator binding, synchronous Request, local Domain Event, missing reliable capability, and provider conflict failure.
+- JPA starter owns the migrated Strong ID, soft-delete, OwnedEntityList, aggregate graph, provider-assigned field, and UoW runtime fixtures.
+- Request/Event/Saga/Locker/Snowflake and each Integration Event transport starter own focused auto-configuration tests.
+- event package scanning and capability enable properties are removed; a new failure involving them is a stale reference, not expected fixture debt.
 
-Do not re-debug this as a functional regression without first checking the open issue for starter test fixture isolation. Treat it as a separate test-maintenance slice unless a fresh failure affects the focused UUID7/application-side ID tests or runtime fixtures.
+Do not dismiss a fresh failure as known debt. Reproduce it in the capability owner and distinguish framework behavior from test-context isolation with current evidence.
 
 ## Reading Order
 

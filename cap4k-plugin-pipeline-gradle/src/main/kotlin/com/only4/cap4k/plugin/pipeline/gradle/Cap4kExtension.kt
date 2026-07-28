@@ -117,12 +117,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention("adapter.domain.repositories")
     val aggregateSharedEnum: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "domain", packageSuffix = "enums", defaultPackage = "shared")
-    val aggregateUniqueQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention(packageRoot = "application.queries", packageSuffix = "unique")
-    val aggregateUniqueQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention(packageRoot = "adapter.queries", packageSuffix = "unique")
-    val aggregateUniqueValidator: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention(packageRoot = "application.validators", packageSuffix = "unique")
     val flow: OutputRootLayoutExtension = objects.newInstance(OutputRootLayoutExtension::class.java)
         .convention("flows")
     val drawingBoard: OutputRootLayoutExtension = objects.newInstance(OutputRootLayoutExtension::class.java)
@@ -162,18 +156,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
 
     fun aggregateSharedEnum(block: PackageLayoutExtension.() -> Unit) {
         aggregateSharedEnum.block()
-    }
-
-    fun aggregateUniqueQuery(block: PackageLayoutExtension.() -> Unit) {
-        aggregateUniqueQuery.block()
-    }
-
-    fun aggregateUniqueQueryHandler(block: PackageLayoutExtension.() -> Unit) {
-        aggregateUniqueQueryHandler.block()
-    }
-
-    fun aggregateUniqueValidator(block: PackageLayoutExtension.() -> Unit) {
-        aggregateUniqueValidator.block()
     }
 
     fun flow(block: OutputRootLayoutExtension.() -> Unit) {
@@ -319,8 +301,6 @@ open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactor
     val unsupportedTablePolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
     val specialFields: AggregateSpecialFieldsExtension =
         objects.newInstance(AggregateSpecialFieldsExtension::class.java)
-    val artifacts: AggregateGeneratorArtifactsExtension =
-        objects.newInstance(AggregateGeneratorArtifactsExtension::class.java)
 
     fun specialFields(block: AggregateSpecialFieldsExtension.() -> Unit) {
         specialFields.block()
@@ -333,9 +313,6 @@ open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactor
         )
     }
 
-    fun artifacts(block: AggregateGeneratorArtifactsExtension.() -> Unit) {
-        artifacts.block()
-    }
 }
 
 open class AggregateIdPolicyExtension @Inject constructor(objects: ObjectFactory) {
@@ -363,12 +340,6 @@ open class AggregateSpecialFieldsExtension @Inject constructor(objects: ObjectFa
     val versionDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
     val managedDefaultColumns: ListProperty<String> =
         objects.listProperty(String::class.java).convention(emptyList())
-}
-
-open class AggregateGeneratorArtifactsExtension @Inject constructor(objects: ObjectFactory) {
-    val factory: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val specification: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
-    val unique: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }
 
 open class AggregateProjectionGeneratorExtension @Inject constructor(objects: ObjectFactory) {
@@ -417,7 +388,7 @@ open class Cap4kBootstrapModulesExtension @Inject constructor(objects: ObjectFac
 }
 
 open class Cap4kBootstrapTemplatesExtension @Inject constructor(objects: ObjectFactory) {
-    val preset: Property<String> = objects.property(String::class.java).convention("ddd-default-bootstrap")
+    val preset: Property<String> = objects.property(String::class.java)
     val overrideDirs: ConfigurableFileCollection = objects.fileCollection()
 }
 

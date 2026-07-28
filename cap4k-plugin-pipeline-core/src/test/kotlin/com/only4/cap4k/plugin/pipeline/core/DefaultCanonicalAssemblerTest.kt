@@ -3,12 +3,17 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
+import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
 import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -35,6 +40,10 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
 import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
+import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
+import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
@@ -48,11 +57,13 @@ import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
+import java.sql.Types
 
 class DefaultCanonicalAssemblerTest {
 
@@ -1936,6 +1947,8 @@ class DefaultCanonicalAssemblerTest {
                                     dbType = "BIGINT",
                                     kotlinType = "Long",
                                     nullable = false,
+                                    isPrimaryKey = true,
+                                    idStrategy = DbIdStrategy.DB_IDENTITY,
                                 ),
                                 DbColumnSnapshot(
                                     name = "status",
@@ -2622,7 +2635,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler does not infer persistence field controls when source is silent`() {
+    fun `assembler records only identity id persistence field control when source has no other markers`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2643,7 +2656,11 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+        val controls = result.model.aggregatePersistenceFieldControls
+        assertEquals(listOf("id"), controls.map { it.fieldName })
+        assertEquals("IDENTITY", controls.single().generatedValueStrategy)
+        assertNull(controls.single().version)
+        assertFalse(result.model.aggregateSpecialFieldResolvedPolicies.single().version.enabled)
     }
 
     @Test
@@ -2669,7 +2686,10 @@ class DefaultCanonicalAssemblerTest {
         )
 
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+        val controls = result.model.aggregatePersistenceFieldControls
+        assertEquals(listOf("id"), controls.map { it.fieldName })
+        assertEquals("IDENTITY", controls.single().generatedValueStrategy)
+        assertNull(controls.single().version)
     }
 
     @Test
@@ -2696,7 +2716,9 @@ class DefaultCanonicalAssemblerTest {
         )
 
 
-        assertEquals(emptyList<com.only4.cap4k.plugin.pipeline.api.AggregatePersistenceFieldControl>(), result.model.aggregatePersistenceFieldControls)
+        val controls = result.model.aggregatePersistenceFieldControls
+        assertEquals(listOf("id"), controls.map { it.fieldName })
+        assertTrue(controls.none { it.fieldName == "createdBy" || it.fieldName == "displayName" })
     }
 
     @Test
@@ -2742,7 +2764,7 @@ class DefaultCanonicalAssemblerTest {
                                     idStrategy = DbIdStrategy.DB_IDENTITY
                                 ),
                                 DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
-                                DbColumnSnapshot("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                                DbColumnSnapshot("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2755,7 +2777,7 @@ class DefaultCanonicalAssemblerTest {
         val control = result.model.aggregatePersistenceProviderControls.single()
 
         assertEquals("VideoPost", control.entityName)
-        assertNull(control.softDeleteColumn)
+        assertEquals("deleted", control.softDelete?.columnName)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
     }
@@ -2812,19 +2834,183 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("VideoPost", control.entityName)
         assertEquals("id", control.idFieldName)
         assertEquals("version", control.versionFieldName)
-        assertNull(control.softDeleteColumn)
+        assertNull(control.softDelete)
     }
 
     @Test
-    fun `aggregate root id defaults to strong id metadata and field type`() {
+    fun `database identity accepts all supported integral field types`() {
+        supportedVersionTypes().forEach { type ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", type, false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                        ),
+                        primaryKey = listOf("id"),
+                    )
+                ),
+            )
+
+            assertEquals(type, result.model.aggregateIdPolicyControls.single().idFieldType)
+        }
+    }
+
+    @Test
+    fun `explicit version accepts all supported integral field types and resolves authoritative controls`() {
+        supportedVersionTypes().forEach { type ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                            column("lock_version", "BIGINT", type, false, managedRole = DbManagedRole.VERSION),
+                        ),
+                        primaryKey = listOf("id"),
+                    )
+                ),
+            )
+
+            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single().version
+            assertTrue(policy.enabled)
+            assertEquals("lockVersion", policy.fieldName)
+            assertEquals("lock_version", policy.columnName)
+            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.writePolicy)
+            assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.source)
+            assertEquals("lockVersion", result.model.aggregatePersistenceFieldControls.single { it.version == true }.fieldName)
+            assertEquals("lockVersion", result.model.aggregatePersistenceProviderControls.single().versionFieldName)
+        }
+    }
+
+    @Test
+    fun `DSL default version accepts all supported integral field types without explicit persistence control`() {
+        supportedVersionTypes().forEach { type ->
+            val result = assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(
+                    idDefaultStrategy = "uuid7",
+                    versionDefaultColumn = "lock_version",
+                ),
+                tables = listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                            column("lock_version", "BIGINT", type, false),
+                        ),
+                        primaryKey = listOf("id"),
+                    )
+                ),
+            )
+
+            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single().version
+            assertTrue(policy.enabled)
+            assertEquals("lockVersion", policy.fieldName)
+            assertEquals("lock_version", policy.columnName)
+            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.writePolicy)
+            assertEquals(SpecialFieldSource.DSL_DEFAULT, policy.source)
+            assertTrue(result.model.aggregatePersistenceFieldControls.none { it.version == true })
+            assertNull(result.model.aggregatePersistenceFieldControls.single().version)
+            assertEquals("lockVersion", result.model.aggregatePersistenceProviderControls.single().versionFieldName)
+        }
+    }
+
+    @Test
+    fun `resolved version rejects unsupported explicit and DSL default types with physical evidence`() {
+        listOf("String", "UUID").forEach { type ->
+            listOf(
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7") to DbManagedRole.VERSION,
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7", versionDefaultColumn = "lock_version") to null,
+            ).forEach { (config, managedRole) ->
+                val error = assertThrows(IllegalArgumentException::class.java) {
+                    assembleAggregate(
+                        config = config,
+                        tables = listOf(
+                            table(
+                                name = "video_post",
+                                columns = listOf(
+                                    column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                                    column("lock_version", "BIGINT", type, false, managedRole = managedRole),
+                                ),
+                                primaryKey = listOf("id"),
+                            )
+                        ),
+                    )
+                }
+
+                val message = error.message.orEmpty()
+                listOf(
+                    "video_post",
+                    "VideoPost",
+                    "lockVersion",
+                    "lock_version",
+                    type,
+                    "Short, Int, Long",
+                ).forEach { fragment ->
+                    assertTrue(message.contains(fragment), "expected <$fragment> in <$message>")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `uuid7 root and owned child primary keys become own strong ids`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "order",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("title", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                ),
+                table(
+                    name = "order_line",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
+                        column("sku", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = false,
+                    parentTable = "order",
+                ),
+            )
+        )
+
+        val orderId = result.model.strongIds.single { it.typeName == "OrderId" }
+        assertEquals(StrongIdKind.OWN_ID, orderId.kind)
+        assertEquals("Order", orderId.ownerEntityName)
+        assertEquals("uuid7", orderId.idStrategy)
+        assertEquals(true, orderId.isEmbeddedId)
+
+        val lineId = result.model.strongIds.single { it.typeName == "OrderLineId" }
+        assertEquals(StrongIdKind.OWN_ID, lineId.kind)
+        assertEquals("OrderLine", lineId.ownerEntityName)
+        assertEquals("Order", lineId.ownerAggregateName)
+        assertEquals("uuid7", lineId.idStrategy)
+        assertEquals(true, lineId.isEmbeddedId)
+
+        val line = result.model.entities.single { it.name == "OrderLine" }
+        assertEquals("OrderLineId", line.idField.type)
+        assertFalse(line.fields.any { it.name == "orderId" })
+    }
+
+    @Test
+    fun `db identity primary key stays primitive and does not emit own strong id`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
                 table(
-                    name = "content",
+                    name = "invoice",
                     columns = listOf(
-                        column("id", "VARCHAR", "String", false, primaryKey = true),
-                        column("title", "VARCHAR", "String", false),
+                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                        column("title", "VARCHAR(64)", "String", false),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -2832,19 +3018,38 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val entity = result.model.entities.single()
-        val strongId = result.model.strongIds.single()
+        assertEquals("Long", result.model.entities.single().idField.type)
+        assertTrue(result.model.strongIds.none { it.typeName == "InvoiceId" })
+    }
 
-        assertEquals("ContentId", strongId.typeName)
-        assertEquals("com.acme.demo.domain.aggregates.content", strongId.packageName)
-        assertEquals("String", strongId.valueType)
-        assertEquals(StrongIdKind.AGGREGATE_ROOT, strongId.kind)
-        assertEquals("Content", strongId.ownerAggregateName)
-        assertEquals("com.acme.demo.domain.aggregates.content", strongId.ownerAggregatePackageName)
-        assertEquals("ContentId", entity.idField.type)
-        assertEquals("ContentId", entity.fields.single { it.name == "id" }.type)
-        assertEquals("ContentId", result.model.repositories.single().idType)
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+    @Test
+    fun `db schema primary key without explicit id strategy fails fast`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
+                tables = listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(
+                            com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot(
+                                name = "id",
+                                dbType = "BIGINT",
+                                kotlinType = "Long",
+                                nullable = false,
+                                isPrimaryKey = true,
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                        aggregateRoot = true,
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "primary key video.id must declare @IdStrategy=uuid7, @IdStrategy=snowflake, or @IdStrategy=db_identity",
+            error.message,
+        )
     }
 
     @Test
@@ -2878,7 +3083,10 @@ class DefaultCanonicalAssemblerTest {
 
         val content = result.model.entities.single { it.name == "Content" }
 
-        assertEquals("MediaProcessingTaskId", content.fields.single { it.name == "mediaProcessingTaskId" }.type)
+        assertEquals(
+            "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTaskId",
+            content.fields.single { it.name == "mediaProcessingTaskId" }.type,
+        )
         assertEquals(
             listOf("MediaProcessingTaskId", "ContentId"),
             result.model.strongIds.map { it.typeName },
@@ -3058,28 +3266,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `default uuid7 strategy does not emit primitive aggregate id policy`() {
-        val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
-            tables = listOf(
-                table(
-                    name = "user_message",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
-                    primaryKey = listOf("id"),
-                    aggregateRoot = true,
-                )
-            )
-        )
-
-        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
-
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
-        assertEquals("UserMessageId", result.model.entities.single().idField.type)
-        assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
-    }
-
-    @Test
-    fun `non root silent primitive ids keep non strong id policy semantics`() {
+    fun `non root primitive ids keep db explicit identity policy semantics`() {
         listOf("identity", "uuid7").forEach { defaultStrategy ->
             val result = assembleAggregate(
                 config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = defaultStrategy),
@@ -3110,12 +3297,12 @@ class DefaultCanonicalAssemblerTest {
             assertEquals("identity", policy.id.strategy)
             assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, policy.id.kind)
             assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.id.writePolicy)
-            assertEquals(SpecialFieldSource.DSL_DEFAULT, policy.id.source)
+            assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
         }
     }
 
     @Test
-    fun `generated default aggregate root ignores primitive identity default for strong id policy`() {
+    fun `explicit uuid7 aggregate root ignores primitive identity default for strong id policy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
             tables = listOf(
@@ -3140,8 +3327,8 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("uuid7", resolved.id.strategy)
         assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, resolved.id.kind)
         assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, resolved.id.writePolicy)
-        assertEquals(SpecialFieldSource.DSL_DEFAULT, resolved.id.source)
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+        assertEquals(SpecialFieldSource.DB_EXPLICIT, resolved.id.source)
+        assertEquals("uuid7", result.model.aggregateIdPolicyControls.single().strategy)
     }
 
     @Test
@@ -3176,7 +3363,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `application-side id resolves create-only write policy`() {
+    fun `uuid7 own id resolves create-only write policy`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
                 idDefaultStrategy = "uuid7",
@@ -3187,7 +3374,9 @@ class DefaultCanonicalAssemblerTest {
             tables = listOf(
                 table(
                     name = "category",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                    ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
                 )
@@ -3200,7 +3389,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `default uuid7 strategy allows primitive source id column behind strong id field`() {
+    fun `db identity strategy keeps primitive source id column`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
@@ -3213,8 +3402,8 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertEquals("VideoId", result.model.entities.single().idField.type)
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+        assertEquals("Long", result.model.entities.single().idField.type)
+        assertEquals("identity", result.model.aggregateIdPolicyControls.single().strategy)
     }
 
     @Test
@@ -3241,7 +3430,7 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `generated value marker uses DSL default strategy with DB explicit source`() {
         val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake"),
             tables = listOf(
                 table(
                     name = "audit_log",
@@ -3270,7 +3459,9 @@ class DefaultCanonicalAssemblerTest {
             tables = listOf(
                 table(
                     name = "video",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                    ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
                 ),
@@ -3294,7 +3485,7 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        assertTrue(result.model.aggregateIdPolicyControls.none { it.entityName == "Video" })
+        assertEquals("uuid7", result.model.aggregateIdPolicyControls.single { it.entityName == "Video" }.strategy)
         assertEquals("identity", result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.strategy)
     }
 
@@ -3308,7 +3499,7 @@ class DefaultCanonicalAssemblerTest {
                     columns = listOf(
                         column("id", "BIGINT", "Long", false, primaryKey = true),
                         column("tenant_id", "BIGINT", "Long", false, managedRole = DbManagedRole.SCOPE),
-                        column("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                        column("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3321,6 +3512,563 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("tenantId", policy.managedFields.single { it.columnName == "tenant_id" }.fieldName)
         assertEquals(DbManagedRole.SCOPE, policy.managedFields.single { it.columnName == "tenant_id" }.managedRole)
         assertEquals("deleted", policy.deleted.columnName)
+    }
+
+    @Test
+    fun `identity integral soft delete publishes zero semantic policy`() {
+        listOf("0", "0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = defaultValue,
+            )
+            val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
+            val control = result.model.aggregatePersistenceProviderControls.single()
+
+            assertEquals(SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY, resolved.deleted.writePolicy)
+            assertEquals(listOf("title"), resolved.writeSurface.createAllowedFields)
+            assertEquals(listOf("title"), resolved.writeSurface.updateAllowedFields)
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
+                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+            )
+            assertEquals("id", control.idFieldName)
+            assertNull(control.versionFieldName)
+        }
+    }
+
+    @Test
+    fun `snowflake Long soft delete keeps Long strong id backing and publishes zero integral semantics`() {
+        listOf("0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.SNOWFLAKE,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "Long")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
+                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+            )
+        }
+    }
+
+    @Test
+    fun `snowflake String soft delete keeps String strong id backing and publishes zero character semantics`() {
+        listOf("'0'", "'0'::character varying", "CAST('0' AS VARCHAR)", "((('0')))").forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.SNOWFLAKE,
+                idDbType = "VARCHAR(19)",
+                idKotlinType = "String",
+                deletedDbType = "VARCHAR(32)",
+                deletedKotlinType = "String",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "String")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.CHARACTER,
+                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+            )
+        }
+    }
+
+    @Test
+    fun `uuid7 String soft delete keeps String strong id backing and publishes nil UUID character semantics`() {
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        listOf(
+            "'$nilUuid'",
+            "'$nilUuid'::character varying",
+            "CAST('$nilUuid' AS VARCHAR)",
+            "((('$nilUuid')))",
+        ).forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.UUID7,
+                idDbType = "VARCHAR(36)",
+                idKotlinType = "String",
+                deletedDbType = "VARCHAR(40)",
+                deletedKotlinType = "String",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "String")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.CHARACTER,
+                expectedSentinel = SoftDeleteActiveSentinel.NIL_UUID,
+            )
+        }
+    }
+
+    @Test
+    fun `uuid7 UUID soft delete keeps UUID strong id backing and publishes nil UUID native semantics`() {
+        val nilUuid = "00000000-0000-0000-0000-000000000000"
+        listOf(
+            "'$nilUuid'::uuid",
+            "CAST('$nilUuid' AS UUID)",
+            "UUID '$nilUuid'",
+            "((('$nilUuid')))",
+        ).forEach { defaultValue ->
+            val result = assembleSoftDelete(
+                idStrategy = DbIdStrategy.UUID7,
+                idDbType = "UUID",
+                idKotlinType = "java.util.UUID",
+                deletedDbType = "UUID",
+                deletedKotlinType = "java.util.UUID",
+                defaultValue = defaultValue,
+            )
+
+            assertStrongIdBacking(result.model, "UUID")
+            assertSemanticSoftDelete(
+                result = result.model,
+                expectedStorageKind = AggregateIdStorageKind.NATIVE_UUID,
+                expectedSentinel = SoftDeleteActiveSentinel.NIL_UUID,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects nullable deleted column with semantic evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "nullable=true",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = "0",
+                deletedNullable = true,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects missing default with semantic evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "defaultValue=null",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "Long",
+                defaultValue = null,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects wrong and unsupported default expressions`() {
+        listOf("1", "uuid_nil()", "gen_random_uuid()", "current_timestamp").forEach { defaultValue ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.deleted",
+                    "strategy=identity",
+                    "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                    "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                    "defaultValue=$defaultValue",
+                    "expectedSentinel=ZERO",
+                ),
+            ) {
+                assembleSoftDelete(
+                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                    idDbType = "BIGINT",
+                    idKotlinType = "Long",
+                    deletedDbType = "BIGINT",
+                    deletedKotlinType = "Long",
+                    defaultValue = defaultValue,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects cross storage SELF_ID assignment in every direction`() {
+        val nilUuid = "'00000000-0000-0000-0000-000000000000'"
+        val cases = listOf(
+            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "BIGINT", "Long", "VARCHAR(19)", "String", "'0'"),
+            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "BIGINT", "Long", "UUID", "java.util.UUID", nilUuid),
+            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "VARCHAR(19)", "String", "BIGINT", "Long", "0"),
+            SoftDeleteStorageCase(DbIdStrategy.UUID7, "VARCHAR(36)", "String", "UUID", "java.util.UUID", nilUuid),
+            SoftDeleteStorageCase(DbIdStrategy.UUID7, "UUID", "java.util.UUID", "BIGINT", "Long", "0"),
+            SoftDeleteStorageCase(DbIdStrategy.UUID7, "UUID", "java.util.UUID", "VARCHAR(36)", "String", nilUuid),
+        )
+
+        cases.forEach { case ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.deleted",
+                    "strategy=${case.idStrategy.name.lowercase()}",
+                    "idStorage=",
+                    "deletedStorage=",
+                    "same storage kind",
+                ),
+            ) {
+                assembleSoftDelete(
+                    idStrategy = case.idStrategy,
+                    idDbType = case.idDbType,
+                    idKotlinType = case.idKotlinType,
+                    deletedDbType = case.deletedDbType,
+                    deletedKotlinType = case.deletedKotlinType,
+                    defaultValue = case.defaultValue,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects character deleted capacity smaller than id capacity`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=uuid7",
+                "idStorage=Character(capacity=36, kotlinType=String)",
+                "deletedStorage=Character(capacity=35, kotlinType=String)",
+                "capacity",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.UUID7,
+                idDbType = "VARCHAR(36)",
+                idKotlinType = "String",
+                deletedDbType = "VARCHAR(35)",
+                deletedKotlinType = "String",
+                defaultValue = "'00000000-0000-0000-0000-000000000000'",
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects integral deleted range too small`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deletedStorage=Integral(bits=32, unsigned=false, kotlinType=Int)",
+                "range",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "INT",
+                deletedKotlinType = "Int",
+                defaultValue = "0",
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects signed id into same width unsigned deleted`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "idStorage=Integral(bits=32, unsigned=false, kotlinType=Int)",
+                "deletedStorage=Integral(bits=32, unsigned=true, kotlinType=Int)",
+                "range",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "INT",
+                idKotlinType = "Int",
+                deletedDbType = "INT UNSIGNED",
+                deletedKotlinType = "Int",
+                defaultValue = "0",
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects unsigned id into same width signed deleted`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "idStorage=Integral(bits=32, unsigned=true, kotlinType=Int)",
+                "deletedStorage=Integral(bits=32, unsigned=false, kotlinType=Int)",
+                "range",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "INT UNSIGNED",
+                idKotlinType = "Int",
+                deletedDbType = "INT",
+                deletedKotlinType = "Int",
+                defaultValue = "0",
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete policy accepts unsigned id only when signed deleted is wider`() {
+        val result = assembleSoftDelete(
+            idStrategy = DbIdStrategy.DB_IDENTITY,
+            idDbType = "INT UNSIGNED",
+            idKotlinType = "Int",
+            deletedDbType = "BIGINT",
+            deletedKotlinType = "Long",
+            defaultValue = "0",
+        )
+
+        assertSemanticSoftDelete(
+            result = result.model,
+            expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
+            expectedSentinel = SoftDeleteActiveSentinel.ZERO,
+        )
+    }
+
+    @Test
+    fun `soft delete policy rejects unsupported id and deleted storage evidence`() {
+        val cases = listOf(
+            Pair(
+                SoftDeletePhysicalCase("DECIMAL(19, 0)", "Long", Types.DECIMAL, 19),
+                SoftDeletePhysicalCase("BIGINT", "Long", Types.BIGINT, 64),
+            ),
+            Pair(
+                SoftDeletePhysicalCase("BIGINT", "Long", Types.BIGINT, 64),
+                SoftDeletePhysicalCase("DECIMAL(19, 0)", "Long", Types.DECIMAL, 19),
+            ),
+        )
+
+        cases.forEach { (id, deleted) ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.id",
+                    "video_post.deleted",
+                    "strategy=identity",
+                    "jdbcType=${id.jdbcType}",
+                    "jdbcType=${deleted.jdbcType}",
+                    "unsupported",
+                ),
+            ) {
+                assembleSoftDelete(
+                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                    idDbType = id.dbType,
+                    idKotlinType = id.kotlinType,
+                    idJdbcType = id.jdbcType,
+                    idColumnSize = id.columnSize,
+                    deletedDbType = deleted.dbType,
+                    deletedKotlinType = deleted.kotlinType,
+                    deletedJdbcType = deleted.jdbcType,
+                    deletedColumnSize = deleted.columnSize,
+                    defaultValue = "0",
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `soft delete policy rejects Kotlin JDBC storage contradiction`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "video_post.deleted",
+                "strategy=identity",
+                "jdbcType=${Types.BIGINT}",
+                "dbType=BIGINT",
+                "kotlinType=String",
+                "unsupported",
+            ),
+        ) {
+            assembleSoftDelete(
+                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idDbType = "BIGINT",
+                idKotlinType = "Long",
+                deletedDbType = "BIGINT",
+                deletedKotlinType = "String",
+                deletedJdbcType = Types.BIGINT,
+                deletedColumnSize = 64,
+                defaultValue = "0",
+            )
+        }
+    }
+
+    @Test
+    fun `disabled soft delete marker returns null before resolving missing context`() {
+        assertNull(
+            resolveSoftDeleteDirect(
+                columns = emptyList(),
+                deletedEnabled = false,
+                deletedFieldName = null,
+                deletedColumnName = null,
+            )
+        )
+    }
+
+    @Test
+    fun `enabled soft delete marker validates missing field name after endpoint semantics`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.deleted",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "fieldName=null",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns(),
+                deletedFieldName = null,
+            )
+        }
+    }
+
+    @Test
+    fun `enabled soft delete marker reports unresolved deleted column name with endpoint context`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.<unresolved-deleted-column>",
+                "deletedStorage=unresolved",
+                "columnName=null",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns(),
+                deletedColumnName = null,
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver reports missing physical id with both endpoint evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=unresolved",
+                "missing physical ID column",
+                "deleted=video_post.deleted",
+                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns().filterNot { it.name == "id" },
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver reports missing physical deleted with both endpoint evidence`() {
+        assertSoftDeleteRejected(
+            expectedFragments = listOf(
+                "strategy=identity",
+                "id=video_post.id",
+                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
+                "deleted=video_post.deleted",
+                "deletedStorage=unresolved",
+                "missing physical deleted column",
+            ),
+        ) {
+            resolveSoftDeleteDirect(
+                columns = directIntegralSoftDeleteColumns().filterNot { it.name == "deleted" },
+            )
+        }
+    }
+
+    @Test
+    fun `soft delete resolver preserves both catalog failures`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            resolveSoftDeleteDirect(
+                columns = listOf(
+                    column(
+                        name = "id",
+                        dbType = "DECIMAL(19, 0)",
+                        kotlinType = "Long",
+                        nullable = false,
+                        primaryKey = true,
+                        jdbcType = Types.DECIMAL,
+                        columnSize = 19,
+                    ),
+                    column(
+                        name = "deleted",
+                        dbType = "DECIMAL(19, 0)",
+                        kotlinType = "Long",
+                        nullable = false,
+                        defaultValue = "0",
+                        managedRole = DbManagedRole.DELETED,
+                        jdbcType = Types.DECIMAL,
+                        columnSize = 19,
+                    ),
+                )
+            )
+        }
+
+        assertTrue(error.message.orEmpty().contains("id=video_post.id"), error.message)
+        assertTrue(error.message.orEmpty().contains("deleted=video_post.deleted"), error.message)
+        val cause = error.cause
+        assertTrue(cause is IllegalArgumentException, "expected first catalog IllegalArgumentException as cause")
+        assertTrue(cause?.message.orEmpty().contains("unsupported aggregate ID storage for video_post.id"), cause?.message)
+        assertEquals(1, error.suppressed.size)
+        assertTrue(error.suppressed.single() is IllegalArgumentException)
+        assertTrue(
+            error.suppressed.single().message.orEmpty()
+                .contains("unsupported aggregate ID storage for video_post.deleted"),
+            error.suppressed.single().message,
+        )
+    }
+
+    @Test
+    fun `soft delete policy rejects unsupported strategy and strategy storage combinations`() {
+        val cases = listOf(
+            DirectSoftDeleteCase("sequence", "BIGINT", "Long", "BIGINT", "Long", "0", "accepted strategies"),
+            DirectSoftDeleteCase("identity", "VARCHAR(19)", "String", "VARCHAR(19)", "String", "'0'", "integral"),
+            DirectSoftDeleteCase("snowflake", "INT", "Int", "INT", "Int", "0", "signed 64-bit Long"),
+            DirectSoftDeleteCase(
+                "snowflake",
+                "UUID",
+                "java.util.UUID",
+                "UUID",
+                "java.util.UUID",
+                "'00000000-0000-0000-0000-000000000000'",
+                "Long or String",
+            ),
+            DirectSoftDeleteCase("uuid7", "BIGINT", "Long", "BIGINT", "Long", "0", "String or UUID"),
+        )
+
+        cases.forEach { case ->
+            assertSoftDeleteRejected(
+                expectedFragments = listOf(
+                    "video_post.deleted",
+                    "strategy=${case.strategy}",
+                    "idStorage=",
+                    "deletedStorage=",
+                    case.rejectedEvidence,
+                ),
+            ) {
+                resolveSoftDeleteDirect(case)
+            }
+        }
     }
 
     @Test
@@ -3357,7 +4105,9 @@ class DefaultCanonicalAssemblerTest {
             tables = listOf(
                 table(
                     name = "video",
-                    columns = listOf(column("id", "UUID", "UUID", false, primaryKey = true)),
+                    columns = listOf(
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                    ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
                 )
@@ -3486,7 +4236,7 @@ class DefaultCanonicalAssemblerTest {
     fun `explicit deleted marker overrides DSL default column name`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
-                idDefaultStrategy = "snowflake-long",
+                idDefaultStrategy = "snowflake",
                 deletedDefaultColumn = "deleted",
             ),
             tables = listOf(
@@ -3494,8 +4244,8 @@ class DefaultCanonicalAssemblerTest {
                     name = "video_post",
                     columns = listOf(
                         column(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, primaryKey = true),
-                        column(name = "is_deleted", dbType = "INT", kotlinType = "Int", nullable = false, managedRole = DbManagedRole.DELETED),
-                        column(name = "deleted", dbType = "INT", kotlinType = "Int", nullable = false),
+                        column(name = "is_deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
+                        column(name = "deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3509,7 +4259,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("isDeleted", policy.deleted.fieldName)
         assertEquals("is_deleted", policy.deleted.columnName)
         assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.deleted.source)
-        assertTrue(result.model.aggregatePersistenceProviderControls.isEmpty())
+        assertEquals("is_deleted", result.model.aggregatePersistenceProviderControls.single().softDelete?.columnName)
     }
 
     @Test
@@ -3581,7 +4331,7 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler fails fast when multiple deleted columns are marked explicitly`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
-                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake-long"),
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake"),
                 listOf(
                     DbSchemaSnapshot(
                         tables = listOf(
@@ -3634,7 +4384,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler keeps direct parent binding out of owner side child relations`() {
+    fun `assembler keeps owned relation one way and parent binding out of child fields`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -3673,13 +4423,6 @@ class DefaultCanonicalAssemblerTest {
                 .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
                 .sorted(),
         )
-        assertEquals(
-            listOf("VideoPostItem|videoPost|VideoPost|MANY_TO_ONE"),
-            result.model.aggregateInverseRelations
-                .map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}" }
-                .sorted(),
-        )
-
         val root = result.model.entities.first { it.name == "VideoPost" }
         assertEquals(true, root.aggregateRoot)
         assertEquals(null, root.parentEntityName)
@@ -3687,6 +4430,10 @@ class DefaultCanonicalAssemblerTest {
         val child = result.model.entities.first { it.name == "VideoPostItem" }
         assertEquals(false, child.aggregateRoot)
         assertEquals("VideoPost", child.parentEntityName)
+        assertEquals(listOf("id"), child.fields.map { it.name })
+
+        val childSchema = result.model.schemas.single { it.entityName == "VideoPostItem" }
+        assertEquals(listOf("id"), childSchema.fields.map { it.name })
     }
 
     @Test
@@ -3795,55 +4542,6 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
-    fun `assembler derives inverse read only parent relation from parent child truth`() {
-        val result = DefaultCanonicalAssembler().assemble(
-            aggregateProjectConfig(),
-            listOf(
-                DbSchemaSnapshot(
-                    tables = listOf(
-                        DbTableSnapshot(
-                            tableName = "video_post",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("title", "VARCHAR", "String", false),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                        ),
-                        DbTableSnapshot(
-                            tableName = "video_post_item",
-                            comment = "",
-                            columns = listOf(
-                                DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
-                                DbColumnSnapshot("label", "VARCHAR", "String", false),
-                            ),
-                            primaryKey = listOf("id"),
-                            uniqueConstraints = emptyList(),
-                            parentTable = "video_post",
-                            aggregateRoot = false,
-                        ),
-                    )
-                )
-            )
-        )
-
-        val inverse = result.model.aggregateInverseRelations.single()
-
-        assertEquals("VideoPostItem", inverse.ownerEntityName)
-        assertEquals("videoPost", inverse.fieldName)
-        assertEquals("VideoPost", inverse.targetEntityName)
-        assertEquals(AggregateRelationType.MANY_TO_ONE, inverse.relationType)
-        assertEquals("video_post_id", inverse.joinColumn)
-        assertEquals(AggregateFetchType.LAZY, inverse.fetchType)
-        assertEquals(false, inverse.nullable)
-        assertEquals(false, inverse.insertable)
-        assertEquals(false, inverse.updatable)
-    }
-
-    @Test
     fun `owned parent binding fails without parent ref`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assembleAggregate(
@@ -3894,6 +4592,39 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `owned parent binding rejects parent ref as shared primary key`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "video_file",
+                        parentTable = "video",
+                        columns = listOf(
+                            column("video_id", "BIGINT", "Long", false, primaryKey = true, parentRef = true),
+                        ),
+                        primaryKey = listOf("VIDEO_ID"),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "owned child video_file cannot use parent reference column video_id as its primary key; " +
+                "declare an independent child primary key",
+            error.message,
+        )
+    }
+
+    @Test
     fun `owned parent binding ignores weak reference metadata without parent ref`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assembleAggregate(
@@ -3922,6 +4653,221 @@ class DefaultCanonicalAssemblerTest {
         }
 
         assertEquals("missing parent reference column for table: video_post_item", error.message)
+    }
+
+    @Test
+    fun `owned relation unique parent ref infers one while keeping one to many persistence type`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                    ),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_file",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        column("storage_key", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(
+                        UniqueConstraintModel(
+                            physicalName = "uk_video_post_file_parent",
+                            columns = listOf("video_post_id"),
+                        )
+                    ),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val childEntity = result.model.entities.single { it.name == "VideoPostFile" }
+        val childSchema = result.model.schemas.single { it.entityName == "VideoPostFile" }
+        val relation = result.model.aggregateRelations.single()
+
+        assertEquals(listOf("id", "storageKey"), childEntity.fields.map { it.name })
+        assertEquals(listOf("id", "storageKey"), childSchema.fields.map { it.name })
+        assertEquals(listOf("video_post_id"), childEntity.uniqueConstraints.single().columns)
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertEquals("files", relation.fieldName)
+        assertEquals("video_post_id", relation.joinColumn)
+        assertEquals(true, relation.owned)
+        assertEquals("video_post_id", relation.parentRefColumn)
+        assertEquals(OwnedRelationCardinality.ONE, relation.ownedCardinality)
+        assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals("file", relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned one plural table stem uses singular accessor`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_files",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(uniqueConstraint("uk_files_parent", "video_post_id")),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals("files", relation.fieldName)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals("file", relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned many plural table stem keeps collection field`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_files",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals(OwnedRelationCardinality.MANY, relation.ownedCardinality)
+        assertEquals("files", relation.fieldName)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals(null, relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned relation unique parent ref plus business column infers many`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_file",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        column("storage_key", "VARCHAR", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(
+                        UniqueConstraintModel(
+                            physicalName = "uk_video_post_file_parent_storage",
+                            columns = listOf("video_post_id", "storage_key"),
+                        )
+                    ),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+
+        assertEquals(AggregateRelationType.ONE_TO_MANY, relation.relationType)
+        assertEquals(true, relation.owned)
+        assertEquals(OwnedRelationCardinality.MANY, relation.ownedCardinality)
+        assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
+        assertEquals("files", relation.backingCollectionName)
+        assertEquals(null, relation.singleAccessorName)
+    }
+
+    @Test
+    fun `owned one relation single accessor cannot collide with scalar field`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                aggregateProjectConfig(),
+                listOf(
+                    table(
+                        name = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("file", "VARCHAR", "String", false),
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "video_post_file",
+                        parentTable = "video_post",
+                        columns = listOf(
+                            column("id", "BIGINT", "Long", false, primaryKey = true),
+                            column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                        ),
+                        primaryKey = listOf("id"),
+                        uniqueConstraints = listOf(uniqueConstraint("uk_file_parent", "video_post_id")),
+                        aggregateRoot = false,
+                    ),
+                ),
+            )
+        }
+
+        assertEquals(
+            "owned one relation single accessor collides with scalar field: VideoPost.file -> VideoPostFile",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `owned one uncountable table stem uses deterministic backing fallback`() {
+        val result = assembleAggregate(
+            aggregateProjectConfig(),
+            listOf(
+                table(
+                    name = "video_post",
+                    columns = listOf(column("id", "BIGINT", "Long", false, primaryKey = true)),
+                    primaryKey = listOf("id"),
+                ),
+                table(
+                    name = "video_post_fish",
+                    parentTable = "video_post",
+                    columns = listOf(
+                        column("id", "BIGINT", "Long", false, primaryKey = true),
+                        column("video_post_id", "BIGINT", "Long", false, parentRef = true),
+                    ),
+                    primaryKey = listOf("id"),
+                    uniqueConstraints = listOf(uniqueConstraint("uk_fish_parent", "video_post_id")),
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val relation = result.model.aggregateRelations.single()
+        assertEquals("fishItems", relation.fieldName)
+        assertEquals("fishItems", relation.backingCollectionName)
+        assertEquals("fish", relation.singleAccessorName)
     }
 
     @Test
@@ -3988,14 +4934,14 @@ class DefaultCanonicalAssemblerTest {
                 ),
                 orphanRemoval = true,
                 joinColumnNullable = false,
+                owned = true,
+                parentRefColumn = "video_post_id",
+                ownedCardinality = OwnedRelationCardinality.MANY,
+                persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
+                backingCollectionName = "items",
+                singleAccessorName = null,
             ),
             result.model.aggregateRelations.single(),
-        )
-        assertEquals(
-            "VideoPostItem|videoPost|VideoPost|MANY_TO_ONE|video_post_id|LAZY|false|false",
-            result.model.aggregateInverseRelations.single().let { inverse ->
-                "${inverse.ownerEntityName}|${inverse.fieldName}|${inverse.targetEntityName}|${inverse.relationType}|${inverse.joinColumn}|${inverse.fetchType}|${inverse.insertable}|${inverse.updatable}"
-            },
         )
     }
 
@@ -4046,256 +4992,6 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(
             "owned parent-child direct parent binding does not allow local lazy override: video_post_item.video_post_id",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `inverse inference keeps owned direct parent binding derived when explicit ref matches parent case insensitively`() {
-        val parentId = FieldModel(name = "id", type = "Long")
-        val childId = FieldModel(name = "id", type = "Long")
-
-        val inverseRelations = AggregateInverseRelationInference.infer(
-            entities = listOf(
-                EntityModel(
-                    name = "VideoPost",
-                    packageName = "com.acme.demo.domain.aggregates.video_post",
-                    tableName = "video_post",
-                    comment = "",
-                    fields = listOf(parentId),
-                    idField = parentId,
-                ),
-                EntityModel(
-                    name = "VideoPostItem",
-                    packageName = "com.acme.demo.domain.aggregates.video_post_item",
-                    tableName = "video_post_item",
-                    comment = "",
-                    fields = listOf(
-                        childId,
-                        FieldModel(name = "label", type = "String"),
-                    ),
-                    idField = childId,
-                    aggregateRoot = false,
-                    parentEntityName = "VideoPost",
-                ),
-            ),
-            relations = listOf(
-                AggregateRelationModel(
-                    ownerEntityName = "VideoPost",
-                    ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                    fieldName = "items",
-                    targetEntityName = "VideoPostItem",
-                    targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                    relationType = AggregateRelationType.ONE_TO_MANY,
-                    joinColumn = "video_post_id",
-                    fetchType = AggregateFetchType.LAZY,
-                    nullable = false,
-                    cascadeTypes = listOf(
-                        AggregateCascadeType.PERSIST,
-                        AggregateCascadeType.MERGE,
-                        AggregateCascadeType.REMOVE,
-                    ),
-                    orphanRemoval = true,
-                    joinColumnNullable = false,
-                ),
-            ),
-            tables = listOf(
-                DbTableSnapshot(
-                    tableName = "video_post",
-                    comment = "",
-                    columns = listOf(
-                        DbColumnSnapshot(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, isPrimaryKey = true),
-                    ),
-                    primaryKey = listOf("id"),
-                    uniqueConstraints = emptyList(),
-                ),
-                DbTableSnapshot(
-                    tableName = "video_post_item",
-                    comment = "",
-                    columns = listOf(
-                        DbColumnSnapshot(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, isPrimaryKey = true),
-                        DbColumnSnapshot(
-                            name = "VIDEO_POST_ID",
-                            dbType = "BIGINT",
-                            kotlinType = "Long",
-                            nullable = false,
-                            referenceTable = "video_post",
-                            explicitRelationType = "MANY_TO_ONE",
-                        ),
-                    ),
-                    primaryKey = listOf("id"),
-                    uniqueConstraints = emptyList(),
-                    parentTable = "video_post",
-                    aggregateRoot = false,
-                ),
-            ),
-        )
-
-        assertEquals(
-            listOf("VideoPostItem|videoPost|VideoPost|MANY_TO_ONE|video_post_id"),
-            inverseRelations.map { "${it.ownerEntityName}|${it.fieldName}|${it.targetEntityName}|${it.relationType}|${it.joinColumn}" },
-        )
-    }
-
-    @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
-    fun `assembler fails fast when derived inverse field collides with scalar field`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
-                listOf(
-                    DbSchemaSnapshot(
-                        tables = listOf(
-                            DbTableSnapshot(
-                                tableName = "video_post",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                            ),
-                            DbTableSnapshot(
-                                tableName = "video_post_item",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("videoPost", "VARCHAR", "String", false),
-                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                                parentTable = "video_post",
-                                aggregateRoot = false,
-                            ),
-                        )
-                    )
-                )
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collides with scalar field: com.acme.demo.domain.aggregates.video_post.VideoPostItem.videoPost",
-            error.message,
-        )
-    }
-
-    @Test
-    @Disabled("stale relation metadata contract removed by Task 4 redesign")
-    fun `assembler fails fast when derived inverse field collides with owner relation field`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                aggregateProjectConfig(),
-                listOf(
-                    DbSchemaSnapshot(
-                        tables = listOf(
-                            DbTableSnapshot(
-                                tableName = "video_post",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                            ),
-                            DbTableSnapshot(
-                                tableName = "video_post_archive",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                            ),
-                            DbTableSnapshot(
-                                tableName = "video_post_item",
-                                comment = "",
-                                columns = listOf(
-                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("video_post_id", "BIGINT", "Long", false),
-                                    DbColumnSnapshot("video_post", "BIGINT", "Long", false, referenceTable = "video_post_archive"),
-                                ),
-                                primaryKey = listOf("id"),
-                                uniqueConstraints = emptyList(),
-                                parentTable = "video_post",
-                                aggregateRoot = false,
-                            ),
-                        )
-                    )
-                )
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collides with owner relation field: com.acme.demo.domain.aggregates.video_post.VideoPostItem.videoPost",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `inverse inference fails fast on duplicate derived field names for the same child entity`() {
-        val childId = FieldModel(name = "id", type = "Long")
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateInverseRelationInference.infer(
-                entities = listOf(
-                    EntityModel(
-                        name = "VideoPostItem",
-                        packageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        tableName = "video_post_item",
-                        comment = "",
-                        fields = listOf(
-                            childId,
-                            FieldModel(name = "label", type = "String"),
-                        ),
-                        idField = childId,
-                        aggregateRoot = false,
-                    )
-                ),
-                relations = listOf(
-                    AggregateRelationModel(
-                        ownerEntityName = "VideoPost",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        fieldName = "items",
-                        targetEntityName = "VideoPostItem",
-                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        relationType = AggregateRelationType.ONE_TO_MANY,
-                        joinColumn = "video_post_id",
-                        fetchType = AggregateFetchType.LAZY,
-                        nullable = false,
-                        cascadeTypes = listOf(
-                            AggregateCascadeType.PERSIST,
-                            AggregateCascadeType.MERGE,
-                            AggregateCascadeType.REMOVE,
-                        ),
-                        orphanRemoval = true,
-                        joinColumnNullable = false,
-                    ),
-                    AggregateRelationModel(
-                        ownerEntityName = "VideoPost",
-                        ownerEntityPackageName = "com.acme.demo.domain.aggregates.video_post_archive",
-                        fieldName = "archivedItems",
-                        targetEntityName = "VideoPostItem",
-                        targetEntityPackageName = "com.acme.demo.domain.aggregates.video_post_item",
-                        relationType = AggregateRelationType.ONE_TO_MANY,
-                        joinColumn = "video_post_archive_id",
-                        fetchType = AggregateFetchType.LAZY,
-                        nullable = false,
-                        cascadeTypes = listOf(
-                            AggregateCascadeType.PERSIST,
-                            AggregateCascadeType.MERGE,
-                            AggregateCascadeType.REMOVE,
-                        ),
-                        orphanRemoval = true,
-                        joinColumnNullable = false,
-                    ),
-                ),
-                tables = emptyList(),
-            )
-        }
-
-        assertEquals(
-            "aggregate inverse relation field collision: com.acme.demo.domain.aggregates.video_post_item.VideoPostItem.videoPost",
             error.message,
         )
     }
@@ -4954,7 +5650,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("title"), unique.columns)
         assertEquals("VideoPostRepository", model.repositories.single().name)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
-        assertEquals("VideoPostId", model.repositories.single().idType)
+        assertEquals("Long", model.repositories.single().idType)
     }
 
     @Test
@@ -5510,6 +6206,225 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(emptyList<String>(), assembly.model.aggregateRelations.map { it.fieldName })
     }
 
+    private fun assembleSoftDelete(
+        idStrategy: DbIdStrategy,
+        idDbType: String,
+        idKotlinType: String,
+        deletedDbType: String,
+        deletedKotlinType: String,
+        defaultValue: String?,
+        deletedNullable: Boolean = false,
+        idJdbcType: Int? = defaultTestJdbcType(idDbType),
+        idColumnSize: Int? = defaultTestColumnSize(idDbType),
+        deletedJdbcType: Int? = defaultTestJdbcType(deletedDbType),
+        deletedColumnSize: Int? = defaultTestColumnSize(deletedDbType),
+    ) = assembleAggregate(
+        config = projectConfigWithSpecialFieldDefaults(
+            idDefaultStrategy = idStrategy.name.lowercase(),
+            deletedDefaultColumn = "",
+        ),
+        tables = listOf(
+            table(
+                name = "video_post",
+                columns = listOf(
+                    column(
+                        name = "id",
+                        dbType = idDbType,
+                        kotlinType = idKotlinType,
+                        nullable = false,
+                        primaryKey = true,
+                        idStrategy = idStrategy,
+                        jdbcType = idJdbcType,
+                        columnSize = idColumnSize,
+                    ),
+                    column(
+                        name = "deleted",
+                        dbType = deletedDbType,
+                        kotlinType = deletedKotlinType,
+                        nullable = deletedNullable,
+                        defaultValue = defaultValue,
+                        managedRole = DbManagedRole.DELETED,
+                        jdbcType = deletedJdbcType,
+                        columnSize = deletedColumnSize,
+                    ),
+                    column("title", "VARCHAR(64)", "String", false),
+                ),
+                primaryKey = listOf("id"),
+                aggregateRoot = true,
+            )
+        ),
+    )
+
+    private fun assertSemanticSoftDelete(
+        result: CanonicalModel,
+        expectedStorageKind: AggregateIdStorageKind,
+        expectedSentinel: SoftDeleteActiveSentinel,
+    ) {
+        val softDelete = requireNotNull(result.aggregatePersistenceProviderControls.single().softDelete)
+        assertEquals("deleted", softDelete.fieldName)
+        assertEquals("deleted", softDelete.columnName)
+        assertEquals(expectedStorageKind, softDelete.storageKind)
+        assertEquals(expectedSentinel, softDelete.activeSentinel)
+        assertEquals(SoftDeleteTombstoneStrategy.SELF_ID, softDelete.tombstoneStrategy)
+    }
+
+    private fun assertStrongIdBacking(result: CanonicalModel, expectedBacking: String) {
+        val entity = result.entities.single()
+        val strongId = result.strongIds.single { it.ownerEntityName == entity.name }
+        assertEquals(strongId.typeName, entity.idField.type)
+        assertEquals(expectedBacking, strongId.valueType)
+    }
+
+    private fun assertSoftDeleteRejected(
+        expectedFragments: List<String>,
+        action: () -> Any?,
+    ) {
+        val error = assertThrows(IllegalArgumentException::class.java) { action() }
+        val message = error.message.orEmpty()
+        expectedFragments.forEach { fragment ->
+            assertTrue(message.contains(fragment), "expected <$fragment> in <$message>")
+        }
+    }
+
+    private fun directIntegralSoftDeleteColumns(): List<DbColumnSnapshot> = listOf(
+        column(
+            name = "id",
+            dbType = "BIGINT",
+            kotlinType = "Long",
+            nullable = false,
+            primaryKey = true,
+        ),
+        column(
+            name = "deleted",
+            dbType = "BIGINT",
+            kotlinType = "Long",
+            nullable = false,
+            defaultValue = "0",
+            managedRole = DbManagedRole.DELETED,
+        ),
+    )
+
+    private fun resolveSoftDeleteDirect(case: DirectSoftDeleteCase) = resolveSoftDeleteDirect(
+        columns = listOf(
+            column(
+                name = "id",
+                dbType = case.idDbType,
+                kotlinType = case.idKotlinType,
+                nullable = false,
+                primaryKey = true,
+            ),
+            column(
+                name = "deleted",
+                dbType = case.deletedDbType,
+                kotlinType = case.deletedKotlinType,
+                nullable = false,
+                defaultValue = case.defaultValue,
+                managedRole = DbManagedRole.DELETED,
+            ),
+        ),
+        strategy = case.strategy,
+    )
+
+    private fun resolveSoftDeleteDirect(
+        columns: List<DbColumnSnapshot>,
+        strategy: String = "identity",
+        deletedEnabled: Boolean = true,
+        deletedFieldName: String? = "deleted",
+        deletedColumnName: String? = "deleted",
+        idColumnName: String = "id",
+    ) = AggregateSoftDeletePolicyResolver.resolve(
+        table = table(
+            name = "video_post",
+            columns = columns,
+            primaryKey = listOf(idColumnName),
+        ),
+        resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+            entityName = "VideoPost",
+            entityPackageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            id = ResolvedIdPolicy(
+                fieldName = "id",
+                columnName = idColumnName,
+                strategy = strategy,
+                kind = if (strategy == "identity") {
+                    AggregateIdPolicyKind.DATABASE_SIDE
+                } else {
+                    AggregateIdPolicyKind.APPLICATION_SIDE
+                },
+                source = SpecialFieldSource.DB_EXPLICIT,
+                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+            ),
+            deleted = ResolvedMarkerPolicy(
+                enabled = deletedEnabled,
+                fieldName = deletedFieldName,
+                columnName = deletedColumnName,
+                source = if (deletedEnabled) SpecialFieldSource.DB_EXPLICIT else SpecialFieldSource.NONE,
+                writePolicy = if (deletedEnabled) {
+                    SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+                } else {
+                    SpecialFieldWritePolicy.READ_WRITE
+                },
+            ),
+            version = ResolvedMarkerPolicy(
+                enabled = false,
+                source = SpecialFieldSource.NONE,
+            ),
+        ),
+    )
+
+    private data class SoftDeleteStorageCase(
+        val idStrategy: DbIdStrategy,
+        val idDbType: String,
+        val idKotlinType: String,
+        val deletedDbType: String,
+        val deletedKotlinType: String,
+        val defaultValue: String,
+    )
+
+    private data class SoftDeletePhysicalCase(
+        val dbType: String,
+        val kotlinType: String,
+        val jdbcType: Int,
+        val columnSize: Int,
+    )
+
+    private data class DirectSoftDeleteCase(
+        val strategy: String,
+        val idDbType: String,
+        val idKotlinType: String,
+        val deletedDbType: String,
+        val deletedKotlinType: String,
+        val defaultValue: String,
+        val rejectedEvidence: String,
+    )
+
+    private fun assembleOrderWithId(idColumn: DbColumnSnapshot): CanonicalModel =
+        assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "order",
+                    columns = listOf(idColumn),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            ),
+        ).model
+
+    private fun assertOwnStrongId(
+        model: CanonicalModel,
+        expectedValueType: String,
+        expectedStrategy: String,
+    ) {
+        val strongId = model.strongIds.single { it.kind == StrongIdKind.OWN_ID }
+        assertEquals("OrderId", strongId.typeName)
+        assertEquals(expectedValueType, strongId.valueType)
+        assertEquals(expectedStrategy, strongId.idStrategy)
+        assertEquals("Order", strongId.ownerEntityName)
+        assertEquals("Order", strongId.ownerAggregateName)
+        assertTrue(strongId.isEmbeddedId)
+    }
+
     private fun assembleAggregate(
         config: ProjectConfig,
         tables: List<DbTableSnapshot>,
@@ -5546,21 +6461,34 @@ class DefaultCanonicalAssemblerTest {
         )
     )
 
+    private fun supportedVersionTypes(): List<String> = listOf(
+        "Short", "kotlin.Short", "java.lang.Short",
+        "Int", "kotlin.Int", "Integer", "java.lang.Integer",
+        "Long", "kotlin.Long", "java.lang.Long",
+    )
+
     private fun table(
         name: String,
         columns: List<DbColumnSnapshot>,
         primaryKey: List<String>,
-        aggregateRoot: Boolean,
+        aggregateRoot: Boolean = true,
         parentTable: String? = null,
+        uniqueConstraints: List<UniqueConstraintModel> = emptyList(),
     ): DbTableSnapshot = DbTableSnapshot(
         tableName = name,
         comment = "",
         columns = columns,
         primaryKey = primaryKey,
-        uniqueConstraints = emptyList(),
+        uniqueConstraints = uniqueConstraints,
         parentTable = parentTable,
         aggregateRoot = aggregateRoot,
     )
+
+    private fun uniqueConstraint(physicalName: String, vararg columns: String): UniqueConstraintModel =
+        UniqueConstraintModel(
+            physicalName = physicalName,
+            columns = columns.toList(),
+        )
 
     private fun DbColumnSnapshot(
         name: String,
@@ -5578,6 +6506,8 @@ class DefaultCanonicalAssemblerTest {
         idStrategy: DbIdStrategy? = null,
         managedRole: DbManagedRole? = null,
         inherited: Boolean? = null,
+        jdbcType: Int? = defaultTestJdbcType(dbType),
+        columnSize: Int? = defaultTestColumnSize(dbType),
         // TODO(Task 4 cleanup): these stale relation parameters only keep disabled legacy tests compiling.
         // Active relation-contract tests should use parentRef/refAggregate/refId directly.
         referenceTable: String? = null,
@@ -5596,9 +6526,11 @@ class DefaultCanonicalAssemblerTest {
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
-        idStrategy = idStrategy,
+        idStrategy = idStrategy ?: defaultTestIdStrategy(isPrimaryKey, kotlinType),
         managedRole = managedRole,
         inherited = inherited,
+        jdbcType = jdbcType,
+        columnSize = columnSize,
     )
 
 
@@ -5607,6 +6539,7 @@ class DefaultCanonicalAssemblerTest {
         dbType: String,
         kotlinType: String,
         nullable: Boolean,
+        defaultValue: String? = null,
         primaryKey: Boolean = false,
         // TODO(Task 4 cleanup): this stale relation alias is compatibility-only for legacy tests.
         // Active relation-contract tests should use parentRef/refAggregate/refId directly.
@@ -5623,16 +6556,23 @@ class DefaultCanonicalAssemblerTest {
         idStrategy: DbIdStrategy? = null,
         managedRole: DbManagedRole? = null,
         inherited: Boolean? = null,
+        jdbcType: Int? = defaultTestJdbcType(dbType),
+        columnSize: Int? = defaultTestColumnSize(dbType),
     ): DbColumnSnapshot = DbColumnSnapshot(
         name = name,
         dbType = dbType,
         kotlinType = kotlinType,
         nullable = nullable,
+        defaultValue = defaultValue,
         isPrimaryKey = primaryKey,
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
-        idStrategy = idStrategy ?: if (generatedValueDeclared || generatedValueStrategy != null) DbIdStrategy.DB_IDENTITY else null,
+        idStrategy = idStrategy ?: defaultTestIdStrategy(
+            primaryKey = primaryKey,
+            kotlinType = kotlinType,
+            dbGenerated = generatedValueDeclared || generatedValueStrategy != null,
+        ),
         managedRole = managedRole ?: when {
             deleted == true -> DbManagedRole.DELETED
             version == true -> DbManagedRole.VERSION
@@ -5641,7 +6581,186 @@ class DefaultCanonicalAssemblerTest {
             else -> null
         },
         inherited = inherited,
+        jdbcType = jdbcType,
+        columnSize = columnSize,
     )
+
+    private fun defaultTestJdbcType(dbType: String): Int? = when {
+        dbType.startsWith("VARCHAR", ignoreCase = true) -> Types.VARCHAR
+        dbType.startsWith("CHAR", ignoreCase = true) -> Types.CHAR
+        dbType.equals("UUID", ignoreCase = true) -> Types.OTHER
+        dbType.startsWith("BIGINT", ignoreCase = true) -> Types.BIGINT
+        dbType.startsWith("INTEGER", ignoreCase = true) || dbType.startsWith("INT", ignoreCase = true) -> Types.INTEGER
+        dbType.startsWith("SMALLINT", ignoreCase = true) -> Types.SMALLINT
+        else -> null
+    }
+
+    @Test
+    fun `uuid7 character storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "VARCHAR(36)",
+                    "String",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.UUID7,
+                    jdbcType = Types.VARCHAR,
+                    columnSize = 36,
+                )
+            ),
+            expectedValueType = "String",
+            expectedStrategy = "uuid7",
+        )
+    }
+
+    @Test
+    fun `uuid7 native storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "UUID",
+                    "java.util.UUID",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.UUID7,
+                    jdbcType = Types.OTHER,
+                    columnSize = 16,
+                )
+            ),
+            expectedValueType = "UUID",
+            expectedStrategy = "uuid7",
+        )
+    }
+
+    @Test
+    fun `snowflake character storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "VARCHAR(19)",
+                    "String",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.SNOWFLAKE,
+                    jdbcType = Types.VARCHAR,
+                    columnSize = 19,
+                )
+            ),
+            expectedValueType = "String",
+            expectedStrategy = "snowflake",
+        )
+    }
+
+    @Test
+    fun `snowflake bigint storage resolves storage nearest own strong id`() {
+        assertOwnStrongId(
+            model = assembleOrderWithId(
+                column(
+                    "id",
+                    "BIGINT",
+                    "Long",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.SNOWFLAKE,
+                    jdbcType = Types.BIGINT,
+                    columnSize = 64,
+                )
+            ),
+            expectedValueType = "Long",
+            expectedStrategy = "snowflake",
+        )
+    }
+
+    @Test
+    fun `application side own id rejects missing jdbc evidence`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleOrderWithId(
+                column(
+                    "id",
+                    "VARCHAR(36)",
+                    "String",
+                    false,
+                    primaryKey = true,
+                    idStrategy = DbIdStrategy.UUID7,
+                    jdbcType = null,
+                    columnSize = 36,
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("missing jdbcType"))
+    }
+
+    @Test
+    fun `aggregate reference rejects storage that differs from root backing`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleAggregate(
+                config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+                tables = listOf(
+                    table(
+                        name = "order",
+                        columns = listOf(
+                            column(
+                                "id",
+                                "UUID",
+                                "java.util.UUID",
+                                false,
+                                primaryKey = true,
+                                idStrategy = DbIdStrategy.UUID7,
+                            )
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                    table(
+                        name = "shipment",
+                        columns = listOf(
+                            column("id", "VARCHAR(36)", "String", false, primaryKey = true),
+                            column(
+                                "order_id",
+                                "VARCHAR(36)",
+                                "String",
+                                false,
+                                refAggregate = "Order",
+                            ),
+                        ),
+                        primaryKey = listOf("id"),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("aggregate reference shipment.order_id storage String"))
+        assertTrue(error.message!!.contains("does not match OrderId backing UUID"))
+    }
+
+    private fun defaultTestColumnSize(dbType: String): Int? {
+        Regex("\\((\\d+)\\)").find(dbType)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+        return when {
+            dbType.startsWith("VARCHAR", ignoreCase = true) || dbType.startsWith("CHAR", ignoreCase = true) -> 255
+            dbType.equals("UUID", ignoreCase = true) -> 16
+            dbType.startsWith("BIGINT", ignoreCase = true) -> 64
+            dbType.startsWith("INTEGER", ignoreCase = true) || dbType.startsWith("INT", ignoreCase = true) -> 32
+            dbType.startsWith("SMALLINT", ignoreCase = true) -> 16
+            else -> null
+        }
+    }
+
+    private fun defaultTestIdStrategy(
+        primaryKey: Boolean,
+        kotlinType: String,
+        dbGenerated: Boolean = false,
+    ): DbIdStrategy? = when {
+        dbGenerated -> DbIdStrategy.DB_IDENTITY
+        !primaryKey -> null
+        kotlinType in setOf("Long", "kotlin.Long", "Int", "kotlin.Int", "Short", "kotlin.Short") ->
+            DbIdStrategy.DB_IDENTITY
+        kotlinType == "String" -> DbIdStrategy.UUID7
+        else -> null
+    }
 
     private fun aggregateSnapshot(
         aggregateName: String,
@@ -5671,7 +6790,7 @@ class DefaultCanonicalAssemblerTest {
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                idDefaultStrategy = "snowflake-long",
+                idDefaultStrategy = "snowflake",
             ),
         )
     }
@@ -5692,7 +6811,7 @@ class DefaultCanonicalAssemblerTest {
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
             aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                idDefaultStrategy = "snowflake-long",
+                idDefaultStrategy = "snowflake",
             ),
         )
     }

@@ -1,20 +1,116 @@
 package com.only4.cap4k.ddd.application
 
+import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
-import com.only4.cap4k.ddd.core.domain.id.IdStrategyRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedIdStrategyRegistry
+import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
 import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
-import org.hibernate.engine.spi.SessionImplementor
-import org.slf4j.LoggerFactory
+import org.hibernate.Hibernate
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport
 import org.springframework.data.repository.core.EntityInformation
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.util.concurrent.ConcurrentHashMap
+
+private enum class UnitOfWorkEntryKind {
+    CREATE,
+    EXISTING,
+    REMOVE,
+}
+
+private data class UnitOfWorkEntry(
+    val entity: Any,
+    val kind: UnitOfWorkEntryKind,
+)
+
+private class InsertionOrderedIdentitySet<E : Any> : AbstractMutableSet<E>() {
+    private val entries = LinkedHashMap<ObjectIdentityKey, E>()
+
+    override val size: Int
+        get() = entries.size
+
+    override fun add(element: E): Boolean =
+        entries.put(ObjectIdentityKey(element), element) == null
+
+    override fun contains(element: E): Boolean =
+        entries.containsKey(ObjectIdentityKey(element))
+
+    override fun iterator(): MutableIterator<E> = entries.values.iterator()
+
+    override fun remove(element: E): Boolean =
+        entries.remove(ObjectIdentityKey(element)) != null
+}
+
+private class PendingEntrySet {
+    private val entries = LinkedHashMap<ObjectIdentityKey, UnitOfWorkEntry>()
+
+    fun persist(entity: Any, intent: PersistIntent): UnitOfWorkEntry {
+        val key = ObjectIdentityKey(entity)
+        val next = intent.toUnitOfWorkEntryKind()
+        val current = entries[key]
+        val merged = when (current?.kind) {
+            null -> UnitOfWorkEntry(entity, next)
+            UnitOfWorkEntryKind.CREATE -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.CREATE)
+            UnitOfWorkEntryKind.EXISTING -> when (next) {
+                UnitOfWorkEntryKind.EXISTING -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.EXISTING)
+                UnitOfWorkEntryKind.CREATE ->
+                    error("UoW intent conflict: EXISTING cannot become CREATE for the same instance")
+                UnitOfWorkEntryKind.REMOVE -> error("persist cannot register REMOVE intent")
+            }
+            UnitOfWorkEntryKind.REMOVE ->
+                error("UoW intent conflict: REMOVE cannot become ${next.name} for the same instance")
+        }
+        entries[key] = merged
+        return merged
+    }
+
+    fun remove(entity: Any) {
+        val key = ObjectIdentityKey(entity)
+        val current = entries[key]
+        when (current?.kind) {
+            null -> entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
+            UnitOfWorkEntryKind.CREATE -> entries.remove(key)
+            UnitOfWorkEntryKind.EXISTING -> entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
+            UnitOfWorkEntryKind.REMOVE -> Unit
+        }
+    }
+
+    fun drain(): List<UnitOfWorkEntry> {
+        val changes = entries.values.toList()
+        entries.clear()
+        return changes
+    }
+}
+
+private fun PersistIntent.toUnitOfWorkEntryKind(): UnitOfWorkEntryKind = when (this) {
+    PersistIntent.CREATE -> UnitOfWorkEntryKind.CREATE
+    PersistIntent.EXISTING -> UnitOfWorkEntryKind.EXISTING
+}
+
+private data class SaveInput(
+    val entries: List<UnitOfWorkEntry>,
+    val persistedEntities: Set<Any>,
+    val removedEntities: Set<Any>,
+    val processedEntities: Set<Any>,
+)
+
+private data class FlushResult(
+    val created: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
+    val existing: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
+    val deleted: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
+    val refreshList: MutableList<Any> = mutableListOf(),
+    var needsFlush: Boolean = false,
+)
+
+private data class EntityIdentity(
+    val entityType: Class<*>,
+    val id: Any,
+)
 
 /**
  * 基于Jpa的UnitOfWork实现
@@ -26,45 +122,36 @@ open class JpaUnitOfWork(
     private val uowInterceptors: List<UnitOfWorkInterceptor>,
     private val persistListenerManager: PersistListenerManager,
     private val supportEntityInlinePersistListener: Boolean,
-    idStrategyRegistry: IdStrategyRegistry = MapBackedIdStrategyRegistry(emptyList()),
-) : UnitOfWork {
-
-    constructor(
-        uowInterceptors: List<UnitOfWorkInterceptor>,
-        persistListenerManager: PersistListenerManager,
-        supportEntityInlinePersistListener: Boolean,
-    ) : this(
-        uowInterceptors,
-        persistListenerManager,
-        supportEntityInlinePersistListener,
-        MapBackedIdStrategyRegistry(emptyList()),
-    )
+    generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
+) : UnitOfWork, JpaRepositoryObservationRecorder {
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
 
-    private val applicationSideIdSupport = JpaApplicationSideIdSupport(idStrategyRegistry)
+    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport(generatedOwnIdRegistry)
+    private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
+    private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
+        get() = repositoryObservationBaselineThreadLocal.get()
 
     companion object {
-        private val log = LoggerFactory.getLogger(JpaUnitOfWork::class.java)
-
         lateinit var instance: JpaUnitOfWork
 
         fun fixAopWrapper(unitOfWork: JpaUnitOfWork) {
             instance = unitOfWork
         }
 
-        private val persistEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
-        private val removeEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
-        private val processingEntitiesThreadLocal = ThreadLocal.withInitial { LinkedHashSet<Any>() }
+        private val pendingEntriesThreadLocal = ThreadLocal.withInitial { PendingEntrySet() }
+        private val processingEntitiesThreadLocal = ThreadLocal.withInitial { InsertionOrderedIdentitySet<Any>() }
+        private val repositoryObservationBaselineThreadLocal =
+            ThreadLocal.withInitial { JpaRepositoryObservationBaseline() }
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
         @JvmStatic
         fun reset() {
-            persistEntitiesThreadLocal.remove()
-            removeEntitiesThreadLocal.remove()
+            pendingEntriesThreadLocal.remove()
             processingEntitiesThreadLocal.remove()
+            repositoryObservationBaselineThreadLocal.remove()
         }
     }
 
@@ -74,26 +161,7 @@ open class JpaUnitOfWork(
             JpaEntityInformationSupport.getEntityInformation(it, entityManager)
         } as EntityInformation<Any, Any>
 
-    private fun isExists(entity: Any): Boolean {
-        val entityInformation = getEntityInformation(entity.javaClass)
-        if (entityInformation.isNew(entity)) return false
-        val id = entityInformation.getId(entity)
-        return entityManager.find(entity.javaClass, id) != null
-    }
-
-    protected open fun persistenceContextEntities(): List<Any> = try {
-        val sessionImplementor = entityManager.unwrap(SessionImplementor::class.java)
-        if (sessionImplementor.isOpen) {
-            sessionImplementor.persistenceContext
-                .reentrantSafeEntityEntries()
-                .map { it.key }
-        } else {
-            emptyList()
-        }
-    } catch (ex: Exception) {
-        log.debug("获取持久化上下文实体失败", ex)
-        emptyList()
-    }
+    private fun persistentEntityClass(entity: Any): Class<*> = Hibernate.getClassLazy(entity)
 
     protected open fun onEntitiesFlushed(
         createdEntities: Set<Any>,
@@ -107,17 +175,46 @@ open class JpaUnitOfWork(
         deletedEntities.forEach { persistListenerManager.onChange(it, PersistType.DELETE) }
     }
 
-    override fun persist(entity: Any) {
-        persistEntitiesThreadLocal.get().add(entity)
-    }
+    protected open fun dirtyExistingEntities(existingEntities: Set<Any>): Set<Any> =
+        JpaHibernateDirtyInspector(entityManager).dirtyManagedEntities(existingEntities)
 
-    override fun persistIfNotExist(entity: Any): Boolean {
-        if (isExists(entity)) return false
-        return persistEntitiesThreadLocal.get().add(entity)
+    override fun persist(entity: Any, intent: PersistIntent) {
+        validateStandaloneEnrollmentTarget(entity, "persist")
+        val entry = pendingEntriesThreadLocal.get().persist(entity, intent)
+        completeIdsForEntry(entry)
     }
 
     override fun remove(entity: Any) {
-        removeEntitiesThreadLocal.get().add(entity)
+        validateStandaloneEnrollmentTarget(entity, "remove")
+        pendingEntriesThreadLocal.get().remove(entity)
+    }
+
+    private fun validateStandaloneEnrollmentTarget(entity: Any, operation: String) {
+        val observedRoot = repositoryObservationBaseline
+            .observedRootForChild(entity, observedIdentityOf(entity))
+            ?: return
+        error(
+            "UnitOfWork.$operation cannot register generated owned child " +
+                "${persistentEntityClass(entity).name} as a standalone target; " +
+                "persist the aggregate root ${persistentEntityClass(observedRoot).name} instead"
+        )
+    }
+
+    override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
+        val observed = ownedRelationTraversal.reachableOwnedEntities(root)
+            .map { entity -> JpaObservedEntity(entity, observedIdentityOf(entity)) }
+        repositoryObservationBaseline.record(root, observed)
+    }
+
+    internal fun observedRepositoryBaseline(): JpaRepositoryObservationBaseline =
+        repositoryObservationBaseline
+
+    private fun observedIdentityOf(entity: Any): JpaObservedIdentity? {
+        val entityClass = persistentEntityClass(entity)
+        val entityInformation = getEntityInformation(entityClass)
+        if (entityInformation.isNew(entity)) return null
+        val id = entityInformation.getId(entity) ?: return null
+        return JpaObservedIdentity(entityClass, id)
     }
 
     private fun pushProcessingEntity(
@@ -130,124 +227,319 @@ open class JpaUnitOfWork(
         return added
     }
 
-    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean =
-        currentProcessedPersistenceContextEntities.isEmpty() ||
-            processingEntitiesThreadLocal.get().removeAll(currentProcessedPersistenceContextEntities)
+    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean {
+        if (currentProcessedPersistenceContextEntities.isEmpty()) return true
+        return currentProcessedPersistenceContextEntities.fold(false) { removedAny, entity ->
+            processingEntitiesThreadLocal.get().remove(entity) || removedAny
+        }
+    }
 
     override fun save(propagation: Propagation) {
-        val currentProcessedEntitySet = LinkedHashSet<Any>()
-
-        val persistEntitySet = persistEntitiesThreadLocal.get().takeIf { it.isNotEmpty() }?.also { entities ->
-            persistEntitiesThreadLocal.remove()
-            entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
-        } ?: emptySet()
-
-        val deleteEntitySet = removeEntitiesThreadLocal.get().takeIf { it.isNotEmpty() }?.also { entities ->
-            removeEntitiesThreadLocal.remove()
-            entities.forEach { pushProcessingEntity(it, currentProcessedEntitySet) }
-        } ?: emptySet()
-
-        persistEntitySet.forEach(applicationSideIdSupport::assignMissingIds)
-        uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
-
+        val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
         try {
-            save(arrayOf(persistEntitySet, deleteEntitySet, currentProcessedEntitySet), propagation) { input ->
-                val (persistEntities, deleteEntities, processedEntities) = input
+            val drainedEntries = pendingEntriesThreadLocal.get().drain()
+            val pendingEntries = reconcilePendingOwnedChildren(drainedEntries)
+            pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
 
-                val results = object {
-                    val created = LinkedHashSet<Any>()
-                    val updated = LinkedHashSet<Any>()
-                    val deleted = LinkedHashSet<Any>()
-                    var needsFlush = false
-                    var refreshList: MutableList<Any>? = null
-                }
+            val persistEntitySet = pendingEntries
+                .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
+                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
+            val deleteEntitySet = pendingEntries
+                .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
+                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
 
-                uowInterceptors.forEach { it.preInTransaction(persistEntities, deleteEntities) }
+            completeGeneratedOwnIds(pendingEntries)
+            validateSameIdentityConflicts(pendingEntries)
+            uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
 
-                // 处理持久化实体
-                persistEntities.takeIf { it.isNotEmpty() }?.let { entities ->
-                    results.needsFlush = true
-                    entities.forEach { entity ->
-                        val applicationSideIdMember = applicationSideIdSupport.findApplicationSideId(entity)
-                        when {
-                            // 应用侧ID实体处理
-                            applicationSideIdMember != null -> {
-                                check(!applicationSideIdSupport.isDefaultId(applicationSideIdMember, entity)) {
-                                    "Application-side ID remains default after assignment: " +
-                                        "${applicationSideIdMember.ownerType.name}.${applicationSideIdMember.field.name}"
-                                }
-                                val id = applicationSideIdMember.get(entity)
-                                when {
-                                    entityManager.contains(entity) -> results.updated.add(entity)
-                                    entityManager.find(applicationSideIdMember.ownerType, id) == null -> {
-                                        entityManager.persist(entity)
-                                        results.created.add(entity)
-                                    }
-                                    else -> {
-                                        entityManager.merge(entity)
-                                        results.updated.add(entity)
-                                    }
-                                }
-                            }
-                            // 新实体处理
-                            getEntityInformation(entity.javaClass).isNew(entity) -> {
-                                if (!entityManager.contains(entity)) {
-                                    entityManager.persist(entity)
-                                }
-                                results.refreshList = (results.refreshList ?: mutableListOf()).apply { add(entity) }
-                                results.created.add(entity)
-                            }
-                            // 现有实体处理
-                            else -> {
-                                if (!entityManager.contains(entity)) {
-                                    entityManager.merge(entity)
-                                }
-                                results.updated.add(entity)
-                            }
-                        }
+            save(
+                SaveInput(
+                    entries = pendingEntries,
+                    persistedEntities = persistEntitySet,
+                    removedEntities = deleteEntitySet,
+                    processedEntities = currentProcessedEntitySet,
+                ),
+                propagation,
+            ) { input ->
+                val results = FlushResult()
+                uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
+                val lateOwnership = analyzePendingOwnership(input.entries)
+                validateNoSharedReachableOwnership(input.entries, lateOwnership)
+                validateNoLatePendingOwnedChildEntries(input.entries)
+                completeGeneratedOwnIds(input.entries)
+
+                input.entries.forEach { entry ->
+                    when (entry.kind) {
+                        UnitOfWorkEntryKind.CREATE -> applyCreate(entry.entity, results)
+                        UnitOfWorkEntryKind.EXISTING -> applyExisting(entry.entity, results)
+                        UnitOfWorkEntryKind.REMOVE -> applyRemove(entry.entity, results)
                     }
                 }
 
-                // 处理删除实体
-                deleteEntities.takeIf { it.isNotEmpty() }?.let { entities ->
-                    results.needsFlush = true
-                    entities.forEach { entity ->
-                        when {
-                            entityManager.contains(entity) -> entityManager.remove(entity)
-                            else -> {
-                                entityManager.merge(entity).also { merged ->
-                                    entityManager.remove(merged)
-                                }
-                            }
-                        }
-                        results.deleted.add(entity)
-                    }
-                }
-
-                // 刷新和回调处理
                 if (results.needsFlush) {
+                    val dirtyExisting = dirtyExistingEntities(results.existing)
                     entityManager.flush()
-                    results.refreshList?.forEach { entityManager.refresh(it) }
-                    onEntitiesFlushed(results.created, results.updated, results.deleted)
+                    results.refreshList.forEach { entityManager.refresh(it) }
+                    onEntitiesFlushed(results.created, dirtyExisting, results.deleted)
                 }
 
-                // 后处理
-                buildSet {
-                    addAll(persistEntities)
-                    addAll(deleteEntities)
-//                    persistenceContextEntities().forEach {
-//                        pushProcessingEntity(it, processedEntities as MutableSet<Any>)
-//                    }
-                    addAll(processedEntities)
+                InsertionOrderedIdentitySet<Any>().apply {
+                    addAll(input.persistedEntities)
+                    addAll(input.removedEntities)
+                    addAll(input.processedEntities)
                 }.let { allEntities ->
                     uowInterceptors.forEach { it.postEntitiesPersisted(allEntities) }
-                    uowInterceptors.forEach { it.postInTransaction(persistEntities, deleteEntities) }
+                    uowInterceptors.forEach {
+                        it.postInTransaction(input.persistedEntities, input.removedEntities)
+                    }
                 }
             }
 
             uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
         } finally {
+            repositoryObservationBaselineThreadLocal.remove()
             popProcessingEntities(currentProcessedEntitySet)
+        }
+    }
+
+    private fun completeGeneratedOwnIds(entries: List<UnitOfWorkEntry>) {
+        entries.forEach(::completeIdsForEntry)
+    }
+
+    private fun completeIdsForEntry(entry: UnitOfWorkEntry) {
+        when (entry.kind) {
+            UnitOfWorkEntryKind.CREATE ->
+                generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
+            UnitOfWorkEntryKind.EXISTING -> {
+                validateExistingEvidence(entry.entity)
+                validateObservedIdentityConsistency(entry.entity)
+                generatedStrongIdSupport.completeExisting(
+                    root = entry.entity,
+                    traversal = ownedRelationTraversal,
+                    baseline = repositoryObservationBaseline,
+                )
+            }
+            UnitOfWorkEntryKind.REMOVE -> Unit
+        }
+    }
+
+    private fun validateObservedIdentityConsistency(root: Any) {
+        repositoryObservationBaseline.entriesFor(root).forEach { entry ->
+            val observed = entry.identity ?: return@forEach
+            val current = observedIdentityOf(entry.entity)
+            check(current == observed) {
+                "Observed existing entity ${observed.entityType.name} changed identity " +
+                    "from ${observed.id} to ${current?.id}"
+            }
+        }
+    }
+
+    private fun validateExistingEvidence(entity: Any) {
+        check(repositoryObservationBaseline.hasBaselineFor(entity) || entityManager.contains(entity)) {
+            "EXISTING persist for ${persistentEntityClass(entity).name} requires a repository observation " +
+                "baseline or provider-managed existing state; detached unobserved instances cannot be merged safely"
+        }
+    }
+
+    private fun validateSameIdentityConflicts(entries: List<UnitOfWorkEntry>) {
+        val identities = LinkedHashMap<EntityIdentity, UnitOfWorkEntry>()
+        entries.forEach { entry ->
+            val identity = identityOf(entry.entity) ?: return@forEach
+            val previous = identities.putIfAbsent(identity, entry)
+            if (previous != null && previous.entity !== entry.entity) {
+                error(
+                    "conflicting UnitOfWork registrations for ${identity.entityType.name} id ${identity.id}: " +
+                        "${previous.kind} and ${entry.kind}"
+                )
+            }
+        }
+    }
+
+    private data class PendingOwnership(
+        val ownersByChildIndex: Map<Int, Set<Int>>,
+        val reachableByOwnerIndex: Map<Int, List<Any>>,
+        val reachableOwnerships: List<ReachableOwnership>,
+    )
+
+    private data class ReachableOwnership(
+        val entity: Any,
+        val ownerIndexes: Set<Int>,
+    )
+
+    private fun analyzePendingOwnership(entries: List<UnitOfWorkEntry>): PendingOwnership {
+        val activeIndexes = entries.indices.filter { index ->
+            entries[index].kind == UnitOfWorkEntryKind.CREATE ||
+                entries[index].kind == UnitOfWorkEntryKind.EXISTING
+        }
+        val reachableByOwner = activeIndexes.associateWith { index ->
+            ownedRelationTraversal.reachableOwnedEntities(entries[index].entity)
+        }
+        val ownersByChild = linkedMapOf<Int, LinkedHashSet<Int>>()
+
+        activeIndexes.forEach { ownerIndex ->
+            val descendants = reachableByOwner.getValue(ownerIndex).drop(1)
+            activeIndexes.filter { it != ownerIndex }.forEach { childIndex ->
+                if (descendants.any { samePersistentEntity(it, entries[childIndex].entity) }) {
+                    ownersByChild.getOrPut(childIndex, ::linkedSetOf).add(ownerIndex)
+                }
+            }
+        }
+
+        val reachableEntities = mutableListOf<Any>()
+        reachableByOwner.values.forEach { reachable ->
+            reachable.drop(1).forEach { entity ->
+                if (reachableEntities.none { samePersistentEntity(it, entity) }) {
+                    reachableEntities += entity
+                }
+            }
+        }
+        val reachableOwnerships = reachableEntities.map { entity ->
+            ReachableOwnership(
+                entity = entity,
+                ownerIndexes = activeIndexes.filterTo(linkedSetOf()) { ownerIndex ->
+                    reachableByOwner.getValue(ownerIndex).any { samePersistentEntity(it, entity) }
+                },
+            )
+        }
+
+        return PendingOwnership(ownersByChild, reachableByOwner, reachableOwnerships)
+    }
+
+    private fun outermostOwners(
+        ownerIndexes: Set<Int>,
+        entries: List<UnitOfWorkEntry>,
+        reachableByOwnerIndex: Map<Int, List<Any>>,
+    ): List<Int> = ownerIndexes.filter { candidateIndex ->
+        ownerIndexes.none { otherIndex ->
+            otherIndex != candidateIndex &&
+                reachableByOwnerIndex.getValue(otherIndex).drop(1).any {
+                    samePersistentEntity(it, entries[candidateIndex].entity)
+                }
+        }
+    }
+
+    private fun reconcilePendingOwnedChildren(entries: List<UnitOfWorkEntry>): List<UnitOfWorkEntry> {
+        val ownership = analyzePendingOwnership(entries)
+        validateNoSharedReachableOwnership(entries, ownership)
+        validateNoPendingOwnedChildRemoval(entries, ownership.reachableByOwnerIndex)
+        val absorbedIndexes = linkedSetOf<Int>()
+
+        ownership.ownersByChildIndex.forEach { (childIndex, ownerIndexes) ->
+            val outermost = outermostOwners(
+                ownerIndexes = ownerIndexes,
+                entries = entries,
+                reachableByOwnerIndex = ownership.reachableByOwnerIndex,
+            )
+            check(outermost.size == 1) {
+                val childType = persistentEntityClass(entries[childIndex].entity).name
+                val roots = outermost.joinToString { persistentEntityClass(entries[it].entity).name }
+                "pending owned child $childType is reachable from multiple unrelated pending roots: $roots"
+            }
+            absorbedIndexes += childIndex
+        }
+
+        return entries.filterIndexed { index, _ -> index !in absorbedIndexes }
+    }
+
+    private fun validateNoSharedReachableOwnership(
+        entries: List<UnitOfWorkEntry>,
+        ownership: PendingOwnership,
+    ) {
+        ownership.reachableOwnerships.forEach { reachableOwnership ->
+            val outermost = outermostOwners(
+                ownerIndexes = reachableOwnership.ownerIndexes,
+                entries = entries,
+                reachableByOwnerIndex = ownership.reachableByOwnerIndex,
+            )
+            check(outermost.size <= 1) {
+                val childType = persistentEntityClass(reachableOwnership.entity).name
+                val roots = outermost.joinToString { persistentEntityClass(entries[it].entity).name }
+                "pending owned child $childType is reachable from multiple unrelated pending roots: $roots"
+            }
+        }
+    }
+
+    private fun validateNoPendingOwnedChildRemoval(
+        entries: List<UnitOfWorkEntry>,
+        reachableByOwnerIndex: Map<Int, List<Any>>,
+    ) {
+        val removeIndexes = entries.indices.filter { entries[it].kind == UnitOfWorkEntryKind.REMOVE }
+        removeIndexes.forEach { removeIndex ->
+            val owners = reachableByOwnerIndex.filterValues { reachable ->
+                reachable.drop(1).any { samePersistentEntity(it, entries[removeIndex].entity) }
+            }.keys
+            check(owners.isEmpty()) {
+                "UnitOfWork.remove cannot register an owned child while its aggregate root is pending: " +
+                    persistentEntityClass(entries[removeIndex].entity).name
+            }
+        }
+    }
+
+    private fun validateNoLatePendingOwnedChildEntries(entries: List<UnitOfWorkEntry>) {
+        val rootEntries = entries.filter {
+            it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
+        }
+        if (rootEntries.isEmpty() || entries.size < 2) return
+
+        rootEntries.forEach { rootEntry ->
+            val reachable = ownedRelationTraversal.reachableOwnedEntities(rootEntry.entity)
+            val traversalRoot = reachable.firstOrNull() ?: return@forEach
+            reachable.asSequence()
+                .filterNot { it === traversalRoot }
+                .forEach { child ->
+                    if (entries.any { samePersistentEntity(it.entity, child) }) {
+                        error("pending ownership changed after UnitOfWork interceptor input was constructed")
+                    }
+                }
+        }
+    }
+
+    private fun samePersistentEntity(first: Any, second: Any): Boolean {
+        if (first === second) return true
+        val firstIdentity = identityOf(first) ?: return false
+        return firstIdentity == identityOf(second)
+    }
+
+    private fun identityOf(entity: Any): EntityIdentity? {
+        val entityClass = persistentEntityClass(entity)
+        val entityInformation = getEntityInformation(entityClass)
+        if (entityInformation.isNew(entity)) return null
+        val id = entityInformation.getId(entity) ?: return null
+        return EntityIdentity(entityClass, id)
+    }
+
+    private fun applyCreate(entity: Any, results: FlushResult) {
+        val entityClass = persistentEntityClass(entity)
+        val refreshRequired = getEntityInformation(entityClass).isNew(entity)
+        if (!entityManager.contains(entity)) entityManager.persist(entity)
+        if (refreshRequired) results.refreshList.add(entity)
+        results.created.add(entity)
+        results.needsFlush = true
+    }
+
+    private fun applyExisting(entity: Any, results: FlushResult) {
+        validateObservedIdentityConsistency(entity)
+        validateExistingRootIdentified(entity)
+        val managed = if (entityManager.contains(entity)) entity else entityManager.merge(entity)
+        results.existing.add(managed)
+        results.needsFlush = true
+    }
+
+    private fun applyRemove(entity: Any, results: FlushResult) {
+        when {
+            entityManager.contains(entity) -> entityManager.remove(entity)
+            else -> entityManager.merge(entity).also { merged ->
+                entityManager.remove(merged)
+            }
+        }
+        results.deleted.add(entity)
+        results.needsFlush = true
+    }
+
+    private fun validateExistingRootIdentified(entity: Any) {
+        val entityClass = persistentEntityClass(entity)
+        check(!getEntityInformation(entityClass).isNew(entity)) {
+            "Existing-intent entity appears new: ${entity.javaClass.name}"
         }
     }
 

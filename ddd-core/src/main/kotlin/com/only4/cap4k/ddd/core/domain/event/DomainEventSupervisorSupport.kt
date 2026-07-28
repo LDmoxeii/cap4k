@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event
 
+import com.only4.cap4k.ddd.core.CapabilitySlot
+
 /**
  * 领域事件管理器配置
  *
@@ -7,15 +9,21 @@ package com.only4.cap4k.ddd.core.domain.event
  * @date 2025/07/20
  */
 object DomainEventSupervisorSupport {
-    lateinit var instance: DomainEventSupervisor
-    lateinit var manager: DomainEventManager
+    private val supervisorSlot = CapabilitySlot<DomainEventSupervisor>("domain-events", "cap4k-ddd-core-starter")
+    private val managerSlot = CapabilitySlot<DomainEventManager>("domain-event-manager", "cap4k-ddd-core-starter")
+
+    val instance: DomainEventSupervisor
+        get() = supervisorSlot.get()
+
+    val manager: DomainEventManager
+        get() = managerSlot.get()
 
     /**
      * 配置领域事件管理器
      * @param domainEventSupervisor [DomainEventSupervisor]
      */
     fun configure(domainEventSupervisor: DomainEventSupervisor) {
-        instance = domainEventSupervisor
+        supervisorSlot.configure(domainEventSupervisor)
     }
 
     /**
@@ -23,7 +31,7 @@ object DomainEventSupervisorSupport {
      * @param domainEventManager [DomainEventManager]
      */
     fun configure(domainEventManager: DomainEventManager) {
-        manager = domainEventManager
+        managerSlot.configure(domainEventManager)
     }
 
     /**

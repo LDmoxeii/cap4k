@@ -134,4 +134,4 @@ field item 常见 shape：
 
 drawing-board JSON 是 analysis evidence。只有内容满足本页字段集合、tag 约束、field shape 和 artifact selection 规则时，才可以通过 `sources.designJson.files` 作为普通 design JSON 输入。
 
-Value Object 和 enum 使用 type manifests 输入；aggregate unique helper 通过 aggregate generator artifact 配置或 addon artifact 表达。
+Value Object 和 enum 使用 type manifests 输入。数据库唯一约束保留为 schema/canonical metadata，用于存储完整性和已支持的 owned relation 基数推断；aggregate generator 不生成唯一性 Query、Handler 或 Validator。

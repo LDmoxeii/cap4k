@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.source.db
 
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -96,12 +95,19 @@ class DbSchemaSourceProvider : SourceProvider {
                     val name = rows.getString("COLUMN_NAME")
                     val comment = rows.getString("REMARKS") ?: ""
                     val typeName = rows.getString("TYPE_NAME")
+                    val jdbcType = rows.getInt("DATA_TYPE").let { value ->
+                        if (rows.wasNull()) null else value
+                    }
+                    val columnSize = rows.getInt("COLUMN_SIZE").let { value ->
+                        if (rows.wasNull()) null else value
+                    }
                     val columnMetadata = DbColumnAnnotationParser.parse(comment)
                     add(
                         DbColumnSnapshot(
                             name = name,
                             dbType = typeName,
-                            kotlinType = JdbcTypeMapper.toKotlinType(rows.getInt("DATA_TYPE"), typeName),
+                            kotlinType = jdbcType?.let { JdbcTypeMapper.toKotlinType(it, typeName) }
+                                ?: error("missing DATA_TYPE for $tableName.$name"),
                             nullable = rows.getInt("NULLABLE") == DatabaseMetaData.columnNullable,
                             defaultValue = rows.getString("COLUMN_DEF"),
                             comment = columnMetadata.cleanedComment,
@@ -114,46 +120,35 @@ class DbSchemaSourceProvider : SourceProvider {
                             idStrategy = columnMetadata.idStrategy,
                             managedRole = columnMetadata.managedRole,
                             inherited = columnMetadata.inherited,
+                            jdbcType = jdbcType,
+                            columnSize = columnSize,
                         )
                     )
                 }
             }
         }
         val uniqueConstraints = metadata.getIndexInfo(scope.catalog, scope.schemaPattern, tableName, true, false).use { rows ->
-            data class IndexedConstraintColumn(
-                val name: String,
-                val ordinalPosition: Int,
-                val metadataSequence: Int,
-            )
-
             var metadataSequence = 0
-            linkedMapOf<String, MutableList<IndexedConstraintColumn>>().apply {
+            val indexRows = buildList {
                 while (rows.next()) {
                     if (rows.getBoolean("NON_UNIQUE")) continue
                     val indexName = rows.getString("INDEX_NAME") ?: continue
-                    val columnName = rows.getString("COLUMN_NAME") ?: continue
-                    val ordinalPosition = rows.getInt("ORDINAL_POSITION")
-                    getOrPut(indexName) { mutableListOf() }.add(
-                        IndexedConstraintColumn(
-                            name = columnName,
-                            ordinalPosition = ordinalPosition,
+                    add(
+                        UniqueIndexMetadataRow(
+                            indexName = indexName,
+                            columnName = rows.getString("COLUMN_NAME"),
+                            ordinalPosition = rows.getInt("ORDINAL_POSITION"),
                             metadataSequence = metadataSequence++,
+                            filterCondition = rows.getString("FILTER_CONDITION"),
                         )
                     )
                 }
-            }.map { (physicalName, columns) ->
-                UniqueConstraintModel(
-                    physicalName = physicalName,
-                    columns = columns
-                        .sortedWith(
-                            compareBy<IndexedConstraintColumn> {
-                                if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
-                            }.thenBy { it.metadataSequence }
-                        )
-                        .map { it.name },
-                )
             }
-                .filter { it.columns.toSet() != primaryKeySet }
+            uniqueConstraintsFromIndexRows(
+                rows = indexRows,
+                primaryKey = primaryKeySet,
+                physicalColumns = columns.mapTo(linkedSetOf()) { it.name },
+            )
         }
 
         val table = DbTableSnapshot(
@@ -188,8 +183,8 @@ class DbSchemaSourceProvider : SourceProvider {
             }
         }
 
-        require(table.columns.filter { it.idStrategy == DbIdStrategy.DB_IDENTITY }.all { it.isPrimaryKey }) {
-            "@IdStrategy=db_identity is valid only on a primary-key column"
+        require(table.columns.filter { it.idStrategy != null }.all { it.isPrimaryKey }) {
+            "@IdStrategy is valid only on a primary-key column"
         }
     }
 
@@ -278,3 +273,48 @@ internal fun resolveJdbcMetadataScope(
         )
     }
 }
+
+internal data class UniqueIndexMetadataRow(
+    val indexName: String,
+    val columnName: String?,
+    val ordinalPosition: Int,
+    val metadataSequence: Int,
+    val filterCondition: String?,
+)
+
+internal fun uniqueConstraintsFromIndexRows(
+    rows: List<UniqueIndexMetadataRow>,
+    primaryKey: Set<String>,
+    physicalColumns: Set<String>,
+): List<UniqueConstraintModel> = rows
+    .groupByTo(linkedMapOf(), UniqueIndexMetadataRow::indexName)
+    .map { (physicalName, indexRows) ->
+        val physicalColumnsByKey = physicalColumns.associateBy { it.lowercase(Locale.ROOT) }
+        val sortedRows = indexRows.sortedWith(
+            compareBy<UniqueIndexMetadataRow> {
+                if (it.ordinalPosition > 0) it.ordinalPosition else Int.MAX_VALUE
+            }.thenBy { it.metadataSequence }
+        )
+        val resolvedColumns = sortedRows.map { row ->
+            row.columnName?.let { columnName ->
+                physicalColumnsByKey[columnName.lowercase(Locale.ROOT)]
+            }
+        }
+        val ordinalSequenceIsComplete = sortedRows.map { it.ordinalPosition } == (1..sortedRows.size).toList()
+        val filterCondition = indexRows
+            .asSequence()
+            .mapNotNull { row -> row.filterCondition?.trim()?.takeIf(String::isNotEmpty) }
+            .firstOrNull()
+        UniqueConstraintModel(
+            physicalName = physicalName,
+            columns = resolvedColumns.filterNotNull(),
+            complete = ordinalSequenceIsComplete && resolvedColumns.all { it != null },
+            filterCondition = filterCondition,
+        )
+    }
+    .filterNot { constraint ->
+        constraint.complete &&
+            constraint.filterCondition.isNullOrBlank() &&
+            constraint.columns.mapTo(linkedSetOf()) { it.lowercase(Locale.ROOT) } ==
+            primaryKey.mapTo(linkedSetOf()) { it.lowercase(Locale.ROOT) }
+    }

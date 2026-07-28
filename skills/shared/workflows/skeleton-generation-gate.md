@@ -7,7 +7,7 @@
 - domain event, integration event, subscriber skeleton
 - domain service, saga, scheduled reaction
 - aggregate, entity, relation, projection
-- factory, specification, unique helper
+- factory
 - repository, controller, adapter, start skeleton
 - package or directory skeleton
 - any class/interface added only to fix compilation

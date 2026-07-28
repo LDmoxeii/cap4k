@@ -20,14 +20,27 @@ include("ddd-core")
 include("ddd-distributed-saga-jpa")
 include("ddd-application-request-jpa")
 include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")
-include("ddd-domain-event-jpa", "ddd-domain-repo-jpa", "ddd-domain-repo-jpa-querydsl")
+include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")
 include(
     "ddd-integration-event-http",
     "ddd-integration-event-http-jpa",
     "ddd-integration-event-rabbitmq",
     "ddd-integration-event-rocketmq"
 )
-include("cap4k-ddd-console", "cap4k-ddd-starter")
+include(
+    "cap4k-ddd-console",
+    "cap4k-ddd-core-starter",
+    "cap4k-ddd-jpa-starter",
+    "cap4k-ddd-locker-jdbc-starter",
+    "cap4k-ddd-snowflake-starter",
+    "cap4k-ddd-saga-jpa-starter",
+    "cap4k-ddd-request-jpa-starter",
+    "cap4k-ddd-domain-event-jpa-starter",
+    "cap4k-ddd-integration-event-http-starter",
+    "cap4k-ddd-integration-event-http-jpa-starter",
+    "cap4k-ddd-integration-event-rabbitmq-starter",
+    "cap4k-ddd-integration-event-rocketmq-starter",
+)
 include("cap4k-plugin-code-analysis-core")
 include("cap4k-plugin-code-analysis-compiler")
 include("cap4k-plugin-code-analysis-flow-export")

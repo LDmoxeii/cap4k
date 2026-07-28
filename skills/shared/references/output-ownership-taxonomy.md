@@ -56,7 +56,7 @@ Handwritten logic is business behavior, orchestration, translation, idempotency,
 
 Typical locations:
 
-- Aggregate behavior, value object validation, factory policy, domain service logic, and specification checks.
+- Aggregate behavior, value object validation, factory policy, and domain service logic.
 - Command/query handlers, subscribers, saga processes, scheduled reactions, and external capability orchestration.
 - Adapter protocol mapping, controller request conversion, client-handler translation, and persistence mapping.
 

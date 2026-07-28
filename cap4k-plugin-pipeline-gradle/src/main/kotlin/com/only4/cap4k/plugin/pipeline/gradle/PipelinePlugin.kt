@@ -146,7 +146,9 @@ class PipelinePlugin : Plugin<Project> {
 }
 
 internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean =
-    hasEnabledRegularSource(extension) || hasEnabledRegularGenerator(extension)
+    hasConfiguredProjectLayout(extension) ||
+        hasEnabledRegularSource(extension) ||
+        hasEnabledRegularGenerator(extension)
 
 private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
 private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
@@ -202,6 +204,13 @@ private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean =
     extension.generators.aggregate.configured ||
         extension.generators.aggregateProjection.configured
 
+private fun hasConfiguredProjectLayout(extension: Cap4kExtension): Boolean =
+    extension.project.basePackage.isPresent && listOf(
+        extension.project.domainModulePath,
+        extension.project.applicationModulePath,
+        extension.project.adapterModulePath,
+    ).any { it.isPresent }
+
 internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
     config.copy(
         sources = config.sources.filterKeys { it in SOURCE_TASK_SOURCE_IDS },
@@ -226,6 +235,7 @@ internal fun ensureAggregateDomainJpaDependency(project: Project, config: Projec
     }
     ensureJpaDependency(project, config, moduleRole = "domain")
     ensureJacksonAnnotationsDependency(project, config, moduleRole = "domain")
+    ensureJacksonDatabindDependency(project, config, moduleRole = "domain")
 }
 
 internal fun ensureAggregateProjectionAdapterJpaDependency(project: Project, config: ProjectConfig) {
@@ -320,9 +330,6 @@ internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     if (aggregate != null) {
         roles += "domain"
         roles += "adapter"
-        if (aggregate.options["artifact.unique"] as? Boolean == true) {
-            roles += "application"
-        }
     }
     if ("aggregate-projection" in config.generators) {
         roles += "adapter"
@@ -393,7 +400,7 @@ internal fun wireGeneratedSourceCompilation(
     config: ProjectConfig,
     generateSourcesTask: TaskProvider<out Task>,
 ) {
-    generatedSourceModuleRoles(config).forEach { role ->
+    config.modules.keys.forEach { role ->
         val modulePath = config.modules[role] ?: return@forEach
         val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return@forEach
         moduleProject.tasks.matching { it.name in GENERATED_SOURCE_CONSUMER_TASK_NAMES }.configureEach { task ->

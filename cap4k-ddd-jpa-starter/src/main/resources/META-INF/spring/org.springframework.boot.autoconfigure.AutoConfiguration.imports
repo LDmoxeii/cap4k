@@ -1,0 +1,2 @@
+com.only4.cap4k.ddd.domain.repo.JpaRepositoryAutoConfiguration
+com.only4.cap4k.ddd.domain.web.ClearDomainContextAutoConfiguration

@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
@@ -21,12 +21,19 @@ cap4k {
             username.set("sa")
             password.set("secret")
             schema.set("PUBLIC")
-            includeTables.set(listOf("video_post", "audit_log"))
+            includeTables.set(
+                listOf(
+                    "video_post",
+                    "snowflake_long_record",
+                    "snowflake_string_record",
+                    "uuid_string_record",
+                    "uuid_native_record",
+                )
+            )
             excludeTables.set(emptyList())
         }
     }
     generators {
-        aggregate {
-            }
+        aggregate { }
     }
 }

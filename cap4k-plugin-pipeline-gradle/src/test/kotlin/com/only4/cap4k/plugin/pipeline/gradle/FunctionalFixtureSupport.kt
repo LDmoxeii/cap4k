@@ -13,6 +13,19 @@ object FunctionalFixtureSupport {
 
     @OptIn(ExperimentalPathApi::class)
     fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
+        if (fixtureName.startsWith("bootstrap-")) {
+            val templateBundle = Path.of(
+                requireNotNull(FunctionalFixtureSupport::class.java.getResource("/functional/bootstrap-template-bundle")) {
+                    "Missing shared bootstrap template bundle."
+                }.toURI()
+            )
+            val targetTemplateDir = targetDir.resolve("codegen/zz-bootstrap-defaults")
+            Files.createDirectories(targetTemplateDir)
+            templateBundle.copyToRecursively(
+                targetTemplateDir,
+                followLinks = false,
+            )
+        }
         val sourceDir = Path.of(
             requireNotNull(FunctionalFixtureSupport::class.java.getResource("/functional/$fixtureName")) {
                 "Missing functional fixture directory: $fixtureName"

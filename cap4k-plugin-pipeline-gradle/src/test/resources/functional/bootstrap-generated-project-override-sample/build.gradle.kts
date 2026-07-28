@@ -19,8 +19,8 @@ cap4k {
             startModuleName.set("only-danmuku-start")
         }
         templates {
-            preset.set("ddd-default-bootstrap")
-            overrideDirs.from("codegen/bootstrap-templates")
+            preset.set("test-bootstrap")
+            overrideDirs.from("codegen/bootstrap-templates", "codegen/zz-bootstrap-defaults")
         }
         slots {
             root.from("codegen/bootstrap-slots/root")

@@ -1,0 +1,132 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "official-default-project-contract-implementation",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "partial",
+  "contractHash": "df14587e8204bf867a823b8f984efdd0cd060f2539dca2e1ef0b5fd3f70d1008",
+  "acceptanceCriteriaHash": "f21bc2611b3f0be04613da9f7ceab317c4e69099a8b1d070dbbb6b190d0a051d",
+  "implementationScopeRef": "runtime/evidence/scopes/a0c353dcdaa92b71279dde151561df28d0a3057d1a0becd8a1542896d069edf4.json",
+  "implementationScopeHash": "a0c353dcdaa92b71279dde151561df28d0a3057d1a0becd8a1542896d069edf4",
+  "reportRef": "verification.md",
+  "reportHash": "30b84e60da3f583867449f79dab74b2f706d4add68fd7495aff922ea12fb78eb",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "f21bc2611b3f0be04613da9f7ceab317c4e69099a8b1d070dbbb6b190d0a051d",
+    "total": 9,
+    "evidenced": 9,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-06a71d4b58146a3d4c825d0e5f9341eada082b113d1f928bd45372f64c863ca8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-generator-aggregate/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlannerTest.kt",
+          "settings.gradle.kts",
+          "skills/scripts/checks/stale-terms.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-26fc5af899704d146896c758fd36b92a7af332c01936434ef1f27fb1b19cab1c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt",
+          "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/CapabilityUnavailableException.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-5004c760a2a78508b0866427d90aca55221cde07a6c5813181d82b1dd5c03f1b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/event/DomainEventJpaAutoConfiguration.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/EventTypeCatalog.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultDomainEventSupervisor.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-51a0f29b26edc1f04c6185bfe9fdf08a7fc98dbce7cdeae300ce9aad3d178add",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-core-starter/build.gradle.kts",
+          "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt",
+          "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-67901f36465b7b0c75e5854d6cb060ee8edcf09c8e77ec92b1f3d8efe9c85300",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-bootstrap/src/main/kotlin/com/only4/cap4k/plugin/pipeline/bootstrap/DddMultiModuleBootstrapPresetProvider.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-template-bundle",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PresetTemplateResolverTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c36aee03cdc451f6761aa66f3bfa67bfb6a333c2a2600afde55a41bc0ee00228",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-request-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/request/RequestJpaAutoConfiguration.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/impl/DefaultReliableRequestSupervisor.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/impl/DefaultRequestSupervisor.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-da675ab06fb5797c35cd651fb2c7e5d3718255707934d925b0c461de63dcb1f4",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-http-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventJpaAutoConfiguration.kt",
+          "cap4k-ddd-integration-event-http-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfiguration.kt",
+          "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+          "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventAutoConfiguration.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-fcd335e42ce11e73b76a1d901385001d2160492fb0e0f0b2666b6d82c6f0fbe3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/build.gradle.kts",
+          "cap4k-ddd-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryAutoConfiguration.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/jpa/JpaStarterBoundaryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ff820da3df852d7dd821972773775ccf1ac4fdbe14859cfbad999effd2fc2787",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt",
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/empty-project-compile-sample"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "8b06d900c812d5e65db9bc97c4b3215f811b63b817ef9218f254ee9cabbbf89f"
+  },
+  "partialAllowanceRef": "runtime/evidence/allowances/e4038c3414e4f699399d05adb8e838839289640b3328d22d1f3841d01e3eb6db.json",
+  "partialAllowanceHash": "e4038c3414e4f699399d05adb8e838839289640b3328d22d1f3841d01e3eb6db",
+  "receiptRef": null,
+  "createdAt": "2026-07-28T12:46:32.892Z",
+  "envelopeHash": "b2c08420c2a32fbc846e72eb3fa24001332173fb3fda9d6388b093feb6f2a11a"
+}

@@ -12,7 +12,7 @@ Do not mention removed or stale analysis switches such as old flow/drawing-board
 
 ## Design JSON Tag Drift
 
-Do not list `validator` as a normal `design/design.json` tag. Validator-like behavior belongs to supported specification, unique helper, addon, or approved technical design decisions unless this installed skill bundle has been updated from verified code facts.
+Do not list `validator` as a normal `design/design.json` tag. Validation behavior belongs to Aggregate / Value Object invariants, a Domain Service decision, an addon, or an approved technical design decision. Do not route it to the removed Aggregate Specification surface.
 
 ## Integration Event Transport Assigned To Business Subscriber
 

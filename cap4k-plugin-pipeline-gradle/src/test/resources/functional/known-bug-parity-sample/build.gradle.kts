@@ -34,7 +34,6 @@ cap4k {
                 idDefaultStrategy.set("identity")
             }
             artifacts {
-                unique.set(true)
             }
         }
     }

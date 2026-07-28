@@ -6,7 +6,7 @@
 - Addon artifacts need the same ownership review as built-in artifacts.
 - Addon template IDs must stay provider-namespaced under `addons/<providerId>/...`.
 - Provider-scoped options must not imply source or canonical SPI ownership.
-- Validator-like artifacts are addon-owned unless they are aggregate unique-helper outputs.
+- Validator-like artifacts are addon-owned; the aggregate generator does not create unique-helper outputs.
 - Enum and value-object manifest entries live under `types {}` and should not be duplicated in custom type registry entries.
 - Strong ID drift often appears as primitive aggregate IDs, same-context references that do not resolve to target ID types, local reference language replaced by upstream language, or aggregate identity assigned in persistence paths.
 - Value-object inputs live in `types.valueObjectManifest`; check manifest entries and source conventions.

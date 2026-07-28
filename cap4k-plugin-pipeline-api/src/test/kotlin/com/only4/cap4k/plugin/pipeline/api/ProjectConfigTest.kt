@@ -21,7 +21,7 @@ class ProjectConfigTest {
             ),
             generators = mapOf(
                 "aggregate" to GeneratorConfig(
-                    options = mapOf("artifact.specification" to false),
+                    options = mapOf("unsupportedTablePolicy" to "FAIL"),
                 ),
             ),
             templates = TemplateConfig(
@@ -37,7 +37,7 @@ class ProjectConfigTest {
         assertEquals(setOf("design-json"), config.sources.keys)
         assertEquals(listOf("design/design.json"), config.sources.getValue("design-json").options["files"])
         assertEquals(setOf("aggregate"), config.generators.keys)
-        assertEquals(false, config.generators.getValue("aggregate").options["artifact.specification"])
+        assertEquals("FAIL", config.generators.getValue("aggregate").options["unsupportedTablePolicy"])
         assertEquals("sample-api", config.modules["api"])
         assertEquals(ConflictPolicy.SKIP, config.templates.conflictPolicy)
         assertEquals(

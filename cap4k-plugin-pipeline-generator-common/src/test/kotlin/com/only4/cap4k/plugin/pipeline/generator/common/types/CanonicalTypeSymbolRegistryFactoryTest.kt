@@ -37,7 +37,7 @@ class CanonicalTypeSymbolRegistryFactoryTest {
                     StrongIdModel(
                         typeName = "OrderId",
                         packageName = "com.acme.demo.domain.aggregates.order",
-                        kind = StrongIdKind.AGGREGATE_ROOT,
+                        kind = StrongIdKind.OWN_ID,
                         ownerAggregateName = "Order",
                     ),
                 ),
