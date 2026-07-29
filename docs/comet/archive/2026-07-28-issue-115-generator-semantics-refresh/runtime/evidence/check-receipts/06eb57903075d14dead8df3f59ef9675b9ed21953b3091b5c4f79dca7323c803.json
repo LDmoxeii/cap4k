@@ -1,0 +1,60 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "issue-115-generator-semantics-refresh",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "b829da519c2abd7008c3294508e632e0cbf601078a78d0af1c7694cd3973b49b",
+  "status": "failed",
+  "startedAt": "2026-07-28T20:08:14.523Z",
+  "endedAt": "2026-07-28T20:08:18.540Z",
+  "contract": {
+    "expectedHash": "80857c6cd6246d4ab4913c99db4437ebdc33006340df11ae6f38046da3937e90",
+    "beforeHash": "80857c6cd6246d4ab4913c99db4437ebdc33006340df11ae6f38046da3937e90",
+    "afterHash": "80857c6cd6246d4ab4913c99db4437ebdc33006340df11ae6f38046da3937e90"
+  },
+  "implementation": {
+    "scopeHash": "b39bfe3c4200530158d9529806189466c493c69968bd87323f817ff7143cd575",
+    "expectedSnapshotHash": "fff48c945e9df893b114c5a507857b2665108dc3553ee6d4986d233cfb23f96d",
+    "beforeSnapshotHash": "fff48c945e9df893b114c5a507857b2665108dc3553ee6d4986d233cfb23f96d",
+    "afterSnapshotHash": "fff48c945e9df893b114c5a507857b2665108dc3553ee6d4986d233cfb23f96d"
+  },
+  "counts": {
+    "filesSelected": 114,
+    "filesScanned": 114,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 2443810,
+    "issueCount": 3,
+    "recordedIssueCount": 3
+  },
+  "issues": [
+    {
+      "path": "docs/superpowers/specs/2026-07-28-cap4k-generator-semantic-model-addon-extension-and-owned-child-creation-design.md",
+      "line": 3,
+      "kind": "trailing-whitespace"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-28-cap4k-generator-semantic-model-addon-extension-and-owned-child-creation-design.md",
+      "line": 4,
+      "kind": "trailing-whitespace"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-28-cap4k-generator-semantic-model-addon-extension-and-owned-child-creation-design.md",
+      "line": 5,
+      "kind": "trailing-whitespace"
+    }
+  ],
+  "issuesTruncated": false,
+  "stale": false,
+  "staleReasons": [],
+  "receiptHash": "06eb57903075d14dead8df3f59ef9675b9ed21953b3091b5c4f79dca7323c803"
+}

@@ -38,7 +38,7 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。bootstrap pl
 
 `generatorId` 表示哪个 generator 计划产出这个 item。它帮助作者区分 aggregate family、design JSON building block、type manifest、analysis flow 或 drawing-board 等来源。
 
-`templateId` 表示使用哪个模板。模板不只是文本差异，它会影响输出 family、slot shape 和 managed sections。
+`templateId` 表示首次 materialization 使用哪个模板。模板会影响输出 family 和初始 slot shape；checked-in file 生成后不再由模板同步维护。
 
 `outputKind` 表示输出归属。常见值包括：
 
@@ -48,7 +48,7 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。bootstrap pl
 
 `resolvedOutputRoot` 表示实际输出根。它可以帮助作者检查 source root 是否落在预期 module，而不是只看文件名。
 
-`conflictPolicy` 表示遇到已有文件时如何处理。checked-in skeleton 常用 `SKIP` 保护已有 handwritten logic；build-owned generated source 常用 `OVERWRITE`，因为 build 拥有该 root。
+`conflictPolicy` 表示遇到已有文件时如何处理。checked-in skeleton 固定使用 `SKIP`，只承诺第一次 materialization；build-owned generated source 通常使用 `OVERWRITE`，因为 build 拥有该 root。
 
 ## Generated Vs Handwritten Ownership
 
@@ -58,18 +58,18 @@ plan review 要把输出分成三种不同责任：
 - handwritten logic：作者负责业务判断、状态推进、幂等、补偿、协议转换和异常语义。
 - generated source：build 负责维护的 source root，作者不应把它当作长期手写区。
 
-`src/main/kotlin` 不自动等于 handwritten ownership。许多 checked-in skeleton 位于 `src/main/kotlin`，但其中可能有 generator-managed sections 或稳定 slot。是否可以写业务逻辑，要结合 `outputKind`、`templateId`、managed sections 和 `conflictPolicy` 判断。
+`src/main/kotlin` 不自动等于某一种业务职责，但 `CHECKED_IN_SOURCE` materialize 后按普通提交源码维护。是否适合写业务逻辑，要结合 `outputKind`、`templateId` 和 building-block 责任判断；generator 不再对其中任何 section 承诺刷新。
 
-## Managed Sections
+## Checked-In Refresh Boundary
 
-managed sections 是 generator 和作者共享文件时需要审查的边界。作者应确认：
+checked-in source 不是 generator 与作者长期共享维护的文件。作者应确认：
 
-- 哪些部分由模板维护。
-- 哪些 slot 预期填入 handwritten logic。
-- 再次生成时 `conflictPolicy` 是否保护手写内容。
-- 文件已有逻辑是否会被覆盖、跳过或保留。
+- 初始 template 是否提供了合适的 handwritten surface。
+- plan 中 `outputKind = CHECKED_IN_SOURCE` 且 `conflictPolicy = SKIP`。
+- 后续 template 演进不会自动进入已提交文件。
+- 如果确实需要重建，先用版本控制保护当前实现，再删除、materialize 和审查差异。
 
-如果 plan 或输出文件无法让作者判断 managed section，先暂停 generation，查 [Outputs](../reference/outputs.md)、[Plan JSON](../reference/plan-json.md) 和对应 generator documentation。不要在 ownership 不清楚时继续写业务逻辑。
+如果 plan 或输出文件无法让作者判断 ownership，先暂停 generation，查 [Outputs](../reference/outputs.md)、[Plan JSON](../reference/plan-json.md) 和对应 generator documentation。不要在 ownership 不清楚时继续写业务逻辑。
 
 ## Review Before Generation
 
@@ -85,10 +85,10 @@ managed sections 是 generator 和作者共享文件时需要审查的边界。�
 如果发现错位，反馈路径是回到 [Inputs And Sources](inputs-and-sources.md)、[Generator Input Projection](../authoring/generator-input-projection.md) 或 [Technical Design](../authoring/technical-design.md)。generation 前停下来，是 plan evidence 的价值。
 
 <!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 cap4k plan review 如何在 generation 前审查 output ownership、conflictPolicy 和 managed sections。
+Purpose: 帮助读者理解 cap4k plan review 如何在 generation 前审查 output ownership、conflictPolicy 和 checked-in first-materialization boundary。
 Type: workflow diagram
-Prompt: Draw a cap4k planning and ownership review workflow. Start from explicit inputs, then cap4kBootstrapPlan and cap4kPlan, then bootstrap-plan.json and plan.json, then human review of generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, and managed sections before generation. Use Chinese labels while preserving English identifiers.
-Must show: cap4kBootstrapPlan, cap4kPlan, bootstrap-plan.json, plan.json, generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, CHECKED_IN_SOURCE, GENERATED_SOURCE, handwritten logic, managed sections, review before generation
+Prompt: Draw a cap4k planning and ownership review workflow. Start from explicit inputs, then cap4kBootstrapPlan and cap4kPlan, then bootstrap-plan.json and plan.json, then human review of generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, and the checked-in first-materialization boundary before generation. Use Chinese labels while preserving English identifiers.
+Must show: cap4kBootstrapPlan, cap4kPlan, bootstrap-plan.json, plan.json, generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, CHECKED_IN_SOURCE fixed SKIP, GENERATED_SOURCE, handwritten logic, review before generation
 Must avoid: 不要暗示 plan.json 是业务规则来源；不要把 GENERATED_SOURCE 画成手写业务区；不要把 analysis-plan.json 放进 ordinary source generation；不要画出未审查就生成的路径
-Alt text after insertion: cap4k plan ownership 审查流程图，展示 bootstrap-plan.json、plan.json、ownership 字段、managed sections 和 generation 前人工审查。
+Alt text after insertion: cap4k plan ownership 审查流程图，展示 bootstrap-plan.json、plan.json、ownership 字段、checked-in first-materialization boundary 和 generation 前人工审查。
 -->

@@ -65,12 +65,15 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         packageName: String = "order",
         name: String = "OrderCreated",
         eventName: String = "order.created",
-    ) = DesignBlockModel(
+    ) = designBlock(
         tag = "integration_event",
+        family = "integration-event",
+        variant = "inbound",
         packageName = packageName,
         name = name,
         description = "order */ created event",
         eventName = eventName,
+    ).copy(
         artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")) +
             if (subscriber) listOf(ArtifactSelectionModel("integration-subscriber")) else emptyList(),
     )

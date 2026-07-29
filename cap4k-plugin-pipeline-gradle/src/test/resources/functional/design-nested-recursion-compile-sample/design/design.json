@@ -8,82 +8,67 @@
     "fields": [
       {
         "name": "fileList",
-        "type": "List<FileItem>",
-        "nullable": false
+        "type": "List<FileItem>"
       },
       {
         "name": "fileList[].fileIndex",
-        "type": "Int",
-        "nullable": false
+        "type": "Int"
       },
       {
         "name": "fileList[].variants",
-        "type": "List<VariantItem>",
-        "nullable": false
+        "type": "List<VariantItem>"
       },
       {
         "name": "fileList[].variants[].quality",
         "type": "String",
-        "nullable": false,
         "defaultValue": ""
       },
       {
         "name": "fileList[].variants[].width",
         "type": "Int",
-        "nullable": false,
         "defaultValue": "0"
       },
       {
         "name": "fileList[].variants[].children",
-        "type": "List<VariantItem>",
-        "nullable": false
+        "type": "List<VariantItem>"
       },
       {
         "name": "itemList",
-        "type": "List<Item>",
-        "nullable": false
+        "type": "List<Item>"
       },
       {
         "name": "itemList[].requestValue",
-        "type": "String",
-        "nullable": false
+        "type": "String"
       },
       {
         "name": "externalItem",
-        "type": "com.acme.shared.Item",
-        "nullable": false
+        "type": "com.acme.shared.Item"
       }
     ],
     "resultFields": [
       {
         "name": "nodes",
-        "type": "List<Node>",
-        "nullable": false
+        "type": "List<Node>"
       },
       {
         "name": "nodes[].categoryId",
-        "type": "Long",
-        "nullable": false
+        "type": "Long"
       },
       {
         "name": "nodes[].children",
-        "type": "List<Node>",
-        "nullable": false
+        "type": "List<Node>"
       },
       {
         "name": "list",
-        "type": "List<Item>",
-        "nullable": false
+        "type": "List<Item>"
       },
       {
         "name": "list[].messageType",
-        "type": "Int",
-        "nullable": false
+        "type": "Int"
       },
       {
         "name": "list[].count",
-        "type": "Int",
-        "nullable": false
+        "type": "Int"
       }
     ]
   }

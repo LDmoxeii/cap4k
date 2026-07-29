@@ -361,17 +361,33 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `generated source module roles include domain for value object manifest`() {
+        assertEquals(
+            setOf("domain"),
+            generatedSourceModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "demo-domain"),
+                    sources = mapOf("value-object-manifest" to SourceConfig()),
+                    generators = emptyMap(),
+                )
+            )
+        )
+    }
+
+    @Test
     fun `generated source task config keeps only generated source generation inputs`() {
         val config = projectConfig(
             sources = mapOf(
                 "db" to SourceConfig(),
                 "enum-manifest" to SourceConfig(),
+                "value-object-manifest" to SourceConfig(),
                 "design-json" to SourceConfig(),
                 "ir-analysis" to SourceConfig(),
             ),
             generators = mapOf(
                 "aggregate" to GeneratorConfig(),
                 "aggregate-projection" to GeneratorConfig(),
+                "types-value-object" to GeneratorConfig(),
                 "query" to GeneratorConfig(),
                 "query-handler" to GeneratorConfig(),
                 "integration-event" to GeneratorConfig(),
@@ -383,8 +399,84 @@ class PipelinePluginTest {
 
         val generatedConfig = generatedSourceTaskConfig(config)
 
-        assertEquals(setOf("db", "enum-manifest"), generatedConfig.sources.keys)
-        assertEquals(setOf("aggregate", "aggregate-projection"), generatedConfig.generators.keys)
+        assertEquals(setOf("db", "enum-manifest", "value-object-manifest"), generatedConfig.sources.keys)
+        assertEquals(setOf("aggregate", "aggregate-projection", "types-value-object"), generatedConfig.generators.keys)
+    }
+
+    @Test
+    fun `generated source cleanup removes only cap4k generated root`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-cleanup-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        val config = projectConfig(
+            modules = mapOf("domain" to "demo-domain"),
+            sources = mapOf("value-object-manifest" to SourceConfig()),
+            generators = emptyMap(),
+        )
+        val generatedRoot = rootProjectDir.resolve("demo-domain/build/generated/cap4k/main/kotlin")
+        val staleConverter = generatedRoot.resolve("com/acme/MoneyJsonAttributeConverter.kt")
+        val sibling = rootProjectDir.resolve("demo-domain/build/keep.txt")
+        staleConverter.parentFile.mkdirs()
+        staleConverter.writeText("stale")
+        sibling.parentFile.mkdirs()
+        sibling.writeText("keep")
+
+        cleanGeneratedSourceOutputDirectories(rootProject, config)
+
+        assertFalse(generatedRoot.exists())
+        assertTrue(sibling.exists())
+
+        ensureGeneratedSourceOutputDirectories(rootProject, config)
+        assertTrue(generatedRoot.isDirectory)
+    }
+
+    @Test
+    fun `generated source cleanup remembers previously managed domain root after source removal`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-managed-history")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        val enabledConfig = projectConfig(
+            modules = mapOf("domain" to "demo-domain"),
+            sources = mapOf("value-object-manifest" to SourceConfig()),
+            generators = emptyMap(),
+        )
+        val generatedRoot = rootProjectDir.resolve("demo-domain/build/generated/cap4k/main/kotlin")
+        val staleConverter = generatedRoot.resolve("com/acme/MoneyJsonAttributeConverter.kt")
+        val sibling = rootProjectDir.resolve("demo-domain/build/keep.txt")
+        staleConverter.parentFile.mkdirs()
+        staleConverter.writeText("stale")
+        sibling.parentFile.mkdirs()
+        sibling.writeText("keep")
+        recordManagedGeneratedSourceOutputDirectories(rootProject, enabledConfig)
+
+        val removedConfig = projectConfig(
+            modules = mapOf("domain" to "demo-domain"),
+            sources = emptyMap(),
+            generators = emptyMap(),
+        )
+        assertEquals(
+            setOf(generatedRoot.canonicalFile),
+            generatedSourceManagedOutputDirectories(rootProject, removedConfig).map { it.canonicalFile }.toSet(),
+        )
+
+        cleanGeneratedSourceOutputDirectories(rootProject, removedConfig)
+        recordManagedGeneratedSourceOutputDirectories(rootProject, removedConfig)
+
+        assertFalse(generatedRoot.exists())
+        assertTrue(sibling.exists())
+        assertEquals(emptyList<File>(), generatedSourceManagedOutputDirectories(rootProject, removedConfig))
     }
 
     @Test
@@ -543,6 +635,38 @@ class PipelinePluginTest {
         assertTrue(inputFiles.contains(schemaFile.canonicalFile))
         assertTrue(inputFiles.contains(templateFile.canonicalFile))
         assertFalse(inputFiles.contains(rootProjectDir.canonicalFile))
+    }
+
+    @Test
+    fun `generated source task tracks value object manifest files from source options`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-generated-source-value-object-input")
+        val valueObjectManifest = rootProjectDir.resolve("custom-value-objects.json").apply {
+            writeText("[]")
+        }
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        rootProject.pluginManager.apply(PipelinePlugin::class.java)
+        val extension = rootProject.extensions.getByType(Cap4kExtension::class.java)
+        val config = projectConfig(
+            modules = emptyMap(),
+            sources = mapOf(
+                "value-object-manifest" to SourceConfig(
+                    options = mapOf("files" to listOf(valueObjectManifest.absolutePath))
+                )
+            ),
+            generators = emptyMap(),
+        )
+
+        val inputFiles = generatedSourceTaskInputFiles(rootProject, extension, config)
+            .files
+            .map { it.canonicalFile }
+            .toSet()
+        val snapshot = generatedSourceTaskInputSnapshot(rootProject, config)
+
+        assertTrue(inputFiles.contains(valueObjectManifest.canonicalFile))
+        assertTrue(snapshot.contains("valueObjectManifest"))
+        assertTrue(snapshot.contains(valueObjectManifest.name))
     }
 
     @Test
@@ -948,6 +1072,19 @@ class PipelinePluginTest {
     @Test
     fun `value object generation wires json converter dependencies into resolved domain module`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-root")
+        val manifest = rootProjectDir.resolve("value-objects.json").apply {
+            writeText(
+                """
+                [
+                  {
+                    "name": "Money",
+                    "package": "com.acme.demo.domain.shared.values",
+                    "persistence": { "kind": "json" }
+                  }
+                ]
+                """.trimIndent()
+            )
+        }
         val rootProject = ProjectBuilder.builder()
             .withProjectDir(rootProjectDir)
             .build()
@@ -962,7 +1099,11 @@ class PipelinePluginTest {
             rootProject,
             projectConfig(
                 modules = mapOf("domain" to "demo-domain"),
-                sources = mapOf("value-object-manifest" to SourceConfig()),
+                sources = mapOf(
+                    "value-object-manifest" to SourceConfig(
+                        options = mapOf("files" to listOf(manifest.absolutePath))
+                    )
+                ),
                 generators = emptyMap(),
             )
         )
@@ -979,6 +1120,65 @@ class PipelinePluginTest {
             }
         )
         assertTrue(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
+            }
+        )
+    }
+
+    @Test
+    fun `value object generation without persistence adds no json converter dependencies`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-no-persistence-dependency-root")
+        val manifest = rootProjectDir.resolve("value-objects.json").apply {
+            writeText(
+                """
+                [
+                  {
+                    "name": "Money",
+                    "package": "com.acme.demo.domain.shared.values",
+                    "fields": [
+                      { "name": "amount", "type": "Long" }
+                    ]
+                  }
+                ]
+                """.trimIndent()
+            )
+        }
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val domainProject = ProjectBuilder.builder()
+            .withName("demo-domain")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("demo-domain"))
+            .build()
+        domainProject.configurations.create("implementation")
+
+        ensureValueObjectDomainDependencies(
+            rootProject,
+            projectConfig(
+                modules = mapOf("domain" to "demo-domain"),
+                sources = mapOf(
+                    "value-object-manifest" to SourceConfig(
+                        options = mapOf("files" to listOf(manifest.absolutePath))
+                    )
+                ),
+                generators = emptyMap(),
+            )
+        )
+
+        val implementationDependencies = domainProject.configurations.getByName("implementation").dependencies
+        assertFalse(
+            implementationDependencies.any { dependency ->
+                dependency.group == "jakarta.persistence" && dependency.name == "jakarta.persistence-api"
+            }
+        )
+        assertFalse(
+            implementationDependencies.any { dependency ->
+                dependency.group == "com.fasterxml.jackson.core" && dependency.name == "jackson-databind"
+            }
+        )
+        assertFalse(
             implementationDependencies.any { dependency ->
                 dependency.group == "com.fasterxml.jackson.module" && dependency.name == "jackson-module-kotlin"
             }
@@ -1018,6 +1218,19 @@ class PipelinePluginTest {
     @Test
     fun `value object generation does not duplicate json converter dependencies`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-value-object-domain-dependency-dedup-root")
+        val manifest = rootProjectDir.resolve("value-objects.json").apply {
+            writeText(
+                """
+                [
+                  {
+                    "name": "Money",
+                    "package": "com.acme.demo.domain.shared.values",
+                    "persistence": { "kind": "json" }
+                  }
+                ]
+                """.trimIndent()
+            )
+        }
         val rootProject = ProjectBuilder.builder()
             .withProjectDir(rootProjectDir)
             .build()
@@ -1035,7 +1248,11 @@ class PipelinePluginTest {
             rootProject,
             projectConfig(
                 modules = mapOf("domain" to "demo-domain"),
-                sources = mapOf("value-object-manifest" to SourceConfig()),
+                sources = mapOf(
+                    "value-object-manifest" to SourceConfig(
+                        options = mapOf("files" to listOf(manifest.absolutePath))
+                    )
+                ),
                 generators = emptyMap(),
             )
         )

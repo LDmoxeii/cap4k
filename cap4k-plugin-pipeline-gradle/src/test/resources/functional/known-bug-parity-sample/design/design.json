@@ -81,8 +81,7 @@
       },
       {
         "name": "body",
-        "type": "Body",
-        "nullable": true
+        "type": "Body?"
       },
       {
         "name": "body.content",
@@ -92,8 +91,7 @@
     "resultFields": [
       {
         "name": "receipt",
-        "type": "Receipt",
-        "nullable": true
+        "type": "Receipt?"
       },
       {
         "name": "receipt.messageKey",

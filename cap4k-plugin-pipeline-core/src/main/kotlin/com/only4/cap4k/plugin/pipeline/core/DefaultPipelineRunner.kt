@@ -137,10 +137,10 @@ class DefaultPipelineRunner(
 
     private fun resolveConflictPolicy(item: ProvenancedPlanItem, config: ProjectConfig): ArtifactPlanItem {
         val planItem = item.planItem
-        val resolvedConflictPolicy = if (item.isBuiltInObservationOutput()) {
-            ConflictPolicy.OVERWRITE
-        } else {
-            config.templates.templateConflictPolicies[planItem.templateId] ?: planItem.conflictPolicy
+        val resolvedConflictPolicy = when {
+            planItem.outputKind == ArtifactOutputKind.CHECKED_IN_SOURCE -> ConflictPolicy.SKIP
+            item.isBuiltInObservationOutput() -> ConflictPolicy.OVERWRITE
+            else -> config.templates.templateConflictPolicies[planItem.templateId] ?: planItem.conflictPolicy
         }
 
         return planItem.copy(conflictPolicy = resolvedConflictPolicy)

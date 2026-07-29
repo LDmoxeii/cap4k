@@ -120,18 +120,62 @@ class DesignDomainEventArtifactPlannerTest {
         packageName: String = "order",
         name: String = "OrderCreated",
         aggregates: List<String> = listOf("Order"),
-    ) = DesignBlockModel(
+    ) = designBlock(
         tag = "domain_event",
+        family = "domain-event",
         packageName = packageName,
         name = name,
         description = "order */ \"created\" \\event ${'$'}status",
         aggregates = aggregates,
         persist = false,
-        artifacts = listOf(ArtifactSelectionModel("domain-event")),
-        fields = listOf(
-            FieldModel("reason", "String"),
-            FieldModel("snapshot", "Snapshot", nullable = true),
-            FieldModel("snapshot.traceId", "UUID"),
+        requestDefinition = com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition(
+            identity = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                packageName,
+                listOf(name),
+                com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.NESTED_VALUE,
+            ),
+            role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.DOMAIN_EVENT,
+            fields = listOf(
+                com.only4.cap4k.plugin.pipeline.api.SemanticValueField(
+                    "reason",
+                    com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef(
+                        com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType.STRING,
+                    ),
+                ),
+                com.only4.cap4k.plugin.pipeline.api.SemanticValueField(
+                    "snapshot",
+                    com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef(
+                        com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                            packageName,
+                            listOf(name, "Snapshot"),
+                            com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.NESTED_VALUE,
+                        ),
+                        nullable = true,
+                    ),
+                ),
+            ),
+            nestedDefinitions = listOf(
+                com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition(
+                    identity = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                        packageName,
+                        listOf(name, "Snapshot"),
+                        com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.NESTED_VALUE,
+                    ),
+                    role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.DOMAIN_EVENT,
+                    fields = listOf(
+                        com.only4.cap4k.plugin.pipeline.api.SemanticValueField(
+                            "traceId",
+                            com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef(
+                                com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                                    "java.util",
+                                    listOf("UUID"),
+                                    com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.EXTERNAL,
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         ),
     )
 

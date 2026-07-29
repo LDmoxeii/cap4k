@@ -8,8 +8,7 @@
     "fields": [
       {
         "name": "address",
-        "type": "Address",
-        "nullable": true
+        "type": "Address?"
       },
       {
         "name": "address.city",
@@ -24,8 +23,7 @@
     "resultFields": [
       {
         "name": "result",
-        "type": "Result",
-        "nullable": true
+        "type": "Result?"
       },
       {
         "name": "result.success",

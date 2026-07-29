@@ -115,8 +115,15 @@ class CanonicalEnumCatalogTest {
                 entities = listOf(root, child),
                 valueObjects = listOf(
                     ValueObjectModel(
-                        name = "PublishWindow",
-                        packageName = "com.acme.demo.domain.aggregates.content.values",
+                        definition = SemanticValueDefinition(
+                            identity = CanonicalTypeIdentity(
+                                packageName = "com.acme.demo.domain.aggregates.content.values",
+                                typePath = listOf("PublishWindow"),
+                                kind = CanonicalTypeKind.VALUE_OBJECT,
+                                ownerAggregateName = "Content",
+                            ),
+                            role = SemanticValueRole.VALUE_OBJECT,
+                        ),
                         aggregates = listOf("Content"),
                     )
                 ),

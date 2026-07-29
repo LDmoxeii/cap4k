@@ -4,7 +4,9 @@ Value Object 是不可变的值语义对象。它没有独立身份，相等性�
 
 当字段组合需要一致校验、值相等判断、不可变快照或 JSON-backed 持久化时，应考虑 Value Object。Strong ID 是 specialized value type，也可以按 Value Object style 使用，用来避免裸 `String` / `Long` 在不同业务身份之间漂移。Business Enum 是相邻的 value-type input path，通过 `types.enumManifest` 表达有限业务选项，但它不是 Value Object 实现；精确 enum schema 放在 [enum-manifest.md](../../reference/enum-manifest.md)。
 
-在 cap4k 中，Value Object 位于 domain layer，通常被 Aggregate 或 Entity 持有。`types.valueObjectManifest` 是 Value Object 生成入口，可表达 shared 或 aggregate-owned 的值对象、字段、包路径和 JSON-backed converter。generator 可以生成 data class、converter 和 building-block metadata；值对象的业务命名、字段语义、校验规则、默认值取舍和使用边界仍需要人工设计。
+在 cap4k 中，Value Object 位于 domain layer，通常被 Aggregate 或 Entity 持有。`types.valueObjectManifest` 是 Value Object 生成入口，可表达 shared 或 aggregate-owned 的值对象、字段、包路径，以及可选的 persistence projection。Value Object class 始终保持纯值，不携带 Jackson/JPA；显式选择 JSON projection 时，generator 另行生成 build-owned converter。值对象的业务命名、字段语义、校验规则、默认值取舍和使用边界仍需要人工设计。
+
+Value semantics 与 query projection 是两个问题。JSON-backed Value Object 可以作为一个完整 attribute 持久化和读取，但其内部成员不会自动成为独立的关系列或 portable Criteria path；需要稳定参与查询的内部维度目前应显式建模为列或关联。后续 relational/embedded projection 可以扩展这条边界，但不能继续用“Value Object 默认就是 JSON”来掩盖查询模型。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`MediaProcessingResultSnapshot` 由 `types.valueObjectManifest` 生成，是一个 JSON-backed 值对象，并通过 `media_processing_task.result_snapshot` 持久化。它是阅读“复合结果快照如何成为一个领域值”的推荐锚点。
 

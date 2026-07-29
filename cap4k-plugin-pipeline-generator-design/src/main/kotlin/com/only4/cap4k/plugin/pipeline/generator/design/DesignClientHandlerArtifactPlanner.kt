@@ -35,11 +35,8 @@ class DesignClientHandlerArtifactPlanner : GeneratorProvider {
                         clientType = clientType,
                         block = block,
                     ).toContextMap() + mapOf(
-                        "resultFields" to block.resultFields
-                            .asSequence()
-                            .filterNot { it.name.contains('.') }
-                            .map { field -> mapOf("name" to field.name) }
-                            .toList(),
+                        "resultFields" to block.topLevelResponseFieldNames()
+                            .map { fieldName -> mapOf("name" to fieldName) },
                         "buildingBlock" to block.buildingBlockContext(id),
                     ),
                     conflictPolicy = config.templates.conflictPolicy,

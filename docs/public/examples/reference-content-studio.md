@@ -56,7 +56,7 @@ Paid publication 是显式 opt-in 的高级路径。只有通过 `http/paid-publ
 
 - `ContentBehavior.kt`：`Content` 的审核、媒体就绪、发布准备和 `ContentPublicationReadyDomainEvent`。
 - `ContentFactory.kt`：草稿创建、默认状态和 factory payload。
-- `MediaProcessingResultSnapshot.kt`：JSON-backed Value Object 及其 nested converter。
+- `MediaProcessingResultSnapshot.kt`：纯 Value Object；JSON projection 使用独立 build-owned `MediaProcessingResultSnapshotJsonAttributeConverter`。
 - `PaidPublicationEligibilityService`：paid publication 是否可启动的领域判断。
 - `PaidPublicationSaga`：paid publication 的持久化跨步骤协调和补偿。
 - `MediaProcessingPollingFallbackJob`：媒体处理状态的 scheduled reaction 示例。

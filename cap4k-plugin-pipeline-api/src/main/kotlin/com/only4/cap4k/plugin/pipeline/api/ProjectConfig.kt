@@ -107,6 +107,7 @@ data class ArtifactLayoutConfig(
     val designDomainService: ArtifactLayoutRule = ArtifactLayoutRule("design/domain_service.kt.peb"),
     val designSagaArtifact: ArtifactLayoutRule = ArtifactLayoutRule("design/saga.kt.peb"),
     val valueObject: ArtifactLayoutRule = ArtifactLayoutRule("types/value-object"),
+    val valueObjectJsonConverter: ArtifactLayoutRule = ArtifactLayoutRule("types/value-object-json-converter"),
 )
 
 data class ArtifactLayoutRule(

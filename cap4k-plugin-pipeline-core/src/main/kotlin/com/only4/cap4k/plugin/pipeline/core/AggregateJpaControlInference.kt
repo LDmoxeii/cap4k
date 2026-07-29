@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.JsonValuePersistenceProjection
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverterKind
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
@@ -137,21 +138,21 @@ internal object AggregateJpaControlInference {
     ): ConverterBinding? {
         val localMatches = valueObjects.filter { valueObject ->
             valueObject.ownerAggregate == ownerAggregateName &&
-                valueObject.name == typeName
+                valueObject.matchesTypeBinding(typeName)
         }
         if (localMatches.size > 1) {
             throw IllegalArgumentException("Ambiguous value object type override: $typeName")
         }
-        localMatches.singleOrNull()?.let { return it.toConverterBinding() }
+        localMatches.singleOrNull()?.let { return it.toConverterBinding(typeName) }
 
         val sharedMatches = valueObjects.filter { valueObject ->
             valueObject.aggregates.isEmpty() &&
-                valueObject.name == typeName
+                valueObject.matchesTypeBinding(typeName)
         }
         if (sharedMatches.size > 1) {
             throw IllegalArgumentException("Ambiguous value object type override: $typeName")
         }
-        return sharedMatches.singleOrNull()?.toConverterBinding()
+        return sharedMatches.singleOrNull()?.toConverterBinding(typeName)
     }
 
     private fun buildLocalEnumOwnership(
@@ -275,9 +276,20 @@ internal object AggregateJpaControlInference {
             )
         }
 
-    private fun ValueObjectModel.toConverterBinding(): ConverterBinding {
+    private fun ValueObjectModel.matchesTypeBinding(typeBinding: String): Boolean =
+        name == typeBinding || definition.identity.fqn == typeBinding
+
+    private fun ValueObjectModel.toConverterBinding(typeBinding: String): ConverterBinding {
         val typeFqn = "${packageName}.${name}"
-        return ConverterBinding(typeFqn = typeFqn, converterClassFqn = "$typeFqn.Converter")
+        return when (val projection = persistence) {
+            null -> throw IllegalArgumentException(
+                "value object $typeFqn has no persistence projection for database type binding $typeBinding"
+            )
+            is JsonValuePersistenceProjection -> ConverterBinding(
+                typeFqn = typeFqn,
+                converterClassFqn = projection.converterClassFqn,
+            )
+        }
     }
 
     private fun isFqn(value: String): Boolean =

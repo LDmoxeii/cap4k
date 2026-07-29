@@ -50,8 +50,7 @@
       },
       {
         "name": "address",
-        "type": "Address",
-        "nullable": true
+        "type": "Address?"
       },
       {
         "name": "address.city",
@@ -101,8 +100,7 @@
       },
       {
         "name": "snapshot",
-        "type": "Snapshot",
-        "nullable": true
+        "type": "Snapshot?"
       },
       {
         "name": "snapshot.updatedAt",
@@ -138,8 +136,7 @@
       },
       {
         "name": "items[].summary",
-        "type": "Summary",
-        "nullable": true
+        "type": "Summary?"
       },
       {
         "name": "items[].summary.updatedAt",
@@ -184,8 +181,7 @@
       },
       {
         "name": "page.list[].snapshot",
-        "type": "Snapshot",
-        "nullable": true
+        "type": "Snapshot?"
       },
       {
         "name": "page.list[].snapshot.publishedAt",

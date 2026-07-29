@@ -1,0 +1,26 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: issue-115-generator-semantics-refresh
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 80857c6cd6246d4ab4913c99db4437ebdc33006340df11ae6f38046da3937e90
+spec_changes:
+  - capability: owned-child-factory-creation
+    operation: create
+    source: specs/owned-child-factory-creation/spec.md
+    base_hash: null
+  - capability: semantic-value-types
+    operation: create
+    source: specs/semantic-value-types/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/e395d17f61218340c1b1a62ce656e1b0ed3710bf7bf222392444b29b32a07500.json
+verification_evidence: runtime/evidence/verifications/92efc3354c793da047d7627b15f284700f5f12e9e2d33724ef20e6280c254956.json
+partial_allowance: null
+archived: true
+created_at: 2026-07-28
+run_id: 2c4d07b8-a2b9-470d-8aa5-1a97532471cb

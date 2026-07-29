@@ -151,7 +151,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `observation generators run without generator config keys and keep overwrite policy`() {
+    fun `observation generators run without generator config keys and checked-in outputs stay skip`() {
         val drawingBoardItem = ArtifactPlanItem(
             generatorId = "drawing-board",
             moduleRole = "project",
@@ -222,13 +222,13 @@ class DefaultPipelineRunnerTest {
         )
 
         val expectedItems = listOf(
-            drawingBoardItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE),
-            flowItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE),
+            drawingBoardItem.copy(conflictPolicy = ConflictPolicy.SKIP),
+            flowItem.copy(conflictPolicy = ConflictPolicy.SKIP),
         )
 
         assertEquals(expectedItems, rendererReceivedPlanItems)
         assertEquals(expectedItems, result.planItems)
-        assertTrue(result.planItems.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
+        assertTrue(result.planItems.all { it.conflictPolicy == ConflictPolicy.SKIP })
     }
 
     @Test
@@ -259,7 +259,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `template conflict override forces overwrite for observation outputs`() {
+    fun `template conflict override cannot override checked-in skip policy`() {
         val drawingBoardItem = ArtifactPlanItem(
             generatorId = "drawing-board",
             moduleRole = "project",
@@ -300,12 +300,12 @@ class DefaultPipelineRunnerTest {
             },
         )
 
-        assertEquals(ConflictPolicy.OVERWRITE, result.rendererReceivedPlanItems[0].conflictPolicy)
-        assertEquals(ConflictPolicy.OVERWRITE, result.rendererReceivedPlanItems[1].conflictPolicy)
+        assertEquals(ConflictPolicy.SKIP, result.rendererReceivedPlanItems[0].conflictPolicy)
+        assertEquals(ConflictPolicy.SKIP, result.rendererReceivedPlanItems[1].conflictPolicy)
     }
 
     @Test
-    fun `addon item using observation generator id is not forced to overwrite`() {
+    fun `addon checked-in item remains skip even when using observation generator id`() {
         val addonItem = ArtifactPlanItem(
             generatorId = "flow",
             moduleRole = "project",
@@ -329,11 +329,11 @@ class DefaultPipelineRunnerTest {
             ),
         )
 
-        assertEquals(ConflictPolicy.FAIL, result.rendererReceivedPlanItems.single().conflictPolicy)
+        assertEquals(ConflictPolicy.SKIP, result.rendererReceivedPlanItems.single().conflictPolicy)
     }
 
     @Test
-    fun `transformed non observation item using observation generator id is not forced to overwrite`() {
+    fun `transformed checked-in item remains skip even when using observation generator id`() {
         val checkedInItem = ArtifactPlanItem(
             generatorId = "command",
             moduleRole = "application",
@@ -358,8 +358,8 @@ class DefaultPipelineRunnerTest {
             transformPlanItem = { transformedItem },
         )
 
-        assertEquals(ConflictPolicy.FAIL, result.rendererReceivedPlanItems.single().conflictPolicy)
-        assertEquals(ConflictPolicy.FAIL, result.pipelineResult.planItems.single().conflictPolicy)
+        assertEquals(ConflictPolicy.SKIP, result.rendererReceivedPlanItems.single().conflictPolicy)
+        assertEquals(ConflictPolicy.SKIP, result.pipelineResult.planItems.single().conflictPolicy)
     }
 
     @Test
@@ -515,6 +515,7 @@ class DefaultPipelineRunnerTest {
             templateId = "addons/sample-addon/original.kt.peb",
             outputPath = "generated/SampleAddon.kt",
             conflictPolicy = ConflictPolicy.SKIP,
+            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
         )
         val excludedAddonItem = includedAddonItem.copy(outputPath = "generated/ExcludedAddon.kt")
         val transformedIncludedItem = includedAddonItem.copy(
@@ -641,7 +642,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `template conflict override beats planner default for checked-in source items`() {
+    fun `checked-in source items remain skip despite template conflict overrides`() {
         val plannedItem = ArtifactPlanItem(
             generatorId = "command",
             moduleRole = "application",
@@ -664,10 +665,8 @@ class DefaultPipelineRunnerTest {
             ),
         )
 
-        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
-
-        assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
-        assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+        assertEquals(listOf(plannedItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(plannedItem), result.pipelineResult.planItems)
     }
 
     @Test
@@ -727,10 +726,8 @@ class DefaultPipelineRunnerTest {
             includePlanItem = { it.conflictPolicy == ConflictPolicy.SKIP },
         )
 
-        val expectedResolvedItem = plannedItem.copy(conflictPolicy = ConflictPolicy.OVERWRITE)
-
-        assertEquals(listOf(expectedResolvedItem), result.rendererReceivedPlanItems)
-        assertEquals(listOf(expectedResolvedItem), result.pipelineResult.planItems)
+        assertEquals(listOf(plannedItem), result.rendererReceivedPlanItems)
+        assertEquals(listOf(plannedItem), result.pipelineResult.planItems)
     }
 
     @Test
@@ -764,7 +761,7 @@ class DefaultPipelineRunnerTest {
                 moduleRole = "app",
                 templateId = "template-overwrite",
                 outputPath = "generated/Request.kt",
-                conflictPolicy = ConflictPolicy.OVERWRITE,
+                conflictPolicy = ConflictPolicy.SKIP,
             ),
             ArtifactPlanItem(
                 generatorId = "command",

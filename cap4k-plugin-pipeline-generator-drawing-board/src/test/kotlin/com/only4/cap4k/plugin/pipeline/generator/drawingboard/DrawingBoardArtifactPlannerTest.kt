@@ -3,15 +3,21 @@ package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
-import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueField
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -83,17 +89,17 @@ class DrawingBoardArtifactPlannerTest {
                             artifacts = listOf(
                                 ArtifactSelectionModel(family = "query", variant = "page"),
                             ),
-                            fields = listOf(
-                                DrawingBoardFieldModel(
-                                    name = "orderId",
-                                    type = "Long",
-                                ),
+                            request = semanticValue(
+                                "orders.queries",
+                                "ReadOrder.Request",
+                                SemanticValueRole.QUERY_REQUEST,
+                                fields = listOf(semanticField("orderId", SemanticBuiltinType.LONG)),
                             ),
-                            resultFields = listOf(
-                                DrawingBoardFieldModel(
-                                    name = "status",
-                                    type = "String",
-                                ),
+                            response = semanticValue(
+                                "orders.queries",
+                                "ReadOrder.Response",
+                                SemanticValueRole.QUERY_RESPONSE,
+                                fields = listOf(semanticField("status", SemanticBuiltinType.STRING)),
                             ),
                         ),
                         DrawingBoardElementModel(
@@ -105,11 +111,11 @@ class DrawingBoardArtifactPlannerTest {
                                 ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                                 ArtifactSelectionModel(family = "integration-subscriber"),
                             ),
-                            fields = listOf(
-                                DrawingBoardFieldModel(
-                                    name = "orderId",
-                                    type = "Long",
-                                ),
+                            request = semanticValue(
+                                "orders.events",
+                                "OrderCreated.Event",
+                                SemanticValueRole.INTEGRATION_EVENT,
+                                fields = listOf(semanticField("orderId", SemanticBuiltinType.LONG)),
                             ),
                         ),
                     ),
@@ -119,16 +125,19 @@ class DrawingBoardArtifactPlannerTest {
 
         val queryContext = plan.single { it.outputPath.endsWith("drawing_board_query.json") }.context
         val integrationContext = plan.single { it.outputPath.endsWith("drawing_board_integration_event.json") }.context
-        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DrawingBoardElementModel>().single()
+        val queryElement = (queryContext["elements"] as List<*>).filterIsInstance<DrawingBoardRenderElement>().single()
         val integrationElement = (integrationContext["elements"] as List<*>)
-            .filterIsInstance<DrawingBoardElementModel>()
+            .filterIsInstance<DrawingBoardRenderElement>()
             .single()
 
         assertEquals("query", queryElement.tag)
         assertEquals("orders.queries", queryElement.packageName)
         assertEquals("ReadOrder", queryElement.name)
         assertEquals("read order", queryElement.description)
-        assertEquals(listOf(ArtifactSelectionModel(family = "query", variant = "page")), queryElement.artifacts)
+        assertEquals(
+            listOf(ArtifactSelectionModel(family = "query", variant = "page")),
+            queryElement.designJsonArtifacts,
+        )
         assertEquals(1, queryElement.fields.size)
         assertEquals(1, queryElement.resultFields.size)
         assertEquals(
@@ -136,7 +145,7 @@ class DrawingBoardArtifactPlannerTest {
                 ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                 ArtifactSelectionModel(family = "integration-subscriber"),
             ),
-            integrationElement.artifacts,
+            integrationElement.designJsonArtifacts,
         )
     }
 
@@ -157,6 +166,7 @@ class DrawingBoardArtifactPlannerTest {
                             ArtifactSelectionModel("query"),
                             ArtifactSelectionModel("query-handler"),
                         ),
+                        request = semanticValue("orders.queries", "ReadOrderQry.Request", SemanticValueRole.QUERY_REQUEST),
                     ),
                     DesignBlockModel(
                         tag = "domain_service",
@@ -164,6 +174,11 @@ class DrawingBoardArtifactPlannerTest {
                         name = "OrderPolicyService",
                         description = "order policy service",
                         artifacts = listOf(ArtifactSelectionModel("domain-service")),
+                        request = semanticValue(
+                            "orders.domain",
+                            "OrderPolicyService.Request",
+                            SemanticValueRole.API_PAYLOAD_REQUEST,
+                        ),
                     ),
                 ),
             ),
@@ -186,6 +201,11 @@ class DrawingBoardArtifactPlannerTest {
                         name = "CanonicalReadOrder",
                         description = "canonical read order",
                         artifacts = listOf(ArtifactSelectionModel("query")),
+                        request = semanticValue(
+                            "orders.queries",
+                            "CanonicalReadOrderQry.Request",
+                            SemanticValueRole.QUERY_REQUEST,
+                        ),
                     ),
                 ),
                 drawingBoard = DrawingBoardModel(
@@ -195,6 +215,11 @@ class DrawingBoardArtifactPlannerTest {
                             packageName = "orders.commands",
                             name = "LegacySubmitOrder",
                             description = "legacy submit order",
+                            request = semanticValue(
+                                "orders.commands",
+                                "LegacySubmitOrder.Request",
+                                SemanticValueRole.COMMAND_REQUEST,
+                            ),
                         ),
                     ),
                 ),
@@ -204,7 +229,7 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals(listOf("design/drawing_board_command.json"), plan.map { it.outputPath })
         assertEquals(
             listOf("LegacySubmitOrder"),
-            (plan.single().context["elements"] as List<*>).filterIsInstance<DrawingBoardElementModel>().map { it.name },
+            (plan.single().context["elements"] as List<*>).filterIsInstance<DrawingBoardRenderElement>().map { it.name },
         )
     }
 
@@ -270,6 +295,11 @@ class DrawingBoardArtifactPlannerTest {
                             name = "OrderPolicyService",
                             description = "order policy service",
                             artifacts = listOf(ArtifactSelectionModel("domain-service")),
+                            request = semanticValue(
+                                "orders.domain",
+                                "OrderPolicyService.Request",
+                                SemanticValueRole.API_PAYLOAD_REQUEST,
+                            ),
                         ),
                         DrawingBoardElementModel(
                             tag = "saga",
@@ -277,6 +307,11 @@ class DrawingBoardArtifactPlannerTest {
                             name = "PublishOrderSaga",
                             description = "publish order saga",
                             artifacts = listOf(ArtifactSelectionModel("saga")),
+                            request = semanticValue(
+                                "orders.application",
+                                "PublishOrderSaga.Request",
+                                SemanticValueRole.SAGA_REQUEST,
+                            ),
                         ),
                     ),
                 ),
@@ -291,10 +326,10 @@ class DrawingBoardArtifactPlannerTest {
             plan.map { it.outputPath },
         )
         val domainService = (plan[0].context["elements"] as List<*>)
-            .filterIsInstance<DrawingBoardElementModel>()
+            .filterIsInstance<DrawingBoardRenderElement>()
             .single()
         val saga = (plan[1].context["elements"] as List<*>)
-            .filterIsInstance<DrawingBoardElementModel>()
+            .filterIsInstance<DrawingBoardRenderElement>()
             .single()
 
         assertFalse(domainService.includeDesignJsonArtifacts)
@@ -333,6 +368,24 @@ class DrawingBoardArtifactPlannerTest {
             artifactLayout = ArtifactLayoutConfig(drawingBoard = OutputRootLayout(outputRoot)),
         )
 
+    private fun semanticValue(
+        packageName: String,
+        typePath: String,
+        role: SemanticValueRole,
+        fields: List<SemanticValueField> = emptyList(),
+    ): SemanticValueDefinition = SemanticValueDefinition(
+        identity = CanonicalTypeIdentity(
+            packageName = packageName,
+            typePath = typePath.split('.'),
+            kind = CanonicalTypeKind.NESTED_VALUE,
+        ),
+        role = role,
+        fields = fields,
+    )
+
+    private fun semanticField(name: String, kind: SemanticBuiltinType): SemanticValueField =
+        SemanticValueField(name = name, type = SemanticBuiltinTypeRef(kind))
+
     private fun model(): CanonicalModel =
         CanonicalModel(
             drawingBoard = DrawingBoardModel(
@@ -342,30 +395,55 @@ class DrawingBoardArtifactPlannerTest {
                         packageName = "orders.commands",
                         name = "SubmitOrder",
                         description = "submit order",
+                        request = semanticValue(
+                            "orders.commands",
+                            "SubmitOrder.Request",
+                            SemanticValueRole.COMMAND_REQUEST,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "client",
                         packageName = "ops.cli",
                         name = "FetchStatus",
                         description = "fetch status",
+                        request = semanticValue(
+                            "ops.cli",
+                            "FetchStatus.Request",
+                            SemanticValueRole.CLIENT_REQUEST,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "query",
                         packageName = "orders.queries",
                         name = "ReadOrder",
                         description = "read order",
+                        request = semanticValue(
+                            "orders.queries",
+                            "ReadOrder.Request",
+                            SemanticValueRole.QUERY_REQUEST,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "api_payload",
                         packageName = "orders.payload",
                         name = "OrderPayload",
                         description = "payload",
+                        request = semanticValue(
+                            "orders.payload",
+                            "OrderPayload.Request",
+                            SemanticValueRole.API_PAYLOAD_REQUEST,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "domain_event",
                         packageName = "orders.domain",
                         name = "OrderEntity",
                         description = "domain entity",
+                        request = semanticValue(
+                            "orders.domain",
+                            "OrderEntity.Event",
+                            SemanticValueRole.DOMAIN_EVENT,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "integration_event",
@@ -374,24 +452,44 @@ class DrawingBoardArtifactPlannerTest {
                         description = "order created",
                         artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                         eventName = "order.created",
+                        request = semanticValue(
+                            "orders.events",
+                            "OrderCreated.Event",
+                            SemanticValueRole.INTEGRATION_EVENT,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "domain_service",
                         packageName = "orders.domain",
                         name = "OrderPolicyService",
                         description = "order policy service",
+                        request = semanticValue(
+                            "orders.domain",
+                            "OrderPolicyService.Request",
+                            SemanticValueRole.API_PAYLOAD_REQUEST,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "saga",
                         packageName = "orders.application",
                         name = "PublishOrderSaga",
                         description = "publish order saga",
+                        request = semanticValue(
+                            "orders.application",
+                            "PublishOrderSaga.Request",
+                            SemanticValueRole.SAGA_REQUEST,
+                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "ignored",
                         packageName = "orders.ignored",
                         name = "Ignored",
                         description = "ignored",
+                        request = semanticValue(
+                            "orders.ignored",
+                            "Ignored.Request",
+                            SemanticValueRole.API_PAYLOAD_REQUEST,
+                        ),
                     ),
                 ),
             ),

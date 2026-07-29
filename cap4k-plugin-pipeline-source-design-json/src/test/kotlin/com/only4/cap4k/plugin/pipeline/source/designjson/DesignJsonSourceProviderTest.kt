@@ -3,7 +3,7 @@ package com.only4.cap4k.plugin.pipeline.source.designjson
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -37,15 +37,15 @@ class DesignJsonSourceProviderTest {
         assertEquals(null, snapshot.entries.first().artifacts)
         assertEquals(1, snapshot.entries.first().fields.size)
         assertEquals("orderId", snapshot.entries.first().fields.first().name)
-        assertEquals("Long", snapshot.entries.first().fields.first().type)
-        assertEquals(emptyList<FieldModel>(), snapshot.entries.first().resultFields)
+        assertEquals("Long", snapshot.entries.first().fields.first().typeExpression)
+        assertEquals(emptyList<SemanticFieldSnapshot>(), snapshot.entries.first().resultFields)
         assertEquals("query", snapshot.entries.last().tag)
         assertEquals("FindOrder", snapshot.entries.last().name)
         assertEquals(null, snapshot.entries.last().artifacts)
         assertEquals("orderId", snapshot.entries.last().fields.first().name)
-        assertEquals("Long", snapshot.entries.last().fields.first().type)
+        assertEquals("Long", snapshot.entries.last().fields.first().typeExpression)
         assertEquals("status", snapshot.entries.last().resultFields.first().name)
-        assertEquals("String", snapshot.entries.last().resultFields.first().type)
+        assertEquals("String", snapshot.entries.last().resultFields.first().typeExpression)
     }
 
     @Test
@@ -65,7 +65,7 @@ class DesignJsonSourceProviderTest {
                       { "family": "query", "variant": "page" },
                       { "family": "query-handler" }
                     ],
-                    "fields": [{ "name": "keyword", "type": "String", "nullable": true }],
+                    "fields": [{ "name": "keyword", "type": "String?" }],
                     "resultFields": [{ "name": "orderNo", "type": "String" }]
                   }
                 ]
@@ -79,7 +79,7 @@ class DesignJsonSourceProviderTest {
         assertEquals("Find order page", entry.description)
         assertEquals(listOf("Order"), entry.aggregates)
         assertEquals("keyword", entry.fields.single().name)
-        assertEquals(true, entry.fields.single().nullable)
+        assertEquals("String?", entry.fields.single().typeExpression)
         assertEquals("orderNo", entry.resultFields.single().name)
         assertEquals(
             listOf(
@@ -106,7 +106,7 @@ class DesignJsonSourceProviderTest {
                     "fields": [{ "name": "orderId", "type": "OrderId" }],
                     "resultFields": [
                       { "name": "accepted", "type": "Boolean" },
-                      { "name": "receiptId", "type": "String", "nullable": true, "defaultValue": "null" }
+                      { "name": "receiptId", "type": "String?", "defaultValue": "null" }
                     ]
                   }
                 ]
@@ -120,11 +120,19 @@ class DesignJsonSourceProviderTest {
         assertEquals("command", entry.tag)
         assertEquals("SubmitOrder", entry.name)
         assertEquals(listOf("Order"), entry.aggregates)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "OrderId")), entry.fields)
+        assertEquals(
+            listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "OrderId", sourcePath = "fields.orderId")),
+            entry.fields,
+        )
         assertEquals(
             listOf(
-                FieldModel(name = "accepted", type = "Boolean"),
-                FieldModel(name = "receiptId", type = "String", nullable = true, defaultValue = "null"),
+                SemanticFieldSnapshot(name = "accepted", typeExpression = "Boolean", sourcePath = "resultFields.accepted"),
+                SemanticFieldSnapshot(
+                    name = "receiptId",
+                    typeExpression = "String?",
+                    defaultValue = "null",
+                    sourcePath = "resultFields.receiptId",
+                ),
             ),
             entry.resultFields,
         )
@@ -296,6 +304,37 @@ class DesignJsonSourceProviderTest {
 
         assertEquals(
             "design entry CreateOrder fields[0] field type must be a nonblank string.",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects legacy nullable field flag and requires nullability in type expression`() {
+        val tempFile = tempDir.resolve("legacy-nullable-field.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "description": "find order",
+                    "fields": [
+                      { "name": "keyword", "type": "String", "nullable": true }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals(
+            "design entry FindOrder fields[0] field nullable is removed; encode nullability in type",
             error.message,
         )
     }
@@ -705,8 +744,8 @@ class DesignJsonSourceProviderTest {
 
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
 
-        assertEquals("myself", snapshot.entries.single().fields.single().type)
-        assertEquals("Selfie", snapshot.entries.single().resultFields.single().type)
+        assertEquals("myself", snapshot.entries.single().fields.single().typeExpression)
+        assertEquals("Selfie", snapshot.entries.single().resultFields.single().typeExpression)
     }
 
     @Test

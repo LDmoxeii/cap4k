@@ -14,8 +14,7 @@
       },
       {
         "name": "note",
-        "type": "String",
-        "nullable": true
+        "type": "String?"
       }
     ]
   },
@@ -87,8 +86,7 @@
       },
       {
         "name": "address",
-        "type": "Address",
-        "nullable": true
+        "type": "Address?"
       },
       {
         "name": "address.city",
@@ -98,8 +96,7 @@
     "resultFields": [
       {
         "name": "receipt",
-        "type": "Receipt",
-        "nullable": true
+        "type": "Receipt?"
       },
       {
         "name": "receipt.number",
@@ -123,8 +120,7 @@
       },
       {
         "name": "snapshot",
-        "type": "Snapshot",
-        "nullable": true
+        "type": "Snapshot?"
       },
       {
         "name": "snapshot.traceId",

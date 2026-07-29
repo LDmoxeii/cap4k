@@ -193,14 +193,18 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 enumItems = planning.resolveEnumItems(entity.packageName, field),
                             )
                         }
+                        val providerAssignedManagedField =
+                            managedByField[field.name]?.writePolicy == SpecialFieldWritePolicy.READ_ONLY
                         val insertable = when {
                             embeddedId -> null
+                            providerAssignedManagedField -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
                             else -> null
                         }
                         val updatable = when {
                             embeddedId -> null
+                            providerAssignedManagedField -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true
                             else -> null
@@ -215,11 +219,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             else -> "READ_WRITE"
                         }
                         val constructorIncluded =
-                            !generatedOwnId && !providerAssigned &&
+                            !generatedOwnId && !providerAssigned && !providerAssignedManagedField &&
                                 writePolicy != SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
-                        val propertyNullable = providerAssigned || field.nullable
+                        val propertyNullable = providerAssigned || providerAssignedManagedField || field.nullable
                         val propertyInitializer = when {
-                            providerAssigned -> "null"
+                            providerAssigned || providerAssignedManagedField -> "null"
                             isSoftDeleteField -> requireNotNull(renderedSoftDelete).propertyInitializer
                             writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name ->
                                 error(
@@ -255,6 +259,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "generatedValueStrategy" to generatedValueStrategy,
                             "providerAssignedIdentity" to providerAssignedIdentity,
                             "providerAssignedVersion" to providerAssignedVersion,
+                            "providerAssignedManagedField" to providerAssignedManagedField,
                             "isVersion" to providerAssignedVersion,
                             "writePolicy" to writePolicy,
                             "managedRole" to field.managedRole?.name,

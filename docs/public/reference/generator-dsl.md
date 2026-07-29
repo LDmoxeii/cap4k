@@ -123,15 +123,15 @@ generators {
 | --- | --- |
 | `preset` | source generation template preset，默认 `ddd-default`。 |
 | `overrideDirs` | template override dirs，按配置顺序查找。 |
-| `conflictPolicy` | 默认 source generation conflict policy，默认 `SKIP`。 |
-| `templateConflictPolicies` | 按 `templateId` 覆盖 conflict policy。 |
+| `conflictPolicy` | 非 checked-in source-generation output 的默认 conflict policy；`CHECKED_IN_SOURCE` 固定为 `SKIP`。 |
+| `templateConflictPolicies` | 按 `templateId` 覆盖非 checked-in output 的 conflict policy；不能让 checked-in source 被覆盖或失败。 |
 
 ```kotlin
 templates {
     preset.set("ddd-default")
     overrideDirs.from("codegen/templates")
     conflictPolicy.set("SKIP")
-    templateConflictPolicies.put("design/api_payload.kt.peb", "OVERWRITE")
+    templateConflictPolicies.put("types/value_object_json_converter.kt.peb", "OVERWRITE")
 }
 ```
 

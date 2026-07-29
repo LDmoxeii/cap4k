@@ -155,14 +155,14 @@ class DesignDomainEventHandlerArtifactPlannerTest {
         name: String = "OrderCreated",
         description: String = "order */ created event",
         aggregates: List<String> = listOf("Order"),
-    ) = DesignBlockModel(
+    ) = designBlock(
         tag = "domain_event",
+        family = "domain-subscriber",
         packageName = packageName,
         name = name,
         description = description,
         aggregates = aggregates,
         persist = false,
-        artifacts = listOf(ArtifactSelectionModel("domain-subscriber")),
     )
 
     private fun entityModel(

@@ -20,10 +20,6 @@ class DesignCommandArtifactPlanner : GeneratorProvider {
 
         return blocks.map { block ->
             val typeName = block.commandTypeName()
-            val siblingTypeNames = model.designInteractionSiblingTypeNames(
-                packageName = block.packageName,
-                currentTypeName = typeName,
-            )
             val packageName = artifactLayout.designCommandPackage(block.packageName)
 
             ArtifactPlanItem(
@@ -34,8 +30,6 @@ class DesignCommandArtifactPlanner : GeneratorProvider {
                 context = DesignPayloadRenderModelFactory.createForCommandBlock(
                     packageName = packageName,
                     block = block,
-                    symbolRegistry = config.designTypeSymbolRegistry(model),
-                    siblingTypeNames = siblingTypeNames,
                 ).toContextMap() + mapOf("buildingBlock" to block.buildingBlockContext(id)),
                 conflictPolicy = config.templates.conflictPolicy,
             )

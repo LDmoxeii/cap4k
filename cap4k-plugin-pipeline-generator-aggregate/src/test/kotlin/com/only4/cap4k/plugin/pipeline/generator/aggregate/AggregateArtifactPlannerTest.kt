@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateColumnJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateEntityJpaModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
@@ -13,9 +14,12 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
 import com.only4.cap4k.plugin.pipeline.api.AggregateSoftDeletePolicy
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
 import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
@@ -37,6 +41,13 @@ import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedFieldPolicy
 import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
 import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueField
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
@@ -151,7 +162,7 @@ class AggregateArtifactPlannerTest {
             ),
         ).model
 
-        val items = AggregateArtifactPlanner().plan(config, model)
+        val items = planAggregate(config, model)
         val articleEntity = items.first {
             it.templateId == "aggregate/entity.kt.peb" &&
                 it.context["typeName"] == "Article"
@@ -192,14 +203,14 @@ class AggregateArtifactPlannerTest {
             },
             {
                 assertEquals(
-                    "com.acme.demo.domain.aggregates.author.AuthorId",
-                    factoryFields.single { it["name"] == "authorId" }["typeRef"],
+                    listOf("com.acme.demo.domain.aggregates.author.AuthorId"),
+                    factoryFields.single { it["name"] == "authorId" }["typeImports"],
                 )
             },
             {
                 assertEquals(
-                    "com.acme.demo.domain.shared.ids.AuthorId",
-                    reviewFactoryFields.single { it["name"] == "reviewerId" }["typeRef"],
+                    listOf("com.acme.demo.domain.shared.ids.AuthorId"),
+                    reviewFactoryFields.single { it["name"] == "reviewerId" }["typeImports"],
                 )
             },
         )
@@ -220,7 +231,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "id"),
             uniqueConstraints = listOf(uniqueConstraint("uk_v_tenant_slug", "tenant_id", "slug")),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -269,7 +280,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -402,7 +413,7 @@ class AggregateArtifactPlannerTest {
                 idField = FieldModel("id", "Long", columnName = "id"),
             ),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = entities,
@@ -471,7 +482,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(FieldModel("id", "Long", columnName = "id")),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(databaseIdentity),
@@ -505,7 +516,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(
+            planAggregate(
                 aggregateConfig(),
                 CanonicalModel(strongIds = listOf(incompleteId)),
             )
@@ -524,7 +535,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(FieldModel("id", "ContentId", columnName = "id")),
             idField = FieldModel("id", "ContentId", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(content),
@@ -630,7 +641,7 @@ class AggregateArtifactPlannerTest {
 
     @Test
     fun `strong id planner projects all resolved backing contexts without allocation flag`() {
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 strongIds = listOf(
@@ -706,7 +717,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("uuidText", "UuidTextId", nullable = false, columnName = "uuid_text"),
         )
-        val entityContext = AggregateArtifactPlanner().plan(
+        val entityContext = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -824,7 +835,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "OrderLineId", nullable = false, columnName = "id"),
         )
 
-        val artifacts = AggregateArtifactPlanner().plan(
+        val artifacts = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(order, orderLine),
@@ -942,7 +953,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "ContentId", columnName = "id"),
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -1047,7 +1058,7 @@ class AggregateArtifactPlannerTest {
         val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
         @Suppress("UNCHECKED_CAST")
         val constructorPayloadFields =
-            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+            (factoryContext["rootConstructorFields"] as? List<Map<String, Any?>>).orEmpty()
 
         val repositoryContext = plan.single { it.templateId == "aggregate/repository.kt.peb" }.context
         val allocationContextKeys = listOf(
@@ -1128,7 +1139,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "AuthorId", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity, author),
@@ -1196,20 +1207,19 @@ class AggregateArtifactPlannerTest {
         val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
         @Suppress("UNCHECKED_CAST")
         val constructorPayloadFields =
-            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
+            (factoryContext["rootConstructorFields"] as? List<Map<String, Any?>>).orEmpty()
 
         assertAll(
-            { assertEquals(true, factoryContext["constructorMappingResolved"]) },
             {
                 assertEquals(
-                    "com.acme.demo.domain.shared.ids.AuthorId",
-                    payloadFields.single { it["name"] == "authorId" }["typeRef"],
+                    listOf("com.acme.demo.domain.shared.ids.AuthorId"),
+                    payloadFields.single { it["name"] == "authorId" }["typeImports"],
                 )
             },
             {
                 assertEquals(
-                    "com.acme.demo.domain.shared.ids.AuthorId",
-                    constructorPayloadFields.single { it["name"] == "authorId" }["typeRef"],
+                    listOf("com.acme.demo.domain.shared.ids.AuthorId"),
+                    constructorPayloadFields.single { it["name"] == "authorId" }["typeImports"],
                 )
             },
         )
@@ -1237,7 +1247,7 @@ class AggregateArtifactPlannerTest {
             parentEntityName = "VideoPost",
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(root, child),
@@ -1314,7 +1324,7 @@ class AggregateArtifactPlannerTest {
             idType = "Long",
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(artifactLayout = artifactLayout),
             CanonicalModel(
                 entities = listOf(entity),
@@ -1359,7 +1369,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(FieldModel("id", "Long", columnName = "id")),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -1399,7 +1409,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(FieldModel("id", "Long", columnName = "id")),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -1527,7 +1537,7 @@ class AggregateArtifactPlannerTest {
 
     @Test
     fun `entity planner surfaces bounded aggregate JPA metadata`() {
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(
@@ -1573,7 +1583,7 @@ class AggregateArtifactPlannerTest {
 
         assertEquals(false, entityJpa["entityEnabled"])
         assertEquals("video_post_override", entityJpa["tableName"])
-        assertEquals(true, entityItem.context["hasConverterFields"])
+        assertEquals(false, entityItem.context["hasConverterFields"])
         assertEquals(true, scalarFields.single { it["name"] == "id" }["isId"])
         assertEquals("id", scalarFields.single { it["name"] == "id" }["columnName"])
         assertEquals(
@@ -1595,12 +1605,12 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
                 valueObjects = listOf(
-                    ValueObjectModel(
+                    valueObject(
                         name = "PublishWindow",
                         packageName = "com.acme.demo.domain.aggregates.content.values",
                         aggregates = listOf("Content"),
@@ -1619,7 +1629,8 @@ class AggregateArtifactPlannerTest {
                                 columnName = "publish_window",
                                 isId = false,
                                 converterTypeFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow",
-                                converterClassFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+                                converterClassFqn =
+                                    "com.acme.demo.domain.aggregates.content.values.PublishWindowJsonAttributeConverter",
                             ),
                         ),
                     )
@@ -1639,7 +1650,10 @@ class AggregateArtifactPlannerTest {
             publishWindow["typeImports"],
         )
         assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow", publishWindow["converterTypeRef"])
-        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter", publishWindow["converterClassRef"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindowJsonAttributeConverter",
+            publishWindow["converterClassRef"],
+        )
     }
 
     @Test
@@ -1657,12 +1671,12 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
                 valueObjects = listOf(
-                    ValueObjectModel(
+                    valueObject(
                         name = "PublishWindow",
                         packageName = "com.acme.demo.domain.shared.values",
                     )
@@ -1680,14 +1694,16 @@ class AggregateArtifactPlannerTest {
                                 columnName = "publish_window",
                                 isId = false,
                                 converterTypeFqn = "com.acme.demo.domain.shared.values.PublishWindow",
-                                converterClassFqn = "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+                                converterClassFqn =
+                                    "com.acme.demo.domain.shared.values.PublishWindowJsonAttributeConverter",
                             ),
                             AggregateColumnJpaModel(
                                 fieldName = "legacyState",
                                 columnName = "legacy_state",
                                 isId = false,
                                 converterTypeFqn = "com.acme.demo.domain.shared.values.PublishWindow",
-                                converterClassFqn = "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+                                converterClassFqn =
+                                    "com.acme.demo.domain.shared.values.PublishWindowJsonAttributeConverter",
                             ),
                         ),
                     )
@@ -1712,7 +1728,10 @@ class AggregateArtifactPlannerTest {
             legacyState["typeImports"],
         )
         assertEquals("com.acme.demo.domain.shared.values.PublishWindow", legacyState["converterTypeRef"])
-        assertEquals("com.acme.demo.domain.shared.values.PublishWindow.Converter", legacyState["converterClassRef"])
+        assertEquals(
+            "com.acme.demo.domain.shared.values.PublishWindowJsonAttributeConverter",
+            legacyState["converterClassRef"],
+        )
         assertFalse(
             plan.any {
                 it.templateId == "aggregate/enum.kt.peb" &&
@@ -1746,12 +1765,12 @@ class AggregateArtifactPlannerTest {
             aggregateRoot = false,
             parentEntityName = "Content",
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(root, child),
                 valueObjects = listOf(
-                    ValueObjectModel(
+                    valueObject(
                         name = "PublishWindow",
                         packageName = "com.acme.demo.domain.aggregates.content.values",
                         aggregates = listOf("Content"),
@@ -1777,7 +1796,8 @@ class AggregateArtifactPlannerTest {
                                 columnName = "publish_window",
                                 isId = false,
                                 converterTypeFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow",
-                                converterClassFqn = "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+                                converterClassFqn =
+                                    "com.acme.demo.domain.aggregates.content.values.PublishWindowJsonAttributeConverter",
                             ),
                         ),
                     ),
@@ -1799,7 +1819,10 @@ class AggregateArtifactPlannerTest {
             publishWindow["typeImports"],
         )
         assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow", publishWindow["converterTypeRef"])
-        assertEquals("com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter", publishWindow["converterClassRef"])
+        assertEquals(
+            "com.acme.demo.domain.aggregates.content.values.PublishWindowJsonAttributeConverter",
+            publishWindow["converterClassRef"],
+        )
     }
 
     @Test
@@ -1843,7 +1866,7 @@ class AggregateArtifactPlannerTest {
     @Test
     fun `entity planner fails fast when scalar aggregate JPA metadata is missing`() {
         val ex = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(
+            planAggregate(
                 aggregateConfig(),
                 CanonicalModel(
                     entities = listOf(
@@ -1895,7 +1918,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -1962,7 +1985,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "UUID"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2048,7 +2071,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2130,7 +2153,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "java.util.UUID"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2174,7 +2197,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2222,7 +2245,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2409,11 +2432,14 @@ class AggregateArtifactPlannerTest {
                 { assertEquals(true, title["constructorIncluded"]) },
                 { assertEquals(false, createdAt["providerAssignedIdentity"]) },
                 { assertEquals(false, createdAt["providerAssignedVersion"]) },
-                { assertEquals(false, createdAt["propertyNullable"]) },
-                { assertEquals("createdAt", createdAt["propertyInitializer"]) },
-                { assertEquals(true, createdAt["constructorIncluded"]) },
+                { assertEquals(true, createdAt["propertyNullable"]) },
+                { assertEquals("null", createdAt["propertyInitializer"]) },
+                { assertEquals(false, createdAt["constructorIncluded"]) },
+                { assertEquals(false, createdAt["insertable"]) },
+                { assertEquals(false, createdAt["updatable"]) },
+                { assertEquals(true, createdAt["providerAssignedManagedField"]) },
                 { assertEquals("READ_ONLY", createdAt["writePolicy"]) },
-                { assertEquals(listOf("title", "createdAt"), constructorFields.map { it["name"] }) },
+                { assertEquals(listOf("title"), constructorFields.map { it["name"] }) },
             )
 
             case.versionType?.let { versionType ->
@@ -2448,7 +2474,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2517,7 +2543,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2588,7 +2614,7 @@ class AggregateArtifactPlannerTest {
             aggregateRoot = false,
             parentEntityName = "VideoPost",
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(parent, child),
@@ -2660,7 +2686,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2718,7 +2744,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2748,7 +2774,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2792,7 +2818,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long"),
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2834,7 +2860,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long"),
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2863,7 +2889,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long"),
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2893,7 +2919,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long"),
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2943,7 +2969,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long"),
         )
 
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -2996,7 +3022,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(
+            planAggregate(
                 aggregateConfig(),
                 CanonicalModel(
                     entities = listOf(entity),
@@ -3035,7 +3061,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(
+            planAggregate(
                 aggregateConfig(),
                 CanonicalModel(
                     entities = listOf(entity),
@@ -3065,7 +3091,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(
+            planAggregate(
                 aggregateConfig(),
                 CanonicalModel(
                     entities = listOf(entity),
@@ -3101,7 +3127,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
@@ -3150,9 +3176,7 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val payloadFields = factory["payloadFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val constructorPayloadFields = factory["constructorPayloadFields"] as List<Map<String, Any?>>
-        @Suppress("UNCHECKED_CAST")
-        val constructorUnresolvedFields = factory["constructorUnresolvedFields"] as List<Map<String, Any?>>
+        val constructorPayloadFields = factory["rootConstructorFields"] as List<Map<String, Any?>>
 
         assertEquals("update \"video_post\" set \"deleted\" = \"id\" where \"id\" = ? and \"version\" = ?", artifact.context["softDeleteSql"])
         assertEquals("\"deleted\" = 0", artifact.context["softDeleteWhereClause"])
@@ -3175,7 +3199,6 @@ class AggregateArtifactPlannerTest {
         assertFalse(constructorFields.any { it["name"] == "deleted" })
         assertFalse(payloadFields.any { it["name"] == "deleted" })
         assertFalse(constructorPayloadFields.any { it["name"] == "deleted" })
-        assertFalse(constructorUnresolvedFields.any { it["name"] == "deleted" })
     }
 
     @Test
@@ -3192,7 +3215,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val artifact = AggregateArtifactPlanner().plan(
+        val artifact = planAggregate(
             aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")),
             CanonicalModel(
                 entities = listOf(entity),
@@ -3244,7 +3267,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("aggregateId", "Long"),
         )
-        val artifact = AggregateArtifactPlanner().plan(
+        val artifact = planAggregate(
             aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
@@ -3291,7 +3314,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val artifact = AggregateArtifactPlanner().plan(
+        val artifact = planAggregate(
             aggregateConfig(
                 sources = mapOf(
                     "db" to SourceConfig(
@@ -3334,7 +3357,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long", columnName = "i\"d"),
         )
-        val artifact = AggregateArtifactPlanner().plan(
+        val artifact = planAggregate(
             aggregateConfig(sources = dbSources("jdbc:h2:mem:test")),
             CanonicalModel(
                 entities = listOf(entity),
@@ -3787,7 +3810,7 @@ class AggregateArtifactPlannerTest {
             aggregateRoot = false,
             parentEntityName = root.name,
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(sources = dbSources("jdbc:postgresql://localhost/demo")),
             CanonicalModel(
                 entities = listOf(root, child),
@@ -3872,9 +3895,7 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val payloadFields = factory["payloadFields"] as List<Map<String, Any?>>
         @Suppress("UNCHECKED_CAST")
-        val constructorPayloadFields = factory["constructorPayloadFields"] as List<Map<String, Any?>>
-        @Suppress("UNCHECKED_CAST")
-        val constructorUnresolvedFields = factory["constructorUnresolvedFields"] as List<Map<String, Any?>>
+        val constructorPayloadFields = factory["rootConstructorFields"] as List<Map<String, Any?>>
 
         assertAll(
             { assertEquals("OrderId", rootFields.single { it["name"] == "id" }["fieldType"]) },
@@ -3885,7 +3906,6 @@ class AggregateArtifactPlannerTest {
             { assertFalse(childConstructorFields.any { it["name"] == "deleted" }) },
             { assertFalse(payloadFields.any { it["name"] == "deleted" }) },
             { assertFalse(constructorPayloadFields.any { it["name"] == "deleted" }) },
-            { assertFalse(constructorUnresolvedFields.any { it["name"] == "deleted" }) },
             { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
             { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
             {
@@ -3989,7 +4009,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -4047,7 +4067,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -4110,7 +4130,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(FieldModel("id", "Long", columnName = "id")),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -4184,7 +4204,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "ShippingAddressId", columnName = "id"),
         )
         val entities = listOf(order, orderLine, shippingAddress)
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = entities,
@@ -4287,7 +4307,7 @@ class AggregateArtifactPlannerTest {
             aggregateReferenceChild,
             unregisteredChild,
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = entities,
@@ -4373,7 +4393,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -4417,7 +4437,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -4513,7 +4533,7 @@ class AggregateArtifactPlannerTest {
             ),
             idField = FieldModel("id", "Long"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -4631,7 +4651,7 @@ class AggregateArtifactPlannerTest {
             ),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val planItems = planAggregate(config, model)
 
         assertEquals(5, planItems.size)
         assertFalse(planItems.any { it.templateId == "aggregate/schema_base.kt.peb" })
@@ -4749,7 +4769,7 @@ class AggregateArtifactPlannerTest {
             ),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(aggregateConfig(), model)
+        val planItems = planAggregate(aggregateConfig(), model)
 
         assertTrue(planItems.any {
             it.outputPath == "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video/VideoFile.kt"
@@ -4801,7 +4821,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(aggregateConfig(), model)
+            planAggregate(aggregateConfig(), model)
         }
 
         assertEquals(
@@ -4917,7 +4937,7 @@ class AggregateArtifactPlannerTest {
             )
         )
 
-        val items = planner.plan(config, model)
+        val items = planAggregate(config, model)
 
         assertTrue(items.any { it.templateId == "aggregate/enum.kt.peb" && it.outputPath.endsWith("/domain/aggregates/video_post/enums/VideoPostVisibility.kt") })
         val localEnumPlan = items.single { it.templateId == "aggregate/enum.kt.peb" && it.context["typeName"] == "VideoPostVisibility" }
@@ -5071,7 +5091,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val error = assertThrows(IllegalArgumentException::class.java) {
-            AggregateArtifactPlanner().plan(
+            planAggregate(
                 aggregateConfig(),
                 CanonicalModel(
                     entities = listOf(entity),
@@ -5137,7 +5157,7 @@ class AggregateArtifactPlannerTest {
             aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
         )
 
-        val items = AggregateArtifactPlanner().plan(
+        val items = planAggregate(
             aggregateConfig(artifactLayout = artifactLayout),
             model,
         )
@@ -5249,7 +5269,7 @@ class AggregateArtifactPlannerTest {
             ),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val planItems = planAggregate(config, model)
         val schemaContext = planItems.first { it.templateId == "aggregate/schema.kt.peb" }.context
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
         val entityContext = planItems.first { it.templateId == "aggregate/entity.kt.peb" }.context
@@ -5279,7 +5299,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5330,20 +5350,15 @@ class AggregateArtifactPlannerTest {
         val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
         @Suppress("UNCHECKED_CAST")
         val constructorPayloadFields =
-            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
-        @Suppress("UNCHECKED_CAST")
-        val constructorUnresolvedFields =
-            (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
-
+            (factoryContext["rootConstructorFields"] as? List<Map<String, Any?>>).orEmpty()
         assertAll(
-            { assertEquals(true, factoryContext["payloadWriteSurfaceResolved"]) },
             { assertEquals("Payload", factoryContext["payloadTypeName"]) },
             { assertEquals("VideoPostPayload", factoryContext["payloadMetadataName"]) },
             { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
-            { assertEquals(listOf("String"), payloadFields.map { it["typeName"] }) },
-            { assertEquals(true, factoryContext["constructorMappingResolved"]) },
+            { assertEquals(listOf("String"), payloadFields.map { it["renderedType"] }) },
             { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
-            { assertTrue(constructorUnresolvedFields.isEmpty()) },
+            { assertFalse(factoryContext.containsKey("payloadWriteSurfaceResolved")) },
+            { assertFalse(factoryContext.containsKey("constructorMappingResolved")) },
             { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
             { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
         )
@@ -5433,7 +5448,7 @@ class AggregateArtifactPlannerTest {
                 ),
             )
 
-            val factoryContext = AggregateArtifactPlanner().plan(
+            val factoryContext = planAggregate(
                 aggregateConfig(sources = dbSources("jdbc:h2:mem:factory_matrix")),
                 CanonicalModel(
                     entities = listOf(entity),
@@ -5466,17 +5481,12 @@ class AggregateArtifactPlannerTest {
             val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
             @Suppress("UNCHECKED_CAST")
             val constructorPayloadFields =
-                (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
-            @Suppress("UNCHECKED_CAST")
-            val unresolvedFields =
-                (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
-
+                (factoryContext["rootConstructorFields"] as? List<Map<String, Any?>>).orEmpty()
             assertAll(
                 "version=${cell.versionType}, softDelete=${cell.softDelete}",
-                { assertEquals(true, factoryContext["constructorMappingResolved"]) },
                 { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
                 { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
-                { assertTrue(unresolvedFields.isEmpty()) },
+                { assertFalse(factoryContext.containsKey("constructorMappingResolved")) },
                 { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
                 { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
             )
@@ -5509,7 +5519,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5584,12 +5594,13 @@ class AggregateArtifactPlannerTest {
                     payloadFields.single { it["name"] == "processingStatus" }["typeImports"],
                 )
             },
-            { assertEquals("MediaProcessingResultSnapshot", payloadFields.single { it["name"] == "resultSnapshot" }["renderedType"]) },
+            { assertEquals("MediaProcessingResultSnapshot?", payloadFields.single { it["name"] == "resultSnapshot" }["renderedType"]) },
             { assertEquals("LocalDateTime", payloadFields.single { it["name"] == "dbUpdatedAt" }["renderedType"]) },
             {
                 assertEquals(
                     listOf(
                         "com.acme.demo.domain.aggregates.content.ContentId",
+                        "com.acme.demo.domain.aggregates.media_processing_task.MediaProcessingTask",
                         "com.acme.demo.domain.aggregates.media_processing_task.enums.MediaProcessingStatus",
                         "com.acme.demo.domain.aggregates.media_processing_task.values.MediaProcessingResultSnapshot",
                         "java.time.LocalDateTime",
@@ -5625,7 +5636,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5647,7 +5658,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory planner rejects ordinary required fields missing from resolved write surface`() {
+    fun `factory planner consumes canonical payload instead of reconstructing excluded entity fields`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -5665,10 +5676,9 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "VideoPostId", columnName = "id"),
         )
 
-        val error = assertThrows(IllegalStateException::class.java) {
-            AggregateArtifactPlanner().plan(
-                aggregateConfig(),
-                CanonicalModel(
+        val factoryContext = planAggregate(
+            aggregateConfig(),
+            CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
                 aggregateSpecialFieldResolvedPolicies = listOf(
@@ -5705,15 +5715,13 @@ class AggregateArtifactPlannerTest {
                         isEmbeddedId = true,
                     ),
                 ),
-                )
             )
-        }
+        ).first { it.templateId == "aggregate/factory.kt.peb" }.context
+        @Suppress("UNCHECKED_CAST")
+        val payloadFields = factoryContext["payloadFields"] as List<Map<String, Any?>>
 
-        assertEquals(
-            "factory com.acme.demo.domain.aggregates.video_post.VideoPost cannot derive constructor mapping " +
-                "for required fields: externalCode",
-            error.message,
-        )
+        assertEquals(listOf("title"), payloadFields.map { it["name"] })
+        assertFalse(payloadFields.any { it["name"] == "externalCode" })
     }
 
     @Test
@@ -5731,7 +5739,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "VideoPostId", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5810,17 +5818,12 @@ class AggregateArtifactPlannerTest {
         val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
         @Suppress("UNCHECKED_CAST")
         val constructorPayloadFields =
-            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
-        @Suppress("UNCHECKED_CAST")
-        val constructorUnresolvedFields =
-            (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
-
+            (factoryContext["rootConstructorFields"] as? List<Map<String, Any?>>).orEmpty()
         assertAll(
-            { assertEquals(true, factoryContext["constructorMappingResolved"]) },
             { assertTrue("constructor" + "StructuralFields" !in factoryContext) },
             { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
             { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
-            { assertTrue(constructorUnresolvedFields.isEmpty()) },
+            { assertFalse(factoryContext.containsKey("constructorMappingResolved")) },
             { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
             { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
         )
@@ -5846,7 +5849,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "VideoPostId", columnName = "id"),
         )
 
-        val factoryContext = AggregateArtifactPlanner().plan(
+        val factoryContext = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5896,17 +5899,11 @@ class AggregateArtifactPlannerTest {
         val payloadFields = (factoryContext["payloadFields"] as? List<Map<String, Any?>>).orEmpty()
         @Suppress("UNCHECKED_CAST")
         val constructorPayloadFields =
-            (factoryContext["constructorPayloadFields"] as? List<Map<String, Any?>>).orEmpty()
-        @Suppress("UNCHECKED_CAST")
-        val unresolvedFields =
-            (factoryContext["constructorUnresolvedFields"] as? List<Map<String, Any?>>).orEmpty()
-
+            (factoryContext["rootConstructorFields"] as? List<Map<String, Any?>>).orEmpty()
         assertAll(
-            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
             { assertEquals(listOf("title"), payloadFields.map { it["name"] }) },
-            { assertTrue(constructorPayloadFields.isEmpty()) },
-            { assertEquals(listOf("auditStamp"), unresolvedFields.map { it["name"] }) },
-            { assertEquals(listOf("SYSTEM"), unresolvedFields.map { it["managedRole"] }) },
+            { assertEquals(listOf("title"), constructorPayloadFields.map { it["name"] }) },
+            { assertFalse(factoryContext.containsKey("constructorUnresolvedFields")) },
             { assertTrue(factoryContext.keys.none { it.contains("lifecycle", ignoreCase = true) }) },
             { assertTrue(factoryContext.keys.none { it.contains("parentRef", ignoreCase = true) }) },
             { assertTrue(factoryContext.keys.none { it.contains("child", ignoreCase = true) }) },
@@ -5914,7 +5911,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `factory planner keeps legacy payload metadata fallback without resolved write surface`() {
+    fun `factory planner uses explicit empty canonical payload without a resolved write surface`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -5927,7 +5924,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "Long", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5938,14 +5935,14 @@ class AggregateArtifactPlannerTest {
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
 
         assertAll(
-            { assertEquals(false, factoryContext["payloadWriteSurfaceResolved"]) },
             { assertEquals("VideoPostPayload", factoryContext["payloadMetadataName"]) },
             { assertEquals(emptyList<Map<String, Any?>>(), factoryContext["payloadFields"]) },
+            { assertFalse(factoryContext.containsKey("payloadWriteSurfaceResolved")) },
         )
     }
 
     @Test
-    fun `factory planner preserves unresolved constructor inputs without resolved write surface`() {
+    fun `factory planner does not reconstruct unresolved constructor inputs outside canonical graph`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -5963,7 +5960,7 @@ class AggregateArtifactPlannerTest {
             idField = FieldModel("id", "VideoPostId", columnName = "id"),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(
+        val planItems = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(entity),
@@ -5987,12 +5984,10 @@ class AggregateArtifactPlannerTest {
         val factoryContext = planItems.first { it.templateId == "aggregate/factory.kt.peb" }.context
 
         assertAll(
-            { assertEquals(false, factoryContext["constructorMappingResolved"]) },
-            {
-                @Suppress("UNCHECKED_CAST")
-                val unresolvedFields = factoryContext["constructorUnresolvedFields"] as List<Map<String, Any?>>
-                assertEquals(listOf("title", "parentId"), unresolvedFields.map { it["name"] })
-            },
+            { assertEquals(emptyList<Map<String, Any?>>(), factoryContext["payloadFields"]) },
+            { assertEquals(emptyList<Map<String, Any?>>(), factoryContext["rootConstructorFields"]) },
+            { assertFalse(factoryContext.containsKey("constructorMappingResolved")) },
+            { assertFalse(factoryContext.containsKey("constructorUnresolvedFields")) },
         )
     }
 
@@ -6027,7 +6022,7 @@ class AggregateArtifactPlannerTest {
             aggregateRoot = false,
             parentEntityName = "VideoPost",
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(rootEntity, itemEntity, fileEntity),
@@ -6152,7 +6147,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(FieldModel("id", "Long", columnName = "id")),
             idField = FieldModel("id", "Long", columnName = "id"),
         )
-        val plan = AggregateArtifactPlanner().plan(
+        val plan = planAggregate(
             aggregateConfig(),
             CanonicalModel(
                 entities = listOf(rootEntity, profileEntity),
@@ -6251,7 +6246,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val ex = assertThrows(IllegalStateException::class.java) {
-            AggregateArtifactPlanner().plan(aggregateConfig(), model)
+            planAggregate(aggregateConfig(), model)
         }
 
         assertEquals(
@@ -6298,7 +6293,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val ex = assertThrows(IllegalStateException::class.java) {
-            AggregateArtifactPlanner().plan(config, model)
+            planAggregate(config, model)
         }
 
         assertEquals(
@@ -6336,7 +6331,7 @@ class AggregateArtifactPlannerTest {
             repositories = emptyList(),
         )
 
-        val planItems = AggregateArtifactPlanner().plan(config, model)
+        val planItems = planAggregate(config, model)
         val primaryFactoryContext = planItems.first {
             it.templateId == "aggregate/factory.kt.peb" &&
                 it.context["packageName"] == "com.acme.demo.domain.aggregates.primary_video_post.factory"
@@ -6373,7 +6368,7 @@ class AggregateArtifactPlannerTest {
         )
 
         val ex = assertThrows(IllegalStateException::class.java) {
-            AggregateArtifactPlanner().plan(config, model)
+            planAggregate(config, model)
         }
 
         assertEquals(
@@ -6554,6 +6549,142 @@ class AggregateArtifactPlannerTest {
             idStrategy = strategy,
             isEmbeddedId = true,
         )
+
+    private fun valueObject(
+        name: String,
+        packageName: String,
+        aggregates: List<String> = emptyList(),
+    ): ValueObjectModel = ValueObjectModel(
+        definition = SemanticValueDefinition(
+            identity = CanonicalTypeIdentity(
+                packageName = packageName,
+                typePath = listOf(name),
+                kind = CanonicalTypeKind.VALUE_OBJECT,
+            ),
+            role = SemanticValueRole.VALUE_OBJECT,
+        ),
+        aggregates = aggregates,
+    )
+
+    /**
+     * Most tests in this class exercise non-Factory aggregate families with deliberately minimal hand-built models.
+     * Production planning now requires a canonical creation graph for every aggregate root, so those fixtures receive
+     * an explicit empty semantic root payload here instead of reintroducing production fallback synthesis.
+     */
+    private fun planAggregate(
+        config: ProjectConfig,
+        model: CanonicalModel,
+    ): List<ArtifactPlanItem> {
+        val existingGraphRoots = model.aggregateCreationGraphs.map { it.rootEntity.fqn }.toSet()
+        val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+        val missingGraphs = model.entities
+            .filter { it.aggregateRoot }
+            .filterNot { entity -> "${entity.packageName}.${entity.name}" in existingGraphRoots }
+            .map { entity ->
+                val createAllowedFields = model.aggregateSpecialFieldResolvedPolicies
+                    .singleOrNull {
+                        it.entityName == entity.name && it.entityPackageName == entity.packageName
+                    }
+                    ?.writeSurface
+                    ?.createAllowedFields
+                    .orEmpty()
+                    .toSet()
+                val payloadFields = entity.fields
+                    .filter { it.name in createAllowedFields }
+                    .filterNot { it.name == entity.idField.name }
+                    .map { field ->
+                        SemanticValueField(
+                            name = field.name,
+                            type = semanticTestType(model, entity, field),
+                        )
+                    }
+                AggregateCreationGraphModel(
+                    rootEntity = CanonicalTypeIdentity(
+                        packageName = entity.packageName,
+                        typePath = listOf(entity.name),
+                        kind = CanonicalTypeKind.ENTITY,
+                    ),
+                    factoryPayload = SemanticValueDefinition(
+                        identity = CanonicalTypeIdentity(
+                            packageName = artifactLayout.aggregateFactoryPackage(entity.packageName),
+                            typePath = listOf("${entity.name}Factory", "Payload"),
+                            kind = CanonicalTypeKind.NESTED_VALUE,
+                        ),
+                        role = SemanticValueRole.FACTORY_PAYLOAD,
+                        fields = payloadFields,
+                    ),
+                    rootConstructorFieldNames = payloadFields.map { it.name },
+                    ownedNodes = emptyList(),
+                    relations = emptyList(),
+                )
+            }
+        return AggregateArtifactPlanner().plan(
+            config,
+            model.copy(aggregateCreationGraphs = model.aggregateCreationGraphs + missingGraphs),
+        )
+    }
+
+    private fun semanticTestType(
+        model: CanonicalModel,
+        entity: EntityModel,
+        field: FieldModel,
+    ): SemanticTypeRef {
+        val rawType = (field.typeBinding ?: field.type).removeSuffix("?")
+        val builtin = when (rawType) {
+            "Any" -> SemanticBuiltinType.ANY
+            "Boolean" -> SemanticBuiltinType.BOOLEAN
+            "Byte" -> SemanticBuiltinType.BYTE
+            "Char" -> SemanticBuiltinType.CHAR
+            "Double" -> SemanticBuiltinType.DOUBLE
+            "Float" -> SemanticBuiltinType.FLOAT
+            "Int" -> SemanticBuiltinType.INT
+            "Long" -> SemanticBuiltinType.LONG
+            "Nothing" -> SemanticBuiltinType.NOTHING
+            "Number" -> SemanticBuiltinType.NUMBER
+            "Short" -> SemanticBuiltinType.SHORT
+            "String" -> SemanticBuiltinType.STRING
+            "Unit" -> SemanticBuiltinType.UNIT
+            else -> null
+        }
+        if (builtin != null) {
+            return SemanticBuiltinTypeRef(builtin, nullable = field.nullable)
+        }
+
+        val strongIdMatches = model.strongIds.filter {
+            rawType == it.typeName || rawType == "${it.packageName}.${it.typeName}"
+        }
+        val strongId = strongIdMatches
+            .filter { it.kind != StrongIdKind.OWN_ID }
+            .takeIf { it.isNotEmpty() }
+            ?.singleOrNull()
+            ?: strongIdMatches.singleOrNull()
+        val valueObject = model.valueObjects.singleOrNull { rawType == it.name || rawType == it.definition.identity.fqn }
+        val sharedEnum = model.sharedEnums.singleOrNull { rawType == it.typeName || rawType == "${it.packageName}.${it.typeName}" }
+        val identity = when {
+            strongId != null -> CanonicalTypeIdentity(
+                packageName = strongId.packageName,
+                typePath = listOf(strongId.typeName),
+                kind = CanonicalTypeKind.STRONG_ID,
+            )
+            valueObject != null -> valueObject.definition.identity
+            sharedEnum != null -> CanonicalTypeIdentity(
+                packageName = sharedEnum.packageName,
+                typePath = listOf(sharedEnum.typeName),
+                kind = CanonicalTypeKind.ENUM,
+            )
+            rawType.contains('.') -> CanonicalTypeIdentity(
+                packageName = rawType.substringBeforeLast('.'),
+                typePath = listOf(rawType.substringAfterLast('.')),
+                kind = CanonicalTypeKind.EXTERNAL,
+            )
+            else -> CanonicalTypeIdentity(
+                packageName = entity.packageName,
+                typePath = listOf(rawType),
+                kind = CanonicalTypeKind.EXTERNAL,
+            )
+        }
+        return SemanticNamedTypeRef(identity, nullable = field.nullable)
+    }
 
     private fun defaultAggregateEntityJpa(entity: EntityModel): AggregateEntityJpaModel =
         AggregateEntityJpaModel(

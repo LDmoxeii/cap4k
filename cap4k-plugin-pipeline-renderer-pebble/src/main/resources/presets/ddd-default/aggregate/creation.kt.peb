@@ -1,0 +1,14 @@
+package {{ packageName }}
+
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+{% if empty -%}
+data object {{ typeName }}
+{% else -%}
+data class {{ typeName }}(
+{% for field in fields -%}
+{{ "    " }}val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% endfor -%}
+)
+{% endif -%}

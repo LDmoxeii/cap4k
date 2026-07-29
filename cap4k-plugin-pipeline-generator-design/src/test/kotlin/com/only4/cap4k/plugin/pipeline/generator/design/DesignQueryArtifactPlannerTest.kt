@@ -108,13 +108,14 @@ class DesignQueryArtifactPlannerTest {
     private fun queryModel(
         name: String = "FindOrder",
         variant: String = "",
-    ) = DesignBlockModel(
+    ) = designBlock(
         tag = "query",
+        family = "query",
+        variant = variant,
         packageName = "order.read",
         name = name,
         description = "find order",
         aggregates = listOf("Order"),
-        artifacts = listOf(ArtifactSelectionModel("query", variant)),
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
