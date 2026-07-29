@@ -275,6 +275,23 @@ def validate_field_array(
                 "field type must not use self",
                 "Use an explicit type name.",
             )
+        if "nullable" in field:
+            add_issue(
+                issues,
+                ERROR,
+                file,
+                f"{field_path}.nullable",
+                "nullable is removed; express nullability in the type expression",
+                'Use a Kotlin-style type such as "Money?" or "List<Money?>?".',
+            )
+        if "defaultValue" in field and not isinstance(field.get("defaultValue"), str):
+            add_issue(
+                issues,
+                ERROR,
+                file,
+                f"{field_path}.defaultValue",
+                "defaultValue must be a string",
+            )
 
 
 def validate_design(file: Path, issues: list[Issue]) -> None:
@@ -545,15 +562,46 @@ def validate_value_object_manifest(file: Path, issues: list[Issue]) -> None:
                     f"{removed} is removed; use aggregates",
                 )
 
-        storage = entry.get("storage", "json")
-        if storage != "json":
+        if "storage" in entry:
             add_issue(
                 issues,
                 ERROR,
                 file,
                 f"{path}.storage",
-                f"value object {name} storage must be json",
+                "storage is removed; declare persistence explicitly",
+                'Use "persistence": {"kind": "json"}, or omit persistence for a pure value.',
             )
+
+        persistence = entry.get("persistence")
+        if persistence is not None:
+            persistence_path = f"{path}.persistence"
+            if not isinstance(persistence, dict):
+                add_issue(
+                    issues,
+                    ERROR,
+                    file,
+                    persistence_path,
+                    "persistence must be an object",
+                )
+            else:
+                kind = persistence.get("kind")
+                if kind != "json":
+                    add_issue(
+                        issues,
+                        ERROR,
+                        file,
+                        f"{persistence_path}.kind",
+                        f"unsupported value object persistence kind: {kind}",
+                        'The only supported projection is {"kind": "json"}.',
+                    )
+                for property_name in sorted(set(persistence) - {"kind"}):
+                    add_issue(
+                        issues,
+                        ERROR,
+                        file,
+                        f"{persistence_path}.{property_name}",
+                        "unknown value object persistence property",
+                    )
 
         aggregates = optional_string_list(entry.get("aggregates"), file, issues, f"{path}.aggregates")
         if len(aggregates) > 1:
@@ -601,13 +649,14 @@ def validate_value_object_manifest(file: Path, issues: list[Issue]) -> None:
                 add_issue(issues, ERROR, file, f"{field_path}.name", "name is required")
             if not is_nonblank_string(field.get("type")):
                 add_issue(issues, ERROR, file, f"{field_path}.type", "type is required")
-            if "nullable" in field and not isinstance(field.get("nullable"), bool):
+            if "nullable" in field:
                 add_issue(
                     issues,
                     ERROR,
                     file,
                     f"{field_path}.nullable",
-                    "nullable must be a boolean",
+                    "nullable is removed; express nullability in the type expression",
+                    'Use a Kotlin-style type such as "Money?" or "List<Money?>?".',
                 )
             if "defaultValue" in field and not isinstance(field.get("defaultValue"), str):
                 add_issue(

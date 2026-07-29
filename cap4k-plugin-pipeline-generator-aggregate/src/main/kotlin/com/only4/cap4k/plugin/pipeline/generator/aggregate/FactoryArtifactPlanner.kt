@@ -1,267 +1,314 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationNodeModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationRelationModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.EntityModel
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
-import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
-import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 
 internal class FactoryArtifactPlanner : AggregateArtifactFamilyPlanner {
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        val aggregateRootFqns = model.entities
+            .filter { it.aggregateRoot }
+            .map { "${it.packageName}.${it.name}" }
+            .sorted()
+        if (aggregateRootFqns.isEmpty()) {
+            return emptyList()
+        }
+        val graphRootFqns = model.aggregateCreationGraphs.map { it.rootEntity.fqn }.toSet()
+        val missingGraphRoots = aggregateRootFqns.filterNot(graphRootFqns::contains)
+        require(missingGraphRoots.isEmpty()) {
+            "aggregate roots are missing canonical creation graphs: ${missingGraphRoots.joinToString(", ")}"
+        }
+
+        return planCreationGraphs(config, model)
+    }
+
+    private fun planCreationGraphs(
+        config: ProjectConfig,
+        model: CanonicalModel,
+    ): List<ArtifactPlanItem> {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        val derivedTypeReferences = AggregateDerivedTypeReferences.from(model)
-        val planning = AggregateEnumPlanning.from(model, artifactLayout, config.typeRegistry.entries)
-        val defaultProjector = AggregateEntityDefaultProjector()
+        val entitiesByFqn = model.entities.associateBy { "${it.packageName}.${it.name}" }
+        val duplicateRoot = model.aggregateCreationGraphs
+            .groupBy { it.rootEntity.fqn }
+            .entries
+            .sortedBy { it.key }
+            .firstOrNull { (_, graphs) -> graphs.size > 1 }
+        require(duplicateRoot == null) {
+            "duplicate aggregate creation graph root: ${duplicateRoot?.key}"
+        }
 
-        return model.entities.filter { it.aggregateRoot }.map { entity ->
-            val entityTypeFqn = derivedTypeReferences.entityFqn(entity)
-            val packageName = artifactLayout.aggregateFactoryPackage(entity.packageName)
-            val typeName = "${entity.name}Factory"
-            val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
-                it.entityName == entity.name && it.entityPackageName == entity.packageName
-            }
-            val ownStrongId = resolveOwnStrongId(model, entity)
-            val payloadFields = resolvedPolicy
-                ?.writeSurface
-                ?.createAllowedFields
-                ?.toSet()
-                ?.let { createAllowedFields ->
-                    entity.fields
-                        .filter { it.name in createAllowedFields }
-                        .filterNot { it.name == entity.idField.name }
-                        .map { field ->
-                            val strongId = resolveStrongId(model, field)
-                            val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
-                            val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
-                            mapOf(
-                                "name" to field.name,
-                                "type" to fieldType,
-                                "typeName" to fieldType,
-                                "renderedType" to renderedType.renderedType,
-                                "typeImports" to renderedType.imports,
-                                "typeRef" to strongId?.fqn(),
-                                "strongId" to (strongId != null),
-                                "nullable" to field.nullable,
-                            )
-                        }
+        return model.aggregateCreationGraphs
+            .sortedBy { it.rootEntity.fqn }
+            .map { graph ->
+                val rootEntity = requireNotNull(entitiesByFqn[graph.rootEntity.fqn]) {
+                    "aggregate creation graph root entity is missing: ${graph.rootEntity.fqn}"
                 }
-                ?: emptyList()
-            val constructorMapping = planConstructorMapping(
-                entity = entity,
-                model = model,
-                planning = planning,
-                defaultProjector = defaultProjector,
-                resolved = resolvedPolicy != null,
-                resolvedPolicy = resolvedPolicy,
-                ownStrongId = ownStrongId,
-                payloadFields = payloadFields,
-            )
-            val imports = (
-                payloadFields.flatMap { field ->
-                        (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
-                    } +
-                    payloadFields.mapNotNull { it["typeRef"] as? String }
-                ).distinct()
+                require(rootEntity.aggregateRoot) {
+                    "aggregate creation graph root is not an aggregate root: ${graph.rootEntity.fqn}"
+                }
+                require(graph.factoryPayload.role == SemanticValueRole.FACTORY_PAYLOAD) {
+                    "aggregate creation payload ${graph.factoryPayload.identity.fqn} must use FACTORY_PAYLOAD role"
+                }
 
-            checkedInKotlinArtifact(
-                config = config,
-                artifactLayout = artifactLayout,
-                moduleRole = "domain",
-                templateId = "aggregate/factory.kt.peb",
-                packageName = packageName,
-                typeName = typeName,
-                context = mapOf(
-                    "packageName" to packageName,
-                    "typeName" to typeName,
-                    "aggregateElement" to aggregateElementContext(
-                        aggregate = entity.name,
-                        name = typeName,
-                        packageName = packageName,
-                        description = entity.comment,
-                        type = "factory",
+                val packageName = artifactLayout.aggregateFactoryPackage(rootEntity.packageName)
+                val typeName = "${rootEntity.name}Factory"
+                validateGeneratedNames(graph, packageName, typeName)
+                require(graph.factoryPayload.identity.kind == CanonicalTypeKind.NESTED_VALUE) {
+                    "aggregate creation payload ${graph.factoryPayload.identity.fqn} must use NESTED_VALUE identity kind"
+                }
+                require(
+                    graph.factoryPayload.identity.packageName == packageName &&
+                        graph.factoryPayload.identity.typePath == listOf(typeName, "Payload")
+                ) {
+                    "aggregate creation payload must use canonical identity $packageName.$typeName.Payload: " +
+                        graph.factoryPayload.identity.fqn
+                }
+                val definitions = listOf(graph.factoryPayload) + graph.ownedNodes.map { it.value }
+                val typeRenderer = AggregateSemanticTypeRenderer(packageName, definitions)
+                val payloadFields = graph.factoryPayload.fields.map(typeRenderer::render)
+                val rootConstructorFields = constructorFields(
+                    definition = graph.factoryPayload,
+                    constructorFieldNames = graph.rootConstructorFieldNames,
+                    typeRenderer = typeRenderer,
+                    entityFqn = graph.rootEntity.fqn,
+                )
+                val nodesByEntityFqn = graph.ownedNodes.associateBy { it.entity.fqn }
+                val rootRelations = relationContexts(
+                    relations = graph.relations.filter { it.ownerEntity.fqn == graph.rootEntity.fqn },
+                    sourceDefinition = graph.factoryPayload,
+                    nodesByEntityFqn = nodesByEntityFqn,
+                )
+                val helpers = graph.ownedNodes.map { node ->
+                    helperContext(node, typeRenderer, nodesByEntityFqn)
+                }
+                val imports = buildList {
+                    add(graph.rootEntity.fqn)
+                    addAll(graph.ownedNodes.map { it.entity.fqn })
+                    addAll(graph.ownedNodes.map { it.value.identity.fqn })
+                    addAll(payloadFields.flatMap(::fieldImports))
+                    helpers.forEach { helper ->
+                        @Suppress("UNCHECKED_CAST")
+                        addAll((helper["constructorFields"] as List<Map<String, Any?>>).flatMap(::fieldImports))
+                    }
+                }
+                    .filterNot { it.substringBeforeLast('.', missingDelimiterValue = "") == packageName }
+                    .distinct()
+                    .sorted()
+
+                checkedInKotlinArtifact(
+                    config = config,
+                    artifactLayout = artifactLayout,
+                    moduleRole = "domain",
+                    templateId = "aggregate/factory.kt.peb",
+                    packageName = packageName,
+                    typeName = typeName,
+                    context = mapOf(
+                        "packageName" to packageName,
+                        "typeName" to typeName,
+                        "aggregateElement" to aggregateElementContext(
+                            aggregate = rootEntity.name,
+                            name = typeName,
+                            packageName = packageName,
+                            description = rootEntity.comment,
+                            type = "factory",
+                        ),
+                        "payloadTypeName" to "Payload",
+                        "payloadMetadataName" to "${rootEntity.name}Payload",
+                        "payloadFields" to payloadFields,
+                        "rootConstructorFields" to rootConstructorFields,
+                        "rootRelations" to rootRelations,
+                        "helpers" to helpers,
+                        "entityName" to rootEntity.name,
+                        "entityTypeFqn" to graph.rootEntity.fqn,
+                        "aggregateName" to rootEntity.name,
+                        "comment" to rootEntity.comment,
+                        "imports" to imports,
                     ),
-                    "payloadTypeName" to "Payload",
-                    "payloadMetadataName" to "${entity.name}Payload",
-                    "payloadWriteSurfaceResolved" to (resolvedPolicy != null),
-                    "payloadFields" to payloadFields,
-                    "constructorMappingResolved" to constructorMapping.resolved,
-                    "constructorPayloadFields" to constructorMapping.payloadFields,
-                    "constructorUnresolvedFields" to constructorMapping.unresolvedFields,
-                    "entityName" to entity.name,
-                    "entityTypeFqn" to entityTypeFqn,
-                    "aggregateName" to entity.name,
-                    "comment" to entity.comment,
-                    "imports" to imports,
-                ),
-            )
-        }
+                    conflictPolicy = ConflictPolicy.SKIP,
+                )
+            }
     }
 
-    private fun planConstructorMapping(
-        entity: EntityModel,
-        model: CanonicalModel,
-        planning: AggregateEnumPlanning,
-        defaultProjector: AggregateEntityDefaultProjector,
-        resolved: Boolean,
-        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
-        ownStrongId: StrongIdModel?,
-        payloadFields: List<Map<String, Any?>>,
-    ): ConstructorMapping {
-        val entrustedFields = AggregateEntrustedFieldPlanning.resolve(entity, model)
-        val payloadFieldNames = payloadFields.mapNotNull { it["name"] as? String }.toSet()
-        val missingRequiredFields = entity.fields
-            .filterNot { ownStrongId != null && it.name == entity.idField.name }
-            .filterNot { entrustedFields.isProviderAssigned(it.name) }
-            .filterNot { it.name in payloadFieldNames }
-            .filterNot { resolved && isSystemTransitionOnlyConstructorField(resolvedPolicy, it) }
-            .filterNot { field ->
-                hasConstructorDefault(
-                    entity = entity,
-                    field = field,
-                    model = model,
-                    planning = planning,
-                    defaultProjector = defaultProjector,
-                )
-            }
-
-        if (!resolved) {
-            return ConstructorMapping(
-                resolved = false,
-                payloadFields = emptyList(),
-                unresolvedFields = missingRequiredFields.map { field ->
-                    constructorFieldContext(entity, model, planning, field)
-                },
-            )
+    private fun validateGeneratedNames(
+        graph: AggregateCreationGraphModel,
+        factoryPackageName: String,
+        factoryTypeName: String,
+    ) {
+        val duplicateNodeEntity = graph.ownedNodes
+            .groupBy { it.entity.fqn }
+            .entries
+            .sortedBy { it.key }
+            .firstOrNull { (_, nodes) -> nodes.size > 1 }
+        require(duplicateNodeEntity == null) {
+            "aggregate creation graph ${graph.rootEntity.fqn} has duplicate owned creation node entity " +
+                duplicateNodeEntity?.key
         }
 
-        if (missingRequiredFields.isNotEmpty()) {
-            val blockingRequiredFields = missingRequiredFields
-                .filterNot { field -> canDeferManagedConstructorField(resolvedPolicy, field) }
-            if (ownStrongId != null && blockingRequiredFields.isNotEmpty()) {
-                val fieldNames = blockingRequiredFields.joinToString(", ") { it.name }
-                error(
-                    "factory ${entity.packageName}.${entity.name} cannot derive constructor mapping " +
-                        "for required fields: $fieldNames"
-                )
-            }
-            return ConstructorMapping(
-                resolved = false,
-                payloadFields = emptyList(),
-                unresolvedFields = missingRequiredFields.map { field ->
-                    constructorFieldContext(entity, model, planning, field)
-                },
-            )
-        }
-
-        return ConstructorMapping(
-            resolved = true,
-            payloadFields = payloadFields,
-            unresolvedFields = emptyList(),
+        requireUniqueName(
+            graph = graph,
+            category = "owned entity simple name",
+            names = graph.ownedNodes.map { node -> node.entity.simpleName to node.entity.fqn },
         )
+        requireUniqueName(
+            graph = graph,
+            category = "creation value simple name",
+            names = graph.ownedNodes.map { node -> node.value.identity.simpleName to node.value.identity.fqn },
+        )
+        requireUniqueName(
+            graph = graph,
+            category = "factory helper name",
+            names = graph.ownedNodes.map { node -> helperName(node.entity.simpleName) to node.entity.fqn },
+        )
+
+        val fixedVisibleTypeNames = buildList {
+            add(factoryTypeName to "$factoryPackageName.$factoryTypeName [GENERATED_FACTORY]")
+            add("Payload" to "$factoryPackageName.$factoryTypeName.Payload [NESTED_VALUE]")
+            add(graph.rootEntity.simpleName to canonicalVisibleType(graph.rootEntity))
+            addAll(graph.ownedNodes.map { node -> node.entity.simpleName to canonicalVisibleType(node.entity) })
+            addAll(
+                graph.ownedNodes.map { node ->
+                    node.value.identity.simpleName to canonicalVisibleType(node.value.identity)
+                }
+            )
+        }
+        val definitions = listOf(graph.factoryPayload) + graph.ownedNodes.map { it.value }
+        val fieldTypeNames = buildList {
+            definitions.forEach { definition ->
+                definition.fields.forEach { field ->
+                    addAll(
+                        field.type.namedSymbols().map { identity ->
+                            identity.simpleName to canonicalVisibleType(identity)
+                        }
+                    )
+                }
+            }
+        }
+        val fixedSimpleNames = fixedVisibleTypeNames.mapTo(linkedSetOf(), Pair<String, String>::first)
+        val visibleTypeCollision = (fixedVisibleTypeNames + fieldTypeNames)
+            .groupBy(keySelector = Pair<String, String>::first, valueTransform = Pair<String, String>::second)
+            .mapValues { (_, fqns) -> fqns.distinct().sorted() }
+            .entries
+            .sortedBy { it.key }
+            .firstOrNull { (simpleName, identities) ->
+                simpleName in fixedSimpleNames && identities.size > 1
+            }
+        require(visibleTypeCollision == null) {
+            "aggregate creation graph ${graph.rootEntity.fqn} has factory visible type simple name collision " +
+                "${visibleTypeCollision?.key}: ${visibleTypeCollision?.value?.joinToString(", ")}"
+        }
+
+        val duplicateTarget = graph.relations
+            .groupBy { it.targetEntity.fqn }
+            .mapValues { (_, relations) -> relations.map { it.path.joinToString(".") }.sorted() }
+            .entries
+            .sortedBy { it.key }
+            .firstOrNull { (_, paths) -> paths.size > 1 }
+        require(duplicateTarget == null) {
+            "aggregate creation graph ${graph.rootEntity.fqn} reaches owned entity ${duplicateTarget?.key} " +
+                "through multiple relation paths: ${duplicateTarget?.value?.joinToString(", ")}"
+        }
     }
 
-    private fun constructorFieldContext(
-        entity: EntityModel,
-        model: CanonicalModel,
-        planning: AggregateEnumPlanning,
-        field: FieldModel,
+    private fun requireUniqueName(
+        graph: AggregateCreationGraphModel,
+        category: String,
+        names: List<Pair<String, String>>,
+    ) {
+        val duplicate = names
+            .groupBy(keySelector = Pair<String, String>::first, valueTransform = Pair<String, String>::second)
+            .mapValues { (_, identities) -> identities.distinct().sorted() }
+            .entries
+            .sortedBy { it.key }
+            .firstOrNull { (_, identities) -> identities.size > 1 }
+        require(duplicate == null) {
+            "aggregate creation graph ${graph.rootEntity.fqn} has duplicate $category ${duplicate?.key}: " +
+                duplicate?.value?.joinToString(", ")
+        }
+    }
+
+    private fun helperContext(
+        node: AggregateCreationNodeModel,
+        typeRenderer: AggregateSemanticTypeRenderer,
+        nodesByEntityFqn: Map<String, AggregateCreationNodeModel>,
     ): Map<String, Any?> {
-        val strongId = resolveStrongId(model, field)
-        val fieldType = strongId?.typeName ?: planning.resolveFieldType(entity.packageName, field)
-        val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
+        require(node.value.role == SemanticValueRole.OWNED_ENTITY_CREATION) {
+            "aggregate creation value ${node.value.identity.fqn} must use OWNED_ENTITY_CREATION role"
+        }
+        val constructorFields = constructorFields(
+            definition = node.value,
+            constructorFieldNames = node.constructorFieldNames,
+            typeRenderer = typeRenderer,
+            entityFqn = node.entity.fqn,
+        )
         return mapOf(
-            "name" to field.name,
-            "type" to fieldType,
-            "typeName" to fieldType,
-            "renderedType" to renderedType.renderedType,
-            "typeImports" to renderedType.imports,
-            "typeRef" to strongId?.fqn(),
-            "strongId" to (strongId != null),
-            "nullable" to field.nullable,
-            "managedRole" to field.managedRole?.name,
-            "managed" to (field.managedRole != null),
-            "inherited" to field.inherited,
+            "helperName" to helperName(node.entity.simpleName),
+            "entityName" to node.entity.simpleName,
+            "entityFqn" to node.entity.fqn,
+            "valueTypeName" to node.value.identity.simpleName,
+            "valueTypeFqn" to node.value.identity.fqn,
+            "constructorFields" to constructorFields,
+            "relations" to relationContexts(
+                relations = node.relations,
+                sourceDefinition = node.value,
+                nodesByEntityFqn = nodesByEntityFqn,
+            ),
         )
     }
 
-    private fun canDeferManagedConstructorField(
-        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
-        field: FieldModel,
-    ): Boolean {
-        val managedField = resolvedPolicy?.managedFields?.firstOrNull { it.fieldName == field.name } ?: return false
-        return managedField.writePolicy == SpecialFieldWritePolicy.READ_ONLY ||
-            managedField.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
+    private fun constructorFields(
+        definition: SemanticValueDefinition,
+        constructorFieldNames: List<String>,
+        typeRenderer: AggregateSemanticTypeRenderer,
+        entityFqn: String,
+    ): List<Map<String, Any?>> {
+        val fieldsByName = definition.fields.associateBy { it.name }
+        return constructorFieldNames.map { fieldName ->
+            val field = requireNotNull(fieldsByName[fieldName]) {
+                "aggregate creation value ${definition.identity.fqn} is missing constructor field $fieldName for $entityFqn"
+            }
+            typeRenderer.render(field)
+        }
     }
 
-    private fun isSystemTransitionOnlyConstructorField(
-        resolvedPolicy: AggregateSpecialFieldResolvedPolicy?,
-        field: FieldModel,
-    ): Boolean =
-        (
-            resolvedPolicy?.deleted?.enabled == true &&
-                resolvedPolicy.deleted.fieldName == field.name &&
-                resolvedPolicy.deleted.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
-            ) ||
-            resolvedPolicy?.managedFields?.any {
-                it.fieldName == field.name &&
-                    it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
-            } == true
-
-    private fun hasConstructorDefault(
-        entity: EntityModel,
-        field: FieldModel,
-        model: CanonicalModel,
-        planning: AggregateEnumPlanning,
-        defaultProjector: AggregateEntityDefaultProjector,
-    ): Boolean {
-        if (resolveStrongId(model, field) != null) return false
-        val fieldType = planning.resolveFieldType(entity.packageName, field)
-        return defaultProjector.project(
-            fieldPath = "${entity.packageName}.${entity.name}.${field.name}",
-            fieldType = fieldType,
-            nullable = field.nullable,
-            rawDefaultValue = field.defaultValue,
-            enumItems = planning.resolveEnumItems(entity.packageName, field),
-        ) != null
+    private fun relationContexts(
+        relations: List<AggregateCreationRelationModel>,
+        sourceDefinition: SemanticValueDefinition,
+        nodesByEntityFqn: Map<String, AggregateCreationNodeModel>,
+    ): List<Map<String, Any?>> {
+        val sourceFields = sourceDefinition.fields.associateBy { it.name }
+        return relations.map { relation ->
+            require(sourceFields.containsKey(relation.fieldName)) {
+                "aggregate creation value ${sourceDefinition.identity.fqn} is missing relation field " +
+                    "${relation.fieldName} for ${relation.path.joinToString(".")}"
+            }
+            val targetNode = requireNotNull(nodesByEntityFqn[relation.targetEntity.fqn]) {
+                "aggregate creation relation ${relation.path.joinToString(".")} has no target creation node " +
+                    relation.targetEntity.fqn
+            }
+            mapOf(
+                "fieldName" to relation.fieldName,
+                "attachmentAccessorName" to relation.attachmentAccessorName,
+                "cardinality" to relation.cardinality.name,
+                "targetHelperName" to helperName(targetNode.entity.simpleName),
+                "path" to relation.path.joinToString("."),
+            )
+        }
     }
 
-    private fun resolveOwnStrongId(
-        model: CanonicalModel,
-        entity: EntityModel,
-    ): StrongIdModel? =
-        model.strongIds.singleOrNull {
-            it.kind == StrongIdKind.OWN_ID &&
-                it.ownerEntityName == entity.name &&
-                it.ownerEntityPackageName == entity.packageName &&
-                it.typeName == entity.idField.type.shortTypeName()
-        }
+    private fun helperName(entitySimpleName: String): String = "create$entitySimpleName"
 
-    private fun resolveStrongId(model: CanonicalModel, field: FieldModel): StrongIdModel? {
-        val matches = model.strongIds.filter { strongId ->
-            field.type == strongId.typeName || field.type == strongId.fqn()
-        }
-        val selectedMatches = matches
-            .filter { it.kind != StrongIdKind.OWN_ID }
-            .takeIf { it.isNotEmpty() }
-            ?: matches
-        require(selectedMatches.size <= 1) {
-            "ambiguous strong id type ${field.type} for factory field ${field.name}"
-        }
-        return selectedMatches.singleOrNull()
-    }
+    private fun canonicalVisibleType(identity: CanonicalTypeIdentity): String =
+        "${identity.fqn} [${identity.kind}]"
 
-    private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
-
-    private fun String.shortTypeName(): String = removeSuffix("?").substringAfterLast('.')
-
-    private data class ConstructorMapping(
-        val resolved: Boolean,
-        val payloadFields: List<Map<String, Any?>>,
-        val unresolvedFields: List<Map<String, Any?>>,
-    )
+    private fun fieldImports(field: Map<String, Any?>): List<String> =
+        (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
 }

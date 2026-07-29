@@ -75,5 +75,6 @@ class ProjectConfigTest {
         assertEquals("domain.services", config.artifactLayout.designDomainServicePackage.packageRoot)
         assertEquals("application.sagas", config.artifactLayout.designSaga.packageRoot)
         assertEquals("types/value-object", config.artifactLayout.valueObject.id)
+        assertEquals("types/value-object-json-converter", config.artifactLayout.valueObjectJsonConverter.id)
     }
 }

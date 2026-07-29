@@ -13,6 +13,7 @@ class AggregateArtifactPlanner : GeneratorProvider {
         EntityArtifactPlanner(),
         BehaviorArtifactPlanner(),
         RepositoryArtifactPlanner(),
+        CreationValueArtifactPlanner(),
         FactoryArtifactPlanner(),
         StrongIdArtifactPlanner(),
         GeneratedOwnIdArtifactPlanner(),

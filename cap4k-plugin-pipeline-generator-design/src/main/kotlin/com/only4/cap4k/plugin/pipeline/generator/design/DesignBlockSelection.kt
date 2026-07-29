@@ -5,6 +5,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueEnvelope
 import java.util.Locale
 
 internal fun DesignBlockModel.selects(family: String): Boolean =
@@ -27,6 +28,13 @@ internal fun DesignBlockModel.integrationEventTypeName(): String = name.toIntegr
 
 internal fun DesignBlockModel.pageVariantSelected(family: String): Boolean =
     selection(family)?.variant == "page"
+
+internal fun DesignBlockModel.topLevelResponseFieldNames(): List<String> = buildList {
+    addAll(response?.fields.orEmpty().map { it.name }.filterNot { it.contains('.') })
+    if (response?.envelope is SemanticValueEnvelope.Page) {
+        add("page")
+    }
+}
 
 internal fun DesignBlockModel.integrationEventVariant(): String =
     requireNotNull(selection("integration-event")) {
@@ -51,46 +59,6 @@ internal fun DesignBlockModel.domainEventPackageKey(
     config: ProjectConfig,
     model: CanonicalModel,
 ): String = resolveDomainEventPackageKey(ownerAggregateEntity(model).packageName, config)
-
-internal fun CanonicalModel.designInteractionSiblingTypeNames(
-    packageName: String,
-    currentTypeName: String,
-): Set<String> = buildSet {
-    designBlocks.forEach { block ->
-        block.interactionSiblingTypeNames()
-            .forEach { candidateTypeName ->
-                addSiblingTypeName(
-                    candidatePackageName = block.packageName,
-                    candidateTypeName = candidateTypeName,
-                    packageName = packageName,
-                    currentTypeName = currentTypeName,
-                )
-            }
-    }
-}
-
-private fun DesignBlockModel.interactionSiblingTypeNames(): List<String> = buildList {
-    if (selects("command")) {
-        add(commandTypeName())
-    }
-    if (selects("query")) {
-        add(queryTypeName())
-    }
-    if (selects("client")) {
-        add(clientTypeName())
-    }
-}
-
-private fun MutableSet<String>.addSiblingTypeName(
-    candidatePackageName: String,
-    candidateTypeName: String,
-    packageName: String,
-    currentTypeName: String,
-) {
-    if (candidatePackageName == packageName && candidateTypeName != currentTypeName) {
-        add(candidateTypeName)
-    }
-}
 
 private fun String.normalizeUpperCamelTypeName(): String {
     val parts = trim()

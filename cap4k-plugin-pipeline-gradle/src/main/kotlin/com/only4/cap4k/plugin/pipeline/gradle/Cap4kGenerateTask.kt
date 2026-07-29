@@ -20,6 +20,8 @@ abstract class Cap4kGenerateTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val config = sourceTaskConfig(configFactory.build(project, extension))
+        cleanGeneratedSourceOutputDirectories(project.rootProject, config)
         buildSourceRunner(project, config, exportEnabled = true).run(config)
+        recordManagedGeneratedSourceOutputDirectories(project.rootProject, config)
     }
 }

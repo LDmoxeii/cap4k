@@ -1,0 +1,10 @@
+{"sequence":1,"timestamp":"2026-07-28T20:16:21.352Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-07-28T20:16:25.351Z","type":"operation-started","operationId":"spec-1-owned-child-factory-creation"}
+{"sequence":3,"timestamp":"2026-07-28T20:16:25.856Z","type":"operation-completed","operationId":"spec-1-owned-child-factory-creation"}
+{"sequence":4,"timestamp":"2026-07-28T20:16:25.908Z","type":"operation-started","operationId":"spec-2-semantic-value-types"}
+{"sequence":5,"timestamp":"2026-07-28T20:16:26.292Z","type":"operation-completed","operationId":"spec-2-semantic-value-types"}
+{"sequence":6,"timestamp":"2026-07-28T20:16:26.353Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":7,"timestamp":"2026-07-28T20:16:27.534Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":8,"timestamp":"2026-07-28T20:16:28.430Z","type":"archive-finalization-started"}
+{"sequence":9,"timestamp":"2026-07-28T20:16:28.700Z","type":"archive-finalized"}
+{"sequence":10,"timestamp":"2026-07-28T20:16:29.029Z","type":"commit"}

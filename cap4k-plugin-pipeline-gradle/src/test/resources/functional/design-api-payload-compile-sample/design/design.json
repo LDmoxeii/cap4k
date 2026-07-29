@@ -12,8 +12,7 @@
       },
       {
         "name": "address",
-        "type": "Address",
-        "nullable": true
+        "type": "Address?"
       },
       {
         "name": "address.city",
@@ -23,8 +22,7 @@
     "resultFields": [
       {
         "name": "receipt",
-        "type": "Receipt",
-        "nullable": true
+        "type": "Receipt?"
       },
       {
         "name": "receipt.number",

@@ -376,6 +376,11 @@ class PipelinePluginCompileFunctionalTest {
         val checkedInMediaProcessingResultSnapshot = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt"
         ).toFile().readText()
+        val generatedMediaProcessingResultSnapshotConverter = projectDir.resolve(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshotJsonAttributeConverter.kt"
+            )
+        ).toFile().readText()
         val checkedInEntity = projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"
         )
@@ -395,6 +400,9 @@ class PipelinePluginCompileFunctionalTest {
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTask.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/MediaProcessingTaskId.kt"),
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt"),
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshotJsonAttributeConverter.kt"
+            ),
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/media_processing_task/values/MediaProcessingResultSnapshot.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
@@ -428,7 +436,7 @@ class PipelinePluginCompileFunctionalTest {
         )
         assertTrue(
             generatedMediaProcessingTaskEntity.contains(
-                "@Convert(converter = MediaProcessingResultSnapshot.Converter::class)"
+                "@Convert(converter = MediaProcessingResultSnapshotJsonAttributeConverter::class)"
             )
         )
         assertTrue(
@@ -437,9 +445,11 @@ class PipelinePluginCompileFunctionalTest {
             )
         )
         assertTrue(checkedInMediaProcessingResultSnapshot.contains("data class MediaProcessingResultSnapshot("))
+        assertFalse(checkedInMediaProcessingResultSnapshot.contains("AttributeConverter"))
+        assertFalse(checkedInMediaProcessingResultSnapshot.contains("ObjectMapper"))
         assertTrue(
-            checkedInMediaProcessingResultSnapshot.contains(
-                "class Converter : AttributeConverter<MediaProcessingResultSnapshot, String>"
+            generatedMediaProcessingResultSnapshotConverter.contains(
+                "class MediaProcessingResultSnapshotJsonAttributeConverter : AttributeConverter<MediaProcessingResultSnapshot, String>"
             )
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
@@ -570,6 +580,75 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedContentEntity.contains("var authorId: AuthorId = authorId"))
         assertTrue(generatedContentEntity.contains("var mediaProcessingTaskId: MediaProcessingTaskId? = mediaProcessingTaskId"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
+        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
+    fun `owned child creation and recursive checked in factory compile in generated project`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-owned-creation-compile")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
+        val schemaFile = projectDir.resolve("schema.sql")
+        schemaFile.writeText(
+            schemaFile.readText().replace("create table ", "create table if not exists ")
+        )
+
+        val generateResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate")
+            .build()
+        val aggregatePackagePath =
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post"
+        val itemCreationPath = "$aggregatePackagePath/VideoPostItemCreation.kt"
+        val fileCreationPath = "$aggregatePackagePath/VideoPostFileCreation.kt"
+        val variantCreationPath = "$aggregatePackagePath/VideoPostFileVariantCreation.kt"
+        val factoryPath = "$aggregatePackagePath/factory/VideoPostFactory.kt"
+        val itemCreation = projectDir.resolve(itemCreationPath).readText()
+        val fileCreation = projectDir.resolve(fileCreationPath).readText()
+        val factory = projectDir.resolve(factoryPath).readText()
+
+        val behaviorSmoke = projectDir.resolve("$aggregatePackagePath/OwnedCreationBehaviorCompileSmoke.kt")
+        behaviorSmoke.writeText(
+            """
+            package com.acme.demo.domain.aggregates.video_post
+
+            import com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory
+
+            class OwnedCreationBehaviorCompileSmoke {
+                fun normalize(creation: VideoPostItemCreation): VideoPostItemCreation = creation
+
+                fun create(
+                    factory: VideoPostFactory,
+                    payload: VideoPostFactory.Payload,
+                ): VideoPost = factory.create(payload)
+            }
+            """.trimIndent()
+        )
+
+        val compileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:compileKotlin")
+            .build()
+
+        assertGeneratedFilesExist(
+            projectDir,
+            itemCreationPath,
+            fileCreationPath,
+            variantCreationPath,
+            factoryPath,
+        )
+        assertFalse(projectDir.resolve("$aggregatePackagePath/VideoPostCreation.kt").toFile().exists())
+        assertFalse(projectDir.resolve("$aggregatePackagePath/factory/VideoPostItemFactory.kt").toFile().exists())
+        assertTrue(itemCreation.contains("data class VideoPostItemCreation("))
+        assertTrue(itemCreation.contains("val label: String"))
+        assertFalse(itemCreation.contains("val id:"))
+        assertFalse(itemCreation.contains("val version:"))
+        assertTrue(fileCreation.contains("val variants: List<VideoPostFileVariantCreation> = emptyList()"))
+        assertTrue(factory.contains("val items: List<VideoPostItemCreation> = emptyList()"))
+        assertTrue(factory.contains("val file: VideoPostFileCreation? = null"))
+        assertTrue(factory.contains("aggregate.items.add(createVideoPostItem(childCreation))"))
+        assertTrue(factory.contains("aggregate.file = createVideoPostFile(childCreation)"))
+        assertTrue(factory.contains("entity.variants.add(createVideoPostFileVariant(childCreation))"))
+        assertTrue(factory.contains("private fun createVideoPostFile("))
+        assertEquals(TaskOutcome.SUCCESS, generateResult.task(":cap4kGenerate")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":demo-domain:compileKotlin")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
 
@@ -826,7 +905,6 @@ class PipelinePluginCompileFunctionalTest {
         val planResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kPlan")
             .build()
-        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
         fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/demo", "h2/generate"))
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
@@ -896,16 +974,6 @@ class PipelinePluginCompileFunctionalTest {
             "Expected generated identity factory boundary file to exist: $identityFactoryPath",
         )
         val generatedIdentityFactory = projectDir.resolve(identityFactoryPath).readText()
-        val factoryContexts = JsonParser.parseString(planContent)
-            .asJsonObject
-            .getAsJsonArray("items")
-            .map { it.asJsonObject }
-            .filter { it.get("templateId").asString == "aggregate/factory.kt.peb" }
-            .associate { item ->
-                val context = item.getAsJsonObject("context")
-                context.get("entityName").asString to context
-            }
-
         assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertFalse(generatedVideoPost.contains("@DynamicInsert"))
@@ -961,7 +1029,6 @@ class PipelinePluginCompileFunctionalTest {
                 generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
                 cell.accessorType,
             )
-            assertEquals(true, factoryContexts.getValue(cell.entityName).get("constructorMappingResolved").asBoolean)
             assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
             assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
             assertTrue(factory.contains("val title: String"), cell.factoryType)
@@ -971,7 +1038,6 @@ class PipelinePluginCompileFunctionalTest {
             assertFalse(factory.contains(cell.idType), cell.factoryType)
         }
 
-        assertEquals(true, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
         assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(generatedIdentityFactory.contains("deleted"))
 
@@ -1551,6 +1617,22 @@ class PipelinePluginCompileFunctionalTest {
             "demo-domain/src/main/kotlin/com/acme/demo/domain/services/order/pricing/CalculateOrderTotal.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSaga.kt",
         )
+        assertFalse(
+            projectDir.resolve(
+                generatedSource(
+                    "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddressJsonAttributeConverter.kt"
+                )
+            ).toFile().exists()
+        )
+        val orderAddressSource = projectDir.resolve(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt"
+        ).readText()
+        assertTrue(orderAddressSource.contains("val address: Address"))
+        assertTrue(orderAddressSource.contains("val items: List<Item>"))
+        assertTrue(orderAddressSource.contains("data class Address("))
+        assertTrue(orderAddressSource.contains("data class Item("))
+        assertTrue(orderAddressSource.contains("val details: Details"))
+        assertTrue(orderAddressSource.contains("data class Details("))
         assertGeneratedFilesDoNotExist(
             projectDir,
             "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaParam.kt",

@@ -43,7 +43,7 @@
 
 | `outputKind` | 含义 |
 | --- | --- |
-| `CHECKED_IN_SOURCE` | committed source skeleton or type source，通常位于 `<module>/src/main/kotlin`。 |
+| `CHECKED_IN_SOURCE` | first-materialized committed source skeleton or type source，通常位于 `<module>/src/main/kotlin`；existing file 固定 SKIP。 |
 | `GENERATED_SOURCE` | build-owned generated source，位于 `<module>/build/generated/cap4k/main/kotlin`。 |
 | `OUTPUT_ARTIFACT` | non-source artifact output kind；built-in planners 常见 source generation items 主要使用前两类，具体以 plan evidence 为准。 |
 
@@ -51,9 +51,11 @@
 
 | `conflictPolicy` | 典型用途 |
 | --- | --- |
-| `SKIP` | 可能包含 handwritten logic 的 checked-in skeletons。 |
+| `SKIP` | 所有 checked-in source；generator 不覆盖、合并或刷新已有文件。 |
 | `OVERWRITE` | build-owned generated source 或明确要重新生成的 artifacts。 |
 | `FAIL` | bootstrap 或 guarded output；已有文件应阻止 materialization。 |
+
+`CHECKED_IN_SOURCE` 的 policy 不受 source-generation template override 改写：plan 必须呈现 `SKIP`。作者需要更新 skeleton 时，应通过版本控制自行删除旧文件、重新 materialize 并审查差异。
 
 `src/main/kotlin` 不自动等于 handwritten ownership。Plan fields 必须一起阅读。
 

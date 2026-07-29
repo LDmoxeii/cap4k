@@ -13,7 +13,7 @@ class ValueObjectManifestSourceProviderTest {
     lateinit var tempDir: Path
 
     @Test
-    fun `parses shared and aggregate owned json value objects`() {
+    fun `parses shared non persistent and aggregate owned json value objects`() {
         val file = tempDir.resolve("value-objects.json")
         file.writeText(
             """
@@ -21,7 +21,6 @@ class ValueObjectManifestSourceProviderTest {
               {
                 "name": "Money",
                 "package": "shared.values",
-                "storage": "json",
                 "aggregates": [],
                 "fields": [
                   { "name": "amount", "type": "BigDecimal" },
@@ -31,10 +30,10 @@ class ValueObjectManifestSourceProviderTest {
               {
                 "name": "PublishWindow",
                 "package": "content.values",
-                "storage": "json",
+                "persistence": { "kind": "json" },
                 "aggregates": ["Content"],
                 "fields": [
-                  { "name": "startAt", "type": "Instant", "nullable": true }
+                  { "name": "startAt", "type": "Instant?" }
                 ]
               }
             ]
@@ -43,9 +42,12 @@ class ValueObjectManifestSourceProviderTest {
 
         val snapshot = ValueObjectManifestSourceProvider().load(listOf(file))
 
-        assertEquals(2, snapshot.valueObjects.size)
-        assertEquals(emptyList<String>(), snapshot.valueObjects[0].aggregates)
-        assertEquals(listOf("Content"), snapshot.valueObjects[1].aggregates)
+        assertEquals(2, snapshot.declarations.size)
+        assertEquals(emptyList<String>(), snapshot.declarations[0].aggregates)
+        assertEquals(null, snapshot.declarations[0].persistence)
+        assertEquals(listOf("Content"), snapshot.declarations[1].aggregates)
+        assertEquals("json", snapshot.declarations[1].persistence?.kind)
+        assertEquals("Instant?", snapshot.declarations[1].fields.single().typeExpression)
     }
 
     @Test
@@ -57,7 +59,6 @@ class ValueObjectManifestSourceProviderTest {
               {
                 "name": "Money",
                 "package": "shared.values",
-                "storage": "json",
                 "fields": []
               }
             ]
@@ -66,7 +67,8 @@ class ValueObjectManifestSourceProviderTest {
 
         val snapshot = ValueObjectManifestSourceProvider().load(listOf(file))
 
-        assertEquals(emptyList<String>(), snapshot.valueObjects.single().aggregates)
+        assertEquals(emptyList<String>(), snapshot.declarations.single().aggregates)
+        assertEquals(null, snapshot.declarations.single().persistence)
     }
 
     @Test
@@ -88,19 +90,40 @@ class ValueObjectManifestSourceProviderTest {
     }
 
     @Test
-    fun `rejects unsupported storage`() {
-        val invalidStorage = tempDir.resolve("invalid-storage.json")
-        invalidStorage.writeText(
+    fun `rejects removed storage even when it declares json`() {
+        val removedStorage = tempDir.resolve("removed-storage.json")
+        removedStorage.writeText(
             """
             [
-              { "name": "Money", "package": "shared.values", "storage": "table", "fields": [] }
+              { "name": "Money", "package": "shared.values", "storage": "json", "fields": [] }
             ]
             """.trimIndent()
         )
         val storageError = assertThrows<IllegalArgumentException> {
-            ValueObjectManifestSourceProvider().load(listOf(invalidStorage))
+            ValueObjectManifestSourceProvider().load(listOf(removedStorage))
         }
-        assertTrue(storageError.message!!.contains("storage must be json"))
+        assertTrue(storageError.message!!.contains("field storage is removed; use persistence instead"))
+    }
+
+    @Test
+    fun `rejects unknown persistence kind options and null projection`() {
+        listOf(
+            """{ "name": "Money", "package": "shared.values", "persistence": { "kind": "table" }, "fields": [] }""" to
+                "persistence.kind is unsupported: table",
+            """{ "name": "Money", "package": "shared.values", "persistence": { "kind": "json", "column": "payload" }, "fields": [] }""" to
+                "persistence has unsupported options: column",
+            """{ "name": "Money", "package": "shared.values", "persistence": null, "fields": [] }""" to
+                "persistence must be an object",
+        ).forEachIndexed { index, (declaration, expectedMessage) ->
+            val file = tempDir.resolve("invalid-persistence-$index.json")
+            file.writeText("[$declaration]")
+
+            val error = assertThrows<IllegalArgumentException> {
+                ValueObjectManifestSourceProvider().load(listOf(file))
+            }
+
+            assertTrue(error.message!!.contains("value object Money $expectedMessage"))
+        }
     }
 
     @Test
@@ -112,7 +135,7 @@ class ValueObjectManifestSourceProviderTest {
               {
                 "name": "Money",
                 "package": "shared.values",
-                "storage": "json",
+                "persistence": { "kind": "json" },
                 "fields": [
                   { "name": "amount" }
                 ]
@@ -129,13 +152,37 @@ class ValueObjectManifestSourceProviderTest {
     }
 
     @Test
+    fun `rejects removed field nullable property`() {
+        val file = tempDir.resolve("removed-nullable.json")
+        file.writeText(
+            """
+            [
+              {
+                "name": "Money",
+                "package": "shared.values",
+                "fields": [
+                  { "name": "amount", "type": "BigDecimal", "nullable": true }
+                ]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val error = assertThrows<IllegalArgumentException> {
+            ValueObjectManifestSourceProvider().load(listOf(file))
+        }
+
+        assertTrue(error.message!!.contains("value object Money field amount property nullable is removed"))
+    }
+
+    @Test
     fun `duplicate shared names fail globally and aggregate names fail within aggregate`() {
         val duplicateShared = tempDir.resolve("duplicate-shared.json")
         duplicateShared.writeText(
             """
             [
-              { "name": "Money", "package": "shared.values", "storage": "json", "fields": [] },
-              { "name": "Money", "package": "shared.other", "storage": "json", "fields": [] }
+              { "name": "Money", "package": "shared.values", "fields": [] },
+              { "name": "Money", "package": "shared.other", "fields": [] }
             ]
             """.trimIndent()
         )
@@ -148,9 +195,9 @@ class ValueObjectManifestSourceProviderTest {
         duplicateAggregate.writeText(
             """
             [
-              { "name": "Window", "aggregates": ["Content"], "package": "content.values", "storage": "json", "fields": [] },
-              { "name": "Window", "aggregates": ["Content"], "package": "content.other", "storage": "json", "fields": [] },
-              { "name": "Window", "aggregates": ["Campaign"], "package": "campaign.values", "storage": "json", "fields": [] }
+              { "name": "Window", "aggregates": ["Content"], "package": "content.values", "fields": [] },
+              { "name": "Window", "aggregates": ["Content"], "package": "content.other", "fields": [] },
+              { "name": "Window", "aggregates": ["Campaign"], "package": "campaign.values", "fields": [] }
             ]
             """.trimIndent()
         )

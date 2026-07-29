@@ -3,9 +3,6 @@ package {{ packageName }}
 {% if buildingBlock is defined -%}
 {{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
 {% endif -%}
-{{ use("com.fasterxml.jackson.databind.ObjectMapper") -}}
-{{ use("com.fasterxml.jackson.module.kotlin.readValue") -}}
-{{ use("jakarta.persistence.AttributeConverter") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -24,19 +21,15 @@ import {{ import }}
 {% endif -%}
 data class {{ typeName }}(
 {%- for field in fields %}
-    val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
-) {
-    @jakarta.persistence.Converter(autoApply = false)
-    class Converter : AttributeConverter<{{ typeName }}, String> {
-        override fun convertToDatabaseColumn(attribute: {{ typeName }}?): String? =
-            if (attribute == null) null else mapper.writeValueAsString(attribute)
-
-        override fun convertToEntityAttribute(dbData: String?): {{ typeName }}? =
-            dbData?.let { mapper.readValue<{{ typeName }}>(it) }
-    }
-
-    companion object {
-        private val mapper: ObjectMapper = ObjectMapper().findAndRegisterModules()
-    }
+){% if nestedTypes.size > 0 %} {
+{%- for nestedType in nestedTypes %}
+    data class {{ nestedType.name }}(
+{%- for field in nestedType.fields %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %}
+    )
+{%- endfor %}
 }
+{% endif %}

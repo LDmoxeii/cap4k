@@ -4,15 +4,15 @@ Use this taxonomy when reviewing plan evidence, generated diffs, template overri
 
 ## Checked-In Skeleton
 
-Checked-in skeletons are stable source files intended to live in the repository, commonly under a module `src/main/kotlin` root. They may contain handwritten slots, generated wiring shape, or managed sections. `src/main/kotlin` does not automatically mean full handwritten ownership.
+Checked-in skeletons are first-materialized source files intended to live in the repository, commonly under a module `src/main/kotlin` root. They may contain handwritten slots and initial generated wiring shape, but the generator does not retain a managed-section refresh contract.
 
 Plan signals:
 
 - `outputKind` is `CHECKED_IN_SOURCE`.
 - `resolvedOutputRoot` points to a checked-in module source root.
-- `conflictPolicy` commonly uses `SKIP` to protect existing handwritten logic.
+- `conflictPolicy` is always `SKIP` to protect existing handwritten logic.
 
-Review rule: write business logic only in approved slots and do not replace generator-owned structure by hand.
+Review rule: after first materialization, maintain the file as checked-in project source. If regeneration is intentional, use version control to delete, rematerialize, and review the complete diff.
 
 ## Build-Owned Generated Source
 
@@ -46,7 +46,7 @@ Plan signals:
 
 - `templateId` maps to an overridden template or custom template source.
 - The same generator family and output kind still determine ownership.
-- `conflictPolicy` must be checked again because override shape can change managed sections and handwritten slots.
+- Template override shape can change future first-materialized files, but cannot change existing checked-in source away from `SKIP`.
 
 Review rule: template overrides require generation review because they can alter all future skeletons in that family.
 
@@ -68,7 +68,7 @@ Read `generatorId`, `templateId`, `outputKind`, `resolvedOutputRoot`, `outputPat
 
 | `conflictPolicy` | Typical Meaning | Required Review |
 |---|---|---|
-| `SKIP` | Existing checked-in file is protected. | Confirm existing handwritten slots stay intact and missing updates are intentional. |
+| `SKIP` | Existing checked-in file is protected; this is mandatory for `CHECKED_IN_SOURCE`. | Confirm first-materialization-only ownership and accept that template updates are not synchronized. |
 | `OVERWRITE` | Build-owned or explicitly regenerated output can be replaced. | Confirm no handwritten logic lives in that output root. |
 | `FAIL` | Existing file should block materialization. | Stop and resolve ownership or bootstrap conflict before generation proceeds. |
 

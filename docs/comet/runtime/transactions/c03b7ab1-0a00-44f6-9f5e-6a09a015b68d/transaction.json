@@ -1,0 +1,35 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "c03b7ab1-0a00-44f6-9f5e-6a09a015b68d",
+  "kind": "archive",
+  "status": "committed",
+  "change": "issue-115-generator-semantics-refresh",
+  "createdAt": "2026-07-28T20:16:19.040Z",
+  "preflightHash": "9256f597a3295f30421d780737c1f79579a074e16f1c198fe4401572716936fd",
+  "operations": [
+    {
+      "id": "spec-1-owned-child-factory-creation",
+      "type": "write",
+      "target": "specs/owned-child-factory-creation/spec.md",
+      "staged": "runtime/transactions/c03b7ab1-0a00-44f6-9f5e-6a09a015b68d/staged/specs/owned-child-factory-creation/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "24d760e8fc1f4818f0b2c83bcc601b433eae5b2a34171a6b99ef208623b0390c"
+    },
+    {
+      "id": "spec-2-semantic-value-types",
+      "type": "write",
+      "target": "specs/semantic-value-types/spec.md",
+      "staged": "runtime/transactions/c03b7ab1-0a00-44f6-9f5e-6a09a015b68d/staged/specs/semantic-value-types/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "5d135253ae5394082141c763fce83db49127f988d1990df45ad24249825e282d"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/issue-115-generator-semantics-refresh",
+      "target": "archive/2026-07-28-issue-115-generator-semantics-refresh",
+      "expectedSourceHash": "8ebf9b42a76e5b9da4e4027539a4684f58dceef4d13006c4e51f92c9374319f8",
+      "expectedTargetHash": null
+    }
+  ]
+}

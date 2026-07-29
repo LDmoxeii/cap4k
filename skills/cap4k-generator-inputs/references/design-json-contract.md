@@ -45,7 +45,11 @@ Edit files registered through `sources.designJson.files`, commonly `design/desig
 - `integration_event` requires `eventName`.
 - `eventName` is allowed only on `domain_event` and `integration_event`.
 - `persist` is allowed only on `domain_event`.
-- Field `type` values must use explicit type names. Do not use the token `self`.
+- Field `type` values use Kotlin-style type expressions and compile into the canonical semantic type tree. Supported forms are builtin/named types, `List<T>`, `Set<T>`, `Map<K, V>`, and recursive `?`. Do not use `self`.
+- Do not declare a separate `nullable` property. Write `Money?` or `List<Money?>?` in `type`.
+- Mutable collections, `Collection`, `Iterable`, `Sequence`, arrays, tuples, and arbitrary generic types are unsupported.
+- `PageData<Item>` is a query/API result-only envelope, not a general generic type.
+- Explicit `defaultValue` must be accepted by the semantic default compiler; nullability alone does not synthesize a default.
 - In `domain_event.fields`, field name `entity` is reserved.
 
 ## Field Set Boundary

@@ -156,6 +156,18 @@ class PresetTemplateResolverTest {
     }
 
     @Test
+    fun `resolve keeps value object json converter preset resolution`() {
+        val resolver = PresetTemplateResolver(
+            preset = "ddd-default",
+            overrideDirs = emptyList()
+        )
+
+        val resolved = resolver.resolve("types/value-object-json-converter")
+
+        assertTrue(resolved.contains("class {{ typeName }} : AttributeConverter"))
+    }
+
+    @Test
     fun `resolve does not provide removed design validator preset template`() {
         val resolver = PresetTemplateResolver(
             preset = "ddd-default",

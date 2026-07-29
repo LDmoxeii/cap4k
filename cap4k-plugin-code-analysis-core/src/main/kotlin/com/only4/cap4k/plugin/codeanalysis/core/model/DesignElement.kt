@@ -21,6 +21,5 @@ data class DesignArtifact(
 data class DesignField(
     val name: String,
     val type: String,
-    val nullable: Boolean = false,
     val defaultValue: String? = null,
 )

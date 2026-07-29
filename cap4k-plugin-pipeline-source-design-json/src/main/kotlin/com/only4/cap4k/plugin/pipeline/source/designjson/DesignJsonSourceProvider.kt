@@ -7,8 +7,8 @@ import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.io.File
 
@@ -170,7 +170,7 @@ class DesignJsonSourceProvider : SourceProvider {
     private fun validateResultFields(
         tag: String,
         name: String,
-        resultFields: List<FieldModel>,
+        resultFields: List<SemanticFieldSnapshot>,
     ) {
         if (tag in resultFieldTags) {
             return
@@ -192,15 +192,15 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun validateNoSelfTypes(name: String, fields: List<FieldModel>) {
-        fields.firstOrNull { field -> selfToken.containsMatchIn(field.type) }?.let { field ->
+    private fun validateNoSelfTypes(name: String, fields: List<SemanticFieldSnapshot>) {
+        fields.firstOrNull { field -> selfToken.containsMatchIn(field.typeExpression) }?.let { field ->
             throw IllegalArgumentException(
                 "design entry $name field ${field.name} must use an explicit type name instead of self",
             )
         }
     }
 
-    private fun validateReservedFields(tag: String, name: String, fields: List<FieldModel>) {
+    private fun validateReservedFields(tag: String, name: String, fields: List<SemanticFieldSnapshot>) {
         if (tag != "domain_event") {
             return
         }
@@ -249,7 +249,7 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun parseFields(element: JsonElement?, entryName: String, fieldName: String): List<FieldModel> {
+    private fun parseFields(element: JsonElement?, entryName: String, fieldName: String): List<SemanticFieldSnapshot> {
         if (element == null) {
             return emptyList()
         }
@@ -262,16 +262,19 @@ class DesignJsonSourceProvider : SourceProvider {
                 "design entry $entryName $fieldName[$index] must be an object."
             }
             val field = element.asJsonObject
-            FieldModel(
-                name = readRequiredString(field, "name", "design entry $entryName $fieldName[$index] field"),
-                type = readRequiredString(field, "type", "design entry $entryName $fieldName[$index] field"),
-                nullable = readOptionalBoolean(field, "nullable", "design entry $entryName $fieldName[$index] field")
-                    ?: false,
+            require(!field.has("nullable")) {
+                "design entry $entryName $fieldName[$index] field nullable is removed; encode nullability in type"
+            }
+            val name = readRequiredString(field, "name", "design entry $entryName $fieldName[$index] field")
+            SemanticFieldSnapshot(
+                name = name,
+                typeExpression = readRequiredString(field, "type", "design entry $entryName $fieldName[$index] field"),
                 defaultValue = readOptionalString(
                     field,
                     "defaultValue",
                     "design entry $entryName $fieldName[$index] field",
                 ),
+                sourcePath = "$fieldName.$name",
             )
         }
     }

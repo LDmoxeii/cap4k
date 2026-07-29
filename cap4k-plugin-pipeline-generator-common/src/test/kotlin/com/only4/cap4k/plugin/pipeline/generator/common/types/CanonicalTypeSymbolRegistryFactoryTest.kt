@@ -3,10 +3,14 @@ package com.only4.cap4k.plugin.pipeline.generator.common.types
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
@@ -46,11 +50,11 @@ class CanonicalTypeSymbolRegistryFactoryTest {
                     enumDefinition("OrderStatus", "order", aggregates = listOf("Order")),
                 ),
                 valueObjects = listOf(
-                    ValueObjectModel(
+                    valueObject(
                         name = "Money",
                         packageName = "com.acme.demo.domain.shared.values",
                     ),
-                    ValueObjectModel(
+                    valueObject(
                         name = "OrderSnapshot",
                         packageName = "com.acme.demo.domain.aggregates.order.values",
                         aggregates = listOf("Order"),
@@ -171,4 +175,21 @@ class CanonicalTypeSymbolRegistryFactoryTest {
             items = listOf(EnumItemModel(value = 1, name = "ACTIVE", description = "Active")),
             aggregates = aggregates,
         )
+
+    private fun valueObject(
+        name: String,
+        packageName: String,
+        aggregates: List<String> = emptyList(),
+    ): ValueObjectModel = ValueObjectModel(
+        definition = SemanticValueDefinition(
+            identity = CanonicalTypeIdentity(
+                packageName = packageName,
+                typePath = listOf(name),
+                kind = CanonicalTypeKind.VALUE_OBJECT,
+                ownerAggregateName = aggregates.singleOrNull(),
+            ),
+            role = SemanticValueRole.VALUE_OBJECT,
+        ),
+        aggregates = aggregates,
+    )
 }

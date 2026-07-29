@@ -1,13 +1,20 @@
 package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
-import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueEnvelope
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueField
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -15,719 +22,166 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class DesignApiPayloadArtifactPlannerTest {
-
     @Test
-    fun `api payload planner plans adapter payload artifact with nested request and response hierarchy`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-        assertEquals("api-payload", planner.id)
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "account",
-                        name = "BatchSaveAccountList",
-                        description = "batch save account list payload",
-                        fields = listOf(
-                            FieldModel("address", "Address", nullable = true),
-                            FieldModel("address.city", "String"),
-                            FieldModel("address.zipCode", "String"),
-                        ),
-                        resultFields = listOf(
-                            FieldModel("result", "Result", nullable = true),
-                            FieldModel("result.success", "Boolean"),
-                        ),
-                    ),
-                ),
+    fun `renders canonical nested definitions without parsing field paths`() {
+        val requestIdentity = identity("com.acme.demo.adapter.portal.api.payload.video", "SyncVideo.Request")
+        val fileItem = definition(
+            identity = identity(requestIdentity.packageName, "SyncVideo.Request.FileItem"),
+            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            fields = listOf(field("index", SemanticBuiltinTypeRef(SemanticBuiltinType.INT))),
+        )
+        val request = definition(
+            identity = requestIdentity,
+            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            fields = listOf(field("files", SemanticListTypeRef(SemanticNamedTypeRef(fileItem.identity)))),
+            nestedDefinitions = listOf(fileItem),
+        )
+        val block = designBlock(
+            tag = "api_payload",
+            family = "api-payload",
+            packageName = "video",
+            name = "SyncVideo",
+            requestDefinition = request,
+            responseDefinition = definition(
+                identity(requestIdentity.packageName, "SyncVideo.Response"),
+                SemanticValueRole.API_PAYLOAD_RESPONSE,
             ),
         )
 
-        val payload = items.single()
-        assertEquals("api-payload", payload.generatorId)
-        assertEquals("design/api_payload.kt.peb", payload.templateId)
+        val payload = DesignApiPayloadArtifactPlanner().plan(config(), CanonicalModel(designBlocks = listOf(block))).single()
+
         assertEquals(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
-            payload.outputPath,
-        )
-        assertEquals("com.acme.demo.adapter.portal.api.payload.account", payload.context["packageName"])
-        assertEquals("BatchSaveAccountList", payload.context["typeName"])
-        assertEquals("batch save account list payload", payload.context["description"])
-        assertEquals(
-            listOf(
-                DesignRenderFieldModel(name = "address", renderedType = "Address?", nullable = true),
-            ),
+            listOf(DesignRenderFieldModel("files", "List<FileItem>")),
             payload.context["fields"],
         )
         assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "Address",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "city", renderedType = "String"),
-                        DesignRenderFieldModel(name = "zipCode", renderedType = "String"),
-                    ),
-                ),
-            ),
-            payload.context["nestedTypes"],
-        )
-        assertEquals(
-            listOf(
-                DesignRenderFieldModel(name = "result", renderedType = "Result?", nullable = true),
-            ),
-            payload.context["resultFields"],
-        )
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "Result",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "success", renderedType = "Boolean"),
-                    ),
-                ),
-            ),
-            payload.context["resultNestedTypes"],
-        )
-    }
-
-    @Test
-    fun `api payload planner supports multi-level nested request hierarchy`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "video",
-                        name = "SyncVideoPostProcessStatus",
-                        description = "sync video post process status",
-                        fields = listOf(
-                            FieldModel("fileList", "List<FileItem>"),
-                            FieldModel("fileList[].fileIndex", "Int"),
-                            FieldModel("fileList[].variants", "List<VariantItem>"),
-                            FieldModel("fileList[].variants[].quality", "String", defaultValue = ""),
-                            FieldModel("fileList[].variants[].width", "Int", defaultValue = "0"),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        val payload = items.single()
-        assertEquals(
-            listOf(DesignRenderFieldModel(name = "fileList", renderedType = "List<FileItem>")),
-            payload.context["fields"],
-        )
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "FileItem",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "fileIndex", renderedType = "Int"),
-                        DesignRenderFieldModel(name = "variants", renderedType = "List<VariantItem>"),
-                    ),
-                ),
-                DesignRenderNestedTypeModel(
-                    name = "VariantItem",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "quality", renderedType = "String", defaultValue = "\"\""),
-                        DesignRenderFieldModel(name = "width", renderedType = "Int", defaultValue = "0"),
-                    ),
-                ),
-            ),
+            listOf(DesignRenderNestedTypeModel("FileItem", listOf(DesignRenderFieldModel("index", "Int")))),
             payload.context["nestedTypes"],
         )
     }
 
     @Test
-    fun `api payload planner fails when self is used as response root type`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "category",
-                            name = "GetCategoryTree",
-                            description = "get category tree",
-                            resultFields = listOf(
-                                FieldModel("categoryId", "Long"),
-                                FieldModel("children", "List<self>", nullable = true),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertTrue(error.message.orEmpty().contains("self"))
-    }
-
-    @Test
-    fun `api payload planner supports explicit page envelope item paths`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "order",
-                        name = "FindOrderPagePayload",
-                        description = "find order page payload",
-                        variant = "page",
-                        resultFields = listOf(
-                            FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
-                            FieldModel("page.list[].orderId", "Long"),
-                            FieldModel("page.list[].title", "String"),
-                        ),
-                    ),
-                ),
-            ),
+    fun `renders Page envelope and item definition while keeping PageData outside type algebra`() {
+        val packageName = "com.acme.demo.adapter.portal.api.payload.order"
+        val item = definition(
+            identity(packageName, "FindOrders.Response.Item"),
+            SemanticValueRole.API_PAYLOAD_RESPONSE,
+            fields = listOf(field("id", SemanticBuiltinTypeRef(SemanticBuiltinType.LONG))),
+        )
+        val response = definition(
+            identity(packageName, "FindOrders.Response"),
+            SemanticValueRole.API_PAYLOAD_RESPONSE,
+            envelope = SemanticValueEnvelope.Page(item),
+        )
+        val block = designBlock(
+            tag = "api_payload",
+            family = "api-payload",
+            packageName = "order",
+            name = "FindOrders",
+            responseDefinition = response,
         )
 
-        val payload = items.single()
-        assertEquals(true, payload.context["pageRequest"])
-        assertEquals(
-            listOf(DesignRenderFieldModel(name = "page", renderedType = "PageData<Item>")),
-            payload.context["resultFields"],
-        )
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    "Item",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "orderId", renderedType = "Long"),
-                        DesignRenderFieldModel(name = "title", renderedType = "String"),
-                    ),
-                ),
-            ),
-            payload.context["resultNestedTypes"],
-        )
+        val payload = DesignApiPayloadArtifactPlanner().plan(config(), CanonicalModel(designBlocks = listOf(block))).single()
+
+        assertEquals(listOf(DesignRenderFieldModel("page", "PageData<Item>")), payload.context["resultFields"])
         assertEquals(listOf("com.only4.cap4k.ddd.core.share.PageData"), payload.context["imports"])
-    }
-
-    @Test
-    fun `api payload planner rejects page data envelope on non page root field`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "order",
-                            name = "FindOrderResultsPayload",
-                            description = "find order results payload",
-                            resultFields = listOf(
-                                FieldModel("results", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
-                                FieldModel("results.list[].id", "Long"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
         assertEquals(
-            "PageData envelope in response namespace is only supported for root field page",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `api payload planner rejects standalone page data envelope on non page root field`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "order",
-                            name = "FindOrderResultsPayload",
-                            description = "find order results payload",
-                            resultFields = listOf(
-                                FieldModel("results", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertEquals(
-            "PageData envelope in response namespace is only supported for root field page",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `api payload planner rejects standalone page data root field without list item paths`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "order",
-                            name = "FindOrderPagePayload",
-                            description = "find order page payload",
-                            resultFields = listOf(
-                                FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertEquals(
-            "PageData field page in response namespace must declare nested item fields only under list[]",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `api payload planner rejects raw standalone page data root field without list item paths`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "order",
-                            name = "FindOrderPagePayload",
-                            description = "find order page payload",
-                            resultFields = listOf(
-                                FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertEquals(
-            "PageData field page in response namespace must declare nested item fields only under list[]",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `api payload planner rejects page data envelope in request namespace`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "order",
-                            name = "FindOrderPagePayload",
-                            description = "find order page payload",
-                            fields = listOf(
-                                FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
-                                FieldModel("page.list[].id", "Long"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertEquals(
-            "PageData envelope in request namespace is only supported in response fields",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `api payload planner rejects unsupported page data envelope children`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "order",
-                            name = "FindOrderPagePayload",
-                            description = "find order page payload",
-                            resultFields = listOf(
-                                FieldModel("page", "com.only4.cap4k.ddd.core.share.PageData<Item>"),
-                                FieldModel("page.list[].id", "Long"),
-                                FieldModel("page.total", "Long"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertEquals(
-            "PageData field page in response namespace must declare nested item fields only under list[]",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `api payload planner supports explicit nested type recursion`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "video",
-                        name = "RecursiveVariantPayload",
-                        description = "recursive variant payload",
-                        fields = listOf(
-                            FieldModel("variants", "List<VariantItem>"),
-                            FieldModel("variants[].quality", "String"),
-                            FieldModel("variants[].children", "List<VariantItem>"),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        val payload = items.single()
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "VariantItem",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "quality", renderedType = "String"),
-                        DesignRenderFieldModel(name = "children", renderedType = "List<VariantItem>"),
-                    ),
-                ),
-            ),
-            payload.context["nestedTypes"],
-        )
-    }
-
-    @Test
-    fun `api payload planner keeps request and response nested item namespaces isolated`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "message",
-                        name = "MessageGroupPayload",
-                        description = "message group payload",
-                        fields = listOf(
-                            FieldModel("list", "List<Item>"),
-                            FieldModel("list[].requestValue", "String"),
-                        ),
-                        resultFields = listOf(
-                            FieldModel("list", "List<Item>"),
-                            FieldModel("list[].messageType", "Int"),
-                            FieldModel("list[].count", "Int"),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        val payload = items.single()
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "Item",
-                    fields = listOf(DesignRenderFieldModel(name = "requestValue", renderedType = "String")),
-                ),
-            ),
-            payload.context["nestedTypes"],
-        )
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "Item",
-                    fields = listOf(
-                        DesignRenderFieldModel(name = "messageType", renderedType = "Int"),
-                        DesignRenderFieldModel(name = "count", renderedType = "Int"),
-                    ),
-                ),
-            ),
+            listOf(DesignRenderNestedTypeModel("Item", listOf(DesignRenderFieldModel("id", "Long")))),
             payload.context["resultNestedTypes"],
         )
     }
 
     @Test
-    fun `api payload planner does not bind request fqcn to response local item`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "message",
-                        name = "ExternalItemPayload",
-                        description = "external item payload",
-                        fields = listOf(
-                            FieldModel("externalItem", "com.acme.shared.Item"),
-                        ),
-                        resultFields = listOf(
-                            FieldModel("list", "List<Item>"),
-                            FieldModel("list[].id", "Long"),
-                        ),
+    fun `uses explicit FQN when an imported symbol collides with a local nested type`() {
+        val packageName = "com.acme.demo.adapter.portal.api.payload.order"
+        val localItem = definition(identity(packageName, "Payload.Request.Item"), SemanticValueRole.API_PAYLOAD_REQUEST)
+        val request = definition(
+            identity(packageName, "Payload.Request"),
+            SemanticValueRole.API_PAYLOAD_REQUEST,
+            fields = listOf(
+                field("local", SemanticNamedTypeRef(localItem.identity)),
+                field(
+                    "external",
+                    SemanticNamedTypeRef(
+                        CanonicalTypeIdentity("com.acme.shared", listOf("Item"), CanonicalTypeKind.EXTERNAL),
                     ),
                 ),
             ),
+            nestedDefinitions = listOf(localItem),
+        )
+        val block = designBlock(
+            tag = "api_payload",
+            family = "api-payload",
+            name = "Payload",
+            requestDefinition = request,
         )
 
-        val payload = items.single()
-        assertEquals(
-            listOf(DesignRenderFieldModel(name = "externalItem", renderedType = "Item")),
-            payload.context["fields"],
-        )
-        assertEquals(listOf("com.acme.shared.Item"), payload.context["imports"])
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "Item",
-                    fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
-                ),
-            ),
-            payload.context["resultNestedTypes"],
-        )
-    }
+        val payload = DesignApiPayloadArtifactPlanner().plan(config(), CanonicalModel(designBlocks = listOf(block))).single()
+        @Suppress("UNCHECKED_CAST")
+        val fields = payload.context["fields"] as List<DesignRenderFieldModel>
 
-    @Test
-    fun `api payload planner renders same namespace fqcn when local item collides`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    apiPayloadBlock(
-                        packageName = "message",
-                        name = "RequestItemCollisionPayload",
-                        description = "request item collision payload",
-                        fields = listOf(
-                            FieldModel("list", "List<Item>"),
-                            FieldModel("list[].id", "Long"),
-                            FieldModel("externalItem", "com.acme.shared.Item"),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        val payload = items.single()
-        assertEquals(
-            listOf(
-                DesignRenderFieldModel(name = "list", renderedType = "List<Item>"),
-                DesignRenderFieldModel(name = "externalItem", renderedType = "com.acme.shared.Item"),
-            ),
-            payload.context["fields"],
-        )
+        assertEquals("Item", fields[0].renderedType)
+        assertEquals("com.acme.shared.Item", fields[1].renderedType)
         assertEquals(emptyList<String>(), payload.context["imports"])
-        assertEquals(
-            listOf(
-                DesignRenderNestedTypeModel(
-                    name = "Item",
-                    fields = listOf(DesignRenderFieldModel(name = "id", renderedType = "Long")),
-                ),
-            ),
-            payload.context["nestedTypes"],
+    }
+
+    @Test
+    fun `fails instead of silently dropping colliding flattened nested definitions`() {
+        val packageName = "com.acme.demo.adapter.portal.api.payload.order"
+        val first = definition(identity(packageName, "Payload.Request.Item"), SemanticValueRole.API_PAYLOAD_REQUEST)
+        val second = definition(identity(packageName, "Payload.Request.Group.Item"), SemanticValueRole.API_PAYLOAD_REQUEST)
+        val request = definition(
+            identity(packageName, "Payload.Request"),
+            SemanticValueRole.API_PAYLOAD_REQUEST,
+            nestedDefinitions = listOf(first, second),
         )
-    }
-
-    @Test
-    fun `api payload planner does not resolve request short item from response local item`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "message",
-                            name = "ExternalItemPayload",
-                            description = "external item payload",
-                            fields = listOf(
-                                FieldModel("externalItem", "Item"),
-                            ),
-                            resultFields = listOf(
-                                FieldModel("list", "List<Item>"),
-                                FieldModel("list[].id", "Long"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertTrue(error.message.orEmpty().contains("failed to resolve type for field externalItem"))
-        assertTrue(error.message.orEmpty().contains("unknown short type: Item"))
-    }
-
-    @Test
-    fun `api payload planner fails when duplicate leaf path is declared`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "account",
-                            name = "DuplicateAddressPayload",
-                            description = "duplicate address payload",
-                            fields = listOf(
-                                FieldModel("address", "Address"),
-                                FieldModel("address.city", "String"),
-                                FieldModel("address.city", "Int"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertTrue(error.message.orEmpty().contains("duplicate direct declarations for address.city in request namespace"))
-    }
-
-    @Test
-    fun `api payload planner ignores non api payload canonical slices`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val items = planner.plan(
-            config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-            model = CanonicalModel(
-                designBlocks = listOf(
-                    designBlock(
-                        tag = "command",
-                        family = "command",
-                        packageName = "order.submit",
-                        name = "SubmitOrderCmd",
-                        description = "submit order",
-                    ),
-                ),
-            ),
+        val block = designBlock(
+            tag = "api_payload",
+            family = "api-payload",
+            name = "Payload",
+            requestDefinition = request,
         )
 
-        assertTrue(items.isEmpty())
-    }
-
-    @Test
-    fun `api payload planner fails when adapter module is missing`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
-        val error = assertThrows(IllegalStateException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = emptyMap()),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "account",
-                            name = "BatchSaveAccountList",
-                            description = "batch save account list payload",
-                        ),
-                    ),
-                ),
-            )
-        }
-
-        assertEquals("adapter module is required", error.message)
-    }
-
-    @Test
-    fun `api payload planner fails when nested request group has no compatible direct root field`() {
-        val planner = DesignApiPayloadArtifactPlanner()
-
         val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "account",
-                            name = "BatchSaveAccountList",
-                            description = "batch save account list payload",
-                            fields = listOf(
-                                FieldModel("address.city", "String"),
-                                FieldModel("address.zipCode", "String"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
+            DesignApiPayloadArtifactPlanner().plan(config(), CanonicalModel(designBlocks = listOf(block)))
         }
 
-        assertEquals("missing compatible direct root field for nested type Address in request namespace", error.message)
+        assertTrue(error.message.orEmpty().contains("colliding flattened nested type Item"))
     }
 
     @Test
-    fun `api payload planner fails when nested request group root field type is incompatible`() {
-        val planner = DesignApiPayloadArtifactPlanner()
+    fun `page artifact variant still controls PageRequest independently from response envelope`() {
+        val block = designBlock(
+            tag = "api_payload",
+            family = "api-payload",
+            variant = "page",
+            name = "FindOrders",
+        )
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config = projectConfig(modules = mapOf("adapter" to "demo-adapter")),
-                model = CanonicalModel(
-                    designBlocks = listOf(
-                        apiPayloadBlock(
-                            packageName = "account",
-                            name = "BatchSaveAccountList",
-                            description = "batch save account list payload",
-                            fields = listOf(
-                                FieldModel("address", "String"),
-                                FieldModel("address.city", "String"),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        }
+        val payload = DesignApiPayloadArtifactPlanner().plan(config(), CanonicalModel(designBlocks = listOf(block))).single()
 
-        assertEquals("direct root field address in request namespace must point to nested type Address", error.message)
+        assertEquals(true, payload.context["pageRequest"])
     }
 
-    private fun projectConfig(modules: Map<String, String>) = ProjectConfig(
+    private fun config() = ProjectConfig(
         basePackage = "com.acme.demo",
         layout = ProjectLayout.MULTI_MODULE,
-        modules = modules,
-        sources = emptyMap(),
+        modules = mapOf("adapter" to "demo-adapter"),
         generators = mapOf("api-payload" to GeneratorConfig()),
         templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
     )
 
-    private fun apiPayloadBlock(
-        packageName: String,
-        name: String,
-        description: String,
-        variant: String = "",
-        fields: List<FieldModel> = emptyList(),
-        resultFields: List<FieldModel> = emptyList(),
-    ) = DesignBlockModel(
-        tag = "api_payload",
-        packageName = packageName,
-        name = name,
-        description = description,
-        artifacts = listOf(ArtifactSelectionModel("api-payload", variant)),
-        fields = fields,
-        resultFields = resultFields,
-    )
+    private fun identity(packageName: String, path: String) =
+        CanonicalTypeIdentity(packageName, path.split('.'), CanonicalTypeKind.NESTED_VALUE)
+
+    private fun field(name: String, type: com.only4.cap4k.plugin.pipeline.api.SemanticTypeRef) =
+        SemanticValueField(name, type)
+
+    private fun definition(
+        identity: CanonicalTypeIdentity,
+        role: SemanticValueRole,
+        fields: List<SemanticValueField> = emptyList(),
+        nestedDefinitions: List<SemanticValueDefinition> = emptyList(),
+        envelope: SemanticValueEnvelope? = null,
+    ) = SemanticValueDefinition(identity, role, fields, nestedDefinitions, envelope)
 }

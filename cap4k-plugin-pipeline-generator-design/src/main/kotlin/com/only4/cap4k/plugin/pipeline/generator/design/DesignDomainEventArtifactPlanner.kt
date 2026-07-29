@@ -27,7 +27,6 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                 packageName = packageName,
                 block = block,
                 aggregate = aggregate,
-                symbolRegistry = config.designTypeSymbolRegistry(model),
             )
             ArtifactPlanItem(
                 generatorId = id,

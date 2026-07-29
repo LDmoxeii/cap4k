@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
@@ -14,6 +15,7 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -23,16 +25,16 @@ import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
-import com.only4.cap4k.plugin.pipeline.api.FieldModel
-import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
-import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
+import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
+import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -53,8 +55,8 @@ import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
-import com.only4.cap4k.plugin.pipeline.api.ValueObjectStorage
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectDeclarationSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectPersistenceSnapshot
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -80,8 +82,8 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            fields = listOf(FieldModel(name = "orderNo", type = "String")),
-                            resultFields = listOf(FieldModel(name = "status", type = "String")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderNo", typeExpression = "String")),
+                            resultFields = listOf(SemanticFieldSnapshot(name = "status", typeExpression = "String")),
                         ),
                     ),
                 ),
@@ -115,7 +117,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreated",
                             description = "order created",
                             aggregates = emptyList(),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                             eventName = "order.created",
                         ),
                     ),
@@ -143,7 +145,7 @@ class DefaultCanonicalAssemblerTest {
                             description = "order created",
                             aggregates = emptyList(),
                             artifacts = emptyList(),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                             eventName = "order.created",
                         ),
                     ),
@@ -168,7 +170,7 @@ class DefaultCanonicalAssemblerTest {
                                 name = "OrderCreated",
                                 description = "order created",
                                 aggregates = emptyList(),
-                                fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                                fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                                 eventName = "order.created",
                                 artifacts = listOf(
                                     ArtifactSelectionModel("integration-event", "outbound"),
@@ -200,7 +202,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreated",
                             description = "order created",
                             aggregates = emptyList(),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                             eventName = "order.created",
                             artifacts = listOf(
                                 ArtifactSelectionModel("integration-event", "inbound"),
@@ -234,7 +236,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "OrderCreated",
                             description = "order created",
                             aggregates = emptyList(),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                             eventName = "order.created",
                             artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
                         ),
@@ -362,7 +364,7 @@ class DefaultCanonicalAssemblerTest {
                                 name = "OrderDomainService",
                                 description = "order domain service",
                                 aggregates = emptyList(),
-                                resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                                resultFields = listOf(SemanticFieldSnapshot(name = "accepted", typeExpression = "Boolean")),
                             ),
                         ),
                     ),
@@ -391,7 +393,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "CreateOrder",
                             description = "create order",
                             aggregates = emptyList(),
-                            resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                            resultFields = listOf(SemanticFieldSnapshot(name = "accepted", typeExpression = "Boolean")),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -414,8 +416,8 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(listOf("CreateOrder"), model.designBlocks.filter { it.tag == "command" }.map { it.name })
         assertEquals(
-            listOf(FieldModel(name = "accepted", type = "Boolean")),
-            model.designBlocks.single { it.tag == "command" }.resultFields,
+            listOf("accepted"),
+            model.designBlocks.single { it.tag == "command" }.resultFields.map { it.name },
         )
         assertEquals(listOf("FindOrderList"), model.designBlocks.filter { it.tag == "query" }.map { it.name })
         assertEquals(listOf("SyncStock"), model.designBlocks.filter { it.tag == "client" }.map { it.name })
@@ -497,6 +499,37 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler rejects PageData response envelope for command and client roles`() {
+        listOf("command", "client").forEach { tag ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DefaultCanonicalAssembler().assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = tag,
+                                    packageName = "order.remote",
+                                    name = "LoadOrders",
+                                    description = "load orders",
+                                    aggregates = emptyList(),
+                                    resultFields = listOf(
+                                        SemanticFieldSnapshot("page", "PageData<OrderItem>"),
+                                        SemanticFieldSnapshot("page.list[].orderId", "Long"),
+                                    ),
+                                )
+                            ),
+                        )
+                    ),
+                )
+            }
+
+            assertTrue(error.message.orEmpty().contains("PageData envelope is not enabled"))
+            assertTrue(error.message.orEmpty().contains("${tag.uppercase()}_RESPONSE"))
+        }
+    }
+
+    @Test
     fun `assembles domain services and value objects`() {
         val design = DesignSpecSnapshot(
             entries = listOf(
@@ -513,17 +546,17 @@ class DefaultCanonicalAssemblerTest {
                     name = "PublishContentSaga",
                     description = "publish content",
                     aggregates = emptyList(),
-                    fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
+                    fields = listOf(SemanticFieldSnapshot(name = "contentId", typeExpression = "ContentId")),
                 ),
             )
         )
         val valueObjects = ValueObjectManifestSnapshot(
-            valueObjects = listOf(
-                ValueObjectModel(
+            declarations = listOf(
+                ValueObjectDeclarationSnapshot(
                     name = "Money",
                     packageName = "shared.values",
-                    storage = ValueObjectStorage.JSON,
-                    fields = listOf(FieldModel(name = "amount", type = "BigDecimal")),
+                    persistence = ValueObjectPersistenceSnapshot(kind = "json"),
+                    fields = listOf(SemanticFieldSnapshot(name = "amount", typeExpression = "java.math.BigDecimal")),
                 )
             )
         )
@@ -538,7 +571,7 @@ class DefaultCanonicalAssemblerTest {
         val sagaBlock = model.designBlocks.single { it.tag == "saga" }
         assertEquals("PublishContentSaga", sagaBlock.name)
         assertEquals(listOf("contentId"), sagaBlock.fields.map { it.name })
-        assertEquals(emptyList<FieldModel>(), sagaBlock.resultFields)
+        assertTrue(sagaBlock.resultFields.isEmpty())
         assertEquals("Money", model.valueObjects.single().name)
         assertEquals(typeRegistry.entries, model.typeRegistry.entries)
     }
@@ -668,13 +701,13 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `aggregate-local value objects with same simple name in different aggregates do not fail`() {
         val valueObjects = ValueObjectManifestSnapshot(
-            valueObjects = listOf(
-                ValueObjectModel(
+            declarations = listOf(
+                ValueObjectDeclarationSnapshot(
                     name = "Snapshot",
                     packageName = "content.values",
                     aggregates = listOf("Content"),
                 ),
-                ValueObjectModel(
+                ValueObjectDeclarationSnapshot(
                     name = "Snapshot",
                     packageName = "review.values",
                     aggregates = listOf("Review"),
@@ -690,8 +723,8 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `same aggregate local enum and value object with same simple name fail duplicate validation`() {
         val valueObjects = ValueObjectManifestSnapshot(
-            valueObjects = listOf(
-                ValueObjectModel(
+            declarations = listOf(
+                ValueObjectDeclarationSnapshot(
                     name = "Status",
                     packageName = "content.values",
                     aggregates = listOf("Content"),
@@ -755,8 +788,8 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `assembler rejects value object manifest with more than one aggregate`() {
         val valueObjects = ValueObjectManifestSnapshot(
-            valueObjects = listOf(
-                ValueObjectModel(
+            declarations = listOf(
+                ValueObjectDeclarationSnapshot(
                     name = "Money",
                     packageName = "shared.values",
                     aggregates = listOf("Order", "Payment"),
@@ -774,11 +807,10 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `fails on duplicate simple type names across enum value object and registry`() {
         val valueObjects = ValueObjectManifestSnapshot(
-            valueObjects = listOf(
-                ValueObjectModel(
+            declarations = listOf(
+                ValueObjectDeclarationSnapshot(
                     name = "Status",
                     packageName = "shared.values",
-                    storage = ValueObjectStorage.JSON,
                 )
             )
         )
@@ -919,8 +951,8 @@ class DefaultCanonicalAssemblerTest {
     fun `api payload entries assemble into design blocks and keep command assembly unchanged`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val requestFields = listOf(FieldModel(name = "accountIds", type = "List<Long>"))
-        val responseFields = listOf(FieldModel(name = "saved", type = "Int"))
+        val requestFields = listOf(SemanticFieldSnapshot(name = "accountIds", typeExpression = "List<Long>"))
+        val responseFields = listOf(SemanticFieldSnapshot(name = "saved", typeExpression = "Int"))
 
         val model = assembler.assemble(
             config = baseConfig(),
@@ -942,7 +974,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                         ),
                     )
                 ),
@@ -954,8 +986,8 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("auth.payload", payload.packageName)
         assertEquals("batchSaveAccountList", payload.name)
         assertEquals("batch save account payload", payload.description)
-        assertEquals(requestFields, payload.fields)
-        assertEquals(responseFields, payload.resultFields)
+        assertEquals(requestFields.map { it.name }, payload.fields.map { it.name })
+        assertEquals(responseFields.map { it.name }, payload.resultFields.map { it.name })
 
         assertEquals(1, model.designBlocks.count { it.tag == "command" })
         val command = model.designBlocks.single { it.tag == "command" }
@@ -963,8 +995,8 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("SubmitOrder", command.name)
         assertEquals("submit order", command.description)
         assertEquals(listOf("Order"), command.aggregates)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.fields)
-        assertEquals(emptyList<FieldModel>(), command.resultFields)
+        assertEquals(listOf("orderId"), command.fields.map { it.name })
+        assertTrue(command.resultFields.isEmpty())
     }
 
     @Test
@@ -1012,9 +1044,9 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = listOf("Order"),
                             persist = true,
                             fields = listOf(
-                                FieldModel(name = "reason", type = "String"),
-                                FieldModel(name = "snapshot", type = "Snapshot", nullable = true),
-                                FieldModel(name = "snapshot.traceId", type = "UUID"),
+                                SemanticFieldSnapshot(name = "reason", typeExpression = "String"),
+                                SemanticFieldSnapshot(name = "snapshot", typeExpression = "Snapshot?"),
+                                SemanticFieldSnapshot(name = "snapshot.traceId", typeExpression = "java.util.UUID"),
                             ),
                         ),
                         DesignSpecEntry(
@@ -1093,12 +1125,8 @@ class DefaultCanonicalAssemblerTest {
         )
         assertEquals(listOf(true, false, false, false, false, false, false), model.domainEvents.map { it.persist })
         assertEquals(
-            listOf(
-                FieldModel(name = "reason", type = "String"),
-                FieldModel(name = "snapshot", type = "Snapshot", nullable = true),
-                FieldModel(name = "snapshot.traceId", type = "UUID"),
-            ),
-            model.domainEvents.first().fields,
+            listOf("reason", "snapshot"),
+            model.domainEvents.first().fields.map { it.name },
         )
         assertEquals(false, model.domainEvents.first().fields.any { it.name == "entity" })
     }
@@ -1272,7 +1300,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "SubmitOrder",
                             description = "submit order",
                             aggregates = listOf("Order"),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
                         ),
                         DesignSpecEntry(
                             tag = "query",
@@ -1280,8 +1308,8 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = listOf("Order"),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            resultFields = listOf(FieldModel(name = "status", type = "String")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
+                            resultFields = listOf(SemanticFieldSnapshot(name = "status", typeExpression = "String")),
                         ),
                     )
                 ),
@@ -1296,14 +1324,14 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("order.submit", command.packageName)
         assertEquals("submit order", command.description)
         assertEquals(listOf("Order"), command.aggregates)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), command.fields)
-        assertEquals(emptyList<FieldModel>(), command.resultFields)
+        assertEquals(listOf("orderId"), command.fields.map { it.name })
+        assertTrue(command.resultFields.isEmpty())
         assertEquals("FindOrder", query.name)
         assertEquals("order.read", query.packageName)
         assertEquals("find order", query.description)
         assertEquals(listOf("Order"), query.aggregates)
-        assertEquals(listOf(FieldModel(name = "orderId", type = "Long")), query.fields)
-        assertEquals(listOf(FieldModel(name = "status", type = "String")), query.resultFields)
+        assertEquals(listOf("orderId"), query.fields.map { it.name })
+        assertEquals(listOf("status"), query.resultFields.map { it.name })
     }
 
     @Test
@@ -1457,7 +1485,7 @@ class DefaultCanonicalAssemblerTest {
     fun `assembles drawing board as generate ready design json contract`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val supportedField = DesignFieldSnapshot(name = "orderId", type = "Long", nullable = false, defaultValue = "0")
+        val supportedField = DesignFieldSnapshot(name = "orderId", type = "Long", defaultValue = "0")
         val responseField = DesignFieldSnapshot(name = "accepted", type = "Boolean")
         val duplicateField = DesignFieldSnapshot(name = "ignored", type = "String")
         val entityField = DesignFieldSnapshot(name = "entity", type = "Order")
@@ -1525,20 +1553,12 @@ class DefaultCanonicalAssemblerTest {
 
         val drawingBoard = model.drawingBoard
         assertEquals(5, drawingBoard!!.elements.size)
-        assertEquals(
-            DrawingBoardElementModel(
-                tag = "command",
-                packageName = "order.submit",
-                name = "SubmitOrder",
-                description = "submit order",
-                aggregates = listOf("Order"),
-                artifacts = listOf(ArtifactSelectionModel(family = "command")),
-                persist = true,
-                fields = listOf(DrawingBoardFieldModel(name = "orderId", type = "Long", nullable = false, defaultValue = "0")),
-                resultFields = listOf(DrawingBoardFieldModel(name = "accepted", type = "Boolean")),
-            ),
-            drawingBoard.elements.first(),
-        )
+        val command = drawingBoard.elements.first()
+        assertEquals("command", command.tag)
+        assertEquals("order.submit", command.packageName)
+        assertEquals("SubmitOrder", command.name)
+        assertEquals(listOf("orderId"), command.fields.map { it.name })
+        assertEquals(listOf("accepted"), command.resultFields.map { it.name })
         assertEquals(
             listOf("command", "client", "query", "api_payload", "domain_event"),
             drawingBoard.elementsByTag.keys.toList(),
@@ -1552,7 +1572,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf(ArtifactSelectionModel("api-payload", "page")), apiPayload.designJsonArtifacts)
 
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
-        assertEquals(listOf(DrawingBoardFieldModel(name = "reason", type = "String")), domainEvent.fields)
+        assertEquals(listOf("reason"), domainEvent.fields.map { it.name })
     }
 
     @Test
@@ -1748,8 +1768,8 @@ class DefaultCanonicalAssemblerTest {
                             description = "find order",
                             aggregates = listOf("Order"),
                             artifacts = listOf(ArtifactSelectionModel("query")),
-                            fields = listOf(FieldModel(name = "orderId", type = "Long")),
-                            resultFields = listOf(FieldModel(name = "status", type = "String")),
+                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
+                            resultFields = listOf(SemanticFieldSnapshot(name = "status", typeExpression = "String")),
                         )
                     )
                 ),
@@ -2383,15 +2403,17 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
                 ValueObjectManifestSnapshot(
-                    valueObjects = listOf(
-                        ValueObjectModel(
+                    declarations = listOf(
+                        ValueObjectDeclarationSnapshot(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.shared.values",
+                            persistence = ValueObjectPersistenceSnapshot(kind = "json"),
                         ),
-                        ValueObjectModel(
+                        ValueObjectDeclarationSnapshot(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.aggregates.content.values",
                             aggregates = listOf("Content"),
+                            persistence = ValueObjectPersistenceSnapshot(kind = "json"),
                         ),
                     )
                 )
@@ -2405,7 +2427,7 @@ class DefaultCanonicalAssemblerTest {
             entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
         )
         assertEquals(
-            "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+            "com.acme.demo.domain.aggregates.content.values.PublishWindowJsonAttributeConverter",
             entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
         )
     }
@@ -2436,10 +2458,11 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
                 ValueObjectManifestSnapshot(
-                    valueObjects = listOf(
-                        ValueObjectModel(
+                    declarations = listOf(
+                        ValueObjectDeclarationSnapshot(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.shared.values",
+                            persistence = ValueObjectPersistenceSnapshot(kind = "json"),
                         ),
                     )
                 )
@@ -2453,9 +2476,107 @@ class DefaultCanonicalAssemblerTest {
             entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
         )
         assertEquals(
-            "com.acme.demo.domain.shared.values.PublishWindow.Converter",
+            "com.acme.demo.domain.shared.values.PublishWindowJsonAttributeConverter",
             entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
         )
+    }
+
+    @Test
+    fun `json converter identity cannot collide with another value object declaration`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assemble(
+                valueObjects = ValueObjectManifestSnapshot(
+                    declarations = listOf(
+                        ValueObjectDeclarationSnapshot(
+                            name = "Money",
+                            packageName = "com.acme.demo.domain.shared.values",
+                            persistence = ValueObjectPersistenceSnapshot(kind = "json"),
+                        ),
+                        ValueObjectDeclarationSnapshot(
+                            name = "MoneyJsonAttributeConverter",
+                            packageName = "com.acme.demo.domain.shared.values",
+                        ),
+                    )
+                )
+            )
+        }
+
+        assertEquals(
+            "value object com.acme.demo.domain.shared.values.Money JSON converter identity conflicts with " +
+                "canonical/artifact declaration: " +
+                "com.acme.demo.domain.shared.values.MoneyJsonAttributeConverter",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `json converter identity cannot collide with enum declaration`() {
+        val packageName = "com.acme.demo.domain.shared.values"
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    EnumManifestSnapshot(
+                        definitions = listOf(
+                            SharedEnumDefinition(
+                                typeName = "MoneyJsonAttributeConverter",
+                                packageName = packageName,
+                                items = listOf(EnumItemModel(0, "DEFAULT", "Default")),
+                            )
+                        )
+                    ),
+                    ValueObjectManifestSnapshot(
+                        declarations = listOf(
+                            ValueObjectDeclarationSnapshot(
+                                name = "Money",
+                                packageName = packageName,
+                                persistence = ValueObjectPersistenceSnapshot(kind = "json"),
+                            )
+                        )
+                    ),
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("MoneyJsonAttributeConverter"))
+        assertTrue(error.message!!.contains("canonical/artifact declaration"))
+    }
+
+    @Test
+    fun `json converter identity cannot collide with entity declaration`() {
+        val packageName = "com.acme.demo.domain.aggregates.money_json_attribute_converter"
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                aggregateProjectConfig(),
+                listOf(
+                    DbSchemaSnapshot(
+                        tables = listOf(
+                            DbTableSnapshot(
+                                tableName = "money_json_attribute_converter",
+                                comment = "",
+                                columns = listOf(
+                                    DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
+                                ),
+                                primaryKey = listOf("id"),
+                                uniqueConstraints = emptyList(),
+                            )
+                        )
+                    ),
+                    ValueObjectManifestSnapshot(
+                        declarations = listOf(
+                            ValueObjectDeclarationSnapshot(
+                                name = "Money",
+                                packageName = packageName,
+                                persistence = ValueObjectPersistenceSnapshot(kind = "json"),
+                            )
+                        )
+                    ),
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("$packageName.MoneyJsonAttributeConverter"))
+        assertTrue(error.message!!.contains("canonical/artifact declaration"))
     }
 
     @Test
@@ -2503,11 +2624,12 @@ class DefaultCanonicalAssemblerTest {
                     )
                 ),
                 ValueObjectManifestSnapshot(
-                    valueObjects = listOf(
-                        ValueObjectModel(
+                    declarations = listOf(
+                        ValueObjectDeclarationSnapshot(
                             name = "PublishWindow",
                             packageName = "com.acme.demo.domain.aggregates.content.values",
                             aggregates = listOf("Content"),
+                            persistence = ValueObjectPersistenceSnapshot(kind = "json"),
                         ),
                     )
                 )
@@ -2521,7 +2643,7 @@ class DefaultCanonicalAssemblerTest {
             entityJpa.columns.single { it.fieldName == "publishWindow" }.converterTypeFqn,
         )
         assertEquals(
-            "com.acme.demo.domain.aggregates.content.values.PublishWindow.Converter",
+            "com.acme.demo.domain.aggregates.content.values.PublishWindowJsonAttributeConverter",
             entityJpa.columns.single { it.fieldName == "publishWindow" }.converterClassFqn,
         )
     }
@@ -2531,12 +2653,12 @@ class DefaultCanonicalAssemblerTest {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assemble(
                 valueObjects = ValueObjectManifestSnapshot(
-                    valueObjects = listOf(
-                        ValueObjectModel(
+                    declarations = listOf(
+                        ValueObjectDeclarationSnapshot(
                             name = "PublishWindow",
                             packageName = "content.values.primary",
                         ),
-                        ValueObjectModel(
+                        ValueObjectDeclarationSnapshot(
                             name = "PublishWindow",
                             packageName = "content.values.secondary",
                         ),
@@ -2575,16 +2697,18 @@ class DefaultCanonicalAssemblerTest {
                         )
                     ),
                     ValueObjectManifestSnapshot(
-                        valueObjects = listOf(
-                            ValueObjectModel(
+                        declarations = listOf(
+                            ValueObjectDeclarationSnapshot(
                                 name = "PublishWindow",
                                 packageName = "content.values.primary",
                                 aggregates = listOf("Content"),
+                                persistence = ValueObjectPersistenceSnapshot(kind = "json"),
                             ),
-                            ValueObjectModel(
+                            ValueObjectDeclarationSnapshot(
                                 name = "PublishWindow",
                                 packageName = "content.values.secondary",
                                 aggregates = listOf("Content"),
+                                persistence = ValueObjectPersistenceSnapshot(kind = "json"),
                             ),
                         )
                     )
@@ -3002,6 +3126,115 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assembler compiles recursive owned one and many creation graph from resolved write surfaces`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
+            tables = listOf(
+                table(
+                    name = "order",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("title", "VARCHAR(64)", "String", false, defaultValue = "'draft'"),
+                        column("published", "BOOLEAN", "Boolean", false, defaultValue = "FALSE"),
+                        column("version", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.VERSION),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                ),
+                table(
+                    name = "order_profile",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
+                        column("display_name", "VARCHAR(64)", "String", false),
+                        column("version", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.VERSION),
+                    ),
+                    primaryKey = listOf("id"),
+                    parentTable = "order",
+                    aggregateRoot = false,
+                    uniqueConstraints = listOf(uniqueConstraint("uk_order_profile_parent", "order_id")),
+                ),
+                table(
+                    name = "order_line",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
+                        column("sku", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    parentTable = "order",
+                    aggregateRoot = false,
+                ),
+                table(
+                    name = "order_line_option",
+                    columns = listOf(
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("order_line_id", "VARCHAR(36)", "String", false, parentRef = true),
+                        column("code", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    parentTable = "order_line",
+                    aggregateRoot = false,
+                ),
+            ),
+        )
+
+        val graph: AggregateCreationGraphModel = result.model.aggregateCreationGraphs.single()
+        assertEquals("Order", graph.rootEntity.simpleName)
+        assertEquals(SemanticValueRole.FACTORY_PAYLOAD, graph.factoryPayload.role)
+        assertEquals(CanonicalTypeKind.NESTED_VALUE, graph.factoryPayload.identity.kind)
+        assertEquals(listOf("OrderFactory", "Payload"), graph.factoryPayload.identity.typePath)
+        assertEquals(listOf("title", "published"), graph.rootConstructorFieldNames)
+        assertEquals(listOf("title", "published", "profile", "lines"), graph.factoryPayload.fields.map { it.name })
+        assertEquals("\"draft\"", graph.factoryPayload.fields.single { it.name == "title" }.defaultValue?.kotlinExpression)
+        assertEquals("false", graph.factoryPayload.fields.single { it.name == "published" }.defaultValue?.kotlinExpression)
+
+        val profileField = graph.factoryPayload.fields.single { it.name == "profile" }
+        assertEquals("null", profileField.defaultValue?.kotlinExpression)
+        val profileType = profileField.type as SemanticNamedTypeRef
+        assertTrue(profileType.nullable)
+        assertEquals("OrderProfileCreation", profileType.symbol.simpleName)
+
+        val linesField = graph.factoryPayload.fields.single { it.name == "lines" }
+        assertEquals("emptyList()", linesField.defaultValue?.kotlinExpression)
+        val lineType = (linesField.type as SemanticListTypeRef).elementType as SemanticNamedTypeRef
+        assertEquals("OrderLineCreation", lineType.symbol.simpleName)
+
+        assertEquals(
+            listOf("OrderLineCreation", "OrderLineOptionCreation", "OrderProfileCreation"),
+            graph.ownedNodes.map { it.value.identity.simpleName }.sorted(),
+        )
+        graph.ownedNodes.forEach { node ->
+            assertEquals(SemanticValueRole.OWNED_ENTITY_CREATION, node.value.role)
+            assertEquals(CanonicalTypeKind.CREATION_VALUE, node.value.identity.kind)
+            assertFalse(node.value.fields.any { it.name == "id" || it.name == "version" })
+        }
+
+        val profile = graph.ownedNodes.single { it.entity.simpleName == "OrderProfile" }
+        assertEquals(listOf("displayName"), profile.constructorFieldNames)
+        assertEquals(listOf("displayName"), profile.value.fields.map { it.name })
+        val line = graph.ownedNodes.single { it.entity.simpleName == "OrderLine" }
+        assertEquals(listOf("sku"), line.constructorFieldNames)
+        assertEquals(listOf("sku", "options"), line.value.fields.map { it.name })
+        val option = graph.ownedNodes.single { it.entity.simpleName == "OrderLineOption" }
+        assertEquals(listOf("code"), option.constructorFieldNames)
+        assertEquals(listOf("code"), option.value.fields.map { it.name })
+
+        assertEquals(
+            listOf(
+                listOf("profile"),
+                listOf("lines"),
+                listOf("lines", "options"),
+            ),
+            graph.relations.map { it.path },
+        )
+        assertEquals(
+            listOf(OwnedRelationCardinality.ONE, OwnedRelationCardinality.MANY, OwnedRelationCardinality.MANY),
+            graph.relations.map { it.cardinality },
+        )
+    }
+
+    @Test
     fun `db identity primary key stays primitive and does not emit own strong id`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
@@ -3238,7 +3471,7 @@ class DefaultCanonicalAssemblerTest {
                             name = "CreateContent",
                             description = "create content",
                             aggregates = emptyList(),
-                            fields = listOf(FieldModel("authorId", "AuthorId")),
+                            fields = listOf(SemanticFieldSnapshot("authorId", "AuthorId")),
                         )
                     )
                 ),
@@ -3260,7 +3493,11 @@ class DefaultCanonicalAssemblerTest {
 
         val command = result.model.designBlocks.single { it.name == "CreateContent" }
 
-        assertEquals("AuthorId", command.fields.single { it.name == "authorId" }.type)
+        assertEquals(
+            "AuthorId",
+            (command.fields.single { it.name == "authorId" }.type as com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef)
+                .symbol.simpleName,
+        )
         assertEquals("AuthorId", result.model.strongIds.single { it.typeName == "AuthorId" }.typeName)
         assertEquals(1, result.model.designBlocks.count { it.tag == "command" })
     }
@@ -6818,3 +7055,13 @@ class DefaultCanonicalAssemblerTest {
 
     private fun aggregateProjectConfig(): ProjectConfig = baseAggregateConfig()
 }
+
+private fun DesignFieldSnapshot(
+    name: String,
+    type: String,
+    defaultValue: String? = null,
+): SemanticFieldSnapshot = SemanticFieldSnapshot(
+    name = name,
+    typeExpression = type,
+    defaultValue = defaultValue,
+)

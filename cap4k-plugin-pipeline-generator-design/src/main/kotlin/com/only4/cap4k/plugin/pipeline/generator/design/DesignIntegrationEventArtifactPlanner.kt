@@ -25,7 +25,6 @@ class DesignIntegrationEventArtifactPlanner : GeneratorProvider {
             val renderModel = DesignPayloadRenderModelFactory.createForIntegrationEventBlock(
                 packageName = packageName,
                 block = block,
-                symbolRegistry = config.designTypeSymbolRegistry(model),
             )
             ArtifactPlanItem(
                 generatorId = id,

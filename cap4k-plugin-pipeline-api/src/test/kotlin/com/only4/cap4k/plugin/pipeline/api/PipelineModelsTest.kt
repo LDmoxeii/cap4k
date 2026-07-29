@@ -8,6 +8,19 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PipelineModelsTest {
+
+    @Test
+    fun `aggregate column does not infer nested converter from converted type`() {
+        val column = AggregateColumnJpaModel(
+            fieldName = "payload",
+            columnName = "payload",
+            isId = false,
+            converterTypeFqn = "com.acme.Payload",
+        )
+
+        assertNull(column.converterClassFqn)
+    }
+
     @Test
     fun `canonical API omits domain parent ref and automatic inverse relation models`() {
         assertFalse(FieldModel::class.java.declaredFields.any { it.name == "parentRef" })
@@ -79,8 +92,26 @@ class PipelineModelsTest {
                 ArtifactSelectionModel(family = "query", variant = "page"),
                 ArtifactSelectionModel(family = "query-handler"),
             ),
-            fields = listOf(FieldModel(name = "keyword", type = "String", nullable = true)),
-            resultFields = listOf(FieldModel(name = "orderNo", type = "String")),
+            request = semanticValue(
+                name = "FindOrderPage.Request",
+                role = SemanticValueRole.QUERY_REQUEST,
+                fields = listOf(
+                    SemanticValueField(
+                        name = "keyword",
+                        type = SemanticBuiltinTypeRef(SemanticBuiltinType.STRING, nullable = true),
+                    )
+                ),
+            ),
+            response = semanticValue(
+                name = "FindOrderPage.Response",
+                role = SemanticValueRole.QUERY_RESPONSE,
+                fields = listOf(
+                    SemanticValueField(
+                        name = "orderNo",
+                        type = SemanticBuiltinTypeRef(SemanticBuiltinType.STRING),
+                    )
+                ),
+            ),
         )
 
         assertEquals("query", block.tag)
@@ -102,6 +133,7 @@ class PipelineModelsTest {
                 ArtifactSelectionModel(family = "query-handler"),
             ),
             artifactsDeclared = false,
+            request = semanticValue("FindOrder.Request", SemanticValueRole.QUERY_REQUEST),
         )
         val explicitEmptyArtifacts = DesignBlockModel(
             tag = "query",
@@ -109,6 +141,7 @@ class PipelineModelsTest {
             name = "FindOrder",
             artifacts = emptyList(),
             artifactsDeclared = true,
+            request = semanticValue("FindOrder.Request", SemanticValueRole.QUERY_REQUEST),
         )
 
         assertFalse(omittedArtifacts.includeDesignJsonArtifacts)
@@ -118,8 +151,8 @@ class PipelineModelsTest {
 
     @Test
     fun `design spec entry exposes public v2 fields and nullable artifact selections`() {
-        val requestFields = listOf(FieldModel(name = "keyword", type = "String", nullable = true))
-        val responseFields = listOf(FieldModel(name = "orderNo", type = "String"))
+        val requestFields = listOf(SemanticFieldSnapshot(name = "keyword", typeExpression = "String?"))
+        val responseFields = listOf(SemanticFieldSnapshot(name = "orderNo", typeExpression = "String"))
         val entryWithOmittedArtifacts = DesignSpecEntry(
             tag = "query",
             packageName = "order.read",
@@ -143,6 +176,20 @@ class PipelineModelsTest {
 
         assertEquals(emptyList<DesignBlockModel>(), model.designBlocks)
     }
+
+    private fun semanticValue(
+        name: String,
+        role: SemanticValueRole,
+        fields: List<SemanticValueField> = emptyList(),
+    ): SemanticValueDefinition = SemanticValueDefinition(
+        identity = CanonicalTypeIdentity(
+            packageName = "order.read",
+            typePath = name.split('.'),
+            kind = CanonicalTypeKind.NESTED_VALUE,
+        ),
+        role = role,
+        fields = fields,
+    )
 
     @Test
     fun `aggregate persistence provider control carries semantic soft delete policy`() {

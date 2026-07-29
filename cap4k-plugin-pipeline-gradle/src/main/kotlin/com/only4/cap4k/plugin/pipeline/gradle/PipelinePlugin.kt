@@ -56,7 +56,10 @@ import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
 import java.io.File
 import java.net.URLClassLoader
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 class PipelinePlugin : Plugin<Project> {
@@ -164,6 +167,9 @@ private const val JACKSON_MODULE_KOTLIN_NAME = "jackson-module-kotlin"
 private const val JACKSON_MODULE_KOTLIN_COORDINATE =
     "$JACKSON_MODULE_KOTLIN_GROUP:$JACKSON_MODULE_KOTLIN_NAME:2.17.2"
 private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
+private const val GENERATED_SOURCE_MANAGED_ROOTS_STATE_VERSION = 1
+private const val GENERATED_SOURCE_MANAGED_ROOTS_STATE_PATH = "cap4k/generated-source-managed-roots.json"
+private val GENERATED_SOURCE_MANAGED_ROLES = setOf("domain", "adapter")
 private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "enum-manifest", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "command",
@@ -182,8 +188,8 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "aggregate",
     "aggregate-projection",
 )
-private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest")
-private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("aggregate", "aggregate-projection")
+private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "value-object-manifest")
+private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("types-value-object", "aggregate", "aggregate-projection")
 private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
 private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
 
@@ -253,12 +259,27 @@ internal fun ensureEnumManifestDomainDependencies(project: Project, config: Proj
 }
 
 internal fun ensureValueObjectDomainDependencies(project: Project, config: ProjectConfig) {
-    if ("value-object-manifest" !in config.sources) {
+    if (!hasJsonValueObjectPersistenceProjection(project, config)) {
         return
     }
     ensureJpaDependency(project, config, moduleRole = "domain")
     ensureJacksonDatabindDependency(project, config, moduleRole = "domain")
     ensureJacksonModuleKotlinDependency(project, config, moduleRole = "domain")
+}
+
+private fun hasJsonValueObjectPersistenceProjection(project: Project, config: ProjectConfig): Boolean {
+    val source = config.sources["value-object-manifest"] ?: return false
+    val configuredFiles = source.options["files"].asStringList()
+    val files = configuredFiles
+        .ifEmpty { config.typeRegistry.valueObjectManifestFiles }
+        .map { path -> project.file(path).toPath() }
+    if (files.isEmpty()) {
+        return false
+    }
+    return ValueObjectManifestSourceProvider()
+        .load(files)
+        .declarations
+        .any { declaration -> declaration.persistence?.kind.equals("json", ignoreCase = true) }
 }
 
 private fun ensureJpaDependency(project: Project, config: ProjectConfig, moduleRole: String) {
@@ -337,6 +358,9 @@ internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     if ("enum-manifest" in config.sources) {
         roles += "domain"
     }
+    if ("value-object-manifest" in config.sources) {
+        roles += "domain"
+    }
     return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
 }
 
@@ -360,6 +384,110 @@ internal fun generatedSourceOutputDirectories(rootProject: Project, config: Proj
     generatedSourceModuleRoles(config).mapNotNull { role ->
         generatedKotlinSourceDirectory(rootProject, config, role)
     }
+
+internal fun generatedSourceManagedOutputDirectories(rootProject: Project, config: ProjectConfig): List<File> =
+    (generatedSourceOutputDirectories(rootProject, config) + readManagedGeneratedSourceOutputDirectories(rootProject))
+        .distinctBy { directory -> directory.canonicalFile.path }
+
+internal fun cleanGeneratedSourceOutputDirectories(rootProject: Project, config: ProjectConfig) {
+    generatedSourceManagedOutputDirectories(rootProject, config).forEach { outputDirectory ->
+        validateGeneratedSourceCleanupTarget(rootProject, outputDirectory)
+        rootProject.delete(outputDirectory)
+    }
+}
+
+internal fun ensureGeneratedSourceOutputDirectories(rootProject: Project, config: ProjectConfig) {
+    generatedSourceOutputDirectories(rootProject, config).forEach { outputDirectory ->
+        require(outputDirectory.mkdirs() || outputDirectory.isDirectory) {
+            "Failed to create Cap4k generated Kotlin source root: ${outputDirectory.absolutePath}"
+        }
+    }
+}
+
+internal fun recordManagedGeneratedSourceOutputDirectories(rootProject: Project, config: ProjectConfig) {
+    val roots = generatedSourceModuleRoles(config)
+        .sorted()
+        .mapNotNull { role ->
+            generatedKotlinSourceDirectory(rootProject, config, role)
+                ?.let { directory -> role to directory.toRootRelativeSlash(rootProject) }
+        }
+        .toMap()
+    val stateFile = generatedSourceManagedRootsStateFile(rootProject)
+    require(stateFile.parentFile.mkdirs() || stateFile.parentFile.isDirectory) {
+        "Failed to create Cap4k generated source state directory: ${stateFile.parentFile.absolutePath}"
+    }
+    val content = GsonBuilder()
+        .setPrettyPrinting()
+        .create()
+        .toJson(GeneratedSourceManagedRootsState(roots = roots)) + System.lineSeparator()
+    val temporaryFile = File(stateFile.parentFile, ".${stateFile.name}.tmp")
+    temporaryFile.writeText(content, Charsets.UTF_8)
+    try {
+        Files.move(
+            temporaryFile.toPath(),
+            stateFile.toPath(),
+            StandardCopyOption.ATOMIC_MOVE,
+            StandardCopyOption.REPLACE_EXISTING,
+        )
+    } catch (_: AtomicMoveNotSupportedException) {
+        Files.move(temporaryFile.toPath(), stateFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+    }
+}
+
+internal fun generatedSourceManagedRootsStateFile(rootProject: Project): File =
+    rootProject.layout.buildDirectory.file(GENERATED_SOURCE_MANAGED_ROOTS_STATE_PATH).get().asFile
+
+private fun readManagedGeneratedSourceOutputDirectories(rootProject: Project): List<File> {
+    val stateFile = generatedSourceManagedRootsStateFile(rootProject)
+    if (!stateFile.isFile) return emptyList()
+    val state = try {
+        requireNotNull(
+            GsonBuilder().create().fromJson(
+                stateFile.readText(Charsets.UTF_8),
+                GeneratedSourceManagedRootsState::class.java,
+            )
+        ) {
+            "Managed-root state must contain a JSON object"
+        }
+    } catch (ex: RuntimeException) {
+        throw IllegalStateException("Invalid Cap4k generated source managed-root state: ${stateFile.absolutePath}", ex)
+    }
+    require(state.version == GENERATED_SOURCE_MANAGED_ROOTS_STATE_VERSION) {
+        "Unsupported Cap4k generated source managed-root state version ${state.version}: ${stateFile.absolutePath}"
+    }
+    val roots = requireNotNull(state.roots) {
+        "Invalid Cap4k generated source managed-root state without roots: ${stateFile.absolutePath}"
+    }
+    return roots.toSortedMap().map { (role, relativePath) ->
+        require(role in GENERATED_SOURCE_MANAGED_ROLES) {
+            "Invalid Cap4k generated source managed role $role in ${stateFile.absolutePath}"
+        }
+        val path = Path.of(relativePath).normalize()
+        require(relativePath.isNotBlank() && !path.isAbsolute && path.root == null &&
+            (path.nameCount == 0 || path.getName(0).toString() != "..")) {
+            "Invalid Cap4k generated source managed root for $role: $relativePath"
+        }
+        rootProject.projectDir.resolve(path.toString()).also { outputDirectory ->
+            validateGeneratedSourceCleanupTarget(rootProject, outputDirectory)
+        }
+    }
+}
+
+private fun validateGeneratedSourceCleanupTarget(rootProject: Project, outputDirectory: File) {
+    val rootPath = rootProject.projectDir.canonicalFile.toPath().normalize()
+    val normalized = outputDirectory.canonicalFile.toPath().normalize()
+    require(normalized.startsWith(rootPath)) {
+        "Generated source cleanup target must stay under the root project directory: $normalized"
+    }
+    require(normalized.endsWith(Path.of("build", "generated", "cap4k", "main", "kotlin"))) {
+        "Generated source cleanup target is not a Cap4k generated Kotlin root: $normalized"
+    }
+}
+
+private data class GeneratedSourceManagedRootsState(
+    val version: Int = GENERATED_SOURCE_MANAGED_ROOTS_STATE_VERSION,
+    val roots: Map<String, String>? = emptyMap(),
+)
 
 private fun generatedKotlinSourceDirectory(rootProject: Project, config: ProjectConfig, moduleRole: String): File? {
     val modulePath = config.modules[moduleRole] ?: return null
@@ -516,6 +644,9 @@ internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: Proj
                 ),
                 "sources" to linkedMapOf(
                     "db" to sanitizedDbSourceSnapshot(config.sources["db"]),
+                    "valueObjectManifest" to sanitizedFileSourceSnapshot(
+                        config.sources["value-object-manifest"]
+                    ),
                 ),
                 "typeManifests" to linkedMapOf(
                     "enumManifestFiles" to config.typeRegistry.enumManifestFiles,
@@ -553,12 +684,12 @@ private fun sanitizedDbSourceSnapshot(source: SourceConfig?): Map<String, Any?>?
     return snapshot
 }
 
-private fun sanitizedSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
+private fun sanitizedFileSourceSnapshot(source: SourceConfig?): Map<String, Any?>? {
     if (source == null) {
         return null
     }
     return linkedMapOf(
-        "options" to source.options.toSortedMap(),
+        "files" to source.options["files"].asStringList().sorted(),
     )
 }
 
@@ -584,6 +715,11 @@ internal fun generatedSourceTaskInputFiles(
     val inputs = mutableListOf<Any>()
     config.typeRegistry.enumManifestFiles.mapTo(inputs) { project.file(it) }
     config.typeRegistry.valueObjectManifestFiles.mapTo(inputs) { project.file(it) }
+    config.sources["value-object-manifest"]
+        ?.options
+        ?.get("files")
+        .asStringList()
+        .mapTo(inputs) { project.file(it) }
     extension.types.registryFile.orNull?.let { registryFile ->
         inputs += project.file(registryFile)
     }

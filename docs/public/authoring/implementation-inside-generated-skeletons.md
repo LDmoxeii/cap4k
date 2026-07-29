@@ -38,12 +38,12 @@ cap4k 的生成骨架是作者实现业务逻辑的合同。它给出稳定命�
 ownership 冲突通常有几个表现：
 
 - 在 build-owned generated source 中写长期业务规则。
-- 手改 generator 会覆盖的文件，却没有回到 plan review 检查 `conflictPolicy`。
+- 把 build-owned generated source 当作 checked-in handwritten surface。
 - 绕过 generated Command handler，直接在 Controller 里加载并修改 Aggregate。
 - 因为 skeleton 缺少入口，就在不相关 package 中创建“临时”业务流程。
 - 把 generated metadata 当成业务规则已经完成的证据。
 
-正确做法是回到 ownership：先读 `build/cap4k/plan.json`，确认 output family、`outputPath`、`templateId` 和 `conflictPolicy`；再判断现有 skeleton 是否就是 intended surface；如果不是，回到 generator input projection 或 technical design 修改输入和边界。
+正确做法是回到 ownership：先读 `build/cap4k/plan.json`，确认 output family、`outputPath`、`templateId` 和 `conflictPolicy`；`CHECKED_IN_SOURCE` 首次生成后由作者维护且固定 SKIP，`GENERATED_SOURCE` 才由 build 持续维护。如果现有 skeleton 不是 intended surface，回到 generator input projection 或 technical design 修改输入和边界。
 
 ## Bypassing Skeletons Means Returning To Design
 

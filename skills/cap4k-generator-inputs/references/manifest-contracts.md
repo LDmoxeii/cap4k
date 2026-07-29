@@ -24,11 +24,16 @@ Do not register them through `sources.valueObjectManifest`.
 - Each entry requires `name` and `package`.
 - `aggregates` omitted or empty means shared.
 - `aggregates` identifies at most one owner.
-- `storage` may only be `json`; omitted `storage` means `json`.
+- `persistence` is optional; omission means a pure value with no persistence projection.
+- The supported projection is `"persistence": {"kind": "json"}`.
+- The removed `storage` field is invalid; there is no implicit JSON compatibility.
 - `description` is optional.
 - `fields` is optional.
 - When present, each field requires `name` and `type`.
-- Field `nullable` and `defaultValue` are optional.
+- `type` uses the closed semantic type algebra: builtin/named, `List<T>`, `Set<T>`, `Map<K, V>`, and recursive `?`.
+- Field `nullable` is removed. Put nullability in `type`.
+- `defaultValue` is optional and must be accepted by the semantic default compiler.
 - Duplicate shared names are invalid.
 - Duplicate names under the same owner are invalid.
 - Use `aggregates` for ownership.
+- The checked-in Value Object contains pure value semantics only. Explicit JSON persistence generates a separate build-owned `<ValueObjectName>JsonAttributeConverter`.

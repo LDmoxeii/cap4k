@@ -11,6 +11,7 @@ import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -27,8 +28,17 @@ class DesignSagaArtifactPlannerTest {
                     family = "saga",
                     packageName = "content.workflow",
                     name = "PublishContentSaga",
-                    fields = listOf(FieldModel(name = "contentId", type = "ContentId")),
-                    resultFields = listOf(FieldModel(name = "accepted", type = "Boolean")),
+                    requestDefinition = semanticDefinition(
+                        packageName = "com.acme.demo.application.sagas.content.workflow",
+                        typeName = "PublishContentSaga.Request",
+                        role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.SAGA_REQUEST,
+                        fields = listOf(
+                            FieldModel(
+                                name = "contentId",
+                                type = "com.acme.demo.domain.shared.ids.ContentId",
+                            ),
+                        ),
+                    ),
                 )
             ),
             strongIds = listOf(
@@ -60,10 +70,7 @@ class DesignSagaArtifactPlannerTest {
             listOf(DesignRenderFieldModel(name = "contentId", renderedType = "ContentId")),
             item.context["fields"],
         )
-        assertEquals(
-            listOf(DesignRenderFieldModel(name = "accepted", renderedType = "Boolean")),
-            item.context["resultFields"],
-        )
+        assertEquals(emptyList<DesignRenderFieldModel>(), item.context["resultFields"])
         @Suppress("UNCHECKED_CAST")
         val buildingBlock = item.context["buildingBlock"] as Map<String, Any?>
         assertEquals("saga", buildingBlock["family"])
@@ -75,6 +82,28 @@ class DesignSagaArtifactPlannerTest {
         val items = DesignSagaArtifactPlanner().plan(configWithoutApplicationModule(), CanonicalModel(designBlocks = emptyList()))
 
         assertTrue(items.isEmpty())
+    }
+
+    @Test
+    fun `saga renderer rejects an unapproved response contract`() {
+        val block = designBlock(
+            tag = "saga",
+            family = "saga",
+            name = "PublishContentSaga",
+        ).copy(
+            response = semanticDefinition(
+                packageName = "content.workflow",
+                typeName = "PublishContentSaga.Response",
+                role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.SAGA_RESPONSE,
+            ),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            DesignSagaArtifactPlanner().plan(
+                configWithApplicationModule(),
+                CanonicalModel(designBlocks = listOf(block)),
+            )
+        }
     }
 
     private fun configWithApplicationModule() = projectConfig(modules = mapOf("application" to "demo-application"))
