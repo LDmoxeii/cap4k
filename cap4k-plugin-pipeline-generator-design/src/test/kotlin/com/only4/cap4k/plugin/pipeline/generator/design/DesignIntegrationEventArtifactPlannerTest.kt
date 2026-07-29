@@ -87,14 +87,22 @@ class DesignIntegrationEventArtifactPlannerTest {
         name: String = "OrderCreated",
         eventName: String = "order.created",
         fields: List<FieldModel> = listOf(FieldModel("orderId", "UUID")),
-    ) = DesignBlockModel(
+    ) = designBlock(
         tag = "integration_event",
+        family = "integration-event",
+        variant = variant,
         packageName = packageName,
         name = name,
         description = "order */ \"created\" event",
         eventName = eventName,
-        artifacts = listOf(ArtifactSelectionModel("integration-event", variant)),
-        fields = fields,
+        requestDefinition = semanticDefinition(
+            packageName = packageName,
+            typeName = name,
+            role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.INTEGRATION_EVENT,
+            fields = fields.map { field ->
+                if (field.type == "UUID") field.copy(type = "java.util.UUID") else field
+            },
+        ),
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(

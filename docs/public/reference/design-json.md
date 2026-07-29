@@ -9,7 +9,7 @@
 - `tag` 和 `name` 必须是非空 string。
 - 除 `domain_event` 外，`package` 必填。
 - 公开输入字段为 `tag`、`name`、`package`、`description`、`aggregates`、`fields`、`resultFields`、`eventName`、`persist` 和 `artifacts`。
-- field 的 `type` 必须写明确类型名，不能写 `self`。
+- field 的 `type` 必须写 formal Kotlin-style type expression，不能写 `self`；nullability 属于 type expression，不再使用独立 `nullable`。
 - `domain_event.fields` 中的 field name `entity` 是保留名。
 - flow 或 drawing-board 片段只有满足这些规则后，才能通过 `sources.designJson.files` 作为普通 design JSON 输入。
 
@@ -44,10 +44,12 @@
 field item 常见 shape：
 
 ```json
-{ "name": "contentId", "type": "ContentId", "nullable": false }
+{ "name": "snapshots", "type": "List<ContentSnapshot?>?" }
 ```
 
-`nullable` 可省略；不同 tag 会有各自的附加字段。`type` 必须是明确类型名，不能写 `self`。
+`type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、array、tuple 或任意 generic type。旧 `nullable` 字段已移除。
+
+`PageData<Item>` 是 query / API result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。
 
 ## 最小 Command
 
@@ -68,7 +70,7 @@ field item 常见 shape：
 
 `command` 表达写入意图。读取其他 aggregate 或 external fact 可以用于 zero-trust validation，但写入 ownership 仍应收敛到目标 aggregate 和 application command boundary。
 
-`command.fields` 表达 request payload，`command.resultFields` 表达 command outcome payload。`command.resultFields` 与 `query`、`client`、`api_payload` 的 `resultFields` 使用同一 field shape，并应在 design JSON 解析、canonical 保留和模板渲染中保持一致；省略或声明空数组时仍保持无结果 response 形态。
+`command.fields` 表达 request payload，`command.resultFields` 表达 command outcome payload。Command、Query、Client、API Payload、Event 和 Saga 的 structured fields 都进入同一 canonical semantic-value compiler，但各自 role 和输出 family 仍保持独立。省略或声明空 `command.resultFields` 时仍保持无结果 response 形态。
 
 ## 最小 Query
 

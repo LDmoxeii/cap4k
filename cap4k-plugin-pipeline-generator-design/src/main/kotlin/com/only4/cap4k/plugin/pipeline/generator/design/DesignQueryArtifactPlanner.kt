@@ -20,10 +20,6 @@ class DesignQueryArtifactPlanner : GeneratorProvider {
 
         return blocks.map { block ->
             val typeName = block.queryTypeName()
-            val siblingTypeNames = model.designInteractionSiblingTypeNames(
-                packageName = block.packageName,
-                currentTypeName = typeName,
-            )
             val packageName = artifactLayout.designQueryPackage(block.packageName)
 
             ArtifactPlanItem(
@@ -35,8 +31,6 @@ class DesignQueryArtifactPlanner : GeneratorProvider {
                     packageName = packageName,
                     block = block,
                     pageRequest = block.pageVariantSelected(id),
-                    symbolRegistry = config.designTypeSymbolRegistry(model),
-                    siblingTypeNames = siblingTypeNames,
                 ).toContextMap() + mapOf("buildingBlock" to block.buildingBlockContext(id)),
                 conflictPolicy = config.templates.conflictPolicy,
             )

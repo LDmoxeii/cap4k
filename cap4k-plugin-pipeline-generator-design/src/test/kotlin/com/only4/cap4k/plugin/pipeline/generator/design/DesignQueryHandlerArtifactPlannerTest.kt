@@ -19,6 +19,41 @@ import org.junit.jupiter.api.Test
 class DesignQueryHandlerArtifactPlannerTest {
 
     @Test
+    fun `page response envelope synthesizes handler response field`() {
+        val packageName = "com.acme.demo.application.queries.order.read"
+        val itemDefinition = com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition(
+            identity = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                packageName,
+                listOf("FindOrderQry", "Response", "Item"),
+                com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.NESTED_VALUE,
+            ),
+            role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.QUERY_RESPONSE,
+        )
+        val response = com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition(
+            identity = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                packageName,
+                listOf("FindOrderQry", "Response"),
+                com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.NESTED_VALUE,
+            ),
+            role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.QUERY_RESPONSE,
+            envelope = com.only4.cap4k.plugin.pipeline.api.SemanticValueEnvelope.Page(itemDefinition),
+        )
+        val block = queryBlock().copy(response = response)
+
+        val item = DesignQueryHandlerArtifactPlanner().plan(
+            config = projectConfig(
+                modules = mapOf("application" to "demo-application", "adapter" to "demo-adapter"),
+            ),
+            model = CanonicalModel(designBlocks = listOf(block)),
+        ).single()
+
+        assertEquals(
+            listOf(DesignQueryHandlerResponseFieldModel("page")),
+            item.context["resultFields"],
+        )
+    }
+
+    @Test
     fun `plans bounded query handlers into adapter module paths`() {
         val planner = DesignQueryHandlerArtifactPlanner()
         assertEquals("query-handler", planner.id)
@@ -241,13 +276,13 @@ class DesignQueryHandlerArtifactPlannerTest {
         description: String = "find order",
         resultFields: List<FieldModel> = emptyList(),
         artifacts: List<ArtifactSelectionModel> = listOf(ArtifactSelectionModel("query-handler")),
-    ) = DesignBlockModel(
+    ) = designBlock(
         tag = "query",
+        family = "query-handler",
         packageName = "order.read",
         name = name,
         description = description,
         aggregates = listOf("Order"),
-        artifacts = artifacts,
         resultFields = resultFields,
-    )
+    ).copy(artifacts = artifacts)
 }

@@ -36,11 +36,8 @@ internal object DesignQueryHandlerRenderModelFactory {
             queryTypeName = queryTypeName,
             queryTypeFqn = queryType,
             imports = listOf(queryType),
-            resultFields = block.resultFields
-                .asSequence()
-                .filterNot { it.name.contains('.') }
-                .map { DesignQueryHandlerResponseFieldModel(it.name) }
-                .toList(),
+            resultFields = block.topLevelResponseFieldNames()
+                .map(::DesignQueryHandlerResponseFieldModel),
         )
     }
 }

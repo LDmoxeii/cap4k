@@ -10,7 +10,7 @@ architecture control 指的是：generator 把项目已经写明的结构事实�
 
 - 输入事实来自 schema、design JSON、type manifests、module layout 和 Gradle extension。
 - 计划证据来自 `build/cap4k/plan.json` 或 `build/cap4k/bootstrap-plan.json`。
-- checked-in skeleton 通常落在 `<module>/src/main/kotlin`，作为仓库中的稳定入口。
+- checked-in skeleton 通常落在 `<module>/src/main/kotlin`，只由 generator 首次 materialize，之后作为仓库中的稳定入口维护。
 - generated source 通常落在 `<module>/build/generated/cap4k/main/kotlin`，由 build 维护。
 - analysis evidence 来自 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`，服务于 flow 和 drawing-board 观察。
 
@@ -27,7 +27,7 @@ stable code slots 是作者可以长期识别的手写位置。比如：
 - Saga step 维护跨步骤协调、恢复和补偿。
 - Factory、Domain Service 和 Value Object 表达领域内的创建、协作判断和值语义。保存前不变量应由 Aggregate / Value Object / Domain Service 的明确行为承担，物理唯一性等约束由数据库 schema 保底；cap4k 不再提供专用 Specification carrier 或 Unit of Work interception。
 
-generator 的作用是让这些 slot 有一致名称和位置。作者的作用是把业务判断写在对应 slot 中，并在 plan review 中确认 `conflictPolicy` 不会覆盖手写逻辑。
+generator 的作用是让这些 slot 在首次 materialization 时有一致名称和位置。作者的作用是把业务判断写在对应 slot 中，并在 plan review 中确认 checked-in output 固定 `SKIP`、build-owned output 的 policy 与 ownership 一致。
 
 ## Evidence Instead Of Guesswork
 

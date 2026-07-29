@@ -6,7 +6,7 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 
 | `outputKind` | 典型 root | Ownership |
 | --- | --- | --- |
-| `CHECKED_IN_SOURCE` | `<module>/src/main/kotlin` | committed skeleton 或 type source；可能包含 handwritten slots。 |
+| `CHECKED_IN_SOURCE` | `<module>/src/main/kotlin` | 首次 materialization 的 committed skeleton 或 type source；existing file 固定 SKIP。 |
 | `GENERATED_SOURCE` | `<module>/build/generated/cap4k/main/kotlin` | build-owned generated source；可被覆盖。 |
 | `OUTPUT_ARTIFACT` | artifact-specific root | non-source artifact output kind；built-in planners 常见 source generation items 主要使用前两类。 |
 
@@ -18,7 +18,9 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 - Subscriber / Saga / client / handler surfaces。
 - Domain Event, Value Object, enum, factory, behavior、repository adapter skeletons。
 
-典型 conflict policy 是 `SKIP`，用于保护 existing handwritten logic。`<module>/src/main/kotlin` 下的文件仍可能包含 generator-managed sections，所以 ownership 不能只靠路径判断。
+conflict policy 固定为 `SKIP`。cap4k 只承诺第一次 materialization，不承诺 checked-in file 在后续 generation 中追平最新 template，也不提供 merge、patch 或 managed-section refresh。需要重建时，由项目作者基于版本控制自行删除、生成和审查。
+
+Factory、Behavior、Command、Query、Client、Event、Value Object 以及 owned-child `*Creation` 都遵循这条 checked-in contract。它们生成后可以承载手写语义，但不会被 generator 覆盖。
 
 ## Generated Source
 
@@ -28,7 +30,9 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 <module>/build/generated/cap4k/main/kotlin
 ```
 
-这个 root 由 build 拥有。典型 conflict policy 是 `OVERWRITE`。不要把它作为长期 handwritten business area。
+这个 root 由 build 拥有。source generation 会在完整重建前清理受控的 `build/generated/cap4k/main/kotlin` root，再 materialize 当前计划，因此已经移除的 projection 不会留下 stale source。典型 conflict policy 是 `OVERWRITE`。不要把它作为长期 handwritten business area。
+
+显式 JSON persistence projection 产生的 `<ValueObjectName>JsonAttributeConverter` 属于这里；Value Object class 本身仍留在 checked-in domain source。
 
 ## Output Artifact
 
@@ -46,7 +50,7 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 
 | Situation | 正确读法 |
 | --- | --- |
-| file is under `src/main/kotlin` | 编辑前先读 `outputKind`、`templateId`、managed sections 和 `conflictPolicy`。 |
+| file is under `src/main/kotlin` | 它是 first-materialized checked-in source；确认 `outputKind` 和 `templateId` 后直接按项目源码管理，后续 generation 会 SKIP。 |
 | file is under `build/generated/cap4k/main/kotlin` | build owns it；改 input、template 或 source skeleton，不手改 generated source。 |
 | skeleton has empty handler body | 它可能是 intended handwritten slot；不要只因空实现而删除。 |
 | source snapshot was copied elsewhere | Snapshot 是 evidence 或 learning material，不是 active generator output。 |

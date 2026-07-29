@@ -84,9 +84,9 @@ class DesignElementExtractionTest {
         assertTrue(findOrder.contains("\"artifacts\":[{\"family\":\"query\",\"variant\":\"detail\"},{\"family\":\"query-handler\"}]"))
         assertFalse(findOrder.contains("\"eventName\""))
         assertFalse(findOrder.contains("\"family\":\"query-handler\",\"variant\""))
-        assertTrue(findOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
-        assertTrue(findOrder.contains("\"name\":\"keyword\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
-        assertTrue(findOrder.contains("\"resultFields\":[{\"name\":\"orderNo\",\"type\":\"String\",\"nullable\":false}]"))
+        assertTrue(findOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\"}"))
+        assertTrue(findOrder.contains("\"name\":\"keyword\",\"type\":\"String?\",\"defaultValue\":\"null\""))
+        assertTrue(findOrder.contains("\"resultFields\":[{\"name\":\"orderNo\",\"type\":\"String\"}]"))
         assertFalse(json.contains("\"desc\""))
         assertFalse(json.contains("\"traits\""))
         assertFalse(json.contains("\"role\""))
@@ -146,9 +146,9 @@ class DesignElementExtractionTest {
         val json = outputDir.resolve("design-elements.json").toFile().readText()
         val submitOrder = findObject(extractTopLevelObjects(json), "command", "SubmitOrder")
 
-        assertTrue(submitOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
-        assertTrue(submitOrder.contains("\"name\":\"note\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
-        assertTrue(submitOrder.contains("\"resultFields\":[{\"name\":\"accepted\",\"type\":\"Boolean\",\"nullable\":false}]"))
+        assertTrue(submitOrder.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\"}"))
+        assertTrue(submitOrder.contains("\"name\":\"note\",\"type\":\"String?\",\"defaultValue\":\"null\""))
+        assertTrue(submitOrder.contains("\"resultFields\":[{\"name\":\"accepted\",\"type\":\"Boolean\"}]"))
     }
 
     @Test
@@ -421,8 +421,8 @@ class DesignElementExtractionTest {
         val findCustomer = findObject(extractTopLevelObjects(json), "query", "FindCustomer")
 
         assertTrue(findCustomer.contains("\"artifacts\":[{\"family\":\"query\"},{\"family\":\"query-handler\"}]"))
-        assertTrue(findCustomer.contains("\"fields\":[{\"name\":\"customerId\",\"type\":\"Long\",\"nullable\":false}]"))
-        assertTrue(findCustomer.contains("\"resultFields\":[{\"name\":\"displayName\",\"type\":\"String\",\"nullable\":false}]"))
+        assertTrue(findCustomer.contains("\"fields\":[{\"name\":\"customerId\",\"type\":\"Long\"}]"))
+        assertTrue(findCustomer.contains("\"resultFields\":[{\"name\":\"displayName\",\"type\":\"String\"}]"))
         assertFalse(findCustomer.contains("repository"))
         assertFalse(findCustomer.contains("clockProvider"))
     }
@@ -487,8 +487,8 @@ class DesignElementExtractionTest {
         val orderCreated = findObject(extractTopLevelObjects(json), "domain_event", "OrderCreated")
 
         assertTrue(orderCreated.contains("\"artifacts\":[{\"family\":\"domain-event\"}]"))
-        assertTrue(orderCreated.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\",\"nullable\":false}"))
-        assertTrue(orderCreated.contains("\"name\":\"reason\",\"type\":\"String\",\"nullable\":true,\"defaultValue\":\"null\""))
+        assertTrue(orderCreated.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\"}"))
+        assertTrue(orderCreated.contains("\"name\":\"reason\",\"type\":\"String?\",\"defaultValue\":\"null\""))
         assertFalse(orderCreated.contains("\"name\":\"entity\""))
         assertFalse(json.contains("\"requestFields\""))
         assertFalse(json.contains("\"responseFields\""))
@@ -577,8 +577,8 @@ class DesignElementExtractionTest {
             ),
         )
         assertTrue(paymentReceived.contains("\"eventName\":\"demo.payment.received\""))
-        assertTrue(paymentReceived.contains("\"fields\":[{\"name\":\"paymentId\",\"type\":\"String\",\"nullable\":false}"))
-        assertTrue(paymentReceived.contains("\"name\":\"amount\",\"type\":\"Long\",\"nullable\":false}"))
+        assertTrue(paymentReceived.contains("\"fields\":[{\"name\":\"paymentId\",\"type\":\"String\"}"))
+        assertTrue(paymentReceived.contains("\"name\":\"amount\",\"type\":\"Long\"}"))
         assertTrue(paymentReceived.contains("\"resultFields\":[]"))
         assertFalse(paymentReceived.contains("commandPort"))
         assertFalse(paymentReceived.contains("auditTrail"))

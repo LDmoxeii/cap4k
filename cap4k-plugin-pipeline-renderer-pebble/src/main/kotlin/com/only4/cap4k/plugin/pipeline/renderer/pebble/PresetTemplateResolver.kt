@@ -48,6 +48,7 @@ class PresetTemplateResolver(
 private fun presetTemplateAlias(templateId: String): String? =
     when (templateId) {
         "types/value-object" -> "types/value_object.kt.peb"
+        "types/value-object-json-converter" -> "types/value_object_json_converter.kt.peb"
         else -> null
     }
 

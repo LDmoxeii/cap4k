@@ -9,10 +9,10 @@
 - `name`: `MediaProcessingResultSnapshot`
 - `aggregates`: `MediaProcessingTask`
 - `package`: `com.only4.cap4k.reference.contentstudio.domain.aggregates.media_processing_task.values`
-- `storage`: `json`
+- `persistence`: `{ "kind": "json" }`
 - fields: `mediaProcessingTaskId`、`contentId`、`externalTaskId`、`resultStatus`、`assetSha256`、`assetLocation`、`completedAt`、`dbCreatedAt`、`dbUpdatedAt`
 
-生成输出位于 domain module。`MediaProcessingResultSnapshot.kt` 是 data class，并且在同一个 value object class 中嵌套 `Converter : AttributeConverter<MediaProcessingResultSnapshot, String>`。这个 converter 负责 JSON-backed persistence conversion，不承载业务发布决策。
+Value Object 输出位于 domain module 的 checked-in source。`MediaProcessingResultSnapshot.kt` 是纯 data class；JSON persistence 由独立的 build-owned `MediaProcessingResultSnapshotJsonAttributeConverter` 承担，不把 Jackson/JPA 放回 value type，也不承载业务发布决策。
 
 持久化锚点在 schema 中：`media_processing_task.result_snapshot` 带有 `@Type=MediaProcessingResultSnapshot;` 类型标记。媒体处理成功后，`MarkMediaProcessingSucceededCmd` 写入结果快照，`MediaProcessingResultSnapshotTest` 检查 type output 与转换行为。
 

@@ -2,7 +2,9 @@
   {
     "name": "MediaProcessingResultSnapshot",
     "package": "com.acme.demo.domain.aggregates.media_processing_task.values",
-    "storage": "json",
+    "persistence": {
+      "kind": "json"
+    },
     "fields": [
       {
         "name": "externalTaskId",

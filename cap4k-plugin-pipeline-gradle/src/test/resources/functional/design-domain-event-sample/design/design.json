@@ -15,8 +15,7 @@
       },
       {
         "name": "snapshot",
-        "type": "Snapshot",
-        "nullable": true
+        "type": "Snapshot?"
       },
       {
         "name": "snapshot.traceId",

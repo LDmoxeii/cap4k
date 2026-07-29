@@ -52,7 +52,7 @@ schema 可以帮助 generator 理解字段、类型和 persistence mapping，但
 
 `design/enums.json` 通过 `types.enumManifest` 管理 Business Enum。参考项目中，`ReleasePolicy` 包含 `IMMEDIATE` 和 `PAID`，`MediaProcessingResultStatus` 包含 `SUCCEEDED` 和 `FAILED`。这些 enum 帮助作者避免裸值漂移，并让 schema marker、domain type 和 generated output 保持一致。
 
-`design/value-objects.json` 通过 `types.valueObjectManifest` 管理 Value Object。参考项目中，`MediaProcessingResultSnapshot` 属于 `MediaProcessingTask` 聚合语境，使用 `storage = "json"`，并包含 `mediaProcessingTaskId`、`contentId`、`externalTaskId`、`resultStatus`、`assetSha256`、`assetLocation`、`completedAt` 等字段。
+`design/value-objects.json` 通过 `types.valueObjectManifest` 管理 Value Object。参考项目中，`MediaProcessingResultSnapshot` 属于 `MediaProcessingTask` 聚合语境，显式声明 `persistence = { kind = "json" }`，并包含 `mediaProcessingTaskId`、`contentId`、`externalTaskId`、`resultStatus`、`assetSha256`、`assetLocation`、`completedAt` 等字段。省略 `persistence` 时只生成纯值，不再隐式采用 JSON。
 
 type manifest 的目标是表达类型边界。不要把 adapter payload 直接投影成 Value Object，也不要把 enum 当作业务 policy 的全部。
 

@@ -46,8 +46,7 @@ class DesignElementJsonWriter {
         fields.forEach { field ->
             if (!firstField) append(',') else firstField = false
             append("{\"name\":\"").append(escape(field.name)).append("\",")
-            append("\"type\":\"").append(escape(field.type)).append("\",")
-            append("\"nullable\":").append(field.nullable)
+            append("\"type\":\"").append(escape(field.type)).append("\"")
             val defaultValue = field.defaultValue
             if (defaultValue != null) {
                 append(",\"defaultValue\":\"").append(escape(defaultValue)).append("\"")

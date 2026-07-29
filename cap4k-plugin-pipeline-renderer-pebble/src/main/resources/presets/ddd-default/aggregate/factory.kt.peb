@@ -6,7 +6,6 @@ package {{ packageName }}
 {{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
 {% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
-{{ use(entityTypeFqn) -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}
@@ -24,28 +23,53 @@ import {{ import }}
 {% endif -%}
 class {{ typeName }} : AggregateFactory<{{ typeName }}.{{ payloadTypeName }}, {{ entityName }}> {
 
-    override fun create(entityPayload: {{ payloadTypeName }}): {{ entityName }} =
-{% if constructorMappingResolved -%}
-{{ "        " }}{{ entityName }}(
-{% for field in constructorPayloadFields -%}
+{{ "    " }}override fun create(entityPayload: {{ payloadTypeName }}): {{ entityName }} =
+{{ "        " }}{{ entityName }}{% if rootConstructorFields|length == 0 %}(){% else %}(
+{% for field in rootConstructorFields -%}
 {{ "            " }}{{ field.name }} = entityPayload.{{ field.name }}{% if not loop.last %},{% endif %}
 {% endfor -%}
-{{ "        " }})
+{{ "        " }}){% endif %}{% if rootRelations|length > 0 %}.also { aggregate ->
+{% for relation in rootRelations -%}
+{% if relation.cardinality == "ONE" -%}
+{{ "            " }}entityPayload.{{ relation.fieldName }}?.let { childCreation ->
+                aggregate.{{ relation.attachmentAccessorName }} = {{ relation.targetHelperName }}(childCreation)
+            }
 {% else -%}
-{{ "        " }}TODO("Implement aggregate construction")
-{% endif %}
+{{ "            " }}entityPayload.{{ relation.fieldName }}.forEach { childCreation ->
+                aggregate.{{ relation.attachmentAccessorName }}.add({{ relation.targetHelperName }}(childCreation))
+            }
+{% endif -%}
+{% endfor -%}
+{{ "        " }}}{% endif %}
 
-{% if payloadWriteSurfaceResolved and payloadFields|length == 0 -%}
+{% for helper in helpers -%}
+{{ "    " }}private fun {{ helper.helperName }}(creation: {{ helper.valueTypeName }}): {{ helper.entityName }} =
+{{ "        " }}{{ helper.entityName }}{% if helper.constructorFields|length == 0 %}(){% else %}(
+{% for field in helper.constructorFields -%}
+{{ "            " }}{{ field.name }} = creation.{{ field.name }}{% if not loop.last %},{% endif %}
+{% endfor -%}
+{{ "        " }}){% endif %}{% if helper.relations|length > 0 %}.also { entity ->
+{% for relation in helper.relations -%}
+{% if relation.cardinality == "ONE" -%}
+{{ "            " }}creation.{{ relation.fieldName }}?.let { childCreation ->
+                entity.{{ relation.attachmentAccessorName }} = {{ relation.targetHelperName }}(childCreation)
+            }
+{% else -%}
+{{ "            " }}creation.{{ relation.fieldName }}.forEach { childCreation ->
+                entity.{{ relation.attachmentAccessorName }}.add({{ relation.targetHelperName }}(childCreation))
+            }
+{% endif -%}
+{% endfor -%}
+{{ "        " }}}{% endif %}
+
+{% endfor -%}
+{% if payloadFields|length == 0 -%}
 {{ "    " }}class {{ payloadTypeName }} : AggregatePayload<{{ entityName }}>
-{% elseif payloadWriteSurfaceResolved -%}
+{% else -%}
 {{ "    " }}data class {{ payloadTypeName }}(
 {% for field in payloadFields -%}
-{{ "        " }}val {{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if not loop.last %},{% endif %}
+{{ "        " }}val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 {{ "    " }}) : AggregatePayload<{{ entityName }}>
-{% else -%}
-{{ "    " }}data class {{ payloadTypeName }}(
-        val name: String
-    ) : AggregatePayload<{{ entityName }}>
-{% endif %}
+{% endif -%}
 }

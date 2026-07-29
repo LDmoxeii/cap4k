@@ -129,7 +129,7 @@ class IrAnalysisSourceProviderTest {
                   {"family": "command"}
                 ],
                 "fields": [
-                  {"name": "orderId", "type": "Long", "nullable": false, "defaultValue": "0"}
+                  {"name": "orderId", "type": "Long", "defaultValue": "0"}
                 ],
                 "resultFields": [
                   {"name": "accepted", "type": "Boolean"}
@@ -180,12 +180,11 @@ class IrAnalysisSourceProviderTest {
         )
         assertEquals(1, snapshot.designElements.first().fields.size)
         assertEquals("orderId", snapshot.designElements.first().fields.first().name)
-        assertEquals("Long", snapshot.designElements.first().fields.first().type)
-        assertEquals(false, snapshot.designElements.first().fields.first().nullable)
+        assertEquals("Long", snapshot.designElements.first().fields.first().typeExpression)
         assertEquals("0", snapshot.designElements.first().fields.first().defaultValue)
         assertEquals(1, snapshot.designElements.first().resultFields.size)
         assertEquals("accepted", snapshot.designElements.first().resultFields.first().name)
-        assertEquals("Boolean", snapshot.designElements.first().resultFields.first().type)
+        assertEquals("Boolean", snapshot.designElements.first().resultFields.first().typeExpression)
         val pageQuery = snapshot.designElements.single { it.name == "FindOrderPage" }
         assertEquals(listOf(ArtifactSelectionModel(family = "query", variant = "page")), pageQuery.artifacts)
         val integrationEvent = snapshot.designElements.single { it.tag == "integration_event" }
@@ -263,6 +262,8 @@ class IrAnalysisSourceProviderTest {
                 "design element command orders SubmitOrder fields[0] must declare non-blank name",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":[{"name":"orderId","type":" "}]}]""" to
                 "design element command orders SubmitOrder fields[0] must declare non-blank type",
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","fields":[{"name":"orderId","type":"Long","nullable":false}]}]""" to
+                "design element command orders SubmitOrder fields[0] field nullable is removed; encode nullability in type",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[null]}]""" to
                 "design element command orders SubmitOrder artifacts[0] must be an object",
             """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[{"variant":"default"}]}]""" to

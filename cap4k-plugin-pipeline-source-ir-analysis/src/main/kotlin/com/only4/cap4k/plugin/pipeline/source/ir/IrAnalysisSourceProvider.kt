@@ -4,11 +4,11 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import java.io.File
 
@@ -138,18 +138,21 @@ class IrAnalysisSourceProvider : SourceProvider {
         array: com.google.gson.JsonArray?,
         context: String,
         fieldName: String,
-    ): List<DesignFieldSnapshot> {
+    ): List<SemanticFieldSnapshot> {
         if (array == null) {
             return emptyList()
         }
         return array.mapIndexed { index, element ->
             val obj = element.asJsonObjectOrNull()
                 ?: throw IllegalArgumentException("$context $fieldName[$index] must be an object")
-            DesignFieldSnapshot(
+            require(!obj.has("nullable")) {
+                "$context $fieldName[$index] field nullable is removed; encode nullability in type"
+            }
+            SemanticFieldSnapshot(
                 name = obj.requiredString("name", "$context $fieldName[$index]"),
-                type = obj.requiredString("type", "$context $fieldName[$index]"),
-                nullable = obj.optionalBoolean("nullable", "$context $fieldName[$index]") ?: false,
+                typeExpression = obj.requiredString("type", "$context $fieldName[$index]"),
                 defaultValue = obj.optionalString("defaultValue", "$context $fieldName[$index]"),
+                sourcePath = "$context $fieldName[$index]",
             )
         }
     }

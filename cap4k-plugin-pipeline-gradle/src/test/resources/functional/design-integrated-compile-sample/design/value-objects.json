@@ -2,7 +2,6 @@
   {
     "name": "OrderAddress",
     "package": "com.acme.demo.domain.shared.values",
-    "storage": "json",
     "aggregates": [
       "Order"
     ],
@@ -13,8 +12,20 @@
       },
       {
         "name": "street",
-        "type": "String",
-        "nullable": true
+        "type": "String?"
+      },
+      {
+        "name": "address.city",
+        "type": "String"
+      },
+      {
+        "name": "items[].name",
+        "type": "String"
+      },
+      {
+        "name": "items[].details.code",
+        "type": "String?",
+        "defaultValue": "null"
       }
     ]
   }

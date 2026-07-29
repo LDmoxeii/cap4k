@@ -96,8 +96,8 @@ data class DesignSpecEntry(
     val aggregates: List<String>,
     val persist: Boolean? = null,
     val artifacts: List<ArtifactSelectionModel>? = null,
-    val fields: List<FieldModel> = emptyList(),
-    val resultFields: List<FieldModel> = emptyList(),
+    val fields: List<SemanticFieldSnapshot> = emptyList(),
+    val resultFields: List<SemanticFieldSnapshot> = emptyList(),
     val eventName: String? = null,
 )
 
@@ -116,9 +116,15 @@ data class DesignBlockModel(
     val persist: Boolean? = null,
     val artifacts: List<ArtifactSelectionModel>,
     val artifactsDeclared: Boolean = true,
-    val fields: List<FieldModel> = emptyList(),
-    val resultFields: List<FieldModel> = emptyList(),
+    val request: SemanticValueDefinition,
+    val response: SemanticValueDefinition? = null,
 ) {
+    val fields: List<SemanticValueField>
+        get() = request.fields
+
+    val resultFields: List<SemanticValueField>
+        get() = response?.fields.orEmpty()
+
     val designJsonArtifacts: List<ArtifactSelectionModel>
         get() = normalizedArtifactSelections(artifacts)
 
@@ -126,13 +132,6 @@ data class DesignBlockModel(
         get() = artifactsDeclared &&
             designJsonArtifacts != normalizedArtifactSelections(defaultDrawingBoardArtifactsFor(tag))
 }
-
-data class DesignFieldSnapshot(
-    val name: String,
-    val type: String,
-    val nullable: Boolean = false,
-    val defaultValue: String? = null,
-)
 
 data class DesignElementSnapshot(
     val tag: String,
@@ -143,8 +142,8 @@ data class DesignElementSnapshot(
     val artifacts: List<ArtifactSelectionModel> = emptyList(),
     val artifactsDeclared: Boolean = artifacts.isNotEmpty(),
     val persist: Boolean? = null,
-    val fields: List<DesignFieldSnapshot> = emptyList(),
-    val resultFields: List<DesignFieldSnapshot> = emptyList(),
+    val fields: List<SemanticFieldSnapshot> = emptyList(),
+    val resultFields: List<SemanticFieldSnapshot> = emptyList(),
     val eventName: String? = null,
 )
 
@@ -182,18 +181,21 @@ data class SharedEnumDefinition(
     val aggregates: List<String> = emptyList(),
 )
 
-enum class ValueObjectStorage {
-    JSON,
-}
-
 data class ValueObjectModel(
-    val name: String,
-    val packageName: String,
+    val definition: SemanticValueDefinition,
     val aggregates: List<String> = emptyList(),
-    val storage: ValueObjectStorage = ValueObjectStorage.JSON,
-    val fields: List<FieldModel> = emptyList(),
+    val persistence: ValuePersistenceProjection? = null,
     val description: String? = null,
-)
+) {
+    val name: String
+        get() = definition.identity.simpleName
+
+    val packageName: String
+        get() = definition.identity.packageName
+
+    val fields: List<SemanticValueField>
+        get() = definition.fields
+}
 
 val ValueObjectModel.ownerAggregate: String?
     get() = aggregates.singleOrNull()
@@ -237,7 +239,7 @@ data class EnumManifestSnapshot(
 
 data class ValueObjectManifestSnapshot(
     override val id: String = "value-object-manifest",
-    val valueObjects: List<ValueObjectModel>,
+    val declarations: List<ValueObjectDeclarationSnapshot>,
 ) : SourceSnapshot
 
 data class SchemaModel(
@@ -318,7 +320,7 @@ data class AggregateColumnJpaModel(
     val columnName: String,
     val isId: Boolean,
     val converterTypeFqn: String? = null,
-    val converterClassFqn: String? = converterTypeFqn?.let { "$it.Converter" },
+    val converterClassFqn: String? = null,
     val columnLength: Int? = null,
 )
 
@@ -463,13 +465,6 @@ data class AnalysisEdgeModel(
     val label: String? = null,
 )
 
-data class DrawingBoardFieldModel(
-    val name: String,
-    val type: String,
-    val nullable: Boolean = false,
-    val defaultValue: String? = null,
-)
-
 data class DrawingBoardElementModel(
     val tag: String,
     val packageName: String,
@@ -479,10 +474,16 @@ data class DrawingBoardElementModel(
     val artifacts: List<ArtifactSelectionModel> = emptyList(),
     val artifactsDeclared: Boolean = artifacts.isNotEmpty(),
     val persist: Boolean? = null,
-    val fields: List<DrawingBoardFieldModel> = emptyList(),
-    val resultFields: List<DrawingBoardFieldModel> = emptyList(),
+    val request: SemanticValueDefinition,
+    val response: SemanticValueDefinition? = null,
     val eventName: String? = null,
 ) {
+    val fields: List<SemanticValueField>
+        get() = request.fields
+
+    val resultFields: List<SemanticValueField>
+        get() = response?.fields.orEmpty()
+
     val designJsonArtifacts: List<ArtifactSelectionModel>
         get() = normalizedArtifactSelections(artifacts)
 
@@ -490,19 +491,7 @@ data class DrawingBoardElementModel(
         get() = artifactsDeclared &&
             designJsonArtifacts != normalizedArtifactSelections(defaultDrawingBoardArtifactsFor(tag))
 
-    val designJsonFields: List<DrawingBoardFieldModel>
-        get() = if (tag == "domain_event") {
-            fields.filterNot { field -> field.name.equals("entity", ignoreCase = true) }
-        } else {
-            fields
-        }
 }
-
-private val DrawingBoardFieldComparator =
-    compareBy<DrawingBoardFieldModel> { it.name }
-        .thenBy { it.type }
-        .thenBy { it.nullable }
-        .thenBy { it.defaultValue.orEmpty() }
 
 private val ArtifactSelectionComparator =
     compareBy<ArtifactSelectionModel> { it.family }.thenBy { it.variant }
@@ -559,8 +548,11 @@ data class DomainEventModel(
     val aggregateName: String,
     val aggregatePackageName: String,
     val persist: Boolean,
-    val fields: List<FieldModel> = emptyList(),
-)
+    val value: SemanticValueDefinition,
+) {
+    val fields: List<SemanticValueField>
+        get() = value.fields
+}
 
 enum class StrongIdKind {
     OWN_ID,
@@ -600,6 +592,7 @@ data class CanonicalModel(
     val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
     val strongIds: List<StrongIdModel> = emptyList(),
     val valueObjects: List<ValueObjectModel> = emptyList(),
+    val aggregateCreationGraphs: List<AggregateCreationGraphModel> = emptyList(),
     val domainServices: List<DomainServiceModel> = emptyList(),
     val typeRegistry: TypeRegistryModel = TypeRegistryModel.empty(),
 )

@@ -4,19 +4,22 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationNodeModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateCreationRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DomainEventModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DesignFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
-import com.only4.cap4k.plugin.pipeline.api.DrawingBoardFieldModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.DomainServiceModel
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
@@ -37,10 +40,21 @@ import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
+import com.only4.cap4k.plugin.pipeline.api.JsonValuePersistenceProjection
+import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
+import com.only4.cap4k.plugin.pipeline.api.SemanticDefaultExpression
+import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
+import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueField
+import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryModel
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedTablePolicy
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectDeclarationSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
 import java.util.Locale
 
@@ -54,7 +68,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
         val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
         val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
-        val valueObjects = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.valueObjects }
+        val valueObjectDeclarations = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.declarations }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
         val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
         val designEntries = designSnapshot?.entries.orEmpty()
@@ -63,17 +77,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 "Unsupported design tag: ${entry.tag}"
             }
         }
-        val designBlocks = designEntries
-            .asSequence()
-            .map { entry -> entry.toDesignBlockModel() }
-            .fold(linkedMapOf<String, DesignBlockModel>()) { acc, block ->
-                val key = designBlockKey(block)
-                acc[key] = acc[key]?.let { existing -> mergeDesignBlocks(existing, block) } ?: block
-                acc
-            }
-            .values
-            .toList()
-
         val domainServices = designSnapshot?.entries.orEmpty()
             .asSequence()
             .filter { entry -> entry.tag == "domain_service" }
@@ -260,32 +263,61 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     )
                 }
             )
-        val domainEvents = designSnapshot?.entries.orEmpty()
-            .asSequence()
-            .filter { entry -> entry.tag == "domain_event" }
-            .map { entry ->
-                val aggregateName = resolveDomainEventAggregateName(entry)
-                val aggregate = resolveDomainEventAggregateMetadata(
-                    entry = entry,
-                    aggregateName = aggregateName,
-                    aggregateEntityMetadata = aggregateEntityMetadata,
-                )
-                DomainEventModel(
-                    packageName = resolveDomainEventPackageKey(aggregate.rootPackageName, config),
-                    typeName = entry.name.toDomainEventTypeName(),
-                    description = entry.description,
-                    aggregateName = aggregateName,
-                    aggregatePackageName = aggregate.rootPackageName,
-                    persist = entry.persist ?: false,
-                    fields = entry.primaryFields().filterNot { it.name.equals("entity", ignoreCase = true) },
-                )
-            }
-            .toList()
         val aggregateEntityPackageByName = entities.associateBy(
             keySelector = { it.name },
             valueTransform = { it.packageName },
         )
-        validateTypeManifestOwnership(sharedEnums, valueObjects)
+        validateTypeManifestOwnership(sharedEnums, valueObjectDeclarations)
+        val semanticTypeCatalog = buildSemanticTypeCatalog(
+            config = config,
+            artifactLayout = artifactLayout,
+            entities = entities,
+            strongIds = strongIds,
+            enums = sharedEnums,
+            valueObjects = valueObjectDeclarations,
+            designEntries = designEntries,
+            recoveredDesignElements = analysisSnapshot?.designElements.orEmpty(),
+        )
+        val semanticCompiler = SemanticValueCompiler(semanticTypeCatalog)
+        val valueObjects = valueObjectDeclarations.map { declaration ->
+            declaration.toValueObjectModel(semanticCompiler)
+        }
+        val designBlocks = designEntries
+            .asSequence()
+            .map { entry ->
+                entry.toDesignBlockModel(
+                    compiler = semanticCompiler,
+                    artifactLayout = artifactLayout,
+                    config = config,
+                    aggregateEntityMetadata = aggregateEntityMetadata,
+                )
+            }
+            .fold(linkedMapOf<String, DesignBlockModel>()) { acc, block ->
+                val key = designBlockKey(block)
+                acc[key] = acc[key]?.let { existing -> mergeDesignBlocks(existing, block) } ?: block
+                acc
+            }
+            .values
+            .toList()
+        val domainEvents = designBlocks
+            .asSequence()
+            .filter { block -> block.tag == "domain_event" }
+            .map { block ->
+                val aggregateName = block.aggregates.single()
+                val aggregate = requireNotNull(aggregateEntityMetadata[aggregateName]) {
+                    "domain_event ${block.name} references missing aggregate metadata: $aggregateName"
+                }
+                DomainEventModel(
+                    packageName = resolveDomainEventPackageKey(aggregate.rootPackageName, config),
+                    typeName = block.name.toDomainEventTypeName(),
+                    description = block.description,
+                    aggregateName = aggregateName,
+                    aggregatePackageName = aggregate.rootPackageName,
+                    persist = block.persist ?: false,
+                    value = block.request,
+                )
+            }
+            .toList()
         validateDuplicateTypeSimpleNames(
             sharedEnums = sharedEnums
                 .filter { it.aggregates.isEmpty() }
@@ -339,6 +371,27 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
         val aggregatePersistenceProviderControls = specialFieldResolution.providerControls
         val aggregateIdPolicyControls = specialFieldResolution.idControls
+        val aggregateCreationGraphs = buildAggregateCreationGraphs(
+            artifactLayout = artifactLayout,
+            entities = entities,
+            relations = aggregateRelations,
+            resolvedPolicies = specialFieldResolution.resolvedPolicies,
+            catalog = semanticTypeCatalog,
+        )
+        validateValueObjectPersistenceProjectionIdentities(
+            config = config,
+            artifactLayout = artifactLayout,
+            entities = entities,
+            schemas = aggregateModels.map { it.first },
+            repositories = aggregateModels.mapNotNull { it.third },
+            strongIds = strongIds,
+            enums = sharedEnums,
+            valueObjects = valueObjects,
+            designBlocks = designBlocks,
+            domainEvents = domainEvents,
+            aggregateCreationGraphs = aggregateCreationGraphs,
+            domainServices = domainServices,
+        )
 
         val diagnostics = buildDiagnostics(
             snapshot = dbSnapshot,
@@ -371,7 +424,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val drawingBoard = analysisSnapshot
             ?.designElements
             .orEmpty()
-            .mapNotNull { it.toDrawingBoardElementOrNull() }
+            .mapNotNull { element ->
+                element.toDrawingBoardElementOrNull(
+                    compiler = semanticCompiler,
+                    artifactLayout = artifactLayout,
+                    config = config,
+                    aggregateEntityMetadata = aggregateEntityMetadata,
+                )
+            }
             .fold(linkedMapOf<String, DrawingBoardElementModel>()) { acc, element ->
                 val key = drawingBoardElementKey(element)
                 acc[key] = acc[key]?.let { existing -> mergeDrawingBoardElements(existing, element) } ?: element
@@ -405,6 +465,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
                 strongIds = strongIds,
                 valueObjects = valueObjects,
+                aggregateCreationGraphs = aggregateCreationGraphs,
                 domainServices = domainServices,
                 typeRegistry = typeRegistry,
             ),
@@ -576,12 +637,89 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
     }
 
-    private fun DesignSpecEntry.primaryFields(): List<FieldModel> =
-        fields
-
-    private fun DesignSpecEntry.toDesignBlockModel(): DesignBlockModel {
-        validateDesignBlockSharedFields()
+    private fun DesignSpecEntry.toDesignBlockModel(
+        compiler: SemanticValueCompiler,
+        artifactLayout: ArtifactLayoutResolver,
+        config: ProjectConfig,
+        aggregateEntityMetadata: Map<String, AggregateMetadataRecord>,
+        allowRecoveredDomainEventWithoutAggregateMetadata: Boolean = false,
+        allowRecoveredSagaResponse: Boolean = false,
+    ): DesignBlockModel {
+        validateDesignBlockSharedFields(allowRecoveredSagaResponse)
         val artifactSelections = resolveDesignBlockArtifacts()
+        val typeName = when (tag) {
+            "command" -> "${name}Cmd"
+            "query" -> "${name}Qry"
+            "client" -> "${name}Cli"
+            "api_payload" -> name.normalizeUpperCamelTypeName()
+            "domain_event" -> name.toDomainEventTypeName()
+            "integration_event" -> name.toIntegrationEventTypeName()
+            else -> name.normalizeUpperCamelTypeName()
+        }
+        val resolvedPackageName = when (tag) {
+            "command" -> artifactLayout.designCommandPackage(packageName)
+            "query" -> artifactLayout.designQueryPackage(packageName)
+            "client" -> artifactLayout.designClientPackage(packageName)
+            "api_payload" -> artifactLayout.designApiPayloadPackage(packageName)
+            "domain_event" -> {
+                val aggregateName = resolveDomainEventAggregateName(this)
+                val aggregate = aggregateEntityMetadata[aggregateName]
+                when {
+                    aggregate != null -> artifactLayout.designDomainEventPackage(
+                        resolveDomainEventPackageKey(aggregate.rootPackageName, config),
+                    )
+                    allowRecoveredDomainEventWithoutAggregateMetadata ->
+                        artifactLayout.designDomainEventPackage(packageName)
+                    else -> resolveDomainEventAggregateMetadata(this, aggregateName, aggregateEntityMetadata)
+                        .let { resolved ->
+                            artifactLayout.designDomainEventPackage(
+                                resolveDomainEventPackageKey(resolved.rootPackageName, config),
+                            )
+                        }
+                }
+            }
+            "integration_event" -> {
+                val variant = artifactSelections.singleOrNull { it.family == "integration-event" }?.variant ?: "outbound"
+                artifactLayout.designIntegrationEventPackage(variant, packageName)
+            }
+            "saga" -> artifactLayout.designSagaPackage(packageName)
+            "domain_service" -> artifactLayout.designDomainServicePackage(packageName)
+            else -> error("Unsupported design tag: $tag")
+        }
+        val requestIdentity = CanonicalTypeIdentity(
+            packageName = resolvedPackageName,
+            typePath = if (tag in EventPayloadTags) listOf(typeName) else listOf(typeName, "Request"),
+            kind = CanonicalTypeKind.NESTED_VALUE,
+            ownerAggregateName = aggregates.singleOrNull(),
+        )
+        val requestRole = requestRoleFor(tag)
+        val requestFields = if (tag == "domain_event") {
+            fields.filterNot { it.name.equals("entity", ignoreCase = true) }
+        } else {
+            fields
+        }
+        val request = compiler.compile(
+            identity = requestIdentity,
+            role = requestRole,
+            fields = requestFields,
+            aggregateContext = aggregates,
+        )
+        val response = if (tag in ResultFieldTags || (allowRecoveredSagaResponse && tag == "saga")) {
+            compiler.compile(
+                identity = CanonicalTypeIdentity(
+                    packageName = resolvedPackageName,
+                    typePath = listOf(typeName, "Response"),
+                    kind = CanonicalTypeKind.NESTED_VALUE,
+                    ownerAggregateName = aggregates.singleOrNull(),
+                ),
+                role = responseRoleFor(tag),
+                fields = resultFields,
+                aggregateContext = aggregates,
+                allowPageEnvelope = tag in PageEnvelopeTags,
+            )
+        } else {
+            null
+        }
         return DesignBlockModel(
             tag = tag,
             packageName = packageName,
@@ -592,19 +730,40 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             persist = persist,
             artifacts = artifactSelections,
             artifactsDeclared = artifacts != null,
-            fields = fields,
-            resultFields = resultFields,
+            request = request,
+            response = response,
         )
     }
 
-    private fun DesignSpecEntry.validateDesignBlockSharedFields() {
+    private fun requestRoleFor(tag: String): SemanticValueRole = when (tag) {
+        "command" -> SemanticValueRole.COMMAND_REQUEST
+        "query" -> SemanticValueRole.QUERY_REQUEST
+        "client" -> SemanticValueRole.CLIENT_REQUEST
+        "api_payload" -> SemanticValueRole.API_PAYLOAD_REQUEST
+        "domain_event" -> SemanticValueRole.DOMAIN_EVENT
+        "integration_event" -> SemanticValueRole.INTEGRATION_EVENT
+        "saga" -> SemanticValueRole.SAGA_REQUEST
+        "domain_service" -> SemanticValueRole.API_PAYLOAD_REQUEST
+        else -> error("Unsupported design tag: $tag")
+    }
+
+    private fun responseRoleFor(tag: String): SemanticValueRole = when (tag) {
+        "command" -> SemanticValueRole.COMMAND_RESPONSE
+        "query" -> SemanticValueRole.QUERY_RESPONSE
+        "client" -> SemanticValueRole.CLIENT_RESPONSE
+        "api_payload" -> SemanticValueRole.API_PAYLOAD_RESPONSE
+        "saga" -> SemanticValueRole.SAGA_RESPONSE
+        else -> error("Design tag $tag does not support a response payload")
+    }
+
+    private fun DesignSpecEntry.validateDesignBlockSharedFields(allowRecoveredSagaResponse: Boolean = false) {
         require(eventName.isNullOrBlank() || tag in EventNameTags) {
             "design entry $name cannot declare eventName on tag: $tag"
         }
         require(persist == null || tag == "domain_event") {
             "design entry $name cannot declare persist on tag: $tag"
         }
-        require(resultFields.isEmpty() || tag in ResultFieldTags) {
+        require(resultFields.isEmpty() || tag in ResultFieldTags || (allowRecoveredSagaResponse && tag == "saga")) {
             "design entry $name cannot declare resultFields on tag: $tag"
         }
         if (tag == "domain_event") {
@@ -704,72 +863,40 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             else -> error("Unsupported design tag: $tag")
         }
 
-    private fun DesignElementSnapshot.toDesignBlockModelOrNull(): DesignBlockModel? {
-        val normalizedTag = normalizeDrawingBoardTag(tag)?.takeIf { it in SupportedDesignBlockTags } ?: return null
-        val artifactSelections = normalizeRecoveredDesignBlockArtifacts(
-            normalizedTag,
-            artifacts,
-            artifactsDeclared,
-        )
-        validateArtifactSelections(
-            entryName = name,
-            tag = normalizedTag,
-            artifacts = artifactSelections,
-        )
-        val normalizedFields = fields
-            .filterNot { field ->
-                normalizedTag == "domain_event" && field.name.equals("entity", ignoreCase = true)
-            }
-            .map { field -> field.toFieldModel() }
-
-        return DesignBlockModel(
+    private fun DesignElementSnapshot.toDrawingBoardElementOrNull(
+        compiler: SemanticValueCompiler,
+        artifactLayout: ArtifactLayoutResolver,
+        config: ProjectConfig,
+        aggregateEntityMetadata: Map<String, AggregateMetadataRecord>,
+    ): DrawingBoardElementModel? {
+        val normalizedTag = normalizeDrawingBoardTag(tag) ?: return null
+        if (normalizedTag !in SupportedDrawingBoardTags) {
+            return null
+        }
+        val recoveredPersist = persist.takeIf { normalizedTag == "domain_event" }
+        val recoveredEventName = eventName.takeIf { normalizedTag in EventNameTags }
+        val recoveredResultFields = resultFields
+            .takeIf { normalizedTag in ResultFieldTags || normalizedTag == "saga" }
+            .orEmpty()
+        val compiled = DesignSpecEntry(
             tag = normalizedTag,
             packageName = packageName,
             name = name,
             description = description,
             aggregates = aggregates,
-            eventName = eventName.orEmpty(),
-            persist = persist,
-            artifacts = artifactSelections,
-            artifactsDeclared = artifactsDeclared,
-            fields = normalizedFields,
-            resultFields = resultFields.map { field -> field.toFieldModel() },
+            persist = recoveredPersist,
+            artifacts = if (artifactsDeclared) artifacts else null,
+            fields = fields,
+            resultFields = recoveredResultFields,
+            eventName = recoveredEventName,
+        ).toDesignBlockModel(
+            compiler = compiler,
+            artifactLayout = artifactLayout,
+            config = config,
+            aggregateEntityMetadata = aggregateEntityMetadata,
+            allowRecoveredDomainEventWithoutAggregateMetadata = true,
+            allowRecoveredSagaResponse = true,
         )
-    }
-
-    private fun normalizeRecoveredDesignBlockArtifacts(
-        tag: String,
-        artifacts: List<ArtifactSelectionModel>,
-        artifactsDeclared: Boolean,
-    ): List<ArtifactSelectionModel> =
-        if (artifactsDeclared) {
-            artifacts
-        } else {
-            artifacts.ifEmpty { defaultArtifactsFor(tag) }
-        }
-
-    private fun DesignFieldSnapshot.toFieldModel(): FieldModel =
-        FieldModel(
-            name = name,
-            type = type,
-            nullable = nullable,
-            defaultValue = defaultValue,
-        )
-
-    private fun DesignElementSnapshot.toDrawingBoardElementOrNull(): DrawingBoardElementModel? {
-        val normalizedTag = normalizeDrawingBoardTag(tag) ?: return null
-        if (normalizedTag !in SupportedDrawingBoardTags) {
-            return null
-        }
-        validateArtifactSelections(
-            entryName = name,
-            tag = normalizedTag,
-            artifacts = artifacts,
-        )
-        val normalizedFields = fields
-            .filterNot { field ->
-                normalizedTag == "domain_event" && field.name.equals("entity", ignoreCase = true)
-            }
 
         return DrawingBoardElementModel(
             tag = normalizedTag,
@@ -779,24 +906,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             aggregates = aggregates,
             artifacts = artifacts,
             artifactsDeclared = artifactsDeclared,
-            persist = persist,
-            fields = normalizedFields.map { field ->
-                DrawingBoardFieldModel(
-                    name = field.name,
-                    type = field.type,
-                    nullable = field.nullable,
-                    defaultValue = field.defaultValue,
-                )
-            },
-            resultFields = resultFields.map { field ->
-                DrawingBoardFieldModel(
-                    name = field.name,
-                    type = field.type,
-                    nullable = field.nullable,
-                    defaultValue = field.defaultValue,
-                )
-            },
-            eventName = eventName,
+            persist = recoveredPersist,
+            request = compiled.request,
+            response = compiled.response,
+            eventName = recoveredEventName,
         )
     }
 
@@ -844,8 +957,17 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             eventName = mergeStringMetadata(context, "eventName", existing.eventName, incoming.eventName),
             persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
             artifacts = artifacts,
-            fields = mergeFieldMetadata(context, "fields", existing.fields, incoming.fields),
-            resultFields = mergeFieldMetadata(context, "resultFields", existing.resultFields, incoming.resultFields),
+            request = mergeSemanticValueDefinition(context, "fields", existing.request, incoming.request),
+            response = when {
+                existing.response == null -> incoming.response
+                incoming.response == null -> existing.response
+                else -> mergeSemanticValueDefinition(
+                    context,
+                    "resultFields",
+                    requireNotNull(existing.response),
+                    requireNotNull(incoming.response),
+                )
+            },
         )
     }
 
@@ -885,12 +1007,34 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return existing
     }
 
-    private fun mergeFieldMetadata(
+    private fun mergeSemanticValueDefinition(
         context: String,
         field: String,
-        existing: List<FieldModel>,
-        incoming: List<FieldModel>,
-    ): List<FieldModel> = mergeListMetadata(context, field, existing, incoming)
+        existing: SemanticValueDefinition,
+        incoming: SemanticValueDefinition,
+    ): SemanticValueDefinition {
+        require(existing.identity == incoming.identity && existing.role == incoming.role) {
+            "conflicting design block semantic identity for $context: $field"
+        }
+        return existing.copy(
+            fields = mergeListMetadata(context, field, existing.fields, incoming.fields),
+            nestedDefinitions = mergeListMetadata(
+                context,
+                "$field nested definitions",
+                existing.nestedDefinitions,
+                incoming.nestedDefinitions,
+            ),
+            envelope = when {
+                incoming.envelope == null -> existing.envelope
+                existing.envelope == null -> incoming.envelope
+                else -> existing.envelope.also {
+                    require(existing.envelope == incoming.envelope) {
+                        "conflicting design block metadata for $context: $field envelope"
+                    }
+                }
+            },
+        )
+    }
 
     private fun mergeDrawingBoardElements(
         existing: DrawingBoardElementModel,
@@ -915,18 +1059,20 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             artifacts = artifacts,
             artifactsDeclared = existing.artifactsDeclared || incoming.artifactsDeclared,
             persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
-            fields = mergeDrawingBoardFieldMetadata(context, "fields", existing.fields, incoming.fields),
-            resultFields = mergeDrawingBoardFieldMetadata(context, "resultFields", existing.resultFields, incoming.resultFields),
+            request = mergeSemanticValueDefinition(context, "fields", existing.request, incoming.request),
+            response = when {
+                existing.response == null -> incoming.response
+                incoming.response == null -> existing.response
+                else -> mergeSemanticValueDefinition(
+                    context,
+                    "resultFields",
+                    requireNotNull(existing.response),
+                    requireNotNull(incoming.response),
+                )
+            },
             eventName = mergeNullableStringMetadata(context, "eventName", existing.eventName, incoming.eventName),
         )
     }
-
-    private fun mergeDrawingBoardFieldMetadata(
-        context: String,
-        field: String,
-        existing: List<DrawingBoardFieldModel>,
-        incoming: List<DrawingBoardFieldModel>,
-    ): List<DrawingBoardFieldModel> = mergeListMetadata(context, field, existing, incoming)
 
     private fun mergeNullableStringMetadata(
         context: String,
@@ -938,14 +1084,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         if (existing.isNullOrBlank()) return incoming
         require(existing == incoming) { "conflicting design block metadata for $context: $field" }
         return existing
-    }
-
-    private fun DesignSpecEntry.integrationEventRequestFields(): List<FieldModel> {
-        val fields = primaryFields()
-        require(fields.isNotEmpty()) {
-            "integration_event $name must declare at least one fields entry."
-        }
-        return fields
     }
 
     private fun String.normalizeUpperCamelTypeName(): String {
@@ -1045,9 +1183,524 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
     }
 
+    private fun buildSemanticTypeCatalog(
+        config: ProjectConfig,
+        artifactLayout: ArtifactLayoutResolver,
+        entities: List<EntityModel>,
+        strongIds: List<StrongIdModel>,
+        enums: List<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition>,
+        valueObjects: List<ValueObjectDeclarationSnapshot>,
+        designEntries: List<DesignSpecEntry>,
+        recoveredDesignElements: List<DesignElementSnapshot>,
+    ): CanonicalTypeCatalog {
+        val aggregateRootByEntity = buildAggregateRootNameByEntity(entities)
+        val identities = mutableListOf<CanonicalTypeIdentity>()
+        identities += entities.map { entity ->
+            CanonicalTypeIdentity(
+                packageName = entity.packageName,
+                typePath = listOf(entity.name),
+                kind = CanonicalTypeKind.ENTITY,
+                ownerAggregateName = aggregateRootByEntity[entityKey(entity)],
+            )
+        }
+        identities += strongIds.map { strongId ->
+            CanonicalTypeIdentity(
+                packageName = strongId.packageName,
+                typePath = listOf(strongId.typeName),
+                kind = CanonicalTypeKind.STRONG_ID,
+                ownerAggregateName = strongId.ownerAggregateName,
+            )
+        }
+        identities += valueObjects.map { valueObject ->
+            CanonicalTypeIdentity(
+                packageName = valueObject.packageName,
+                typePath = listOf(valueObject.name),
+                kind = CanonicalTypeKind.VALUE_OBJECT,
+                ownerAggregateName = valueObject.aggregates.singleOrNull(),
+            )
+        }
+        identities += enums.map { definition -> canonicalEnumIdentity(artifactLayout, entities, definition) }
+        identities += entities.flatMap { entity ->
+            entity.fields
+                .filter { it.typeBinding?.isNotBlank() == true && it.enumItems.isNotEmpty() }
+                .map { field ->
+                    CanonicalTypeIdentity(
+                        packageName = artifactLayout.aggregateLocalEnumPackage(entity.packageName),
+                        typePath = listOf(requireNotNull(field.typeBinding)),
+                        kind = CanonicalTypeKind.ENUM,
+                        ownerAggregateName = aggregateRootByEntity[entityKey(entity)],
+                    )
+                }
+        }
+        val registryAliases = config.typeRegistry.entries.mapValues { (_, entry) ->
+            externalTypeIdentity(entry.fqn)
+        }
+        identities += registryAliases.values
+        val sourceTypeExpressions = buildList {
+            addAll(entities.flatMap { entity ->
+                entity.fields.map { field -> field.typeBinding?.takeIf(String::isNotBlank) ?: field.type }
+            })
+            addAll(valueObjects.flatMap { valueObject -> valueObject.fields.map(SemanticFieldSnapshot::typeExpression) })
+            addAll(designEntries.flatMap { entry ->
+                (entry.fields + entry.resultFields).map(SemanticFieldSnapshot::typeExpression)
+            })
+            addAll(recoveredDesignElements.flatMap { element ->
+                (element.fields + element.resultFields).map(SemanticFieldSnapshot::typeExpression)
+            })
+        }
+        return CanonicalTypeCatalog(
+            identities = identities,
+            aliases = registryAliases,
+            sourceTypeExpressions = sourceTypeExpressions,
+        )
+    }
+
+    private fun validateValueObjectPersistenceProjectionIdentities(
+        config: ProjectConfig,
+        artifactLayout: ArtifactLayoutResolver,
+        entities: List<EntityModel>,
+        schemas: List<SchemaModel>,
+        repositories: List<RepositoryModel>,
+        strongIds: List<StrongIdModel>,
+        enums: List<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition>,
+        valueObjects: List<ValueObjectModel>,
+        designBlocks: List<DesignBlockModel>,
+        domainEvents: List<DomainEventModel>,
+        aggregateCreationGraphs: List<AggregateCreationGraphModel>,
+        domainServices: List<DomainServiceModel>,
+    ) {
+        val aggregateRootByEntity = buildAggregateRootNameByEntity(entities)
+        val canonicalDeclarations = buildList {
+            addAll(entities.map { entity ->
+                CanonicalTypeIdentity(
+                    packageName = entity.packageName,
+                    typePath = listOf(entity.name),
+                    kind = CanonicalTypeKind.ENTITY,
+                    ownerAggregateName = aggregateRootByEntity[entityKey(entity)],
+                )
+            })
+            addAll(strongIds.map { strongId ->
+                CanonicalTypeIdentity(
+                    packageName = strongId.packageName,
+                    typePath = listOf(strongId.typeName),
+                    kind = CanonicalTypeKind.STRONG_ID,
+                    ownerAggregateName = strongId.ownerAggregateName,
+                )
+            })
+            addAll(enums.map { definition -> canonicalEnumIdentity(artifactLayout, entities, definition) })
+            addAll(entities.flatMap { entity ->
+                entity.fields
+                    .filter { field -> field.typeBinding?.isNotBlank() == true && field.enumItems.isNotEmpty() }
+                    .map { field ->
+                        CanonicalTypeIdentity(
+                            packageName = artifactLayout.aggregateLocalEnumPackage(entity.packageName),
+                            typePath = listOf(requireNotNull(field.typeBinding)),
+                            kind = CanonicalTypeKind.ENUM,
+                            ownerAggregateName = aggregateRootByEntity[entityKey(entity)],
+                        )
+                    }
+            })
+            addAll(valueObjects.flatMap { valueObject -> valueObject.definition.declarationIdentities() })
+            addAll(designBlocks.flatMap { block ->
+                block.request.declarationIdentities() + block.response?.declarationIdentities().orEmpty()
+            })
+            addAll(domainEvents.flatMap { event -> event.value.declarationIdentities() })
+            addAll(aggregateCreationGraphs.flatMap { graph ->
+                graph.factoryPayload.declarationIdentities() +
+                    graph.ownedNodes.flatMap { node -> node.value.declarationIdentities() }
+            })
+            addAll(config.typeRegistry.entries.values.map { entry -> externalTypeIdentity(entry.fqn) })
+        }
+        val artifactDeclarations = buildList {
+            addAll(schemas.map { schema -> "${schema.packageName}.${schema.name}" })
+            addAll(repositories.map { repository -> "${repository.packageName}.${repository.name}" })
+            addAll(domainServices.map { service -> "${service.packageName}.${service.name}" })
+            addAll(valueObjects.flatMap { valueObject -> valueObject.definition.artifactDeclarationFqns() })
+            addAll(designBlocks.flatMap { block ->
+                block.request.artifactDeclarationFqns() + block.response?.artifactDeclarationFqns().orEmpty()
+            })
+            addAll(domainEvents.flatMap { event -> event.value.artifactDeclarationFqns() })
+            addAll(aggregateCreationGraphs.flatMap { graph ->
+                graph.factoryPayload.artifactDeclarationFqns() +
+                    graph.ownedNodes.flatMap { node -> node.value.artifactDeclarationFqns() }
+            })
+            if ("aggregate" in config.generators) {
+                entities.filter { it.aggregateRoot }.forEach { root ->
+                    add("${root.packageName}.${root.name}Behavior")
+                    add("${artifactLayout.aggregateFactoryPackage(root.packageName)}.${root.name}Factory")
+                }
+            }
+        }
+        ValueObjectPersistenceProjectionIdentityValidator.validate(
+            valueObjects = valueObjects,
+            canonicalDeclarations = canonicalDeclarations,
+            artifactDeclarationFqns = artifactDeclarations,
+        )
+    }
+
+    private fun canonicalEnumIdentity(
+        artifactLayout: ArtifactLayoutResolver,
+        entities: List<EntityModel>,
+        definition: com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition,
+    ): CanonicalTypeIdentity {
+        val ownerAggregate = definition.aggregates.singleOrNull()
+        val packageName = if (ownerAggregate == null) {
+            definition.packageName.trim().takeIf { '.' in it }
+                ?: artifactLayout.aggregateSharedEnumPackage(definition.packageName)
+        } else {
+            val ownerPackage = entities.firstOrNull { it.aggregateRoot && it.name == ownerAggregate }?.packageName
+                ?: definition.packageName.trim().takeIf { '.' in it }
+                ?: artifactLayout.aggregateEntityPackage(definition.packageName)
+            artifactLayout.aggregateLocalEnumPackage(ownerPackage)
+        }
+        return CanonicalTypeIdentity(
+            packageName = packageName,
+            typePath = listOf(definition.typeName),
+            kind = CanonicalTypeKind.ENUM,
+            ownerAggregateName = ownerAggregate,
+        )
+    }
+
+    private fun SemanticValueDefinition.declarationIdentities(): List<CanonicalTypeIdentity> = buildList {
+        add(identity)
+        nestedDefinitions.forEach { nested -> addAll(nested.declarationIdentities()) }
+        (envelope as? com.only4.cap4k.plugin.pipeline.api.SemanticValueEnvelope.Page)
+            ?.itemDefinition
+            ?.let { item -> addAll(item.declarationIdentities()) }
+    }
+
+    private fun SemanticValueDefinition.artifactDeclarationFqns(): List<String> =
+        declarationIdentities()
+            .map { declaration ->
+                (listOf(declaration.packageName).filter(String::isNotBlank) + declaration.typePath.first())
+                    .joinToString(".")
+            }
+            .distinct()
+
+    private fun ValueObjectDeclarationSnapshot.toValueObjectModel(
+        compiler: SemanticValueCompiler,
+    ): ValueObjectModel {
+        val identity = CanonicalTypeIdentity(
+            packageName = packageName,
+            typePath = listOf(name),
+            kind = CanonicalTypeKind.VALUE_OBJECT,
+            ownerAggregateName = aggregates.singleOrNull(),
+        )
+        val persistenceProjection = persistence?.let { projection ->
+            require(projection.options.isEmpty()) {
+                "value object ${identity.fqn} persistence ${projection.kind} has unsupported options: " +
+                    projection.options.keys.sorted().joinToString(", ")
+            }
+            when (projection.kind.lowercase(Locale.ROOT)) {
+                "json" -> JsonValuePersistenceProjection(
+                    converterClassFqn = "$packageName.${name}JsonAttributeConverter",
+                )
+                else -> throw IllegalArgumentException(
+                    "value object ${identity.fqn} persistence kind is unsupported: ${projection.kind}",
+                )
+            }
+        }
+        return ValueObjectModel(
+            definition = compiler.compile(
+                identity = identity,
+                role = SemanticValueRole.VALUE_OBJECT,
+                fields = fields,
+                aggregateContext = aggregates,
+            ),
+            aggregates = aggregates,
+            persistence = persistenceProjection,
+            description = description,
+        )
+    }
+
+    private fun buildAggregateCreationGraphs(
+        artifactLayout: ArtifactLayoutResolver,
+        entities: List<EntityModel>,
+        relations: List<com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel>,
+        resolvedPolicies: List<com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy>,
+        catalog: CanonicalTypeCatalog,
+    ): List<AggregateCreationGraphModel> {
+        if (resolvedPolicies.isEmpty()) return emptyList()
+        val entitiesByFqn = entities.associateBy { "${it.packageName}.${it.name}" }
+        val ownedRelations = relations.filter { it.owned }
+        AggregateCreationGraphValidator.validate(entities, ownedRelations)
+        val targetOwnerRelations = ownedRelations.groupBy { "${it.targetEntityPackageName}.${it.targetEntityName}" }
+        val relationsByOwner = ownedRelations.groupBy { "${it.ownerEntityPackageName}.${it.ownerEntityName}" }
+        val creationIdentityByEntityFqn = targetOwnerRelations.keys.associateWith { entityFqn ->
+            val entity = requireNotNull(entitiesByFqn[entityFqn])
+            CanonicalTypeIdentity(
+                packageName = entity.packageName,
+                typePath = listOf("${entity.name}Creation"),
+                kind = CanonicalTypeKind.CREATION_VALUE,
+                ownerAggregateName = resolveAggregateRootEntity(entity, entities).name,
+            )
+        }
+        val entityIdentities = entitiesByFqn.mapValues { (_, entity) ->
+            CanonicalTypeIdentity(
+                packageName = entity.packageName,
+                typePath = listOf(entity.name),
+                kind = CanonicalTypeKind.ENTITY,
+                ownerAggregateName = resolveAggregateRootEntity(entity, entities).name,
+            )
+        }
+        val creationCatalog = catalog.plus(creationIdentityByEntityFqn.values)
+        val policiesByEntity = resolvedPolicies.associateBy { "${it.entityPackageName}.${it.entityName}" }
+
+        return entities.filter { it.aggregateRoot }.map { root ->
+            val rootFqn = "${root.packageName}.${root.name}"
+            val visiting = linkedSetOf<String>()
+            val visited = linkedSetOf<String>()
+            val orderedChildren = mutableListOf<String>()
+            val graphRelations = mutableListOf<AggregateCreationRelationModel>()
+
+            fun traverse(ownerFqn: String, path: List<String>) {
+                require(visiting.add(ownerFqn)) {
+                    "owned relation cycle detected for aggregate ${root.name}: ${(path + ownerFqn).joinToString(" -> ")}"
+                }
+                relationsByOwner[ownerFqn].orEmpty().forEach { relation ->
+                    val targetFqn = "${relation.targetEntityPackageName}.${relation.targetEntityName}"
+                    val cardinality = requireNotNull(relation.ownedCardinality)
+                    val creationFieldName = when (cardinality) {
+                        OwnedRelationCardinality.ONE -> relation.singleAccessorName ?: relation.fieldName
+                        OwnedRelationCardinality.MANY -> relation.fieldName
+                    }
+                    val relationPath = path + creationFieldName
+                    if (targetFqn in visiting) {
+                        throw IllegalArgumentException(
+                            "owned relation cycle detected for aggregate ${root.name}: ${relationPath.joinToString(".")}",
+                        )
+                    }
+                    val canonicalRelation = AggregateCreationRelationModel(
+                        path = relationPath,
+                        ownerEntity = requireNotNull(entityIdentities[ownerFqn]),
+                        targetEntity = requireNotNull(entityIdentities[targetFqn]),
+                        fieldName = creationFieldName,
+                        cardinality = cardinality,
+                        attachmentAccessorName = when (cardinality) {
+                            OwnedRelationCardinality.ONE -> relation.singleAccessorName ?: relation.fieldName
+                            OwnedRelationCardinality.MANY -> relation.fieldName
+                        },
+                    )
+                    graphRelations += canonicalRelation
+                    traverse(targetFqn, relationPath)
+                    if (visited.add(targetFqn)) orderedChildren += targetFqn
+                }
+                visiting.remove(ownerFqn)
+            }
+            traverse(rootFqn, emptyList())
+
+            val ownedNodes = orderedChildren.map { entityFqn ->
+                val entity = requireNotNull(entitiesByFqn[entityFqn])
+                val valueIdentity = requireNotNull(creationIdentityByEntityFqn[entityFqn])
+                val directRelations = graphRelations.filter { it.ownerEntity.fqn == entityFqn }
+                val definition = compileCreationDefinition(
+                    entity = entity,
+                    identity = valueIdentity,
+                    relations = directRelations,
+                    resolvedPolicy = requireNotNull(policiesByEntity[entityFqn]) {
+                        "owned creation graph ${root.name} is missing resolved write surface for $entityFqn"
+                    },
+                    catalog = creationCatalog,
+                    creationIdentityByEntityFqn = creationIdentityByEntityFqn,
+                    role = SemanticValueRole.OWNED_ENTITY_CREATION,
+                )
+                AggregateCreationNodeModel(
+                    entity = requireNotNull(entityIdentities[entityFqn]),
+                    value = definition,
+                    constructorFieldNames = scalarCreationFieldNames(entity, policiesByEntity.getValue(entityFqn)),
+                    relations = directRelations,
+                )
+            }
+            val rootRelations = graphRelations.filter { it.ownerEntity.fqn == rootFqn }
+            val rootDefinition = compileCreationDefinition(
+                entity = root,
+                identity = CanonicalTypeIdentity(
+                    packageName = artifactLayout.aggregateFactoryPackage(root.packageName),
+                    typePath = listOf("${root.name}Factory", "Payload"),
+                    kind = CanonicalTypeKind.NESTED_VALUE,
+                    ownerAggregateName = root.name,
+                ),
+                relations = rootRelations,
+                resolvedPolicy = requireNotNull(policiesByEntity[rootFqn]) {
+                    "aggregate creation graph ${root.name} is missing resolved write surface for $rootFqn"
+                },
+                catalog = creationCatalog,
+                creationIdentityByEntityFqn = creationIdentityByEntityFqn,
+                role = SemanticValueRole.FACTORY_PAYLOAD,
+            )
+            AggregateCreationGraphModel(
+                rootEntity = requireNotNull(entityIdentities[rootFqn]),
+                factoryPayload = rootDefinition,
+                rootConstructorFieldNames = scalarCreationFieldNames(root, policiesByEntity.getValue(rootFqn)),
+                ownedNodes = ownedNodes,
+                relations = graphRelations,
+            )
+        }
+    }
+
+    private fun compileCreationDefinition(
+        entity: EntityModel,
+        identity: CanonicalTypeIdentity,
+        relations: List<AggregateCreationRelationModel>,
+        resolvedPolicy: com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy,
+        catalog: CanonicalTypeCatalog,
+        creationIdentityByEntityFqn: Map<String, CanonicalTypeIdentity>,
+        role: SemanticValueRole,
+    ): SemanticValueDefinition {
+        val aggregateContext = listOf(requireNotNull(identity.ownerAggregateName))
+        val scalarFields = scalarCreationFieldNames(entity, resolvedPolicy).map { fieldName ->
+            val field = entity.fields.single { it.name == fieldName }
+            val expression = (field.typeBinding?.takeIf { it.isNotBlank() } ?: field.type) +
+                if (field.nullable) "?" else ""
+            val fieldPath = "${identity.fqn}.${field.name}"
+            val type = catalog.resolveExpression(
+                expression = expression,
+                fieldPath = fieldPath,
+                ownerPackageName = entity.packageName,
+                aggregateContext = aggregateContext,
+            )
+            SemanticValueField(
+                name = field.name,
+                type = type,
+                defaultValue = compileEntityFieldDefault(field, type, fieldPath),
+                sourcePath = fieldPath,
+            )
+        }
+        val relationFields = relations.map { relation ->
+            val targetCreation = requireNotNull(creationIdentityByEntityFqn[relation.targetEntity.fqn]) {
+                "owned relation ${relation.path.joinToString(".")} has no creation value identity"
+            }
+            when (relation.cardinality) {
+                OwnedRelationCardinality.ONE -> SemanticValueField(
+                    name = relation.fieldName,
+                    type = SemanticNamedTypeRef(targetCreation, nullable = true),
+                    defaultValue = SemanticDefaultExpression("null", "null"),
+                    sourcePath = relation.path.joinToString("."),
+                )
+                OwnedRelationCardinality.MANY -> SemanticValueField(
+                    name = relation.fieldName,
+                    type = SemanticListTypeRef(SemanticNamedTypeRef(targetCreation)),
+                    defaultValue = SemanticDefaultExpression("emptyList()", "emptyList()"),
+                    sourcePath = relation.path.joinToString("."),
+                )
+            }
+        }
+        return SemanticValueDefinition(
+            identity = identity,
+            role = role,
+            fields = scalarFields + relationFields,
+        )
+    }
+
+    private fun compileEntityFieldDefault(
+        field: FieldModel,
+        type: com.only4.cap4k.plugin.pipeline.api.SemanticTypeRef,
+        fieldPath: String,
+    ): SemanticDefaultExpression? {
+        val source = field.defaultValue ?: return null
+        var normalized = source.trim()
+        while (normalized.length >= 2 && normalized.first() == '(' && normalized.last() == ')') {
+            normalized = normalized.substring(1, normalized.lastIndex).trim()
+        }
+        if (normalized.equals("null", ignoreCase = true)) {
+            return SemanticDefaultCompiler.compile("null", type, fieldPath)
+        }
+        if (isSqlDefaultExpression(normalized)) {
+            return null
+        }
+        if (field.enumItems.isNotEmpty()) {
+            val numeric = unquoteSqlString(normalized)?.toIntOrNull() ?: normalized.toIntOrNull()
+            require(numeric != null && field.enumItems.any { it.value == numeric }) {
+                "aggregate enum field $fieldPath default $normalized does not match a declared enum value"
+            }
+            val namedType = type as? SemanticNamedTypeRef
+                ?: throw IllegalArgumentException("aggregate enum field $fieldPath does not resolve to a named enum type")
+            val expression = "${namedType.symbol.fqn}.valueOfOrNull($numeric)!!"
+            return SemanticDefaultExpression(expression, source)
+        }
+        val projected = when (type) {
+            is com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef -> when (type.kind) {
+                com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType.STRING ->
+                    unquoteSqlString(normalized) ?: normalized
+                com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType.BOOLEAN -> {
+                    val booleanValue = unquoteSqlString(normalized) ?: normalized
+                    when {
+                        booleanValue == "1" || booleanValue.equals("true", ignoreCase = true) -> "true"
+                        booleanValue == "0" || booleanValue.equals("false", ignoreCase = true) -> "false"
+                        else -> booleanValue
+                    }
+                }
+                else -> unquoteSqlString(normalized) ?: normalized
+            }
+            else -> normalized
+        }
+        return SemanticDefaultCompiler.compile(projected, type, fieldPath)
+            ?.copy(sourceExpression = source)
+    }
+
+    private fun isSqlDefaultExpression(value: String): Boolean {
+        if (unquoteSqlString(value) != null) return false
+        val upper = value.uppercase(Locale.ROOT)
+        return upper in setOf("CURRENT_TIMESTAMP", "CURRENT_DATE", "CURRENT_TIME") ||
+            value.matches(Regex("[A-Za-z_][A-Za-z0-9_$]*(\\.[A-Za-z_][A-Za-z0-9_$]*)?\\s*\\(.*\\)")) ||
+            value.matches(Regex(".*\\s[+*/%]\\s.*"))
+    }
+
+    private fun unquoteSqlString(value: String): String? = when {
+        value.length >= 2 && value.first() == '\'' && value.last() == '\'' ->
+            value.substring(1, value.lastIndex).replace("''", "'")
+        value.length >= 2 && value.first() == '"' && value.last() == '"' ->
+            value.substring(1, value.lastIndex).replace("\"\"", "\"")
+        else -> null
+    }
+
+    private fun scalarCreationFieldNames(
+        entity: EntityModel,
+        resolvedPolicy: com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy,
+    ): List<String> = resolvedPolicy.writeSurface.createAllowedFields
+        .filter { it != entity.idField.name }
+        .also { fieldNames ->
+            fieldNames.firstOrNull { fieldName -> entity.fields.none { it.name == fieldName } }?.let { missing ->
+                throw IllegalArgumentException(
+                    "resolved creation write surface ${entity.packageName}.${entity.name} references missing field $missing",
+                )
+            }
+        }
+
+    private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<String, String> =
+        entities.associate { entity -> entityKey(entity) to resolveAggregateRootEntity(entity, entities).name }
+
+    private fun resolveAggregateRootEntity(entity: EntityModel, entities: List<EntityModel>): EntityModel {
+        val entitiesByName = entities.groupBy { it.name }
+        val visited = mutableSetOf<String>()
+        var current = entity
+        while (!current.aggregateRoot && !current.parentEntityName.isNullOrBlank()) {
+            require(visited.add(entityKey(current))) {
+                "aggregate parent cycle detected at ${entityKey(current)}"
+            }
+            current = entitiesByName[requireNotNull(current.parentEntityName)]?.singleOrNull()
+                ?: throw IllegalArgumentException(
+                    "entity ${entityKey(current)} references ambiguous or missing parent ${current.parentEntityName}",
+                )
+        }
+        return current
+    }
+
+    private fun entityKey(entity: EntityModel): String = "${entity.packageName}.${entity.name}"
+
+    private fun externalTypeIdentity(fqn: String): CanonicalTypeIdentity {
+        val normalized = fqn.trim('.')
+        require('.' in normalized) { "type registry entry must declare an FQN: $fqn" }
+        return CanonicalTypeIdentity(
+            packageName = normalized.substringBeforeLast('.'),
+            typePath = listOf(normalized.substringAfterLast('.')),
+            kind = CanonicalTypeKind.EXTERNAL,
+        )
+    }
+
     private fun validateTypeManifestOwnership(
         sharedEnums: Iterable<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition>,
-        valueObjects: Iterable<com.only4.cap4k.plugin.pipeline.api.ValueObjectModel>,
+        valueObjects: Iterable<ValueObjectDeclarationSnapshot>,
     ) {
         sharedEnums.firstOrNull { it.aggregates.size > 1 }?.let { definition ->
             throw IllegalArgumentException("enum ${definition.typeName} may declare at most one aggregate")
@@ -1187,6 +1840,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "saga",
         )
         val ResultFieldTags = setOf("command", "query", "client", "api_payload")
+        val PageEnvelopeTags = setOf("query", "api_payload")
+        val EventPayloadTags = setOf("domain_event", "integration_event")
         val EventNameTags = setOf("domain_event", "integration_event")
         val SupportedArtifactFamilies = linkedMapOf(
             "command" to setOf(""),

@@ -31,7 +31,6 @@ import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.IrTypeProjection
-import org.jetbrains.kotlin.ir.types.isNullable
 import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.util.primaryConstructor
@@ -261,13 +260,12 @@ class DesignElementCollector(
             val name = param.name.asString()
             val fieldPath = if (prefix.isNullOrEmpty()) name else "$prefix.$name"
             val type = param.type
-            val nullable = type.isNullable()
             val defaultValue = resolveDefaultValue(param, defaultValueContext.describe(fieldPath), defaultValueContext.renderStyle)
-            fields.add(DesignField(fieldPath, typeFormatter.format(type), nullable, defaultValue))
+            fields.add(DesignField(fieldPath, typeFormatter.format(type), defaultValue))
 
             val nestedInfo = resolveNestedType(type, nestedTypes)
             if (nestedInfo != null) {
-                val nestedPrefix = if (nestedInfo.isCollection) "$fieldPath[]" else fieldPath
+                val nestedPrefix = "$fieldPath${nestedInfo.pathSuffix}"
                 fields.addAll(
                     collectFieldsRecursive(
                         nestedInfo.nestedClass,
@@ -286,13 +284,19 @@ class DesignElementCollector(
     }
 
     private fun resolveNestedType(type: IrType, nestedTypes: Map<String, IrClass>): NestedType? {
-        val elementType = typeFormatter.collectionElementType(type)
-        val targetType = elementType ?: type
+        val pageDataElementType = typeFormatter.pageDataElementType(type)
+        val collectionElementType = typeFormatter.collectionElementType(type)
+        val targetType = pageDataElementType ?: collectionElementType ?: type
         val simple = targetType as? IrSimpleType ?: return null
         val klass = simple.classifier?.owner as? IrClass ?: return null
         val fqcn = klass.fqNameWhenAvailable?.asString() ?: return null
         val nestedClass = nestedTypes[fqcn] ?: return null
-        return NestedType(nestedClass, elementType != null)
+        val pathSuffix = when {
+            pageDataElementType != null -> ".list[]"
+            collectionElementType != null -> "[]"
+            else -> ""
+        }
+        return NestedType(nestedClass, pathSuffix)
     }
 
     private fun resolveDefaultValue(
@@ -616,7 +620,7 @@ class DesignElementCollector(
 
     private data class NestedType(
         val nestedClass: IrClass,
-        val isCollection: Boolean
+        val pathSuffix: String,
     )
 
     private data class DefaultValueContext(

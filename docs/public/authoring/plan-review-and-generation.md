@@ -28,13 +28,13 @@ plan review 是进入 generation 前的 ownership 审查。作者已经有了业
 
 ## cap4kGenerate
 
-`cap4kGenerate` 根据已经审查过的输入和计划应用 generation。它可以写出或更新 checked-in skeleton、adapter surface、application entry、domain type、payload、client-handler、repository adapter 等输出，具体由 generator configuration、template 和 `conflictPolicy` 决定。
+`cap4kGenerate` 根据已经审查过的输入和计划应用 generation。它可以首次写出 checked-in skeleton、adapter surface、application entry、domain type、payload、client-handler、repository adapter 等输出；已有 `CHECKED_IN_SOURCE` 固定 SKIP，不会更新、merge 或 patch。
 
 进入 `cap4kGenerate` 前，作者应确认：
 
 - plan 中的 module placement 和 Clean Architecture 一致。
 - `templateId` 与预期 output family 一致。
-- `conflictPolicy` 不会覆盖应该保留的 handwritten logic。
+- `CHECKED_IN_SOURCE` 的 `conflictPolicy` 是固定 `SKIP`。
 - checked-in skeleton 与 build-owned generated source 的 ownership 已经分清。
 - plan 没有暴露出输入命名、package 或 boundary 的明显错位。
 
@@ -50,7 +50,7 @@ generation 的作用是维护结构和合同，不是完成业务实现。生成
 
 plan review 要把 output 分成几类：
 
-- checked-in skeletons：例如 Command、Query、Subscriber、client、client-handler、Saga、API Payload 或 adapter surface，它们可以作为仓库中的稳定入口。
+- checked-in skeletons：例如 Command、Query、Subscriber、client、client-handler、Saga、API Payload 或 adapter surface；首次生成后作为普通仓库源码维护，不自动追随 template 更新。
 - build-owned generated source：构建期维护的输出，不应成为手写业务规则位置。
 - handwritten logic locations：作者在 skeleton 暴露的 surface 中维护业务判断、状态推进、补偿、幂等和协议转换。
 - evidence files：`plan.json`、analysis plan、flow output、drawing-board output，用来审查结构和 ownership。
@@ -63,7 +63,7 @@ plan review 要把 output 分成几类：
 
 - `outputPath` 落在错误 module 或错误 layer。
 - `templateId` 和作者预期的 family 不一致。
-- `conflictPolicy` 会覆盖已有 handwritten logic。
+- checked-in item 没有呈现固定 `SKIP`，或 build-owned item 的 policy 与 root ownership 不一致。
 - plan item 对应的业务概念在 `design/design.json` 或 schema 中无法解释。
 - Command/Query、Event 或 Saga 命名暴露出模型混乱。
 - Value Object、enum 或 DB marker 和业务语义不一致。

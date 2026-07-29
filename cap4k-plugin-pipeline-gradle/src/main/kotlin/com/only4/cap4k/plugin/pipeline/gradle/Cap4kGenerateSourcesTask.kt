@@ -6,10 +6,12 @@ import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.LocalState
 import org.gradle.api.tasks.OutputDirectories
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import java.io.File
 
 abstract class Cap4kGenerateSourcesTask : DefaultTask() {
     init {
@@ -47,11 +49,15 @@ abstract class Cap4kGenerateSourcesTask : DefaultTask() {
     @get:OutputDirectories
     val outputDirectories: FileCollection
         get() = project.files(
-            generatedSourceOutputDirectories(
+            generatedSourceManagedOutputDirectories(
                 rootProject = project.rootProject,
                 config = generatedSourceTaskConfig(configFactory.build(project, extension)),
             )
         )
+
+    @get:LocalState
+    val managedRootsState: File
+        get() = generatedSourceManagedRootsStateFile(project.rootProject)
 
     @get:Internal
     val hasUntrackedLiveDbInput: Boolean
@@ -63,6 +69,9 @@ abstract class Cap4kGenerateSourcesTask : DefaultTask() {
     @TaskAction
     fun generateSources() {
         val config = generatedSourceTaskConfig(configFactory.build(project, extension))
+        cleanGeneratedSourceOutputDirectories(project.rootProject, config)
         buildGeneratedSourceRunner(project, config).run(config)
+        ensureGeneratedSourceOutputDirectories(project.rootProject, config)
+        recordManagedGeneratedSourceOutputDirectories(project.rootProject, config)
     }
 }

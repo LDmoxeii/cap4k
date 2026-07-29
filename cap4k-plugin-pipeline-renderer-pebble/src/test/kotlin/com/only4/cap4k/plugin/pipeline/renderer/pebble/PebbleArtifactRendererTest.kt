@@ -18,6 +18,50 @@ class PebbleArtifactRendererTest {
         listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
     private val legacyAggregateCall = "@" + "Aggregate("
 
+    /** Template-shaped fixture; canonical-to-template projection is covered by DrawingBoardArtifactPlannerTest. */
+    private data class DrawingBoardFieldModel(
+        val name: String,
+        val type: String,
+        val defaultValue: String? = null,
+    )
+
+    private data class DrawingBoardElementModel(
+        val tag: String,
+        val packageName: String,
+        val name: String,
+        val description: String,
+        val aggregates: List<String> = emptyList(),
+        val artifacts: List<ArtifactSelectionModel> = emptyList(),
+        val artifactsDeclared: Boolean = artifacts.isNotEmpty(),
+        val persist: Boolean? = null,
+        val fields: List<DrawingBoardFieldModel> = emptyList(),
+        val resultFields: List<DrawingBoardFieldModel> = emptyList(),
+        val eventName: String? = null,
+    ) {
+        val designJsonArtifacts: List<ArtifactSelectionModel>
+            get() = artifacts.sortedWith(compareBy<ArtifactSelectionModel> { it.family }.thenBy { it.variant })
+
+        val includeDesignJsonArtifacts: Boolean
+            get() = artifactsDeclared && designJsonArtifacts != defaultArtifacts(tag)
+    }
+
+    private companion object {
+        fun defaultArtifacts(tag: String): List<ArtifactSelectionModel> = when (tag) {
+            "command" -> listOf(ArtifactSelectionModel("command"))
+            "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
+            "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+            "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
+            "domain_event" -> listOf(
+                ArtifactSelectionModel("domain-event"),
+                ArtifactSelectionModel("domain-subscriber"),
+            )
+            "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
+            "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
+            "saga" -> listOf(ArtifactSelectionModel("saga"))
+            else -> emptyList()
+        }
+    }
+
     private fun entityScalarFields(vararg fields: Map<String, Any?>): List<Map<String, Any?>> =
         fields.toList().also { scalarFields ->
             scalarFields.forEach { field ->
@@ -364,7 +408,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `value object template renders json converter skeleton with normalized field types`() {
+    fun `value object template renders pure semantic value without persistence imports`() {
         val content = renderTemplate(
             templateId = ProjectConfig().artifactLayout.valueObject.id,
             outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/Money.kt",
@@ -385,19 +429,20 @@ class PebbleArtifactRendererTest {
                     "java.math.BigDecimal",
                 ),
                 "fields" to listOf(
-                    mapOf("name" to "amount", "renderedType" to "BigDecimal", "nullable" to false),
-                    mapOf("name" to "currency", "renderedType" to "CurrencyCode?", "nullable" to true),
+                    mapOf("name" to "amount", "renderedType" to "BigDecimal", "defaultValue" to null),
+                    mapOf("name" to "currency", "renderedType" to "CurrencyCode?", "defaultValue" to "null"),
                 ),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
             ),
         )
 
         assertReadableKotlin(content)
         assertTrue(content.contains("package com.acme.demo.domain.shared.values"))
-        assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
-        assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
-        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertFalse(content.contains("com.fasterxml.jackson"))
+        assertFalse(content.contains("jakarta.persistence"))
+        assertFalse(content.contains("ObjectMapper"))
+        assertFalse(content.contains("AttributeConverter"))
         assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertFalse(content.contains("import jakarta.persistence.Converter"))
         assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
         assertTrue(content.contains("import java.math.BigDecimal"))
         assertTrue(content.contains("@BuildingBlock("))
@@ -411,13 +456,81 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("variant = \"\""))
         assertTrue(content.contains("data class Money("))
         assertTrue(content.contains("val amount: BigDecimal,"))
-        assertTrue(content.contains("val currency: CurrencyCode?"))
+        assertTrue(content.contains("val currency: CurrencyCode? = null"))
+        assertFalse(content.contains("val amount: java.math.BigDecimal"))
+    }
+
+    @Test
+    fun `value object template renders flattened recursive nested values`() {
+        val content = renderTemplate(
+            templateId = ProjectConfig().artifactLayout.valueObject.id,
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.values",
+                "typeName" to "OrderAddress",
+                "name" to "OrderAddress",
+                "imports" to emptyList<String>(),
+                "fields" to listOf(
+                    mapOf("name" to "address", "renderedType" to "Address", "defaultValue" to null),
+                    mapOf("name" to "items", "renderedType" to "List<Item>", "defaultValue" to null),
+                ),
+                "nestedTypes" to listOf(
+                    mapOf(
+                        "name" to "Address",
+                        "fields" to listOf(
+                            mapOf("name" to "city", "renderedType" to "String", "defaultValue" to null),
+                        ),
+                    ),
+                    mapOf(
+                        "name" to "Item",
+                        "fields" to listOf(
+                            mapOf("name" to "name", "renderedType" to "String", "defaultValue" to null),
+                            mapOf("name" to "details", "renderedType" to "Details", "defaultValue" to null),
+                        ),
+                    ),
+                    mapOf(
+                        "name" to "Details",
+                        "fields" to listOf(
+                            mapOf("name" to "code", "renderedType" to "String?", "defaultValue" to "null"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("val address: Address,"))
+        assertTrue(content.contains("val items: List<Item>"))
+        assertTrue(content.contains("data class Address("))
+        assertTrue(content.contains("data class Item("))
+        assertTrue(content.contains("val details: Details"))
+        assertTrue(content.contains("data class Details("))
+        assertTrue(content.contains("val code: String? = null"))
+    }
+
+    @Test
+    fun `value object json converter template renders top level generated adapter`() {
+        val content = renderTemplate(
+            templateId = ProjectConfig().artifactLayout.valueObjectJsonConverter.id,
+            outputPath = "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/values/MoneyJsonAttributeConverter.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.values",
+                "typeName" to "MoneyJsonAttributeConverter",
+                "valueObjectTypeName" to "Money",
+                "valueObjectTypeFqn" to "com.acme.demo.domain.shared.values.Money",
+                "imports" to emptyList<String>(),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.fasterxml.jackson.databind.ObjectMapper"))
+        assertTrue(content.contains("import com.fasterxml.jackson.module.kotlin.readValue"))
+        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
         assertTrue(content.contains("@jakarta.persistence.Converter(autoApply = false)"))
-        assertTrue(content.contains("class Converter : AttributeConverter<Money, String>"))
-        assertTrue(content.contains("ObjectMapper().findAndRegisterModules()"))
+        assertTrue(content.contains("class MoneyJsonAttributeConverter : AttributeConverter<Money, String>"))
         assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
         assertTrue(content.contains("mapper.readValue<Money>(it)"))
-        assertFalse(content.contains("val amount: java.math.BigDecimal"))
+        assertFalse(content.contains("BuildingBlock"))
     }
 
     @Test
@@ -473,13 +586,16 @@ class PebbleArtifactRendererTest {
                 "typeName" to "VideoPostFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "VideoPostPayload",
-                "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to listOf(
-                    mapOf("name" to "title", "type" to "String", "nullable" to true),
+                    mapOf("name" to "title", "renderedType" to "String?", "defaultValue" to null),
                 ),
+                "rootConstructorFields" to listOf(mapOf("name" to "title")),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "VideoPost",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
                 "aggregateName" to "VideoPost",
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"),
             ),
         )
 
@@ -533,13 +649,14 @@ class PebbleArtifactRendererTest {
                 "typeName" to "VideoPostFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "VideoPostPayload",
-                "payloadWriteSurfaceResolved" to true,
-                "constructorMappingResolved" to false,
                 "payloadFields" to emptyList<Map<String, Any?>>(),
+                "rootConstructorFields" to emptyList<Map<String, Any?>>(),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "VideoPost",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
                 "aggregateName" to "VideoPost",
-                "imports" to emptyList<String>(),
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"),
                 "aggregateElement" to aggregateElementContext(
                     aggregate = "VideoPost",
                     name = "VideoPostFactory",
@@ -631,20 +748,21 @@ class PebbleArtifactRendererTest {
                 "typeName" to "ContentFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "ContentPayload",
-                "payloadWriteSurfaceResolved" to true,
-                "constructorMappingResolved" to true,
                 "payloadFields" to listOf(
-                    mapOf("name" to "title", "type" to "String", "nullable" to false),
-                    mapOf("name" to "authorId", "type" to "AuthorId", "nullable" to false),
+                    mapOf("name" to "title", "renderedType" to "String", "defaultValue" to null),
+                    mapOf("name" to "authorId", "renderedType" to "AuthorId", "defaultValue" to null),
                 ),
-                "constructorPayloadFields" to listOf(
+                "rootConstructorFields" to listOf(
                     mapOf("name" to "title"),
                     mapOf("name" to "authorId"),
                 ),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "Content",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
                 "aggregateName" to "Content",
                 "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.content.Content",
                     "com.acme.demo.domain.shared.ids.AuthorId",
                 ),
             ),
@@ -808,17 +926,16 @@ class PebbleArtifactRendererTest {
                 "typeName" to "VideoPostFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "VideoPostPayload",
-                "payloadWriteSurfaceResolved" to true,
-                "constructorMappingResolved" to true,
                 "payloadFields" to listOf(
-                    mapOf("name" to "title", "type" to "String", "nullable" to false)
+                    mapOf("name" to "title", "renderedType" to "String", "defaultValue" to null)
                 ),
-                "constructorPayloadFields" to listOf(mapOf("name" to "title")),
-                "constructorUnresolvedFields" to emptyList<Map<String, Any?>>(),
+                "rootConstructorFields" to listOf(mapOf("name" to "title")),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "VideoPost",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
                 "aggregateName" to "VideoPost",
-                "imports" to emptyList<String>(),
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"),
             ),
         )
 
@@ -895,44 +1012,6 @@ class PebbleArtifactRendererTest {
         assertFalse(factoryContent.contains("id ="), factoryContent)
         assertFalse(factoryContent.contains("version ="), factoryContent)
         assertFalse(factoryContent.contains("TODO(\"Implement aggregate construction\")"), factoryContent)
-    }
-
-    @Test
-    fun `generic managed unresolved factory keeps explicit construction TODO boundary`() {
-        val content = renderTemplate(
-            templateId = "aggregate/factory.kt.peb",
-            outputPath =
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/managed_audit/factory/ManagedAuditRecordFactory.kt",
-            context = mapOf(
-                "packageName" to "com.acme.demo.domain.aggregates.managed_audit.factory",
-                "typeName" to "ManagedAuditRecordFactory",
-                "payloadTypeName" to "Payload",
-                "payloadMetadataName" to "ManagedAuditRecordPayload",
-                "payloadWriteSurfaceResolved" to true,
-                "constructorMappingResolved" to false,
-                "payloadFields" to listOf(
-                    mapOf("name" to "title", "type" to "String", "nullable" to false)
-                ),
-                "constructorPayloadFields" to emptyList<Map<String, Any?>>(),
-                "constructorUnresolvedFields" to listOf(
-                    mapOf(
-                        "name" to "auditStamp",
-                        "type" to "String",
-                        "managed" to true,
-                        "managedRole" to "SYSTEM",
-                    )
-                ),
-                "entityName" to "ManagedAuditRecord",
-                "entityTypeFqn" to "com.acme.demo.domain.aggregates.managed_audit.ManagedAuditRecord",
-                "aggregateName" to "ManagedAuditRecord",
-                "imports" to emptyList<String>(),
-            ),
-        )
-
-        assertReadableKotlin(content)
-        assertTrue(content.contains("val title: String"), content)
-        assertTrue(content.contains("TODO(\"Implement aggregate construction\")"), content)
-        assertFalse(content.contains("ManagedAuditRecord("), content)
     }
 
     @Test
@@ -1194,16 +1273,16 @@ class PebbleArtifactRendererTest {
                         "typeName" to "${cell.typeName}Factory",
                         "payloadTypeName" to "Payload",
                         "payloadMetadataName" to "${cell.typeName}Payload",
-                        "payloadWriteSurfaceResolved" to true,
-                        "constructorMappingResolved" to true,
                         "payloadFields" to listOf(
-                            mapOf("name" to "title", "type" to "String", "nullable" to false)
+                            mapOf("name" to "title", "renderedType" to "String", "defaultValue" to null)
                         ),
-                        "constructorPayloadFields" to listOf(mapOf("name" to "title")),
+                        "rootConstructorFields" to listOf(mapOf("name" to "title")),
+                        "rootRelations" to emptyList<Map<String, Any?>>(),
+                        "helpers" to emptyList<Map<String, Any?>>(),
                         "entityName" to cell.typeName,
                         "entityTypeFqn" to "${cell.packageName}.${cell.typeName}",
                         "aggregateName" to cell.typeName,
-                        "imports" to emptyList<String>(),
+                        "imports" to listOf("${cell.packageName}.${cell.typeName}"),
                     ),
                 )
                 assertTrue(renderedFactory.contains("${cell.typeName}("), cell.typeName)
@@ -1369,7 +1448,6 @@ class PebbleArtifactRendererTest {
                 "typeName" to "VideoPostFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "VideoPostPayload",
-                "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to listOf(
                     mapOf(
                         "name" to "status",
@@ -1380,7 +1458,7 @@ class PebbleArtifactRendererTest {
                     mapOf(
                         "name" to "snapshot",
                         "type" to "com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot",
-                        "renderedType" to "VideoPostSnapshot",
+                        "renderedType" to "VideoPostSnapshot?",
                         "nullable" to true,
                     ),
                     mapOf(
@@ -1390,10 +1468,14 @@ class PebbleArtifactRendererTest {
                         "nullable" to false,
                     ),
                 ),
+                "rootConstructorFields" to emptyList<Map<String, Any?>>(),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "VideoPost",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
                 "aggregateName" to "VideoPost",
                 "imports" to listOf(
+                    "com.acme.demo.domain.aggregates.video_post.VideoPost",
                     "com.acme.demo.domain.aggregates.video_post.enums.VideoPostStatus",
                     "com.acme.demo.domain.aggregates.video_post.values.VideoPostSnapshot",
                     "java.time.LocalDateTime",
@@ -1523,11 +1605,14 @@ class PebbleArtifactRendererTest {
                 "typeName" to "VideoPostFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "VideoPostPayload",
-                "payloadWriteSurfaceResolved" to true,
                 "payloadFields" to emptyList<Map<String, Any?>>(),
+                "rootConstructorFields" to emptyList<Map<String, Any?>>(),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "VideoPost",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
                 "aggregateName" to "VideoPost",
+                "imports" to listOf("com.acme.demo.domain.aggregates.video_post.VideoPost"),
             ),
         )
 
@@ -1535,28 +1620,6 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class Payload : AggregatePayload<VideoPost>"))
         assertFalse(content.contains("data class Payload("))
         assertFalse(content.contains("val name: String"))
-    }
-
-    @Test
-    fun `aggregate factory template falls back to legacy payload contract when write surface is unresolved`() {
-        val content = renderTemplate(
-            templateId = "aggregate/factory.kt.peb",
-            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
-            context = mapOf(
-                "packageName" to "com.acme.demo.domain.aggregates.video_post.factory",
-                "typeName" to "VideoPostFactory",
-                "payloadTypeName" to "Payload",
-                "payloadMetadataName" to "VideoPostPayload",
-                "payloadWriteSurfaceResolved" to false,
-                "payloadFields" to emptyList<Map<String, Any?>>(),
-                "entityName" to "VideoPost",
-                "entityTypeFqn" to "com.acme.demo.domain.aggregates.video_post.VideoPost",
-                "aggregateName" to "VideoPost",
-            ),
-        )
-
-        assertFalse(content.contains(legacyAggregateCall))
-        assertTrue(content.contains("val name: String"))
     }
 
     @Test
@@ -1758,14 +1821,14 @@ class PebbleArtifactRendererTest {
                 "typeName" to "OrderFactory",
                 "payloadTypeName" to "Payload",
                 "payloadMetadataName" to "OrderPayload",
-                "payloadWriteSurfaceResolved" to true,
-                "constructorMappingResolved" to true,
                 "payloadFields" to emptyList<Map<String, Any?>>(),
-                "constructorPayloadFields" to emptyList<Map<String, Any?>>(),
+                "rootConstructorFields" to emptyList<Map<String, Any?>>(),
+                "rootRelations" to emptyList<Map<String, Any?>>(),
+                "helpers" to emptyList<Map<String, Any?>>(),
                 "entityName" to "Order",
                 "entityTypeFqn" to "com.acme.demo.domain.orders.Order",
                 "aggregateName" to "Order",
-                "imports" to emptyList<String>(),
+                "imports" to listOf("com.acme.demo.domain.orders.Order"),
             ),
         )
         val catalogFqn = "com.acme.demo.domain._share.identity.GeneratedOwnIdCatalogContribution"
@@ -5157,12 +5220,17 @@ class PebbleArtifactRendererTest {
                         "typeName" to "OrderFactory",
                         "payloadTypeName" to "Payload",
                         "payloadMetadataName" to "OrderPayload",
-                        "payloadWriteSurfaceResolved" to false,
-                        "payloadFields" to emptyList<Map<String, Any?>>(),
+                        "payloadFields" to listOf(
+                            mapOf("name" to "orderNo", "renderedType" to "String?", "defaultValue" to "null"),
+                        ),
+                        "rootConstructorFields" to listOf(mapOf("name" to "orderNo")),
+                        "rootRelations" to emptyList<Map<String, Any?>>(),
+                        "helpers" to emptyList<Map<String, Any?>>(),
                         "entityName" to "Order",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "aggregateName" to "Order",
                         "comment" to "Order aggregate",
+                        "imports" to listOf("com.acme.demo.domain.aggregates.order.Order"),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -5213,9 +5281,10 @@ class PebbleArtifactRendererTest {
         assertTrue(factoryContent.contains("import org.springframework.stereotype.Service"))
         assertTrue(factoryContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(factoryContent.contains("class OrderFactory : AggregateFactory<OrderFactory.Payload, Order>"))
-        assertTrue(factoryContent.contains("""TODO("Implement aggregate construction")"""))
+        assertFalse(factoryContent.contains("""TODO("Implement aggregate construction")"""))
+        assertTrue(factoryContent.contains("orderNo = entityPayload.orderNo"))
         assertTrue(factoryContent.contains("data class Payload("))
-        assertTrue(factoryContent.contains("val name: String"))
+        assertTrue(factoryContent.contains("val orderNo: String? = null"))
         assertTrue(schemaContent.contains("fun predicateById(id: Any): JpaPredicate<Order>"))
         assertTrue(schemaContent.contains("fun predicate(builder: PredicateBuilder<SOrder>): JpaPredicate<Order>"))
         assertFalse(schemaContent.contains("AggregatePredicate"))
@@ -6708,8 +6777,7 @@ class PebbleArtifactRendererTest {
                                 fields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "remark",
-                                        type = "String",
-                                        nullable = true,
+                                        type = "String?",
                                         defaultValue = "say \"hi\""
                                     )
                                 ),
@@ -6843,15 +6911,13 @@ class PebbleArtifactRendererTest {
                                     DrawingBoardFieldModel(
                                         name = "id",
                                         type = "Long",
-                                        nullable = false,
                                         defaultValue = null
                                     )
                                 ),
                                 resultFields = listOf(
                                     DrawingBoardFieldModel(
                                         name = "accepted",
-                                        type = "Boolean",
-                                        nullable = true,
+                                        type = "Boolean?",
                                         defaultValue = "false"
                                     )
                                 )
@@ -6898,16 +6964,16 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("\"persist\": true"))
         assertTrue(content.contains("\"fields\": ["))
         assertTrue(content.contains("\"name\": \"id\""))
-        assertTrue(content.contains("\"nullable\": false"))
         assertTrue(content.contains("\"resultFields\": ["))
         assertTrue(content.contains("\"name\": \"accepted\""))
-        assertTrue(content.contains("\"nullable\": true"))
+        assertTrue(content.contains("\"type\": \"Boolean?\""))
         assertTrue(content.contains("\"defaultValue\": \"false\""))
+        assertTrue(!content.contains("\"nullable\""))
         assertTrue(
             content.contains(
                 """
                 |    "fields": [
-                |      { "name": "id", "type": "Long", "nullable": false }
+                |      { "name": "id", "type": "Long" }
                 |    ],
                 """.trimMargin()
             )
@@ -6916,7 +6982,7 @@ class PebbleArtifactRendererTest {
             content.contains(
                 """
                 |    "resultFields": [
-                |      { "name": "accepted", "type": "Boolean", "nullable": true, "defaultValue": "false" }
+                |      { "name": "accepted", "type": "Boolean?", "defaultValue": "false" }
                 |    ]
                 """.trimMargin()
             )
@@ -7144,13 +7210,11 @@ class PebbleArtifactRendererTest {
                                     DrawingBoardFieldModel(
                                         name = "channels",
                                         type = "Set<String>",
-                                        nullable = false,
                                         defaultValue = "emptySet()",
                                     ),
                                     DrawingBoardFieldModel(
                                         name = "metadata",
-                                        type = "Map<String, String>",
-                                        nullable = true,
+                                        type = "Map<String, String>?",
                                         defaultValue = "null",
                                     ),
                                 ),
@@ -7158,13 +7222,11 @@ class PebbleArtifactRendererTest {
                                     DrawingBoardFieldModel(
                                         name = "channel",
                                         type = "SharedCaptchaChannel",
-                                        nullable = false,
                                         defaultValue = "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
                                     ),
                                     DrawingBoardFieldModel(
                                         name = "title",
                                         type = "String",
-                                        nullable = false,
                                         defaultValue = "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
                                     ),
                                 ),
@@ -7230,7 +7292,6 @@ class PebbleArtifactRendererTest {
                                 aggregates = listOf("Order"),
                                 persist = false,
                                 fields = listOf(
-                                    DrawingBoardFieldModel(name = "entity", type = "Order"),
                                     DrawingBoardFieldModel(name = "reason", type = "String"),
                                 ),
                                 resultFields = emptyList(),

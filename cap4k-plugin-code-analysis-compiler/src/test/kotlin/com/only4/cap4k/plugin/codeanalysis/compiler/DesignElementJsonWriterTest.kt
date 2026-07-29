@@ -23,10 +23,10 @@ class DesignElementJsonWriterTest {
                     DesignArtifact(family = "api-payload-handler"),
                 ),
                 fields = listOf(
-                    DesignField("globalId", "String", false, "0"),
-                    DesignField("account.accountNumber", "String", false, null)
+                    DesignField("globalId", "String", "0"),
+                    DesignField("account.accountNumber", "String")
                 ),
-                resultFields = listOf(DesignField("result", "Boolean", false, null))
+                resultFields = listOf(DesignField("result", "Boolean"))
             )
         )
 
@@ -34,7 +34,7 @@ class DesignElementJsonWriterTest {
         assertTrue(json.contains("\"name\":\"batchSaveAccountList\""))
         assertTrue(json.contains("\"description\":\"batch save accounts\""))
         assertTrue(json.contains("\"defaultValue\":\"0\""))
-        assertTrue(json.contains("\"nullable\":false"))
+        assertFalse(json.contains("\"nullable\""))
         assertTrue(json.contains("\"persist\":true"))
         assertTrue(json.contains("\"artifacts\":[{\"family\":\"api-payload\",\"variant\":\"list\"},{\"family\":\"api-payload-handler\"}]"))
         assertTrue(json.contains("\"fields\":["))
@@ -57,7 +57,7 @@ class DesignElementJsonWriterTest {
                 name = "MediaProcessingCallbackIntegrationEvent",
                 description = "media processing completed",
                 eventName = "cap4k.reference.contentstudio.media-processing.succeeded",
-                fields = listOf(DesignField("externalTaskId", "String", false, null)),
+                fields = listOf(DesignField("externalTaskId", "String")),
                 resultFields = emptyList(),
             )
         )

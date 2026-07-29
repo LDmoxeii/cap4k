@@ -229,7 +229,8 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .buildAndFail()
 
-        assertTrue(result.output.contains("invalid default value for field enabled"))
+        assertTrue(result.output.contains("invalid default value for semantic field"))
+        assertTrue(result.output.contains("enabled"))
         assertTrue(result.output.contains("Boolean defaults must be true or false"))
         assertFalse(generatedFile.toFile().exists())
     }
@@ -722,8 +723,9 @@ class PipelinePluginFunctionalTest {
             .withPluginClasspath()
             .withArguments("cap4kGenerate")
             .buildAndFail()
-        assertTrue(result.output.contains("failed to resolve type for field fileSpec: VideoPostProcessingFileSpecQry"))
-        assertTrue(result.output.contains("sibling design-entry references are not supported"))
+        assertTrue(result.output.contains("failed to resolve semantic type for field"))
+        assertTrue(result.output.contains("fileSpec (VideoPostProcessingFileSpecQry)"))
+        assertTrue(result.output.contains("unknown short type: VideoPostProcessingFileSpecQry"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -751,8 +753,9 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .buildAndFail()
 
-        assertTrue(result.output.contains("failed to resolve type for field ambiguousStatus: Status"))
-        assertTrue(result.output.contains("ambiguous short type: Status -> com.foo.Status, com.bar.Status"))
+        assertTrue(result.output.contains("failed to resolve semantic type for field"))
+        assertTrue(result.output.contains("ambiguousStatus (Status)"))
+        assertTrue(result.output.contains("ambiguous short type: Status matches com.foo.Status, com.bar.Status"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -970,7 +973,7 @@ class PipelinePluginFunctionalTest {
             outputPathSuffix = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt",
             outputKind = "CHECKED_IN_SOURCE",
             resolvedOutputRoot = "demo-domain/src/main/kotlin",
-            conflictPolicy = "OVERWRITE",
+            conflictPolicy = "SKIP",
         )
         assertPlanItemMetadata(
             planContent = planContent,
@@ -978,7 +981,7 @@ class PipelinePluginFunctionalTest {
             outputPathSuffix = "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPostBehavior.kt",
             outputKind = "CHECKED_IN_SOURCE",
             resolvedOutputRoot = "demo-domain/src/main/kotlin",
-            conflictPolicy = "FAIL",
+            conflictPolicy = "SKIP",
         )
         assertPlanItemMetadata(
             planContent = planContent,
@@ -1145,6 +1148,79 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(generatedEntityFile.toFile().exists())
         assertFalse(behaviorFile.toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `removing json persistence deletes stale generated value object converter`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-value-object-projection-removal")
+        copyCompileFixture(projectDir, "design-integrated-compile-sample")
+        writeValueObjectProjectionOnlyBuild(projectDir, includeManifestSource = true)
+        val manifest = projectDir.resolve("design/value-objects.json")
+        manifest.writeText(
+            manifest.readText().replace(
+                "\"package\": \"com.acme.demo.domain.shared.values\",",
+                "\"package\": \"com.acme.demo.domain.shared.values\",\n    \"persistence\": { \"kind\": \"json\" },",
+            )
+        )
+        val converter = projectDir.resolve(
+            generatedSource(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddressJsonAttributeConverter.kt"
+            )
+        )
+
+        val initialResult = FunctionalFixtureSupport
+            .runner(projectDir, "cap4kGenerate", "cap4kGenerateSources")
+            .build()
+        assertTrue(initialResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(converter.toFile().exists())
+
+        manifest.writeText(
+            manifest.readText().replace("    \"persistence\": { \"kind\": \"json\" },", "")
+        )
+
+        val refreshedResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerateSources").build()
+
+        assertTrue(refreshedResult.output.contains("BUILD SUCCESSFUL"))
+        assertEquals(TaskOutcome.SUCCESS, refreshedResult.task(":cap4kGenerateSources")?.outcome)
+        assertFalse(converter.toFile().exists())
+        assertTrue(
+            projectDir.resolve(
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt"
+            ).toFile().exists()
+        )
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `removing value object manifest source cleans historically managed converter root`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-value-object-source-removal")
+        copyCompileFixture(projectDir, "design-integrated-compile-sample")
+        writeValueObjectProjectionOnlyBuild(projectDir, includeManifestSource = true)
+        val manifest = projectDir.resolve("design/value-objects.json")
+        manifest.writeText(
+            manifest.readText().replace(
+                "\"package\": \"com.acme.demo.domain.shared.values\",",
+                "\"package\": \"com.acme.demo.domain.shared.values\",\n    \"persistence\": { \"kind\": \"json\" },",
+            )
+        )
+        val generatedRoot = projectDir.resolve("demo-domain/build/generated/cap4k/main/kotlin")
+        val converter = generatedRoot.resolve(
+            "com/acme/demo/domain/shared/values/OrderAddressJsonAttributeConverter.kt"
+        )
+
+        val initialResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerateSources").build()
+        assertEquals(TaskOutcome.SUCCESS, initialResult.task(":cap4kGenerateSources")?.outcome)
+        assertTrue(converter.toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/generated-source-managed-roots.json").toFile().exists())
+
+        writeValueObjectProjectionOnlyBuild(projectDir, includeManifestSource = false)
+        val refreshedResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerateSources").build()
+
+        assertTrue(refreshedResult.output.contains("BUILD SUCCESSFUL"))
+        assertEquals(TaskOutcome.SUCCESS, refreshedResult.task(":cap4kGenerateSources")?.outcome)
+        assertFalse(converter.toFile().exists())
+        assertFalse(generatedRoot.toFile().exists())
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1460,7 +1536,6 @@ class PipelinePluginFunctionalTest {
             .withPluginClasspath()
             .withArguments("cap4kPlan")
             .build()
-        val planContent = projectDir.resolve("build/cap4k/plan.json").readText()
         fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/demo", "h2/generate"))
 
         val result = GradleRunner.create()
@@ -1556,16 +1631,6 @@ class PipelinePluginFunctionalTest {
         val generatedIdentityFactory = projectDir.generatedFile(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/factory/VideoPostFactory.kt"
         ).readText()
-        val factoryContexts = JsonParser.parseString(planContent)
-            .asJsonObject
-            .getAsJsonArray("items")
-            .map { it.asJsonObject }
-            .filter { it.get("templateId").asString == "aggregate/factory.kt.peb" }
-            .associate { item ->
-                val context = item.getAsJsonObject("context")
-                context.get("entityName").asString to context
-            }
-
         assertTrue(domainBuildFile == "// Functional fixture module.")
         assertTrue(applicationBuildFile == "// Functional fixture module.")
         assertTrue(adapterBuildFile == "// Functional fixture module.")
@@ -1624,7 +1689,6 @@ class PipelinePluginFunctionalTest {
                 generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
                 cell.accessorType,
             )
-            assertEquals(true, factoryContexts.getValue(cell.entityName).get("constructorMappingResolved").asBoolean)
             assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
             assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
             assertTrue(factory.contains("val title: String"), cell.factoryType)
@@ -1634,7 +1698,6 @@ class PipelinePluginFunctionalTest {
             assertFalse(factory.contains(cell.idType), cell.factoryType)
         }
 
-        assertEquals(true, factoryContexts.getValue("VideoPost").get("constructorMappingResolved").asBoolean)
         assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(generatedIdentityFactory.contains("deleted"))
 
@@ -1939,7 +2002,7 @@ class PipelinePluginFunctionalTest {
             outputPathSuffix = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/addon/AddonGeneratedMarker.kt",
             outputKind = "CHECKED_IN_SOURCE",
             resolvedOutputRoot = "demo-adapter/src/main/kotlin",
-            conflictPolicy = "OVERWRITE",
+            conflictPolicy = "SKIP",
         )
         assertTrue(generatedAddonArtifact.toFile().exists())
         assertTrue(generatedAddonArtifact.readText().contains("val source: String = \"addon-jar\""))
@@ -1974,7 +2037,8 @@ class PipelinePluginFunctionalTest {
             .build()
 
         assertTrue(overrideResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(generatedAddonArtifact.readText().contains("val source: String = \"project-override\""))
+        assertTrue(generatedAddonArtifact.readText().contains("val source: String = \"addon-jar\""))
+        assertFalse(generatedAddonArtifact.readText().contains("val source: String = \"project-override\""))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -3196,6 +3260,35 @@ class PipelinePluginFunctionalTest {
         closeEntry()
     }
 
+    private fun writeValueObjectProjectionOnlyBuild(projectDir: Path, includeManifestSource: Boolean) {
+        val manifestBlock = if (includeManifestSource) {
+            """
+            types {
+                valueObjectManifest {
+                    files.from("design/value-objects.json")
+                }
+            }
+            """.trimIndent()
+        } else {
+            ""
+        }
+        projectDir.resolve("build.gradle.kts").writeText(
+            """
+            plugins {
+                id("io.github.ldmoxeii.cap4k.pipeline")
+            }
+
+            cap4k {
+                project {
+                    basePackage.set("com.acme.demo")
+                    domainModulePath.set("demo-domain")
+                }
+                $manifestBlock
+            }
+            """.trimIndent()
+        )
+    }
+
     private fun generatedSource(relativePath: String): String =
         relativePath.replace("/src/main/kotlin/", "/build/generated/cap4k/main/kotlin/")
 
@@ -3277,10 +3370,10 @@ class PipelinePluginFunctionalTest {
                   { "family": "query-handler" }
                 ],
                 "fields": [
-                  { "name": "orderId", "type": "Long", "nullable": false }
+                  { "name": "orderId", "type": "Long" }
                 ],
                 "resultFields": [
-                  { "name": "orderId", "type": "Long", "nullable": false }
+                  { "name": "orderId", "type": "Long" }
                 ]
               },
               {
@@ -3295,8 +3388,8 @@ class PipelinePluginFunctionalTest {
                   { "family": "integration-subscriber" }
                 ],
                 "fields": [
-                  { "name": "paymentId", "type": "String", "nullable": false },
-                  { "name": "orderId", "type": "Long", "nullable": false }
+                  { "name": "paymentId", "type": "String" },
+                  { "name": "orderId", "type": "Long" }
                 ]
               },
               {
@@ -3307,7 +3400,7 @@ class PipelinePluginFunctionalTest {
                 "aggregates": ["Order"],
                 "persist": false,
                 "fields": [
-                  { "name": "reason", "type": "String", "nullable": false }
+                  { "name": "reason", "type": "String" }
                 ]
               }
             ]
