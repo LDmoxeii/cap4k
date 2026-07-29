@@ -38,7 +38,7 @@ object FunctionalFixtureSupport {
     fun copyCompileFixture(targetDir: Path, fixtureName: String) {
         copyFixture(targetDir, fixtureName)
 
-        val repoRoot = discoverRepositoryRoot()
+        val repoRoot = repositoryRoot()
         val settingsFile = targetDir.resolve("settings.gradle.kts")
         val repoPath = repoRoot.toString()
             .replace("\\", "/")
@@ -50,6 +50,8 @@ object FunctionalFixtureSupport {
         .withProjectDir(projectDir.toFile())
         .withPluginClasspath()
         .withArguments(*arguments)
+
+    fun repositoryRoot(): Path = discoverRepositoryRoot()
 
     fun generateThenCompile(projectDir: Path, vararg compileTasks: String): Pair<BuildResult, BuildResult> {
         require(compileTasks.isNotEmpty()) {

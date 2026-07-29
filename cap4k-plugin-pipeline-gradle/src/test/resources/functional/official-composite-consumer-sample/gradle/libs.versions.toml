@@ -1,0 +1,33 @@
+[versions]
+cap4k = "999.0.0-local"
+kotlin = "2.2.20"
+spring-boot = "3.5.6"
+
+[libraries]
+cap4k-ddd-core = { module = "io.github.ldmoxeii:ddd-core", version.ref = "cap4k" }
+cap4k-ddd-domain-repo-jpa = { module = "io.github.ldmoxeii:ddd-domain-repo-jpa", version.ref = "cap4k" }
+cap4k-ddd-jpa-starter = { module = "io.github.ldmoxeii:cap4k-ddd-jpa-starter", version.ref = "cap4k" }
+
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-context = { module = "org.springframework:spring-context" }
+spring-data-jpa = { module = "org.springframework.data:spring-data-jpa" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+jakarta-persistence = { module = "jakarta.persistence:jakarta.persistence-api" }
+jakarta-validation = { module = "jakarta.validation:jakarta.validation-api" }
+
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+
+h2 = { module = "com.h2database:h2" }
+
+[plugins]
+cap4k-pipeline = { id = "io.github.ldmoxeii.cap4k.pipeline", version.ref = "cap4k" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

@@ -15,6 +15,7 @@
 - [runtime-and-integration-map.md](runtime-and-integration-map.md) - runtime tactical behavior、集成入口和运行期约束。
 - [analysis-flow-and-verification-map.md](analysis-flow-and-verification-map.md) - compiler analysis、flow、drawing-board 和验证链路。
 - [release-map.md](release-map.md) - Maven Central release 和发布检查入口。
+- [local-composite-development.md](local-composite-development.md) - cap4k 与 consumer 同机联调的显式 Composite Build 入口。
 - [documentation-and-skill-drift-map.md](documentation-and-skill-drift-map.md) - downstream docs/public/ 与 skills/ drift 检查入口。
 
 ## Quick Reading Path
@@ -26,4 +27,5 @@
 - runtime tactical behavior -> [runtime-and-integration-map.md](runtime-and-integration-map.md)
 - compiler analysis, flow, drawing-board -> [analysis-flow-and-verification-map.md](analysis-flow-and-verification-map.md)
 - Maven Central release -> [release-map.md](release-map.md)
+- 本地 cap4k/consumer 联调 -> [local-composite-development.md](local-composite-development.md)
 - public docs or skills drift -> [documentation-and-skill-drift-map.md](documentation-and-skill-drift-map.md)

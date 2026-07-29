@@ -14,11 +14,11 @@ Before modifying files, committing, pushing, or opening a pull request, check th
 
 - run `git status --short --branch`
 - run `git branch --show-current`
-- if the current branch is `master`, `publish/aliyun-private`, or `publish/maven-central`, stop and create or switch to an isolated worktree before editing
+- if the current branch is `master`, stop and create or switch to an isolated worktree before editing
 - normal implementation and documentation work starts from `origin/master`
 - use a short-lived branch such as `feature/*`, `fix/*`, or `docs/*`; docs/spec/plan edits are not an exception to this rule
 - use the existing `.worktrees/` directory for project-local worktrees when it is available and ignored
-- do not reuse a worktree that is currently checked out on a publish branch for mainline work
+- historical `publish/*` refs, if they still exist during release-governance migration, are retirement targets rather than valid working bases
 
 Reading, searching, and review-only commands may run on `master`. Any repository mutation must happen on a non-protected working branch.
 
@@ -66,67 +66,57 @@ There are three kinds of work in this repo now:
 
 ## Branch And Release Policy
 
-`cap4k` has three long-lived branches:
+`cap4k` has one long-lived source branch: `master`.
 
-- `master`
-- `publish/aliyun-private`
-- `publish/maven-central`
-
-`cap4k` does not use a long-lived `develop` branch, `release/vX.Y.Z` branch, or `verify/* -> publish/*` lane as a normal integration or release-promotion path.
+`cap4k` does not use long-lived `develop`, `release/*`, `verify/*`, or `publish/*` branches. Artifact destinations and local source substitution are not source-branch roles.
 
 Use these branch roles instead:
 
 - `feature/*`, `fix/*`, `docs/*`: short-lived working branches for normal changes
 - `master`: the main integration branch for framework development
-- `publish/aliyun-private`: private Aliyun snapshot publish channel
-- `publish/maven-central`: Maven Central release channel
 
-Expected promotion flow:
+Expected integration and release flow:
 
 1. `feature/* -> master`
-2. `master -> publish/aliyun-private` when the Aliyun snapshot channel needs the accepted master content
-3. `master -> publish/maven-central` when the Central release channel needs the accepted master content
-4. `publish/aliyun-private` push -> Aliyun snapshot publish
-5. `publish/maven-central` commit -> `v*` tag -> Maven Central release
+2. accepted `master` commit -> exact `v<major>.<minor>.<patch>` tag
+3. tag workflow -> Maven Central release and GitHub Release
 
 Direct-development rules:
 
 - do not implement normal work directly on `master`; start from a short-lived branch in an isolated worktree
 - do not commit directly on `master`; land mainline code through `feature/* -> master` pull requests
-- do not implement normal work directly on either publish branch; publish branches are release channels, not feature branches
-- do not commit directly on either publish branch; publish-channel updates must come from `master` by pull request
-- if a branch is an issue branch, ad-hoc branch, docs branch, or any other working branch, treat it like `feature/*`: it must land on `master`, not directly on a publish branch
+- if a historical publish branch still exists during migration, do not merge, commit, tag, or open new promotion PRs against it
 
 Pull request policy:
 
 - working branch -> `master`: required
-- `master -> publish/aliyun-private`: required for Aliyun promotion
-- `master -> publish/maven-central`: required for Central promotion
-- do not open working-branch, issue-branch, ad-hoc-branch, docs-branch, or `verify/*` pull requests into either publish branch
-- publish-branch pull requests must use same-repository `master` as the head branch
+- `master` is the only supported PR base
+- the head must be an unqualified same-repository short-lived branch, not `master` or another long-lived branch
+- release workflow and governance changes follow the same working-branch -> `master` path as other changes
 - before opening a pull request, use `scripts/create-pr.ps1` so tracked PR templates are discovered case-insensitively, the completed body is validated against the template headings, and the created PR body is checked after creation
 - direct `gh pr create` usage is reserved for cases where `scripts/create-pr.ps1` cannot run; when using it directly, first discover templates with `git ls-files | rg -i '(^|/)(pull_request_template\.md|pull_request_template/.*\.md)$'`, fill the tracked template, and validate the final body with `scripts/validate-pr-body.ps1 -Base <base-branch> -RequireChangeType`
 
 CI and branch protection contract:
 
 - the required status check context is `check`
-- `master`, `publish/aliyun-private`, and `publish/maven-central` are protected by required PRs, strict `check`, and admin enforcement
+- `master` is protected by required PRs, strict `check`, and admin enforcement
 - PRs into `master` run Gradle only when the change can affect code, build, scripts, workflows, tests, fixtures, or template resources
 - docs-only PRs into `master` skip Gradle but still complete the required `check` job
 - PR workflow guard tests run in the required `check` job for normal and docs-only pull requests so PR template and PR creation scripts stay aligned
 - docs-only includes `docs/**`, `README*`, root Markdown files, `.github/ISSUE_TEMPLATE/**`, and `.github/PULL_REQUEST_TEMPLATE.md`
 - `.github/workflows/**`, `scripts/**`, `buildSrc/**`, `gradle/**`, Gradle files, source files, test files, fixtures, and template resources are not docs-only
-- PRs into publish branches only validate that the head is same-repository `master`; they do not run Gradle because `master` already carried the full check
-- if GitHub rejects a publish PR because the head is not `master`, do not bypass protection; land the work on `master` first and promote `master`
 
 Release safety rules:
 
-- `master` should stay free of mandatory Central or private-repository publishing credentials
-- publish workflow changes are normal mainline changes: working branch -> `master`, then `master -> publish/*`
+- `master`, ordinary CI, local Composite Builds, and consumer builds must stay free of mandatory publishing credentials
+- publish workflow changes are normal mainline changes: working branch -> `master`
 - publish workflows do not run duplicate Gradle `check`
-- Aliyun snapshot publish is branch-push-driven from `publish/aliyun-private`
-- Maven Central release is tag-driven, not branch-push-driven
-- only push release tags for commits that are contained in `origin/publish/maven-central`
+- Maven Central release is driven only by an exact `v<major>.<minor>.<patch>` tag
+- only push release tags for commits that are contained in `origin/master`
+- do not add Aliyun, Central Snapshot, another remote Snapshot channel, or `com.only4` compatibility without a new confirmed design
+- local cap4k/consumer co-development uses an explicitly enabled Gradle Composite Build; the official Template must not contain sibling paths, Snapshot repositories, filesystem repositories, or `mavenLocal()`
+- keep the existing `v2.0.1` tag and historical promotion merges unchanged; the single-mainline contract applies to future releases
+- retire historical publish branches, their protection rules, and Aliyun secrets only after the single-mainline workflow is merged and its required smoke checks pass
 - do not use `develop` as the default base branch for new work, release prep, or issue execution
 
 ## Continuing Work
