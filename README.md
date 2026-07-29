@@ -6,6 +6,10 @@
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/LDmoxeii/cap4k/blob/master/LICENSE)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/LDmoxeii/cap4k)
 
+[![使用官方模板](https://img.shields.io/badge/%E4%BD%BF%E7%94%A8%E5%AE%98%E6%96%B9%E6%A8%A1%E6%9D%BF-2ea44f?style=for-the-badge&logo=github)](https://github.com/LDmoxeii/cap4k-template/generate)
+
+点击上方按钮，基于 cap4k 官方模板创建你自己的项目仓库。创建完成后，将新仓库克隆到本地，就可以开始设计领域模型。
+
 cap4k 是面向后端业务系统的 DDD 战术框架与生成器协作工具，用 Clean Architecture、明确的生成/手写边界和可审阅证据帮助团队把业务模型落成代码。
 
 <!-- IMAGE_PROMPT:
