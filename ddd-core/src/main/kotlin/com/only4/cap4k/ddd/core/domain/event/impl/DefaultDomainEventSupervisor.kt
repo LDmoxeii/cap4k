@@ -1,17 +1,17 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
-import com.only4.cap4k.ddd.core.CapabilityUnavailableException
+import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
+import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.findMethod
-import org.springframework.context.ApplicationEventPublisher
 import java.time.LocalDateTime
 
 /**
@@ -19,7 +19,7 @@ import java.time.LocalDateTime
  */
 open class DefaultDomainEventSupervisor(
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
-    private val applicationEventPublisher: ApplicationEventPublisher,
+    private val eventSubscriberManager: EventSubscriberManager,
     private val reliableDomainEventProvider: ReliableDomainEventProvider? = null,
     private val integrationEventManager: IntegrationEventManager? = null,
 ) : DomainEventSupervisor, DomainEventManager {
@@ -35,7 +35,7 @@ open class DefaultDomainEventSupervisor(
         schedule: LocalDateTime,
     ) {
         validateDomainEvent(domainEventPayload)
-        EventRuntimeContext.currentOrCreateAmbient()
+        EventRuntimeContext.attachmentScope()
             .attachDomain(entity, EventAttachment.eager(domainEventPayload, schedule))
         domainEventInterceptorManager.orderedDomainEventInterceptors
             .forEach { it.onAttach(domainEventPayload, entity, schedule) }
@@ -46,12 +46,12 @@ open class DefaultDomainEventSupervisor(
         schedule: LocalDateTime,
         domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     ) {
-        EventRuntimeContext.currentOrCreateAmbient()
+        EventRuntimeContext.attachmentScope()
             .attachDomain(entity, EventAttachment.lazy(schedule, domainEventPayloadSupplier))
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
-        val eventPayloads = EventRuntimeContext.currentOrNull()?.domainAttachments?.get(entity) ?: return
+        val eventPayloads = EventRuntimeContext.attachmentScope().domainAttachments[entity] ?: return
         val identityIndex = eventPayloads.indexOfFirst { it.matchesIdentity(domainEventPayload) }
         val removeIndex = if (identityIndex >= 0) identityIndex else eventPayloads.indexOfFirst { it.matches(domainEventPayload) }
         if (removeIndex < 0) return
@@ -61,7 +61,7 @@ open class DefaultDomainEventSupervisor(
     }
 
     override fun release(entities: Set<Any>) {
-        val ambientScope = EventRuntimeContext.currentOrNull()
+        val ambientScope = EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull()
         val popAmbient = ambientScope?.type == EventRuntimeScopeType.AMBIENT
         var completed = false
         try {
@@ -87,6 +87,19 @@ open class DefaultDomainEventSupervisor(
         }
     }
 
+    override fun pendingCount(): Int =
+        (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
+            ?.domainAttachments
+            ?.values
+            ?.sumOf { it.size }
+            ?: 0
+
+    override fun discard(entity: Any) {
+        (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
+            ?.domainAttachments
+            ?.remove(entity)
+    }
+
     protected open fun requiresReliableProvider(
         eventPayload: Any,
         schedule: LocalDateTime,
@@ -94,7 +107,7 @@ open class DefaultDomainEventSupervisor(
     ): Boolean = eventPayload.javaClass.getAnnotation(DomainEvent::class.java)?.persist == true || schedule.isAfter(now)
 
     private fun reliableProvider(): ReliableDomainEventProvider = reliableDomainEventProvider
-        ?: throw CapabilityUnavailableException("reliable-domain-events", "cap4k-ddd-domain-event-jpa-starter")
+        ?: throw ProviderUnavailableException("reliable-domain-events", "cap4k-ddd-domain-event-jpa-starter")
 
     private fun publishLocal(eventPayload: Any) {
         val outerScope = EventRuntimeContext.currentOrNull()
@@ -102,10 +115,12 @@ open class DefaultDomainEventSupervisor(
         outerScope?.captureListenerMetadata()?.let(dispatchScope::restoreListenerMetadata)
         var completed = false
         try {
-            applicationEventPublisher.publishEvent(eventPayload)
+            EventRuntimeContext.withCausalFrame("Event:${eventPayload.javaClass.name}") {
+                eventSubscriberManager.dispatch(eventPayload)
+            }
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
                 (integrationEventManager
-                    ?: throw CapabilityUnavailableException(
+                    ?: throw ProviderUnavailableException(
                         "integration-event-manager",
                         "a cap4k Integration Event transport starter",
                     )).release()
@@ -118,7 +133,11 @@ open class DefaultDomainEventSupervisor(
     }
 
     private fun popEvents(entity: Any): List<EventAttachment<Any>> =
-        EventRuntimeContext.currentOrNull()?.domainAttachments?.remove(entity)?.toList().orEmpty()
+        (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
+            ?.domainAttachments
+            ?.remove(entity)
+            ?.toList()
+            .orEmpty()
 
     private fun popSpringDataEvents(entity: Any): List<EventAttachment<Any>> {
         val aggregateRootType = generateSequence(entity.javaClass) { it.superclass }
@@ -138,6 +157,7 @@ open class DefaultDomainEventSupervisor(
         if (eventPayload.javaClass.isAnnotationPresent(IntegrationEvent::class.java)) {
             throw DomainException("事件类型不能为集成事件")
         }
+        DomainEventPayloadValidator.validate(eventPayload)
     }
 
     private fun cleanupAmbientScope(scope: EventRuntimeScope?, shouldPop: Boolean, completed: Boolean) {

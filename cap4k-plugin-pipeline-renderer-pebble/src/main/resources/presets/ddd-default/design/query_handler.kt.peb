@@ -2,7 +2,7 @@
 {{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
 {% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
-{{ use("com.only4.cap4k.ddd.core.application.query.Query") -}}
+{{ use("com.only4.cap4k.ddd.core.application.query.QueryHandler") -}}
 package {{ packageName }}
 
 {% for import in imports(imports) -%}
@@ -27,9 +27,9 @@ import {{ import }}
     variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}{% endif %}
 )
 {% endif -%}
-class {{ typeName }} : Query<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
+class {{ typeName }} : QueryHandler<{{ queryTypeName }}.Request, {{ queryTypeName }}.Response> {
 
-    override fun exec(request: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
+    override fun handle(query: {{ queryTypeName }}.Request): {{ queryTypeName }}.Response {
 {%- if resultFields|length > 0 %}
         return {{ queryTypeName }}.Response(
 {%- for field in resultFields %}

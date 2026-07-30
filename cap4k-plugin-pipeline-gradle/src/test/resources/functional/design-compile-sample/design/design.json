@@ -95,7 +95,7 @@
     ]
   },
   {
-    "tag": "client",
+    "tag": "capability",
     "package": "authorize",
     "name": "IssueToken",
     "description": "issue token",

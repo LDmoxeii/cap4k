@@ -544,69 +544,6 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `parses domain service and saga entries`() {
-        val tempFile = tempDir.resolve("design.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "domain_service",
-                    "package": "content.domain",
-                    "name": "ContentPublicationPolicy",
-                    "description": "publication policy",
-                    "aggregates": ["Content"]
-                  },
-                  {
-                    "tag": "saga",
-                    "package": "content.workflow",
-                    "name": "PublishContentSaga",
-                    "description": "publish content",
-                    "fields": [{ "name": "contentId", "type": "ContentId" }]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
-
-        assertEquals(listOf("domain_service", "saga"), snapshot.entries.map { it.tag })
-        assertEquals(listOf("Content"), snapshot.entries[0].aggregates)
-        assertEquals("contentId", snapshot.entries[1].fields.single().name)
-    }
-
-    @Test
-    fun `rejects saga result fields`() {
-        val tempFile = tempDir.resolve("saga-result-fields.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "saga",
-                    "package": "content.workflow",
-                    "name": "PublishContentSaga",
-                    "description": "publish content",
-                    "fields": [{ "name": "contentId", "type": "ContentId" }],
-                    "resultFields": [{ "name": "accepted", "type": "Boolean" }]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals(
-            "design entry PublishContentSaga cannot declare resultFields on tag: saga",
-            error.message,
-        )
-    }
-
-    @Test
     fun `validator tag is unsupported as a normal design tag`() {
         val tempFile = tempDir.resolve("design.json")
         Files.writeString(
@@ -626,7 +563,7 @@ class DesignJsonSourceProviderTest {
 
     @Test
     fun `rejects legacy design tag aliases`() {
-        val legacyTags = listOf("cmd", "qry", "cli", "clients", "payload", "de", "query_list", "query_page")
+        val legacyTags = listOf("cmd", "qry", "cli", "capabilities", "payload", "de", "query_list", "query_page")
 
         legacyTags.forEach { legacyTag ->
             val tempFile = tempDir.resolve("legacy-${legacyTag}.json")

@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.checkpoint-manifest.v1",
+  "change": "application-execution-uow-stabilization",
+  "artifacts": [
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/CommandSupervisor.kt",
+      "hash": "6fef41f3faa9d0755dd0bfbcb6c58b026bb96551448eeabaecda7ece8fa890af",
+      "size": 520
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/impl/DefaultCommandSupervisor.kt",
+      "hash": "e902def7f1f813b91ffd169884a6aa8fc5dc00f1e7387c85c05e03debb616ccd",
+      "size": 2071
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventSubscriberManager.kt",
+      "hash": "44612438eac4147efe54d63aaf23c05109f801ab03743d55d9a4cd790846aa60",
+      "size": 3460
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-30-cap4k-application-execution-and-uow-stabilization-design.md",
+      "hash": "9b82f4fd4ec95e03cb6345a650e3ff154f7b2246755dc748ffd968b57b7c90e8",
+      "size": 42974
+    }
+  ],
+  "totalBytes": 49025
+}

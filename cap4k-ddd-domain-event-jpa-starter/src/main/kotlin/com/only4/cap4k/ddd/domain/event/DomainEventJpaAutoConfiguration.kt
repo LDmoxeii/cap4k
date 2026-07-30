@@ -37,7 +37,7 @@ import java.time.Duration
 @EnableConfigurationProperties(EventProperties::class, EventScheduleProperties::class)
 class DomainEventJpaAutoConfiguration {
     companion object {
-        const val COMPENSATION_LOCKER_KEY = "event_compense[$CONFIG_KEY_4_SVC_NAME]"
+        const val RETRY_LOCKER_KEY = "event_retry[$CONFIG_KEY_4_SVC_NAME]"
         const val ARCHIVE_LOCKER_KEY = "event_archive[$CONFIG_KEY_4_SVC_NAME]"
     }
 
@@ -103,7 +103,7 @@ class DomainEventJpaAutoConfiguration {
         eventRecordRepository: EventRecordRepository,
         locker: Locker,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
-        @Value(COMPENSATION_LOCKER_KEY) compensationLockerKey: String,
+        @Value(RETRY_LOCKER_KEY) retryLockerKey: String,
         @Value(ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         properties: EventScheduleProperties,
         jdbcTemplate: JdbcTemplate,
@@ -112,7 +112,7 @@ class DomainEventJpaAutoConfiguration {
         eventRecordRepository,
         locker,
         serviceName,
-        compensationLockerKey,
+        retryLockerKey,
         archiveLockerKey,
         properties.addPartitionEnable,
         jdbcTemplate,
@@ -128,12 +128,11 @@ class DomainEventJpaAutoConfiguration {
         private val service: JpaEventScheduleService,
         private val properties: EventScheduleProperties,
     ) {
-        @Scheduled(cron = "\${cap4k.ddd.domain.event.schedule.compenseCron:\${cap4k.ddd.domain.event.schedule.compense-cron:0 * * * * ?}}")
-        fun compensation() = service.compense(
-            properties.compenseBatchSize,
-            properties.compenseMaxConcurrency,
-            Duration.ofSeconds(properties.compenseIntervalSeconds.toLong()),
-            Duration.ofSeconds(properties.compenseMaxLockSeconds.toLong()),
+        @Scheduled(cron = "\${cap4k.ddd.domain.event.schedule.retryCron:\${cap4k.ddd.domain.event.schedule.retry-cron:0 * * * * ?}}")
+        fun retry() = service.retry(
+            properties.retryBatchSize,
+            Duration.ofSeconds(properties.retryIntervalSeconds.toLong()),
+            Duration.ofSeconds(properties.retryMaxLockSeconds.toLong()),
         )
 
         @Scheduled(cron = "\${cap4k.ddd.domain.event.schedule.archiveCron:\${cap4k.ddd.domain.event.schedule.archive-cron:0 0 2 * * ?}}")

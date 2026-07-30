@@ -1,0 +1,38 @@
+{% if buildingBlock is defined -%}
+{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{% endif -%}
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use("com.only4.cap4k.ddd.core.application.capability.CapabilityHandler") -}}
+package {{ packageName }}
+
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+@Service
+{% if buildingBlock is defined -%}
+@BuildingBlock(
+    tag = {{ buildingBlock.tagKotlinStringLiteral | raw }},
+    name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
+    packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
+    description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
+    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]{% if buildingBlock.eventName is not empty %},
+    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }}{% endif %},
+    family = {{ buildingBlock.familyKotlinStringLiteral | raw }}{% if buildingBlock.variant is not empty %},
+    variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}{% endif %}
+)
+{% endif -%}
+class {{ typeName }} : CapabilityHandler<{{ capabilityTypeName }}.Request, {{ capabilityTypeName }}.Response> {
+
+    override fun call(request: {{ capabilityTypeName }}.Request): {{ capabilityTypeName }}.Response {
+{%- if resultFields|length > 0 %}
+        return {{ capabilityTypeName }}.Response(
+{%- for field in resultFields %}
+            {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
+{%- endfor %}
+        )
+{%- else %}
+        return {{ capabilityTypeName }}.Response
+{%- endif %}
+    }
+}

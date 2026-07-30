@@ -62,7 +62,7 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
-    fun `excludes query cli and validator paths from default causal chain`() {
+    fun `excludes query capability and validator paths from default causal chain`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -71,16 +71,16 @@ class FlowArtifactPlannerTest {
                     node("SearchOrdersQuerySender", "querysendermethod"),
                     node("SearchOrdersQuery", "query"),
                     node("SearchOrdersQueryHandler", "queryhandler"),
-                    node("ExportOrdersCliSender", "clisendermethod"),
-                    node("ExportOrdersCli", "cli"),
-                    node("ExportOrdersCliHandler", "clihandler"),
+                    node("ExportOrdersCapabilitySender", "capabilitysendermethod"),
+                    node("ExportOrdersCapability", "capability"),
+                    node("ExportOrdersCapabilityHandler", "capabilityhandler"),
                     node("SearchOrdersValidator", "validator"),
                 ),
                 edges = listOf(
                     edge("SearchOrdersQuerySender", "SearchOrdersQuery", "QuerySenderMethodToQuery"),
                     edge("SearchOrdersQuery", "SearchOrdersQueryHandler", "QueryToQueryHandler"),
-                    edge("ExportOrdersCliSender", "ExportOrdersCli", "CliSenderMethodToCli"),
-                    edge("ExportOrdersCli", "ExportOrdersCliHandler", "CliToCliHandler"),
+                    edge("ExportOrdersCapabilitySender", "ExportOrdersCapability", "CapabilitySenderMethodToCapability"),
+                    edge("ExportOrdersCapability", "ExportOrdersCapabilityHandler", "CapabilityToCapabilityHandler"),
                     edge("SearchOrdersValidator", "SearchOrdersQuery", "ValidatorToQuery"),
                 ),
             ),
@@ -94,7 +94,7 @@ class FlowArtifactPlannerTest {
         assertEquals("flows/index.json", plan.last().outputPath)
         assertTrue(indexJson.contains("\"flowCount\": 0"))
         assertFalse(indexJson.contains("\"querysendermethod\": 1"))
-        assertFalse(indexJson.contains("\"clisendermethod\": 1"))
+        assertFalse(indexJson.contains("\"capabilitysendermethod\": 1"))
         assertFalse(indexJson.contains("\"validator\": 1"))
     }
 
@@ -128,19 +128,19 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
-    fun `does not emit controller cli roots without causal outgoing edges`() {
+    fun `does not emit controller capability roots without causal outgoing edges`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
                 inputDirs = listOf("app/build/cap4k-code-analysis"),
                 nodes = listOf(
                     node("OpsController::rebuildIndex", "controllermethod"),
-                    node("RebuildIndexCli", "cli"),
-                    node("RebuildIndexCliHandler", "clihandler"),
+                    node("RebuildIndexCapability", "capability"),
+                    node("RebuildIndexCapabilityHandler", "capabilityhandler"),
                 ),
                 edges = listOf(
-                    edge("OpsController::rebuildIndex", "RebuildIndexCli", "ControllerMethodToCli"),
-                    edge("RebuildIndexCli", "RebuildIndexCliHandler", "CliToCliHandler"),
+                    edge("OpsController::rebuildIndex", "RebuildIndexCapability", "ControllerMethodToCapability"),
+                    edge("RebuildIndexCapability", "RebuildIndexCapabilityHandler", "CapabilityToCapabilityHandler"),
                 ),
             ),
         )

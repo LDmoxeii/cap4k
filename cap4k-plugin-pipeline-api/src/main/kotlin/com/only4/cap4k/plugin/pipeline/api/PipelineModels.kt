@@ -505,12 +505,11 @@ private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelection
     when (tag) {
         "command" -> listOf(ArtifactSelectionModel("command"))
         "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
-        "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+        "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
         "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
         "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
         "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
         "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
-        "saga" -> listOf(ArtifactSelectionModel("saga"))
         else -> emptyList()
     }
 

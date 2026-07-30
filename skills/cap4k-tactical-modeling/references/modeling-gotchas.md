@@ -6,7 +6,7 @@ Generic DDD concepts must map to current cap4k carriers. Do not accept `aggregat
 
 - Boundary: aggregate, entity, value object, strong ID, reference, lifecycle, invariant, consistency.
 - Use case: command, query, handler, orchestration, read model, projection.
-- Event: domain event, integration event, subscriber, saga, scheduled reaction, timeout, retry, compensation, recovery.
+- Event and reaction: Domain Event, Integration Event, subscriber, scheduled reaction, timeout, retry, compensation, recovery, and any explicit provider-owned orchestration need.
 - Service boundary: external fact, callback, webhook, message, Published Language, Open Host Service, external capability.
 - Policy: eligibility, approval, quota, uniqueness, duplicate, validation, pre-save.
 

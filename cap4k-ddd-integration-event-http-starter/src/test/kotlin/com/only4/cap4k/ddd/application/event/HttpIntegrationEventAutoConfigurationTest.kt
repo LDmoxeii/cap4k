@@ -1,5 +1,8 @@
 package com.only4.cap4k.ddd.application.event
 
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpCallbackTriggerCapability
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpUnsubscribeCapability
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
@@ -63,6 +66,9 @@ class HttpIntegrationEventAutoConfigurationTest {
             assertEquals(1, context.getBeansOfType(IntegrationEventPublisher::class.java).size)
             assertEquals(1, context.getBeansOfType(HttpIntegrationEventSubscriberAdapter::class.java).size)
             assertEquals(1, context.getBeansOfType(HttpIntegrationEventSubscriberRegister::class.java).size)
+            assertEquals(1, context.getBeansOfType(IntegrationEventHttpCallbackTriggerCapability.Handler::class.java).size)
+            assertEquals(1, context.getBeansOfType(IntegrationEventHttpSubscribeCapability.Handler::class.java).size)
+            assertEquals(1, context.getBeansOfType(IntegrationEventHttpUnsubscribeCapability.Handler::class.java).size)
             listOf(
                 HttpIntegrationEventAutoConfiguration.SUBSCRIBE_PATH,
                 HttpIntegrationEventAutoConfiguration.UNSUBSCRIBE_PATH,

@@ -68,7 +68,7 @@ routes:
     trigger_examples:
       - "model the aggregate boundaries"
       - "map this business process to cap4k DDD carriers"
-      - "decide Command, Query, Event, Saga, or Value Object"
+      - "decide Command, Query, Event, Capability, or Value Object"
     route_first: cap4k-tactical-modeling
     required_reads:
       - ../shared/references/tactical-affordance-map.md

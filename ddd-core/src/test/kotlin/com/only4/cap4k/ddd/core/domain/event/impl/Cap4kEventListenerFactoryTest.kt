@@ -12,6 +12,7 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
+import org.springframework.scheduling.annotation.Async
 import org.springframework.transaction.event.TransactionalEventListener
 
 @DisplayName("Cap4kEventListenerFactory 测试")
@@ -29,6 +30,28 @@ class Cap4kEventListenerFactoryTest {
 
         assertTrue(factory.supportsMethod(listenerMethod("regularListener")))
         assertFalse(factory.supportsMethod(listenerMethod("transactionalListener")))
+    }
+
+    @Test
+    fun `factory rejects async ordinary event listeners`() {
+        val error = assertThrows<IllegalStateException> {
+            Cap4kEventListenerFactory().supportsMethod(listenerMethod("asyncListener"))
+        }
+
+        assertTrue(error.message.orEmpty().contains("cannot use @Async"))
+        assertTrue(error.message.orEmpty().contains("reliable Command"))
+    }
+
+    @Test
+    fun `cap4k listener adapter remains synchronous when Spring multicaster has an executor`() {
+        val adapter = TestableCap4kApplicationListenerMethodAdapter(
+            beanName = "synchronousListener",
+            targetClass = ListenerMethods::class.java,
+            method = listenerMethod("regularListener"),
+            targetBean = ListenerMethods(),
+        )
+
+        assertFalse(adapter.supportsAsyncExecution())
     }
 
     @Test
@@ -88,7 +111,7 @@ class Cap4kEventListenerFactoryTest {
     @Test
     @DisplayName("监听器元数据成功后应该恢复")
     fun `listener metadata is restored after successful invocation`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+        val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
         scope.listenerBeanName = "previousBean"
         scope.listenerClass = ExistingListener::class.java
         scope.listenerMethod = ExistingListener::class.java.getDeclaredMethod("previous")
@@ -121,7 +144,7 @@ class Cap4kEventListenerFactoryTest {
     @Test
     @DisplayName("监听器元数据失败后也应该恢复")
     fun `listener metadata is restored after failed invocation`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+        val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
 
         val adapter = TestableCap4kApplicationListenerMethodAdapter(
             beanName = "failureListener",
@@ -144,7 +167,7 @@ class Cap4kEventListenerFactoryTest {
     @Test
     @DisplayName("监听器返回值发布事件应该被拒绝")
     fun `listener return value event publication is rejected`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+        val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
         val adapter = TestableCap4kApplicationListenerMethodAdapter(
             beanName = "returningListener",
             targetClass = ListenerMethods::class.java,
@@ -198,6 +221,11 @@ class Cap4kEventListenerFactoryTest {
                 listenerClass = scope.listenerClass,
                 methodName = scope.listenerMethod?.name,
             )
+        }
+
+        @Async
+        @EventListener
+        fun asyncListener(event: TestPayload) {
         }
 
         @EventListener

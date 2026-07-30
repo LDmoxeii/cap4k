@@ -18,7 +18,7 @@ internal fun DesignBlockModel.commandTypeName(): String = "${name}Cmd"
 
 internal fun DesignBlockModel.queryTypeName(): String = "${name}Qry"
 
-internal fun DesignBlockModel.clientTypeName(): String = "${name}Cli"
+internal fun DesignBlockModel.capabilityTypeName(): String = name.normalizeUpperCamelTypeName()
 
 internal fun DesignBlockModel.apiPayloadTypeName(): String = name.normalizeUpperCamelTypeName()
 

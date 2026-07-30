@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: application-execution-uow-stabilization
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 8420feca67ee184bc0f620c096e878047211432506d9637acaa932dc92dab714
+spec_changes:
+  - capability: application-execution-uow-stabilization
+    operation: create
+    source: specs/application-execution-uow-stabilization/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/cecaaafaf411293cbc6dc7e47ae3e206cdd08fbe1b297f084d7f841015739b30.json
+verification_evidence: runtime/evidence/verifications/0a9895976fd5c4fc92120b82ae1defd8bceb5080cf7c344ebef0d111f72dcbe0.json
+partial_allowance: runtime/evidence/allowances/beba1489612a2b43f5800a303d36ccfa1e3c455c8056538e8de09f9150ae7574.json
+archived: true
+created_at: 2026-07-29
+run_id: 9e0b66b6-7081-41d8-acbd-1f54e966b744

@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "404aa3e9-b1cf-4efd-b14b-7521c11b0eba",
+  "kind": "archive",
+  "status": "committed",
+  "change": "application-execution-uow-stabilization",
+  "createdAt": "2026-07-30T06:47:43.276Z",
+  "preflightHash": "e45dc26148c8da1973022a2564ad00fe645f43193e57bedaf23bfeb58c0b550d",
+  "operations": [
+    {
+      "id": "spec-1-application-execution-uow-stabilization",
+      "type": "write",
+      "target": "specs/application-execution-uow-stabilization/spec.md",
+      "staged": "runtime/transactions/404aa3e9-b1cf-4efd-b14b-7521c11b0eba/staged/specs/application-execution-uow-stabilization/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "44f7a1fdd9629a1c8935f99018dda55016cbf6de3d69a5338ec820bb2966e1f9"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/application-execution-uow-stabilization",
+      "target": "archive/2026-07-30-application-execution-uow-stabilization",
+      "expectedSourceHash": "0c94520ed21ab642be1afa619cf409f41671fb1aacf3479de67ecff37f6112b4",
+      "expectedTargetHash": null
+    }
+  ]
+}

@@ -662,33 +662,20 @@ class AnalysisOutputCorrectnessTest {
         }
         val sources = mutableListOf(
             SourceFile.kotlin(
-                "RequestParam.kt",
-                """
-                    package com.only4.cap4k.ddd.core.application
-
-                    interface RequestParam<RESULT : Any>
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
-                "RequestHandler.kt",
-                """
-                    package com.only4.cap4k.ddd.core.application
-
-                    interface RequestHandler<REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> {
-                        fun exec(request: REQUEST): RESPONSE
-                    }
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
                 "Command.kt",
                 """
                     package com.only4.cap4k.ddd.core.application.command
 
-                    import com.only4.cap4k.ddd.core.application.RequestHandler
-                    import com.only4.cap4k.ddd.core.application.RequestParam
+                    interface Command<RESULT : Any>
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "CommandHandler.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application.command
 
-                    interface Command<PARAM : RequestParam<RESULT>, RESULT : Any> : RequestHandler<PARAM, RESULT> {
-                        override fun exec(request: PARAM): RESULT
+                    interface CommandHandler<COMMAND : Command<RESULT>, RESULT : Any> {
+                        fun handle(command: COMMAND): RESULT
                     }
                 """.trimIndent()
             ),
@@ -757,18 +744,18 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.application.commands.category
 
-                    import com.only4.cap4k.ddd.core.application.RequestParam
                     import com.only4.cap4k.ddd.core.application.command.Command
+                    import com.only4.cap4k.ddd.core.application.command.CommandHandler
                     import demo.domain.aggregates.category.Category
                     $behaviorImport
 
-                    class UpdateCategorySortCmd(val sort: Int) : RequestParam<UpdateCategorySortCmd.Response> {
+                    class UpdateCategorySortCmd(val sort: Int) : Command<UpdateCategorySortCmd.Response> {
                         class Response
 
-                        class Handler : Command<UpdateCategorySortCmd, Response> {
-                            override fun exec(request: UpdateCategorySortCmd): Response {
+                        class Handler : CommandHandler<UpdateCategorySortCmd, Response> {
+                            override fun handle(command: UpdateCategorySortCmd): Response {
                                 val category = Category()
-                                category.changeSort(request.sort)
+                                category.changeSort(command.sort)
                                 return Response()
                             }
                         }
@@ -878,33 +865,20 @@ class AnalysisOutputCorrectnessTest {
         }
         return listOf(
             SourceFile.kotlin(
-                "RequestParam.kt",
-                """
-                    package com.only4.cap4k.ddd.core.application
-
-                    interface RequestParam<RESULT : Any>
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
-                "RequestHandler.kt",
-                """
-                    package com.only4.cap4k.ddd.core.application
-
-                    interface RequestHandler<REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> {
-                        fun exec(request: REQUEST): RESPONSE
-                    }
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
                 "Command.kt",
                 """
                     package com.only4.cap4k.ddd.core.application.command
 
-                    import com.only4.cap4k.ddd.core.application.RequestHandler
-                    import com.only4.cap4k.ddd.core.application.RequestParam
+                    interface Command<RESULT : Any>
+                """.trimIndent()
+            ),
+            SourceFile.kotlin(
+                "CommandHandler.kt",
+                """
+                    package com.only4.cap4k.ddd.core.application.command
 
-                    interface Command<PARAM : RequestParam<RESULT>, RESULT : Any> : RequestHandler<PARAM, RESULT> {
-                        override fun exec(request: PARAM): RESULT
+                    interface CommandHandler<COMMAND : Command<RESULT>, RESULT : Any> {
+                        fun handle(command: COMMAND): RESULT
                     }
                 """.trimIndent()
             ),
@@ -913,18 +887,18 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.application.commands.category
 
-                    import com.only4.cap4k.ddd.core.application.RequestParam
                     import com.only4.cap4k.ddd.core.application.command.Command
+                    import com.only4.cap4k.ddd.core.application.command.CommandHandler
                     import demo.domain.aggregates.category.Category
                     $behaviorImport
 
-                    class UpdateCategorySortCmd(val sort: Int) : RequestParam<UpdateCategorySortCmd.Response> {
+                    class UpdateCategorySortCmd(val sort: Int) : Command<UpdateCategorySortCmd.Response> {
                         class Response
 
-                        class Handler : Command<UpdateCategorySortCmd, Response> {
-                            override fun exec(request: UpdateCategorySortCmd): Response {
+                        class Handler : CommandHandler<UpdateCategorySortCmd, Response> {
+                            override fun handle(command: UpdateCategorySortCmd): Response {
                                 val category = Category()
-                                category.changeSort(request.sort)
+                                category.changeSort(command.sort)
                                 return Response()
                             }
                         }
@@ -945,11 +919,11 @@ class AnalysisOutputCorrectnessTest {
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
-                "RequestParam.kt",
+                "Command.kt",
                 """
-                    package com.only4.cap4k.ddd.core.application
+                    package com.only4.cap4k.ddd.core.application.command
 
-                    interface RequestParam<RESULT : Any>
+                    interface Command<RESULT : Any>
                 """.trimIndent(),
             ),
             SourceFile.java(
@@ -1021,7 +995,7 @@ class AnalysisOutputCorrectnessTest {
                     package demo.application.commands.auth
 
                     import com.only4.cap4k.ddd.core.annotation.BuildingBlock
-                    import com.only4.cap4k.ddd.core.application.RequestParam
+                    import com.only4.cap4k.ddd.core.application.command.Command
                     import demo.application.shared.defaults.CaptchaStableDefaults
                     import demo.application.shared.defaults.SharedCaptchaChannel
                     import demo.application.shared.defaults.SharedCaptchaPolicy
@@ -1084,7 +1058,7 @@ class AnalysisOutputCorrectnessTest {
                             val objectGetterReferenceTitle: String = SharedGetterDefaults.OBJECT_DEFAULT_TITLE,
                             val privateReferenceTitle: String = $privateReferenceTitleDefaultExpression,
                             $extraRequestFields
-                        ) : RequestParam<IssueCaptchaCmd.Response> {
+                        ) : Command<IssueCaptchaCmd.Response> {
                             data class Response(val issued: Boolean)
                         }
 

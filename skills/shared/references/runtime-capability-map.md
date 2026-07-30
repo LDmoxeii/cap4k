@@ -10,21 +10,21 @@ Agent rule: do not describe Repository as the save owner. Command paths load agg
 
 ## Unit Of Work
 
-Unit of Work owns persistence intent, delete intent, commit/save, transaction propagation, and lifecycle interception. It collects entities to persist or remove and coordinates save behavior with runtime interceptors.
+Unit of Work owns aggregate persistence intent, delete intent, provider synchronization, audit enrichment, Domain Event stabilization, and the outer Command transaction boundary. The outer Command completes it automatically. Application code may use advanced `flush()` to synchronize current provider state, but `flush()` does not commit or drain Domain Events.
 
-Agent rule: application handlers record persistence or delete intent through Unit of Work and call commit behavior according to the framework contract. Do not assign Unit of Work mechanics to business project code.
+Agent rule: application handlers record persistence or delete intent through Unit of Work and return normally; never generate or require a completion-oriented `save()` call. Use `flush()` only for an explicit constraint/provider-value need, and never describe it as Command completion.
 
 ## Mediator
 
-Mediator is a static framework namespace across independently configured repository, aggregate factory, domain service, Unit of Work, integration event, request, IoC, and identifier capabilities. It has no aggregate runtime instance or all-capabilities implementation and is not a separate business engine.
+Mediator is a static framework namespace across independently configured Command, Query, external Capability, repository, aggregate factory, domain service, Unit of Work, Integration Event, IoC, and identifier providers. It has no aggregate runtime instance or all-capabilities implementation and is not a separate business engine.
 
-Agent rule: use only canonical names (`commands`, `queries`, `requests`, `repositories`, `factories`, `services`, `uow`, `events`, `ioc`, `identifiers`). Keep business decisions in domain/application code. An uninstalled optional capability fails when called; do not assume a monolithic starter or silent fallback.
+Agent rule: use only canonical names (`commands`, `queries`, `capabilities`, `repositories`, `factories`, `services`, `uow`, `events`, `ioc`, `identifiers`). Keep business decisions in domain/application code. An uninstalled optional provider fails when called; do not assume a monolithic starter or silent fallback.
 
-## Request And Event Reliability
+## Command And Event Reliability
 
-Core Request dispatch is synchronous and does not create persistence records. Reliable schedule/result requires the Request JPA capability. Local Domain Event delivery is synchronous through Spring inside the Unit of Work transaction; persisted or delayed events require the Domain Event JPA capability.
+Command dispatch owns the REQUIRED transaction and automatic Unit of Work. Reliable enqueue/schedule/result requires the Command JPA provider and registration inside an active Command transaction. Local Domain Event delivery is synchronous inside the Unit of Work; persisted or delayed events require the Domain Event JPA provider.
 
-Agent rule: do not describe reliable Request/Event calls as Core behavior and do not downgrade them when their provider is absent. Event payload types come from explicit Spring listener signatures or a supplied event catalog, never an event-scan package.
+Agent rule: do not assign reliable APIs to Query or Capability. Do not model local asynchronous work as an ordinary Domain Event plus `@Async`; use a reliable Command. Reliable record registration joins the local transaction but must not call `saveAndFlush()` or otherwise force a provider-wide flush; only the outer Coordinator owns final provider synchronization. Record recovery is retry, not inferred business compensation. Event payload types come from explicit listener signatures or a supplied event catalog, never an event-scan package.
 
 ## Integration Event Transport Split
 
@@ -35,11 +35,11 @@ Integration Event runtime has two distinct responsibilities:
 
 Agent rule: never assign external protocol consumption, parser registration, or transport dispatch to the business subscriber. Never push inbound payloads directly into aggregates.
 
-## Saga Runtime Scope
+## Orchestration Boundary
 
-Saga runtime supports request-oriented process coordination, subprocesses, compensable subprocesses, explicit compensation requests, retry, archival, and scheduled compensation. This supports compensation-oriented Saga modeling.
+Cap4k does not ship a built-in Saga runtime, Saga persistence, Saga starter, or Saga generator family. Multi-step workflows use explicit application orchestration, reliable Commands, Integration Events, and external capabilities, or a separately selected orchestration provider owned outside cap4k core.
 
-Agent rule: use Saga when persistent progress, retry, recovery, or compensation is required. Do not describe Saga as a generic callback-resume workflow engine unless this installed skill bundle has been updated from verified code facts.
+Agent rule: never promise or handwrite a cap4k Saga skeleton. If durable progress, compensation, or cross-transaction orchestration is required, return to technical design and select an explicit external/provider-owned solution.
 
 ## Analysis Evidence
 

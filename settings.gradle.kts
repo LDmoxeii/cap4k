@@ -17,8 +17,7 @@ plugins {
 }
 
 include("ddd-core")
-include("ddd-distributed-saga-jpa")
-include("ddd-application-request-jpa")
+include("ddd-application-command-jpa")
 include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")
 include(
@@ -33,8 +32,7 @@ include(
     "cap4k-ddd-jpa-starter",
     "cap4k-ddd-locker-jdbc-starter",
     "cap4k-ddd-snowflake-starter",
-    "cap4k-ddd-saga-jpa-starter",
-    "cap4k-ddd-request-jpa-starter",
+    "cap4k-ddd-command-jpa-starter",
     "cap4k-ddd-domain-event-jpa-starter",
     "cap4k-ddd-integration-event-http-starter",
     "cap4k-ddd-integration-event-http-jpa-starter",

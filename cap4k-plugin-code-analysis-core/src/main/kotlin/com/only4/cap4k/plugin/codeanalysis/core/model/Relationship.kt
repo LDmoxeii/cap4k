@@ -10,14 +10,14 @@ data class Relationship(
 enum class RelationshipType {
     ControllerMethodToCommand,
     ControllerMethodToQuery,
-    ControllerMethodToCli,
+    ControllerMethodToCapability,
     CommandSenderMethodToCommand,
     QuerySenderMethodToQuery,
-    CliSenderMethodToCli,
+    CapabilitySenderMethodToCapability,
     ValidatorToQuery,
     CommandToCommandHandler,
     QueryToQueryHandler,
-    CliToCliHandler,
+    CapabilityToCapabilityHandler,
     CommandHandlerToAggregate,
     CommandHandlerToEntityMethod,
     AggregateToEntityMethod,
@@ -26,10 +26,10 @@ enum class RelationshipType {
     DomainEventToHandler,
     DomainEventHandlerToCommand,
     DomainEventHandlerToQuery,
-    DomainEventHandlerToCli,
+    DomainEventHandlerToCapability,
     DomainEventToIntegrationEvent,
     IntegrationEventToHandler,
     IntegrationEventHandlerToCommand,
     IntegrationEventHandlerToQuery,
-    IntegrationEventHandlerToCli
+    IntegrationEventHandlerToCapability
 }

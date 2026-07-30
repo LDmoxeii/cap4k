@@ -18,9 +18,9 @@ Do not list `validator` as a normal `design/design.json` tag. Validation behavio
 
 Do not make a business Integration Event subscriber responsible for HTTP/message consumption, parser registration, or transport dispatch. Runtime transport handles protocol consumption and dispatch; the business subscriber handles typed fact interpretation, idempotency, translation, and command delegation.
 
-## Repository Save Ownership
+## Repository Persistence Ownership
 
-Reject exact stale wording like `Repository save` or `Repository saves aggregates`. Repository reads/accesses/loads aggregates. Unit of Work owns persistence intent, delete intent, and commit behavior.
+Reject exact stale wording like `Repository save` or `Repository saves aggregates`. Repository reads/accesses/loads aggregates. Unit of Work owns persistence and delete intent; the outer Command owns automatic stabilization and transaction completion.
 
 ## UoW And Mediator Implementation Wording
 
@@ -30,9 +30,13 @@ Reject exact stale wording like `business projects implement Unit of Work` or `b
 
 Do not use the stale `src-generated/main/kotlin` path. Build-owned generated source belongs under the current build-generated cap4k source root described by plan evidence.
 
-## `client/cli` Stale Boundary
+## Client And CLI Stale Boundary
 
-Do not use old `client/cli` wording. Current generator and design language distinguishes `client` and `client-handler`; client handlers translate external capability calls at the adapter boundary.
+Do not use old `client`, `client-handler`, or `*Cli` generator wording. Current generator and design language uses `capability` and `capability-handler`; Capability Handlers translate external calls at the adapter boundary.
+
+## Generic Request And Built-In Saga Drift
+
+Do not describe Command, Query, and Capability as one public Request family or use `Mediator.requests`. Do not promise a built-in Saga runtime, starter, persistence model, or generator. Durable orchestration beyond reliable Commands and Integration Events requires an explicitly selected external provider.
 
 ## Spaced Analysis Output Paths
 

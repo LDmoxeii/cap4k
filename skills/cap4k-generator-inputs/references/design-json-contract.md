@@ -15,12 +15,11 @@ Edit files registered through `sources.designJson.files`, commonly `design/desig
 
 - `command`
 - `query`
-- `client`
+- `capability`
 - `api_payload`
 - `domain_event`
 - `integration_event`
 - `domain_service`
-- `saga`
 
 ## Supported Public Fields
 
@@ -37,11 +36,11 @@ Edit files registered through `sources.designJson.files`, commonly `design/desig
 
 ## Combination Rules
 
-- `resultFields` is allowed on `command`, `query`, `client`, and `api_payload`.
+- `resultFields` is allowed on `command`, `query`, `capability`, and `api_payload`.
 - On `command`, `fields` describes the request payload and `resultFields` describes the command outcome payload.
-- `command.resultFields` uses the same field object contract, design-json parsing, canonical preservation, and template rendering path as `query`, `client`, and `api_payload` result fields.
+- `command.resultFields` uses the same field object contract, design-json parsing, canonical preservation, and template rendering path as `query`, `capability`, and `api_payload` result fields.
 - Empty or omitted `command.resultFields` keeps the no-result response shape.
-- Tags outside the `command`, `query`, `client`, and `api_payload` set do not define a result payload.
+- Tags outside the `command`, `query`, `capability`, and `api_payload` set do not define a result payload.
 - `integration_event` requires `eventName`.
 - `eventName` is allowed only on `domain_event` and `integration_event`.
 - `persist` is allowed only on `domain_event`.

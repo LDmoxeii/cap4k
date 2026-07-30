@@ -248,7 +248,7 @@ class DefaultIntegrationEventSupervisorTest {
         fun `detach should remove only matching payload from current scope`() {
             val outerEvent = TestIntegrationEvent("outer", "data")
             val innerEvent = TestIntegrationEvent("inner", "data")
-            val outerScope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val outerScope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
 
             supervisor.attach(outerEvent)
             val innerScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
@@ -338,12 +338,8 @@ class DefaultIntegrationEventSupervisorTest {
 
             verify(exactly = 0) { eventRecordRepository.create() }
             verify(exactly = 0) { eventRecordRepository.save(any()) }
-            verify {
-                applicationEventPublisher.publishEvent(
-                    match<IntegrationEventAttachedTransactionCommittedEvent> {
-                        it.events.isEmpty()
-                    }
-                )
+            verify(exactly = 0) {
+                applicationEventPublisher.publishEvent(any<IntegrationEventAttachedTransactionCommittedEvent>())
             }
         }
 
@@ -359,10 +355,10 @@ class DefaultIntegrationEventSupervisorTest {
             supervisor.release()
 
             verify(exactly = 1) { eventRecordRepository.create() }
-            // Should still be called twice total - once from first release, once from second
-            verify(exactly = 2) {
+            // Empty releases do not emit a transaction-commit signal.
+            verify(exactly = 1) {
                 applicationEventPublisher.publishEvent(any<IntegrationEventAttachedTransactionCommittedEvent>())
-                }
+            }
             }
         }
 
@@ -399,7 +395,7 @@ class DefaultIntegrationEventSupervisorTest {
         @DisplayName("显式请求作用域释放后应该保持当前作用域")
         fun `explicit request scope should remain current after release`() {
             val event = TestIntegrationEvent("1", "test data")
-            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
 
             supervisor.attach(event)
             supervisor.release()

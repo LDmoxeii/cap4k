@@ -8,7 +8,7 @@ Integration Event 是跨系统或跨 bounded context 传播的外部事实。它
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`design/design.json` 包含 `integration_event` 条目，可作为事件契约的输入锚点，并可继续查看完整设计文件和相关流程。
 
-设计边界是跨边界事实。不要把内部 Entity 字段全量发布出去，不要用 Integration Event 表达内部方法调用，不要把 inbound payload 直接塞进 Aggregate，也不要把普通 callback 自动称为 Saga。常见误用包括混淆 Domain Event 与 Integration Event、把外部协议字段当作领域模型字段、或忽略 published language 的兼容性。
+设计边界是跨边界事实。不要把内部 Entity 字段全量发布出去，不要用 Integration Event 表达内部方法调用，也不要把 inbound payload 直接塞进 Aggregate。outbox 记录必须与本地 Command 事务一起提交，外部 transport 只能在提交成功后发布；事务回滚时 outbox 一起回滚。after-commit 唤醒只是优化，唤醒失败不能丢失已提交记录；失败交给 transport/provider polling、retry 与恢复。
 
 使用 Integration Event 时，保持 inbound/outbound 区分清楚，字段使用边界语言，并通过 anti-corruption translation 保护 domain layer。Domain Event 到 Integration Event 的映射应明确，生成骨架和手写契约语义应分离，不要把外部事实伪装成内部不变量。
 
@@ -17,6 +17,6 @@ Purpose: 帮助读者区分 Domain Event、Integration Event、inbound/outbound 
 Type: concept map
 Prompt: Draw a cap4k integration event boundary map. Show a bounded context with Domain Event inside, outbound Integration Event crossing to another system, inbound Integration Event entering through an anti-corruption layer and becoming a Command. Label published language at the boundary. Use Chinese labels and preserve English identifiers.
 Must show: external fact, inbound event, outbound event, published language, anti-corruption translation, Domain Event to Integration Event mapping
-Must avoid: exposing internal Aggregate structure as public contract, implying every callback is Saga, arrows that violate Clean Architecture dependency rules
+Must avoid: exposing internal Aggregate structure as public contract, publishing external transport before local commit, arrows that violate Clean Architecture dependency rules
 Alt text after insertion: Integration Event 边界图，展示 outbound 和 inbound 外部事实如何通过 published language 与防腐转换协作。
 -->

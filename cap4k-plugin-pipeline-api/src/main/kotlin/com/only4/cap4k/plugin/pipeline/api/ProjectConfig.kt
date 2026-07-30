@@ -82,9 +82,9 @@ data class ArtifactLayoutConfig(
     val drawingBoard: OutputRootLayout = OutputRootLayout("design"),
     val designCommand: PackageLayout = PackageLayout("application.commands"),
     val designQuery: PackageLayout = PackageLayout("application.queries"),
-    val designClient: PackageLayout = PackageLayout("application.distributed.clients"),
+    val designCapability: PackageLayout = PackageLayout("application.capabilities"),
     val designQueryHandler: PackageLayout = PackageLayout("adapter.application.queries"),
-    val designClientHandler: PackageLayout = PackageLayout("adapter.application.distributed.clients"),
+    val designCapabilityHandler: PackageLayout = PackageLayout("adapter.application.capabilities"),
     val designApiPayload: PackageLayout = PackageLayout("adapter.portal.api.payload"),
     val designDomainEvent: PackageLayout = PackageLayout(
         packageRoot = "domain.aggregates",
@@ -103,9 +103,7 @@ data class ArtifactLayoutConfig(
         packageSuffix = "",
     ),
     val designDomainServicePackage: PackageLayout = PackageLayout("domain.services"),
-    val designSaga: PackageLayout = PackageLayout("application.sagas"),
     val designDomainService: ArtifactLayoutRule = ArtifactLayoutRule("design/domain_service.kt.peb"),
-    val designSagaArtifact: ArtifactLayoutRule = ArtifactLayoutRule("design/saga.kt.peb"),
     val valueObject: ArtifactLayoutRule = ArtifactLayoutRule("types/value-object"),
     val valueObjectJsonConverter: ArtifactLayoutRule = ArtifactLayoutRule("types/value-object-json-converter"),
 )

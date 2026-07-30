@@ -17,24 +17,24 @@ Purpose: 帮助首次读者快速理解 cap4k 的心智模型：业务建模、�
 Type: concept map
 Prompt: Create a clean concept map for cap4k as a backend DDD tactical framework. Show a central cap4k node connected to business model, Clean Architecture layers, generator-backed authoring, handwritten business logic, reviewable plan output, analysis evidence, and the cap4k-reference-content-studio example project. Use a restrained technical documentation style.
 Must show: business model, aggregate/command/query/events, domain/application/adapter/start layers, generator plan, generated skeletons, handwritten logic, analysis evidence, cap4k-reference-content-studio
-Must avoid: 不要暗示 cap4k 会自动写业务决策；不要把每个 callback 都画成 Saga；不要把生成器画成会替代业务建模和 ownership review；不要暗示当前核心能力超出后端 DDD authoring 范围；不要画出违反 Clean Architecture 依赖方向的箭头
+Must avoid: 不要暗示 cap4k 会自动写业务决策；不要暗示 cap4k 内置长期流程编排器；不要把生成器画成会替代业务建模和 ownership review；不要暗示当前核心能力超出后端 DDD authoring 范围；不要画出违反 Clean Architecture 依赖方向的箭头
 Alt text after insertion: cap4k 心智模型图，展示业务模型、分层架构、生成器、手写逻辑、审阅计划、分析证据和参考项目之间的关系。
 -->
 
 ## 它解决什么问题
 
-很多后端项目知道自己需要 DDD、分层架构和可维护边界，但真正落地时容易退回到“一个 service 包办写入、读取、外部调用和事务”的结构。cap4k 解决的是这个落差：让聚合、命令、查询、事件、Saga、仓储、Unit of Work、Mediator、外部能力防腐层等战术概念在项目结构、生成结果和审阅证据中保持可见。
+很多后端项目知道自己需要 DDD、分层架构和可维护边界，但真正落地时容易退回到“一个 service 包办写入、读取、外部调用和事务”的结构。cap4k 解决的是这个落差：让聚合、命令、查询、事件、仓储、Unit of Work、Mediator、外部能力防腐层等战术概念在项目结构、生成结果和审阅证据中保持可见。
 
 cap4k 的生成器不替代业务判断。它把已建模的业务意图、设计输入和类型清单投影成稳定代码槽位，并通过 `plan.json`、生成输出和分析证据帮助团队审阅“哪些由生成器管理，哪些必须由人写”。
 
 ## 核心亮点
 
-- DDD 战术建模：围绕 Aggregate、Entity、Value Object、Command、Query、Domain Event、Integration Event、Saga 等概念组织业务代码。
+- DDD 战术建模：围绕 Aggregate、Entity、Value Object、Command、Query、Capability、Domain Event、Integration Event 等概念组织业务代码。
 - Clean Architecture 分层：把 domain、application、adapter、start 的责任和依赖方向拆清楚。
 - 生成器支撑作者流程：用 `design.json`、`types.valueObjectManifest`、`types.enumManifest`、Gradle DSL 和源代码分析输入生成可审阅骨架。
 - 明确所有权边界：通过 `cap4kPlan` 和生成计划先审阅输出、冲突策略、模板和 managed sections，再执行生成。
 - 分析证据：通过 `cap4kAnalysisPlan` 与 `cap4kAnalysisGenerate` 输出流程、依赖和 drawing-board 证据，辅助实现后的复盘。
-- 参考项目锚点：`cap4k-reference-content-studio` 提供四层多模块项目、发布流程、Value Object 类型输入和 `PaidPublicationSaga` 示例。
+- 参考项目锚点：`cap4k-reference-content-studio` 提供四层多模块项目、发布流程、Value Object 类型输入和外部能力边界示例。
 
 ## 两条最短路径
 
@@ -68,7 +68,7 @@ architecture -> docs/public/generator/bootstrap-project-structure.md -> authorin
 
 - 你在做后端业务系统，且需要把业务规则、事务边界、读写分离和外部能力边界写清楚。
 - 你希望生成器先产出可审阅骨架和计划，再由人补全关键业务逻辑。
-- 你愿意把 Command、Query、Domain Event、Integration Event、Saga 等概念作为代码结构的一部分。
+- 你愿意把 Command、Query、Capability、Domain Event、Integration Event 等概念作为代码结构的一部分。
 - 你需要把实现结果和分析证据交给团队或 AI 助手复查。
 
 ## 什么时候不适合

@@ -12,4 +12,10 @@ interface DomainEventManager {
      * @param entities 指定实体集合
      */
     fun release(entities: Set<Any>)
+
+    /** Number of Domain Events still waiting in the active UoW scope. */
+    fun pendingCount(): Int = 0
+
+    /** Discard unreleased events attached to one aggregate root. */
+    fun discard(entity: Any) = Unit
 }

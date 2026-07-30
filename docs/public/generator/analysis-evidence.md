@@ -1,6 +1,6 @@
 # Analysis Evidence
 
-analysis evidence 用来观察已经存在的代码结构。它帮助作者检查 controller、subscriber、job、Saga、Command dispatch、Query path、event reaction 和 external capability wiring 是否和设计一致。它不是 ordinary source generation，也不产出 source skeleton。
+analysis evidence 用来观察已经存在的代码结构。它帮助作者检查 controller、subscriber、job、Command dispatch、Query path、event reaction 和 Capability wiring 是否和设计一致。它不是 ordinary source generation，也不产出 source skeleton。
 
 `cap4kAnalysisPlan` 写出本地 `build/cap4k/analysis-plan.json`。`cap4kAnalysisGenerate` 根据 analysis plan 产出 flow 和 drawing-board evidence。与 `build/cap4k/plan.json` 一样，`build/cap4k/analysis-plan.json` 是本地 generated output，不是 committed source truth。
 
@@ -65,7 +65,7 @@ flow evidence 可以帮助作者检查：
 - inbound integration event subscriber 是否只做边界转换和后续委托。
 - domain event subscriber 是否没有把复杂业务规则藏在错误层。
 - job 或 scheduled reaction 是否表达恢复、轮询或时间触发路径。
-- Saga path 是否保持持久化协调和补偿边界。
+- 需要持久化协调的 path 是否明确进入 provider-owned orchestration 边界。
 
 flow evidence 只能说明代码连接方式。连接存在不代表业务规则正确；连接错位则应反馈到 technical design 或 implementation。
 
@@ -73,14 +73,13 @@ flow evidence 只能说明代码连接方式。连接存在不代表业务规则
 
 `analysis/drawing-board` 按 building block 分类展示项目中已经存在的结构锚点。reference project 中常见文件包括：
 
-- `analysis/drawing-board/drawing_board_client.json`
+- `analysis/drawing-board/drawing_board_capability.json`
 - `analysis/drawing-board/drawing_board_command.json`
 - `analysis/drawing-board/drawing_board_domain_event.json`
 - `analysis/drawing-board/drawing_board_integration_event.json`
 - `analysis/drawing-board/drawing_board_query.json`
-- `analysis/drawing-board/drawing_board_saga.json`
 
-drawing-board evidence 适合回答：“项目里有哪些 Command、Query、client、event 和 Saga 锚点？”它不回答这些锚点是否完成业务实现。
+drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Capability 和 event 锚点？”它不回答这些锚点是否完成业务实现。
 
 ## Verification Usage
 
@@ -88,14 +87,14 @@ drawing-board evidence 适合回答：“项目里有哪些 Command、Query、cl
 
 1. 先用 design inputs 和 source 确认作者本来想表达什么。
 2. 再用 `cap4kAnalysisPlan` 的 `analysis-plan.json` 确认 observation output 将如何生成。
-3. 再读 `analysis/flows`，看 runtime-adjacent path 是否经过预期 controller、subscriber、job、Saga 和 application use case。
-4. 再读 `analysis/drawing-board`，确认 Command、Query、event、client 和 Saga 锚点是否和 design JSON/source 对齐。
+3. 再读 `analysis/flows`，看 runtime-adjacent path 是否经过预期 controller、subscriber、job 和 application use case。
+4. 再读 `analysis/drawing-board`，确认 Command、Query、Capability 和 event 锚点是否和 design JSON/source 对齐。
 5. 最后把发现反馈到 [Verification And Feedback](../authoring/verification-and-feedback.md)、[Technical Design](../authoring/technical-design.md) 或 [Implementation Inside Generated Skeletons](../authoring/implementation-inside-generated-skeletons.md)。
 
 常见反馈包括：
 
 - controller flow 绕过 Command，说明 adapter 和 application 边界需要修正。
-- subscriber flow 直接堆叠复杂状态判断，说明应回到 Command、Domain Service 或 Saga。
+- subscriber flow 直接堆叠复杂状态判断，说明应回到 Command、Domain Service 或显式 provider-owned orchestration。
 - drawing-board 中缺少预期 Command/Query，说明 design input 或 skeleton 落位可能不完整。
 - flow 中出现第二套事实来源，说明 external capability 或 polling fallback 需要重新审查。
 

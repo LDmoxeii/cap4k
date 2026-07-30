@@ -379,7 +379,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler maps canonical command query client entries into design blocks`() {
+    fun `assembler maps canonical command query capability entries into design blocks`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -403,7 +403,7 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = emptyList(),
                         ),
                         DesignSpecEntry(
-                            tag = "client",
+                            tag = "capability",
                             packageName = "remote",
                             name = "SyncStock",
                             description = "sync stock",
@@ -420,7 +420,7 @@ class DefaultCanonicalAssemblerTest {
             model.designBlocks.single { it.tag == "command" }.resultFields.map { it.name },
         )
         assertEquals(listOf("FindOrderList"), model.designBlocks.filter { it.tag == "query" }.map { it.name })
-        assertEquals(listOf("SyncStock"), model.designBlocks.filter { it.tag == "client" }.map { it.name })
+        assertEquals(listOf("SyncStock"), model.designBlocks.filter { it.tag == "capability" }.map { it.name })
     }
 
     @Test
@@ -499,8 +499,8 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler rejects PageData response envelope for command and client roles`() {
-        listOf("command", "client").forEach { tag ->
+    fun `assembler rejects PageData response envelope for command and capability roles`() {
+        listOf("command", "capability").forEach { tag ->
             val error = assertThrows(IllegalArgumentException::class.java) {
                 DefaultCanonicalAssembler().assemble(
                     config = baseConfig(),
@@ -540,14 +540,6 @@ class DefaultCanonicalAssemblerTest {
                     description = "publication policy",
                     aggregates = listOf("Content"),
                 ),
-                DesignSpecEntry(
-                    tag = "saga",
-                    packageName = "content.workflow",
-                    name = "PublishContentSaga",
-                    description = "publish content",
-                    aggregates = emptyList(),
-                    fields = listOf(SemanticFieldSnapshot(name = "contentId", typeExpression = "ContentId")),
-                ),
             )
         )
         val valueObjects = ValueObjectManifestSnapshot(
@@ -568,10 +560,6 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals("ContentPublicationPolicy", model.domainServices.single().name)
         assertEquals(listOf("Content"), model.domainServices.single().aggregates)
-        val sagaBlock = model.designBlocks.single { it.tag == "saga" }
-        assertEquals("PublishContentSaga", sagaBlock.name)
-        assertEquals(listOf("contentId"), sagaBlock.fields.map { it.name })
-        assertTrue(sagaBlock.resultFields.isEmpty())
         assertEquals("Money", model.valueObjects.single().name)
         assertEquals(typeRegistry.entries, model.typeRegistry.entries)
     }
@@ -878,7 +866,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `client design rejects legacy aliases`() {
+    fun `capability design rejects legacy aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
         listOf("client_legacy_alias", "clients_legacy_alias").forEach { tag ->
@@ -890,7 +878,7 @@ class DefaultCanonicalAssemblerTest {
                             entries = listOf(
                                 DesignSpecEntry(
                                     tag = tag,
-                                    packageName = "auth.client",
+                                    packageName = "auth.capability",
                                     name = "IssueToken",
                                     description = "issue token",
                                     aggregates = emptyList(),
@@ -906,7 +894,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `client entries keep command and query design block mappings unchanged`() {
+    fun `capability entries keep command and query design block mappings unchanged`() {
         val assembler = DefaultCanonicalAssembler()
 
         val model = assembler.assemble(
@@ -922,7 +910,7 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = listOf("Order"),
                         ),
                         DesignSpecEntry(
-                            tag = "client",
+                            tag = "capability",
                             packageName = "order.remote",
                             name = "IssueToken",
                             description = "issue token",
@@ -942,7 +930,7 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         assertEquals(listOf("SubmitOrder"), model.designBlocks.filter { it.tag == "command" }.map { it.name })
-        assertEquals(listOf("IssueToken"), model.designBlocks.filter { it.tag == "client" }.map { it.name })
+        assertEquals(listOf("IssueToken"), model.designBlocks.filter { it.tag == "capability" }.map { it.name })
         assertEquals(listOf("FindOrder"), model.designBlocks.filter { it.tag == "query" }.map { it.name })
         assertEquals(listOf(listOf("Order"), listOf("Order"), listOf("Order")), model.designBlocks.map { it.aggregates })
     }
@@ -1367,13 +1355,13 @@ class DefaultCanonicalAssemblerTest {
         listOf(
             "COMMAND",
             "Query",
-            "Client",
+            "Capability",
             "API_PAYLOAD",
             "DOMAIN_EVENT",
             "cmd",
             "qry",
             "cli",
-            "clients",
+            "capabilities",
             "payload",
             "de",
             "domain-event",
@@ -1511,7 +1499,7 @@ class DefaultCanonicalAssemblerTest {
                             resultFields = listOf(responseField),
                         ),
                         DesignElementSnapshot(
-                            tag = "client",
+                            tag = "capability",
                             packageName = "order.delivery",
                             name = "PublishOrder",
                             description = "publish order",
@@ -1560,7 +1548,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("orderId"), command.fields.map { it.name })
         assertEquals(listOf("accepted"), command.resultFields.map { it.name })
         assertEquals(
-            listOf("command", "client", "query", "api_payload", "domain_event"),
+            listOf("command", "capability", "query", "api_payload", "domain_event"),
             drawingBoard.elementsByTag.keys.toList(),
         )
         assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
@@ -1647,7 +1635,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `drawing board accepts domain service and saga recovered design blocks with default artifacts omitted`() {
+    fun `drawing board accepts recovered domain service with default artifacts omitted`() {
         val assembler = DefaultCanonicalAssembler()
 
         val result = assembler.assemble(
@@ -1666,34 +1654,19 @@ class DefaultCanonicalAssemblerTest {
                             aggregates = listOf("Order"),
                             artifacts = listOf(ArtifactSelectionModel("domain-service")),
                         ),
-                        DesignElementSnapshot(
-                            tag = "saga",
-                            packageName = "order.application",
-                            name = "PublishOrderSaga",
-                            description = "publish order saga",
-                            aggregates = listOf("Order"),
-                            artifacts = listOf(ArtifactSelectionModel("saga")),
-                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
-                            resultFields = listOf(DesignFieldSnapshot(name = "accepted", type = "Boolean")),
-                        ),
                     ),
                 ),
             ),
         )
 
         val board = requireNotNull(result.model.drawingBoard)
-        assertEquals(listOf("domain_service", "saga"), board.elementsByTag.keys.toList())
+        assertEquals(listOf("domain_service"), board.elementsByTag.keys.toList())
 
         val domainService = board.elementsByTag.getValue("domain_service").single()
         assertEquals("OrderPolicyService", domainService.name)
         assertEquals(listOf("Order"), domainService.aggregates)
         assertFalse(domainService.includeDesignJsonArtifacts)
 
-        val saga = board.elementsByTag.getValue("saga").single()
-        assertEquals("PublishOrderSaga", saga.name)
-        assertEquals(listOf("orderId"), saga.fields.map { it.name })
-        assertEquals(listOf("accepted"), saga.resultFields.map { it.name })
-        assertFalse(saga.includeDesignJsonArtifacts)
     }
 
     @Test
@@ -1730,15 +1703,6 @@ class DefaultCanonicalAssemblerTest {
                                 DesignFieldSnapshot(name = "reason", type = "String"),
                             ),
                         ),
-                        DesignElementSnapshot(
-                            tag = "saga",
-                            packageName = "order.application",
-                            name = "PublishOrderSaga",
-                            description = "publish order saga",
-                            aggregates = listOf("Order"),
-                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
-                            resultFields = listOf(DesignFieldSnapshot(name = "accepted", type = "Boolean")),
-                        ),
                     ),
                 ),
             ),
@@ -1746,10 +1710,9 @@ class DefaultCanonicalAssemblerTest {
 
         assertEquals(emptyList<DesignBlockModel>(), result.model.designBlocks)
         val board = requireNotNull(result.model.drawingBoard)
-        assertEquals(listOf("query", "domain_event", "saga"), board.elementsByTag.keys.toList())
+        assertEquals(listOf("query", "domain_event"), board.elementsByTag.keys.toList())
         assertEquals(listOf(ArtifactSelectionModel("query", "page")), board.elementsByTag.getValue("query").single().designJsonArtifacts)
         assertEquals(listOf("reason"), board.elementsByTag.getValue("domain_event").single().fields.map { it.name })
-        assertEquals(listOf("accepted"), board.elementsByTag.getValue("saga").single().resultFields.map { it.name })
     }
 
     @Test

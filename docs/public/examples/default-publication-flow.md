@@ -2,7 +2,7 @@
 
 默认发布路径展示 `cap4k-reference-content-studio` 如何把 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Domain Event](../concepts/modeling-building-blocks/domain-event.md)、[Integration Event](../concepts/modeling-building-blocks/integration-event.md)、[Command](../concepts/execution-and-ownership/command.md) 和 [Subscriber](../concepts/execution-and-ownership/subscriber.md) 串成一条可审查的业务流程。
 
-这条路径的业务范围是：content draft -> submit review -> approve review -> media-processing callback -> content published。Paid publication 不属于默认路径；它是 [Paid Publication Saga Flow](paid-publication-saga-flow.md) 中的显式 opt-in 高级路径。
+这条路径的业务范围是：content draft -> submit review -> approve review -> media-processing callback -> content published。
 
 ## Entry Files
 
@@ -30,11 +30,11 @@
 11. `ContentPublicationReadyDomainEventSubscriber` 发送 `PublishContentCmd`。`PublishContentCmd` 只发布 `ReleasePolicy.IMMEDIATE` 且已经 publication-ready 的内容。
 12. `Content.publish` 把 `contentStatus` 推进到 `PUBLISHED`，并记录 `ContentPublishedDomainEvent`。`ContentPublishedDomainEventSubscriber` 是后续发布事实的 subscriber 锚点。
 
-## Why This Is Not A Saga
+## Why This Uses Explicit Reactions
 
-默认路径有多个事件和 subscriber，但它不是 Saga。媒体处理 callback 是一次 inbound integration event；发布准备后的 `PublishContentCmd` 是 application reaction；这些步骤不需要 `PaidPublicationSaga` 那种持久化跨步骤协调、补偿和恢复语义。
+默认路径用明确的 Domain Event、Integration Event、Subscriber 和 Command 表达因果关系。媒体处理 callback 是一次 inbound Integration Event；发布准备后的 `PublishContentCmd` 是 application reaction。
 
-如果要理解 Saga，请看 paid opt-in 路径。默认路径的重点是 Aggregate 保护发布不变量，Domain Event 表达领域事实，Subscriber 把事实转成 application layer 的下一步 command。
+重点是 Aggregate 保护发布不变量，Domain Event 表达不可变历史事实，Subscriber 把事实转成 application layer 的下一步 Command。需要异步本地推进时使用可靠 Command，而不是普通事件 `@Async` Handler。
 
 ## Code Anchors
 
@@ -68,6 +68,6 @@ Purpose: 帮助读者理解默认内容发布路径如何从 HTTP 操作进入 c
 Type: workflow diagram
 Prompt: Draw the default publication workflow for cap4k-reference-content-studio. Show http/content.http, http/review.http, http/query.http, http/media-processing.http, CreateContentDraftCmd, SubmitContentForReviewCmd, ApproveContentReviewCmd, ContentRequiresMediaProcessingDomainEvent, StartMediaProcessingCmd, MediaProcessingCallbackIntegrationEventSubscriber, MarkMediaProcessingSucceededCmd, RecordContentMediaReadyCmd, ContentPublicationReadyDomainEvent, PublishContentCmd, and final contentStatus PUBLISHED. Use Chinese labels and preserve English identifiers.
 Must show: default path only, review approval, media-processing callback, Domain Event to Subscriber reactions, PublishContentCmd, contentStatus PUBLISHED, processingStatus SUCCEEDED
-Must avoid: showing PaidPublicationSaga as part of the default path, implying every callback is Saga, implying generator writes business decisions automatically
+Must avoid: showing a built-in persistent orchestration runtime, publishing external events before local commit, implying generator writes business decisions automatically
 Alt text after insertion: 默认内容发布工作流，从创建草稿、审核通过、媒体处理回调到 PublishContentCmd 发布内容。
 -->

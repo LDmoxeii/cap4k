@@ -201,13 +201,15 @@ analysis output root blocks 使用这些字段：
 layout {
     designCommand { packageRoot.set("application.commands") }
     designQuery { packageRoot.set("application.queries") }
+    designCapability { packageRoot.set("application.capabilities") }
+    designCapabilityHandler { packageRoot.set("adapter.application.capabilities") }
     designApiPayload { packageRoot.set("adapter.portal.api.payload") }
     flow { outputRoot.set("analysis/flows") }
     drawingBoard { outputRoot.set("analysis/drawing-board") }
 }
 ```
 
-公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designClient`, `designQueryHandler`, `designClientHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
+公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designCapability`, `designQueryHandler`, `designCapabilityHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
 
 ## `addons { }`
 

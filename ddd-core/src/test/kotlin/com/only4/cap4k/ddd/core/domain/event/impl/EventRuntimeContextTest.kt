@@ -23,7 +23,7 @@ class EventRuntimeContextTest {
         @Test
         @DisplayName("嵌套作用域应该隔离集成事件附件")
         fun `nested scopes isolate integration attachments`() {
-            val outer = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val outer = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             outer.attachIntegration(EventAttachment.eager(TestIntegrationEvent("outer")))
 
             val inner = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
@@ -36,7 +36,7 @@ class EventRuntimeContextTest {
         @Test
         @DisplayName("弹出内层作用域后应该恢复外层作用域")
         fun `popping inner scope restores outer scope`() {
-            val outer = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val outer = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             val inner = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
 
             assertSame(inner, EventRuntimeContext.current())
@@ -50,7 +50,7 @@ class EventRuntimeContextTest {
         @Test
         @DisplayName("丢弃内层作用域不应该丢弃外层附件")
         fun `discarding inner scope does not discard outer attachments`() {
-            val outer = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val outer = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             outer.attachIntegration(EventAttachment.eager(TestIntegrationEvent("outer")))
 
             val inner = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
@@ -66,7 +66,7 @@ class EventRuntimeContextTest {
         @Test
         @DisplayName("重置应该清理所有作用域")
         fun `reset clears every scope`() {
-            val outer = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val outer = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             outer.attachIntegration(EventAttachment.eager(TestIntegrationEvent("outer")))
             outer.attachDomain(EqualEntity("outer"), EventAttachment.eager(TestDomainEvent("outer")))
             val inner = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
@@ -86,7 +86,7 @@ class EventRuntimeContextTest {
         @Test
         @DisplayName("相等的数据类集成事件应该保留为两个附件")
         fun `equal data class integration payloads attached twice stay as two entries`() {
-            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             val payload = TestIntegrationEvent("same")
 
             scope.attachIntegration(EventAttachment.eager(payload))
@@ -154,7 +154,7 @@ class EventRuntimeContextTest {
         @DisplayName("重置包含惰性附件的作用域不应该求值供应者")
         fun `reset clears scope with lazy attachment without resolving supplier`() {
             var evaluations = 0
-            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             scope.attachIntegration(EventAttachment.lazy {
                 evaluations += 1
                 TestIntegrationEvent("reset")
@@ -186,9 +186,9 @@ class EventRuntimeContextTest {
     inner class DomainAttachmentTests {
 
         @Test
-        @DisplayName("领域事件附件应该绑定实体并保持顺序")
-        fun `domain attachments stay entity bound and preserve order`() {
-            val scope = EventRuntimeContext.push(EventRuntimeScopeType.REQUEST)
+        @DisplayName("领域事件附件应该绑定实体且不丢失")
+        fun `domain attachments stay entity bound without defining sibling order`() {
+            val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
             val firstEntity = EqualEntity("same")
             val secondEntity = EqualEntity("same")
 
@@ -197,10 +197,10 @@ class EventRuntimeContextTest {
             scope.attachDomain(secondEntity, EventAttachment.eager(TestDomainEvent("third")))
 
             assertEquals(
-                listOf(TestDomainEvent("first"), TestDomainEvent("second")),
-                scope.domainAttachments[firstEntity]?.map { it.resolve() }
+                setOf(TestDomainEvent("first"), TestDomainEvent("second")),
+                scope.domainAttachments[firstEntity]?.map { it.resolve() }?.toSet()
             )
-            assertEquals(listOf(TestDomainEvent("third")), scope.domainAttachments[secondEntity]?.map { it.resolve() })
+            assertEquals(setOf(TestDomainEvent("third")), scope.domainAttachments[secondEntity]?.map { it.resolve() }?.toSet())
             assertEquals(2, scope.domainAttachments.size)
         }
     }
@@ -212,6 +212,56 @@ class EventRuntimeContextTest {
 
         assertEquals(EventRuntimeScopeType.AMBIENT, scope.type)
         assertSame(scope, EventRuntimeContext.current())
+    }
+
+    @Test
+    @DisplayName("诊断因果路径应该保留最深失败链并在下一次成功调用时清理")
+    fun `diagnostic causal path retains the deepest failing frame and resets for the next call`() {
+        runCatching {
+            EventRuntimeContext.withCausalFrame("Command:CreateOrder") {
+                EventRuntimeContext.withCausalFrame("Event:OrderCreated") {
+                    EventRuntimeContext.withCausalFrame("Handler:ReserveInventory") {
+                        error("retry loop")
+                    }
+                }
+            }
+        }
+
+        assertEquals(
+            listOf("Command:CreateOrder", "Event:OrderCreated", "Handler:ReserveInventory"),
+            EventRuntimeContextManager.diagnosticCausalPath(),
+        )
+
+        EventRuntimeContext.withCausalFrame("Query:CurrentOrder") {
+            assertEquals(
+                listOf("Query:CurrentOrder"),
+                EventRuntimeContextManager.diagnosticCausalPath(),
+            )
+        }
+
+        assertEquals(emptyList<String>(), EventRuntimeContextManager.diagnosticCausalPath())
+    }
+
+    @Test
+    @DisplayName("诊断因果路径应该在外层调用活跃期间保留已完成的最深链")
+    fun `diagnostic causal path retains the deepest completed chain while the outer call is active`() {
+        EventRuntimeContext.withCausalFrame("Command:CreateOrder") {
+            EventRuntimeContext.withCausalFrame("Event:OrderCreated") {
+                EventRuntimeContext.withCausalFrame("Handler:ReserveInventory") {
+                    assertEquals(
+                        listOf("Command:CreateOrder", "Event:OrderCreated", "Handler:ReserveInventory"),
+                        EventRuntimeContextManager.diagnosticCausalPath(),
+                    )
+                }
+            }
+
+            assertEquals(
+                listOf("Command:CreateOrder", "Event:OrderCreated", "Handler:ReserveInventory"),
+                EventRuntimeContextManager.diagnosticCausalPath(),
+            )
+        }
+
+        assertEquals(emptyList<String>(), EventRuntimeContextManager.diagnosticCausalPath())
     }
 
     data class TestIntegrationEvent(val message: String)

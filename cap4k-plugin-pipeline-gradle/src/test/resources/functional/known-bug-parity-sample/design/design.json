@@ -48,7 +48,7 @@
     ]
   },
   {
-    "tag": "client",
+    "tag": "capability",
     "package": "message.delivery",
     "name": "PublishUserMessage",
     "description": "publish user message",

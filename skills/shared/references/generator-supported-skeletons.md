@@ -12,13 +12,12 @@ Generator-supported structure can come from DB/schema, `design/design.json`, val
 |---|---|---|
 | command | `design/design.json` `command` block or aggregate-aligned design input | Use generated command and handler slots for state-changing use cases. |
 | query | `design/design.json` `query` block | Keep read-only semantics; do not patch missing query skeletons by hand before plan review. |
-| client | `design/design.json` `client` block | Treat application-facing external capability request shape as generated structure. |
+| capability | `design/design.json` `capability` block | Treat the application-facing external capability call and adapter handler as generated structure. |
 | api payload | `design/design.json` `api_payload` block | Keep protocol DTO shape in adapter-facing generated payload slots. |
 | domain event | `design/design.json` `domain_event` block, often aggregate-linked | Use for internal domain facts; do not convert to Integration Event to obtain a skeleton. |
 | integration event | `design/design.json` `integration_event` block with inbound/outbound variant | Use for published language; inbound subscriber requires explicit supported selection. |
 | subscriber | domain-subscriber or integration-subscriber artifact selection | Keep subscribers thin; missing subscriber returns to event design or artifact selection. |
 | domain service | `design/design.json` `domain_service` block | Use when domain collaboration has no single aggregate owner. |
-| saga | `design/design.json` `saga` block | Use only for recoverable, compensable, or persistent process coordination. |
 | aggregate | DB/schema aggregate markers and aggregate generator input | Aggregate root structure is not handwritten when generator input can express it. |
 | entity | DB/schema entity/table relation inference | Entity structure follows aggregate modeling and schema input. |
 | factory | Aggregate generator family or design-supported factory skeleton | Keep creation policy in generated factory slots when available. |

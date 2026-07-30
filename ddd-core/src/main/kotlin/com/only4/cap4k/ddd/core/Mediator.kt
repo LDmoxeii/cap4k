@@ -1,8 +1,10 @@
 package com.only4.cap4k.ddd.core
 
-import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
+import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
+import com.only4.cap4k.ddd.core.application.query.QuerySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
@@ -43,16 +45,16 @@ class Mediator private constructor() {
             get() = IntegrationEventSupervisor.instance
 
         @JvmStatic
-        val requests: RequestSupervisor
-            get() = RequestSupervisor.instance
+        val commands: CommandSupervisor
+            get() = CommandSupervisor.instance
 
         @JvmStatic
-        val commands: RequestSupervisor
-            get() = requests
+        val queries: QuerySupervisor
+            get() = QuerySupervisor.instance
 
         @JvmStatic
-        val queries: RequestSupervisor
-            get() = requests
+        val capabilities: CapabilitySupervisor
+            get() = CapabilitySupervisor.instance
 
         @JvmStatic
         val uow: UnitOfWork

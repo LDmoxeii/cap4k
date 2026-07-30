@@ -2,11 +2,9 @@ package com.only4.cap4k.ddd.console
 
 import com.only4.cap4k.ddd.console.event.EventConsoleService
 import com.only4.cap4k.ddd.console.locker.LockerConsoleService
-import com.only4.cap4k.ddd.console.request.RequestConsoleService
-import com.only4.cap4k.ddd.console.saga.SagaConsoleService
+import com.only4.cap4k.ddd.console.command.CommandConsoleService
 import com.only4.cap4k.ddd.console.snowflake.SnowflakeConsoleService
-import com.only4.cap4k.ddd.core.application.RequestManager
-import com.only4.cap4k.ddd.core.application.saga.SagaManager
+import com.only4.cap4k.ddd.core.application.command.CommandManager
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -23,8 +21,7 @@ class DDDConsoleAutoConfigurationTest {
     private val configuration = DDDConsoleAutoConfiguration()
     private val mockJdbcTemplate = mockk<JdbcTemplate>(relaxed = true)
     private val mockEventPublisher = mockk<EventPublisher>(relaxed = true)
-    private val mockRequestManager = mockk<RequestManager>(relaxed = true)
-    private val mockSagaManager = mockk<SagaManager>(relaxed = true)
+    private val mockCommandManager = mockk<CommandManager>(relaxed = true)
 
     @Test
     @DisplayName("应该正确创建EventConsoleService Bean")
@@ -35,19 +32,11 @@ class DDDConsoleAutoConfigurationTest {
     }
 
     @Test
-    @DisplayName("应该正确创建RequestConsoleService Bean")
-    fun `should create RequestConsoleService bean`() {
-        val service = configuration.requestConsoleService(mockJdbcTemplate, mockRequestManager)
+    @DisplayName("应该正确创建CommandConsoleService Bean")
+    fun `should create CommandConsoleService bean`() {
+        val service = configuration.commandConsoleService(mockJdbcTemplate, mockCommandManager)
         assertNotNull(service)
-        assertTrue(service is RequestConsoleService)
-    }
-
-    @Test
-    @DisplayName("应该正确创建SagaConsoleService Bean")
-    fun `should create SagaConsoleService bean`() {
-        val service = configuration.sagaConsoleService(mockJdbcTemplate, mockSagaManager)
-        assertNotNull(service)
-        assertTrue(service is SagaConsoleService)
+        assertTrue(service is CommandConsoleService)
     }
 
     @Test
@@ -86,36 +75,18 @@ class DDDConsoleAutoConfigurationTest {
 
     @Test
     @DisplayName("应该正确创建请求搜索HTTP处理器")
-    fun `should create request search HttpRequestHandler`() {
-        val mockRequestConsoleService = mockk<RequestConsoleService>(relaxed = true)
-        val handler = configuration.requestSearch(mockRequestConsoleService, "8080", "/app")
+    fun `should create command search HttpRequestHandler`() {
+        val mockCommandConsoleService = mockk<CommandConsoleService>(relaxed = true)
+        val handler = configuration.commandSearch(mockCommandConsoleService, "8080", "/app")
         assertNotNull(handler)
         assertTrue(handler is HttpRequestHandler)
     }
 
     @Test
     @DisplayName("应该正确创建请求重试HTTP处理器")
-    fun `should create request retry HttpRequestHandler`() {
-        val mockRequestConsoleService = mockk<RequestConsoleService>(relaxed = true)
-        val handler = configuration.requestRetry(mockRequestConsoleService, "8080", "/app")
-        assertNotNull(handler)
-        assertTrue(handler is HttpRequestHandler)
-    }
-
-    @Test
-    @DisplayName("应该正确创建Saga搜索HTTP处理器")
-    fun `should create saga search HttpRequestHandler`() {
-        val mockSagaConsoleService = mockk<SagaConsoleService>(relaxed = true)
-        val handler = configuration.sagaSearch(mockSagaConsoleService, "8080", "/app")
-        assertNotNull(handler)
-        assertTrue(handler is HttpRequestHandler)
-    }
-
-    @Test
-    @DisplayName("应该正确创建Saga重试HTTP处理器")
-    fun `should create saga retry HttpRequestHandler`() {
-        val mockSagaConsoleService = mockk<SagaConsoleService>(relaxed = true)
-        val handler = configuration.sagaRetry(mockSagaConsoleService, "8080", "/app")
+    fun `should create command retry HttpRequestHandler`() {
+        val mockCommandConsoleService = mockk<CommandConsoleService>(relaxed = true)
+        val handler = configuration.commandRetry(mockCommandConsoleService, "8080", "/app")
         assertNotNull(handler)
         assertTrue(handler is HttpRequestHandler)
     }

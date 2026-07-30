@@ -203,10 +203,10 @@
     ]
   },
   {
-    "tag": "client",
+    "tag": "capability",
     "package": "authorize",
     "name": "IssueToken",
-    "description": "issue token client",
+    "description": "issue token capability",
     "aggregates": [
       "Order"
     ],

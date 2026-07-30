@@ -1,0 +1,22 @@
+{{ use("org.springframework.stereotype.Service") -}}
+{{ use("com.only4.cap4k.ddd.core.application.capability.CapabilityHandler") -}}
+package {{ packageName }}
+// override: representative capability handler migration template
+{% for import in imports(imports) %}
+import {{ import }}
+{% endfor %}
+
+@Service
+class {{ typeName }} : CapabilityHandler<{{ capabilityTypeName }}.Request, {{ capabilityTypeName }}.Response> {
+    override fun call(request: {{ capabilityTypeName }}.Request): {{ capabilityTypeName }}.Response {
+{% if resultFields|length > 0 %}
+        return {{ capabilityTypeName }}.Response(
+{% for field in resultFields %}
+            {{ field.name }} = TODO("set {{ field.name }}"){% if not loop.last %},{% endif %}
+{% endfor %}
+        )
+{% else %}
+        return {{ capabilityTypeName }}.Response
+{% endif %}
+    }
+}

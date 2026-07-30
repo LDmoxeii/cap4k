@@ -5,5 +5,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties("cap4k.ddd.application.jpa-uow")
 class JpaUnitOfWorkProperties(
     var retrieveCountWarnThreshold: Int = 3000,
-    var supportEntityInlinePersistListener: Boolean = true,
+    var maxFrontierRounds: Int = 64,
+    var maxSynchronousEvents: Int = 10_000,
+    var maxNestedCommands: Int = 256,
+    var maxProviderFlushes: Int = 64,
 )

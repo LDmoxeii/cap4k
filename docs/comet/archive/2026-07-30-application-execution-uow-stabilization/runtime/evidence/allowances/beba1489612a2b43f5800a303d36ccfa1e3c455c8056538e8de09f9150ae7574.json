@@ -1,0 +1,13 @@
+{
+  "schema": "comet.native.partial-allowance.v1",
+  "change": "application-execution-uow-stabilization",
+  "scopeHash": "cecaaafaf411293cbc6dc7e47ae3e206cdd08fbe1b297f084d7f841015739b30",
+  "scopeIds": [
+    "scope:5422c41e8762d6bb8dbaa4d4bf3b6876b0d8af07078300b35f3f0561013d435a"
+  ],
+  "reason": "The implementation changes more files than the Runtime can expand in one scope document. All 366 changed paths are covered by declared module or file artifacts; the summarized tail contains 0 unattributed and 0 unresolved changes, and the user explicitly accepted the hash-bound detail summary.",
+  "confirmedSummary": "Implemented and verified the complete approved application execution and transaction-level UoW redesign across runtime, JPA provider, starters, reliable command/event persistence, generators, code analysis, public documentation, and authoring skills. Full Gradle check, focused causality and migration tests, static stale-term scans, skill validation, documentation link validation, and diff hygiene checks passed.",
+  "sourceRevision": 4,
+  "confirmedAt": "2026-07-30T06:38:47.127Z",
+  "allowanceHash": "beba1489612a2b43f5800a303d36ccfa1e3c455c8056538e8de09f9150ae7574"
+}

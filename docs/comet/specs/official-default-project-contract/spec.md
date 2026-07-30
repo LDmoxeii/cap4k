@@ -2,13 +2,13 @@
 
 ## Runtime 模块
 
-cap4k 的官方 Runtime 必须由以下独立 starter 组成：Core、JPA、Request JPA、Domain Event JPA、Saga JPA、Locker JDBC、Snowflake、Integration Event HTTP、HTTP JPA、RabbitMQ、RocketMQ。每个 starter 只传递其能力所需依赖；旧 `cap4k-ddd-starter` 不存在，也没有兼容 alias。
+cap4k 的官方 Runtime 必须由以下独立 starter 组成：Core、JPA、Command JPA、Domain Event JPA、Locker JDBC、Snowflake、Integration Event HTTP、HTTP JPA、RabbitMQ、RocketMQ。每个 starter 只传递其能力所需依赖；旧聚合 starter、Request JPA 与 Saga JPA 不存在，也没有兼容 alias。
 
-Core starter 提供 IoC、UUIDv7、Identifier strategy registry/generator、generated-own-ID registry、同步 Request、Domain Service、本地同步 Domain Event 和事件类型目录。Core/JPA 默认组合不包含 Snowflake、可靠 Request/Event、Saga、Locker 或 transport 实现。Snowflake 只能由独立 starter 增加。
+Core starter 提供 IoC、UUIDv7、Identifier strategy registry/generator、generated-own-ID registry、独立 Command/Query/Capability 同步分发、Domain Service、本地同步 Domain Event 和事件类型目录。Core/JPA 默认组合不包含 Snowflake、可靠 Command/Event、Locker 或 transport 实现。Snowflake 只能由独立 starter 增加。
 
-JPA starter 提供 Repository、Aggregate Factory、UnitOfWork、持久化上下文清理及 JPA 所需配置。它保持 CREATE/EXISTING、generated-own-ID completion、pending owned child reconciliation、root-only final entry、soft-delete 和 provider-assigned identity/version 的已批准行为。
+JPA starter 提供 Repository、Aggregate Factory、自动完成的 REQUIRED Command UnitOfWork、候选变化识别、审计 enrich、最终变化识别、持久化同步和 JPA 所需配置。它保持 CREATE/EXISTING、generated-own-ID completion、pending owned child reconciliation、root-only final entry、soft-delete 和 provider-assigned identity/version 的已批准行为。应用代码不需要调用 completion-oriented `save()`；高级 `flush()` 只同步数据库，不提交事务或释放 Domain Event。
 
-Request JPA、Domain Event JPA 与 Saga JPA 分别拥有其持久化 repository、scheduler 和补偿/归档任务，并显式要求 Locker provider；安装相应 starter 而没有 Locker 时，应用启动必须失败，而不是静默关闭调度。
+Command JPA 与 Domain Event JPA 分别拥有可靠记录、repository、scheduler 和归档任务，并显式要求 Locker provider；安装相应 starter 而没有 Locker 时，应用启动必须失败，而不是静默关闭调度。可靠 Command 必须在当前 Command 事务内登记，并且只能在提交成功后唤醒 worker。cap4k 不提供内置 Saga runtime、persistence、starter 或 generator。
 
 HTTP、RabbitMQ 与 RocketMQ starter 分别拥有 transport publisher/subscriber adapter。HTTP-JPA 只把 HTTP subscriber register 从内存实现替换为 JPA 实现。transport 需要可靠 event repository 时必须明确失败，不得回退到不可靠发送。
 
@@ -16,13 +16,13 @@ HTTP、RabbitMQ 与 RocketMQ starter 分别拥有 transport publisher/subscriber
 
 `Mediator` 是纯静态 namespace，只暴露 canonical 名称及 Strong ID 所需 identifiers。`DefaultMediator`、`X`、`Mediator.instance` 和 `cmd/qry/req/repo/fac/svc` 等短别名不存在。
 
-默认 provider 必须能被业务 bean 独立替换。未安装的可选 capability 在真正调用时抛出 `CapabilityUnavailableException`，错误指出 capability；同一 capability 存在多个 provider 时，Spring 装配阶段确定性失败并列出冲突 bean。
+默认 provider 必须能被业务 bean 独立替换。未安装的可选 provider 在真正调用时抛出 `ProviderUnavailableException`，错误指出 provider；同一 provider 存在多个实现时，Spring 装配阶段确定性失败并列出冲突 bean。
 
-## Request 与 Event 边界
+## Application 与 Event 边界
 
-同步 `RequestSupervisor` 只负责 validation、interceptor 和 handler 调用，不依赖持久化 repository 或调度线程池。handler 与 validation 抛出的业务异常保持原始异常。schedule/result 等可靠语义通过可选 `ReliableRequestSupervisor` 提供。
+Command、Query 与 Capability 是独立 public contract，不存在 generic Request marker、Handler、Supervisor 或 `Mediator.requests`。Command 独占 REQUIRED transaction 和自动 UoW completion；嵌套 Command 加入当前物理事务和 UoW。Query 不创建 write UoW。Capability 不创建、挂起或提交本地事务。enqueue/schedule/result 等可靠语义只属于 Command，并通过可选 `ReliableCommandSupervisor` 提供。
 
-本地 Domain Event 同步进入 Spring `ApplicationEventPublisher`。需要 persist 或未来 schedule 的事件通过可选 `ReliableDomainEventProvider` 保存；未安装 provider 时在调用点失败。本地 event interceptor 与可靠 event message/publisher infrastructure 分属各自能力所有者。
+本地 Domain Event 通过 `EventSubscriberManager` 同步、fail-fast 分发，并桥接 Spring listener。UoW 以非重入因果 frontier 释放事件：当前 frontier 执行期间产生的事件进入下一 frontier。需要 persist 或未来 schedule 的事件通过可选 `ReliableDomainEventProvider` 保存；未安装 provider 时在调用点失败。普通 Domain Event 不允许混用 `@Async` Handler；本地异步工作使用可靠 Command。
 
 事件类型不得通过 package/classpath scan 获取。transport 使用显式 `EventTypeCatalog`；生成的 `@EventListener` handler 签名或业务提供的 catalog 是合法注册来源。
 
@@ -36,7 +36,7 @@ Aggregate Factory 始终生成，不再有 factory 开关。Aggregate Specificat
 
 ## 删除面
 
-旧聚合 starter、旧 Mediator API、runtime enable 开关、event scan package、Reentrant annotation/aspect、Aggregate Specification 和生成主线 Unique 能力都不存在。公共文档、capability matrix、分析文档和 contributor-facing skills 不得继续把这些内容描述为可用能力。
+旧聚合 starter、generic Request API、Request JPA、Saga runtime/starter/generator、旧 Mediator API、runtime enable 开关、event scan package、Reentrant annotation/aspect、Aggregate Specification 和生成主线 Unique 能力都不存在。公共文档、capability matrix、分析文档和 contributor-facing skills 不得继续把这些内容描述为可用能力。
 
 ## 验收
 

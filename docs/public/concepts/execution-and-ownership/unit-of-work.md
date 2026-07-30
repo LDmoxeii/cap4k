@@ -1,15 +1,17 @@
 # Unit of Work
 
-Unit of Work 是应用层写入的提交边界。它关注一次 Command 处理中哪些聚合变化、事件释放和持久化动作应作为同一个应用写入结果被提交，而不是解释 JPA、事务代理或数据库内部机制的细节。读者可以把它理解为 application write commit boundary。
+Unit of Work 是外层 Command 拥有的应用写入边界。它关注一次物理事务中哪些聚合变化、审计 enrich、同步 Domain Event frontier、可靠 Command 和 Integration Event 登记应作为同一个应用结果稳定化并提交，而不是解释 JPA、事务代理或数据库内部机制的细节。
 
-当 Command handler 已经加载 Aggregate、调用领域行为并准备提交时，Unit of Work 负责把这些变化纳入清晰的提交时机。它让写入流程不必在每个步骤都急着落库，也避免事件在状态尚未可靠提交前被当作已经完成的事实。Query 路径通常不需要这样的提交语义，因为 Query 不改变业务状态。
+Command handler 加载 Aggregate、调用领域行为并返回后，外层 Coordinator 自动反复执行候选变化识别、审计 enrich、最终变化识别、provider flush 与同步事件 frontier，直到状态稳定。应用代码不需要调用 `save()`。高级 `flush()` 只同步数据库并推进 provider baseline，不释放 Domain Event、提交事务或执行异步工作。Query 不自动创建 write UoW。
 
-在 cap4k 中，Unit of Work 与 Repository、Command handler 和 Domain Event 释放共同构成写入路径。generator 可以提供稳定骨架和运行时接入点，但“哪些变化属于同一次业务提交”“失败后如何表达”“事件何时可以被 downstream reaction 消费”等判断仍要由手写应用逻辑和领域规则明确。
+审计是持久化稳定化的一部分：先识别业务候选变化，再 enrich 审计字段，最后重新识别最终变化。子 Entity 的变化可以被处理，但当前实现不会因为子 Entity 单独变化就强制推进 Aggregate Root 的 version。
+
+在 cap4k 中，同一物理事务只有一个 UoW Context 和一个外层 Coordinator。嵌套 Command 与同步 Domain Event Handler 可以继续修改聚合，但只登记下一轮工作，不能独立提交或递归释放事件。同步失败 fail-fast 并回滚整个事务；提交后的可靠工作拥有独立失败域。
 
 Unit of Work 不属于 domain dependency。Aggregate 不应为了保存自己而依赖提交机制；它只表达状态变化和领域事实。application layer 负责组织用例，Repository 负责聚合访问，Unit of Work 负责提交边界，Subscriber 或后续 reaction 在事件可消费后继续工作。
 
-参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。阅读 `PublishContentCmd`、`StartMediaProcessingCmd`、`TryStartPaidPublicationCmd` 时，可以关注命令流程如何先调用 `ContentBehavior.kt` 或相关 application collaborator，再把持久化意图、提交和事件释放交给应用写入边界。
+参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。阅读 `PublishContentCmd`、`StartMediaProcessingCmd` 时，可以关注命令流程如何先调用 `ContentBehavior.kt` 或相关 application collaborator，再把持久化意图、稳定化、提交和事件释放交给框架写入边界。
 
-Unit of Work 的设计边界是“这次写入何时成为一个完成的业务结果”。常见误用包括把它写成 ORM 教程，把每个 Repository 方法都当成独立提交点，让 domain model 直接控制事务，或者在 Query 中为了缓存、统计而悄悄修改业务状态。需要恢复、重试或跨步骤推进时，可能应由 Saga、Subscriber 或 Job 表达，而不是扩大单次 Unit of Work。
+Unit of Work 的设计边界是“这次写入何时成为一个完成的业务结果”。常见误用包括把它写成 ORM 教程，把每个 Repository 方法都当成独立提交点，让 domain model 直接控制事务，或者在 Query 中为了缓存、统计而悄悄修改业务状态。需要恢复、重试或跨事务推进时，应使用可靠 Command、Integration Event、Scheduled Reaction 或显式 provider-owned orchestration，而不是扩大单次 Unit of Work。
 
 审查 Unit of Work 时，可以看 Command handler 是否有明确提交边界，待持久化对象是否通过 Unit of Work 收集和提交，事件释放是否与提交时机匹配，domain layer 是否没有依赖事务实现，以及文档或代码是否避免把 Unit of Work 误讲成 JPA internals。

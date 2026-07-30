@@ -86,12 +86,11 @@ def emit_output(issues: list[Issue], json_output: bool) -> None:
 DESIGN_TAGS = {
     "command",
     "query",
-    "client",
+    "capability",
     "api_payload",
     "domain_event",
     "integration_event",
     "domain_service",
-    "saga",
 }
 DESIGN_PUBLIC_FIELDS = {
     "tag",
@@ -114,7 +113,7 @@ DESIGN_REMOVED_FIELDS = {
     "scope",
     "entity",
 }
-RESULT_FIELD_TAGS = {"command", "query", "client", "api_payload"}
+RESULT_FIELD_TAGS = {"command", "query", "capability", "api_payload"}
 EVENT_NAME_TAGS = {"domain_event", "integration_event"}
 SELF_TOKEN_RE = re.compile(r"(^|[^A-Za-z0-9_])self([^A-Za-z0-9_]|$)", re.IGNORECASE)
 

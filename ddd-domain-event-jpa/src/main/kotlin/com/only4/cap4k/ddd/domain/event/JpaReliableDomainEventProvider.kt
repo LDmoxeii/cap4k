@@ -42,7 +42,7 @@ open class JpaReliableDomainEventProvider(
     }
 
     @TransactionalEventListener(
-        fallbackExecution = true,
+        fallbackExecution = false,
         classes = [DomainEventAttachedTransactionCommittedEvent::class],
     )
     fun onTransactionCommitted(event: DomainEventAttachedTransactionCommittedEvent) {

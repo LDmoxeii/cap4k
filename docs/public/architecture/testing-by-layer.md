@@ -6,7 +6,7 @@ Testing by layer 的目标是让测试责任和 Clean Architecture 边界一致�
 
 ## Domain Layer Tests
 
-Domain layer tests 应直接覆盖业务不变量和状态变化。重点是 Aggregate behavior、Factory 创建规则、Value Object 语义、Domain Service 决策和 Domain Event 触发条件。它们应尽量脱离 HTTP、Spring Boot、client-handler 和 persistence implementation。
+Domain layer tests 应直接覆盖业务不变量和状态变化。重点是 Aggregate behavior、Factory 创建规则、Value Object 语义、Domain Service 决策和 Domain Event 触发条件。它们应尽量脱离 HTTP、Spring Boot、capability-handler 和 persistence implementation。
 
 参考项目锚点是 `ContentBehaviorTest.kt` 和 `ContentFactoryTest.kt`。这些测试应证明 `ContentBehavior.kt` 与 `ContentFactory.kt` 的 handwritten logic 正确表达内容生命周期，而不是通过端到端 smoke path 间接推断领域规则。
 
@@ -14,17 +14,17 @@ Domain layer tests 应直接覆盖业务不变量和状态变化。重点是 Agg
 
 ## Application Layer Tests
 
-Application layer tests 应覆盖用例编排和提交边界。Command tests 应检查加载目标 Aggregate、zero-trust validation、Unit of Work 保存、no-op 或 retreat 原因、Domain Event 后续反应和 external capability request 的语义。Query tests 应检查读取意图和结果 shape，但不应让 Query 偷偷改变业务状态。
+Application layer tests 应覆盖用例编排和提交边界。Command tests 应检查加载目标 Aggregate、zero-trust validation、自动 Unit of Work completion、no-op 或 retreat 原因、Domain Event 后续反应和 external Capability 的语义。Query tests 应检查读取意图和结果 shape，但不应让 Query 偷偷改变业务状态。
 
-参考项目锚点包括 `PublishContentCommandContractTest`、`ContentPublicationReadyDomainEventSubscriber`、`MediaProcessingCallbackIntegrationEventSubscriber`、`MediaProcessingPollingFallbackJob` 和 `PaidPublicationSaga`。对 `PublishContentCmd`、`StartMediaProcessingCmd`、`GetContentDetailQry`、`TriggerMediaProcessingCli` 或 `GetMediaProcessingStatusCli` 的测试，应关注 application orchestration，而不是 HTTP payload details。
+参考项目锚点包括 `PublishContentCommandContractTest`、`ContentPublicationReadyDomainEventSubscriber`、`MediaProcessingCallbackIntegrationEventSubscriber` 和 `MediaProcessingPollingFallbackJob`。对 `PublishContentCmd`、`StartMediaProcessingCmd`、`GetContentDetailQry`、`TriggerMediaProcessing` 或 `GetMediaProcessingStatus` 的测试，应关注 application orchestration，而不是 HTTP payload details。
 
-审核 application tests 时，检查 Command Query Separation 是否被保护，Subscriber 是否幂等，Saga 是否覆盖 retry/recovery/compensation 的关键路径，Scheduled Reaction 是否和 callback 表达同一业务事实时收敛到相同内部语义。
+审核 application tests 时，检查 Command/Query/Capability 独立性是否被保护，Subscriber 是否幂等，同步 Domain Event 是否 fail-fast 且按非重入 frontier 推进，Scheduled Reaction 是否和 callback 表达同一业务事实时收敛到相同内部语义。若项目引入额外编排 provider，再单独覆盖 retry/recovery/compensation。
 
 ## Adapter Layer Tests
 
-Adapter layer tests 应覆盖 protocol conversion。Controller、API Payload、query adapter、client-handler 和 persistence adapter 的测试重点，是外部协议如何映射到 application contract，以及 application result 如何转换成外部 response。对 inbound Integration Event，HTTP/message consumption、parse/register/dispatch 可以通过 framework/runtime smoke 或 adapter module wiring evidence 覆盖；业务项目的 application inbound subscriber 应作为 application-layer reaction to typed inbound Integration Event 测试，重点覆盖幂等、语义翻译和 Command/application delegation。
+Adapter layer tests 应覆盖 protocol conversion。Controller、API Payload、query adapter、capability-handler 和 persistence adapter 的测试重点，是外部协议如何映射到 application contract，以及 application result 如何转换成外部 response。对 inbound Integration Event，HTTP/message consumption、parse/register/dispatch 可以通过 framework/runtime smoke 或 adapter module wiring evidence 覆盖；业务项目的 application inbound subscriber 应作为 application-layer reaction to typed inbound Integration Event 测试，重点覆盖幂等、语义翻译和 Command/application delegation。
 
-参考项目锚点包括 `ContentController`、`ReviewController`、`QueryController`、`AdvancedPaidPublicationController`、`GetContentDetailQryHandler`、`GetMediaProcessingStatusQryHandler`、`TriggerMediaProcessingCliHandler`、`GetMediaProcessingStatusCliHandler`、paid publication `*CliHandler` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。其中 smoke test 可以证明 inbound HTTP consumption wiring 可达，但不替代 domain/application 的 focused tests。
+参考项目锚点包括 `ContentController`、`ReviewController`、`QueryController`、`GetContentDetailQryHandler`、`GetMediaProcessingStatusQryHandler`、`TriggerMediaProcessingHandler`、`GetMediaProcessingStatusHandler` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。其中 smoke test 可以证明 inbound HTTP consumption wiring 可达，但不替代 domain/application 的 focused tests。
 
 审核 adapter tests 时，检查 mapping、status code、external error handling、callback payload shape mapping、query response shape 和 persistence technical mapping。若测试在 adapter 层断言业务不变量，应确认这些规则也在 domain/application focused tests 中存在。
 
@@ -32,7 +32,7 @@ Adapter layer tests 应覆盖 protocol conversion。Controller、API Payload、q
 
 Start layer tests 应证明 Spring Boot runtime assembly、local startup、runtime config 和 smoke path 可用。它们适合覆盖 bean wiring、profile selection、module assembly、HTTP happy path、callback wiring 和跨模块 smoke path。
 
-参考项目锚点包括 `StartApplicationSmokeTest`、`ContentStudioHappyPathHttpSmokeTest`、`ContentStudioPaidPublicationSagaSmokeTest`、`ContentStudioDesignContractTest`、`PublishContentCommandContractTest` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。这些测试能作为 reference project evidence anchors，帮助读者观察 start module 如何把 domain、application 和 adapter 装配到 runtime。
+参考项目锚点包括 `StartApplicationSmokeTest`、`ContentStudioHappyPathHttpSmokeTest`、`ContentStudioDesignContractTest`、`PublishContentCommandContractTest` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。这些测试能作为 reference project evidence anchors，帮助读者观察 start module 如何把 domain、application 和 adapter 装配到 runtime。
 
 审核 start tests 时，检查它们是否证明 runtime wiring，而不是把全部业务正确性压在 smoke tests 上。smoke path 适合证明系统能跑通；domain behavior 和 application orchestration 仍需要更靠内层的测试。
 

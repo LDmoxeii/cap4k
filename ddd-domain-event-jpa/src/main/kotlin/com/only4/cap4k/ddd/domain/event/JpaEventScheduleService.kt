@@ -22,28 +22,28 @@ class JpaEventScheduleService(
     private val eventRecordRepository: EventRecordRepository,
     private val locker: Locker,
     private val svcName: String,
-    private val compensationLockerKey: String,
+    private val retryLockerKey: String,
     private val archiveLockerKey: String,
     private val enableAddPartition: Boolean,
     private val jdbcTemplate: JdbcTemplate
 ) {
     private val log = LoggerFactory.getLogger(JpaEventScheduleService::class.java)
-    private var compensationRunning = false
+    private var retryRunning = false
 
     fun init() {
         addPartition()
     }
 
     /**
-     * 事件发送补偿
+     * 重试到期但尚未成功投递的可靠事件
      */
-    fun compense(batchSize: Int, maxConcurrency: Int, interval: Duration, maxLockDuration: Duration) {
-        if (compensationRunning) {
-            log.info("事件发送补偿:上次事件发送补偿仍未结束，跳过")
+    fun retry(batchSize: Int, interval: Duration, maxLockDuration: Duration) {
+        if (retryRunning) {
+            log.info("可靠事件重试:上次重试仍未结束，跳过")
             return
         }
 
-        compensationRunning = true
+        retryRunning = true
         try {
             val now = LocalDateTime.now()
             val nextTryTime = now.plus(interval)
@@ -53,14 +53,14 @@ class JpaEventScheduleService(
                 if (!processed) break
             }
         } finally {
-            compensationRunning = false
+            retryRunning = false
         }
     }
 
     private fun processEventBatch(batchSize: Int, nextTryTime: LocalDateTime, maxLockDuration: Duration): Boolean {
         val pwd = randomString(8, hasDigital = true, hasLetter = true)
 
-        if (!locker.acquire(compensationLockerKey, pwd, maxLockDuration)) {
+        if (!locker.acquire(retryLockerKey, pwd, maxLockDuration)) {
             return false
         }
 
@@ -72,16 +72,16 @@ class JpaEventScheduleService(
             }
 
             eventRecords.forEach { eventRecord ->
-                log.info("事件发送补偿: {}", eventRecord)
+                log.info("可靠事件重试: {}", eventRecord)
                 eventPublisher.resume(eventRecord, nextTryTime)
             }
 
             true
         } catch (ex: Exception) {
-            log.error("事件发送补偿:异常失败", ex)
+            log.error("可靠事件重试:异常失败", ex)
             false
         } finally {
-            locker.release(compensationLockerKey, pwd)
+            locker.release(retryLockerKey, pwd)
         }
     }
 

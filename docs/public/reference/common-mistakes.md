@@ -16,7 +16,7 @@
 
 | 错误 | 正确合同 |
 | --- | --- |
-| 把 adapter protocol details 放进 `client` 或 `domain_service` entries。 | `client` 表达 application-facing external capability；protocol mapping 属于 adapter handler。 |
+| 把 adapter protocol details 放进 `capability` 或 `domain_service` entries。 | `capability` 表达 application-facing external capability；protocol mapping 属于 adapter handler。 |
 | 把 `integration_event` 当作 transport runtime configuration。 | `integration_event` 是 published-language contract 和 skeleton signal；transport details 不属于 domain design input。 |
 
 ## Command And Query Mistakes
@@ -26,7 +26,7 @@
 | 让 `query` repair 或 mutate aggregate state。 | Query 只观察。 |
 | 让 `command` 为了 UI convenience 返回 read model。 | Command 表达 state-changing intent；read shapes 属于 Query 或 API payload result fields。 |
 | 让 controller 承载 business state decisions。 | Controller 把 protocol input 转成 Command/Query 并委托。 |
-| 在一个 command 中把多个 aggregate roots 当成 shared write ownership。 | 一个 command path 应只 persist 一个 aggregate root；除非显式建模，否则其他 reads 只是 validation facts。 |
+| 直接持久化 owned child，或依赖手动 `save()` 完成 Command。 | UoW enrollment 以 Aggregate Root 为边界；外层 Command 自动稳定化和提交。 |
 
 ## Analysis Mistakes
 
@@ -44,11 +44,11 @@
 | 把 bootstrap 当作 business modeling。 | Bootstrap creates structure；schema、design JSON、enum manifest、value-object manifest 仍需要 author input。 |
 | 用 source generation 修补错误 bootstrap layout。 | source generation 前先修正 bootstrap configuration 或 module layout。 |
 
-## Saga And Event Mistakes
+## Orchestration And Event Mistakes
 
 | 错误 | 正确合同 |
 | --- | --- |
-| 把每个 callback 都建模成 Saga。 | Saga 用于有 recovery/compensation needs 的 long-running coordination；simple external facts 可以 route 到 command/subscriber paths。 |
+| 把 cap4k 当成内置长流程编排器。 | 先组合 reliable Command 与 Integration Event；仍不足时选择显式 orchestration provider。 |
 | 把 Domain Event 当作 technical continuation step。 | Domain Event 描述 aggregate state change 之后形成的 business fact。 |
 | 通过 templates 或 addon magic 直接发布 outbound integration event payloads。 | Business code 从 application orchestration points attach outbound facts。 |
 | 把 adapter/protocol concerns 放进 domain。 | Domain keeps business language；adapter 处理 HTTP、messaging、persistence mapping、callback protocol 和 external API details。 |

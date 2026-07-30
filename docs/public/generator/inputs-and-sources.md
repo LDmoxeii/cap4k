@@ -38,12 +38,11 @@ DB/schema comments 的 supported annotation closed set、relation metadata 依�
 
 - `command`
 - `query`
-- `client`
+- `capability`
 - `api_payload`
 - `domain_event`
 - `integration_event`
 - `domain_service`
-- `saga`
 
 这些 tag 说明项目需要哪些 application entry、external capability contract、payload、event、service 或 coordination anchor。它们驱动 skeleton shape，不写业务判断。比如 `command` 可以让 Command surface 稳定存在，但何时调用 Aggregate、如何校验、如何 attach event，仍由手写 logic 决定。
 
@@ -74,7 +73,7 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 
 [Reference Content Studio](../examples/reference-content-studio.md) 提供可对照的输入面：
 
-- `design/design.json`：Command、Query、client、payload、event、domain service 和 Saga 锚点。
+- `design/design.json`：Command、Query、Capability、payload、event 和 domain service 锚点。
 - `design/value-objects.json`：通过 `types.valueObjectManifest` 管理 `MediaProcessingResultSnapshot`。
 - `design/enums.json`：通过 `types.enumManifest` 管理 `ReleasePolicy` 和 `MediaProcessingResultStatus`。
 - start module schema：表达 aggregate table、type marker、引用和 persistence surface。
@@ -91,7 +90,7 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 
 - schema 中的 Aggregate table 和模型边界不一致。
 - `design/design.json` 中的 `command` / `query` 职责混淆。
-- `client` 或 `integration_event` 没有清晰 published language。
+- `capability` 或 `integration_event` 没有清晰 published language。
 - `types.valueObjectManifest` 的类型没有值对象语义。
 - `types.enumManifest` 把复杂规则压成枚举值。
 - `sources.irAnalysis.inputDirs` 指向的 IR 输出不完整，缺少 `nodes.json` 或 `rels.json`。

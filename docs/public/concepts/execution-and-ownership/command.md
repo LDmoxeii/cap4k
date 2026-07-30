@@ -2,14 +2,16 @@
 
 Command 表达一次希望改变业务状态的应用层意图。它不是任意参数对象，也不是把 controller request 原样搬进 domain layer；它应该让读者一眼看出“用户或系统想让业务发生什么变化”，例如发布内容、启动媒体处理、尝试开启 paid publication。
 
-当一个用例需要修改 Aggregate 状态、触发领域行为、保存结果或释放事件时，应建模为 Command。Command handler 拥有这次应用层写入流程的组织权：它负责通过 Repository 读取所需聚合，调用 Aggregate 行为方法，协调必要的 application collaborator，并把持久化意图和提交交给 Unit of Work。真正的业务不变量仍在 Aggregate 内部，不应散落在 handler 的流程判断里。
+当一个用例需要修改 Aggregate 状态、触发领域行为、登记可靠异步工作或释放事件时，应建模为 Command。Command handler 拥有这次应用层写入流程的组织权：它负责通过 Repository 读取所需聚合，调用 Aggregate 行为方法，协调必要的 application collaborator，并把持久化意图交给 Unit of Work。外层 Command 自动创建 REQUIRED transaction、稳定化并完成 Unit of Work；嵌套 Command 加入同一事务和 UoW。真正的业务不变量仍在 Aggregate 内部，不应散落在 handler 的流程判断里。
 
 在 cap4k 中，`command` design tag 可以让 generator 生成 Command、handler 入口和稳定命名。生成骨架表达的是“这里有一个写入用例入口”；具体字段含义、权限上下文、聚合行为调用、异常分支、事件释放条件和保存顺序必须由手写逻辑完成。Command handler 应该让流程清楚，但不替代 domain model 做决定。
 
-一次典型写入会从 Command 进入 application layer，通过 Repository 加载 Aggregate Root，调用 `ContentBehavior.kt` 这类领域行为，再由 Unit of Work 在提交边界内完成状态持久化。领域事件可以在聚合状态变化后产生，并在提交完成后的合适阶段被 subscriber 消费。这样写入路径既能看见用例，也能保持领域规则集中。
+一次典型写入会从 Command 进入 application layer，通过 Repository 加载 Aggregate Root，调用 `ContentBehavior.kt` 这类领域行为，再由 Unit of Work 在提交边界内自动完成状态持久化。同步 Domain Event 在同一事务中按非重入因果 frontier 释放；可靠 Command 与 Integration Event 只在当前事务中登记，并在提交成功后唤醒后续处理。这样写入路径既能看见用例，也能保持领域规则集中。
 
-参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。可以从 `PublishContentCmd` 阅读内容发布意图，从 `StartMediaProcessingCmd` 阅读媒体处理启动意图，从 `TryStartPaidPublicationCmd` 和 `PublishPaidPublicationContentCmd` 阅读 paid publication 如何把命令、聚合行为和 Saga 协作连接起来。
+本地异步工作使用 `Mediator.commands.enqueue(command)`、`schedule(command, executeAt)` 或 `delay(command, duration)` 登记可靠 Command。登记必须发生在活跃的物理事务内：Command record 与当前写入一起提交或回滚，worker 只在 after-commit 被唤醒。worker 执行时会创建新的外层 Command、REQUIRED transaction 和 UoW，其后续失败不会回滚原事务。after-commit 唤醒失败也不会丢失已提交记录；provider 必须保留 polling/recovery。
+
+参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。可以从 `PublishContentCmd` 阅读内容发布意图，从 `StartMediaProcessingCmd` 阅读媒体处理启动意图，并观察 Command 如何把 Repository、Aggregate 行为、Domain Event 与外部 Capability 协作连接起来。
 
 Command 的设计边界是一次状态改变，不是“所有业务代码的容器”。常见误用包括把查询放进 Command handler，把外部协议 DTO 直接当 Command，把多个不相关生命周期塞进一个命令，或者在 handler 中绕过 Aggregate 直接改字段。handler 可以协调，但不能让应用层流程吞掉 Aggregate 的不变量。
 
-审查 Command 时，可以看名称是否是动词化的业务意图，handler 是否拥有清晰的写入流程，Aggregate 行为是否承担状态判断，Unit of Work save 是否在应用写入边界内完成，领域事件是否来自状态变化之后，以及生成骨架与手写业务逻辑是否容易区分。
+审查 Command 时，可以看名称是否是动词化的业务意图，handler 是否拥有清晰的写入流程，Aggregate 行为是否承担状态判断，是否没有 completion-oriented `save()`，领域事件是否携带不可变历史事实，以及生成骨架与手写业务逻辑是否容易区分。

@@ -42,7 +42,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `request and query variants compile in the application module`() {
+    fun `command query and capability variants compile in the application module`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-compile-sample")
 
@@ -70,7 +70,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
         )
         val listQueryContent = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderListQry.kt",
@@ -79,12 +79,12 @@ class PipelinePluginCompileFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt",
         ).readText()
         assertTrue(listQueryContent.contains("val items: List<Item>"))
-        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, Query<Response>"))
         assertTrue(pageQueryContent.contains("val page: PageData<Item>"))
     }
 
     @Test
-    fun `query-handler and client-handler variants compile in the adapter module`() {
+    fun `query-handler and capability-handler variants compile in the adapter module`() {
         val redProjectDir = Files.createTempDirectory("pipeline-functional-design-compile-adapter-red")
         FunctionalFixtureSupport.copyCompileFixture(redProjectDir, "design-compile-sample")
         removeApplicationCompileSmokeSource(redProjectDir)
@@ -112,7 +112,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderListQryHandler.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderPageQryHandler.kt",
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
         )
     }
 
@@ -1608,14 +1608,13 @@ class PipelinePluginCompileFunctionalTest {
             projectDir,
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/services/order/pricing/CalculateOrderTotal.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSaga.kt",
         )
         assertFalse(
             projectDir.resolve(
@@ -1633,12 +1632,6 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(orderAddressSource.contains("data class Item("))
         assertTrue(orderAddressSource.contains("val details: Details"))
         assertTrue(orderAddressSource.contains("data class Details("))
-        assertGeneratedFilesDoNotExist(
-            projectDir,
-            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaParam.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaResult.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/fulfillment/FulfillOrderSagaHandler.kt",
-        )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))

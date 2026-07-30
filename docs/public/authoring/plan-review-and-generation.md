@@ -28,7 +28,7 @@ plan review 是进入 generation 前的 ownership 审查。作者已经有了业
 
 ## cap4kGenerate
 
-`cap4kGenerate` 根据已经审查过的输入和计划应用 generation。它可以首次写出 checked-in skeleton、adapter surface、application entry、domain type、payload、client-handler、repository adapter 等输出；已有 `CHECKED_IN_SOURCE` 固定 SKIP，不会更新、merge 或 patch。
+`cap4kGenerate` 根据已经审查过的输入和计划应用 generation。它可以首次写出 checked-in skeleton、adapter surface、application entry、domain type、payload、capability-handler、repository adapter 等输出；已有 `CHECKED_IN_SOURCE` 固定 SKIP，不会更新、merge 或 patch。
 
 进入 `cap4kGenerate` 前，作者应确认：
 
@@ -50,7 +50,7 @@ generation 的作用是维护结构和合同，不是完成业务实现。生成
 
 plan review 要把 output 分成几类：
 
-- checked-in skeletons：例如 Command、Query、Subscriber、client、client-handler、Saga、API Payload 或 adapter surface；首次生成后作为普通仓库源码维护，不自动追随 template 更新。
+- checked-in skeletons：例如 Command、Query、Capability、Subscriber、API Payload 或 adapter surface；首次生成后作为普通仓库源码维护，不自动追随 template 更新。
 - build-owned generated source：构建期维护的输出，不应成为手写业务规则位置。
 - handwritten logic locations：作者在 skeleton 暴露的 surface 中维护业务判断、状态推进、补偿、幂等和协议转换。
 - evidence files：`plan.json`、analysis plan、flow output、drawing-board output，用来审查结构和 ownership。
@@ -65,7 +65,7 @@ plan review 要把 output 分成几类：
 - `templateId` 和作者预期的 family 不一致。
 - checked-in item 没有呈现固定 `SKIP`，或 build-owned item 的 policy 与 root ownership 不一致。
 - plan item 对应的业务概念在 `design/design.json` 或 schema 中无法解释。
-- Command/Query、Event 或 Saga 命名暴露出模型混乱。
+- Command/Query/Capability 或 Event 命名暴露出模型混乱。
 - Value Object、enum 或 DB marker 和业务语义不一致。
 - plan 中出现大量作者无法解释的输出。
 

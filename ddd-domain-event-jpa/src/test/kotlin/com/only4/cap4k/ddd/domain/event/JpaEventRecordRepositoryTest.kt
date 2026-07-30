@@ -76,13 +76,13 @@ class JpaEventRecordRepositoryTest {
                 every { svcName } returns "test-service"
             }
 
-            every { eventJpaRepository.saveAndFlush(any()) } returns savedEvent
+            every { eventJpaRepository.save(any()) } returns savedEvent
 
             // When
             repository.save(eventRecord)
 
             // Then
-            verify { eventJpaRepository.saveAndFlush(any()) }
+            verify { eventJpaRepository.save(any()) }
             assertEquals(savedEvent, eventRecord.event)
         }
 
@@ -98,13 +98,13 @@ class JpaEventRecordRepositoryTest {
             eventRecord.markPersist(true)
 
             val savedEvent = mockk<Event>()
-            every { eventJpaRepository.saveAndFlush(any()) } returns savedEvent
+            every { eventJpaRepository.save(any()) } returns savedEvent
 
             // When
             repository.save(eventRecord)
 
             // Then
-            verify { eventJpaRepository.saveAndFlush(any()) }
+            verify { eventJpaRepository.save(any()) }
         }
     }
 
@@ -472,7 +472,7 @@ class JpaEventRecordRepositoryTest {
                 every { version } returns 1
             }
 
-            every { eventJpaRepository.saveAndFlush(any()) } returns savedEvent
+            every { eventJpaRepository.save(any()) } returns savedEvent
             every {
                 eventJpaRepository.findOne(any<Specification<Event>>())
             } returns Optional.of(savedEvent)
@@ -528,7 +528,7 @@ class JpaEventRecordRepositoryTest {
         fun `should handle database connection errors`() {
             // Given
             every {
-                eventJpaRepository.saveAndFlush(any())
+                eventJpaRepository.save(any())
             } throws RuntimeException("Database connection failed")
 
             val eventRecord = EventRecordImpl()

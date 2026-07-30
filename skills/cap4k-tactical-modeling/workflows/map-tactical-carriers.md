@@ -29,10 +29,10 @@ Use `../../shared/references/tactical-affordance-map.md` as the carrier authorit
 - Do not model external callbacks as Domain Events.
 - Split events only when the completed business facts differ, not because several consumers exist.
 
-## Subscriber/Saga/Scheduled Reaction Decision
+## Subscriber/Orchestration/Scheduled Reaction Decision
 
 - Use Subscriber for thin application reaction, filtering, idempotent delegation, or follow-up command routing.
-- Use Saga only for persisted long-running coordination, retry, recovery, or compensation.
+- Cap4k has no built-in Saga carrier. If persisted long-running coordination, retry, recovery, or compensation exceeds reliable Commands and Integration Events, record the need for an explicit provider-owned orchestration boundary.
 - Use Scheduled Reaction for time, cron, timeout, compensation scan, or polling fallback.
 - Reject central listener or process-router ownership when independent reactions and zero-trust commands are sufficient.
 

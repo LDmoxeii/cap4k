@@ -2,7 +2,7 @@
 
 generator-backed authoring 是用 generator 固化 architecture control。作者先在业务意图、模型和技术设计中决定边界，再把这些决定投影到 schema、`design/design.json`、`types.valueObjectManifest`、`types.enumManifest` 和 Gradle extension。generator 读取这些显式输入，产出稳定 code slots、checked-in skeleton、build-owned generated source 和可审查 evidence。
 
-它不是业务判断替代品，也不是业务规则作者。generator 可以让 Command、Query、Subscriber、client、client-handler、Saga、API payload、Repository adapter、Factory、Value Object 和 enum 等结构保持一致；它不能替作者判断一个聚合何时改变状态、一个 Saga 何时补偿、一个 external capability 如何处理失败，或一个 Query 是否应该暴露某个业务视图。
+它不是业务判断替代品，也不是业务规则作者。generator 可以让 Command、Query、Capability、Subscriber、API payload、Repository adapter、Factory、Value Object 和 enum 等结构保持一致；它不能替作者判断一个聚合何时改变状态、持久化编排何时恢复或补偿、一个 external capability 如何处理失败，或一个 Query 是否应该暴露某个业务视图。
 
 ## Architecture Control
 
@@ -20,11 +20,11 @@ architecture control 指的是：generator 把项目已经写明的结构事实�
 
 stable code slots 是作者可以长期识别的手写位置。比如：
 
-- Command handler 组织 application use case、`UnitOfWork` 和 domain behavior。
+- Command handler 组织 application use case 和 domain behavior；外层 Command 自动拥有 REQUIRED transaction 与 UoW completion。
 - Query handler 组织 read path，不推进状态。
 - Subscriber 接收 domain event 或 inbound integration event，必要时委托 Command。
-- client-handler 把 application client contract 转成 adapter protocol。
-- Saga step 维护跨步骤协调、恢复和补偿。
+- Capability Handler 把 application 声明的外部能力转成 adapter protocol。
+- 跨时间持久化编排使用显式 provider，cap4k 不生成内置编排骨架。
 - Factory、Domain Service 和 Value Object 表达领域内的创建、协作判断和值语义。保存前不变量应由 Aggregate / Value Object / Domain Service 的明确行为承担，物理唯一性等约束由数据库 schema 保底；cap4k 不再提供专用 Specification carrier 或 Unit of Work interception。
 
 generator 的作用是让这些 slot 在首次 materialization 时有一致名称和位置。作者的作用是把业务判断写在对应 slot 中，并在 plan review 中确认 checked-in output 固定 `SKIP`、build-owned output 的 policy 与 ownership 一致。

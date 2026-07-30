@@ -29,7 +29,7 @@ class JpaEventScheduleServiceTest {
     private lateinit var jdbcTemplate: JdbcTemplate
 
     private val svcName = "test-service"
-    private val compensationLockerKey = "compensation-lock"
+    private val retryLockerKey = "retry-lock"
     private val archiveLockerKey = "archive-lock"
     private val enableAddPartition = true
 
@@ -45,7 +45,7 @@ class JpaEventScheduleServiceTest {
             eventRecordRepository = eventRecordRepository,
             locker = locker,
             svcName = svcName,
-            compensationLockerKey = compensationLockerKey,
+            retryLockerKey = retryLockerKey,
             archiveLockerKey = archiveLockerKey,
             enableAddPartition = enableAddPartition,
             jdbcTemplate = jdbcTemplate
@@ -75,7 +75,7 @@ class JpaEventScheduleServiceTest {
                 eventRecordRepository = eventRecordRepository,
                 locker = locker,
                 svcName = svcName,
-                compensationLockerKey = compensationLockerKey,
+                retryLockerKey = retryLockerKey,
                 archiveLockerKey = archiveLockerKey,
                 enableAddPartition = false,
                 jdbcTemplate = jdbcTemplate
@@ -91,14 +91,13 @@ class JpaEventScheduleServiceTest {
 
     @Nested
     @DisplayName("事件补偿测试")
-    inner class CompensationTest {
+    inner class RetryTest {
 
         @Test
         @DisplayName("应该成功执行事件补偿")
-        fun `should execute event compensation successfully`() {
+        fun `should execute event retry successfully`() {
             // Given
             val batchSize = 10
-            val maxConcurrency = 5
             val interval = Duration.ofMinutes(5)
             val maxLockDuration = Duration.ofMinutes(10)
 
@@ -107,20 +106,20 @@ class JpaEventScheduleServiceTest {
                 createMockEventRecord("event2")
             )
 
-            every { locker.acquire(compensationLockerKey, any(), maxLockDuration) } returns true
+            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns true
             every { eventRecordRepository.getByNextTryTime(any(), any(), batchSize) } returnsMany listOf(
                 mockEventRecords,
                 emptyList()
             )
 
             // When
-            scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
+            scheduleService.retry(batchSize, interval, maxLockDuration)
 
             // Then
-            verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
+            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
             verify { eventRecordRepository.getByNextTryTime(svcName, any(), batchSize) }
             verify(exactly = 2) { eventPublisher.resume(any(), any()) }
-            verify { locker.release(compensationLockerKey, any()) }
+            verify { locker.release(retryLockerKey, any()) }
         }
 
         @Test
@@ -128,17 +127,16 @@ class JpaEventScheduleServiceTest {
         fun `should return immediately when lock acquisition fails`() {
             // Given
             val batchSize = 10
-            val maxConcurrency = 5
             val interval = Duration.ofMinutes(5)
             val maxLockDuration = Duration.ofMinutes(10)
 
-            every { locker.acquire(compensationLockerKey, any(), maxLockDuration) } returns false
+            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns false
 
             // When
-            scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
+            scheduleService.retry(batchSize, interval, maxLockDuration)
 
             // Then
-            verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
+            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
             verify(exactly = 0) { eventRecordRepository.getByNextTryTime(any(), any(), any()) }
             verify(exactly = 0) { eventPublisher.resume(any(), any()) }
             verify(exactly = 0) { locker.release(any(), any()) }
@@ -146,16 +144,15 @@ class JpaEventScheduleServiceTest {
 
         @Test
         @DisplayName("应该处理补偿过程中的异常")
-        fun `should handle exceptions during compensation`() {
+        fun `should handle exceptions during retry`() {
             // Given
             val batchSize = 10
-            val maxConcurrency = 5
             val interval = Duration.ofMinutes(5)
             val maxLockDuration = Duration.ofMinutes(10)
 
             val mockEventRecord = createMockEventRecord("event1")
 
-            every { locker.acquire(compensationLockerKey, any(), maxLockDuration) } returns true
+            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns true
             every { eventRecordRepository.getByNextTryTime(any(), any(), batchSize) } returnsMany listOf(
                 listOf(
                     mockEventRecord
@@ -165,35 +162,34 @@ class JpaEventScheduleServiceTest {
 
             // When
             assertDoesNotThrow {
-                scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
+                scheduleService.retry(batchSize, interval, maxLockDuration)
             }
 
             // Then
-            verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
+            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
             verify { eventPublisher.resume(mockEventRecord, any()) }
-            verify { locker.release(compensationLockerKey, any()) }
+            verify { locker.release(retryLockerKey, any()) }
         }
 
         @Test
         @DisplayName("当没有事件需要补偿时应该正常结束")
-        fun `should finish normally when no events need compensation`() {
+        fun `should finish normally when no events need retry`() {
             // Given
             val batchSize = 10
-            val maxConcurrency = 5
             val interval = Duration.ofMinutes(5)
             val maxLockDuration = Duration.ofMinutes(10)
 
-            every { locker.acquire(compensationLockerKey, any(), maxLockDuration) } returns true
+            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns true
             every { eventRecordRepository.getByNextTryTime(any(), any(), batchSize) } returns emptyList()
 
             // When
-            scheduleService.compense(batchSize, maxConcurrency, interval, maxLockDuration)
+            scheduleService.retry(batchSize, interval, maxLockDuration)
 
             // Then
-            verify { locker.acquire(compensationLockerKey, any(), maxLockDuration) }
+            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
             verify { eventRecordRepository.getByNextTryTime(svcName, any(), batchSize) }
             verify(exactly = 0) { eventPublisher.resume(any(), any()) }
-            verify { locker.release(compensationLockerKey, any()) }
+            verify { locker.release(retryLockerKey, any()) }
         }
     }
 
@@ -403,7 +399,7 @@ class JpaEventScheduleServiceTest {
                 eventRecordRepository = eventRecordRepository,
                 locker = locker,
                 svcName = svcName,
-                compensationLockerKey = compensationLockerKey,
+                retryLockerKey = retryLockerKey,
                 archiveLockerKey = archiveLockerKey,
                 enableAddPartition = false,
                 jdbcTemplate = jdbcTemplate
@@ -433,7 +429,7 @@ class JpaEventScheduleServiceTest {
             scheduleService.init()
 
             // Then - 执行补偿
-            scheduleService.compense(10, 5, Duration.ofMinutes(5), Duration.ofMinutes(10))
+            scheduleService.retry(10, Duration.ofMinutes(5), Duration.ofMinutes(10))
 
             // And - 执行归档
             scheduleService.archive(30, 100, Duration.ofMinutes(15))
@@ -453,19 +449,19 @@ class JpaEventScheduleServiceTest {
 
         @Test
         @DisplayName("大批量事件补偿性能测试")
-        fun `should handle large batch compensation efficiently`() {
+        fun `should handle large batch retry efficiently`() {
             // Given
             val batchSize = 1000
             val largeEventList = (1..batchSize).map { createMockEventRecord("event$it") }
 
-            every { locker.acquire(compensationLockerKey, any(), any()) } returns true
+            every { locker.acquire(retryLockerKey, any(), any()) } returns true
             every {
                 eventRecordRepository.getByNextTryTime(any(), any(), batchSize)
             } returnsMany listOf(largeEventList, emptyList())
 
             // When
             val startTime = System.currentTimeMillis()
-            scheduleService.compense(batchSize, 10, Duration.ofMinutes(5), Duration.ofMinutes(10))
+            scheduleService.retry(batchSize, Duration.ofMinutes(5), Duration.ofMinutes(10))
             val duration = System.currentTimeMillis() - startTime
 
             // Then

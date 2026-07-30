@@ -17,7 +17,7 @@
 | `CHECKED_IN_SOURCE`、`GENERATED_SOURCE`、`OUTPUT_ARTIFACT` 和输出根 | [Outputs](outputs.md) |
 | `build/cap4k-code-analysis`、`nodes.json`、`rels.json`、flows、drawing-board | [Analysis Outputs](analysis-outputs.md) |
 | runtime SQL resource 与表用途 | [Runtime Database Schema](runtime-database-schema.md) |
-| 生成器、设计输入、analysis、bootstrap、Saga、adapter/domain 边界误用 | [Common Mistakes](common-mistakes.md) |
+| 生成器、设计输入、analysis、bootstrap、长流程编排、adapter/domain 边界误用 | [Common Mistakes](common-mistakes.md) |
 
 ## 按任务阅读
 

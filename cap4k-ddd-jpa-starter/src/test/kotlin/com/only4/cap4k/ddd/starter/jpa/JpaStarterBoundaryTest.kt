@@ -28,7 +28,7 @@ class JpaStarterBoundaryTest {
         )
         assertNotOnClasspath("com.only4.cap4k.ddd.application.distributed.locker.JdbcLocker")
         assertNotOnClasspath("com.only4.cap4k.ddd.application.saga.JpaSagaRecordRepository")
-        assertNotOnClasspath("com.only4.cap4k.ddd.application.JpaRequestRecordRepository")
+        assertNotOnClasspath("com.only4.cap4k.ddd.application.command.JpaCommandRecordRepository")
         assertNotOnClasspath("com.only4.cap4k.ddd.domain.event.JpaEventRecordRepository")
     }
 

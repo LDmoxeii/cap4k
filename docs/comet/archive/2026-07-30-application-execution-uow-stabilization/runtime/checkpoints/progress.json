@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.progress-checkpoint.v1",
+  "id": "3ff70978-7f9f-47b9-a887-a59182e04fe1",
+  "change": "application-execution-uow-stabilization",
+  "phase": "build",
+  "previousRevision": 3,
+  "stateRevision": 4,
+  "summary": "Command, reliable Command, Capability migration, Saga removal, synchronous event frontiers, transaction-level JPA UoW stabilization, audit enrichment, explicit flush, lifecycle callbacks, and focused runtime fixtures are implemented. Core, JPA provider, JPA starter, command starter, console, and pipeline-focused tests are green.",
+  "nextAction": "Wait for the final pipeline/compiler cleanup, run repository-level checks and stale-term scans, then seal Build scope and complete Comet Verify and Archive.",
+  "inputHash": "0ba41ce5eebb4d01ac2ea9c9c2bd0f25c3b803eca32876479f723ffbc7e10b1c",
+  "manifestHash": "b116211f58f492ca91352e85458d535d36589931841c4408215407d53162e610",
+  "manifestRef": "runtime/checkpoints/manifests/b116211f58f492ca91352e85458d535d36589931841c4408215407d53162e610.json",
+  "artifactCount": 3,
+  "createdAt": "2026-07-29T18:24:21.822Z"
+}

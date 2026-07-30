@@ -1,0 +1,181 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "application-execution-uow-stabilization",
+  "sourceRevision": 5,
+  "result": "pass",
+  "freshness": "partial",
+  "contractHash": "8420feca67ee184bc0f620c096e878047211432506d9637acaa932dc92dab714",
+  "acceptanceCriteriaHash": "487196df79a694db2531c0ba3d875030be41937534c453d7935ee0556c66b733",
+  "implementationScopeRef": "runtime/evidence/scopes/cecaaafaf411293cbc6dc7e47ae3e206cdd08fbe1b297f084d7f841015739b30.json",
+  "implementationScopeHash": "cecaaafaf411293cbc6dc7e47ae3e206cdd08fbe1b297f084d7f841015739b30",
+  "reportRef": "verification.md",
+  "reportHash": "85686bf9b1e68b6b70ebcce7f9aee7f0060b92d09d6d4e03c6c1ea0d32d3322c",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "487196df79a694db2531c0ba3d875030be41937534c453d7935ee0556c66b733",
+    "total": 15,
+    "evidenced": 15,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-03e1e2abd4bd18178eaa40e8b5ead0d1a55d9ca8af43a85ba9a65c1f1dc802a5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaReliableCommandTransactionTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-29eb7a22b2dd50b54c24cbc929854e1af211db0b57772e74e23ec2c4fd13f6a2",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventSubscriberManager.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventSubscriberManagerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2d28d3d8ba76dec13de8c233e97397b6c560efc35ff51390e3112e452e94d92d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/aggregate/impl/ReflectiveAggregateLifecycleInvoker.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/aggregate/impl/ReflectiveAggregateLifecycleInvokerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-3487d70ada4e4eaf850fb23661c36fd0311cb256356fc7490d3561e165914d73",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt",
+          "settings.gradle.kts",
+          "skills/scripts/checks/stale-terms.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-478537a7fc0b87b77f5dfc568d588a810e28da2c2487bfd0303a8f059ad1e3d5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-61430bcfb365a9ec3991ab757b6293dfab4304b918a2c2373350e22d89dd4358",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/impl/DefaultCommandSupervisor.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-625647e8e2c9bc56656a8c2c46614bba368609f8b24a8b96ae59867716424f6b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/specs/2026-07-30-cap4k-application-execution-and-uow-stabilization-design.md",
+          "skills/scripts/checks/stale-terms.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6d06d1b24c4964fd3614f5aba6b9138201e707c55a2c8a687669f3e4255c09a5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultDomainEventSupervisorTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7debea4a4e3703a9faaadcabb0d621d7994ace4da4bc7819c47384aa099cb9c9",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidator.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidatorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-8be70922b64307a4884ffcb30036984c9b76d5b9ddc038e7ab234a8d80cdb2e0",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaReliableCommandTransactionTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/command/impl/DefaultReliableCommandSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-98c097f697ce75bcea21e1573839e764abbf05b8a2db79317667cbc81fa41fd8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/impl/DefaultApplicationSupervisorsTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-9b2cef5e638528652cced6a6a123060aa3eb31d3724a94608983ec75fa06d513",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt",
+          "skills/scripts/checks/stale-terms.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a1da5286fdd86ca9346f8f02b06285e2dbbdf6e522f780456ffb9949495103e2",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d7a5111237ba9320564fb552b06eedd08239479adda4c28eec0f0787a52057e9",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventSubscriberManagerTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-dc4649df7cc9dca759476d5a968439ffee17779f81c03f713f6e2cf0e795ad01",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWorkTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "394cd68ed0d78b0fe0280be72ded5b21c76964581606aadf903c67ba04a97508"
+  },
+  "partialAllowanceRef": "runtime/evidence/allowances/beba1489612a2b43f5800a303d36ccfa1e3c455c8056538e8de09f9150ae7574.json",
+  "partialAllowanceHash": "beba1489612a2b43f5800a303d36ccfa1e3c455c8056538e8de09f9150ae7574",
+  "receiptRef": null,
+  "createdAt": "2026-07-30T06:46:52.533Z",
+  "envelopeHash": "0a9895976fd5c4fc92120b82ae1defd8bceb5080cf7c344ebef0d111f72dcbe0"
+}

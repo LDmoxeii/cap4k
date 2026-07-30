@@ -6,7 +6,7 @@ Factory 负责创建时的业务规则。它把“一个对象怎样从输入变
 
 Factory 位于 domain layer，并通常与 Aggregate Root、Value Object 和 Business Enum 协作。cap4k 为 Aggregate Root 保留 nested `<RootName>Factory.Payload`，并为每个 owned child 生成可复用的 top-level immutable `<EntityName>Creation`。Creation 是纯数据值，可被 Factory、Behavior 和其他 domain code 复用；它不拥有 `toEntity` 或独立 Factory。Root Factory 负责按 ownership graph 递归 materialize 并 attachment，owned-one 默认 `null`，owned-many 默认空 list 且保持输入顺序。
 
-Factory 和 Creation 都是 checked-in first-materialized source，existing file 固定 SKIP。创建规则、输入 normalization、默认状态和异常语义必须手写；generator 不承诺后续同步已经提交的 Factory。Repository 不属于 Factory；创建完成后的 Aggregate 应由 application flow 交给 Unit of Work 持久化。
+Factory 和 Creation 都是 checked-in first-materialized source，existing file 固定 SKIP。创建规则、输入 normalization、默认状态和异常语义必须手写；generator 不承诺后续同步已经提交的 Factory。Root behavior 可选提供 `onCreate()` 来登记创建事实；删除空回调不会影响创建，框架不强制每个 Aggregate 保留空方法。Repository 不属于 Factory；创建完成后的 Aggregate 在外层 Command 返回后自动进入 Unit of Work 稳定化。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`ContentFactory.kt` 是直接锚点，展示创建内容草稿时如何处理 `ContentFactory.Payload`、默认 `ReleasePolicy`、初始状态和输入字段，而不是只把参数转发给 `Content` constructor。
 

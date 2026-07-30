@@ -37,6 +37,10 @@ function Assert-NoForbiddenPattern {
       $text = $text -replace 'client/cli\b', 'masked-stale-client-cli-boundary'
       $text = $text -replace [regex]::Escape('build/cap4k code analysis'), 'masked-stale-spaced-analysis-output'
       $text = $text -replace [regex]::Escape('build/cap4k/analysis plan.json'), 'masked-stale-spaced-analysis-plan'
+      $text = $text -replace [regex]::Escape('Mediator.requests'), 'masked-stale-generic-request-entry'
+      $text = $text -replace '\b(?:RequestSupervisor|ReliableRequestSupervisor|ReliableRequest|RequestParam|RequestHandler|RequestDispatchException)\b', 'masked-stale-generic-request-contract'
+      $text = $text -replace '\b(?:UnitOfWork|Mediator\.uow)\.save\b', 'masked-stale-mandatory-save'
+      $text = $text -replace '\b(?:designClient|designClientHandler|ClientHandler|designSaga|designSagaHandler|SagaHandler)\b', 'masked-stale-generator-family'
     }
 
     foreach ($patternInfo in $Patterns) {
@@ -118,7 +122,18 @@ $task8StalePatterns = @(
   @{ Name = 'combined tactical/design route'; Pattern = 'cap4k-tactical-modeling or cap4k-technical-design' },
   @{ Name = 'command resultFields invalid'; Pattern = 'command.*resultFields.*(invalid|not valid|not supported|unsupported|rejected|must.*corrected)' },
   @{ Name = 'command.resultFields invalid'; Pattern = 'command\.resultFields.*(invalid|not valid|not supported|unsupported|rejected|must.*corrected)' },
-  @{ Name = 'resultFields not allowed on command'; Pattern = 'resultFields.*not allowed.*command|resultFields.*not allowed.*`command`' }
+  @{ Name = 'resultFields not allowed on command'; Pattern = 'resultFields.*not allowed.*command|resultFields.*not allowed.*`command`' },
+  @{ Name = 'Mediator.requests'; Pattern = 'Mediator\.requests\b' },
+  @{ Name = 'RequestSupervisor'; Pattern = '\bRequestSupervisor\b' },
+  @{ Name = 'ReliableRequest'; Pattern = '\bReliableRequest(?:Supervisor)?\b' },
+  @{ Name = 'RequestParam'; Pattern = '\bRequestParam\b' },
+  @{ Name = 'RequestHandler'; Pattern = '\bRequestHandler\b' },
+  @{ Name = 'RequestDispatchException'; Pattern = '\bRequestDispatchException\b' },
+  @{ Name = 'UnitOfWork.save'; Pattern = '\bUnitOfWork\.save\b|\bMediator\.uow\.save\b' },
+  @{ Name = 'client design tag'; Pattern = '`client`\s+(?:design\s+)?tag|tag\s+`client`' },
+  @{ Name = 'saga design tag'; Pattern = '`saga`\s+(?:design\s+)?tag|tag\s+`saga`' },
+  @{ Name = 'client handler skeleton'; Pattern = '\bdesignClient(?:Handler)?\b|\bClientHandler\b' },
+  @{ Name = 'saga handler skeleton'; Pattern = '\bdesignSaga(?:Handler)?\b|\bSagaHandler\b' }
 )
 
 Assert-NoForbiddenPattern `
@@ -188,16 +203,15 @@ $runtimeSourceRoots = @(
   'ddd-core',
   'cap4k-ddd-core-starter',
   'cap4k-ddd-jpa-starter',
-  'cap4k-ddd-request-jpa-starter',
+  'cap4k-ddd-command-jpa-starter',
   'cap4k-ddd-domain-event-jpa-starter',
-  'cap4k-ddd-saga-jpa-starter',
   'cap4k-ddd-locker-jdbc-starter',
   'cap4k-ddd-snowflake-starter',
   'cap4k-ddd-integration-event-http-starter',
   'cap4k-ddd-integration-event-http-jpa-starter',
   'cap4k-ddd-integration-event-rabbitmq-starter',
   'cap4k-ddd-integration-event-rocketmq-starter',
-  'ddd-application-request-jpa',
+  'ddd-application-command-jpa',
   'ddd-domain-event-jpa',
   'ddd-integration-event-http',
   'ddd-integration-event-http-jpa',
@@ -220,4 +234,36 @@ if ($runtimeSourceFiles.Count -gt 0) {
     -Files $runtimeSourceFiles `
     -Patterns $removedEventGuidancePatterns `
     -Scope 'runtime source'
+
+  $removedApplicationRuntimePatterns = @(
+    @{ Name = 'Mediator.requests'; Pattern = 'Mediator\.requests\b' },
+    @{ Name = 'RequestSupervisor'; Pattern = '\bRequestSupervisor\b' },
+    @{ Name = 'ReliableRequest'; Pattern = '\bReliableRequest(?:Supervisor)?\b' },
+    @{ Name = 'RequestParam'; Pattern = '\bRequestParam\b' },
+    @{ Name = 'RequestHandler'; Pattern = '\bRequestHandler\b' },
+    @{ Name = 'RequestDispatchException'; Pattern = '\bRequestDispatchException\b' },
+    @{ Name = 'EventRuntimeScopeType.REQUEST'; Pattern = 'EventRuntimeScopeType\.REQUEST\b' },
+    @{ Name = 'UnitOfWork.save'; Pattern = '\bUnitOfWork\.save\b|\bMediator\.uow\.save\b' },
+    @{ Name = 'Saga runtime'; Pattern = '\b(?:SagaParam|SagaHandler|SagaSupervisor|SagaManager|SagaRecord)\b' },
+    @{ Name = 'compense spelling'; Pattern = '\bcompense(?:Cron|BatchSize|MaxConcurrency|IntervalSeconds|MaxLockSeconds)?\b' }
+  )
+
+  Assert-NoForbiddenPattern `
+    -Files $runtimeSourceFiles `
+    -Patterns $removedApplicationRuntimePatterns `
+    -Scope 'active runtime source'
+}
+
+$reliableRecordProviderFiles = @(
+  @(Get-TextFiles -Root 'ddd-application-command-jpa' -Extensions @('.kt', '.java')),
+  @(Get-TextFiles -Root 'ddd-domain-event-jpa' -Extensions @('.kt', '.java'))
+) | ForEach-Object { $_ } | Where-Object { $_.FullName -like '*\src\main\*' }
+
+if ($reliableRecordProviderFiles.Count -gt 0) {
+  Assert-NoForbiddenPattern `
+    -Files $reliableRecordProviderFiles `
+    -Patterns @(
+      @{ Name = 'reliable record provider saveAndFlush'; Pattern = '\bsaveAndFlush\s*\(' }
+    ) `
+    -Scope 'reliable Command and Domain Event provider source'
 }

@@ -1,7 +1,6 @@
 package com.only4.cap4k.ddd.runtime.softdelete.mysql
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
-import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
@@ -12,8 +11,7 @@ import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
 import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
-import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
-import com.only4.cap4k.ddd.core.domain.repo.PersistType
+import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
@@ -37,6 +35,8 @@ import org.springframework.context.annotation.Import
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 import java.io.Serializable
 import java.util.UUID
 
@@ -54,6 +54,7 @@ private const val MYSQL_NIL_UUID_TEXT = "00000000-0000-0000-0000-000000000000"
 )
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(SoftDeleteH2MySqlRuntimeTest.TestConfig::class)
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class SoftDeleteH2MySqlRuntimeTest {
     @Autowired
     private lateinit var snowflakeLongRepository: MySqlSnowflakeLongRepository
@@ -81,15 +82,13 @@ class SoftDeleteH2MySqlRuntimeTest {
 
     @Test
     fun `Snowflake Long Strong ID binds BIGINT SQLDelete placeholder and stores deleted as id value`() {
-        val entity = factorySupervisor().create(
-            MySqlSnowflakeLongFactory.Payload(name = "snowflake-long")
-        )
-
-        assertTrue(entity.hasAssignedId())
+        lateinit var entity: MySqlSnowflakeLongEntity
+        unitOfWork.execute {
+            entity = factorySupervisor().create(MySqlSnowflakeLongFactory.Payload(name = "snowflake-long"))
+            assertTrue(entity.hasAssignedId())
+            assertEquals(0L, entity.deleted)
+        }
         val id = entity.id
-        assertEquals(0L, entity.deleted)
-
-        unitOfWork.save()
         entityManager.clear()
 
         assertEquals("BIGINT", columnType("mysql_snowflake_long", "id"))
@@ -100,9 +99,9 @@ class SoftDeleteH2MySqlRuntimeTest {
         assertEquals(id.value, activeRow.id)
         assertEquals(0L, activeRow.deleted)
 
-        val loaded = snowflakeLongRepository.findById(id).orElseThrow()
-        unitOfWork.remove(loaded)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.remove(snowflakeLongRepository.findById(id).orElseThrow())
+        }
         entityManager.clear()
 
         assertTrue(snowflakeLongRepository.findAll().isEmpty())
@@ -115,15 +114,13 @@ class SoftDeleteH2MySqlRuntimeTest {
 
     @Test
     fun `Snowflake String lifecycle executes character ZERO sentinel and preserves physical row`() {
-        val entity = factorySupervisor().create(
-            MySqlSnowflakeStringFactory.Payload(name = "snowflake-string")
-        )
-
-        assertTrue(entity.hasAssignedId())
+        lateinit var entity: MySqlSnowflakeStringEntity
+        unitOfWork.execute {
+            entity = factorySupervisor().create(MySqlSnowflakeStringFactory.Payload(name = "snowflake-string"))
+            assertTrue(entity.hasAssignedId())
+            assertEquals("0", entity.deleted)
+        }
         val id = entity.id
-        assertEquals("0", entity.deleted)
-
-        unitOfWork.save()
         entityManager.clear()
 
         assertEquals(
@@ -131,9 +128,9 @@ class SoftDeleteH2MySqlRuntimeTest {
             snowflakeStringRow(id.value),
         )
 
-        val loaded = snowflakeStringRepository.findById(id).orElseThrow()
-        unitOfWork.remove(loaded)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.remove(snowflakeStringRepository.findById(id).orElseThrow())
+        }
         entityManager.clear()
 
         assertTrue(snowflakeStringRepository.findAll().isEmpty())
@@ -145,15 +142,13 @@ class SoftDeleteH2MySqlRuntimeTest {
 
     @Test
     fun `native UUID lifecycle executes explicit CAST predicate and preserves physical row`() {
-        val entity = factorySupervisor().create(
-            MySqlNativeUuidFactory.Payload(name = "native-uuid")
-        )
-
-        assertTrue(entity.hasAssignedId())
+        lateinit var entity: MySqlNativeUuidEntity
+        unitOfWork.execute {
+            entity = factorySupervisor().create(MySqlNativeUuidFactory.Payload(name = "native-uuid"))
+            assertTrue(entity.hasAssignedId())
+            assertEquals(UUID(0L, 0L), entity.deleted)
+        }
         val id = entity.id
-        assertEquals(UUID(0L, 0L), entity.deleted)
-
-        unitOfWork.save()
         entityManager.clear()
 
         assertEquals(1L, nativeActiveRowCount())
@@ -162,9 +157,9 @@ class SoftDeleteH2MySqlRuntimeTest {
             nativeUuidRow(id.value),
         )
 
-        val loaded = nativeUuidRepository.findById(id).orElseThrow()
-        unitOfWork.remove(loaded)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.remove(nativeUuidRepository.findById(id).orElseThrow())
+        }
         entityManager.clear()
 
         assertTrue(nativeUuidRepository.findAll().isEmpty())
@@ -242,8 +237,8 @@ class SoftDeleteH2MySqlRuntimeTest {
 
     class TestConfig {
         @Bean
-        fun persistListenerManager(): PersistListenerManager = object : PersistListenerManager {
-            override fun <Entity : Any> onChange(aggregate: Entity, type: PersistType) = Unit
+        fun domainEventManager(): DomainEventManager = object : DomainEventManager {
+            override fun release(entities: Set<Any>) = Unit
         }
 
         @Bean
@@ -255,13 +250,11 @@ class SoftDeleteH2MySqlRuntimeTest {
 
         @Bean
         fun jpaUnitOfWork(
-            persistListenerManager: PersistListenerManager,
+            domainEventManager: DomainEventManager,
             generatedOwnIdRegistry: GeneratedOwnIdRegistry,
         ): JpaUnitOfWork = JpaUnitOfWork(
-            emptyList<UnitOfWorkInterceptor>(),
-            persistListenerManager,
-            true,
-            generatedOwnIdRegistry,
+            domainEventManager = domainEventManager,
+            generatedOwnIdRegistry = generatedOwnIdRegistry,
         )
     }
 }

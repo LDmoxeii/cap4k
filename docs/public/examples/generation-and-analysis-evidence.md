@@ -6,7 +6,7 @@
 
 ## Design Input
 
-`design/design.json` 是主要 building-block 输入。它描述 command、query、domain event、integration event、domain service、saga、subscriber、job、client 等设计事实。它回答的问题是：“项目要求 generator 识别哪些业务入口和结构锚点？”
+`design/design.json` 是主要 building-block 输入。它描述 command、query、capability、domain event、integration event、domain service、subscriber、job 等设计事实。它回答的问题是：“项目要求 generator 识别哪些业务入口和结构锚点？”
 
 `design/value-objects.json` 和 `design/enums.json` 是相邻 type input manifest：
 
@@ -31,7 +31,7 @@ schema 与 design inputs 一起决定 generated skeleton 如何连接 persistenc
 阅读 `plan.json` 时，可以检查：
 
 - `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentReviewCmd`、`StartMediaProcessingCmd`、`MarkMediaProcessingSucceededCmd`、`RecordContentMediaReadyCmd`、`PublishContentCmd` 是否落在 application module。
-- API payload、controller、query adapter、client handler 是否落在 adapter module。
+- API payload、controller、query adapter、Capability Handler 是否落在 adapter module。
 - Value Object、enum、Repository、factory、domain event 是否落在 domain module。
 - `conflictPolicy` 是否保护已有手写逻辑。
 
@@ -53,7 +53,7 @@ README 中列出的 generation 入口是：
 ./gradlew cap4kAnalysisPlan cap4kAnalysisGenerate
 ```
 
-阅读 `analysis-plan.json` 时，重点看它是否把 command、query、domain event、integration event、saga 和 flow output 放进可审查的 project evidence surface，而不是把它当成业务规则来源。
+阅读 `analysis-plan.json` 时，重点看它是否把 command、query、capability、domain event、integration event 和 flow output 放进可审查的 project evidence surface，而不是把它当成业务规则来源。
 
 ## Flow Output
 
@@ -69,26 +69,24 @@ README 中列出的 generation 入口是：
 
 `analysis/drawing-board` 保存按 building-block 分类的 drawing-board evidence：
 
-- `analysis/drawing-board/drawing_board_client.json`
+- `analysis/drawing-board/drawing_board_capability.json`
 - `analysis/drawing-board/drawing_board_command.json`
 - `analysis/drawing-board/drawing_board_domain_event.json`
 - `analysis/drawing-board/drawing_board_integration_event.json`
 - `analysis/drawing-board/drawing_board_query.json`
-- `analysis/drawing-board/drawing_board_saga.json`
 
-这些文件适合用来快速确认项目里有哪些 command、query、event、client 和 saga 锚点。比如 paid publication 可以从 `drawing_board_saga.json` 找到 `PaidPublicationSaga`，默认发布路径可以从 command、domain event 和 integration event drawing board 中找到对应入口。
+这些文件适合用来快速确认项目里有哪些 Command、Query、Capability 和 Event 锚点。默认发布路径可以从 Command、Domain Event 和 Integration Event drawing board 中找到对应入口。
 
 ## Tests As Evidence
 
 测试不是 design input，但它们是重要证据面：
 
 - `ContentStudioHappyPathHttpSmokeTest`：默认 HTTP happy path。
-- `ContentStudioPaidPublicationSagaSmokeTest`：paid opt-in Saga runtime path。
 - `MediaProcessingCallbackIntegrationEventSmokeTest`：framework integration-event HTTP transport wiring 和 application subscriber reaction smoke path。
 - `ContentStudioDesignContractTest`：设计合同证据。
 - `PublishContentCommandContractTest`：默认发布 command contract。
 - `MediaProcessingResultSnapshotTest`：JSON-backed Value Object output。
-- `ContentBehaviorTest`、`ContentFactoryTest`、`PaidPublicationEligibilityServiceTest`：domain 行为和 paid eligibility。
+- `ContentBehaviorTest`、`ContentFactoryTest`：domain 行为。
 
 读测试时，重点看它们保护的是手写业务行为、运行路径、合同还是 generated output。不要把测试名当作设计输入；设计输入仍然在 `design/`、schema 和 plan evidence 中。
 
@@ -102,6 +100,6 @@ README 中列出的 generation 入口是：
 4. 再读真实 Kotlin 文件，确认 generated skeleton 与 handwritten logic 的边界。
 5. 再读 tests，确认行为、runtime path 和合同。
 6. 最后读已提交的 `analysis/flows` 和 `analysis/drawing-board`。
-7. 运行 README analysis 命令后，再读取本地 `build/cap4k/analysis-plan.json`，从结构证据回看 controller、subscriber、job、Saga 和 application flow。
+7. 运行 README analysis 命令后，再读取本地 `build/cap4k/analysis-plan.json`，从结构证据回看 controller、subscriber、job、Capability 和 application flow。
 
 这组 evidence surfaces 共同服务于一个目标：让 public docs 中的概念、架构规则和 examples 页面都能回到同一个 sibling repo 中检查，而不是依赖不可追踪的叙述。

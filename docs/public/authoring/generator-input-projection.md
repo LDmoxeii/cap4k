@@ -9,7 +9,7 @@ generator input projection 是把已经形成的业务意图、模型和技术�
 输入投影要覆盖这些 surface：
 
 - DB schema：Aggregate table、ID、引用、enum type marker、Value Object type marker、unique constraint 和外键。
-- `design/design.json`：Command、Query、API Payload、client、Domain Event、Integration Event、Domain Service、Saga、Subscriber、job 等 building blocks。
+- `design/design.json`：Command、Query、Capability、API Payload、Domain Event、Integration Event、Domain Service 等 building blocks。
 - `design/value-objects.json`：通过 `types.valueObjectManifest` 管理 Value Object。
 - `design/enums.json`：通过 `types.enumManifest` 管理 Business Enum。
 - module layout：domain、application、adapter、start 的物理模块位置。
@@ -32,19 +32,18 @@ schema 可以帮助 generator 理解字段、类型和 persistence mapping，但
 
 ## design/design.json
 
-`design/design.json` 是主要 building-block 输入。它把 technical design 中的 application entry、event、payload、client 和 Saga 锚点写成结构化事实。
+`design/design.json` 是主要 building-block 输入。它把 technical design 中的 application entry、event、payload 和 Capability 锚点写成结构化事实。
 
 参考项目里可以看到这些类别：
 
 - `command`：例如 `CreateContentDraft`、`ApproveContentReview`、`StartMediaProcessing`、`MarkMediaProcessingSucceeded`、`RecordContentMediaReady`、`PublishContent`、paid publication commands。
 - `query`：例如 `GetContentDetail`、`GetMediaProcessingStatus`、`GetPaidPublicationStatus`、`ListSubmittedMediaProcessingTasksForPolling`。
 - `api_payload`：HTTP payload 和 result shape。
-- `client`：例如 `TriggerMediaProcessing`、`GetMediaProcessingStatus`、paid publication external capabilities。
+- `capability`：例如 `TriggerMediaProcessing`、`GetMediaProcessingStatus`、paid publication external capabilities。
 - `domain_event`：例如 `ContentPublicationReady`、`MediaProcessingSucceeded`。
 - `integration_event`：例如 inbound `MediaProcessingCallback` 和 outbound `ContentPublished`。
-- `saga`：例如 `PaidPublicationSaga`。
 
-这些 entries 说明“有哪些结构锚点应该存在”。它们不说明 `Content` 何时可以发布，也不说明 Saga 每一步如何补偿；这些属于 handwritten logic 和 focused evidence。
+这些 entries 说明“有哪些结构锚点应该存在”。它们不说明 `Content` 何时可以发布，也不为跨时间编排定义恢复或补偿；这些属于 handwritten logic、额外 provider 和 focused evidence。
 
 ## Type Manifests
 
@@ -66,7 +65,7 @@ module layout 要和 [Architecture](../architecture/index.md) 对齐。参考项
 
 start module 由 bootstrap configuration 记录为 `cap4k-reference-content-studio-start`。这些路径决定 generated output 和 checked-in skeleton 应该落在哪里，也帮助 plan review 判断 module placement 是否正确。
 
-如果 plan output 显示 Query handler、client-handler 或 persistence adapter 的物理位置和作者预期不同，先回到 module layout 和 generator input projection 检查，不要直接移动生成文件。
+如果 plan output 显示 Query handler、capability-handler 或 persistence adapter 的物理位置和作者预期不同，先回到 module layout 和 generator input projection 检查，不要直接移动生成文件。
 
 ## Gradle Extension Configuration
 

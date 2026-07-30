@@ -81,7 +81,7 @@ $workflowText = (Get-ChildItem -LiteralPath 'skills' -Recurse -File -Filter '*.m
 
 $highRiskSharedRefs = @(
   '../shared/references/generator-supported-skeletons.md',
-  '../shared/references/runtime-capability-map.md',
+  '../shared/references/runtime-capability-map.md'
 )
 
 foreach ($sharedRef in $highRiskSharedRefs) {

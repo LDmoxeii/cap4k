@@ -31,7 +31,7 @@ Flow: draft content -> submit review -> approve content -> media processing exte
 - Domain Events: `ContentDrafted`, `ContentReviewSubmitted`, `ContentApproved`, `MediaReadyRecorded`, `PublicationReadyMarked`, and `ContentPublished`.
 - Inbound external fact: `MediaProcessingCompleted` is interpreted by an application subscriber and delegated to the appropriate command path.
 - Outbound Integration Event: `ContentPublishedNotice` uses published language for downstream readers.
-- Saga or scheduled reaction: a publication readiness reaction checks approval and media readiness before marking publication ready.
+- Subscriber or scheduled reaction: a publication readiness reaction checks approval and media readiness before sending the Command that marks publication ready.
 - Domain Service or Specification: `PublicationReadinessPolicy` expresses the approval plus media readiness rule.
 
 ## Technical Design Contract Excerpt
@@ -39,7 +39,7 @@ Flow: draft content -> submit review -> approve content -> media processing exte
 - `businessIntent`: publish approved editorial content only when media is ready.
 - `ubiquitousLanguage`: keep review, media readiness, publication readiness, and publication as distinct concepts.
 - `aggregateBoundaries`: `ContentItem` is the lifecycle aggregate; media processing remains an external fact.
-- `cap4kCarriers`: Aggregate, Command, Query, Domain Event, Integration Event, Subscriber, Saga, Specification, Value Object, and Strong ID.
+- `cap4kCarriers`: Aggregate, Command, Query, Capability, Domain Event, Integration Event, Subscriber, Scheduled Reaction, Specification, Value Object, and Strong ID.
 - `cleanArchitecturePlacement`: domain holds lifecycle invariants and readiness policy; application orchestrates commands, queries, and external fact translation; adapter maps protocols and external payload shape; start assembly remains outside business semantics.
 - `generatorInputPlan`: express aggregate state, commands, queries, events, subscriber expectations, type manifests, and projection needs through supported input surfaces.
 - `skeletonExpectations`: command handlers, query handlers, subscriber shell, event carriers, policy slot, projections, and adapter payload types appear as generated or explicitly accepted surfaces.

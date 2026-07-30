@@ -38,18 +38,16 @@ class DrawingBoardArtifactPlannerTest {
             listOf(
                 "drawing_board_command",
                 "drawing_board_query",
-                "drawing_board_client",
+                "drawing_board_capability",
                 "drawing_board_api_payload",
                 "drawing_board_domain_event",
                 "drawing_board_integration_event",
                 "drawing_board_domain_service",
-                "drawing_board_saga",
             ),
             plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
         )
         assertEquals(
             listOf(
-                "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
                 "drawing-board/document.json.peb",
@@ -64,12 +62,11 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals("project", plan.first().moduleRole)
         assertEquals("command", plan.first().context["drawingBoardTag"])
         assertEquals("query", plan[1].context["drawingBoardTag"])
-        assertEquals("client", plan[2].context["drawingBoardTag"])
+        assertEquals("capability", plan[2].context["drawingBoardTag"])
         assertEquals("api_payload", plan[3].context["drawingBoardTag"])
         assertEquals("domain_event", plan[4].context["drawingBoardTag"])
         assertEquals("integration_event", plan[5].context["drawingBoardTag"])
         assertEquals("domain_service", plan[6].context["drawingBoardTag"])
-        assertEquals("saga", plan[7].context["drawingBoardTag"])
     }
 
     @Test
@@ -281,7 +278,7 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
-    fun `plans domain service and saga files with default artifacts omitted from context`() {
+    fun `plans domain service file with default artifacts omitted from context`() {
         val planner = DrawingBoardArtifactPlanner()
 
         val plan = planner.plan(
@@ -301,18 +298,6 @@ class DrawingBoardArtifactPlannerTest {
                                 SemanticValueRole.API_PAYLOAD_REQUEST,
                             ),
                         ),
-                        DrawingBoardElementModel(
-                            tag = "saga",
-                            packageName = "orders.application",
-                            name = "PublishOrderSaga",
-                            description = "publish order saga",
-                            artifacts = listOf(ArtifactSelectionModel("saga")),
-                            request = semanticValue(
-                                "orders.application",
-                                "PublishOrderSaga.Request",
-                                SemanticValueRole.SAGA_REQUEST,
-                            ),
-                        ),
                     ),
                 ),
             ),
@@ -321,19 +306,13 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals(
             listOf(
                 "design/drawing_board_domain_service.json",
-                "design/drawing_board_saga.json",
             ),
             plan.map { it.outputPath },
         )
         val domainService = (plan[0].context["elements"] as List<*>)
             .filterIsInstance<DrawingBoardRenderElement>()
             .single()
-        val saga = (plan[1].context["elements"] as List<*>)
-            .filterIsInstance<DrawingBoardRenderElement>()
-            .single()
-
         assertFalse(domainService.includeDesignJsonArtifacts)
-        assertFalse(saga.includeDesignJsonArtifacts)
     }
 
     @Test
@@ -402,14 +381,14 @@ class DrawingBoardArtifactPlannerTest {
                         ),
                     ),
                     DrawingBoardElementModel(
-                        tag = "client",
-                        packageName = "ops.cli",
+                        tag = "capability",
+                        packageName = "ops.capabilities",
                         name = "FetchStatus",
                         description = "fetch status",
                         request = semanticValue(
-                            "ops.cli",
+                            "ops.capabilities",
                             "FetchStatus.Request",
-                            SemanticValueRole.CLIENT_REQUEST,
+                            SemanticValueRole.CAPABILITY_REQUEST,
                         ),
                     ),
                     DrawingBoardElementModel(
@@ -467,17 +446,6 @@ class DrawingBoardArtifactPlannerTest {
                             "orders.domain",
                             "OrderPolicyService.Request",
                             SemanticValueRole.API_PAYLOAD_REQUEST,
-                        ),
-                    ),
-                    DrawingBoardElementModel(
-                        tag = "saga",
-                        packageName = "orders.application",
-                        name = "PublishOrderSaga",
-                        description = "publish order saga",
-                        request = semanticValue(
-                            "orders.application",
-                            "PublishOrderSaga.Request",
-                            SemanticValueRole.SAGA_REQUEST,
                         ),
                     ),
                     DrawingBoardElementModel(

@@ -125,12 +125,12 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention("application.commands")
     val designQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("application.queries")
-    val designClient: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("application.distributed.clients")
+    val designCapability: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("application.capabilities")
     val designQueryHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("adapter.application.queries")
-    val designClientHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("adapter.application.distributed.clients")
+    val designCapabilityHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("adapter.application.capabilities")
     val designApiPayload: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("adapter.portal.api.payload")
     val designDomainEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
@@ -174,16 +174,16 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         designQuery.block()
     }
 
-    fun designClient(block: PackageLayoutExtension.() -> Unit) {
-        designClient.block()
+    fun designCapability(block: PackageLayoutExtension.() -> Unit) {
+        designCapability.block()
     }
 
     fun designQueryHandler(block: PackageLayoutExtension.() -> Unit) {
         designQueryHandler.block()
     }
 
-    fun designClientHandler(block: PackageLayoutExtension.() -> Unit) {
-        designClientHandler.block()
+    fun designCapabilityHandler(block: PackageLayoutExtension.() -> Unit) {
+        designCapabilityHandler.block()
     }
 
     fun designApiPayload(block: PackageLayoutExtension.() -> Unit) {

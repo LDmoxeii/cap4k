@@ -4,11 +4,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties("cap4k.ddd.domain.event.schedule")
 class EventScheduleProperties(
-    var compenseBatchSize: Int = 10,
-    var compenseMaxConcurrency: Int = 10,
-    var compenseIntervalSeconds: Int = 60,
-    var compenseMaxLockSeconds: Int = 30,
-    var compenseCron: String = "0 */1 * * * ?",
+    var retryBatchSize: Int = 10,
+    var retryIntervalSeconds: Int = 60,
+    var retryMaxLockSeconds: Int = 30,
+    var retryCron: String = "0 */1 * * * ?",
     var archiveBatchSize: Int = 100,
     var archiveExpireDays: Int = 7,
     var archiveMaxLockSeconds: Int = 172800,

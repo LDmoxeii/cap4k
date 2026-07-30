@@ -1,11 +1,12 @@
 package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.RequestParam
-import com.only4.cap4k.ddd.core.application.RequestSupervisor
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.application.command.CommandHandler
+import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList
 import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
 import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
@@ -35,6 +36,7 @@ import jakarta.persistence.Transient
 import jakarta.persistence.Version
 import org.hibernate.HibernateException
 import org.hibernate.PersistentObjectException
+import org.hibernate.Session
 import org.hibernate.annotations.GenericGenerator
 import org.hibernate.id.IdentifierGenerationException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -105,8 +107,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
-    @Qualifier("defaultRequestSupervisor")
-    private lateinit var requestSupervisor: RequestSupervisor
+    @Qualifier("defaultCommandSupervisor")
+    private lateinit var commandSupervisor: CommandSupervisor
 
     @Autowired
     @Qualifier("defaultRepositorySupervisor")
@@ -150,7 +152,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @DisplayName("fixture boots with real cap4k runtime beans")
     fun fixtureBootsWithRealRuntimeBeans() {
         assertNotNull(unitOfWork)
-        assertNotNull(requestSupervisor)
+        assertNotNull(commandSupervisor)
         assertNotNull(repositorySupervisor)
     }
 
@@ -182,24 +184,24 @@ class AggregateJpaRuntimeDefectReproductionTest {
         })
         JpaUnitOfWork.reset()
 
-        val response = requestSupervisor.send(CountRuntimeRootChildrenRequest(root.id))
+        val response = commandSupervisor.send(CountRuntimeRootChildrenCommand(root.id))
 
         assertEquals(1, response.childCount)
     }
 
     @Test
-    @DisplayName("transactional request scope can access lazy aggregate children")
-    fun transactionalRequestScopeCanAccessLazyAggregateChildren() {
+    @DisplayName("command Unit of Work rejects adoption of an unrelated external transaction")
+    fun commandUnitOfWorkRejectsExternalTransactionAdoption() {
         val root = saveRoot(RuntimeRoot(name = "lazy-transactional-request").apply {
             children.add(RuntimeChild(name = "lazy-transactional-request-child"))
         })
         JpaUnitOfWork.reset()
 
-        val response = requireNotNull(TransactionTemplate(transactionManager).execute {
-            requestSupervisor.send(CountRuntimeRootChildrenRequest(root.id))
-        })
-
-        assertEquals(1, response.childCount)
+        assertThrows(IllegalStateException::class.java) {
+            TransactionTemplate(transactionManager).execute {
+                commandSupervisor.send(CountRuntimeRootChildrenCommand(root.id))
+            }
+        }
     }
 
     @Test
@@ -210,9 +212,43 @@ class AggregateJpaRuntimeDefectReproductionTest {
         })
         JpaUnitOfWork.reset()
 
-        val response = requestSupervisor.send(CountRuntimeRootChildrenWholeLoadRequest(root.id))
+        val response = commandSupervisor.send(CountRuntimeRootChildrenWholeLoadCommand(root.id))
 
         assertEquals(1, response.childCount)
+    }
+
+    @Test
+    @DisplayName("Mediator Command auto-enrolls default repository load and completes write Unit of Work")
+    fun mediatorCommandAutoEnrollsDefaultRepositoryLoad() {
+        val root = saveRoot(RuntimeRoot(name = "command-auto-enroll"))
+        JpaUnitOfWork.reset()
+
+        Mediator.commands.send(RenameRuntimeRootCommand(root.id, "command-auto-enroll-updated"))
+
+        assertEquals(
+            1,
+            countRows("select count(*) from `runtime_root` where `id` = ? and `name` = ?", root.id, "command-auto-enroll-updated"),
+        )
+    }
+
+    @Test
+    @DisplayName("nested Mediator Command reuses the same physical Hibernate Session")
+    fun nestedMediatorCommandReusesCurrentUnitOfWork() {
+        val root = saveRoot(RuntimeRoot(name = "nested-command"))
+        JpaUnitOfWork.reset()
+
+        val observation = Mediator.commands.send(
+            NestedRenameRuntimeRootCommand(root.id, "nested-command-updated")
+        )
+
+        assertTrue(observation.outerActive)
+        assertTrue(observation.innerActive)
+        assertEquals(observation.beforeSessionIdentity, observation.innerSessionIdentity)
+        assertEquals(observation.beforeSessionIdentity, observation.afterSessionIdentity)
+        assertEquals(
+            1,
+            countRows("select count(*) from `runtime_root` where `id` = ? and `name` = ?", root.id, "nested-command-updated"),
+        )
     }
 
     @Test
@@ -335,8 +371,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 val root = RuntimeFkMirrorRoot(name = "fk-mirror-root").apply {
                     children.add(RuntimeFkMirrorChild(name = "fk-mirror-child"))
                 }
-                unitOfWork.persist(root, PersistIntent.CREATE)
-                unitOfWork.save()
+                unitOfWork.execute {
+                    unitOfWork.persist(root, PersistIntent.CREATE)
+                }
                 assertNotEquals(0L, root.id)
                 val childId = queryLong("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
                 JpaUnitOfWork.reset()
@@ -417,12 +454,11 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val classification = classifyRuntimeBehavior(
             label = "three-level managed scalar update",
             desiredContract = {
-                TransactionTemplate(transactionManager).execute {
+                unitOfWork.execute {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     loaded.children.first().name = "updated-child"
                     loaded.children.first().grandchildren.first().name = "updated-grandchild"
                     unitOfWork.persist(loaded)
-                    unitOfWork.save()
                 }
                 assertEquals(
                     1,
@@ -449,16 +485,14 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val root = saveRoot(RuntimeRoot(name = "proxy-conflict"))
         JpaUnitOfWork.reset()
 
-        val error = requireNotNull(TransactionTemplate(transactionManager).execute {
-            val proxy = rootJpaRepository.getReferenceById(root.id)
-            val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
-            unitOfWork.persist(proxy)
-            unitOfWork.remove(detached)
-
-            assertThrows(IllegalStateException::class.java) {
-                unitOfWork.save()
+        val error = assertThrows(IllegalStateException::class.java) {
+            unitOfWork.execute {
+                val proxy = rootJpaRepository.getReferenceById(root.id)
+                val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
+                unitOfWork.persist(proxy)
+                unitOfWork.remove(detached)
             }
-        })
+        }
 
         assertTrue(error.message!!.contains("conflicting UnitOfWork registrations"))
         assertEquals(1, countRows("select count(*) from `runtime_root` where `id` = ?", root.id))
@@ -473,11 +507,10 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val classification = classifyRuntimeBehavior(
             label = "three-level managed grandchild orphan removal",
             desiredContract = {
-                TransactionTemplate(transactionManager).execute {
+                unitOfWork.execute {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     loaded.children.first().grandchildren.removeAt(0)
                     unitOfWork.persist(loaded)
-                    unitOfWork.save()
                 }
                 assertEquals(
                     3,
@@ -503,11 +536,10 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val classification = classifyRuntimeBehavior(
             label = "three-level managed child orphan removal",
             desiredContract = {
-                TransactionTemplate(transactionManager).execute {
+                unitOfWork.execute {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     loaded.children.removeAt(0)
                     unitOfWork.persist(loaded)
-                    unitOfWork.save()
                 }
                 assertEquals(
                     1,
@@ -537,13 +569,12 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val classification = classifyRuntimeBehavior(
             label = "three-level managed clear and re-add",
             desiredContract = {
-                TransactionTemplate(transactionManager).execute {
+                unitOfWork.execute {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     val firstChild = loaded.children.first()
                     firstChild.grandchildren.clear()
                     firstChild.grandchildren.add(RuntimeGrandchild(name = "clear-readd-new-grandchild"))
                     unitOfWork.persist(loaded)
-                    unitOfWork.save()
                 }
                 assertEquals(
                     3,
@@ -571,8 +602,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val children = root.children.toList()
         val grandchildrenByChild = children.associateWith { it.grandchildren.toList() }
 
-        unitOfWork.persist(root, PersistIntent.CREATE)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.persist(root, PersistIntent.CREATE)
+        }
 
         val rootId = checkNotNull(root.id)
         assertNotNull(root.version)
@@ -611,14 +643,15 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @DisplayName("existing root save completes a newly attached entrusted child")
     fun existingRootSaveCompletesANewlyAttachedEntrustedChild() {
         val root = newEntrustedRoot("entrusted-existing")
-        unitOfWork.persist(root, PersistIntent.CREATE)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.persist(root, PersistIntent.CREATE)
+        }
         val rootId = checkNotNull(root.id)
         JpaUnitOfWork.reset()
 
         lateinit var newChild: RuntimeEntrustedChild
         lateinit var newGrandchild: RuntimeEntrustedGrandchild
-        TransactionTemplate(transactionManager).executeWithoutResult {
+        unitOfWork.execute {
             val loaded = entityManager.find(RuntimeEntrustedRoot::class.java, rootId)
             newGrandchild = RuntimeEntrustedGrandchild("entrusted-existing-grandchild-new")
             newChild = RuntimeEntrustedChild("entrusted-existing-child-new").apply {
@@ -627,7 +660,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
             loaded.children.add(newChild)
 
             unitOfWork.persist(loaded)
-            unitOfWork.save()
         }
 
         val childId = checkNotNull(newChild.id)
@@ -648,6 +680,35 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
+    @DisplayName("owned child scalar update advances child version without forcing root version")
+    fun ownedChildScalarUpdateDoesNotForceRootVersion() {
+        val root = newEntrustedRoot("child-version-boundary")
+        val child = root.children.first()
+        unitOfWork.execute {
+            unitOfWork.persist(root, PersistIntent.CREATE)
+        }
+        val rootId = checkNotNull(root.id)
+        val childId = checkNotNull(child.id)
+        val rootVersion = checkNotNull(root.version)
+        val childVersion = checkNotNull(child.version)
+        JpaUnitOfWork.reset()
+
+        unitOfWork.execute {
+            val loaded = entityManager.find(RuntimeEntrustedRoot::class.java, rootId)
+            loaded.children.first { it.id == childId }.rename("child-version-boundary-updated")
+            unitOfWork.persist(loaded)
+        }
+
+        assertEquals(
+            rootVersion,
+            queryLong("select `version` from `runtime_entrusted_root` where `id` = ?", rootId),
+        )
+        assertTrue(
+            queryLong("select `version` from `runtime_entrusted_child` where `id` = ?", childId) > childVersion,
+        )
+    }
+
+    @Test
     @DisplayName("outer rollback keeps assigned entrusted state but removes rows")
     fun outerRollbackKeepsAssignedEntrustedStateButRemovesRows() {
         val root = newEntrustedRoot("entrusted-rollback")
@@ -655,9 +716,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val grandchildren = children.flatMap { it.grandchildren }
 
         val failure = assertThrows(IllegalStateException::class.java) {
-            TransactionTemplate(transactionManager).executeWithoutResult {
+            unitOfWork.execute {
                 unitOfWork.persist(root, PersistIntent.CREATE)
-                unitOfWork.save()
+                unitOfWork.flush()
 
                 assertNotNull(root.id)
                 assertNotNull(root.version)
@@ -693,20 +754,23 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     private fun saveRoot(root: RuntimeRoot): RuntimeRoot {
-        unitOfWork.persist(root, PersistIntent.CREATE)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.persist(root, PersistIntent.CREATE)
+        }
         return root
     }
 
     private fun saveReverseRoot(root: RuntimeReverseRoot): RuntimeReverseRoot {
-        unitOfWork.persist(root, PersistIntent.CREATE)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.persist(root, PersistIntent.CREATE)
+        }
         return root
     }
 
     private fun saveSafeReverseRoot(root: RuntimeSafeReverseRoot): RuntimeSafeReverseRoot {
-        unitOfWork.persist(root, PersistIntent.CREATE)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.persist(root, PersistIntent.CREATE)
+        }
         return root
     }
 
@@ -906,6 +970,7 @@ open class RuntimeEntrustedRoot protected constructor() {
     constructor(name: String) : this() {
         this.name = name
     }
+
 }
 
 @Entity
@@ -947,6 +1012,10 @@ open class RuntimeEntrustedChild protected constructor() {
         )
 
     constructor(name: String) : this() {
+        this.name = name
+    }
+
+    fun rename(name: String) {
         this.name = name
     }
 }
@@ -1203,44 +1272,105 @@ class RuntimeRootRepository(
     rootJpaRepository: RuntimeRootJpaRepository
 ) : AbstractJpaRepository<RuntimeRoot, Long>(rootJpaRepository, rootJpaRepository)
 
-data class CountRuntimeRootChildrenRequest(
+data class CountRuntimeRootChildrenCommand(
     val rootId: Long
-) : RequestParam<CountRuntimeRootChildrenResponse>
+) : Command<CountRuntimeRootChildrenResponse>
 
 data class CountRuntimeRootChildrenResponse(
     val childCount: Int
 )
 
-data class CountRuntimeRootChildrenWholeLoadRequest(
+data class CountRuntimeRootChildrenWholeLoadCommand(
     val rootId: Long
-) : RequestParam<CountRuntimeRootChildrenResponse>
+) : Command<CountRuntimeRootChildrenResponse>
 
 @Component
-class CountRuntimeRootChildrenCommand(
+class CountRuntimeRootChildrenCommandHandler(
     @param:Qualifier("defaultRepositorySupervisor")
     private val repositorySupervisor: RepositorySupervisor
-) : Command<CountRuntimeRootChildrenRequest, CountRuntimeRootChildrenResponse> {
-    override fun exec(request: CountRuntimeRootChildrenRequest): CountRuntimeRootChildrenResponse {
+) : CommandHandler<CountRuntimeRootChildrenCommand, CountRuntimeRootChildrenResponse> {
+    override fun handle(command: CountRuntimeRootChildrenCommand): CountRuntimeRootChildrenResponse {
         val root = repositorySupervisor.findOne(
-            JpaPredicate.byId(RuntimeRoot::class.java, request.rootId)
-        ) ?: error("RuntimeRoot not found: ${request.rootId}")
+            JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
+        ) ?: error("RuntimeRoot not found: ${command.rootId}")
 
         return CountRuntimeRootChildrenResponse(root.children.size)
     }
 }
 
 @Component
-class CountRuntimeRootChildrenWholeLoadCommand(
+class CountRuntimeRootChildrenWholeLoadCommandHandler(
     @param:Qualifier("defaultRepositorySupervisor")
     private val repositorySupervisor: RepositorySupervisor
-) : Command<CountRuntimeRootChildrenWholeLoadRequest, CountRuntimeRootChildrenResponse> {
-    override fun exec(request: CountRuntimeRootChildrenWholeLoadRequest): CountRuntimeRootChildrenResponse {
+) : CommandHandler<CountRuntimeRootChildrenWholeLoadCommand, CountRuntimeRootChildrenResponse> {
+    override fun handle(command: CountRuntimeRootChildrenWholeLoadCommand): CountRuntimeRootChildrenResponse {
         val root = repositorySupervisor.findOne(
-            JpaPredicate.byId(RuntimeRoot::class.java, request.rootId),
+            JpaPredicate.byId(RuntimeRoot::class.java, command.rootId),
             persist = true,
             loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
-        ) ?: error("RuntimeRoot not found: ${request.rootId}")
+        ) ?: error("RuntimeRoot not found: ${command.rootId}")
 
         return CountRuntimeRootChildrenResponse(root.children.size)
+    }
+}
+
+data class RenameRuntimeRootCommand(
+    val rootId: Long,
+    val name: String,
+) : Command<RenameRuntimeRootResult>
+
+data class RenameRuntimeRootResult(
+    val active: Boolean,
+    val sessionIdentity: Int,
+)
+
+@Component
+class RenameRuntimeRootCommandHandler(
+    @param:Qualifier("defaultRepositorySupervisor")
+    private val repositorySupervisor: RepositorySupervisor,
+    private val unitOfWork: UnitOfWork,
+    private val entityManager: EntityManager,
+) : CommandHandler<RenameRuntimeRootCommand, RenameRuntimeRootResult> {
+    override fun handle(command: RenameRuntimeRootCommand): RenameRuntimeRootResult {
+        val root = repositorySupervisor.findOne(
+            JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
+        ) ?: error("RuntimeRoot not found: ${command.rootId}")
+        root.name = command.name
+        return RenameRuntimeRootResult(
+            active = unitOfWork.active,
+            sessionIdentity = System.identityHashCode(entityManager.unwrap(Session::class.java)),
+        )
+    }
+}
+
+data class NestedRenameRuntimeRootCommand(
+    val rootId: Long,
+    val name: String,
+) : Command<NestedRenameRuntimeRootResult>
+
+data class NestedRenameRuntimeRootResult(
+    val outerActive: Boolean,
+    val innerActive: Boolean,
+    val beforeSessionIdentity: Int,
+    val innerSessionIdentity: Int,
+    val afterSessionIdentity: Int,
+)
+
+@Component
+class NestedRenameRuntimeRootCommandHandler(
+    private val unitOfWork: UnitOfWork,
+    private val entityManager: EntityManager,
+) : CommandHandler<NestedRenameRuntimeRootCommand, NestedRenameRuntimeRootResult> {
+    override fun handle(command: NestedRenameRuntimeRootCommand): NestedRenameRuntimeRootResult {
+        val before = System.identityHashCode(entityManager.unwrap(Session::class.java))
+        val inner = Mediator.commands.send(RenameRuntimeRootCommand(command.rootId, command.name))
+        val after = System.identityHashCode(entityManager.unwrap(Session::class.java))
+        return NestedRenameRuntimeRootResult(
+            outerActive = unitOfWork.active,
+            innerActive = inner.active,
+            beforeSessionIdentity = before,
+            innerSessionIdentity = inner.sessionIdentity,
+            afterSessionIdentity = after,
+        )
     }
 }

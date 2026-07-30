@@ -7,6 +7,7 @@ data class EventDispatchDiagnostic(
     val listenerBeanName: String? = null,
     val listenerClassName: String? = null,
     val listenerMethodName: String? = null,
+    val causalPath: List<String> = emptyList(),
 )
 
 class EventDispatchException(
@@ -34,6 +35,7 @@ class EventDispatchException(
                     listenerBeanName = it.listenerBeanName,
                     listenerClassName = it.listenerClass?.name,
                     listenerMethodName = it.listenerMethod?.name,
+                    causalPath = EventRuntimeContext.diagnosticCausalPath(),
                 )
             }
 
