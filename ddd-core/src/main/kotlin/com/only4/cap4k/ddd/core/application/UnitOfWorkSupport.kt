@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.application
 
-import com.only4.cap4k.ddd.core.CapabilitySlot
+import com.only4.cap4k.ddd.core.ProviderSlot
 
 /**
  * 工作单元配置支持类
@@ -15,7 +15,7 @@ object UnitOfWorkSupport {
      * 工作单元实例
      * 负责管理实体的持久化操作和事务控制
      */
-    private val slot = CapabilitySlot<UnitOfWork>("uow", "cap4k-ddd-jpa-starter")
+    private val slot = ProviderSlot<UnitOfWork>("uow", "cap4k-ddd-jpa-starter")
 
     val instance: UnitOfWork
         get() = slot.get()

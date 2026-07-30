@@ -82,7 +82,7 @@ cap4k {
 | `analysis/flows/*.json` | structured flow data。 |
 | `analysis/flows/*.mmd` | Mermaid flow rendering source。 |
 
-flow evidence 回答 controller、subscriber、job、Saga、Command dispatch、Query path 或 external capability wiring 如何连接。它们不证明 business behavior 正确。
+flow evidence 回答 controller、subscriber、job、Command dispatch、Query path 或 external Capability wiring 如何连接。它们不证明 business behavior 正确。
 
 ## Drawing Board Files
 
@@ -92,10 +92,9 @@ flow evidence 回答 controller、subscriber、job、Saga、Command dispatch、Q
 | --- | --- |
 | `analysis/drawing-board/drawing_board_command.json` | Command anchors。 |
 | `analysis/drawing-board/drawing_board_query.json` | Query anchors。 |
-| `analysis/drawing-board/drawing_board_client.json` | client anchors。 |
+| `analysis/drawing-board/drawing_board_capability.json` | Capability anchors。 |
 | `analysis/drawing-board/drawing_board_domain_event.json` | domain event anchors。 |
 | `analysis/drawing-board/drawing_board_integration_event.json` | integration event anchors。 |
-| `analysis/drawing-board/drawing_board_saga.json` | Saga anchors。 |
 
 drawing-board evidence 回答代码中有哪些 anchors。它不说明这些 anchors 已经完成。
 

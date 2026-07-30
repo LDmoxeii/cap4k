@@ -2,7 +2,7 @@
 name: cap4k-service-integration
 description: >
   Use for cap4k business service interaction design and implementation:
-  Open Host Service entries, Published Language, external capability clients,
+  Open Host Service entries, Published Language, external Capability contracts,
   external fact entries, inbound/outbound integration events, callbacks,
   message listeners, and command/query routing across service boundaries.
 ---
@@ -31,4 +31,4 @@ Read `references/gotchas.md` before writing technical design, generator inputs, 
 
 ## Stop Conditions
 
-Stop when transport mechanics are assigned to business code, an entry writes repository or aggregate state directly, provider terms leak into boundary language, or a write flow calls a client before entering the command/application use case.
+Stop when transport mechanics are assigned to business code, an entry writes repository or aggregate state directly, provider terms leak into boundary language, or a write flow calls an external Capability before entering the Command/application use case.

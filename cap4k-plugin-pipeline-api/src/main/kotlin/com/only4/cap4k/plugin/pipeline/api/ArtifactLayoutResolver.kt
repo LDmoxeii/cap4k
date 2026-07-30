@@ -43,14 +43,14 @@ class ArtifactLayoutResolver(
     fun designQueryPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designQuery, designPackage)
 
-    fun designClientPackage(designPackage: String): String =
-        packageFromLayout(artifactLayout.designClient, designPackage)
+    fun designCapabilityPackage(designPackage: String): String =
+        packageFromLayout(artifactLayout.designCapability, designPackage)
 
     fun designQueryHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designQueryHandler, designPackage)
 
-    fun designClientHandlerPackage(designPackage: String): String =
-        packageFromLayout(artifactLayout.designClientHandler, designPackage)
+    fun designCapabilityHandlerPackage(designPackage: String): String =
+        packageFromLayout(artifactLayout.designCapabilityHandler, designPackage)
 
     fun designApiPayloadPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designApiPayload, designPackage)
@@ -73,9 +73,6 @@ class ArtifactLayoutResolver(
 
     fun designDomainServicePackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designDomainServicePackage, designPackage)
-
-    fun designSagaPackage(designPackage: String): String =
-        packageFromLayout(artifactLayout.designSaga, designPackage)
 
     fun flowOutputRoot(): String =
         normalizeOutputRoot(artifactLayout.flow.outputRoot, "flow")
@@ -136,16 +133,15 @@ class ArtifactLayoutResolver(
         "aggregateSharedEnum" to artifactLayout.aggregateSharedEnum,
         "designCommand" to artifactLayout.designCommand,
         "designQuery" to artifactLayout.designQuery,
-        "designClient" to artifactLayout.designClient,
+        "designCapability" to artifactLayout.designCapability,
         "designQueryHandler" to artifactLayout.designQueryHandler,
-        "designClientHandler" to artifactLayout.designClientHandler,
+        "designCapabilityHandler" to artifactLayout.designCapabilityHandler,
         "designApiPayload" to artifactLayout.designApiPayload,
         "designDomainEvent" to artifactLayout.designDomainEvent,
         "designDomainEventHandler" to artifactLayout.designDomainEventHandler,
         "designIntegrationEvent" to artifactLayout.designIntegrationEvent,
         "designIntegrationEventSubscriber" to artifactLayout.designIntegrationEventSubscriber,
         "designDomainServicePackage" to artifactLayout.designDomainServicePackage,
-        "designSaga" to artifactLayout.designSaga,
     )
 
     private fun outputRootLayouts(): List<Pair<String, OutputRootLayout>> = listOf(

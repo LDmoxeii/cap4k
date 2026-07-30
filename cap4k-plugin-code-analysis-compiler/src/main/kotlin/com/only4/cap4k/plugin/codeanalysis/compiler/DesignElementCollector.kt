@@ -117,7 +117,7 @@ class DesignElementCollector(
         when (family) {
             "command",
             "query",
-            "client",
+            "capability",
             "api-payload" -> findNestedClass(declaration, "Request") ?: declaration
             "domain-event",
             "integration-event" -> declaration
@@ -125,7 +125,7 @@ class DesignElementCollector(
         }
 
     private fun String.hasResultFields(): Boolean =
-        this == "command" || this == "query" || this == "client" || this == "api-payload"
+        this == "command" || this == "query" || this == "capability" || this == "api-payload"
 
     private fun List<DesignField>.filterRecoveredFields(family: String): List<DesignField> =
         when (family) {

@@ -1,17 +1,30 @@
 package com.only4.cap4k.ddd.core.autoconfigure
 
+import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.MediatorSupport
-import com.only4.cap4k.ddd.core.application.ReliableRequestSupervisor
-import com.only4.cap4k.ddd.core.application.RequestHandler
-import com.only4.cap4k.ddd.core.application.RequestInterceptor
-import com.only4.cap4k.ddd.core.application.RequestSupervisor
-import com.only4.cap4k.ddd.core.application.RequestSupervisorSupport
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.UnitOfWorkSupport
+import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
+import com.only4.cap4k.ddd.core.application.capability.CapabilityInterceptor
+import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
+import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisorSupport
+import com.only4.cap4k.ddd.core.application.capability.impl.DefaultCapabilitySupervisor
+import com.only4.cap4k.ddd.core.application.command.CommandHandler
+import com.only4.cap4k.ddd.core.application.command.CommandInterceptor
+import com.only4.cap4k.ddd.core.application.command.CommandManager
+import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
+import com.only4.cap4k.ddd.core.application.command.CommandSupervisorSupport
+import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisor
+import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisorSupport
+import com.only4.cap4k.ddd.core.application.command.impl.DefaultCommandSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
-import com.only4.cap4k.ddd.core.application.impl.DefaultRequestSupervisor
+import com.only4.cap4k.ddd.core.application.query.QueryHandler
+import com.only4.cap4k.ddd.core.application.query.QueryInterceptor
+import com.only4.cap4k.ddd.core.application.query.QuerySupervisor
+import com.only4.cap4k.ddd.core.application.query.QuerySupervisorSupport
+import com.only4.cap4k.ddd.core.application.query.impl.DefaultQuerySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisorSupport
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
@@ -37,16 +50,45 @@ import org.springframework.context.annotation.Bean
 @AutoConfiguration(after = [CoreIdAutoConfiguration::class])
 class CoreRuntimeAutoConfiguration {
     @Bean
-    @ConditionalOnMissingBean(RequestSupervisor::class)
-    fun defaultRequestSupervisor(
-        requestHandlers: List<RequestHandler<*, *>>,
-        requestInterceptors: List<RequestInterceptor<*, *>>,
+    @ConditionalOnMissingBean(CommandSupervisor::class)
+    fun defaultCommandSupervisor(
+        handlers: List<CommandHandler<*, *>>,
+        interceptors: List<CommandInterceptor<*, *>>,
         validatorProvider: ObjectProvider<Validator>,
-    ): DefaultRequestSupervisor = DefaultRequestSupervisor(
-        requestHandlers,
-        requestInterceptors,
+        unitOfWorkProvider: ObjectProvider<UnitOfWork>,
+    ): DefaultCommandSupervisor = DefaultCommandSupervisor(
+        handlers,
+        interceptors,
         validatorProvider.ifAvailable,
-    ).apply(DefaultRequestSupervisor::init)
+        unitOfWorkProvider = {
+            unitOfWorkProvider.ifAvailable
+                ?: throw ProviderUnavailableException("unit-of-work", "a cap4k Persistence Provider starter")
+        },
+    ).apply(DefaultCommandSupervisor::init)
+
+    @Bean
+    @ConditionalOnMissingBean(QuerySupervisor::class)
+    fun defaultQuerySupervisor(
+        handlers: List<QueryHandler<*, *>>,
+        interceptors: List<QueryInterceptor<*, *>>,
+        validatorProvider: ObjectProvider<Validator>,
+    ): DefaultQuerySupervisor = DefaultQuerySupervisor(
+        handlers,
+        interceptors,
+        validatorProvider.ifAvailable,
+    ).apply(DefaultQuerySupervisor::init)
+
+    @Bean
+    @ConditionalOnMissingBean(CapabilitySupervisor::class)
+    fun defaultCapabilitySupervisor(
+        handlers: List<CapabilityHandler<*, *>>,
+        interceptors: List<CapabilityInterceptor<*, *>>,
+        validatorProvider: ObjectProvider<Validator>,
+    ): DefaultCapabilitySupervisor = DefaultCapabilitySupervisor(
+        handlers,
+        interceptors,
+        validatorProvider.ifAvailable,
+    ).apply(DefaultCapabilitySupervisor::init)
 
     @Bean
     @ConditionalOnMissingBean(DomainServiceSupervisor::class)
@@ -66,7 +108,11 @@ class CoreRuntimeAutoConfiguration {
     ): SmartInitializingSingleton = SmartInitializingSingleton {
         MediatorSupport.configure(applicationContext)
         MediatorSupport.configure(identifierGenerator)
-        RequestSupervisorSupport.configure(uniqueBean(beanFactory, RequestSupervisor::class.java, "requests"))
+        CommandSupervisorSupport.configure(uniqueBean(beanFactory, CommandSupervisor::class.java, "commands"))
+        QuerySupervisorSupport.configure(uniqueBean(beanFactory, QuerySupervisor::class.java, "queries"))
+        CapabilitySupervisorSupport.configure(
+            uniqueBean(beanFactory, CapabilitySupervisor::class.java, "capabilities")
+        )
         DomainServiceSupervisorSupport.configure(
             uniqueBean(beanFactory, DomainServiceSupervisor::class.java, "services")
         )
@@ -77,8 +123,10 @@ class CoreRuntimeAutoConfiguration {
             uniqueBean(beanFactory, DomainEventManager::class.java, "domain-event-manager")
         )
 
-        optionalUniqueBean(beanFactory, ReliableRequestSupervisor::class.java, "reliable-requests")
-            ?.let(RequestSupervisorSupport::configure)
+        optionalUniqueBean(beanFactory, ReliableCommandSupervisor::class.java, "reliable-commands")
+            ?.let(ReliableCommandSupervisorSupport::configure)
+        optionalUniqueBean(beanFactory, CommandManager::class.java, "command-manager")
+            ?.let(ReliableCommandSupervisorSupport::configure)
         optionalUniqueBean(beanFactory, AggregateFactorySupervisor::class.java, "factories")
             ?.let(AggregateFactorySupervisorSupport::configure)
         optionalUniqueBean(beanFactory, RepositorySupervisor::class.java, "repositories")
@@ -92,10 +140,10 @@ class CoreRuntimeAutoConfiguration {
         optionalUniqueBean(beanFactory, ReliableDomainEventProvider::class.java, "reliable-domain-events")
     }
 
-    private fun <T : Any> uniqueBean(beanFactory: ListableBeanFactory, type: Class<T>, capability: String): T {
+    private fun <T : Any> uniqueBean(beanFactory: ListableBeanFactory, type: Class<T>, provider: String): T {
         val beans = beanFactory.getBeansOfType(type)
         require(beans.size == 1) {
-            "cap4k capability '$capability' requires exactly one provider, found ${beans.keys.sorted()}"
+            "cap4k provider '$provider' requires exactly one implementation, found ${beans.keys.sorted()}"
         }
         return beans.values.single()
     }
@@ -103,11 +151,11 @@ class CoreRuntimeAutoConfiguration {
     private fun <T : Any> optionalUniqueBean(
         beanFactory: ListableBeanFactory,
         type: Class<T>,
-        capability: String,
+        provider: String,
     ): T? {
         val beans = beanFactory.getBeansOfType(type)
         require(beans.size <= 1) {
-            "cap4k capability '$capability' has conflicting providers ${beans.keys.sorted()}"
+            "cap4k provider '$provider' has conflicting implementations ${beans.keys.sorted()}"
         }
         return beans.values.singleOrNull()
     }

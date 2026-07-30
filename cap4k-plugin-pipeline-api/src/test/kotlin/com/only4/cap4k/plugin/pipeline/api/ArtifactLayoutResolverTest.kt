@@ -34,14 +34,14 @@ class ArtifactLayoutResolverTest {
     fun `resolves default design packages`() {
         assertEquals("com.acme.demo.application.commands.message.create", resolver.designCommandPackage("message.create"))
         assertEquals("com.acme.demo.application.queries.message.read", resolver.designQueryPackage("message.read"))
-        assertEquals("com.acme.demo.application.distributed.clients.message.delivery", resolver.designClientPackage("message.delivery"))
+        assertEquals("com.acme.demo.application.capabilities.message.delivery", resolver.designCapabilityPackage("message.delivery"))
         assertEquals(
             "com.acme.demo.adapter.application.queries.message.read",
             resolver.designQueryHandlerPackage("message.read"),
         )
         assertEquals(
-            "com.acme.demo.adapter.application.distributed.clients.message.delivery",
-            resolver.designClientHandlerPackage("message.delivery"),
+            "com.acme.demo.adapter.application.capabilities.message.delivery",
+            resolver.designCapabilityHandlerPackage("message.delivery"),
         )
         assertEquals("com.acme.demo.adapter.portal.api.payload.message", resolver.designApiPayloadPackage("message"))
         assertEquals("com.acme.demo.domain.aggregates.message.events", resolver.designDomainEventPackage("message"))

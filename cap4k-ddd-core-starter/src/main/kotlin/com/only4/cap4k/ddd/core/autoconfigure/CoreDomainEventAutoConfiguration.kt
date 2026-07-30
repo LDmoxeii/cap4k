@@ -12,7 +12,6 @@ import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventListenerFactory
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventSubscriberManager
-import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventUnitOfWorkInterceptor
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -41,20 +40,15 @@ class CoreDomainEventAutoConfiguration {
     @ConditionalOnMissingBean(DomainEventSupervisor::class)
     fun defaultDomainEventSupervisor(
         interceptorManager: DomainEventInterceptorManager,
-        applicationEventPublisher: ApplicationEventPublisher,
+        eventSubscriberManager: EventSubscriberManager,
         reliableProvider: ObjectProvider<ReliableDomainEventProvider>,
         integrationEventManager: ObjectProvider<IntegrationEventManager>,
     ): DefaultDomainEventSupervisor = DefaultDomainEventSupervisor(
         interceptorManager,
-        applicationEventPublisher,
+        eventSubscriberManager,
         reliableProvider.getIfUnique(),
         integrationEventManager.getIfUnique(),
     )
-
-    @Bean
-    @ConditionalOnMissingBean(DomainEventUnitOfWorkInterceptor::class)
-    fun domainEventUnitOfWorkInterceptor(domainEventManager: DomainEventManager): DomainEventUnitOfWorkInterceptor =
-        DomainEventUnitOfWorkInterceptor(domainEventManager)
 
     @Bean
     @ConditionalOnMissingBean(Cap4kEventListenerFactory::class)

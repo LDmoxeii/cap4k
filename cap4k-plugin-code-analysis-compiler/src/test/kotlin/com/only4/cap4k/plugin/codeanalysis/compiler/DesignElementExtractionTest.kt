@@ -152,74 +152,6 @@ class DesignElementExtractionTest {
     }
 
     @Test
-    fun `recovers generated outer BuildingBlock saga artifact without DTO metadata`() {
-        val sources = listOf(
-            SourceFile.kotlin(
-                "BuildingBlock.kt",
-                """
-                    package com.only4.cap4k.ddd.core.annotation
-
-                    annotation class BuildingBlock(
-                        val tag: String,
-                        val name: String,
-                        val packageName: String,
-                        val description: String = "",
-                        val aggregates: Array<String> = [],
-                        val eventName: String = "",
-                        val family: String = "",
-                        val variant: String = "",
-                    )
-                """.trimIndent()
-            ),
-            SourceFile.kotlin(
-                "RecoverPaymentSaga.kt",
-                """
-                    package demo.application.sagas.payment
-
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
-
-                    @BuildingBlock(
-                        tag = "saga",
-                        packageName = "payment.recovery",
-                        name = "RecoverPayment",
-                        description = "Recover payment",
-                        aggregates = ["Payment"],
-                        family = "saga",
-                    )
-                    object RecoverPaymentSaga {
-                        data class Request(
-                            val paymentId: Long,
-                            val attempt: Attempt,
-                        )
-
-                        data class Response(
-                            val recovered: Boolean,
-                            val nextAction: String? = null,
-                        )
-
-                        data class Attempt(
-                            val number: Int,
-                            val reason: String,
-                        )
-                    }
-                """.trimIndent()
-            )
-        )
-
-        val outputDir = compileWithCap4kPlugin(sources)
-        val json = outputDir.resolve("design-elements.json").toFile().readText()
-        val recoverPayment = findObject(extractTopLevelObjects(json), "saga", "RecoverPayment")
-
-        assertTrue(recoverPayment.contains("\"artifacts\":[{\"family\":\"saga\"}]"))
-        assertTrue(recoverPayment.contains("\"fields\":[]"))
-        assertTrue(recoverPayment.contains("\"resultFields\":[]"))
-        assertFalse(recoverPayment.contains("paymentId"))
-        assertFalse(recoverPayment.contains("attempt"))
-        assertFalse(recoverPayment.contains("recovered"))
-        assertFalse(recoverPayment.contains("nextAction"))
-    }
-
-    @Test
     fun `rejects conflicting BuildingBlock shared metadata`() {
         val sources = listOf(
             SourceFile.kotlin(
@@ -588,8 +520,16 @@ class DesignElementExtractionTest {
     fun `emits design-elements json from request and payload`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "RequestParam.kt",
-                "package com.only4.cap4k.ddd.core.application; interface RequestParam<T>"
+                "Command.kt",
+                "package com.only4.cap4k.ddd.core.application.command; interface Command<T>"
+            ),
+            SourceFile.kotlin(
+                "Query.kt",
+                "package com.only4.cap4k.ddd.core.application.query; interface Query<T>"
+            ),
+            SourceFile.kotlin(
+                "CapabilityCall.kt",
+                "package com.only4.cap4k.ddd.core.application.capability; interface CapabilityCall<T>"
             ),
             SourceFile.kotlin(
                 "PageRequest.kt",
@@ -630,7 +570,7 @@ class DesignElementExtractionTest {
                 "IssueTokenCmd.kt",
                 """
                     package demo.application.commands.authorize
-                    class IssueTokenCmd : com.only4.cap4k.ddd.core.application.RequestParam<IssueTokenCmd.Response> {
+                    class IssueTokenCmd : com.only4.cap4k.ddd.core.application.command.Command<IssueTokenCmd.Response> {
                         data class Request(val userId: Long, val note: String = "x")
                         data class Response(val token: String)
                     }
@@ -641,7 +581,7 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.commands.orders
                     object SubmitOrderCmd {
-                        data class Request(val cmdValue: String) : com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                        data class Request(val cmdValue: String) : com.only4.cap4k.ddd.core.application.command.Command<Response>
                         data class Response(val cmdResult: String)
                     }
                 """.trimIndent()
@@ -651,17 +591,17 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.queries.session
                     object AutoLoginQry {
-                        class Request : com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                        class Request : com.only4.cap4k.ddd.core.application.query.Query<Response>
                         data class Response(val sessionToken: String)
                     }
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "CaptchaGenCli.kt",
+                "CaptchaGen.kt",
                 """
-                    package demo.application.distributed.clients.auth
-                    object CaptchaGenCli {
-                        data class Request(val cliAccount: String) : com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                    package demo.application.capabilities.auth
+                    object CaptchaGen {
+                        data class Request(val capabilityAccount: String) : com.only4.cap4k.ddd.core.application.capability.CapabilityCall<Response>
                         data class Response(val captchaId: String)
                     }
                 """.trimIndent()
@@ -671,7 +611,7 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.commands
                     object TopCmd {
-                        data class Request(val id: Long) : com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                        data class Request(val id: Long) : com.only4.cap4k.ddd.core.application.command.Command<Response>
                         data class Response(val ok: Boolean)
                     }
                 """.trimIndent()
@@ -681,7 +621,7 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.queries
                     object TopQry {
-                        class Request : com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                        class Request : com.only4.cap4k.ddd.core.application.query.Query<Response>
                         data class Response(val ok: Boolean)
                     }
                 """.trimIndent()
@@ -696,17 +636,17 @@ class DesignElementExtractionTest {
                             override val pageSize: Int = 10,
                             val keyword: String? = null,
                         ) : com.only4.cap4k.ddd.core.application.query.PageRequest,
-                            com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                            com.only4.cap4k.ddd.core.application.query.Query<Response>
                         data class Response(val page: String)
                     }
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "TopCli.kt",
+                "Top.kt",
                 """
-                    package demo.application.distributed.clients
-                    object TopCli {
-                        data class Request(val token: String) : com.only4.cap4k.ddd.core.application.RequestParam<Response>
+                    package demo.application.capabilities
+                    object Top {
+                        data class Request(val token: String) : com.only4.cap4k.ddd.core.application.capability.CapabilityCall<Response>
                         data class Response(val ok: Boolean)
                     }
                 """.trimIndent()
@@ -716,7 +656,7 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.commands.notice
                     object FireAndForgetCmd {
-                        data class Request(val message: String) : com.only4.cap4k.ddd.core.application.RequestParam<Unit>
+                        data class Request(val message: String) : com.only4.cap4k.ddd.core.application.command.Command<Unit>
                     }
                 """.trimIndent()
             ),

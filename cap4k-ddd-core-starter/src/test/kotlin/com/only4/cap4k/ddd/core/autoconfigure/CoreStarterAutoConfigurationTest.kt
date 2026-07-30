@@ -1,13 +1,18 @@
 package com.only4.cap4k.ddd.core.autoconfigure
 
-import com.only4.cap4k.ddd.core.CapabilityUnavailableException
+import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.Mediator
-import com.only4.cap4k.ddd.core.application.RequestHandler
-import com.only4.cap4k.ddd.core.application.RequestParam
-import com.only4.cap4k.ddd.core.application.RequestRecordRepository
-import com.only4.cap4k.ddd.core.application.RequestSupervisor
+import com.only4.cap4k.ddd.core.application.PersistIntent
+import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
+import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
+import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.application.command.CommandHandler
+import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.application.query.Query
+import com.only4.cap4k.ddd.core.application.query.QueryHandler
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -26,16 +31,21 @@ class CoreStarterAutoConfigurationTest {
                 CoreDomainEventAutoConfiguration::class.java,
             )
         )
-        .withBean(TestRequestHandler::class.java)
+        .withBean(TestCommandHandler::class.java)
+        .withBean(TestUnitOfWork::class.java)
+        .withBean(TestQueryHandler::class.java)
+        .withBean(TestCapabilityHandler::class.java)
         .withBean(TestEventListener::class.java)
 
     @Test
-    fun `core starter provides synchronous request uuid7 ioc and local event without reliable stores`() {
+    fun `core starter provides distinct application dispatchers uuid7 ioc and local event without reliable stores`() {
         contextRunner.run { context ->
             assertTrue(context.startupFailure == null)
-            assertTrue(context.getBeansOfType(RequestRecordRepository::class.java).isEmpty())
+            assertTrue(context.getBeansOfType(CommandRecordRepository::class.java).isEmpty())
             assertEquals(1, context.getBeansOfType(EventSubscriberManager::class.java).size)
-            assertEquals("handled:ok", Mediator.commands.send(TestRequest("ok")))
+            assertEquals("command:ok", Mediator.commands.send(TestCommand("ok")))
+            assertEquals("query:ok", Mediator.queries.ask(TestQuery("ok")))
+            assertEquals("capability:ok", Mediator.capabilities.call(TestCapability("ok")))
             assertTrue(Mediator.identifiers.next("uuid7", String::class).isNotBlank())
             assertEquals(context, Mediator.ioc)
 
@@ -46,15 +56,15 @@ class CoreStarterAutoConfigurationTest {
             DomainEventSupervisor.manager.release(setOf(entity))
             assertEquals(listOf(event), listener.events)
 
-            val exception = assertThrows<CapabilityUnavailableException> {
-                Mediator.commands.async(TestRequest("later"))
+            val exception = assertThrows<ProviderUnavailableException> {
+                Mediator.commands.enqueue(TestCommand("later"))
             }
-            assertEquals("reliable-requests", exception.capability)
+            assertEquals("reliable-commands", exception.providerName)
         }
     }
 
     @Test
-    fun `core starter fails startup when a capability has multiple providers`() {
+    fun `core starter fails startup when command dispatcher has multiple providers`() {
         ApplicationContextRunner()
             .withConfiguration(
                 AutoConfigurations.of(
@@ -63,24 +73,48 @@ class CoreStarterAutoConfigurationTest {
                     CoreDomainEventAutoConfiguration::class.java,
                 )
             )
-            .withBean("requestA", ConflictingRequestSupervisor::class.java)
-            .withBean("requestB", ConflictingRequestSupervisor::class.java)
+            .withBean("commandA", ConflictingCommandSupervisor::class.java)
+            .withBean("commandB", ConflictingCommandSupervisor::class.java)
             .run { context ->
                 val failure = requireNotNull(context.startupFailure).stackTraceToString()
-                assertTrue(failure.contains("cap4k capability 'requests' requires exactly one provider"))
-                assertTrue(failure.contains("requestA"))
-                assertTrue(failure.contains("requestB"))
+                assertTrue(failure.contains("cap4k provider 'commands' requires exactly one implementation"))
+                assertTrue(failure.contains("commandA"))
+                assertTrue(failure.contains("commandB"))
             }
     }
 
-    data class TestRequest(val value: String) : RequestParam<String>
+    data class TestCommand(val value: String) : Command<String>
 
-    class TestRequestHandler : RequestHandler<TestRequest, String> {
-        override fun exec(request: TestRequest): String = "handled:${request.value}"
+    class TestCommandHandler : CommandHandler<TestCommand, String> {
+        override fun handle(command: TestCommand): String = "command:${command.value}"
     }
 
-    class ConflictingRequestSupervisor : RequestSupervisor {
-        override fun <REQUEST : RequestParam<RESPONSE>, RESPONSE : Any> send(request: REQUEST): RESPONSE =
+    data class TestQuery(val value: String) : Query<String>
+
+    class TestQueryHandler : QueryHandler<TestQuery, String> {
+        override fun handle(query: TestQuery): String = "query:${query.value}"
+    }
+
+    data class TestCapability(val value: String) : CapabilityCall<String>
+
+    class TestCapabilityHandler : CapabilityHandler<TestCapability, String> {
+        override fun call(request: TestCapability): String = "capability:${request.value}"
+    }
+
+    class TestUnitOfWork : UnitOfWork {
+        private var depth = 0
+        override val active: Boolean get() = depth > 0
+        override fun <RESULT> execute(block: () -> RESULT): RESULT {
+            depth++
+            return try { block() } finally { depth-- }
+        }
+        override fun persist(entity: Any, intent: PersistIntent) = Unit
+        override fun remove(entity: Any) = Unit
+        override fun flush() = check(active)
+    }
+
+    class ConflictingCommandSupervisor : com.only4.cap4k.ddd.core.application.command.CommandSupervisor {
+        override fun <COMMAND : Command<RESULT>, RESULT : Any> send(command: COMMAND): RESULT =
             error("not invoked")
     }
 

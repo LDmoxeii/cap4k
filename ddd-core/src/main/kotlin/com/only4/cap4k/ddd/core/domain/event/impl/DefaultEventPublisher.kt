@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
-import com.only4.cap4k.ddd.core.CapabilityUnavailableException
+import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
@@ -171,7 +171,7 @@ open class DefaultEventPublisher(
             eventSubscriberManager.dispatch(event.payload)
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
                 (integrationEventManager
-                    ?: throw CapabilityUnavailableException(
+                    ?: throw ProviderUnavailableException(
                         "integration-event-manager",
                         "a cap4k Integration Event transport starter",
                     )).release()

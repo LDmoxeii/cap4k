@@ -52,7 +52,7 @@ open class DefaultIntegrationEventSupervisor(
 
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
         validateIntegrationEvent(eventPayload)
-        EventRuntimeContext.currentOrCreateAmbient()
+        EventRuntimeContext.attachmentScope()
             .attachIntegration(EventAttachment.eager(eventPayload, schedule))
 
         integrationEventInterceptorManager.orderedIntegrationEventInterceptors
@@ -60,12 +60,13 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
-        EventRuntimeContext.currentOrCreateAmbient()
+        EventRuntimeContext.attachmentScope()
             .attachIntegration(EventAttachment.lazy(schedule, eventPayloadSupplier))
     }
 
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
-        val attachments = EventRuntimeContext.currentOrNull()?.integrationAttachments ?: return
+        val attachments = (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
+            ?.integrationAttachments ?: return
         val removed = attachments.removeAll { attachment -> attachment.matches(eventPayload) }
         if (!removed) return
 
@@ -76,6 +77,7 @@ open class DefaultIntegrationEventSupervisor(
     override fun release() {
         val scope = EventRuntimeContext.currentOrNull()
         val attachments = popEvents()
+        if (attachments.isEmpty()) return
         val persistedEvents = mutableListOf<EventRecord>()
 
         for (attachment in attachments) {
@@ -121,7 +123,7 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     @TransactionalEventListener(
-        fallbackExecution = true,
+        fallbackExecution = false,
         classes = [IntegrationEventAttachedTransactionCommittedEvent::class]
     )
     fun onTransactionCommitted(event: IntegrationEventAttachedTransactionCommittedEvent) {
@@ -129,7 +131,8 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     private fun popEvents(): List<EventAttachment<Any>> {
-        val attachments = EventRuntimeContext.currentOrNull()?.integrationAttachments ?: return emptyList()
+        val attachments = (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
+            ?.integrationAttachments ?: return emptyList()
         return attachments.toList().also {
             attachments.clear()
         }

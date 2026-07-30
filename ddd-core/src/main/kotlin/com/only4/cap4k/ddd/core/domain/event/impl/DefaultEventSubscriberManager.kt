@@ -4,8 +4,9 @@ import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.OrderUtils
+import org.springframework.aop.support.AopUtils
+import org.springframework.core.annotation.AnnotatedElementUtils
+import org.springframework.scheduling.annotation.Async
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -31,13 +32,9 @@ class DefaultEventSubscriberManager(
     }
 
     private fun initializeSubscribers(subscriberMap: MutableMap<Class<*>, MutableList<EventSubscriber<*>>>) {
-        // 按照Order排序订阅者
-        val sortedSubscribers = subscribers.sortedBy { subscriber ->
-            OrderUtils.getOrder(subscriber.javaClass, Ordered.LOWEST_PRECEDENCE)
-        }
-
-        // 注册订阅者
-        sortedSubscribers.forEach { subscriber ->
+        // Registration order is an implementation detail, not a reaction-order contract.
+        subscribers.forEach { subscriber ->
+            validateSynchronousSubscriber(subscriber)
             val eventClass = resolveGenericTypeClass(
                 subscriber, 0,
                 AbstractEventSubscriber::class.java, EventSubscriber::class.java
@@ -66,29 +63,44 @@ class DefaultEventSubscriberManager(
 
 
     override fun dispatch(eventPayload: Any) {
-        val failures = mutableListOf<EventSubscriberFailure>()
         subscriberMap[eventPayload.javaClass].orEmpty().forEach { subscriber ->
+            val subscriberClass = AopUtils.getTargetClass(subscriber)
             try {
-                @Suppress("UNCHECKED_CAST")
-                (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
+                EventRuntimeContext.withCausalFrame("Handler:${subscriberClass.name}") {
+                    @Suppress("UNCHECKED_CAST")
+                    (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
+                }
             } catch (ex: Exception) {
-                // 记录异常但不影响其他订阅器的执行
-                failures.add(EventSubscriberFailure(subscriber.javaClass, ex))
-                // 可以根据需要添加日志记录
-                // log.error("Subscriber ${subscriber.javaClass.simpleName} failed to handle event", ex)
+                throw EventDispatchException(
+                    eventPayload.javaClass,
+                    EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
+                    listOf(EventSubscriberFailure(subscriberClass, ex)),
+                )
             }
         }
         try {
             applicationEventPublisher.publishEvent(eventPayload)
         } catch (ex: Exception) {
-            failures.add(EventSubscriberFailure(applicationEventPublisher.javaClass, ex))
-        }
-        if (failures.isNotEmpty()) {
             throw EventDispatchException(
                 eventPayload.javaClass,
                 EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
-                failures
+                listOf(EventSubscriberFailure(applicationEventPublisher.javaClass, ex)),
             )
+        }
+    }
+
+    private fun validateSynchronousSubscriber(subscriber: EventSubscriber<*>) {
+        val targetClass = AopUtils.getTargetClass(subscriber)
+        val asyncMethod = targetClass.methods.firstOrNull { method ->
+            method.name == EventSubscriber<*>::onEvent.name &&
+                method.parameterCount == 1 &&
+                AnnotatedElementUtils.hasAnnotation(method, Async::class.java)
+        }
+        check(
+            !AnnotatedElementUtils.hasAnnotation(targetClass, Async::class.java) && asyncMethod == null
+        ) {
+            "Cap4k synchronous EventSubscriber ${targetClass.name} cannot use @Async; " +
+                "enqueue a reliable Command or publish an Integration Event instead"
         }
     }
 }

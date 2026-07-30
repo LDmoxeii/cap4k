@@ -47,10 +47,6 @@ class PipelinePluginFunctionalTest {
         assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"design/domain_service.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/saga.kt.peb\""))
-        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_param.kt.peb\""))
-        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_result.kt.peb\""))
-        assertFalse(planFile.readText().contains("\"templateId\": \"design/saga_handler.kt.peb\""))
         assertTrue(planFile.readText().contains("\"templateId\": \"types/value-object\""))
         assertFalse(planFile.readText().contains("\"generatorId\": \"design-validator\""))
         assertFalse(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
@@ -102,13 +98,13 @@ class PipelinePluginFunctionalTest {
         assertTrue(commandContent.contains("data object Response"))
 
         assertTrue(queryContent.contains("object FindOrderQry"))
-        assertTrue(queryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(queryContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(queryContent.contains("import java.time.LocalDateTime"))
         assertTrue(queryContent.contains("import java.util.UUID"))
         assertFalse(queryContent.contains("import com.foo.Status"))
         assertFalse(queryContent.contains("import com.bar.Status"))
         assertTrue(queryContent.contains("data class Request("))
-        assertTrue(queryContent.contains(") : RequestParam<Response>"))
+        assertTrue(queryContent.contains(") : Query<Response>"))
         assertTrue(queryContent.contains("val orderId: Long"))
         assertTrue(queryContent.contains("val lookupId: UUID"))
         assertTrue(queryContent.contains("val lookupMirrorId: UUID"))
@@ -148,10 +144,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(listQueryFile.toFile().exists())
         assertTrue(pageQueryFile.toFile().exists())
 
-        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertFalse(listQueryContent.contains("import com.foo.Status"))
         assertTrue(listQueryContent.contains("import com.bar.Status"))
-        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
+        assertTrue(listQueryContent.contains("class Request : Query<Response>"))
         assertTrue(listQueryContent.contains("data class Response("))
         assertTrue(listQueryContent.contains("val items: List<Item>"))
         assertTrue(listQueryContent.contains("data class Item("))
@@ -164,14 +160,14 @@ class PipelinePluginFunctionalTest {
         assertFalse(listQueryContent.contains("List" + "QueryParam"))
         assertFalse(listQueryContent.contains("List" + "Query<"))
 
-        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
         assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertFalse(pageQueryContent.contains("import com.foo.Status"))
         assertTrue(pageQueryContent.contains("data class Request("))
         assertTrue(pageQueryContent.contains("override val pageNum: Int = 1"))
         assertTrue(pageQueryContent.contains("override val pageSize: Int"))
-        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, Query<Response>"))
         assertTrue(pageQueryContent.contains("val keyword: String"))
         assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
         assertTrue(pageQueryContent.contains("val requestStatus: com.foo.Status"))
@@ -271,8 +267,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(defaultQueryContent.contains("// override: representative default query migration template"))
         assertTrue(listQueryContent.contains("// override: representative default query migration template"))
         assertTrue(pageQueryContent.contains("// override: representative default query migration template"))
-        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
-        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
+        assertTrue(listQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(listQueryContent.contains("class Request : Query<Response>"))
         assertFalse(listQueryContent.contains("import com.foo.Status"))
         assertTrue(listQueryContent.contains("val items: List<Item>"))
         assertTrue(listQueryContent.contains("val responseStatus: Status"))
@@ -280,10 +276,10 @@ class PipelinePluginFunctionalTest {
         assertTrue(listQueryContent.contains("val updatedAt: LocalDateTime"))
         assertTrue(listQueryContent.contains("val summaryId: UUID"))
 
-        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(pageQueryContent.contains("import com.only4.cap4k.ddd.core.share.PageData"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertTrue(pageQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : Query<Response>"))
         assertFalse(pageQueryContent.contains("import com.foo.Status"))
         assertTrue(pageQueryContent.contains("val keyword: String"))
         assertTrue(pageQueryContent.contains("val createdAfter: LocalDateTime"))
@@ -441,16 +437,17 @@ class PipelinePluginFunctionalTest {
         assertTrue(listQueryFile.toFile().exists())
         assertTrue(pageQueryFile.toFile().exists())
 
-        assertTrue(defaultContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(defaultContent.contains("import com.only4.cap4k.ddd.core.application.query.QueryHandler"))
         assertTrue(defaultContent.contains("import com.acme.demo.application.queries.order.read.FindOrderQry"))
-        assertTrue(defaultContent.contains("class FindOrderQryHandler : Query<FindOrderQry.Request, FindOrderQry.Response>"))
+        assertTrue(defaultContent.contains("class FindOrderQryHandler : QueryHandler<FindOrderQry.Request, FindOrderQry.Response>"))
+        assertTrue(defaultContent.contains("override fun handle(query: FindOrderQry.Request)"))
         assertTrue(defaultContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(defaultContent.contains("snapshot = TODO(\"set snapshot\")"))
 
-        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.QueryHandler"))
         assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
-        assertTrue(listContent.contains("class FindOrderListQryHandler : Query<FindOrderListQry.Request, FindOrderListQry.Response>"))
-        assertTrue(listContent.contains(" : Query<"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : QueryHandler<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains(" : QueryHandler<"))
         assertTrue(listContent.contains(".Request, "))
         assertTrue(listContent.contains(".Response>"))
         assertTrue(listContent.contains("items = TODO(\"set items\")"))
@@ -459,10 +456,10 @@ class PipelinePluginFunctionalTest {
         assertFalse(listContent.contains("List<FindOrder" + "ListQry.Response>"))
         assertFalse(listContent.contains("PageData<FindOrder" + "PageQry.Response>"))
 
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.QueryHandler"))
         assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
-        assertTrue(pageContent.contains("class FindOrderPageQryHandler : Query<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains(" : Query<"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : QueryHandler<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains(" : QueryHandler<"))
         assertTrue(pageContent.contains(".Request, "))
         assertTrue(pageContent.contains(".Response>"))
         assertTrue(pageContent.contains("page = TODO(\"set page\")"))
@@ -473,12 +470,12 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(defaultQueryContent.contains("object FindOrderQry"))
         assertTrue(defaultQueryContent.contains("data class Request("))
-        assertTrue(defaultQueryContent.contains(") : RequestParam<Response>"))
+        assertTrue(defaultQueryContent.contains(") : Query<Response>"))
         assertTrue(listQueryContent.contains("object FindOrderListQry"))
-        assertTrue(listQueryContent.contains("class Request : RequestParam<Response>"))
+        assertTrue(listQueryContent.contains("class Request : Query<Response>"))
         assertTrue(pageQueryContent.contains("object FindOrderPageQry"))
         assertTrue(pageQueryContent.contains("data class Request("))
-        assertTrue(pageQueryContent.contains(") : PageRequest, RequestParam<Response>"))
+        assertTrue(pageQueryContent.contains(") : PageRequest, Query<Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -510,8 +507,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(defaultContent.contains("// override: representative default query handler migration template"))
         assertTrue(listContent.contains("// override: representative default query handler migration template"))
         assertTrue(pageContent.contains("// override: representative default query handler migration template"))
-        assertTrue(listContent.contains("class FindOrderListQryHandler : Query<FindOrderListQry.Request, FindOrderListQry.Response>"))
-        assertTrue(pageContent.contains("class FindOrderPageQryHandler : Query<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : QueryHandler<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : QueryHandler<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -542,8 +539,8 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan includes client and client handler artifacts from fixture`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-client-plan")
+    fun `cap4kPlan includes capability and capability handler artifacts from fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-capability-plan")
         copyFixture(projectDir, "design-sample")
 
         val result = GradleRunner.create()
@@ -557,24 +554,24 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
-        assertTrue(content.contains("\"templateId\": \"design/client.kt.peb\""))
-        assertTrue(content.contains("\"templateId\": \"design/client_handler.kt.peb\""))
+        assertTrue(content.contains("\"templateId\": \"design/capability.kt.peb\""))
+        assertTrue(content.contains("\"templateId\": \"design/capability_handler.kt.peb\""))
         assertTrue(
             content.contains(
-                "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt"
+                "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt"
             )
         )
         assertTrue(
             content.contains(
-                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt"
+                "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt"
             )
         )
     }
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate renders client and client handler files from fixture`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-client-generate")
+    fun `cap4kGenerate renders capability and capability handler files from fixture`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-capability-generate")
         copyFixture(projectDir, "design-sample")
 
         val result = GradleRunner.create()
@@ -583,36 +580,36 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .build()
 
-        val clientFile = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt"
+        val capabilityFile = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt"
         )
         val handlerFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt"
         )
-        val clientContent = clientFile.readText()
+        val capabilityContent = capabilityFile.readText()
         val handlerContent = handlerFile.readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(clientFile.toFile().exists())
+        assertTrue(capabilityFile.toFile().exists())
         assertTrue(handlerFile.toFile().exists())
-        assertTrue(clientContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
-        assertTrue(clientContent.contains("object IssueTokenCli"))
-        assertTrue(clientContent.contains(") : RequestParam<Response>"))
-        assertTrue(clientContent.contains("val account: String"))
-        assertTrue(clientContent.contains("val token: String"))
-        assertTrue(handlerContent.contains("import com.only4.cap4k.ddd.core.application.RequestHandler"))
-        assertTrue(handlerContent.contains("import com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"))
+        assertTrue(capabilityContent.contains("import com.only4.cap4k.ddd.core.application.capability.CapabilityCall"))
+        assertTrue(capabilityContent.contains("object IssueToken"))
+        assertTrue(capabilityContent.contains(") : CapabilityCall<Response>"))
+        assertTrue(capabilityContent.contains("val account: String"))
+        assertTrue(capabilityContent.contains("val token: String"))
+        assertTrue(handlerContent.contains("import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler"))
+        assertTrue(handlerContent.contains("import com.acme.demo.application.capabilities.authorize.IssueToken"))
         assertTrue(
             handlerContent.contains(
-                "class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"
+                "class IssueTokenHandler : CapabilityHandler<IssueToken.Request, IssueToken.Response>"
             )
         )
     }
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate supports override client and client handler templates`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-client-override")
+    fun `cap4kGenerate supports override capability and capability handler templates`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-capability-override")
         copyFixture(projectDir, "design-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
@@ -624,22 +621,22 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kGenerate")
             .build()
 
-        val clientContent = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt"
+        val capabilityContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt"
         ).readText()
         val handlerContent = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt"
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt"
         ).readText()
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(clientContent.contains("// override: representative client migration template"))
-        assertTrue(handlerContent.contains("// override: representative client handler migration template"))
+        assertTrue(capabilityContent.contains("// override: representative capability migration template"))
+        assertTrue(handlerContent.contains("// override: representative capability handler migration template"))
     }
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan fails fast when design client lacks application module path`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-client-missing-application")
+    fun `cap4kPlan fails fast when design capability lacks application module path`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-capability-missing-application")
         copyFixture(projectDir, "design-sample")
 
         val buildFile = projectDir.resolve("build.gradle.kts")
@@ -690,7 +687,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kGenerate fails when same-package sibling request name is used as a short type`() {
+    fun `cap4kGenerate fails when same-package sibling application call name is used as a short type`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-sibling-short-type")
         copyFixture(projectDir, "design-type-registry-sample")
         projectDir.resolve("iterate/design/registry_design.json").writeText(
@@ -2417,7 +2414,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
-        assertFalse(projectDir.resolve("design/drawing_board_client.json").toFile().exists())
+        assertFalse(projectDir.resolve("design/drawing_board_capability.json").toFile().exists())
         assertFalse(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
     }
@@ -2439,7 +2436,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(analysisPlanFile.toFile().exists())
         assertTrue(analysisPlanFile.readText().contains("\"templateId\": \"drawing-board/document.json.peb\""))
-        assertTrue(projectDir.resolve("design/drawing_board_client.json").toFile().exists())
+        assertTrue(projectDir.resolve("design/drawing_board_capability.json").toFile().exists())
         assertTrue(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         val queryContent = projectDir.resolve("design/drawing_board_query.json").readText()
         val payloadContent = projectDir.resolve("design/drawing_board_api_payload.json").readText()
@@ -3066,11 +3063,11 @@ class PipelinePluginFunctionalTest {
         val commandFile = projectDir.generatedFile(
             "demo-application/src/main/kotlin/com/acme/demo/application/commands/message/create/CreateUserMessageCmd.kt"
         )
-        val clientFile = projectDir.generatedFile(
-            "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/message/delivery/PublishUserMessageCli.kt"
+        val capabilityFile = projectDir.generatedFile(
+            "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/message/delivery/PublishUserMessage.kt"
         )
-        val clientHandlerFile = projectDir.generatedFile(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/message/delivery/PublishUserMessageCliHandler.kt"
+        val capabilityHandlerFile = projectDir.generatedFile(
+            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/message/delivery/PublishUserMessageHandler.kt"
         )
         val queryHandlerFile = projectDir.generatedFile(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/message/read/FindUserMessageQryHandler.kt"
@@ -3091,8 +3088,8 @@ class PipelinePluginFunctionalTest {
             schemaFile,
             queryFile,
             commandFile,
-            clientFile,
-            clientHandlerFile,
+            capabilityFile,
+            capabilityHandlerFile,
             queryHandlerFile,
             payloadFile,
             domainEventFile,
@@ -3124,23 +3121,24 @@ class PipelinePluginFunctionalTest {
         assertFalse(schemaContent.contains("val message_key"))
 
         val queryContent = queryFile.readText()
-        assertTrue(queryContent.contains(") : RequestParam<Response>"))
-        assertTrue(queryContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data class Response("))
+        assertTrue(queryContent.contains(") : Query<Response>"))
+        assertTrue(queryContent.replace("\r\n", "\n").contains(") : Query<Response>\n\n    data class Response("))
 
         val commandContent = commandFile.readText()
-        assertTrue(commandContent.contains(") : RequestParam<Response>"))
-        assertTrue(commandContent.contains("class Handler : Command<Request, Response>"))
-        assertTrue(commandContent.contains("Mediator.uow.save()"))
-        assertTrue(commandContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data object Response"))
+        assertTrue(commandContent.contains(") : Command<Response>"))
+        assertTrue(commandContent.contains("class Handler : CommandHandler<Request, Response>"))
+        assertTrue(commandContent.contains("override fun handle(command: Request)"))
+        assertFalse(commandContent.contains("Mediator.uow.save()"))
+        assertTrue(commandContent.replace("\r\n", "\n").contains(") : Command<Response>\n\n    data object Response"))
 
-        val clientContent = clientFile.readText()
-        assertTrue(clientContent.contains(") : RequestParam<Response>"))
-        assertTrue(clientContent.replace("\r\n", "\n").contains(") : RequestParam<Response>\n\n    data class Response("))
+        val capabilityContent = capabilityFile.readText()
+        assertTrue(capabilityContent.contains(") : CapabilityCall<Response>"))
+        assertTrue(capabilityContent.replace("\r\n", "\n").contains(") : CapabilityCall<Response>\n\n    data class Response("))
 
-        val clientHandlerContent = clientHandlerFile.readText().replace("\r\n", "\n")
+        val capabilityHandlerContent = capabilityHandlerFile.readText().replace("\r\n", "\n")
         assertTrue(
-            clientHandlerContent.contains(
-                "        return PublishUserMessageCli.Response(\n" +
+            capabilityHandlerContent.contains(
+                "        return PublishUserMessage.Response(\n" +
                     "            published = TODO(\"set published\")\n" +
                     "        )"
             )

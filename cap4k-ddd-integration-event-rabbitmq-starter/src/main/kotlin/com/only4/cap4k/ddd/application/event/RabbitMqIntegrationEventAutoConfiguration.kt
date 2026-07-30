@@ -1,14 +1,12 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.application.event.configure.RabbitMqIntegrationEventAdapterProperties
-import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.impl.IntegrationEventUnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
@@ -49,11 +47,6 @@ class RabbitMqIntegrationEventAutoConfiguration {
         IntegrationEventSupervisorSupport.configure(it as IntegrationEventSupervisor)
         IntegrationEventSupervisorSupport.configure(it as IntegrationEventManager)
     }
-
-    @Bean
-    @ConditionalOnMissingBean(name = ["integrationEventUnitOfWorkInterceptor"])
-    fun integrationEventUnitOfWorkInterceptor(manager: IntegrationEventManager): UnitOfWorkInterceptor =
-        IntegrationEventUnitOfWorkInterceptor(manager)
 
     @Bean
     fun rabbitMqIntegrationEventPublisher(

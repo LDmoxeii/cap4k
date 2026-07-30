@@ -9,8 +9,5 @@ import {{ import }}
 fun {{ rootName }}.onCreate() {
 }
 
-fun {{ rootName }}.onUpdate() {
-}
-
-fun {{ rootName }}.onDelete() {
+fun {{ rootName }}.onDeleted() {
 }

@@ -2,19 +2,29 @@ package com.only4.cap4k.ddd.application
 
 import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
-import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
+import com.only4.cap4k.ddd.core.domain.aggregate.impl.ReflectiveAggregateLifecycleInvoker
+import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
+import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
-import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
-import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import org.hibernate.Hibernate
+import org.hibernate.FlushMode
+import org.hibernate.Session
+import org.hibernate.engine.spi.SessionImplementor
+import org.hibernate.engine.spi.Status
+import org.hibernate.type.EntityType
+import org.springframework.core.Ordered
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport
 import org.springframework.data.repository.core.EntityInformation
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionSynchronization
+import org.springframework.transaction.support.TransactionSynchronizationManager
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
 private enum class UnitOfWorkEntryKind {
@@ -69,16 +79,27 @@ private class PendingEntrySet {
         return merged
     }
 
-    fun remove(entity: Any) {
+    fun remove(entity: Any): Boolean {
         val key = ObjectIdentityKey(entity)
         val current = entries[key]
-        when (current?.kind) {
-            null -> entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
-            UnitOfWorkEntryKind.CREATE -> entries.remove(key)
-            UnitOfWorkEntryKind.EXISTING -> entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
-            UnitOfWorkEntryKind.REMOVE -> Unit
+        return when (current?.kind) {
+            null -> {
+                entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
+                false
+            }
+            UnitOfWorkEntryKind.CREATE -> {
+                entries.remove(key)
+                true
+            }
+            UnitOfWorkEntryKind.EXISTING -> {
+                entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
+                false
+            }
+            UnitOfWorkEntryKind.REMOVE -> false
         }
     }
+
+    fun isNotEmpty(): Boolean = entries.isNotEmpty()
 
     fun drain(): List<UnitOfWorkEntry> {
         val changes = entries.values.toList()
@@ -92,13 +113,6 @@ private fun PersistIntent.toUnitOfWorkEntryKind(): UnitOfWorkEntryKind = when (t
     PersistIntent.EXISTING -> UnitOfWorkEntryKind.EXISTING
 }
 
-private data class SaveInput(
-    val entries: List<UnitOfWorkEntry>,
-    val persistedEntities: Set<Any>,
-    val removedEntities: Set<Any>,
-    val processedEntities: Set<Any>,
-)
-
 private data class FlushResult(
     val created: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
     val existing: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
@@ -106,6 +120,33 @@ private data class FlushResult(
     val refreshList: MutableList<Any> = mutableListOf(),
     var needsFlush: Boolean = false,
 )
+
+private enum class JpaUnitOfWorkPhase {
+    HANDLER,
+    NESTED_COMMAND,
+    INTEGRATION_RECORDS,
+    NORMALIZE_INTENT,
+    CANDIDATE_DETECTION,
+    AUDIT_ENRICHMENT,
+    FINAL_DETECTION,
+    PROVIDER_FLUSH,
+    DOMAIN_EVENT_FRONTIER,
+    STABLE,
+}
+
+private class JpaUnitOfWorkContext {
+    val pendingEntries = PendingEntrySet()
+    val trackedRoots = InsertionOrderedIdentitySet<Any>()
+    val repositoryObservationBaseline = JpaRepositoryObservationBaseline()
+    val auditContext = JpaPersistenceAuditContext(timestamp = Instant.now())
+    var phase: JpaUnitOfWorkPhase = JpaUnitOfWorkPhase.HANDLER
+    var flushCount: Int = 0
+    var frontierCount: Int = 0
+    var synchronousEventCount: Int = 0
+    var nestedCommandCount: Int = 0
+    var sealedSession: Session? = null
+    var previousFlushMode: FlushMode? = null
+}
 
 private data class EntityIdentity(
     val entityType: Class<*>,
@@ -119,10 +160,12 @@ private data class EntityIdentity(
  * @date 2025/07/28
  */
 open class JpaUnitOfWork(
-    private val uowInterceptors: List<UnitOfWorkInterceptor>,
-    private val persistListenerManager: PersistListenerManager,
-    private val supportEntityInlinePersistListener: Boolean,
+    private val domainEventManager: DomainEventManager,
+    private val integrationEventManager: IntegrationEventManager? = null,
+    private val lifecycleInvoker: AggregateLifecycleInvoker = ReflectiveAggregateLifecycleInvoker(),
     generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
+    private val auditEnrichers: List<JpaPersistenceAuditEnricher> = emptyList(),
+    private val limits: JpaUnitOfWorkLimits = JpaUnitOfWorkLimits(),
 ) : UnitOfWork, JpaRepositoryObservationRecorder {
 
     @PersistenceContext
@@ -131,7 +174,7 @@ open class JpaUnitOfWork(
     private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport(generatedOwnIdRegistry)
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
     private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
-        get() = repositoryObservationBaselineThreadLocal.get()
+        get() = currentContext().repositoryObservationBaseline
 
     companion object {
         lateinit var instance: JpaUnitOfWork
@@ -140,18 +183,14 @@ open class JpaUnitOfWork(
             instance = unitOfWork
         }
 
-        private val pendingEntriesThreadLocal = ThreadLocal.withInitial { PendingEntrySet() }
-        private val processingEntitiesThreadLocal = ThreadLocal.withInitial { InsertionOrderedIdentitySet<Any>() }
-        private val repositoryObservationBaselineThreadLocal =
-            ThreadLocal.withInitial { JpaRepositoryObservationBaseline() }
+        private val contextThreadLocal = ThreadLocal<JpaUnitOfWorkContext>()
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
 
         @JvmStatic
         fun reset() {
-            pendingEntriesThreadLocal.remove()
-            processingEntitiesThreadLocal.remove()
-            repositoryObservationBaselineThreadLocal.remove()
+            contextThreadLocal.remove()
+            EventRuntimeContextManager.reset()
         }
     }
 
@@ -163,30 +202,141 @@ open class JpaUnitOfWork(
 
     private fun persistentEntityClass(entity: Any): Class<*> = Hibernate.getClassLazy(entity)
 
-    protected open fun onEntitiesFlushed(
-        createdEntities: Set<Any>,
-        updatedEntities: Set<Any>,
-        deletedEntities: Set<Any>
-    ) {
-        if (!supportEntityInlinePersistListener) return
+    override val active: Boolean
+        get() = contextThreadLocal.get() != null
 
-        createdEntities.forEach { persistListenerManager.onChange(it, PersistType.CREATE) }
-        updatedEntities.forEach { persistListenerManager.onChange(it, PersistType.UPDATE) }
-        deletedEntities.forEach { persistListenerManager.onChange(it, PersistType.DELETE) }
+    private fun currentContext(): JpaUnitOfWorkContext =
+        contextThreadLocal.get() ?: error("UnitOfWork operation requires an active Command Unit of Work")
+
+    override fun <RESULT> execute(block: () -> RESULT): RESULT {
+        if (active) {
+            val context = currentContext()
+            check(
+                context.phase == JpaUnitOfWorkPhase.HANDLER ||
+                    context.phase == JpaUnitOfWorkPhase.NESTED_COMMAND ||
+                    context.phase == JpaUnitOfWorkPhase.DOMAIN_EVENT_FRONTIER
+            ) {
+                "Nested Command is not allowed during UnitOfWork phase ${context.phase}"
+            }
+            context.nestedCommandCount++
+            checkLimit(
+                context = context,
+                withinLimit = context.nestedCommandCount <= limits.maxNestedCommands,
+                limitName = "nested Commands",
+            )
+            val previousPhase = context.phase
+            context.phase = JpaUnitOfWorkPhase.NESTED_COMMAND
+            return try {
+                block()
+            } finally {
+                context.phase = previousPhase
+            }
+        }
+        check(!TransactionSynchronizationManager.isActualTransactionActive()) {
+            "A Command Unit of Work cannot adopt an external transaction without an active Cap4k context"
+        }
+        return executeRequired(block)
     }
 
-    protected open fun dirtyExistingEntities(existingEntities: Set<Any>): Set<Any> =
-        JpaHibernateDirtyInspector(entityManager).dirtyManagedEntities(existingEntities)
+    protected open fun <RESULT> executeRequired(block: () -> RESULT): RESULT =
+        instance.required(block)
+
+    @Transactional(rollbackFor = [Exception::class])
+    open fun <RESULT> required(block: () -> RESULT): RESULT {
+        check(!active) { "Only the outer Unit of Work may create a transaction context" }
+        val context = JpaUnitOfWorkContext()
+        contextThreadLocal.set(context)
+        EventRuntimeContextManager.beginUnitOfWork()
+        var cleanupDeferred = false
+        return try {
+            cleanupDeferred = registerAfterCompletionCleanup(context)
+            val result = block()
+            if (cleanupDeferred) {
+                registerBeforeCommitFinalization(context)
+            } else {
+                stabilize(context)
+            }
+            result
+        } finally {
+            if (!cleanupDeferred) cleanupContext(context)
+        }
+    }
+
+    private fun registerAfterCompletionCleanup(context: JpaUnitOfWorkContext): Boolean {
+        val transactionActive = TransactionSynchronizationManager.isActualTransactionActive()
+        val synchronizationActive = TransactionSynchronizationManager.isSynchronizationActive()
+        check(!transactionActive || synchronizationActive) {
+            "A Command Unit of Work requires transaction synchronization for commit-boundary finalization"
+        }
+        if (!transactionActive) return false
+
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
+
+                override fun afterCompletion(status: Int) {
+                    cleanupContext(context)
+                }
+            },
+        )
+        return true
+    }
+
+    private fun registerBeforeCommitFinalization(context: JpaUnitOfWorkContext) {
+        TransactionSynchronizationManager.registerSynchronization(
+            object : TransactionSynchronization {
+                override fun getOrder(): Int = Ordered.LOWEST_PRECEDENCE
+
+                override fun beforeCommit(readOnly: Boolean) {
+                    check(!readOnly) { "Command Unit of Work cannot commit through a read-only transaction" }
+                    stabilize(context)
+                    sealProviderAutoFlush(context)
+                }
+            },
+        )
+    }
+
+    private fun sealProviderAutoFlush(context: JpaUnitOfWorkContext) {
+        val session = entityManager.unwrap(Session::class.java)
+        context.sealedSession = session
+        context.previousFlushMode = session.hibernateFlushMode
+        session.hibernateFlushMode = FlushMode.MANUAL
+    }
+
+    private fun cleanupContext(context: JpaUnitOfWorkContext) {
+        if (contextThreadLocal.get() !== context) return
+        try {
+            context.sealedSession?.let { session ->
+                context.previousFlushMode?.let { previous ->
+                    runCatching { session.hibernateFlushMode = previous }
+                }
+            }
+            EventRuntimeContextManager.endUnitOfWork()
+        } finally {
+            contextThreadLocal.remove()
+        }
+    }
 
     override fun persist(entity: Any, intent: PersistIntent) {
+        ensureApplicationMutationPhase("persist")
         validateStandaloneEnrollmentTarget(entity, "persist")
-        val entry = pendingEntriesThreadLocal.get().persist(entity, intent)
+        val context = currentContext()
+        val entry = context.pendingEntries.persist(entity, intent)
+        context.trackedRoots.add(entity)
         completeIdsForEntry(entry)
     }
 
     override fun remove(entity: Any) {
+        ensureApplicationMutationPhase("remove")
         validateStandaloneEnrollmentTarget(entity, "remove")
-        pendingEntriesThreadLocal.get().remove(entity)
+        lifecycleInvoker.onDeleted(entity)
+        val context = currentContext()
+        if (context.pendingEntries.remove(entity)) {
+            context.trackedRoots.remove(entity)
+            domainEventManager.discard(entity)
+        } else {
+            context.trackedRoots.add(entity)
+        }
     }
 
     private fun validateStandaloneEnrollmentTarget(entity: Any, operation: String) {
@@ -201,13 +351,16 @@ open class JpaUnitOfWork(
     }
 
     override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
+        val context = contextThreadLocal.get() ?: return
+        ensureApplicationMutationPhase("observe repository load", context)
         val observed = ownedRelationTraversal.reachableOwnedEntities(root)
             .map { entity -> JpaObservedEntity(entity, observedIdentityOf(entity)) }
-        repositoryObservationBaseline.record(root, observed)
+        context.repositoryObservationBaseline.record(root, observed)
+        context.trackedRoots.add(root)
     }
 
     internal fun observedRepositoryBaseline(): JpaRepositoryObservationBaseline =
-        repositoryObservationBaseline
+        currentContext().repositoryObservationBaseline
 
     private fun observedIdentityOf(entity: Any): JpaObservedIdentity? {
         val entityClass = persistentEntityClass(entity)
@@ -217,89 +370,240 @@ open class JpaUnitOfWork(
         return JpaObservedIdentity(entityClass, id)
     }
 
-    private fun pushProcessingEntity(
-        entity: Any,
-        currentProcessedPersistenceContextEntities: MutableSet<Any>
-    ): Boolean {
-        val processingEntities = processingEntitiesThreadLocal.get()
-        val added = processingEntities.add(entity)
-        if (added) currentProcessedPersistenceContextEntities.add(entity)
-        return added
-    }
-
-    private fun popProcessingEntities(currentProcessedPersistenceContextEntities: Set<Any>): Boolean {
-        if (currentProcessedPersistenceContextEntities.isEmpty()) return true
-        return currentProcessedPersistenceContextEntities.fold(false) { removedAny, entity ->
-            processingEntitiesThreadLocal.get().remove(entity) || removedAny
+    override fun flush() {
+        val context = currentContext()
+        ensureApplicationMutationPhase("flush", context)
+        val previousPhase = context.phase
+        try {
+            context.phase = JpaUnitOfWorkPhase.INTEGRATION_RECORDS
+            integrationEventManager?.release()
+            synchronizePersistence(context)
+        } finally {
+            context.phase = previousPhase
         }
     }
 
-    override fun save(propagation: Propagation) {
-        val currentProcessedEntitySet = InsertionOrderedIdentitySet<Any>()
-        try {
-            val drainedEntries = pendingEntriesThreadLocal.get().drain()
-            val pendingEntries = reconcilePendingOwnedChildren(drainedEntries)
-            pendingEntries.forEach { pushProcessingEntity(it.entity, currentProcessedEntitySet) }
+    private fun stabilize(context: JpaUnitOfWorkContext) {
+        while (true) {
+            context.phase = JpaUnitOfWorkPhase.INTEGRATION_RECORDS
+            integrationEventManager?.release()
+            synchronizePersistence(context)
 
-            val persistEntitySet = pendingEntries
-                .filter { it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING }
-                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-            val deleteEntitySet = pendingEntries
-                .filter { it.kind == UnitOfWorkEntryKind.REMOVE }
-                .mapTo(InsertionOrderedIdentitySet()) { it.entity }
-
-            completeGeneratedOwnIds(pendingEntries)
-            validateSameIdentityConflicts(pendingEntries)
-            uowInterceptors.forEach { it.beforeTransaction(persistEntitySet, deleteEntitySet) }
-
-            save(
-                SaveInput(
-                    entries = pendingEntries,
-                    persistedEntities = persistEntitySet,
-                    removedEntities = deleteEntitySet,
-                    processedEntities = currentProcessedEntitySet,
-                ),
-                propagation,
-            ) { input ->
-                val results = FlushResult()
-                uowInterceptors.forEach { it.preInTransaction(input.persistedEntities, input.removedEntities) }
-                val lateOwnership = analyzePendingOwnership(input.entries)
-                validateNoSharedReachableOwnership(input.entries, lateOwnership)
-                validateNoLatePendingOwnedChildEntries(input.entries)
-                completeGeneratedOwnIds(input.entries)
-
-                input.entries.forEach { entry ->
-                    when (entry.kind) {
-                        UnitOfWorkEntryKind.CREATE -> applyCreate(entry.entity, results)
-                        UnitOfWorkEntryKind.EXISTING -> applyExisting(entry.entity, results)
-                        UnitOfWorkEntryKind.REMOVE -> applyRemove(entry.entity, results)
-                    }
-                }
-
-                if (results.needsFlush) {
-                    val dirtyExisting = dirtyExistingEntities(results.existing)
-                    entityManager.flush()
-                    results.refreshList.forEach { entityManager.refresh(it) }
-                    onEntitiesFlushed(results.created, dirtyExisting, results.deleted)
-                }
-
-                InsertionOrderedIdentitySet<Any>().apply {
-                    addAll(input.persistedEntities)
-                    addAll(input.removedEntities)
-                    addAll(input.processedEntities)
-                }.let { allEntities ->
-                    uowInterceptors.forEach { it.postEntitiesPersisted(allEntities) }
-                    uowInterceptors.forEach {
-                        it.postInTransaction(input.persistedEntities, input.removedEntities)
-                    }
-                }
+            val pendingBefore = domainEventManager.pendingCount()
+            if (pendingBefore > 0) {
+                checkLimit(
+                    context = context,
+                    withinLimit = context.frontierCount < limits.maxFrontierRounds,
+                    limitName = "Domain Event frontier rounds",
+                )
+                checkLimit(
+                    context = context,
+                    withinLimit = context.synchronousEventCount + pendingBefore <= limits.maxSynchronousEvents,
+                    limitName = "synchronous Domain Events",
+                )
+                context.phase = JpaUnitOfWorkPhase.DOMAIN_EVENT_FRONTIER
+                domainEventManager.release(context.trackedRoots.toSet())
+                context.frontierCount++
+                context.synchronousEventCount += pendingBefore
+                continue
             }
 
-            uowInterceptors.forEach { it.afterTransaction(persistEntitySet, deleteEntitySet) }
-        } finally {
-            repositoryObservationBaselineThreadLocal.remove()
-            popProcessingEntities(currentProcessedEntitySet)
+            if (!hasPersistentWork(context)) {
+                context.phase = JpaUnitOfWorkPhase.STABLE
+                return
+            }
         }
+    }
+
+    private fun hasPersistentWork(context: JpaUnitOfWorkContext): Boolean =
+        context.pendingEntries.isNotEmpty() || entityManager.unwrap(Session::class.java).isDirty
+
+    private fun synchronizePersistence(context: JpaUnitOfWorkContext): Boolean {
+        context.phase = JpaUnitOfWorkPhase.NORMALIZE_INTENT
+        val pendingEntries = reconcilePendingOwnedChildren(context.pendingEntries.drain())
+        completeGeneratedOwnIds(pendingEntries)
+        validateSameIdentityConflicts(pendingEntries)
+
+        val lateOwnership = analyzePendingOwnership(pendingEntries)
+        validateNoSharedReachableOwnership(pendingEntries, lateOwnership)
+        validateNoLatePendingOwnedChildEntries(pendingEntries)
+        completeGeneratedOwnIds(pendingEntries)
+
+        context.phase = JpaUnitOfWorkPhase.CANDIDATE_DETECTION
+        val auditCandidates = detectAuditCandidates(context, pendingEntries)
+        if (auditCandidates.isNotEmpty()) {
+            context.phase = JpaUnitOfWorkPhase.AUDIT_ENRICHMENT
+            auditEnrichers.forEach { enricher ->
+                enricher.enrich(auditCandidates, context.auditContext)
+            }
+        }
+
+        val results = FlushResult()
+        pendingEntries.forEach { entry ->
+            context.trackedRoots.add(entry.entity)
+            when (entry.kind) {
+                UnitOfWorkEntryKind.CREATE -> applyCreate(entry.entity, results)
+                UnitOfWorkEntryKind.EXISTING -> applyExisting(entry.entity, results)
+                UnitOfWorkEntryKind.REMOVE -> applyRemove(entry.entity, results)
+            }
+        }
+
+        context.phase = JpaUnitOfWorkPhase.FINAL_DETECTION
+        val providerDirty = entityManager.unwrap(Session::class.java).isDirty
+        if (!results.needsFlush && !providerDirty) return false
+
+        context.phase = JpaUnitOfWorkPhase.PROVIDER_FLUSH
+        checkLimit(
+            context = context,
+            withinLimit = context.flushCount < limits.maxProviderFlushes,
+            limitName = "Provider flushes",
+        )
+        entityManager.flush()
+        results.refreshList.forEach { entityManager.refresh(it) }
+        advanceRepositoryBaseline(context, results)
+        context.flushCount++
+        return true
+    }
+
+    private fun checkLimit(
+        context: JpaUnitOfWorkContext,
+        withinLimit: Boolean,
+        limitName: String,
+    ) {
+        val causalPath = EventRuntimeContextManager.diagnosticCausalPath()
+            .joinToString(" -> ")
+            .ifBlank { "<unavailable>" }
+        check(withinLimit) {
+            "UnitOfWork limit exceeded: $limitName; " +
+                "phase=${context.phase}; " +
+                "frontierRounds=${context.frontierCount}; " +
+                "synchronousEvents=${context.synchronousEventCount}; " +
+                "nestedCommands=${context.nestedCommandCount}; " +
+                "providerFlushes=${context.flushCount}; " +
+                "causalPath=$causalPath"
+        }
+    }
+
+    private fun ensureApplicationMutationPhase(
+        operation: String,
+        context: JpaUnitOfWorkContext = currentContext(),
+    ) {
+        check(
+            context.phase == JpaUnitOfWorkPhase.HANDLER ||
+                context.phase == JpaUnitOfWorkPhase.NESTED_COMMAND ||
+                context.phase == JpaUnitOfWorkPhase.DOMAIN_EVENT_FRONTIER
+        ) {
+            "UnitOfWork.$operation is not allowed during phase ${context.phase}"
+        }
+    }
+
+    private fun advanceRepositoryBaseline(
+        context: JpaUnitOfWorkContext,
+        results: FlushResult,
+    ) {
+        val roots = InsertionOrderedIdentitySet<Any>().apply {
+            addAll(context.trackedRoots)
+            addAll(results.created)
+            addAll(results.existing)
+        }
+        context.repositoryObservationBaseline.clear()
+        roots.asSequence()
+            .filter(entityManager::contains)
+            .forEach { root ->
+                val observed = ownedRelationTraversal.reachableOwnedEntities(root)
+                    .map { entity -> JpaObservedEntity(entity, observedIdentityOf(entity)) }
+                context.repositoryObservationBaseline.record(root, observed)
+            }
+    }
+
+    private fun detectAuditCandidates(
+        context: JpaUnitOfWorkContext,
+        pendingEntries: List<UnitOfWorkEntry>,
+    ): List<JpaPersistenceAuditCandidate> {
+        val candidateTypes = LinkedHashMap<ObjectIdentityKey, JpaPersistenceAuditCandidate>()
+
+        fun add(entity: Any, type: JpaPersistenceChangeType) {
+            val key = ObjectIdentityKey(entity)
+            val current = candidateTypes[key]
+            val effective = when {
+                current == null -> type
+                current.type == JpaPersistenceChangeType.DELETE || type == JpaPersistenceChangeType.DELETE ->
+                    JpaPersistenceChangeType.DELETE
+                current.type == JpaPersistenceChangeType.CREATE || type == JpaPersistenceChangeType.CREATE ->
+                    JpaPersistenceChangeType.CREATE
+                else -> JpaPersistenceChangeType.UPDATE
+            }
+            candidateTypes[key] = JpaPersistenceAuditCandidate(entity, effective)
+        }
+
+        pendingEntries.forEach { entry ->
+            when (entry.kind) {
+                UnitOfWorkEntryKind.CREATE -> ownedRelationTraversal
+                    .reachableOwnedEntities(entry.entity)
+                    .filter { isNewPersistentEntity(it) }
+                    .forEach { add(it, JpaPersistenceChangeType.CREATE) }
+                UnitOfWorkEntryKind.REMOVE -> ownedRelationTraversal
+                    .reachableOwnedEntities(entry.entity)
+                    .forEach { add(it, JpaPersistenceChangeType.DELETE) }
+                UnitOfWorkEntryKind.EXISTING -> Unit
+            }
+        }
+
+        context.trackedRoots.forEach { root ->
+            ownedRelationTraversal.reachableOwnedEntities(root)
+                .filter { isNewPersistentEntity(it) }
+                .forEach { add(it, JpaPersistenceChangeType.CREATE) }
+        }
+
+        detectRemovedObservedEntities(context).forEach { add(it, JpaPersistenceChangeType.DELETE) }
+
+        val session = runCatching { entityManager.unwrap(SessionImplementor::class.java) }.getOrNull()
+        session?.persistenceContextInternal?.reentrantSafeEntityEntries()?.forEach { (entity, entry) ->
+            when {
+                entry.status.isDeletedOrGone -> add(entity, JpaPersistenceChangeType.DELETE)
+                entry.status == Status.SAVING || !entry.isExistsInDatabase ->
+                    add(entity, JpaPersistenceChangeType.CREATE)
+                entry.status == Status.MANAGED && isDirtyExistingEntity(session, entity, entry) ->
+                    add(entity, JpaPersistenceChangeType.UPDATE)
+            }
+        }
+        session?.persistenceContextInternal?.forEachCollectionEntry({ collection, entry ->
+            val persister = entry.loadedPersister ?: return@forEachCollectionEntry
+            if (!collection.isDirty || !persister.hasOrphanDelete()) return@forEachCollectionEntry
+            val entityName = (persister.elementType as? EntityType)?.associatedEntityName
+                ?: return@forEachCollectionEntry
+            entry.getOrphans(entityName, collection).filterNotNull().forEach { orphan ->
+                add(orphan, JpaPersistenceChangeType.DELETE)
+            }
+        }, true)
+
+        return candidateTypes.values.toList()
+    }
+
+    private fun isNewPersistentEntity(entity: Any): Boolean {
+        val entityClass = persistentEntityClass(entity)
+        return getEntityInformation(entityClass).isNew(entity)
+    }
+
+    private fun detectRemovedObservedEntities(context: JpaUnitOfWorkContext): List<Any> =
+        context.repositoryObservationBaseline.observedRoots().flatMap { root ->
+            val reachable = ownedRelationTraversal.reachableOwnedEntities(root)
+            context.repositoryObservationBaseline.entriesFor(root)
+                .asSequence()
+                .filter { observed -> reachable.none { current -> samePersistentEntity(current, observed.entity) } }
+                .map { it.entity }
+                .toList()
+        }
+
+    private fun isDirtyExistingEntity(
+        session: SessionImplementor,
+        entity: Any,
+        entry: org.hibernate.engine.spi.EntityEntry,
+    ): Boolean {
+        if (!entry.requiresDirtyCheck(entity)) return false
+        val loadedState = entry.loadedState ?: return false
+        val currentState = entry.persister.getValues(entity)
+        return entry.persister.findDirty(currentState, loadedState, entity, session)?.isNotEmpty() == true
     }
 
     private fun completeGeneratedOwnIds(entries: List<UnitOfWorkEntry>) {
@@ -488,7 +792,7 @@ open class JpaUnitOfWork(
                 .filterNot { it === traversalRoot }
                 .forEach { child ->
                     if (entries.any { samePersistentEntity(it.entity, child) }) {
-                        error("pending ownership changed after UnitOfWork interceptor input was constructed")
+                        error("pending ownership changed while the persistence synchronization input was constructed")
                     }
                 }
         }
@@ -543,49 +847,4 @@ open class JpaUnitOfWork(
         }
     }
 
-    fun interface TransactionHandler<I, O> {
-        fun exec(input: I): O
-    }
-
-    fun <I, O> save(input: I, propagation: Propagation, transactionHandler: TransactionHandler<I, O>): O =
-        when (propagation) {
-            Propagation.SUPPORTS -> instance.supports(input, transactionHandler)
-            Propagation.NOT_SUPPORTED -> instance.notSupported(input, transactionHandler)
-            Propagation.REQUIRES_NEW -> instance.requiresNew(input, transactionHandler)
-            Propagation.MANDATORY -> instance.mandatory(input, transactionHandler)
-            Propagation.NEVER -> instance.never(input, transactionHandler)
-            Propagation.NESTED -> instance.nested(input, transactionHandler)
-            else -> instance.required(input, transactionHandler)
-        }
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.REQUIRED)
-    open fun <I, O> required(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.REQUIRES_NEW)
-    open fun <I, O> requiresNew(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.SUPPORTS)
-    open fun <I, O> supports(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.NOT_SUPPORTED)
-    open fun <I, O> notSupported(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.MANDATORY)
-    open fun <I, O> mandatory(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.NEVER)
-    open fun <I, O> never(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    @Transactional(rollbackFor = [Exception::class], propagation = Propagation.NESTED)
-    open fun <I, O> nested(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionWrapper(input, transactionHandler)
-
-    protected open fun <I, O> transactionWrapper(input: I, transactionHandler: TransactionHandler<I, O>): O =
-        transactionHandler.exec(input)
 }

@@ -14,11 +14,9 @@ data class Cap4kOptions(
     val domainEventAnnFq: String = "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
     val integrationEventAnnFq: String = "com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent",
     val eventListenerAnnFq: String = "org.springframework.context.event.EventListener",
-    val requestSupervisorFq: String = "com.only4.cap4k.ddd.core.application.RequestSupervisor",
     val unitOfWorkFq: String = "com.only4.cap4k.ddd.core.application.UnitOfWork",
     val repositorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor",
     val aggregateFactorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
-    val requestParamFq: String = "com.only4.cap4k.ddd.core.application.RequestParam",
     val pageRequestFq: String = "com.only4.cap4k.ddd.core.application.query.PageRequest",
     val constraintAnnFq: String = "jakarta.validation.Constraint",
     val constraintValidatorFq: String = "jakarta.validation.ConstraintValidator",
@@ -41,16 +39,12 @@ data class Cap4kOptions(
                 ?: "com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent",
             eventListenerAnnFq = System.getProperty(OptionsKeys.EVENT_LISTENER_ANNOTATION_FQ)
                 ?: "org.springframework.context.event.EventListener",
-            requestSupervisorFq = System.getProperty(OptionsKeys.REQUEST_SUPERVISOR_FQ)
-                ?: "com.only4.cap4k.ddd.core.application.RequestSupervisor",
             unitOfWorkFq = System.getProperty(OptionsKeys.UNIT_OF_WORK_FQ)
                 ?: "com.only4.cap4k.ddd.core.application.UnitOfWork",
             repositorySupervisorFq = System.getProperty(OptionsKeys.REPOSITORY_SUPERVISOR_FQ)
                 ?: "com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor",
             aggregateFactorySupervisorFq = System.getProperty(OptionsKeys.AGG_FACTORY_SUPERVISOR_FQ)
                 ?: "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
-            requestParamFq = System.getProperty(OptionsKeys.REQUEST_PARAM_FQ)
-                ?: "com.only4.cap4k.ddd.core.application.RequestParam",
             pageRequestFq = System.getProperty(OptionsKeys.PAGE_REQUEST_FQ)
                 ?: "com.only4.cap4k.ddd.core.application.query.PageRequest",
             constraintAnnFq = System.getProperty(OptionsKeys.CONSTRAINT_ANNOTATION_FQ)

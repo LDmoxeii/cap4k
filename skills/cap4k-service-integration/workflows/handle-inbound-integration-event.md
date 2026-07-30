@@ -48,4 +48,4 @@ Use this workflow when an external fact arrives through an Integration Event, ca
 
 ## Rollback Target
 
-Return to tactical modeling if the fact might be a Domain Event, Saga, Query, or external capability response instead. Return to technical design/generator inputs when the Integration Event skeleton, idempotency strategy, or delegate use case is unclear.
+Return to tactical modeling if the fact might be a Domain Event, Query, external Capability response, or provider-owned orchestration signal instead. Return to technical design/generator inputs when the Integration Event skeleton, idempotency strategy, or delegate use case is unclear.

@@ -6,6 +6,19 @@ import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
  * Public facade for clearing event runtime context owned by ddd-core internals.
  */
 object EventRuntimeContextManager {
+    @JvmStatic
+    fun beginUnitOfWork() {
+        EventRuntimeContext.beginUnitOfWork()
+    }
+
+    @JvmStatic
+    fun endUnitOfWork() {
+        EventRuntimeContext.endUnitOfWork()
+    }
+
+    @JvmStatic
+    fun diagnosticCausalPath(): List<String> = EventRuntimeContext.diagnosticCausalPath()
+
 
     @JvmStatic
     fun reset() {

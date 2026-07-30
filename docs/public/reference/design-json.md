@@ -19,12 +19,11 @@
 | --- | --- | --- |
 | `command` | 状态变更的 application intent | Command skeleton |
 | `query` | read-side observation intent | Query contract / handler surface |
-| `client` | external capability contract | client contract / handler surface |
+| `capability` | external capability contract | Capability call / handler surface |
 | `api_payload` | adapter-facing payload/result shape | payload classes |
 | `domain_event` | domain fact contract | domain event / subscriber or handler shell |
 | `integration_event` | published language event contract | integration event / inbound subscriber shell |
 | `domain_service` | domain decision anchor | domain service skeleton |
-| `saga` | long-running coordination anchor | Saga skeleton |
 
 ## 常用 Keys
 
@@ -36,7 +35,7 @@
 | `description` | string | 可读 description。 |
 | `aggregates` | string array | 关联的 aggregate names；空数组表示不绑定具体 aggregate。 |
 | `fields` | field array | input fields。 |
-| `resultFields` | field array | 允许用于 `command`、`query`、`client` 和 `api_payload` 的 result shape；在 `command` 上表达 command outcome。 |
+| `resultFields` | field array | 允许用于 `command`、`query`、`capability` 和 `api_payload` 的 result shape；在 `command` 上表达 command outcome。 |
 | `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 必填。 |
 | `persist` | boolean | 只允许用于 `domain_event`。 |
 | `artifacts` | artifact array | 部分 tag 用来表达 output family / variant metadata。 |
@@ -70,7 +69,7 @@ field item 常见 shape：
 
 `command` 表达写入意图。读取其他 aggregate 或 external fact 可以用于 zero-trust validation，但写入 ownership 仍应收敛到目标 aggregate 和 application command boundary。
 
-`command.fields` 表达 request payload，`command.resultFields` 表达 command outcome payload。Command、Query、Client、API Payload、Event 和 Saga 的 structured fields 都进入同一 canonical semantic-value compiler，但各自 role 和输出 family 仍保持独立。省略或声明空 `command.resultFields` 时仍保持无结果 response 形态。
+`command.fields` 表达 Command payload，`command.resultFields` 表达 Command outcome payload。Command、Query、Capability、API Payload、Domain Event 和 Integration Event 的 structured fields 都进入同一 canonical semantic-value compiler，但各自 role 和输出 family 仍保持独立。省略或声明空 `command.resultFields` 时仍保持无结果 response 形态。
 
 ## 最小 Query
 
@@ -125,12 +124,11 @@ field item 常见 shape：
 | --- | --- |
 | `command` | 不应作为 read shortcut；状态变化放在 command path。 |
 | `query` | 不应 mutate aggregate 或修复状态。 |
-| `client` | 表达 application-facing external capability，不放 adapter protocol details。 |
+| `capability` | 表达 application-facing external capability，不放 adapter protocol details。 |
 | `api_payload` | 表达 payload shape，不替代 command/query 边界。 |
 | `domain_event` | 表达业务事实，不表达技术 continuation step；`eventName` 可用于 published name，`persist` 只允许在这里使用；field name `entity` 保留。 |
 | `integration_event` | 表达 service boundary published language；必须声明 `eventName`。 |
 | `domain_service` | 用于跨对象领域判断，不放 HTTP、message、database protocol。 |
-| `saga` | 用于可恢复、可补偿或长事务协调；不是每个 callback 的默认形态。 |
 
 ## Analysis 片段边界
 

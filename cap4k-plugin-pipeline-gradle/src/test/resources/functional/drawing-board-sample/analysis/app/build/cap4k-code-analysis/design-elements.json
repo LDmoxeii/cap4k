@@ -1,6 +1,6 @@
 [
   {
-    "tag": "client",
+    "tag": "capability",
     "package": "orders.api",
     "name": "FetchOrder",
     "description": "fetch order",

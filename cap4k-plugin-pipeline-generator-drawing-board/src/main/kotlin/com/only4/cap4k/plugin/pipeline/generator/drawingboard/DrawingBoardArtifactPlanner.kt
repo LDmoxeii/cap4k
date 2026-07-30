@@ -53,12 +53,11 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
         val supportedTags = listOf(
             "command",
             "query",
-            "client",
+            "capability",
             "api_payload",
             "domain_event",
             "integration_event",
             "domain_service",
-            "saga",
         )
     }
 }

@@ -9,8 +9,8 @@
 参考项目分成四个 Gradle 模块，分别映射到 public docs 的 architecture 章节：
 
 - `cap4k-reference-content-studio-domain`：领域模型、Aggregate、Value Object、Factory、Domain Service、Domain Event 和领域行为测试。
-- `cap4k-reference-content-studio-application`：Command、Query、Subscriber、Saga、job 和用例编排。
-- `cap4k-reference-content-studio-adapter`：HTTP controller、query/client adapter、persistence adapter、protocol mapping、external capability handler，以及需要时的 framework integration-event transport wiring；HTTP/message consume/parse/register/dispatch 由 cap4k runtime transport 承担，typed external fact behavior 由 application inbound subscriber 承担。
+- `cap4k-reference-content-studio-application`：Command、Query、Capability、Subscriber、job 和用例编排。
+- `cap4k-reference-content-studio-adapter`：HTTP controller、query/Capability adapter、persistence adapter、protocol mapping、Capability Handler，以及需要时的 framework integration-event transport wiring。
 - `cap4k-reference-content-studio-start`：Spring Boot runtime assembly、local startup、schema、smoke tests 和 contract tests。
 
 这些模块对应 [Architecture](../architecture/index.md) 中的 domain、application、adapter、start 四层。阅读代码时，可以先用模块边界判断职责，再进入具体类看 generated skeleton 和 handwritten logic 的分工。
@@ -25,18 +25,16 @@
 4. `http/media-processing.http` 通过 HTTP integration-event callback 标记媒体处理成功。
 5. 媒体就绪后，`Content` 发出 `ContentPublicationReadyDomainEvent`，application layer 用 `PublishContentCmd` 发布内容。
 
-Paid publication 是显式 opt-in 的高级路径。只有通过 `http/paid-publication.http` 创建 paid draft，且内容审核与媒体处理都完成后，`PaidPublicationSaga` 才会协调 payout hold、entitlement plan、内容发布、权益激活和补偿。
-
 ## Design Inputs
 
 参考项目的主要设计输入在 sibling repo 的 `design/` 和 schema 中：
 
-- `design/design.json`：描述 command、query、domain event、integration event、domain service、saga 等 building blocks。
+- `design/design.json`：描述 command、query、capability、domain event、integration event、domain service 等 building blocks。
 - `design/value-objects.json`：通过 `types.valueObjectManifest` 管理 `MediaProcessingResultSnapshot`。
 - `design/enums.json`：通过 `types.enumManifest` 管理 `ReleasePolicy` 和 `MediaProcessingResultStatus`。
 - `cap4k-reference-content-studio-start/src/main/resources/db/schema/content-studio-schema.sql`：提供 generator 读取的数据库结构和字段类型标记，例如 `media_processing_task.result_snapshot`。
 
-这些输入不会替团队写业务决策。它们定义生成骨架需要消费的事实；状态推进、发布规则、Saga 步骤、补偿语义和幂等判断仍在手写代码里表达。
+这些输入不会替团队写业务决策。它们定义生成骨架需要消费的事实；状态推进、发布规则、外部能力语义和幂等判断仍在手写代码里表达。
 
 ## Generated Plan
 
@@ -47,7 +45,7 @@ Paid publication 是显式 opt-in 的高级路径。只有通过 `http/paid-publ
 阅读 plan 时，重点不是把它当作业务说明，而是确认这些问题：
 
 - 哪些文件由 generator 输出，哪些文件承载手写业务逻辑。
-- command、query、subscriber、payload、client、value object、enum 等输出是否落在正确模块。
+- command、query、capability、subscriber、payload、value object、enum 等输出是否落在正确模块。
 - `conflictPolicy` 是否能保护已经存在的手写实现。
 
 ## Code And Tests
@@ -57,14 +55,12 @@ Paid publication 是显式 opt-in 的高级路径。只有通过 `http/paid-publ
 - `ContentBehavior.kt`：`Content` 的审核、媒体就绪、发布准备和 `ContentPublicationReadyDomainEvent`。
 - `ContentFactory.kt`：草稿创建、默认状态和 factory payload。
 - `MediaProcessingResultSnapshot.kt`：纯 Value Object；JSON projection 使用独立 build-owned `MediaProcessingResultSnapshotJsonAttributeConverter`。
-- `PaidPublicationEligibilityService`：paid publication 是否可启动的领域判断。
-- `PaidPublicationSaga`：paid publication 的持久化跨步骤协调和补偿。
 - `MediaProcessingPollingFallbackJob`：媒体处理状态的 scheduled reaction 示例。
 
 测试面可以按责任阅读：
 
-- `ContentBehaviorTest`、`ContentFactoryTest`、`PaidPublicationEligibilityServiceTest`：domain layer 行为证据。
-- `ContentStudioHappyPathHttpSmokeTest`、`ContentStudioPaidPublicationSagaSmokeTest`、`MediaProcessingCallbackIntegrationEventSmokeTest`：runtime smoke path。
+- `ContentBehaviorTest`、`ContentFactoryTest`：domain layer 行为证据。
+- `ContentStudioHappyPathHttpSmokeTest`、`MediaProcessingCallbackIntegrationEventSmokeTest`：runtime smoke path。
 - `ContentStudioDesignContractTest`、`PublishContentCommandContractTest`、`MediaProcessingResultSnapshotTest`：设计合同、命令合同和 type output 证据。
 
 ## Operation And Evidence
@@ -75,23 +71,21 @@ Paid publication 是显式 opt-in 的高级路径。只有通过 `http/paid-publ
 - `http/review.http`
 - `http/query.http`
 - `http/media-processing.http`
-- `http/paid-publication.http`
 
-分析证据面用于观察 controller、subscriber、job、Saga 和 application flow 的结构。已提交的分析 inspection surfaces 包括：
+分析证据面用于观察 controller、subscriber、job、Capability 和 application flow 的结构。已提交的分析 inspection surfaces 包括：
 
 - `analysis/flows/index.json`
 - `analysis/flows/*.json`
 - `analysis/flows/*.mmd`
-- `analysis/drawing-board/drawing_board_client.json`
+- `analysis/drawing-board/drawing_board_capability.json`
 - `analysis/drawing-board/drawing_board_command.json`
 - `analysis/drawing-board/drawing_board_domain_event.json`
 - `analysis/drawing-board/drawing_board_integration_event.json`
 - `analysis/drawing-board/drawing_board_query.json`
-- `analysis/drawing-board/drawing_board_saga.json`
 
 运行 README analysis 命令后，本地 `build/cap4k/analysis-plan.json` 可作为 analysis generation plan 证据面。
 
-下一步可以按目标进入 [Run The Reference Project](run-the-reference-project.md)、[Default Publication Flow](default-publication-flow.md)、[Paid Publication Saga Flow](paid-publication-saga-flow.md)、[Value Object And Type Inputs](value-object-and-type-inputs.md) 或 [Generation And Analysis Evidence](generation-and-analysis-evidence.md)。
+下一步可以按目标进入 [Run The Reference Project](run-the-reference-project.md)、[Default Publication Flow](default-publication-flow.md)、[Value Object And Type Inputs](value-object-and-type-inputs.md) 或 [Generation And Analysis Evidence](generation-and-analysis-evidence.md)。
 
 <!-- IMAGE_PROMPT:
 Purpose: 帮助读者把 cap4k-reference-content-studio 的项目结构、输入文件、生成计划、运行入口和分析证据放在一张图里理解。

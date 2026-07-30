@@ -1,6 +1,6 @@
 # Technical Design
 
-technical design 把业务模型放进 cap4k 的 Clean Architecture。它回答“代码责任落在哪一层、哪些入口是 Command 或 Query、哪些反应由 Subscriber 或 Scheduled Reaction 承担、哪些跨步骤协调需要 Saga、adapter 和 persistence 应该停在哪里、测试要证明什么”。
+technical design 把业务模型放进 cap4k 的 Clean Architecture。它回答“代码责任落在哪一层、哪些入口是 Command、Query 或 Capability、哪些反应由 Subscriber 或 Scheduled Reaction 承担、持久化编排是否需要额外 provider、adapter 和 persistence 应该停在哪里、测试要证明什么”。
 
 如果业务意图和建模还不稳定，先回到 [Business Intent And Modeling](business-intent-and-modeling.md)。technical design 不是把所有设计都写进 generator inputs 的中转站；它是 authoring 螺旋中保护边界的关键面。
 
@@ -9,11 +9,11 @@ technical design 把业务模型放进 cap4k 的 Clean Architecture。它回答�
 cap4k public docs 使用 [Architecture](../architecture/index.md) 中的四层模型：
 
 - domain layer：Aggregate、Entity、Value Object、Factory、Domain Service 和 Domain Event。
-- application layer：Command、Query、Subscriber、Saga、Scheduled Reaction 和 external capability requests；写入提交和入口路由使用 Unit of Work、Mediator 等框架能力。
-- adapter layer：Controller、API Payload、query adapter、client-handler、persistence adapter，以及 cap4k framework integration-event transport adapter/runtime；typed inbound Integration Event 的业务解释由 application inbound subscriber 承担。
+- application layer：独立的 Command、Query、Capability，以及 Subscriber 和 Scheduled Reaction；外层 Command 自动拥有 REQUIRED transaction 与 Unit of Work completion，入口路由使用 Mediator。
+- adapter layer：Controller、API Payload、query adapter、capability-handler、persistence adapter，以及 cap4k framework integration-event transport adapter/runtime；typed inbound Integration Event 的业务解释由 application inbound subscriber 承担。
 - start layer：Spring Boot runtime assembly、local startup、runtime config 和 smoke path。
 
-依赖方向向内。domain 不知道 HTTP、callback、client-handler 或 start assembly。application 可以组织用例，但不承载领域不变量。adapter 处理协议转换，但不决定业务真相。start 装配 runtime，但不承载业务规则。
+依赖方向向内。domain 不知道 HTTP、callback、capability-handler 或 start assembly。application 可以组织用例，但不承载领域不变量。adapter 处理协议转换，但不决定业务真相。start 装配 runtime，但不承载业务规则。
 
 ## Modules
 
@@ -24,13 +24,13 @@ cap4k public docs 使用 [Architecture](../architecture/index.md) 中的四层�
 - `cap4k-reference-content-studio-adapter`
 - `cap4k-reference-content-studio-start`
 
-authoring 时先把 building blocks 放进正确 module，再写 generator inputs。比如 `Content` behavior 和 `MediaProcessingResultSnapshot` 属于 domain；`PublishContentCmd`、`MediaProcessingCallbackIntegrationEventSubscriber` 和 `PaidPublicationSaga` 属于 application；`ContentController`、query handler、client-handler 和 persistence adapter 属于 adapter；cap4k framework integration-event transport adapter/runtime 负责 callback/message consumption、parse/register/dispatch；boot application、runtime config 和 smoke path 属于 start。
+authoring 时先把 building blocks 放进正确 module，再写 generator inputs。比如 `Content` behavior 和 `MediaProcessingResultSnapshot` 属于 domain；`PublishContentCmd`、`MediaProcessingCallbackIntegrationEventSubscriber` 和 application-facing Capability 属于 application；`ContentController`、query handler、Capability Handler 和 persistence adapter 属于 adapter；cap4k framework integration-event transport adapter/runtime 负责 callback/message consumption、parse/register/dispatch；boot application、runtime config 和 smoke path 属于 start。
 
 ## Command And Query Boundaries
 
 [Command Query Separation](../concepts/execution-and-ownership/command-query-separation.md) 是 application design 的默认入口。Command 表达改变业务事实的意图，例如 `CreateContentDraftCmd`、`ApproveContentReviewCmd`、`StartMediaProcessingCmd`、`MarkMediaProcessingSucceededCmd`、`RecordContentMediaReadyCmd` 和 `PublishContentCmd`。Query 表达观察，例如 `GetContentDetailQry`、`GetMediaProcessingStatusQry` 和 `GetPaidPublicationStatusQry`。
 
-写入路径应该通过 Repository 加载 Aggregate、调用 domain behavior、通过 Unit of Work 提交持久化意图并释放事件。读取路径应该组织 read model 或展示 shape，不应偷偷改变状态。如果一个 handler 同时查询展示数据和推进业务事实，technical design 应该拆开它。
+写入路径应该通过 Repository 加载 Aggregate 并调用 domain behavior；外层 Command 在 handler 返回后自动稳定化、flush 和提交，应用代码不需要手动 `save()`。读取路径应该组织 read model 或展示 shape，不应偷偷改变状态。如果一个 handler 同时查询展示数据和推进业务事实，technical design 应该拆开它。
 
 ## Events And Reactions
 
@@ -42,13 +42,11 @@ Domain Event 是领域内部事实，Integration Event 是跨边界事实。tech
 
 Subscriber 不应该成为中心业务判断器。它可以路由后续 Command，但真正的写入资格仍应由 Command 和 Aggregate 重新校验。
 
-## Saga Decisions
+## Persistent Orchestration Decisions
 
-Saga 用于需要持久化进度、retry、recovery 或 compensation 的跨步骤协调。它不等同于“多个动作的流程图”。默认内容发布路径在媒体处理成功后发布内容，不需要因为存在多个步骤就自动成为 Saga。
+需要跨时间状态、恢复点、重试点或补偿点的流程，应在技术设计中显式选择 provider-owned orchestration。cap4k 不提供内置的 runtime、persistence、starter 或 generator，也不为此伪造一个不完整的骨架。
 
-paid publication 是显式 opt-in 的 Saga 示例：它要协调 payout hold、entitlement plan、内容发布、权益激活和补偿。这个流程需要记录子步骤状态，并在失败时执行可恢复或可补偿动作，因此适合 `PaidPublicationSaga` 和 `PaidPublicationTask`。
-
-判断是否使用 Saga 时，先问是否存在跨时间状态、恢复点、重试点或补偿点。答案不成立时，优先使用 Command、Subscriber 或 Scheduled Reaction。
+默认内容发布路径可以由 Command、Domain Event Subscriber、可靠 Command 和 Integration Event 组合。只有这些边界不能表达真实的持久化协调需求时，才引入额外 provider，并由项目自行维护进度、retry、recovery 和 compensation 语义。
 
 ## Subscriber And Scheduled Reaction
 
@@ -58,9 +56,9 @@ Scheduled Reaction 表达定时或轮询触发的 application reaction。参考�
 
 ## Adapter Boundaries
 
-[Adapter Layer](../architecture/adapter-layer.md) 负责协议转换。Controller 把 HTTP request 转成 Command 或 Query；cap4k integration-event transport adapter/runtime 负责 callback 或 message consumption、解析、注册和 typed event dispatch；application inbound subscriber 接收 typed Integration Event 后再做幂等、语义转换和内部命令委托；client-handler 把 application-facing external capability request 转成具体外部调用；query adapter 组织读取 shape；persistence adapter 处理技术映射。
+[Adapter Layer](../architecture/adapter-layer.md) 负责协议转换。Controller 把 HTTP request 转成 Command 或 Query；cap4k integration-event transport adapter/runtime 负责 callback 或 message consumption、解析、注册和 typed event dispatch；application inbound subscriber 接收 typed Integration Event 后再做幂等、语义转换和内部命令委托；capability-handler 把 application-facing external capability request 转成具体外部调用；query adapter 组织读取 shape；persistence adapter 处理技术映射。
 
-如果 adapter 中出现“内容是否可发布”“是否应该启动 paid publication”“媒体处理成功后是否更新内容状态”这类判断，就说明业务规则越界。adapter 可以识别外部状态码和错误，但业务含义要回到 application/domain。
+如果 adapter 中出现“内容是否可发布”“是否应该启动某个长流程”“媒体处理成功后是否更新内容状态”这类判断，就说明业务规则越界。adapter 可以识别外部状态码和错误，但业务含义要回到 application/domain。
 
 ## Persistence Expectations
 
@@ -70,9 +68,9 @@ persistence design 要服务 Aggregate ownership。schema 可以表达聚合表�
 
 ## Testing Expectations
 
-[Testing By Layer](../architecture/testing-by-layer.md) 是 technical design 的验证边界。domain tests 应直接覆盖业务不变量和状态变化；application tests 覆盖 Command、Subscriber、Saga、Scheduled Reaction 和 external capability semantics；adapter tests 覆盖 protocol conversion；start tests 覆盖 runtime assembly 和 smoke path。
+[Testing By Layer](../architecture/testing-by-layer.md) 是 technical design 的验证边界。domain tests 应直接覆盖业务不变量和状态变化；application tests 覆盖 Command、Query、Capability、Subscriber、Scheduled Reaction 和 UoW/event frontier semantics；adapter tests 覆盖 protocol conversion；start tests 覆盖 runtime assembly 和 smoke path。
 
-测试设计不应把全部正确性压在 HTTP smoke path 上。smoke path 能证明系统连通，不能替代 `ContentBehaviorTest`、`ContentFactoryTest`、`PublishContentCommandContractTest` 或 Saga compensation 相关的 focused evidence。
+测试设计不应把全部正确性压在 HTTP smoke path 上。smoke path 能证明系统连通，不能替代 `ContentBehaviorTest`、`ContentFactoryTest`、`PublishContentCommandContractTest` 或 provider-owned orchestration 相关的 focused evidence。
 
 ## Feedback Signals
 
@@ -82,7 +80,7 @@ persistence design 要服务 Aggregate ownership。schema 可以表达聚合表�
 - adapter 直接修改 Aggregate 或解释业务发布条件。
 - Query handler 出现状态变更。
 - Subscriber 变成中心流程所有者。
-- Saga 没有持久化协调语义。
+- 引入的编排 provider 没有持久化进度、恢复或补偿语义。
 - polling fallback 和 callback 主路径产生两套事实来源。
 - 测试只覆盖外层 smoke，内层行为没有 focused evidence。
 

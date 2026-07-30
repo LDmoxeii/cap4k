@@ -4,6 +4,7 @@ import com.only4.cap4k.ddd.core.application.PersistIntent
 import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
@@ -16,7 +17,8 @@ import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
  */
 class DefaultAggregateFactorySupervisor(
     private val factories: List<AggregateFactory<*, *>>,
-    private val unitOfWork: UnitOfWork
+    private val unitOfWork: UnitOfWork,
+    private val lifecycleInvoker: AggregateLifecycleInvoker = ReflectiveAggregateLifecycleInvoker(),
 ) : AggregateFactorySupervisor {
 
     private val factoryMap: Map<Class<*>, AggregateFactory<*, *>> by lazy {
@@ -37,6 +39,7 @@ class DefaultAggregateFactorySupervisor(
         val instance = (factory as AggregateFactory<ENTITY_PAYLOAD, ENTITY>).create(entityPayload)
 
         unitOfWork.persist(instance, PersistIntent.CREATE)
+        lifecycleInvoker.onCreate(instance)
         return instance
     }
 }

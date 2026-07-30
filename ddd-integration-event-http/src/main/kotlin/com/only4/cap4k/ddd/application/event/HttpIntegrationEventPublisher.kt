@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.application.event.commands.IntegrationEventHttpCallbackTriggerCommand
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpCallbackTriggerCapability
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
@@ -50,8 +50,8 @@ class HttpIntegrationEventPublisher(
             executorService.execute {
                 runCatching {
                     subscribers.forEach { subscriber ->
-                        Mediator.commands.send(
-                            IntegrationEventHttpCallbackTriggerCommand.Request(
+                        Mediator.capabilities.call(
+                            IntegrationEventHttpCallbackTriggerCapability.Request(
                                 url = subscriber.callbackUrl,
                                 uuid = event.id,
                                 event = resolvedDestination,

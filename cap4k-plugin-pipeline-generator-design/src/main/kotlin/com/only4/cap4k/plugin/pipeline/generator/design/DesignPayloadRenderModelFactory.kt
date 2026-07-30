@@ -45,12 +45,12 @@ internal object DesignPayloadRenderModelFactory {
         pageRequest = pageRequest,
     )
 
-    fun createForClientBlock(
+    fun createForCapabilityBlock(
         packageName: String,
         block: DesignBlockModel,
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
-        typeName = block.clientTypeName(),
+        typeName = block.capabilityTypeName(),
         description = block.description,
         request = block.request,
         response = block.response,
@@ -92,22 +92,6 @@ internal object DesignPayloadRenderModelFactory {
         request = block.request,
         response = null,
     )
-
-    fun createForSagaBlock(
-        packageName: String,
-        block: DesignBlockModel,
-    ): DesignRenderModel {
-        require(block.response == null) {
-            "saga ${block.name} does not support a response payload contract"
-        }
-        return createForBlock(
-            packageName = packageName,
-            typeName = block.name,
-            description = block.description,
-            request = block.request,
-            response = null,
-        )
-    }
 
     private fun createForBlock(
         packageName: String,

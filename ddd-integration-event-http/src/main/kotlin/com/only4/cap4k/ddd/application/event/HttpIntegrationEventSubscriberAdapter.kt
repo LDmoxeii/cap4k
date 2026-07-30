@@ -2,7 +2,7 @@ package com.only4.cap4k.ddd.application.event
 
 import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.parser.Feature
-import com.only4.cap4k.ddd.application.event.commands.IntegrationEventHttpSubscribeCommand
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
@@ -88,8 +88,8 @@ class HttpIntegrationEventSubscriberAdapter(
                 registration.callbackUrl
             )
         } else {
-            Mediator.commands.send(
-                IntegrationEventHttpSubscribeCommand.Request(
+            Mediator.capabilities.call(
+                IntegrationEventHttpSubscribeCapability.Request(
                     url = registration.registerUrl,
                     event = registration.target,
                     subscriber = registration.subscriber,

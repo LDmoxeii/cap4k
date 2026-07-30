@@ -6,7 +6,7 @@ Start layer 是 cap4k 项目的 Spring Boot runtime assembly 层。它把 domain
 
 Start layer 负责 Spring Boot application entry、runtime assembly、local startup、runtime config、profile wiring、bean scanning、application smoke path 和运行时集成检查。它回答“这个项目如何启动、如何装配、哪些模块被放进运行时”。
 
-在参考项目中，start layer 让 `cap4k-reference-content-studio-domain`、`cap4k-reference-content-studio-application` 和 `cap4k-reference-content-studio-adapter` 能在同一个 Spring Boot runtime 中协作。它可以承载 smoke tests，证明发布、媒体处理 callback、paid publication saga 或 design contract 在运行时 wiring 下可被触达。
+在参考项目中，start layer 让 `cap4k-reference-content-studio-domain`、`cap4k-reference-content-studio-application` 和 `cap4k-reference-content-studio-adapter` 能在同一个 Spring Boot runtime 中协作。它可以承载 smoke tests，证明发布、媒体处理 callback 或 design contract 在运行时 wiring 下可被触达。
 
 ## 不负责
 
@@ -18,13 +18,13 @@ runtime config 可以影响环境、profile、endpoint wiring 或 fake/external 
 
 cap4k generation 可以为 start module 提供 project wiring、Spring Boot entry、configuration shape、module assembly 或 smoke-test-friendly entry。生成骨架让 runtime assembly 可被重复定位，也让 docs 和 reference project 能用同一套模块名解释启动路径。
 
-生成骨架不负责创造业务流程。它可以帮助应用启动和装配 bean，但具体发布规则、媒体处理状态推进、paid publication recovery 或 callback 语义仍由 domain/application/adapter 的 handwritten logic 表达。
+生成骨架不负责创造业务流程。它可以帮助应用启动和装配 bean，但具体发布规则、媒体处理状态推进、跨事务恢复或 callback 语义仍由 domain/application/adapter 的 handwritten logic 和已选 provider 表达。
 
 ## 手写逻辑
 
 Start layer 的手写逻辑应该保持轻量，主要是 runtime config、profile-specific wiring、local startup 支持、fake/external adapter selection 和 smoke path glue。它可以提供 smoke tests 验证 wiring，但 smoke tests 不应替代 domain behavior tests 或 application orchestration tests。
 
-参考测试锚点包括 `StartApplicationSmokeTest`、`ContentStudioHappyPathHttpSmokeTest`、`ContentStudioPaidPublicationSagaSmokeTest`、`ContentStudioDesignContractTest`、`PublishContentCommandContractTest` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。
+参考测试锚点包括 `StartApplicationSmokeTest`、`ContentStudioHappyPathHttpSmokeTest`、`ContentStudioDesignContractTest`、`PublishContentCommandContractTest` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。
 
 ## 依赖方向
 
@@ -38,7 +38,6 @@ Start layer 可以依赖 domain、application 和 adapter 来完成 assembly。d
 
 - `StartApplicationSmokeTest`
 - `ContentStudioHappyPathHttpSmokeTest`
-- `ContentStudioPaidPublicationSagaSmokeTest`
 - `ContentStudioDesignContractTest`
 - `PublishContentCommandContractTest`
 - `MediaProcessingCallbackIntegrationEventSmokeTest`

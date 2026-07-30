@@ -64,7 +64,7 @@ bootstrap 相关审查见 [Bootstrap Project Structure](bootstrap-project-struct
 <module>/src/main/kotlin
 ```
 
-这些 skeleton 可以成为长期维护的入口，例如 Command、Query、Subscriber、client、client-handler、Saga、API payload、Repository adapter、Factory、Creation、Domain Event、Value Object 或 enum。所有 checked-in skeleton 都固定使用 `SKIP`；cap4k 不承诺后续同步最新 template。
+这些 skeleton 可以成为长期维护的入口，例如 Command、Query、Capability、Subscriber、API payload、Repository adapter、Factory、Creation、Domain Event、Value Object 或 enum。所有 checked-in skeleton 都固定使用 `SKIP`；cap4k 不承诺后续同步最新 template。
 
 生成后仍要在 intended handwritten slot 中写业务实现。不要把“文件生成了”解释成“业务完成了”。
 
@@ -110,7 +110,7 @@ analysis tasks 读取 compiler analysis output root：
 build/cap4k-code-analysis
 ```
 
-必要 IR input 是 `nodes.json` 和 `rels.json`，`design-elements.json` 是可选 input。analysis output 用于观察现有代码结构，帮助 verification 看 controller、subscriber、job、Saga 和 application flow 如何连接。它们不生成 source skeleton。
+必要 IR input 是 `nodes.json` 和 `rels.json`，`design-elements.json` 是可选 input。analysis output 用于观察现有代码结构，帮助 verification 看 controller、subscriber、job、Command、Query 和 Capability flow 如何连接。它们不生成 source skeleton。
 
 analysis evidence 详见 [Analysis Evidence](analysis-evidence.md) 和 [Analysis Outputs](../reference/analysis-outputs.md)。
 

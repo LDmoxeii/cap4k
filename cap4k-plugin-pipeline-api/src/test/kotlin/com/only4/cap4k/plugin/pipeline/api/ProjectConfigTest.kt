@@ -71,9 +71,9 @@ class ProjectConfigTest {
         assertEquals("only-engine-validator", config.addons.getValue("only-engine-validator").id)
         assertEquals("validation/validators.json", config.addons.getValue("only-engine-validator").options["manifestFile"])
         assertEquals("design/domain_service.kt.peb", config.artifactLayout.designDomainService.id)
-        assertEquals("design/saga.kt.peb", config.artifactLayout.designSagaArtifact.id)
         assertEquals("domain.services", config.artifactLayout.designDomainServicePackage.packageRoot)
-        assertEquals("application.sagas", config.artifactLayout.designSaga.packageRoot)
+        assertEquals("application.capabilities", config.artifactLayout.designCapability.packageRoot)
+        assertEquals("adapter.application.capabilities", config.artifactLayout.designCapabilityHandler.packageRoot)
         assertEquals("types/value-object", config.artifactLayout.valueObject.id)
         assertEquals("types/value-object-json-converter", config.artifactLayout.valueObjectJsonConverter.id)
     }

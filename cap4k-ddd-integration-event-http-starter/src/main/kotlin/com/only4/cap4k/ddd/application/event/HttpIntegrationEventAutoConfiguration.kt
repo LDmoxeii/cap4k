@@ -1,19 +1,17 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.alibaba.fastjson.JSON
-import com.only4.cap4k.ddd.application.event.commands.IntegrationEventHttpCallbackTriggerCommand
-import com.only4.cap4k.ddd.application.event.commands.IntegrationEventHttpSubscribeCommand
-import com.only4.cap4k.ddd.application.event.commands.IntegrationEventHttpUnsubscribeCommand
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpCallbackTriggerCapability
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
+import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpUnsubscribeCapability
 import com.only4.cap4k.ddd.application.event.configure.HttpIntegrationEventAdapterProperties
 import com.only4.cap4k.ddd.application.event.impl.DefaultHttpIntegrationEventSubscriberRegister
-import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.impl.IntegrationEventUnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
@@ -69,21 +67,16 @@ class HttpIntegrationEventAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = ["integrationEventUnitOfWorkInterceptor"])
-    fun integrationEventUnitOfWorkInterceptor(manager: IntegrationEventManager): UnitOfWorkInterceptor =
-        IntegrationEventUnitOfWorkInterceptor(manager)
+    fun httpIntegrationEventCallbackTriggerCapabilityHandler(): IntegrationEventHttpCallbackTriggerCapability.Handler =
+        IntegrationEventHttpCallbackTriggerCapability.Handler(RestTemplate(), EVENT_PARAM, EVENT_ID_PARAM)
 
     @Bean
-    fun httpIntegrationEventCallbackTriggerCommandHandler(): IntegrationEventHttpCallbackTriggerCommand.Handler =
-        IntegrationEventHttpCallbackTriggerCommand.Handler(RestTemplate(), EVENT_PARAM, EVENT_ID_PARAM)
+    fun httpIntegrationEventSubscribeCapabilityHandler(): IntegrationEventHttpSubscribeCapability.Handler =
+        IntegrationEventHttpSubscribeCapability.Handler(RestTemplate(), EVENT_PARAM, SUBSCRIBER_PARAM)
 
     @Bean
-    fun httpIntegrationEventSubscribeCommandHandler(): IntegrationEventHttpSubscribeCommand.Handler =
-        IntegrationEventHttpSubscribeCommand.Handler(RestTemplate(), EVENT_PARAM, SUBSCRIBER_PARAM)
-
-    @Bean
-    fun httpIntegrationEventUnsubscribeCommandHandler(): IntegrationEventHttpUnsubscribeCommand.Handler =
-        IntegrationEventHttpUnsubscribeCommand.Handler(RestTemplate(), EVENT_PARAM, SUBSCRIBER_PARAM)
+    fun httpIntegrationEventUnsubscribeCapabilityHandler(): IntegrationEventHttpUnsubscribeCapability.Handler =
+        IntegrationEventHttpUnsubscribeCapability.Handler(RestTemplate(), EVENT_PARAM, SUBSCRIBER_PARAM)
 
     @Bean
     @ConditionalOnMissingBean(HttpIntegrationEventSubscriberRegister::class)

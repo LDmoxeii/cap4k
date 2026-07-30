@@ -1,7 +1,5 @@
 package com.only4.cap4k.ddd.core.application
 
-import org.springframework.transaction.annotation.Propagation
-
 /**
  * 工作单元接口
  * 实现UnitOfWork模式，用于管理实体的持久化操作
@@ -11,6 +9,15 @@ import org.springframework.transaction.annotation.Propagation
  * @date 2025/07/20
  */
 interface UnitOfWork {
+    /** Whether the current thread is participating in a Command Unit of Work. */
+    val active: Boolean
+
+    /**
+     * Execute work in the current Unit of Work or create the outer REQUIRED
+     * transaction and complete it automatically.
+     */
+    fun <RESULT> execute(block: () -> RESULT): RESULT
+
     /**
      * 提交实体持久化意图。
      *
@@ -32,12 +39,11 @@ interface UnitOfWork {
     fun remove(entity: Any)
 
     /**
-     * 执行持久化操作
-     * 将工作单元上下文中的持久化意图转换为实际的持久化指令并提交事务
-     *
-     * @param propagation 事务传播特性
+     * Synchronize current persistent state without draining Domain Events or
+     * committing the transaction. This is an advanced operation and requires
+     * an active Unit of Work.
      */
-    fun save(propagation: Propagation = Propagation.REQUIRED)
+    fun flush()
 
     companion object {
         /**

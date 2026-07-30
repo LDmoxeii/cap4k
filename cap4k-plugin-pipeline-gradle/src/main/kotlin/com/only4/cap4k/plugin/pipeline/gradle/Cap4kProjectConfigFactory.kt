@@ -205,9 +205,9 @@ class Cap4kProjectConfigFactory {
             drawingBoard = extension.layout.drawingBoard.toOutputRootLayout("drawing-board"),
             designCommand = extension.layout.designCommand.toPackageLayout("designCommand"),
             designQuery = extension.layout.designQuery.toPackageLayout("designQuery"),
-            designClient = extension.layout.designClient.toPackageLayout("designClient"),
+            designCapability = extension.layout.designCapability.toPackageLayout("designCapability"),
             designQueryHandler = extension.layout.designQueryHandler.toPackageLayout("designQueryHandler"),
-            designClientHandler = extension.layout.designClientHandler.toPackageLayout("designClientHandler"),
+            designCapabilityHandler = extension.layout.designCapabilityHandler.toPackageLayout("designCapabilityHandler"),
             designApiPayload = extension.layout.designApiPayload.toPackageLayout("designApiPayload"),
             designDomainEvent = extension.layout.designDomainEvent.toPackageLayout("designDomainEvent"),
             designDomainEventHandler = extension.layout.designDomainEventHandler.toPackageLayout(

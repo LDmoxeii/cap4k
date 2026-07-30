@@ -448,6 +448,10 @@ open class StrongContent protected constructor() {
     }
 
     fun hasAssignedId(): Boolean = this::id.isInitialized
+
+    fun rename(title: String) {
+        this.title = title
+    }
 }
 
 @Entity
@@ -473,6 +477,10 @@ open class StrongContentItem protected constructor() {
     }
 
     fun hasAssignedId(): Boolean = this::id.isInitialized
+
+    fun relabel(label: String) {
+        this.label = label
+    }
 }
 
 interface StrongIdJpaRepository : JpaRepository<StrongContent, StrongContentId>

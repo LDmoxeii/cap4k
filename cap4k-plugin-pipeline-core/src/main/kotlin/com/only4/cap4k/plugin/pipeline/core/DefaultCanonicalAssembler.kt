@@ -643,14 +643,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         config: ProjectConfig,
         aggregateEntityMetadata: Map<String, AggregateMetadataRecord>,
         allowRecoveredDomainEventWithoutAggregateMetadata: Boolean = false,
-        allowRecoveredSagaResponse: Boolean = false,
     ): DesignBlockModel {
-        validateDesignBlockSharedFields(allowRecoveredSagaResponse)
+        validateDesignBlockSharedFields()
         val artifactSelections = resolveDesignBlockArtifacts()
         val typeName = when (tag) {
             "command" -> "${name}Cmd"
             "query" -> "${name}Qry"
-            "client" -> "${name}Cli"
+            "capability" -> name.normalizeUpperCamelTypeName()
             "api_payload" -> name.normalizeUpperCamelTypeName()
             "domain_event" -> name.toDomainEventTypeName()
             "integration_event" -> name.toIntegrationEventTypeName()
@@ -659,7 +658,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val resolvedPackageName = when (tag) {
             "command" -> artifactLayout.designCommandPackage(packageName)
             "query" -> artifactLayout.designQueryPackage(packageName)
-            "client" -> artifactLayout.designClientPackage(packageName)
+            "capability" -> artifactLayout.designCapabilityPackage(packageName)
             "api_payload" -> artifactLayout.designApiPayloadPackage(packageName)
             "domain_event" -> {
                 val aggregateName = resolveDomainEventAggregateName(this)
@@ -682,7 +681,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 val variant = artifactSelections.singleOrNull { it.family == "integration-event" }?.variant ?: "outbound"
                 artifactLayout.designIntegrationEventPackage(variant, packageName)
             }
-            "saga" -> artifactLayout.designSagaPackage(packageName)
             "domain_service" -> artifactLayout.designDomainServicePackage(packageName)
             else -> error("Unsupported design tag: $tag")
         }
@@ -704,7 +702,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             fields = requestFields,
             aggregateContext = aggregates,
         )
-        val response = if (tag in ResultFieldTags || (allowRecoveredSagaResponse && tag == "saga")) {
+        val response = if (tag in ResultFieldTags) {
             compiler.compile(
                 identity = CanonicalTypeIdentity(
                     packageName = resolvedPackageName,
@@ -738,11 +736,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private fun requestRoleFor(tag: String): SemanticValueRole = when (tag) {
         "command" -> SemanticValueRole.COMMAND_REQUEST
         "query" -> SemanticValueRole.QUERY_REQUEST
-        "client" -> SemanticValueRole.CLIENT_REQUEST
+        "capability" -> SemanticValueRole.CAPABILITY_REQUEST
         "api_payload" -> SemanticValueRole.API_PAYLOAD_REQUEST
         "domain_event" -> SemanticValueRole.DOMAIN_EVENT
         "integration_event" -> SemanticValueRole.INTEGRATION_EVENT
-        "saga" -> SemanticValueRole.SAGA_REQUEST
         "domain_service" -> SemanticValueRole.API_PAYLOAD_REQUEST
         else -> error("Unsupported design tag: $tag")
     }
@@ -750,20 +747,19 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private fun responseRoleFor(tag: String): SemanticValueRole = when (tag) {
         "command" -> SemanticValueRole.COMMAND_RESPONSE
         "query" -> SemanticValueRole.QUERY_RESPONSE
-        "client" -> SemanticValueRole.CLIENT_RESPONSE
+        "capability" -> SemanticValueRole.CAPABILITY_RESPONSE
         "api_payload" -> SemanticValueRole.API_PAYLOAD_RESPONSE
-        "saga" -> SemanticValueRole.SAGA_RESPONSE
         else -> error("Design tag $tag does not support a response payload")
     }
 
-    private fun DesignSpecEntry.validateDesignBlockSharedFields(allowRecoveredSagaResponse: Boolean = false) {
+    private fun DesignSpecEntry.validateDesignBlockSharedFields() {
         require(eventName.isNullOrBlank() || tag in EventNameTags) {
             "design entry $name cannot declare eventName on tag: $tag"
         }
         require(persist == null || tag == "domain_event") {
             "design entry $name cannot declare persist on tag: $tag"
         }
-        require(resultFields.isEmpty() || tag in ResultFieldTags || (allowRecoveredSagaResponse && tag == "saga")) {
+        require(resultFields.isEmpty() || tag in ResultFieldTags) {
             "design entry $name cannot declare resultFields on tag: $tag"
         }
         if (tag == "domain_event") {
@@ -854,12 +850,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         when (tag) {
             "command" -> listOf(ArtifactSelectionModel("command"))
             "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
-            "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+            "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
             "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
             "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
             "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
             "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
-            "saga" -> listOf(ArtifactSelectionModel("saga"))
             else -> error("Unsupported design tag: $tag")
         }
 
@@ -876,7 +871,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val recoveredPersist = persist.takeIf { normalizedTag == "domain_event" }
         val recoveredEventName = eventName.takeIf { normalizedTag in EventNameTags }
         val recoveredResultFields = resultFields
-            .takeIf { normalizedTag in ResultFieldTags || normalizedTag == "saga" }
+            .takeIf { normalizedTag in ResultFieldTags }
             .orEmpty()
         val compiled = DesignSpecEntry(
             tag = normalizedTag,
@@ -895,7 +890,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             config = config,
             aggregateEntityMetadata = aggregateEntityMetadata,
             allowRecoveredDomainEventWithoutAggregateMetadata = true,
-            allowRecoveredSagaResponse = true,
         )
 
         return DrawingBoardElementModel(
@@ -917,12 +911,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         when (tag.lowercase(Locale.ROOT)) {
             "command" -> "command"
             "query" -> "query"
-            "client" -> "client"
+            "capability" -> "capability"
             "api_payload" -> "api_payload"
             "domain_event" -> "domain_event"
             "integration_event" -> "integration_event"
             "domain_service" -> "domain_service"
-            "saga" -> "saga"
             else -> null
         }
 
@@ -1832,14 +1825,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val SupportedDesignBlockTags = setOf(
             "command",
             "query",
-            "client",
+            "capability",
             "api_payload",
             "domain_event",
             "integration_event",
             "domain_service",
-            "saga",
         )
-        val ResultFieldTags = setOf("command", "query", "client", "api_payload")
+        val ResultFieldTags = setOf("command", "query", "capability", "api_payload")
         val PageEnvelopeTags = setOf("query", "api_payload")
         val EventPayloadTags = setOf("domain_event", "integration_event")
         val EventNameTags = setOf("domain_event", "integration_event")
@@ -1847,27 +1839,25 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" to setOf(""),
             "query" to setOf("", "page"),
             "query-handler" to setOf(""),
-            "client" to setOf(""),
-            "client-handler" to setOf(""),
+            "capability" to setOf(""),
+            "capability-handler" to setOf(""),
             "api-payload" to setOf("", "page"),
             "domain-event" to setOf(""),
             "domain-subscriber" to setOf(""),
             "integration-event" to setOf("inbound", "outbound"),
             "integration-subscriber" to setOf(""),
             "domain-service" to setOf(""),
-            "saga" to setOf(""),
         )
         val VariantFamilies = setOf("query", "api-payload", "integration-event")
 
         val SupportedDrawingBoardTags = setOf(
             "command",
             "query",
-            "client",
+            "capability",
             "api_payload",
             "domain_event",
             "integration_event",
             "domain_service",
-            "saga",
         )
         val UpperCamelSplitRegex = Regex("(?<=[a-z0-9])(?=[A-Z])|[^A-Za-z0-9]+")
 

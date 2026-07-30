@@ -25,8 +25,8 @@ import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetPr
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.EnumManifestArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.generator.design.DesignClientHandlerArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignCapabilityArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignCapabilityHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
@@ -35,7 +35,6 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventAr
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryHandlerArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.generator.design.DesignSagaArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
@@ -175,13 +174,12 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "command",
     "query",
     "query-handler",
-    "client",
-    "client-handler",
+    "capability",
+    "capability-handler",
     "api-payload",
     "domain-event",
     "domain-subscriber",
     "domain-service",
-    "saga",
     "integration-event",
     "integration-subscriber",
     "types-value-object",
@@ -807,13 +805,12 @@ internal fun buildSourceRunner(
             DesignCommandArtifactPlanner(),
             DesignQueryArtifactPlanner(),
             DesignQueryHandlerArtifactPlanner(),
-            DesignClientArtifactPlanner(),
-            DesignClientHandlerArtifactPlanner(),
+            DesignCapabilityArtifactPlanner(),
+            DesignCapabilityHandlerArtifactPlanner(),
             DesignApiPayloadArtifactPlanner(),
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
             DesignDomainServiceArtifactPlanner(),
-            DesignSagaArtifactPlanner(),
             DesignIntegrationEventArtifactPlanner(),
             DesignIntegrationEventSubscriberArtifactPlanner(),
             ValueObjectArtifactPlanner(),

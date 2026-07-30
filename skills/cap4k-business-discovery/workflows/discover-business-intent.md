@@ -16,7 +16,7 @@
 - Which callbacks, messages, imports, exports, or external observations affect the workflow?
 - Which policy, eligibility, compensation, retry, timeout, or approval decisions are missing?
 
-Ask only for missing business facts. Do not ask the user to choose Aggregate, Command, Query, Event, Saga, or generator input details during this phase.
+Ask only for missing business facts. Do not ask the user to choose Aggregate, Command, Query, Event, Capability, orchestration provider, or generator input details during this phase.
 
 ## Business Brief Output
 

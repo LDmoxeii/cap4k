@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.application.event
 
-import com.only4.cap4k.ddd.core.CapabilitySlot
+import com.only4.cap4k.ddd.core.ProviderSlot
 
 /**
  * 集成事件管理器配置支持类
@@ -15,7 +15,7 @@ object IntegrationEventSupervisorSupport {
      * 集成事件监督者实例
      * 负责监督和管理集成事件的生命周期
      */
-    private val supervisorSlot = CapabilitySlot<IntegrationEventSupervisor>(
+    private val supervisorSlot = ProviderSlot<IntegrationEventSupervisor>(
         "events",
         "a cap4k Integration Event transport starter",
     )
@@ -27,7 +27,7 @@ object IntegrationEventSupervisorSupport {
      * 集成事件管理器实例
      * 负责管理集成事件的发布和存储
      */
-    private val managerSlot = CapabilitySlot<IntegrationEventManager>(
+    private val managerSlot = ProviderSlot<IntegrationEventManager>(
         "integration-event-manager",
         "a cap4k Integration Event transport starter",
     )

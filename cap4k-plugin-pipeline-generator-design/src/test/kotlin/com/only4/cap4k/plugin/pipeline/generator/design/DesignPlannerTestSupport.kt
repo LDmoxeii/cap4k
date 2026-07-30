@@ -46,7 +46,7 @@ internal fun designBlock(
         role = requestRole(tag),
         fields = fields,
     ),
-    response = responseDefinition ?: if (tag in setOf("command", "query", "client", "api_payload")) {
+    response = responseDefinition ?: if (tag in setOf("command", "query", "capability", "api_payload")) {
         semanticDefinition(
             packageName = packageName,
             typeName = "$name.Response",
@@ -149,18 +149,17 @@ private fun legacySemanticType(expression: String): SemanticTypeRef {
 private fun requestRole(tag: String): SemanticValueRole = when (tag) {
     "command" -> SemanticValueRole.COMMAND_REQUEST
     "query" -> SemanticValueRole.QUERY_REQUEST
-    "client" -> SemanticValueRole.CLIENT_REQUEST
+    "capability" -> SemanticValueRole.CAPABILITY_REQUEST
     "api_payload" -> SemanticValueRole.API_PAYLOAD_REQUEST
     "domain_event" -> SemanticValueRole.DOMAIN_EVENT
     "integration_event" -> SemanticValueRole.INTEGRATION_EVENT
-    "saga" -> SemanticValueRole.SAGA_REQUEST
     else -> SemanticValueRole.API_PAYLOAD_REQUEST
 }
 
 private fun responseRole(tag: String): SemanticValueRole = when (tag) {
     "command" -> SemanticValueRole.COMMAND_RESPONSE
     "query" -> SemanticValueRole.QUERY_RESPONSE
-    "client" -> SemanticValueRole.CLIENT_RESPONSE
+    "capability" -> SemanticValueRole.CAPABILITY_RESPONSE
     "api_payload" -> SemanticValueRole.API_PAYLOAD_RESPONSE
     else -> error("unsupported response role for $tag")
 }

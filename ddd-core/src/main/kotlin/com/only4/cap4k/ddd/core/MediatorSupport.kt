@@ -10,8 +10,8 @@ import org.springframework.context.ApplicationContext
  * @date 2025/07/22
  */
 object MediatorSupport {
-    private val iocSlot = CapabilitySlot<ApplicationContext>("ioc", "cap4k-ddd-core-starter")
-    private val identifierSlot = CapabilitySlot<IdentifierGenerator>("identifiers", "cap4k-ddd-core-starter")
+    private val iocSlot = ProviderSlot<ApplicationContext>("ioc", "cap4k-ddd-core-starter")
+    private val identifierSlot = ProviderSlot<IdentifierGenerator>("identifiers", "cap4k-ddd-core-starter")
 
     val ioc: ApplicationContext
         get() = iocSlot.get()

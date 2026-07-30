@@ -1,4 +1,3 @@
 com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainServiceArtifactPlanner
-com.only4.cap4k.plugin.pipeline.generator.design.DesignSagaArtifactPlanner

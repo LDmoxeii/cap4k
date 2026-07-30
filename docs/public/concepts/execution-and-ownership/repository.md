@@ -10,6 +10,6 @@ Repository 与层级协作的关系要保持清楚：domain layer 通过 Aggrega
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，可以把 `PublishContentCmd` 等写入命令与 `ContentBehavior.kt`、`ContentFactory.kt` 一起阅读，观察内容聚合如何被加载、执行业务行为，并由 Unit of Work 提交持久化意图；读取状态的 `GetContentDetailQry` 则展示了 Query 路径不应被混进聚合写入仓储。
 
-Repository 的设计边界是 Aggregate access。常见误用包括在 Repository 方法里写发布规则、把多个不相关聚合拼成一个“万能仓储”、让 Repository 直接调用外部 capability，或者把复杂 read projection 都塞进聚合仓储。需要业务决策时应回到 Aggregate、Domain Service、Command handler 或 Saga 的合适位置。
+Repository 的设计边界是 Aggregate access。常见误用包括在 Repository 方法里写发布规则、把多个不相关聚合拼成一个“万能仓储”、让 Repository 直接调用外部 capability，或者把复杂 read projection 都塞进聚合仓储。需要业务决策时应回到 Aggregate、Domain Service、Command handler 或显式 provider-owned orchestration 的合适位置。
 
 审查 Repository 时，可以看它是否以 Aggregate Root 为中心，是否避免承载业务不变量，是否没有变成任意查询服务，是否与 Unit of Work 的提交边界配合清楚，以及生成访问骨架和手写存储语义是否容易区分。

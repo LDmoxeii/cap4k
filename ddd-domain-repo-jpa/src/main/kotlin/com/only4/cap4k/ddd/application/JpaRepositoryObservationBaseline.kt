@@ -104,6 +104,8 @@ internal class JpaRepositoryObservationBaseline {
     fun hasBaselineFor(root: Any): Boolean =
         entriesFor(root).isNotEmpty()
 
+    fun observedRoots(): List<Any> = rootObjectByRootKey.values.toList()
+
     private fun observedRootKeyFor(
         entity: Any,
         identity: JpaObservedIdentity?,

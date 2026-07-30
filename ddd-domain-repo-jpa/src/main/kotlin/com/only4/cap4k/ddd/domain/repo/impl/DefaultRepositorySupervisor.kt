@@ -123,6 +123,8 @@ class DefaultRepositorySupervisor(
         if (persist) entities.forEach(::enrollExisting)
     }
 
+    private fun effectivePersist(requested: Boolean): Boolean = requested || unitOfWork.active
+
     private fun <ENTITY : Any> observeLoaded(
         entity: ENTITY,
         loadPlan: AggregateLoadPlan,
@@ -137,90 +139,104 @@ class DefaultRepositorySupervisor(
         orders: Collection<OrderInfo>,
         persist: Boolean
     ): List<ENTITY> =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .find(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, persist) }
+        effectivePersist(persist).let { managed ->
+            repo(reflectEntityClass<ENTITY>(predicate), predicate)
+                .find(predicate, orders, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
+                .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+        }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan,
-    ): List<ENTITY> =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, persist, loadPlan)
-            .also { observeLoaded(it, loadPlan, persist) }
+    ): List<ENTITY> = effectivePersist(persist).let { managed ->
+        repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, managed, loadPlan)
+            .also { observeLoaded(it, loadPlan, managed) }
+    }
 
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean
-    ): List<ENTITY> =
+    ): List<ENTITY> = effectivePersist(persist).let { managed ->
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .find(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, persist) }
+            .find(predicate, pageParam, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
+            .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean,
         loadPlan: AggregateLoadPlan,
-    ): List<ENTITY> = repo(reflectEntityClass<ENTITY>(predicate), predicate)
-        .find(predicate, pageParam, persist, loadPlan)
-        .also { observeLoaded(it, loadPlan, persist) }
+    ): List<ENTITY> = effectivePersist(persist).let { managed ->
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .find(predicate, pageParam, managed, loadPlan)
+            .also { observeLoaded(it, loadPlan, managed) }
+    }
 
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean
-    ): ENTITY? =
+    ): ENTITY? = effectivePersist(persist).let { managed ->
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findOne(predicate, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            ?.also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, persist) }
+            .findOne(predicate, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
+            ?.also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    }
 
     override fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan,
-    ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
-        .findOne(predicate, persist, loadPlan)
-        ?.also { observeLoaded(it, loadPlan, persist) }
+    ): ENTITY? = effectivePersist(persist).let { managed ->
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .findOne(predicate, managed, loadPlan)
+            ?.also { observeLoaded(it, loadPlan, managed) }
+    }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean
-    ): ENTITY? =
+    ): ENTITY? = effectivePersist(persist).let { managed ->
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findFirst(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            ?.also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, persist) }
+            .findFirst(predicate, orders, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
+            ?.also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
         persist: Boolean,
         loadPlan: AggregateLoadPlan,
-    ): ENTITY? = repo(reflectEntityClass<ENTITY>(predicate), predicate)
-        .findFirst(predicate, orders, persist, loadPlan)
-        ?.also { observeLoaded(it, loadPlan, persist) }
+    ): ENTITY? = effectivePersist(persist).let { managed ->
+        repo(reflectEntityClass<ENTITY>(predicate), predicate)
+            .findFirst(predicate, orders, managed, loadPlan)
+            ?.also { observeLoaded(it, loadPlan, managed) }
+    }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean
-    ): PageData<ENTITY> =
+    ): PageData<ENTITY> = effectivePersist(persist).let { managed ->
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findPage(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .apply { observeLoaded(list, AggregateLoadPlan.WHOLE_AGGREGATE, persist) }
+            .findPage(predicate, pageParam, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
+            .apply { observeLoaded(list, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
         persist: Boolean,
         loadPlan: AggregateLoadPlan,
-    ): PageData<ENTITY> =
+    ): PageData<ENTITY> = effectivePersist(persist).let { managed ->
         repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findPage(predicate, pageParam, persist, loadPlan)
-            .apply { observeLoaded(list, loadPlan, persist) }
+            .findPage(predicate, pageParam, managed, loadPlan)
+            .apply { observeLoaded(list, loadPlan, managed) }
+    }
 
     override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> =
         repo(reflectEntityClass<ENTITY>(predicate), predicate)

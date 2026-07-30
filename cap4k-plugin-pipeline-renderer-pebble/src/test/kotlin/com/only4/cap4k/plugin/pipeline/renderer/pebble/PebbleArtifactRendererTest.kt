@@ -49,7 +49,7 @@ class PebbleArtifactRendererTest {
         fun defaultArtifacts(tag: String): List<ArtifactSelectionModel> = when (tag) {
             "command" -> listOf(ArtifactSelectionModel("command"))
             "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
-            "client" -> listOf(ArtifactSelectionModel("client"), ArtifactSelectionModel("client-handler"))
+            "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
             "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
             "domain_event" -> listOf(
                 ArtifactSelectionModel("domain-event"),
@@ -57,7 +57,6 @@ class PebbleArtifactRendererTest {
             )
             "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
             "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
-            "saga" -> listOf(ArtifactSelectionModel("saga"))
             else -> emptyList()
         }
     }
@@ -534,7 +533,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `design domain service and saga skeleton template ids resolve through default preset`() {
+    fun `design domain service skeleton template id resolves through default preset`() {
         val config = ProjectConfig()
 
         val domainService = renderTemplate(
@@ -551,29 +550,6 @@ class PebbleArtifactRendererTest {
         assertTrue(domainService.contains("class ContentPublicationPolicy"))
         assertReadableKotlin(domainService)
 
-        val saga = renderTemplate(
-            templateId = config.artifactLayout.designSagaArtifact.id,
-            outputPath = "demo-application/src/main/kotlin/content/workflow/PublishContentSaga.kt",
-            context = mapOf(
-                "packageName" to "content.workflow",
-                "name" to "PublishContentSaga",
-                "fields" to listOf(mapOf("name" to "contentId", "renderedType" to "ContentId")),
-                "resultFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean")),
-                "imports" to emptyList<String>(),
-            ),
-        )
-        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaHandler"))
-        assertTrue(saga.contains("import com.only4.cap4k.ddd.core.application.saga.SagaParam"))
-        assertTrue(saga.contains("import org.springframework.stereotype.Service"))
-        assertTrue(saga.contains("object PublishContentSaga"))
-        assertTrue(saga.contains("@Service"))
-        assertTrue(saga.contains("class Handler : SagaHandler<Request, Response>"))
-        assertTrue(saga.contains("override fun exec(request: Request): Response"))
-        assertTrue(saga.contains("data class Request("))
-        assertTrue(saga.contains(": SagaParam<Response>"))
-        assertTrue(saga.contains("data class Response("))
-        assertTrue(saga.contains("val accepted: Boolean"))
-        assertReadableKotlin(saga)
     }
 
     @Test
@@ -3480,8 +3456,9 @@ class PebbleArtifactRendererTest {
         assertTrue(content.startsWith("package com.acme.demo.domain.aggregates.category"))
         assertTrue(content.contains("Place behavior for Category"))
         assertTrue(content.contains("fun Category.onCreate()"))
-        assertTrue(content.contains("fun Category.onUpdate()"))
-        assertTrue(content.contains("fun Category.onDelete()"))
+        assertTrue(content.contains("fun Category.onDeleted()"))
+        assertFalse(content.contains("fun Category.onUpdate()"))
+        assertFalse(content.contains("fun Category.onDelete()"))
         assertFalse(content.contains("fun Category.onRemove()"))
         assertFalse(content.contains("managed-begin"))
     }
@@ -4554,7 +4531,7 @@ class PebbleArtifactRendererTest {
         val templateIds = listOf(
             "design/query.kt.peb",
             "design/command.kt.peb",
-            "design/client.kt.peb",
+            "design/capability.kt.peb",
             "design/api_payload.kt.peb",
         )
         val commonRequestFields = listOf(
@@ -4596,13 +4573,13 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-client",
+                    generatorId = "design-capability",
                     moduleRole = "application",
-                    templateId = "design/client.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/distributed/clients/message/delivery/PublishUserMessageCli.kt",
+                    templateId = "design/capability.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/capabilities/message/delivery/PublishUserMessage.kt",
                     context = commonFields + mapOf(
-                        "packageName" to "edu.only4.danmaku.application.distributed.clients.message.delivery",
-                        "typeName" to "PublishUserMessageCli",
+                        "packageName" to "edu.only4.danmaku.application.capabilities.message.delivery",
+                        "typeName" to "PublishUserMessage",
                     ),
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
@@ -4657,27 +4634,35 @@ class PebbleArtifactRendererTest {
             assertReadableKotlin(it.content)
             assertFalse(Regex("""package .+import """).containsMatchIn(it.content))
             assertFalse(Regex("""}\s*object """).containsMatchIn(it.content))
-            assertFalse(Regex("""\) : RequestParam<Response>[ \t]+data class Response""").containsMatchIn(it.content))
+            assertFalse(Regex("""\) : (Command|Query|CapabilityCall)<Response>[ \t]+data class Response""").containsMatchIn(it.content))
         }
 
         val renderedByFile = rendered.associateBy { it.outputPath.substringAfterLast("/") }
         val queryContent = renderedByFile.getValue("FindUserMessageQry.kt").content
         val commandContent = renderedByFile.getValue("CreateUserMessageCmd.kt").content
-        val clientContent = renderedByFile.getValue("PublishUserMessageCli.kt").content
+        val capabilityContent = renderedByFile.getValue("PublishUserMessage.kt").content
         val apiPayloadContent = renderedByFile.getValue("CreateUserMessagePayload.kt").content
 
-        listOf(queryContent, commandContent, clientContent).forEach { content ->
-            assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
-            assertTrue(content.contains(") : RequestParam<Response>"))
-            assertTrue(content.normalizedLineEndings().contains(") : RequestParam<Response>\n\n    data class Response("))
+        assertTrue(queryContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(queryContent.contains(") : Query<Response>"))
+        assertTrue(queryContent.normalizedLineEndings().contains(") : Query<Response>\n\n    data class Response("))
+        assertTrue(commandContent.contains("import com.only4.cap4k.ddd.core.application.command.Command"))
+        assertTrue(commandContent.contains(") : Command<Response>"))
+        assertTrue(commandContent.normalizedLineEndings().contains(") : Command<Response>\n\n    data class Response("))
+        assertTrue(capabilityContent.contains("import com.only4.cap4k.ddd.core.application.capability.CapabilityCall"))
+        assertTrue(capabilityContent.contains(") : CapabilityCall<Response>"))
+        assertTrue(capabilityContent.normalizedLineEndings().contains(") : CapabilityCall<Response>\n\n    data class Response("))
+        listOf(queryContent, commandContent, capabilityContent).forEach { content ->
             assertFalse(content.contains("\n\n\n"))
         }
 
-        assertTrue(commandContent.contains("import com.only4.cap4k.ddd.core.Mediator"))
+        assertFalse(commandContent.contains("import com.only4.cap4k.ddd.core.Mediator"))
         assertTrue(commandContent.contains("import com.only4.cap4k.ddd.core.application.command.Command"))
+        assertTrue(commandContent.contains("import com.only4.cap4k.ddd.core.application.command.CommandHandler"))
         assertTrue(commandContent.contains("import org.springframework.stereotype.Service"))
-        assertTrue(commandContent.contains("@Service\n    class Handler : Command<Request, Response>"))
-        assertTrue(commandContent.contains("Mediator.uow.save()"))
+        assertTrue(commandContent.contains("@Service\n    class Handler : CommandHandler<Request, Response>"))
+        assertTrue(commandContent.contains("override fun handle(command: Request): Response"))
+        assertFalse(commandContent.contains("Mediator.uow.save()"))
         assertTrue(
             commandContent.normalizedLineEndings().contains(
                 "            return Response(\n" +
@@ -4841,7 +4826,7 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `default query preset uses request param contract`() {
+    fun `default query preset uses query contract`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-query-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
@@ -4893,14 +4878,14 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(content.contains("import java.time.LocalDateTime"))
         assertTrue(content.contains("import java.util.UUID"))
         assertFalse(content.contains("import com.foo.Status"))
         assertFalse(content.contains("import com.bar.Status"))
         assertTrue(content.contains("object FindOrderQry"))
         assertTrue(content.contains("data class Request("))
-        assertTrue(content.contains(") : RequestParam<Response>"))
+        assertTrue(content.contains(") : Query<Response>"))
         assertTrue(content.contains("val lookupId: UUID"))
         assertTrue(content.contains("val requestStatus: com.foo.Status"))
         assertTrue(content.contains("val responseStatus: com.bar.Status"))
@@ -4966,7 +4951,7 @@ class PebbleArtifactRendererTest {
 
         val pageContent = rendered.single().content
         assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.PageRequest"))
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
         assertTrue(pageContent.contains("data class Request("))
         assertTrue(pageContent.contains("override val pageNum: Int = 1"))
         assertTrue(pageContent.contains("override val pageSize: Int = 10"))
@@ -4979,7 +4964,7 @@ class PebbleArtifactRendererTest {
             ).containsMatchIn(pageContent.normalizedLineEndings()),
             pageContent
         )
-        assertTrue(pageContent.contains(") : PageRequest, RequestParam<Response>"))
+        assertTrue(pageContent.contains(") : PageRequest, Query<Response>"))
         assertTrue(pageContent.contains("val page: PageData<Item>"))
         assertTrue(pageContent.contains("data class Item("))
         assertTrue(pageContent.contains("val orderId: Long"))
@@ -5107,8 +5092,8 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         assertTrue(content.contains("object FindOrderQry"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
-        assertTrue(content.contains("class Request : RequestParam<Response>"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(content.contains("class Request : Query<Response>"))
         assertTrue(content.contains("data object Response"))
     }
 
@@ -8393,9 +8378,10 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         assertTrue(content.contains("import org.springframework.stereotype.Service"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.query.QueryHandler"))
         assertTrue(content.contains("import com.acme.demo.application.queries.order.read.FindOrderQry"))
-        assertTrue(content.contains("class FindOrderQryHandler : Query<FindOrderQry.Request, FindOrderQry.Response>"))
+        assertTrue(content.contains("class FindOrderQryHandler : QueryHandler<FindOrderQry.Request, FindOrderQry.Response>"))
+        assertTrue(content.contains("override fun handle(query: FindOrderQry.Request): FindOrderQry.Response"))
         assertTrue(content.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(content.contains("snapshot = TODO(\"set snapshot\")"))
         val normalizedContent = content.normalizedLineEndings()
@@ -8476,10 +8462,10 @@ class PebbleArtifactRendererTest {
 
         val listContent = rendered[0].content
         assertTrue(listContent.normalizedLineEndings().contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
-        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(listContent.contains("import com.only4.cap4k.ddd.core.application.query.QueryHandler"))
         assertTrue(listContent.contains("import com.acme.demo.application.queries.order.read.FindOrderListQry"))
-        assertTrue(listContent.contains("class FindOrderListQryHandler : Query<FindOrderListQry.Request, FindOrderListQry.Response>"))
-        assertTrue(listContent.contains("override fun exec(request: FindOrderListQry.Request): FindOrderListQry.Response"))
+        assertTrue(listContent.contains("class FindOrderListQryHandler : QueryHandler<FindOrderListQry.Request, FindOrderListQry.Response>"))
+        assertTrue(listContent.contains("override fun handle(query: FindOrderListQry.Request): FindOrderListQry.Response"))
         assertTrue(listContent.contains("return FindOrderListQry.Response("))
         assertTrue(listContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(
@@ -8492,10 +8478,10 @@ class PebbleArtifactRendererTest {
 
         val pageContent = rendered[1].content
         assertTrue(pageContent.normalizedLineEndings().contains("package com.acme.demo.adapter.queries.order.read\n\nimport"))
-        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.Query"))
+        assertTrue(pageContent.contains("import com.only4.cap4k.ddd.core.application.query.QueryHandler"))
         assertTrue(pageContent.contains("import com.acme.demo.application.queries.order.read.FindOrderPageQry"))
-        assertTrue(pageContent.contains("class FindOrderPageQryHandler : Query<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
-        assertTrue(pageContent.contains("override fun exec(request: FindOrderPageQry.Request): FindOrderPageQry.Response"))
+        assertTrue(pageContent.contains("class FindOrderPageQryHandler : QueryHandler<FindOrderPageQry.Request, FindOrderPageQry.Response>"))
+        assertTrue(pageContent.contains("override fun handle(query: FindOrderPageQry.Request): FindOrderPageQry.Response"))
         assertTrue(pageContent.contains("return FindOrderPageQry.Response("))
         assertTrue(pageContent.contains("responseStatus = TODO(\"set responseStatus\")"))
         assertTrue(
@@ -8593,8 +8579,8 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `default client preset uses request param contract and helper-driven fields`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-client-contract")
+    fun `default capability preset uses capability call contract and helper-driven fields`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-capability-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -8605,13 +8591,13 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-client",
+                    generatorId = "design-capability",
                     moduleRole = "application",
-                    templateId = "design/client.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+                    templateId = "design/capability.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.application.distributed.clients.authorize",
-                        "typeName" to "IssueTokenCli",
+                        "packageName" to "com.acme.demo.application.capabilities.authorize",
+                        "typeName" to "IssueToken",
                         "imports" to listOf(
                             "java.time.LocalDateTime",
                             "java.util.UUID",
@@ -8664,13 +8650,13 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestParam"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.capability.CapabilityCall"))
         assertTrue(content.contains("import java.time.LocalDateTime"))
         assertTrue(content.contains("import java.util.UUID"))
         assertFalse(content.contains("import com.foo.Status"))
         assertFalse(content.contains("import com.bar.Status"))
-        assertTrue(content.contains("object IssueTokenCli"))
-        assertTrue(content.contains(") : RequestParam<Response>"))
+        assertTrue(content.contains("object IssueToken"))
+        assertTrue(content.contains(") : CapabilityCall<Response>"))
         assertTrue(content.contains("val account: String = \"guest\""))
         assertTrue(content.contains("val issuedAt: LocalDateTime"))
         assertTrue(content.contains("val requestStatus: com.foo.Status"))
@@ -8689,8 +8675,8 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `default client handler preset renders request handler contract and import list type`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-client-handler-contract")
+    fun `default capability handler preset renders capability handler contract and import list type`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-capability-handler-contract")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -8701,15 +8687,15 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-client-handler",
+                    generatorId = "design-capability-handler",
                     moduleRole = "adapter",
-                    templateId = "design/client_handler.kt.peb",
-                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+                    templateId = "design/capability_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.adapter.application.distributed.clients.authorize",
-                        "typeName" to "IssueTokenCliHandler",
-                        "clientTypeName" to "IssueTokenCli",
-                        "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
+                        "packageName" to "com.acme.demo.adapter.application.capabilities.authorize",
+                        "typeName" to "IssueTokenHandler",
+                        "capabilityTypeName" to "IssueToken",
+                        "imports" to listOf("com.acme.demo.application.capabilities.authorize.IssueToken"),
                         "resultFields" to listOf(
                             mapOf("name" to "token"),
                             mapOf("name" to "expiresAt"),
@@ -8734,16 +8720,17 @@ class PebbleArtifactRendererTest {
 
         val content = rendered.single().content
         assertTrue(content.contains("import org.springframework.stereotype.Service"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.RequestHandler"))
-        assertTrue(content.contains("import com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"))
-        assertTrue(content.contains("class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"))
+        assertTrue(content.contains("import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler"))
+        assertTrue(content.contains("import com.acme.demo.application.capabilities.authorize.IssueToken"))
+        assertTrue(content.contains("class IssueTokenHandler : CapabilityHandler<IssueToken.Request, IssueToken.Response>"))
+        assertTrue(content.contains("override fun call(request: IssueToken.Request): IssueToken.Response"))
         assertTrue(content.contains("token = TODO(\"set token\")"))
         assertTrue(content.contains("expiresAt = TODO(\"set expiresAt\")"))
         val normalizedContent = content.normalizedLineEndings()
-        assertTrue(normalizedContent.contains("package com.acme.demo.adapter.application.distributed.clients.authorize\n\nimport"))
+        assertTrue(normalizedContent.contains("package com.acme.demo.adapter.application.capabilities.authorize\n\nimport"))
         assertTrue(
             normalizedContent.contains(
-                "        return IssueTokenCli.Response(\n" +
+                "        return IssueToken.Response(\n" +
                     "            token = TODO(\"set token\"),\n" +
                     "            expiresAt = TODO(\"set expiresAt\")\n" +
                     "        )"
@@ -8755,8 +8742,8 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
-    fun `client presets keep empty response output valid for request side and handler side`() {
-        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-client-empty-response")
+    fun `capability presets keep empty response output valid for request side and handler side`() {
+        val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-capability-empty-response")
         val renderer = PebbleArtifactRenderer(
             templateResolver = PresetTemplateResolver(
                 preset = "ddd-default",
@@ -8767,13 +8754,13 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-client",
+                    generatorId = "design-capability",
                     moduleRole = "application",
-                    templateId = "design/client.kt.peb",
-                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/distributed/clients/authorize/IssueTokenCli.kt",
+                    templateId = "design/capability.kt.peb",
+                    outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.application.distributed.clients.authorize",
-                        "typeName" to "IssueTokenCli",
+                        "packageName" to "com.acme.demo.application.capabilities.authorize",
+                        "typeName" to "IssueToken",
                         "imports" to emptyList<String>(),
                         "fields" to listOf(
                             mapOf("name" to "account", "renderedType" to "String", "nullable" to false),
@@ -8785,15 +8772,15 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-client-handler",
+                    generatorId = "design-capability-handler",
                     moduleRole = "adapter",
-                    templateId = "design/client_handler.kt.peb",
-                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/distributed/clients/authorize/IssueTokenCliHandler.kt",
+                    templateId = "design/capability_handler.kt.peb",
+                    outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
                     context = mapOf(
-                        "packageName" to "com.acme.demo.adapter.application.distributed.clients.authorize",
-                        "typeName" to "IssueTokenCliHandler",
-                        "clientTypeName" to "IssueTokenCli",
-                        "imports" to listOf("com.acme.demo.application.distributed.clients.authorize.IssueTokenCli"),
+                        "packageName" to "com.acme.demo.adapter.application.capabilities.authorize",
+                        "typeName" to "IssueTokenHandler",
+                        "capabilityTypeName" to "IssueToken",
+                        "imports" to listOf("com.acme.demo.application.capabilities.authorize.IssueToken"),
                         "resultFields" to emptyList<Map<String, Any?>>(),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
@@ -8813,14 +8800,14 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val clientContent = rendered[0].content
-        assertTrue(clientContent.contains(") : RequestParam<Response>"))
-        assertTrue(clientContent.contains("data object Response"))
+        val capabilityContent = rendered[0].content
+        assertTrue(capabilityContent.contains(") : CapabilityCall<Response>"))
+        assertTrue(capabilityContent.contains("data object Response"))
 
         val handlerContent = rendered[1].content
-        assertTrue(handlerContent.contains("class IssueTokenCliHandler : RequestHandler<IssueTokenCli.Request, IssueTokenCli.Response>"))
-        assertTrue(handlerContent.contains("return IssueTokenCli.Response"))
-        assertFalse(handlerContent.contains("return IssueTokenCli.Response("))
+        assertTrue(handlerContent.contains("class IssueTokenHandler : CapabilityHandler<IssueToken.Request, IssueToken.Response>"))
+        assertTrue(handlerContent.contains("return IssueToken.Response"))
+        assertFalse(handlerContent.contains("return IssueToken.Response("))
     }
 
     @Test
@@ -9346,25 +9333,6 @@ class PebbleArtifactRendererTest {
         )
         assertBuildingBlockAnnotation(domainService, tag = "domain_service", name = "OrderPublicationPolicy", family = "domain-service")
 
-        val saga = renderTemplate(
-            templateId = "design/saga.kt.peb",
-            outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/sagas/order/OrderFulfillmentSaga.kt",
-            context = mapOf(
-                "packageName" to "com.acme.demo.application.sagas.order",
-                "name" to "OrderFulfillmentSaga",
-                "fields" to listOf(mapOf("name" to "orderId", "renderedType" to "String", "nullable" to false)),
-                "resultFields" to listOf(mapOf("name" to "accepted", "renderedType" to "Boolean", "nullable" to false)),
-                "imports" to emptyList<String>(),
-                "buildingBlock" to buildingBlockContext(
-                    tag = "saga",
-                    name = "OrderFulfillmentSaga",
-                    packageName = "order",
-                    family = "saga",
-                    aggregates = listOf("Order"),
-                ),
-            ),
-        )
-        assertBuildingBlockAnnotation(saga, tag = "saga", name = "OrderFulfillmentSaga", family = "saga")
     }
 
     @Test

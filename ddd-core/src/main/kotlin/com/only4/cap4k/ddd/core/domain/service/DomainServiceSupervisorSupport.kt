@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.service
 
-import com.only4.cap4k.ddd.core.CapabilitySlot
+import com.only4.cap4k.ddd.core.ProviderSlot
 
 /**
  * 领域服务管理
@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.CapabilitySlot
  * @date 2025/07/20
  */
 object DomainServiceSupervisorSupport {
-    private val slot = CapabilitySlot<DomainServiceSupervisor>("services", "cap4k-ddd-core-starter")
+    private val slot = ProviderSlot<DomainServiceSupervisor>("services", "cap4k-ddd-core-starter")
 
     val instance: DomainServiceSupervisor
         get() = slot.get()

@@ -1,10 +1,10 @@
 package com.only4.cap4k.ddd.runtime.softdelete.mixedcase
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
-import com.only4.cap4k.ddd.core.application.UnitOfWorkInterceptor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
+import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
@@ -12,8 +12,6 @@ import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
 import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
-import com.only4.cap4k.ddd.core.domain.repo.PersistListenerManager
-import com.only4.cap4k.ddd.core.domain.repo.PersistType
 import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
@@ -37,6 +35,8 @@ import org.springframework.context.annotation.Import
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 import java.io.Serializable
 
 private const val NIL_UUID_TEXT = "00000000-0000-0000-0000-000000000000"
@@ -53,6 +53,7 @@ private const val NIL_UUID_TEXT = "00000000-0000-0000-0000-000000000000"
 )
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(SoftDeleteUuidStringH2RuntimeTest.TestConfig::class)
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
 class SoftDeleteUuidStringH2RuntimeTest {
     @Autowired
     private lateinit var repository: MixedCaseUuidStringRepository
@@ -79,15 +80,15 @@ class SoftDeleteUuidStringH2RuntimeTest {
             unitOfWork = unitOfWork,
         ).apply { init() }
 
-        val entity = factorySupervisor.create(
-            MixedCaseUuidStringFactory.Payload(name = "mixed-case-h2")
-        )
-
-        assertTrue(entity.hasAssignedId())
+        lateinit var entity: MixedCaseUuidStringEntity
+        unitOfWork.execute {
+            entity = factorySupervisor.create(
+                MixedCaseUuidStringFactory.Payload(name = "mixed-case-h2")
+            )
+            assertTrue(entity.hasAssignedId())
+        }
         val id = entity.id
         assertEquals(NIL_UUID_TEXT, entity.deleted)
-
-        unitOfWork.save()
         entityManager.clear()
 
         assertEquals(
@@ -95,9 +96,9 @@ class SoftDeleteUuidStringH2RuntimeTest {
             physicalRow(id.value),
         )
 
-        val loaded = repository.findById(id).orElseThrow()
-        unitOfWork.remove(loaded)
-        unitOfWork.save()
+        unitOfWork.execute {
+            unitOfWork.remove(repository.findById(id).orElseThrow())
+        }
         entityManager.clear()
 
         assertTrue(repository.findAll().isEmpty())
@@ -126,8 +127,8 @@ class SoftDeleteUuidStringH2RuntimeTest {
 
     class TestConfig {
         @Bean
-        fun persistListenerManager(): PersistListenerManager = object : PersistListenerManager {
-            override fun <Entity : Any> onChange(aggregate: Entity, type: PersistType) = Unit
+        fun domainEventManager(): DomainEventManager = object : DomainEventManager {
+            override fun release(entities: Set<Any>) = Unit
         }
 
         @Bean
@@ -139,13 +140,11 @@ class SoftDeleteUuidStringH2RuntimeTest {
 
         @Bean
         fun jpaUnitOfWork(
-            persistListenerManager: PersistListenerManager,
+            domainEventManager: DomainEventManager,
             generatedOwnIdRegistry: GeneratedOwnIdRegistry,
         ): JpaUnitOfWork = JpaUnitOfWork(
-            emptyList<UnitOfWorkInterceptor>(),
-            persistListenerManager,
-            true,
-            generatedOwnIdRegistry,
+            domainEventManager = domainEventManager,
+            generatedOwnIdRegistry = generatedOwnIdRegistry,
         )
     }
 }

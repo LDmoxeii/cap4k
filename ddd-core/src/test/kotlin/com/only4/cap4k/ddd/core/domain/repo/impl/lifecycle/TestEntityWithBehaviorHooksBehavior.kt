@@ -4,10 +4,6 @@ fun TestEntityWithBehaviorHooks.onCreate() {
     onCreateCallCount++
 }
 
-fun TestEntityWithBehaviorHooks.onUpdate() {
-    onUpdateCallCount++
-}
-
-fun TestEntityWithBehaviorHooks.onDelete() {
-    onDeleteCallCount++
+fun TestEntityWithBehaviorHooks.onDeleted() {
+    onDeletedCallCount++
 }

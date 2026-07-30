@@ -1,7 +1,9 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
-import com.only4.cap4k.ddd.core.CapabilityUnavailableException
+import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
+import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import io.mockk.every
@@ -13,7 +15,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.context.ApplicationEventPublisher
 import java.time.LocalDateTime
 
 class DefaultDomainEventSupervisorTest {
@@ -21,32 +22,32 @@ class DefaultDomainEventSupervisorTest {
         every { orderedDomainEventInterceptors } returns emptySet()
         every { orderedEventInterceptors4DomainEvent } returns emptySet()
     }
-    private val applicationEventPublisher = mockk<ApplicationEventPublisher>()
+    private val eventSubscriberManager = mockk<EventSubscriberManager>()
 
     @AfterEach
     fun resetContext() = EventRuntimeContext.reset()
 
     @Test
     fun `immediate local event is published synchronously without an event repository`() {
-        every { applicationEventPublisher.publishEvent(any<Any>()) } just runs
-        val supervisor = DefaultDomainEventSupervisor(interceptorManager, applicationEventPublisher)
+        every { eventSubscriberManager.dispatch(any()) } just runs
+        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventSubscriberManager)
         val entity = Any()
         val event = LocalEvent("created")
 
         supervisor.attach(event, entity)
         supervisor.release(setOf(entity))
 
-        verify(exactly = 1) { applicationEventPublisher.publishEvent(event) }
+        verify(exactly = 1) { eventSubscriberManager.dispatch(event) }
     }
 
     @Test
     fun `persistent event fails at release when reliable provider is absent`() {
-        val supervisor = DefaultDomainEventSupervisor(interceptorManager, applicationEventPublisher)
+        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventSubscriberManager)
         val entity = Any()
         supervisor.attach(PersistentEvent("created"), entity)
 
-        val exception = assertThrows<CapabilityUnavailableException> { supervisor.release(setOf(entity)) }
-        assertEquals("reliable-domain-events", exception.capability)
+        val exception = assertThrows<ProviderUnavailableException> { supervisor.release(setOf(entity)) }
+        assertEquals("reliable-domain-events", exception.providerName)
     }
 
     @Test
@@ -55,7 +56,7 @@ class DefaultDomainEventSupervisorTest {
         every { reliableProvider.publish(any(), any()) } just runs
         val supervisor = DefaultDomainEventSupervisor(
             interceptorManager,
-            applicationEventPublisher,
+            eventSubscriberManager,
             reliableProvider,
         )
         val entity = Any()
@@ -65,7 +66,7 @@ class DefaultDomainEventSupervisorTest {
         supervisor.release(setOf(entity))
 
         verify(exactly = 1) { reliableProvider.publish(event, any()) }
-        verify(exactly = 0) { applicationEventPublisher.publishEvent(any<Any>()) }
+        verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
     }
 
     @Test
@@ -74,7 +75,7 @@ class DefaultDomainEventSupervisorTest {
         every { reliableProvider.publish(any(), any()) } just runs
         val supervisor = DefaultDomainEventSupervisor(
             interceptorManager,
-            applicationEventPublisher,
+            eventSubscriberManager,
             reliableProvider,
         )
         val entity = Any()
@@ -85,6 +86,36 @@ class DefaultDomainEventSupervisorTest {
         supervisor.release(setOf(entity))
 
         verify { reliableProvider.publish(event, schedule) }
+    }
+
+    @Test
+    fun `events produced by a handler remain for the next UoW frontier`() {
+        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventSubscriberManager)
+        val entity = Any()
+        val first = LocalEvent("first")
+        val derived = LocalEvent("derived")
+        every { eventSubscriberManager.dispatch(first) } answers {
+            supervisor.attach(derived, entity)
+        }
+        every { eventSubscriberManager.dispatch(derived) } just runs
+
+        EventRuntimeContextManager.beginUnitOfWork()
+        try {
+            supervisor.attach(first, entity)
+
+            supervisor.release(setOf(entity))
+
+            assertEquals(1, supervisor.pendingCount())
+            verify(exactly = 1) { eventSubscriberManager.dispatch(first) }
+            verify(exactly = 0) { eventSubscriberManager.dispatch(derived) }
+
+            supervisor.release(setOf(entity))
+
+            assertEquals(0, supervisor.pendingCount())
+            verify(exactly = 1) { eventSubscriberManager.dispatch(derived) }
+        } finally {
+            EventRuntimeContextManager.endUnitOfWork()
+        }
     }
 
     data class LocalEvent(val value: String)

@@ -2,10 +2,10 @@
 
 ## Trigger Before
 
-- command, query, client, api payload
-- command handler, query handler, client handler
+- command, query, capability, api payload
+- command handler, query handler, capability handler
 - domain event, integration event, subscriber skeleton
-- domain service, saga, scheduled reaction
+- domain service, scheduled reaction
 - aggregate, entity, relation, projection
 - factory
 - repository, controller, adapter, start skeleton

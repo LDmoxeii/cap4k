@@ -10,6 +10,6 @@ Query 与 Command 的协作边界来自意图差异。Command 通过 Aggregate �
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，可以阅读 `GetContentDetailQry`、`GetMediaProcessingStatusQry`、`GetPaidPublicationStatusQry`，以及 adapter/application/queries/content/read 下的 query handlers，观察 read model 如何服务内容详情和状态查看。
 
-Query 的设计边界是读取表达，不是任意查询工具箱。常见误用包括在 Query handler 里保存聚合、发送外部命令、推进 Saga、修复脏数据，或者为了方便把复杂业务决策放在读取端。需要改变事实时，应改用 Command 或明确的 reaction 流程。
+Query 的设计边界是读取表达，不是任意查询工具箱。常见误用包括在 Query handler 里保存聚合、发送可靠 Command、推进外部编排状态、修复脏数据，或者为了方便把复杂业务决策放在读取端。需要改变事实时，应改用 Command 或明确的 reaction 流程。
 
 审查 Query 时，可以看名称是否表达观察意图，handler 是否没有业务状态副作用，read model 是否服务调用场景，错误处理是否不掩盖写入需求，以及生成骨架与手写读取语义是否保持清晰。

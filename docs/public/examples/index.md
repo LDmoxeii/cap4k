@@ -9,13 +9,12 @@
 - [Reference Content Studio](reference-content-studio.md)：参考项目总览、四个模块、业务场景和证据面。
 - [Run The Reference Project](run-the-reference-project.md)：README 已验证的启动入口、`.http` 阅读顺序和本地观察路径。
 - [Default Publication Flow](default-publication-flow.md)：从内容草稿到审核、媒体处理回调、最终发布的默认路径。
-- [Paid Publication Saga Flow](paid-publication-saga-flow.md)：显式 opt-in 的 paid publication Saga、正向步骤和补偿。
 - [Value Object And Type Inputs](value-object-and-type-inputs.md)：`MediaProcessingResultSnapshot`、`ReleasePolicy`、`MediaProcessingResultStatus` 与 type input manifests。
 - [Generation And Analysis Evidence](generation-and-analysis-evidence.md)：`design/design.json`、schema、plan、analysis flows、drawing board 和测试证据面。
 
 ## How To Use
 
-读概念页时，先抓住概念边界，再打开 examples 里的对应页面。例如 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、[Domain Event](../concepts/modeling-building-blocks/domain-event.md)、[Integration Event](../concepts/modeling-building-blocks/integration-event.md)、[Saga](../concepts/modeling-building-blocks/saga.md)、[Command](../concepts/execution-and-ownership/command.md)、[Subscriber](../concepts/execution-and-ownership/subscriber.md) 都可以在 `cap4k-reference-content-studio` 找到直接锚点。
+读概念页时，先抓住概念边界，再打开 examples 里的对应页面。例如 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、[Domain Event](../concepts/modeling-building-blocks/domain-event.md)、[Integration Event](../concepts/modeling-building-blocks/integration-event.md)、[Command](../concepts/execution-and-ownership/command.md)、[Subscriber](../concepts/execution-and-ownership/subscriber.md) 和 [External Capability](../concepts/execution-and-ownership/external-capability-anti-corruption-layer.md) 都可以在 `cap4k-reference-content-studio` 找到直接锚点。
 
 读架构页时，先看 [Architecture](../architecture/index.md) 对四层职责的说明，再用本章里的参考项目映射到 `domain`、`application`、`adapter`、`start` 四个模块。这样可以把 Clean Architecture 规则、generated skeleton、handwritten logic 和测试边界放在同一组文件里检查。
 

@@ -11,6 +11,8 @@ open class Cap4kApplicationListenerMethodAdapter(
     private val listenerMethod: Method,
 ) : ApplicationListenerMethodAdapter(listenerBeanName, listenerClass, listenerMethod) {
 
+    override fun supportsAsyncExecution(): Boolean = false
+
     override fun doInvoke(vararg args: Any?): Any? {
         val scope = EventRuntimeContext.currentOrNull()
         val previousMetadata = scope?.captureListenerMetadata()
@@ -22,7 +24,11 @@ open class Cap4kApplicationListenerMethodAdapter(
         }
 
         try {
-            val result = super.doInvoke(*args)
+            val result = EventRuntimeContext.withCausalFrame(
+                "Handler:${listenerClass.name}#${listenerMethod.name}",
+            ) {
+                super.doInvoke(*args)
+            }
             if (result != null) {
                 throw EventListenerInvocationException(
                     listenerBeanName = listenerBeanName,

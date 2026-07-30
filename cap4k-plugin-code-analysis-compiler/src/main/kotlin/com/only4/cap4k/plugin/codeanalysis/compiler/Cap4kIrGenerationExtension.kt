@@ -252,7 +252,6 @@ private class GraphCollector(
     private val nodes = LinkedHashMap<String, Node>()
     private val rels = LinkedHashSet<Relationship>()
     private val handlerToCommand: MutableMap<String, String> = mutableMapOf()
-    private val requestKindByFq: MutableMap<String, RequestKind> = mutableMapOf()
     private val handlerContext: ArrayDeque<String> = ArrayDeque()
     private val functionContext: ArrayDeque<FunctionCtx> = ArrayDeque()
     private val aggregateInfoCache: MutableMap<String, AggregateInfo?> = mutableMapOf()
@@ -276,12 +275,16 @@ private class GraphCollector(
     private val eventListenerAnn = FqName(options.eventListenerAnnFq)
     private val commandInterfaceFq = FqName("com.only4.cap4k.ddd.core.application.command.Command")
     private val queryInterfaceFq = FqName("com.only4.cap4k.ddd.core.application.query.Query")
-    private val requestHandlerFq = FqName("com.only4.cap4k.ddd.core.application.RequestHandler")
-    private val requestSupervisorFq = FqName(options.requestSupervisorFq)
+    private val capabilityCallFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilityCall")
+    private val commandHandlerFq = FqName("com.only4.cap4k.ddd.core.application.command.CommandHandler")
+    private val queryHandlerFq = FqName("com.only4.cap4k.ddd.core.application.query.QueryHandler")
+    private val capabilityHandlerFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilityHandler")
+    private val commandSupervisorFq = FqName("com.only4.cap4k.ddd.core.application.command.CommandSupervisor")
+    private val querySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.query.QuerySupervisor")
+    private val capabilitySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor")
     private val unitOfWorkFq = FqName(options.unitOfWorkFq)
     private val repositorySupervisorFq = FqName(options.repositorySupervisorFq)
     private val aggregateFactorySupervisorFq = FqName(options.aggregateFactorySupervisorFq)
-    private val requestParamFq = FqName(options.requestParamFq)
     private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
     private val constraintValidatorJavaxFq = FqName("javax.validation.ConstraintValidator")
     private val predicateFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Predicate")
@@ -306,38 +309,33 @@ private class GraphCollector(
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.controller))
         }
 
-        val implementsCommand = declaration.isOrImplements(commandInterfaceFq)
-        val implementsQuery = declaration.isOrImplements(queryInterfaceFq)
-        val implementsRequestHandler = !implementsCommand &&
-            !implementsQuery &&
-            declaration.isOrImplements(requestHandlerFq)
-        if (implementsCommand) {
+        val implementsCommandHandler = declaration.isOrImplements(commandHandlerFq)
+        val implementsQueryHandler = declaration.isOrImplements(queryHandlerFq)
+        val implementsCapabilityHandler = declaration.isOrImplements(capabilityHandlerFq)
+        if (implementsCommandHandler) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.commandhandler))
-            val cmdReqClass = resolveRequestClassFromHandlerInterface(declaration, commandInterfaceFq)
+            val cmdReqClass = resolveRequestClassFromHandlerInterface(declaration, commandHandlerFq)
             val cmdReqFq = cmdReqClass?.fqNameWhenAvailable?.asString()
             if (cmdReqClass != null && cmdReqFq != null) {
                 addNode(Node(id = cmdReqFq, name = cmdReqClass.nestedSimpleName(), fullName = cmdReqFq, type = NodeType.command))
                 handlerToCommand[fqcn] = cmdReqFq
-                requestKindByFq[cmdReqFq] = RequestKind.COMMAND
                 addRel(Relationship(fromId = cmdReqFq, toId = fqcn, type = RelationshipType.CommandToCommandHandler))
             }
-        } else if (implementsQuery) {
+        } else if (implementsQueryHandler) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.queryhandler))
-            val qryReqClass = resolveRequestClassFromHandlerInterface(declaration, queryInterfaceFq)
+            val qryReqClass = resolveRequestClassFromHandlerInterface(declaration, queryHandlerFq)
             val qryReqFq = qryReqClass?.fqNameWhenAvailable?.asString()
             if (qryReqClass != null && qryReqFq != null) {
                 addNode(Node(id = qryReqFq, name = qryReqClass.nestedSimpleName(), fullName = qryReqFq, type = NodeType.query))
-                requestKindByFq[qryReqFq] = RequestKind.QUERY
                 addRel(Relationship(fromId = qryReqFq, toId = fqcn, type = RelationshipType.QueryToQueryHandler))
             }
-        } else if (implementsRequestHandler) {
-            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.clihandler))
-            val cliReqClass = resolveRequestClassFromHandlerInterface(declaration, requestHandlerFq)
-            val cliReqFq = cliReqClass?.fqNameWhenAvailable?.asString()
-            if (cliReqClass != null && cliReqFq != null) {
-                addNode(Node(id = cliReqFq, name = cliReqClass.nestedSimpleName(), fullName = cliReqFq, type = NodeType.cli))
-                requestKindByFq[cliReqFq] = RequestKind.CLI
-                addRel(Relationship(fromId = cliReqFq, toId = fqcn, type = RelationshipType.CliToCliHandler))
+        } else if (implementsCapabilityHandler) {
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.capabilityhandler))
+            val capabilityCallClass = resolveRequestClassFromHandlerInterface(declaration, capabilityHandlerFq)
+            val capabilityCallFq = capabilityCallClass?.fqNameWhenAvailable?.asString()
+            if (capabilityCallClass != null && capabilityCallFq != null) {
+                addNode(Node(id = capabilityCallFq, name = capabilityCallClass.nestedSimpleName(), fullName = capabilityCallFq, type = NodeType.capability))
+                addRel(Relationship(fromId = capabilityCallFq, toId = fqcn, type = RelationshipType.CapabilityToCapabilityHandler))
             }
         }
 
@@ -410,7 +408,6 @@ private class GraphCollector(
 
         val createdAggregates = mutableSetOf<String>()
         val removedAggregates = mutableSetOf<String>()
-        var saveCalled = false
         var senderMethodAdded = false
         var validatorNodeAdded = false
 
@@ -423,8 +420,21 @@ private class GraphCollector(
                 val calleeName = expression.symbol.owner.name.asString()
                 val ownerClass = expression.symbol.owner.parent as? IrClass
                 val receiverClass = expression.dispatchReceiverClass()
-                val isRequestSupervisor = receiverClass?.isOrImplements(requestSupervisorFq) == true ||
-                    ownerClass?.isOrImplements(requestSupervisorFq) == true
+                val applicationCallKind = when {
+                    calleeName == "send" && (
+                        receiverClass?.isOrImplements(commandSupervisorFq) == true ||
+                            ownerClass?.isOrImplements(commandSupervisorFq) == true
+                        ) -> ApplicationCallKind.COMMAND
+                    calleeName == "ask" && (
+                        receiverClass?.isOrImplements(querySupervisorFq) == true ||
+                            ownerClass?.isOrImplements(querySupervisorFq) == true
+                        ) -> ApplicationCallKind.QUERY
+                    calleeName == "call" && (
+                        receiverClass?.isOrImplements(capabilitySupervisorFq) == true ||
+                            ownerClass?.isOrImplements(capabilitySupervisorFq) == true
+                        ) -> ApplicationCallKind.CAPABILITY
+                    else -> null
+                }
                 val isAggregateFactorySupervisor = receiverClass?.isOrImplements(aggregateFactorySupervisorFq) == true ||
                     ownerClass?.isOrImplements(aggregateFactorySupervisorFq) == true
                 val isUnitOfWork = receiverClass?.isOrImplements(unitOfWorkFq) == true ||
@@ -433,15 +443,19 @@ private class GraphCollector(
                 val isRepositorySupervisor = receiverClass?.isOrImplements(repositorySupervisorFq) == true ||
                     ownerClass?.isOrImplements(repositorySupervisorFq) == true
 
-                if (calleeName == "send" && isRequestSupervisor) {
-                    val requestClass = resolveRequestClassFromExpression(expression.valueArgumentOrNull(0))
+                if (applicationCallKind != null) {
+                    val markerFq = when (applicationCallKind) {
+                        ApplicationCallKind.COMMAND -> commandInterfaceFq
+                        ApplicationCallKind.QUERY -> queryInterfaceFq
+                        ApplicationCallKind.CAPABILITY -> capabilityCallFq
+                    }
+                    val requestClass = resolveRequestClassFromExpression(expression.valueArgumentOrNull(0), markerFq)
                     val requestFq = requestClass?.fqNameWhenAvailable?.asString()
                     if (requestClass != null && requestFq != null) {
-                        val requestKind = classifyRequestKind(requestClass)
-                        val nodeType = when (requestKind) {
-                            RequestKind.COMMAND -> NodeType.command
-                            RequestKind.QUERY -> NodeType.query
-                            RequestKind.CLI -> NodeType.cli
+                        val nodeType = when (applicationCallKind) {
+                            ApplicationCallKind.COMMAND -> NodeType.command
+                            ApplicationCallKind.QUERY -> NodeType.query
+                            ApplicationCallKind.CAPABILITY -> NodeType.capability
                         }
                         val requestDisplayName = requestClass.nestedSimpleName()
                         addNode(Node(id = requestFq, name = requestDisplayName, fullName = requestFq, type = nodeType))
@@ -450,7 +464,7 @@ private class GraphCollector(
                         val senderId = methodId
                         val controllerRoots = if (ctx == FunctionCtx.OTHER) controllerRootsByMethod[senderId].orEmpty() else emptySet()
                         if (controllerRoots.isNotEmpty()) {
-                            val relType = relationshipTypeForSend(requestKind, FunctionCtx.CONTROLLER_METHOD)
+                            val relType = relationshipTypeForSend(applicationCallKind, FunctionCtx.CONTROLLER_METHOD)
                             controllerRoots.forEach { rootId ->
                                 addRel(Relationship(fromId = rootId, toId = requestFq, type = relType))
                             }
@@ -458,7 +472,7 @@ private class GraphCollector(
                             return
                         }
 
-                        val relType = relationshipTypeForSend(requestKind, ctx)
+                        val relType = relationshipTypeForSend(applicationCallKind, ctx)
                         if (ctx == FunctionCtx.VALIDATOR && !validatorNodeAdded) {
                             addNode(Node(id = senderId, name = methodDisplayName, fullName = senderId, type = NodeType.validator))
                             validatorNodeAdded = true
@@ -482,10 +496,6 @@ private class GraphCollector(
                         addRel(Relationship(fromId = handlerId, toId = aggRootFq, type = RelationshipType.CommandHandlerToAggregate))
                         createdAggregates.add(aggRootFq)
                     }
-                }
-
-                if ((calleeName == "save" || calleeName == "save\$default") && isUnitOfWork) {
-                    saveCalled = true
                 }
 
                 if (options.includeRepoUow && calleeName == "remove" && isUnitOfWork) {
@@ -562,22 +572,12 @@ private class GraphCollector(
             }
         })
 
-        if (saveCalled && handlerIdForFunction != null) {
+        if (handlerIdForFunction != null) {
             createdAggregates.forEach { aggFq ->
-                val methodName = pickLifecycleMethod(aggFq, "onCreate", "onCreate")
-                val methodId = "$aggFq::$methodName"
-                val displayName = buildMethodDisplayNameFromFqcn(aggFq, methodName)
-                addNode(Node(id = methodId, name = displayName, fullName = methodId, type = NodeType.entitymethod))
-                addRel(Relationship(fromId = handlerIdForFunction, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
-                addRel(Relationship(fromId = aggFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
+                addOptionalLifecycleRelationship(handlerIdForFunction, aggFq, "onCreate")
             }
             removedAggregates.forEach { aggFq ->
-                val methodName = pickLifecycleMethod(aggFq, "onDelete", "onRemove")
-                val methodId = "$aggFq::$methodName"
-                val displayName = buildMethodDisplayNameFromFqcn(aggFq, methodName)
-                addNode(Node(id = methodId, name = displayName, fullName = methodId, type = NodeType.entitymethod))
-                addRel(Relationship(fromId = handlerIdForFunction, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
-                addRel(Relationship(fromId = aggFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
+                addOptionalLifecycleRelationship(handlerIdForFunction, aggFq, "onDeleted")
             }
         }
 
@@ -595,29 +595,13 @@ private class GraphCollector(
         return simple.classifier?.owner as? IrClass
     }
 
-    private fun resolveRequestClassFromExpression(expression: IrExpression?): IrClass? {
+    private fun resolveRequestClassFromExpression(expression: IrExpression?, markerFq: FqName): IrClass? {
         val unwrapped = expression?.unwrapExpression() ?: return null
         val ctorClass = (unwrapped as? IrConstructorCall)?.symbol?.owner?.parentAsClass
-        if (ctorClass != null && ctorClass.isOrImplements(requestParamFq)) return ctorClass
+        if (ctorClass != null && ctorClass.isOrImplements(markerFq)) return ctorClass
         val type = unwrapped.type as? IrSimpleType ?: return null
         val cls = type.classifier?.owner as? IrClass ?: return null
-        return if (cls.isOrImplements(requestParamFq)) cls else null
-    }
-
-    private fun classifyRequestKind(requestClass: IrClass): RequestKind {
-        val fq = requestClass.fqNameWhenAvailable?.asString() ?: return RequestKind.COMMAND
-        requestKindByFq[fq]?.let { return it }
-        val parentClass = requestClass.parent as? IrClass
-        val parentName = parentClass?.name?.asString().orEmpty()
-        val parentFq = parentClass?.fqNameWhenAvailable?.asString().orEmpty()
-        val kind = when {
-            parentName.endsWith("Qry") || parentFq.contains(".queries.") -> RequestKind.QUERY
-            parentName.endsWith("Cli") || parentFq.contains(".distributed.clients.") -> RequestKind.CLI
-            parentName.endsWith("Cmd") || parentFq.contains(".commands.") -> RequestKind.COMMAND
-            else -> RequestKind.COMMAND
-        }
-        requestKindByFq[fq] = kind
-        return kind
+        return if (cls.isOrImplements(markerFq)) cls else null
     }
 
     private fun resolvePayloadClassFromExpression(expression: IrExpression?): IrClass? {
@@ -737,13 +721,14 @@ private class GraphCollector(
         return paramType.classifier?.owner as? IrClass
     }
 
-    private fun pickLifecycleMethod(aggFq: String, primary: String, fallback: String): String {
-        val methods = index.entityMethodNamesByClass[aggFq].orEmpty()
-        return when {
-            methods.contains(primary) -> primary
-            methods.contains(fallback) -> fallback
-            else -> primary
-        }
+    private fun addOptionalLifecycleRelationship(handlerId: String, aggregateFq: String, methodName: String) {
+        if (methodName !in index.entityMethodNamesByClass[aggregateFq].orEmpty()) return
+
+        val methodId = "$aggregateFq::$methodName"
+        val displayName = buildMethodDisplayNameFromFqcn(aggregateFq, methodName)
+        addNode(Node(id = methodId, name = displayName, fullName = methodId, type = NodeType.entitymethod))
+        addRel(Relationship(fromId = handlerId, toId = methodId, type = RelationshipType.CommandHandlerToEntityMethod))
+        addRel(Relationship(fromId = aggregateFq, toId = methodId, type = RelationshipType.AggregateToEntityMethod))
     }
 
     private fun isDomainEventClass(irClass: IrClass): Boolean {
@@ -788,32 +773,32 @@ private enum class FunctionCtx {
     OTHER
 }
 
-private enum class RequestKind {
+private enum class ApplicationCallKind {
     COMMAND,
     QUERY,
-    CLI
+    CAPABILITY
 }
 
-private fun relationshipTypeForSend(kind: RequestKind, ctx: FunctionCtx?): RelationshipType {
+private fun relationshipTypeForSend(kind: ApplicationCallKind, ctx: FunctionCtx?): RelationshipType {
     return when (kind) {
-        RequestKind.COMMAND -> when (ctx) {
+        ApplicationCallKind.COMMAND -> when (ctx) {
             FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToCommand
             FunctionCtx.DOMAIN_EVENT_HANDLER -> RelationshipType.DomainEventHandlerToCommand
             FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToCommand
             else -> RelationshipType.CommandSenderMethodToCommand
         }
-        RequestKind.QUERY -> when (ctx) {
+        ApplicationCallKind.QUERY -> when (ctx) {
             FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToQuery
             FunctionCtx.DOMAIN_EVENT_HANDLER -> RelationshipType.DomainEventHandlerToQuery
             FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToQuery
             FunctionCtx.VALIDATOR -> RelationshipType.ValidatorToQuery
             else -> RelationshipType.QuerySenderMethodToQuery
         }
-        RequestKind.CLI -> when (ctx) {
-            FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToCli
-            FunctionCtx.DOMAIN_EVENT_HANDLER -> RelationshipType.DomainEventHandlerToCli
-            FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToCli
-            else -> RelationshipType.CliSenderMethodToCli
+        ApplicationCallKind.CAPABILITY -> when (ctx) {
+            FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToCapability
+            FunctionCtx.DOMAIN_EVENT_HANDLER -> RelationshipType.DomainEventHandlerToCapability
+            FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToCapability
+            else -> RelationshipType.CapabilitySenderMethodToCapability
         }
     }
 }
@@ -850,7 +835,7 @@ private fun senderNodeTypeForRel(relType: RelationshipType): NodeType {
     return when (relType) {
         RelationshipType.CommandSenderMethodToCommand -> NodeType.commandsendermethod
         RelationshipType.QuerySenderMethodToQuery -> NodeType.querysendermethod
-        RelationshipType.CliSenderMethodToCli -> NodeType.clisendermethod
+        RelationshipType.CapabilitySenderMethodToCapability -> NodeType.capabilitysendermethod
         else -> NodeType.commandsendermethod
     }
 }
@@ -858,7 +843,7 @@ private fun senderNodeTypeForRel(relType: RelationshipType): NodeType {
 private fun RelationshipType.isSenderMethodRel(): Boolean {
     return this == RelationshipType.CommandSenderMethodToCommand ||
         this == RelationshipType.QuerySenderMethodToQuery ||
-        this == RelationshipType.CliSenderMethodToCli
+        this == RelationshipType.CapabilitySenderMethodToCapability
 }
 
 private fun resolveTypeArgumentInHierarchyFromClass(

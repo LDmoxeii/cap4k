@@ -10,9 +10,9 @@ Aggregate Root 是领域模型的事务一致性边界。它负责保护一组�
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`ContentBehavior.kt` 是阅读 Aggregate 行为的直接锚点，展示 `Content` 如何围绕发布准备、review approval、媒体处理和 `ContentPublicationReadyDomainEvent` 保护边界。
 
-设计边界要围绕“一次事务必须一致”的问题来划定。跨聚合协作不应该靠一个 Aggregate 直接修改另一个 Aggregate；可以通过 Domain Event、Integration Event、Saga 或应用层 command 编排完成。常见误用包括把 Aggregate 做成贫血数据容器、让内部 Entity 暴露独立保存入口、把外部 HTTP 协议字段放进 Aggregate、或为了代码复用把多个业务生命周期塞进一个 Root。
+设计边界要围绕“一次事务必须一致”的问题来划定。跨聚合协作不应该靠一个 Aggregate 直接修改另一个 Aggregate；可以通过 Domain Event、Integration Event、可靠 Command、应用层编排，或在确有跨时间进度时选择 provider-owned orchestration。常见误用包括把 Aggregate 做成贫血数据容器、让内部 Entity 暴露独立保存入口、把外部 HTTP 协议字段放进 Aggregate、或为了代码复用把多个业务生命周期塞进一个 Root。
 
-判断 Aggregate 是否用对时，可以看不变量是否集中在 Root 行为中，Command 是否只通过 Root 进入写入，Repository 是否只承担聚合级读取，Unit of Work 是否承担持久化意图和提交，领域事件是否发生在状态变化之后，以及生成骨架与手写业务逻辑的边界是否清晰。
+判断 Aggregate 是否用对时，可以看不变量是否集中在 Root 行为中，Command 是否只通过 Root 进入写入，Repository 是否只承担聚合级读取，外层 Command 是否自动完成 Unit of Work，领域事件是否发生在状态变化之后，以及生成骨架与手写业务逻辑的边界是否清晰。Root behavior 可选提供 `onCreate()` 和 `onDeleted()` 登记相应领域事实；空回调可删除，不提供泛化的更新回调生命周期。
 
 <!-- IMAGE_PROMPT:
 Purpose: 帮助读者理解 Aggregate Root 是事务一致性边界和命令写入口。
