@@ -2,7 +2,7 @@
 
 Command 表达一次希望改变业务状态的应用层意图。它不是任意参数对象，也不是把 controller request 原样搬进 domain layer；它应该让读者一眼看出“用户或系统想让业务发生什么变化”，例如发布内容、启动媒体处理、尝试开启 paid publication。
 
-当一个用例需要修改 Aggregate 状态、触发领域行为、登记可靠异步工作或释放事件时，应建模为 Command。Command handler 拥有这次应用层写入流程的组织权：它负责通过 Repository 读取所需聚合，调用 Aggregate 行为方法，协调必要的 application collaborator，并把持久化意图交给 Unit of Work。外层 Command 自动创建 REQUIRED transaction、稳定化并完成 Unit of Work；嵌套 Command 加入同一事务和 UoW。真正的业务不变量仍在 Aggregate 内部，不应散落在 handler 的流程判断里。
+当一个用例需要修改 Aggregate 状态、触发领域行为、登记可靠异步工作或释放事件时，应建模为 Command。Command handler 负责通过 Repository 读取所需聚合、调用 Aggregate 行为并协调必要 collaborator。加载的 Aggregate 保持 managed，Factory/Repository 分别登记 root CREATE/DELETE，实际更新由 dirty checking 识别；应用代码不手动 save。外层 Command 自动创建 REQUIRED transaction、稳定化并完成 Unit of Work，嵌套 Command 加入同一事务和 UoW。
 
 在 cap4k 中，`command` design tag 可以让 generator 生成 Command、handler 入口和稳定命名。生成骨架表达的是“这里有一个写入用例入口”；具体字段含义、权限上下文、聚合行为调用、异常分支、事件释放条件和保存顺序必须由手写逻辑完成。Command handler 应该让流程清楚，但不替代 domain model 做决定。
 

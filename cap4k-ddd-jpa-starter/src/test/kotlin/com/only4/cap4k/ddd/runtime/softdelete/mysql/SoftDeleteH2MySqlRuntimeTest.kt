@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.runtime.softdelete.mysql
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
@@ -77,7 +79,6 @@ class SoftDeleteH2MySqlRuntimeTest {
     @BeforeEach
     fun resetUnitOfWork() {
         JpaUnitOfWork.reset()
-        JpaUnitOfWork.fixAopWrapper(unitOfWork)
     }
 
     @Test
@@ -100,7 +101,7 @@ class SoftDeleteH2MySqlRuntimeTest {
         assertEquals(0L, activeRow.deleted)
 
         unitOfWork.execute {
-            unitOfWork.remove(snowflakeLongRepository.findById(id).orElseThrow())
+            unitOfWork.registerDelete(snowflakeLongRepository.findById(id).orElseThrow())
         }
         entityManager.clear()
 
@@ -129,7 +130,7 @@ class SoftDeleteH2MySqlRuntimeTest {
         )
 
         unitOfWork.execute {
-            unitOfWork.remove(snowflakeStringRepository.findById(id).orElseThrow())
+            unitOfWork.registerDelete(snowflakeStringRepository.findById(id).orElseThrow())
         }
         entityManager.clear()
 
@@ -158,7 +159,7 @@ class SoftDeleteH2MySqlRuntimeTest {
         )
 
         unitOfWork.execute {
-            unitOfWork.remove(nativeUuidRepository.findById(id).orElseThrow())
+            unitOfWork.registerDelete(nativeUuidRepository.findById(id).orElseThrow())
         }
         entityManager.clear()
 
@@ -177,7 +178,8 @@ class SoftDeleteH2MySqlRuntimeTest {
                 MySqlSnowflakeStringFactory(),
                 MySqlNativeUuidFactory(),
             ),
-            unitOfWork = unitOfWork,
+            persistenceIntents = unitOfWork,
+            invocationScopeAccessor = InvocationScopeAccessor { InvocationKind.COMMAND },
         ).apply { init() }
 
     private fun columnType(tableName: String, columnName: String): String =

@@ -27,6 +27,7 @@
 - [Repository](execution-and-ownership/repository.md)
 - [Unit Of Work](execution-and-ownership/unit-of-work.md)
 - [Mediator](execution-and-ownership/mediator.md)
+- [Execution Context And Invocation Scope](execution-and-ownership/execution-context-and-invocation-scope.md)
 - [External Capability Anti-Corruption Layer](execution-and-ownership/external-capability-anti-corruption-layer.md)
 - [Generated Skeleton And Handwritten Logic](execution-and-ownership/generated-skeleton-and-handwritten-logic.md)
 

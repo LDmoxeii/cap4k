@@ -22,7 +22,7 @@ cap4k generation 可以为 Command、Query、Capability、Subscriber、Scheduled
 
 ## 手写逻辑
 
-手写逻辑应该落在 Command/Query Handler、Subscriber reaction、Scheduled Reaction 和 Capability 使用处。它负责加载目标 Aggregate、调用 domain behavior、登记持久化意图、通过 Mediator 的明确分类分发行为、表达 no-op 或 retreat 原因，并在需要时调用 Capability contract。外层 Command 自动稳定化与提交，无需手动 `save()`。
+手写逻辑应该落在 Command/Query Handler、Subscriber reaction、Scheduled Reaction 和 Capability 使用处。它负责通过 Repository/Factory 取得 managed 或 new Aggregate、调用 domain behavior、通过 Mediator 的明确分类分发行为、表达 no-op 或 retreat 原因，并在需要时调用 Capability contract。外层 Command 自动观察、稳定化与提交，无需也不能手动控制 UoW。
 
 参考项目锚点包括 `PublishContentCmd`、`StartMediaProcessingCmd`、`GetContentDetailQry`、`ContentPublicationReadyDomainEventSubscriber`、`MediaProcessingCallbackIntegrationEventSubscriber`、`MediaProcessingPollingFallbackJob`、`TriggerMediaProcessing` 和 `GetMediaProcessingStatus`。
 

@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.ProviderUnavailableException
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
@@ -22,6 +24,9 @@ open class DefaultDomainEventSupervisor(
     private val eventSubscriberManager: EventSubscriberManager,
     private val reliableDomainEventProvider: ReliableDomainEventProvider? = null,
     private val integrationEventManager: IntegrationEventManager? = null,
+    private val executionContextAccessor: ExecutionContextAccessor = ExecutionContextAccessor {
+        ExecutionContextSnapshot.EMPTY
+    },
 ) : DomainEventSupervisor, DomainEventManager {
 
     companion object {
@@ -36,7 +41,10 @@ open class DefaultDomainEventSupervisor(
     ) {
         validateDomainEvent(domainEventPayload)
         EventRuntimeContext.attachmentScope()
-            .attachDomain(entity, EventAttachment.eager(domainEventPayload, schedule))
+            .attachDomain(
+                entity,
+                EventAttachment.eager(domainEventPayload, schedule, executionContextAccessor.current()),
+            )
         domainEventInterceptorManager.orderedDomainEventInterceptors
             .forEach { it.onAttach(domainEventPayload, entity, schedule) }
     }
@@ -47,7 +55,10 @@ open class DefaultDomainEventSupervisor(
         domainEventPayloadSupplier: () -> DOMAIN_EVENT,
     ) {
         EventRuntimeContext.attachmentScope()
-            .attachDomain(entity, EventAttachment.lazy(schedule, domainEventPayloadSupplier))
+            .attachDomain(
+                entity,
+                EventAttachment.lazy(schedule, executionContextAccessor.current(), domainEventPayloadSupplier),
+            )
     }
 
     override fun <DOMAIN_EVENT : Any, ENTITY : Any> detach(domainEventPayload: DOMAIN_EVENT, entity: ENTITY) {
@@ -76,7 +87,7 @@ open class DefaultDomainEventSupervisor(
                 val eventPayload = attachment.resolve()
                 validateDomainEvent(eventPayload)
                 if (requiresReliableProvider(eventPayload, attachment.schedule, now)) {
-                    reliableProvider().publish(eventPayload, attachment.schedule)
+                    reliableProvider().publish(eventPayload, attachment.schedule, attachment.executionContext)
                 } else {
                     publishLocal(eventPayload)
                 }
@@ -150,7 +161,8 @@ open class DefaultDomainEventSupervisor(
         val events = (domainEventsMethod.invoke(entity) as? Collection<*>)?.filterNotNull().orEmpty()
         clearDomainEventsMethod?.invoke(entity)
         val now = LocalDateTime.now()
-        return events.map { EventAttachment.eager(it, now) }
+        val executionContext = executionContextAccessor.current()
+        return events.map { EventAttachment.eager(it, now, executionContext) }
     }
 
     private fun validateDomainEvent(eventPayload: Any) {

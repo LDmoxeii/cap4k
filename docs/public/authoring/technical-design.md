@@ -62,7 +62,7 @@ Scheduled Reaction 表达定时或轮询触发的 application reaction。参考�
 
 ## Persistence Expectations
 
-persistence design 要服务 Aggregate ownership。schema 可以表达聚合表、ID、引用、enum type marker、JSON-backed value marker 和唯一约束；Repository 负责按聚合读取，Unit of Work 负责持久化意图和提交。不要把数据库外键或查询便利性误当作跨聚合可写引用。
+persistence design 要服务 Aggregate ownership。schema 可以表达聚合表、ID、引用、enum type marker、JSON-backed value marker 和唯一约束；Repository 负责按聚合读取和 root 删除，Factory 表达 root 创建，外层 Command UoW 自动观察 managed changes 并提交。不要把数据库外键或查询便利性误当作跨聚合可写引用。
 
 参考项目 schema 中，`content`、`media_processing_task` 和 `paid_publication_task` 都是不带 `@Parent` 或 `@Ignore` 的 Aggregate Root 表；`media_processing_task.result_snapshot` 通过 `@Type=MediaProcessingResultSnapshot;` 指向 JSON-backed Value Object；`release_policy` 通过 `@Type=ReleasePolicy;` 指向 enum manifest。technical design 要确认这些 persistence facts 和模型一致。
 

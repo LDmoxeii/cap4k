@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.application.command.persistence.ArchivedCommandRecord
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
 import com.only4.cap4k.ddd.application.command.configure.CommandProperties
 import com.only4.cap4k.ddd.application.command.configure.CommandScheduleProperties
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.CommandManager
 import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
@@ -15,6 +15,10 @@ import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandTransaction
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import com.only4.cap4k.ddd.core.application.command.impl.DefaultReliableCommandSupervisor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import jakarta.validation.Validator
 import org.springframework.beans.factory.ObjectProvider
@@ -52,10 +56,14 @@ class CommandJpaAutoConfiguration {
     @ConditionalOnMissingBean(ReliableCommandSupervisor::class)
     fun reliableCommandSupervisor(
         commandSupervisor: CommandSupervisor,
-        unitOfWork: UnitOfWork,
+        unitOfWork: CommandUnitOfWorkCoordinator,
         transaction: ReliableCommandTransaction,
         validatorProvider: ObjectProvider<Validator>,
         commandRecordRepository: CommandRecordRepository,
+        executionContextAccessor: ExecutionContextAccessor,
+        executionContextScopeManager: ExecutionContextScopeManager,
+        executionContextCodecRegistry: ExecutionContextCodecRegistry,
+        invocationScopeAccessor: InvocationScopeAccessor,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
         properties: CommandProperties,
     ): DefaultReliableCommandSupervisor = DefaultReliableCommandSupervisor(
@@ -67,6 +75,10 @@ class CommandJpaAutoConfiguration {
         serviceName = serviceName,
         threadPoolSize = properties.commandScheduleThreadPoolSize,
         threadFactoryClassName = properties.commandScheduleThreadFactoryClassName,
+        executionContextAccessor = executionContextAccessor,
+        executionContextScopeManager = executionContextScopeManager,
+        executionContextCodecRegistry = executionContextCodecRegistry,
+        invocationScopeAccessor = invocationScopeAccessor,
     ).apply(DefaultReliableCommandSupervisor::init)
 
     @Bean

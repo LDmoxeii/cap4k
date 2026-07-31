@@ -3,10 +3,14 @@ package com.only4.cap4k.ddd.application.event
 import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -33,7 +37,11 @@ class RocketMqIntegrationEventSubscriberAdapter(
     private val eventTypeCatalog: EventTypeCatalog,
     private val applicationName: String,
     private val defaultNameSrv: String,
-    private val msgCharset: String
+    private val msgCharset: String,
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+    private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
+        AutoCloseable { }
+    },
 ) {
 
     companion object {
@@ -134,11 +142,18 @@ class RocketMqIntegrationEventSubscriberAdapter(
         msgs.forEach { msg ->
             log.info("集成事件消费，msgId=${msg.msgId}")
             val eventPayload = msg.parseEventPayload(integrationEventClass)
-
-            if (orderedEventMessageInterceptors.isEmpty()) {
-                eventSubscriberManager.dispatch(eventPayload)
-            } else {
-                processWithInterceptors(msg, eventPayload)
+            val executionContext = executionContextCodecRegistry.decodeExternal(
+                IntegrationEventExecutionContextEnvelope.decode(
+                    msg.properties[HEADER_KEY_CAP4K_EXECUTION_CONTEXT],
+                ),
+                ExecutionContextBoundary.INTEGRATION_EVENT,
+            )
+            executionContextScopeManager.install(executionContext).use {
+                if (orderedEventMessageInterceptors.isEmpty()) {
+                    eventSubscriberManager.dispatch(eventPayload)
+                } else {
+                    processWithInterceptors(msg, eventPayload)
+                }
             }
         }
         ConsumeConcurrentlyStatus.CONSUME_SUCCESS

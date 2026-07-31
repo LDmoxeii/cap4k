@@ -25,6 +25,9 @@ class RocketMqIntegrationEventStarterBoundaryTest {
                 EventRecordRepository::class.java,
                 com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager::class.java,
                 org.springframework.context.ApplicationEventPublisher::class.java,
+                com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor::class.java,
+                com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry::class.java,
+                com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor::class.java,
                 String::class.java,
             )
             .parameterTypes

@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event
 
+import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import org.springframework.messaging.Message
 import java.time.Duration
 import java.time.LocalDateTime
@@ -24,7 +25,8 @@ interface EventRecord {
         svcName: String,
         scheduleAt: LocalDateTime,
         expireAfter: Duration,
-        retryTimes: Int
+        retryTimes: Int,
+        executionContext: Collection<EncodedExecutionContextElement> = emptyList(),
     )
 
     /**
@@ -44,6 +46,9 @@ interface EventRecord {
      * @return
      */
     val payload: Any
+
+    /** Encoded origin attribution retained unchanged by the durable record. */
+    val executionContext: List<EncodedExecutionContextElement>
 
     /**
      * 获取计划发送时间

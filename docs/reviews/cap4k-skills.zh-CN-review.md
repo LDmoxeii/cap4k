@@ -13,7 +13,7 @@
 - 完整 authoring 流程是：业务发现 -> 战术建模 -> 技术设计 -> 生成器输入 -> 生成审查 -> 手写实现 -> 验证审计。
 - 生成后必须停下来给人审查生成 diff、输出所有权和 plan 对齐情况；不能自动继续到手写实现。
 - 结构性文件优先由 cap4k 生成器产生；缺失的生成支持应回滚到技术设计或生成器输入，而不是手写平行结构。
-- Repository 负责聚合读取、访问、装载；Unit of Work 负责持久化意图、删除意图、提交和保存边界。
+- Repository 负责聚合读取、访问、装载和 root 删除入口；外层 Command Unit of Work 自动负责变化识别、稳定化和提交边界。
 - 传输层 HTTP/message 消费、解析、注册和分发属于 framework/runtime；业务 subscriber 只处理类型化外部事实的解释、幂等、语义翻译和委托。
 - 验证声明必须匹配证据模式：`static-only` 不能被说成完整验证，跳过项必须披露。
 
@@ -829,7 +829,7 @@ Saga 补偿：
 - adapter client handler 映射 provider protocol、credentials、status codes、DTOs。
 - capability 属于写 use case 时，由 command handler 调用。
 - aggregate behavior 接收已翻译结果并记录业务状态。
-- Domain behavior 改变状态后，UoW 通过 framework capability 记录持久化意图。
+- Domain behavior 改变状态后，外层 Command Unit of Work 自动识别并稳定化持久化变化。
 
 验证证据：
 
@@ -1323,9 +1323,9 @@ Conflict policy：
 
 Repository：
 
-- Repository 以 read/access/load 为主，可以按 identity、IDs 或 specification 恢复 aggregates，并在支持时使用 aggregate load plans。
+- Repository 以 read/access/load 为主，可以按 identity、IDs 或 specification 恢复 managed aggregates，并提供 root 删除入口。
 - 它不拥有 commit semantics。
-- Agent 规则：不要描述为 save owner。Command path 通过 Repository 加载 aggregates，通过 Unit of Work 持久化意图。
+- Agent 规则：不要描述为 save owner。Command path 通过 Repository 加载 aggregates，持久化由外层 Command Unit of Work 自动完成。
 
 Unit Of Work：
 

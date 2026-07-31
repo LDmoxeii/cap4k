@@ -2,7 +2,7 @@
 
 Unit of Work 是外层 Command 拥有的应用写入边界。它关注一次物理事务中哪些聚合变化、审计 enrich、同步 Domain Event frontier、可靠 Command 和 Integration Event 登记应作为同一个应用结果稳定化并提交，而不是解释 JPA、事务代理或数据库内部机制的细节。
 
-Command handler 加载 Aggregate、调用领域行为并返回后，外层 Coordinator 自动反复执行候选变化识别、审计 enrich、最终变化识别、provider flush 与同步事件 frontier，直到状态稳定。应用代码不需要调用 `save()`。高级 `flush()` 只同步数据库并推进 provider baseline，不释放 Domain Event、提交事务或执行异步工作。Query 不自动创建 write UoW。
+Command handler 加载 Aggregate、调用领域行为并返回后，外层 Coordinator 自动反复执行候选变化识别、审计 enrich、最终变化识别、provider flush 与同步事件 frontier，直到状态稳定。应用代码不需要也不能调用 `save()`、`persist()` 或 `flush()`。Query 拥有 Handler 全程的只读事务，但不创建 write UoW。
 
 审计是持久化稳定化的一部分：先识别业务候选变化，再 enrich 审计字段，最后重新识别最终变化。子 Entity 的变化可以被处理，但当前实现不会因为子 Entity 单独变化就强制推进 Aggregate Root 的 version。
 
@@ -14,4 +14,4 @@ Unit of Work 不属于 domain dependency。Aggregate 不应为了保存自己而
 
 Unit of Work 的设计边界是“这次写入何时成为一个完成的业务结果”。常见误用包括把它写成 ORM 教程，把每个 Repository 方法都当成独立提交点，让 domain model 直接控制事务，或者在 Query 中为了缓存、统计而悄悄修改业务状态。需要恢复、重试或跨事务推进时，应使用可靠 Command、Integration Event、Scheduled Reaction 或显式 provider-owned orchestration，而不是扩大单次 Unit of Work。
 
-审查 Unit of Work 时，可以看 Command handler 是否有明确提交边界，待持久化对象是否通过 Unit of Work 收集和提交，事件释放是否与提交时机匹配，domain layer 是否没有依赖事务实现，以及文档或代码是否避免把 Unit of Work 误讲成 JPA internals。
+审查 Unit of Work 时，可以看 Command handler 是否依靠外层自动提交边界，Repository 加载的 managed Aggregate 是否由框架观察，Factory 创建和 Repository 删除是否形成明确 root intent，事件释放是否与提交时机匹配，以及 domain/application 代码是否没有直接控制 UoW 或 provider flush。

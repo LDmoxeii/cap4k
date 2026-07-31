@@ -1,13 +1,26 @@
 package com.only4.cap4k.ddd.core.application.command.impl
 
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
+import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationPolicy
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandRecord
 import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandTransaction
+import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
+import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -92,6 +105,7 @@ class DefaultReliableCommandSupervisorTest {
     @Test
     fun `worker dispatches the reliable command through a fresh command unit of work`() {
         val workerUnitOfWork = RecordingUnitOfWork()
+        val invocationScopes = DefaultInvocationScopeManager()
         var handlerObservedActiveUnitOfWork = false
         val commandSupervisor = DefaultCommandSupervisor(
             handlers = listOf(object : CommandHandler<TestCommand, String> {
@@ -103,6 +117,8 @@ class DefaultReliableCommandSupervisorTest {
             interceptors = emptyList(),
             validator = null,
             unitOfWorkProvider = { workerUnitOfWork },
+            invocationPolicy = InvocationPolicy(invocationScopes),
+            invocationScopeManager = invocationScopes,
         ).apply { init() }
         val repository = RecordingCommandRecordRepository()
         val record = repository.create().apply {
@@ -132,13 +148,77 @@ class DefaultReliableCommandSupervisorTest {
         assertTrue(record.isExecuted)
     }
 
+    @Test
+    fun `capability cannot register a reliable command even when caller runs inside a command uow`() {
+        val repository = RecordingCommandRecordRepository()
+        val supervisor = TestReliableCommandSupervisor(
+            commandSupervisor = UnusedCommandSupervisor,
+            repository = repository,
+            unitOfWork = StaticUnitOfWork(active = true),
+            transaction = RecordingTransaction(active = true),
+            invocationScopeAccessor = InvocationScopeAccessor { InvocationKind.CAPABILITY },
+        )
+
+        val failure = assertThrows<IllegalStateException> {
+            supervisor.schedule(TestCommand("blocked"), LocalDateTime.now())
+        }
+
+        assertTrue(failure.message.orEmpty().contains("COMMAND or DOMAIN_EVENT_HANDLER"))
+        assertEquals(0, repository.saveCount)
+    }
+
+    @Test
+    fun `registration context is restored for worker execution and then cleared`() {
+        val contextManager = DefaultExecutionContextManager()
+        val codecRegistry = ExecutionContextCodecRegistry(listOf(TestContextCodec))
+        val repository = RecordingCommandRecordRepository()
+        var observedContext: TestContext? = null
+        val commandSupervisor = object : CommandSupervisor {
+            @Suppress("UNCHECKED_CAST")
+            override fun <COMMAND : Command<RESULT>, RESULT : Any> send(command: COMMAND): RESULT {
+                observedContext = contextManager.current()[TestContextKey]
+                return "handled" as RESULT
+            }
+        }
+        val supervisor = TestReliableCommandSupervisor(
+            commandSupervisor = commandSupervisor,
+            repository = repository,
+            unitOfWork = StaticUnitOfWork(active = true),
+            transaction = RecordingTransaction(active = true),
+            executionContextAccessor = contextManager,
+            executionContextScopeManager = contextManager,
+            executionContextCodecRegistry = codecRegistry,
+        )
+        val origin = ExecutionContextSnapshot.builder()
+            .put(TestContextKey, TestContext("origin-actor"))
+            .build()
+
+        contextManager.install(origin).use {
+            supervisor.schedule(TestCommand("context"), LocalDateTime.now())
+        }
+        val record = repository.single().also { it.beginCommand(LocalDateTime.now()) }
+
+        supervisor.executeWorker(record.command, record)
+
+        assertEquals(TestContext("origin-actor"), observedContext)
+        assertTrue(contextManager.current().isEmpty)
+        assertEquals(
+            listOf(EncodedExecutionContextElement("test-context", 1, "origin-actor")),
+            record.executionContext,
+        )
+    }
+
     private data class TestCommand(val value: String) : Command<String>
 
     private class TestReliableCommandSupervisor(
         commandSupervisor: CommandSupervisor,
         repository: CommandRecordRepository,
-        unitOfWork: UnitOfWork,
+        unitOfWork: CommandUnitOfWorkCoordinator,
         transaction: ReliableCommandTransaction,
+        executionContextAccessor: ExecutionContextAccessor = ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
+        executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager { AutoCloseable { } },
+        executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+        invocationScopeAccessor: InvocationScopeAccessor = InvocationScopeAccessor { InvocationKind.COMMAND },
     ) : DefaultReliableCommandSupervisor(
         commandSupervisor = commandSupervisor,
         validator = null,
@@ -148,6 +228,10 @@ class DefaultReliableCommandSupervisorTest {
         serviceName = "test-service",
         threadPoolSize = 1,
         threadFactoryClassName = "",
+        executionContextAccessor = executionContextAccessor,
+        executionContextScopeManager = executionContextScopeManager,
+        executionContextCodecRegistry = executionContextCodecRegistry,
+        invocationScopeAccessor = invocationScopeAccessor,
     ) {
         var workerSignals: Int = 0
             private set
@@ -189,14 +273,11 @@ class DefaultReliableCommandSupervisorTest {
         }
     }
 
-    private class StaticUnitOfWork(override val active: Boolean) : UnitOfWork {
+    private class StaticUnitOfWork(override val active: Boolean) : CommandUnitOfWorkCoordinator {
         override fun <RESULT> execute(block: () -> RESULT): RESULT = block()
-        override fun persist(entity: Any, intent: PersistIntent) = Unit
-        override fun remove(entity: Any) = Unit
-        override fun flush() = Unit
     }
 
-    private class RecordingUnitOfWork : UnitOfWork {
+    private class RecordingUnitOfWork : CommandUnitOfWorkCoordinator {
         private var depth: Int = 0
         var executionCount: Int = 0
             private set
@@ -214,9 +295,6 @@ class DefaultReliableCommandSupervisorTest {
             }
         }
 
-        override fun persist(entity: Any, intent: PersistIntent) = Unit
-        override fun remove(entity: Any) = Unit
-        override fun flush() = check(active)
     }
 
     private class RecordingCommandRecordRepository : CommandRecordRepository {
@@ -240,6 +318,8 @@ class DefaultReliableCommandSupervisorTest {
         ): List<CommandRecord> = records.values.take(limit)
 
         override fun archiveByExpireAt(serviceName: String, maxExpireAt: LocalDateTime, limit: Int): Int = 0
+
+        fun single(): CommandRecord = records.values.single()
     }
 
     private class TestCommandRecord : CommandRecord {
@@ -252,6 +332,8 @@ class DefaultReliableCommandSupervisorTest {
         override lateinit var type: String
         override val command: Command<*>
             get() = payload
+        override var executionContext: List<EncodedExecutionContextElement> = emptyList()
+            private set
         override lateinit var scheduleTime: LocalDateTime
         override lateinit var nextTryTime: LocalDateTime
         override val isValid: Boolean
@@ -270,11 +352,13 @@ class DefaultReliableCommandSupervisorTest {
             scheduleAt: LocalDateTime,
             expireAfter: Duration,
             retryTimes: Int,
+            executionContext: Collection<EncodedExecutionContextElement>,
         ) {
             payload = command
             type = commandType
             scheduleTime = scheduleAt
             nextTryTime = scheduleAt
+            this.executionContext = executionContext.toList()
         }
 
         @Suppress("UNCHECKED_CAST")
@@ -304,6 +388,22 @@ class DefaultReliableCommandSupervisorTest {
 
         private companion object {
             var nextId: Int = 1
+        }
+    }
+
+    private data class TestContext(val actor: String) : ExecutionContextElement
+
+    private companion object {
+        val TestContextKey = ExecutionContextKey("test-context", TestContext::class.java)
+
+        val TestContextCodec = object : ExecutionContextElementCodec<TestContext> {
+            override val key: ExecutionContextKey<TestContext> = TestContextKey
+            override val version: Int = 1
+            override val boundaries: Set<ExecutionContextBoundary> = setOf(ExecutionContextBoundary.RELIABLE_COMMAND)
+
+            override fun encode(element: TestContext): String = element.actor
+
+            override fun decode(value: String): TestContext = TestContext(value)
         }
     }
 }

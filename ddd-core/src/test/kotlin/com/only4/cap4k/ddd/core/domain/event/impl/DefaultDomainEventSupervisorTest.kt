@@ -53,7 +53,7 @@ class DefaultDomainEventSupervisorTest {
     @Test
     fun `persistent event is routed to reliable provider and not local publisher`() {
         val reliableProvider = mockk<ReliableDomainEventProvider>()
-        every { reliableProvider.publish(any(), any()) } just runs
+        every { reliableProvider.publish(any(), any(), any()) } just runs
         val supervisor = DefaultDomainEventSupervisor(
             interceptorManager,
             eventSubscriberManager,
@@ -65,14 +65,14 @@ class DefaultDomainEventSupervisorTest {
         supervisor.attach(event, entity)
         supervisor.release(setOf(entity))
 
-        verify(exactly = 1) { reliableProvider.publish(event, any()) }
+        verify(exactly = 1) { reliableProvider.publish(event, any(), any()) }
         verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
     }
 
     @Test
     fun `delayed event uses reliable provider`() {
         val reliableProvider = mockk<ReliableDomainEventProvider>()
-        every { reliableProvider.publish(any(), any()) } just runs
+        every { reliableProvider.publish(any(), any(), any()) } just runs
         val supervisor = DefaultDomainEventSupervisor(
             interceptorManager,
             eventSubscriberManager,
@@ -85,7 +85,7 @@ class DefaultDomainEventSupervisorTest {
         supervisor.attach(event, entity, schedule)
         supervisor.release(setOf(entity))
 
-        verify { reliableProvider.publish(event, schedule) }
+        verify { reliableProvider.publish(event, schedule, any()) }
     }
 
     @Test

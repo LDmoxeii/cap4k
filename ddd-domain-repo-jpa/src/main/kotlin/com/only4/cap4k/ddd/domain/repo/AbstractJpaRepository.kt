@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.share.OrderInfo
@@ -48,16 +47,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
     override fun find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
-        persist: Boolean
-    ): List<ENTITY> =
-        find(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-
-    @Transactional(readOnly = true)
-    override fun find(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
         val entities = when {
             JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
@@ -79,11 +68,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> emptyList()
         }
 
-        JpaAggregateLoadPlanSupport.apply(entities, loadPlan)
-
-        if (!persist && entities.isNotEmpty()) {
-            entities.forEach { entityManager.detach(it) }
-        }
         return entities
     }
 
@@ -91,16 +75,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
     override fun find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
-    ): List<ENTITY> =
-        find(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-
-    @Transactional(readOnly = true)
-    override fun find(
-        predicate: Predicate<ENTITY>,
-        pageParam: PageParam,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan
     ): List<ENTITY> {
         val entities = when {
             JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
@@ -123,26 +97,12 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> emptyList()
         }
 
-        JpaAggregateLoadPlanSupport.apply(entities, loadPlan)
-
-        if (!persist && entities.isNotEmpty()) {
-            entities.forEach(entityManager::detach)
-        }
         return entities
     }
 
     @Transactional(readOnly = true)
     override fun findOne(
         predicate: Predicate<ENTITY>,
-        persist: Boolean
-    ): ENTITY? =
-        findOne(predicate, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-
-    @Transactional(readOnly = true)
-    override fun findOne(
-        predicate: Predicate<ENTITY>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan
     ): ENTITY? {
         val entity = when {
             JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
@@ -156,11 +116,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> null
         }
 
-        entity?.let { JpaAggregateLoadPlanSupport.apply(it, loadPlan) }
-
-        if (!persist && entity != null) {
-            entityManager.detach(entity)
-        }
         return entity
     }
 
@@ -168,16 +123,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
     override fun findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
-        persist: Boolean
-    ): ENTITY? =
-        findFirst(predicate, orders, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-
-    @Transactional(readOnly = true)
-    override fun findFirst(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan
     ): ENTITY? {
         val entity = when {
             JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
@@ -197,11 +142,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> null
         }
 
-        entity?.let { JpaAggregateLoadPlanSupport.apply(it, loadPlan) }
-
-        if (!persist && entity != null) {
-            entityManager.detach(entity)
-        }
         return entity
     }
 
@@ -209,16 +149,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
     override fun findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
-    ): PageData<ENTITY> =
-        findPage(predicate, pageParam, persist, AggregateLoadPlan.WHOLE_AGGREGATE)
-
-    @Transactional(readOnly = true)
-    override fun findPage(
-        predicate: Predicate<ENTITY>,
-        pageParam: PageParam,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan
     ): PageData<ENTITY> {
         val pageData = when {
             JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
@@ -244,11 +174,6 @@ open class AbstractJpaRepository<ENTITY : Any, ID>(
             else -> PageData.empty(pageParam.pageSize)
         }
 
-        JpaAggregateLoadPlanSupport.apply(pageData.list, loadPlan)
-
-        if (!persist && pageData.list.isNotEmpty()) {
-            pageData.list.forEach(entityManager::detach)
-        }
         return pageData
     }
 

@@ -65,6 +65,10 @@ class CommandRecordEntity(
     @Column(name = "`param_type`")
     var paramType: String = "",
 
+    /** Versioned ExecutionContext envelope captured when the reliable command is registered. */
+    @Column(name = "`execution_context`")
+    var executionContext: String? = null,
+
     /**
      * 结果
      * text
@@ -152,6 +156,7 @@ class CommandRecordEntity(
         const val F_COMMAND_TYPE = "commandType"
         const val F_PARAM = "param"
         const val F_PARAM_TYPE = "paramType"
+        const val F_EXECUTION_CONTEXT = "executionContext"
         const val F_RESULT = "result"
         const val F_RESULT_TYPE = "resultType"
         const val F_EXCEPTION = "exception"

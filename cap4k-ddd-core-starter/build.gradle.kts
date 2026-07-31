@@ -1,8 +1,12 @@
 plugins {
     id("buildsrc.convention.kotlin-jvm")
+    kotlin("kapt")
 }
 
 dependencies {
+    kapt(platform(libs.spring.boot.dependencies))
+    kapt(libs.spring.configuration.processor)
+
     api(project(":ddd-core"))
 
     implementation(libs.spring.boot.starter)

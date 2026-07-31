@@ -1,5 +1,8 @@
 package com.only4.cap4k.ddd.domain.event
 
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.domain.event.DomainEventAttachedTransactionCommittedEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
@@ -18,13 +21,18 @@ open class JpaReliableDomainEventProvider(
     private val eventPublisher: EventPublisher,
     private val applicationEventPublisher: ApplicationEventPublisher,
     private val serviceName: String,
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry,
 ) : ReliableDomainEventProvider {
     companion object {
         private const val DEFAULT_EVENT_EXPIRE_MINUTES = 30L
         private const val DEFAULT_EVENT_RETRY_TIMES = 16
     }
 
-    override fun publish(eventPayload: Any, schedule: LocalDateTime) {
+    override fun publish(
+        eventPayload: Any,
+        schedule: LocalDateTime,
+        executionContext: ExecutionContextSnapshot,
+    ) {
         val event = eventRecordRepository.create().apply {
             init(
                 eventPayload,
@@ -32,6 +40,10 @@ open class JpaReliableDomainEventProvider(
                 schedule,
                 Duration.ofMinutes(DEFAULT_EVENT_EXPIRE_MINUTES),
                 DEFAULT_EVENT_RETRY_TIMES,
+                executionContextCodecRegistry.encode(
+                    executionContext,
+                    ExecutionContextBoundary.RELIABLE_DOMAIN_EVENT,
+                ),
             )
             markPersist(true)
         }

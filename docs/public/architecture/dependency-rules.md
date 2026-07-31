@@ -6,7 +6,7 @@ Clean Architecture 的依赖规则可以简化成一句话：越靠近业务真�
 
 Domain layer 是独立层。它可以使用自己的类型、领域接口和值对象，但不依赖 application、adapter、start、Spring Boot、HTTP payload、外部 service payload 或 persistence implementation。`ContentBehavior.kt` 和 `ContentFactory.kt` 应该能在不理解 Controller 的情况下被阅读和测试。
 
-Application layer 可以依赖 domain layer 和 application-facing contracts。Command、Query、Subscriber、Scheduled Reaction 可以加载 Aggregate、调用 domain 行为、使用 Repository、Unit of Work、Mediator 或 Capability contracts 来表达用例。application layer 可以定义 `TriggerMediaProcessing` 和 `GetMediaProcessingStatus` 这类外部能力语义，但不依赖 adapter 中的 Capability Handler 实现。
+Application layer 可以依赖 domain layer 和 application-facing contracts。Command、Query、Subscriber、Scheduled Reaction 可以加载 Aggregate、调用 domain 行为、使用 Repository、Mediator 或 Capability contracts 来表达用例，但不能定位或控制 Unit of Work。application layer 可以定义 `TriggerMediaProcessing` 和 `GetMediaProcessingStatus` 这类外部能力语义，但不依赖 adapter 中的 Capability Handler 实现。
 
 Adapter layer 可以依赖 application/domain 暴露的入口和契约。Controller 把 HTTP 请求转换成 Command 或 Query，API Payload 描述协议字段，query adapter 组织读取输出，capability-handler 把 application 的 external capability request 转换成外部调用，persistence adapter 处理存储协议。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。
 

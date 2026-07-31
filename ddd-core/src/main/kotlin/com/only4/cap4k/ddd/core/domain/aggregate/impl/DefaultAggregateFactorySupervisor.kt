@@ -1,7 +1,8 @@
 package com.only4.cap4k.ddd.core.domain.aggregate.impl
 
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
@@ -17,7 +18,8 @@ import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
  */
 class DefaultAggregateFactorySupervisor(
     private val factories: List<AggregateFactory<*, *>>,
-    private val unitOfWork: UnitOfWork,
+    private val persistenceIntents: AggregatePersistenceIntentRecorder,
+    private val invocationScopeAccessor: InvocationScopeAccessor,
     private val lifecycleInvoker: AggregateLifecycleInvoker = ReflectiveAggregateLifecycleInvoker(),
 ) : AggregateFactorySupervisor {
 
@@ -32,13 +34,16 @@ class DefaultAggregateFactorySupervisor(
     }
 
     override fun <ENTITY_PAYLOAD : AggregatePayload<ENTITY>, ENTITY : Any> create(entityPayload: ENTITY_PAYLOAD): ENTITY {
+        check(invocationScopeAccessor.current() == InvocationKind.COMMAND) {
+            "Aggregate Factory requires COMMAND invocation scope; current=${invocationScopeAccessor.current() ?: "NONE"}"
+        }
         val factory = factoryMap[entityPayload::class.java]
             ?: throw DomainException("No factory found for payload: ${entityPayload::class.java.name}")
 
         @Suppress("UNCHECKED_CAST")
         val instance = (factory as AggregateFactory<ENTITY_PAYLOAD, ENTITY>).create(entityPayload)
 
-        unitOfWork.persist(instance, PersistIntent.CREATE)
+        persistenceIntents.registerNew(instance)
         lifecycleInvoker.onCreate(instance)
         return instance
     }

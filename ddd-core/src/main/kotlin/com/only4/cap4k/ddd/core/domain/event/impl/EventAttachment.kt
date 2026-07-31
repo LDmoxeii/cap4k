@@ -1,11 +1,13 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import java.time.LocalDateTime
 
 internal class EventAttachment<out EVENT : Any> private constructor(
     private val payload: EVENT?,
     private val supplier: (() -> EVENT)?,
     val schedule: LocalDateTime,
+    val executionContext: ExecutionContextSnapshot,
 ) {
     private object Unresolved
 
@@ -46,11 +48,13 @@ internal class EventAttachment<out EVENT : Any> private constructor(
         fun <EVENT : Any> eager(
             payload: EVENT,
             schedule: LocalDateTime = LocalDateTime.now(),
-        ): EventAttachment<EVENT> = EventAttachment(payload, null, schedule)
+            executionContext: ExecutionContextSnapshot = ExecutionContextSnapshot.EMPTY,
+        ): EventAttachment<EVENT> = EventAttachment(payload, null, schedule, executionContext)
 
         fun <EVENT : Any> lazy(
             schedule: LocalDateTime = LocalDateTime.now(),
+            executionContext: ExecutionContextSnapshot = ExecutionContextSnapshot.EMPTY,
             supplier: () -> EVENT,
-        ): EventAttachment<EVENT> = EventAttachment(null, supplier, schedule)
+        ): EventAttachment<EVENT> = EventAttachment(null, supplier, schedule, executionContext)
     }
 }

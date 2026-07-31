@@ -7,7 +7,8 @@
 - Put protocol shape mapping in Adapter.
 - Put runtime assembly in Start.
 - Use Repository for aggregate read, access, and load.
-- Use Unit of Work for persistence intent, delete intent, commit, and save.
+- Let the outer Command own automatic Unit of Work observation, stabilization, and commit.
+- Load managed roots through Repository, create roots through Factory, and delete roots through Repository.
 - Treat Mediator as a framework facade.
 - Let framework/runtime HTTP and message transport handle consume, parse, register, and dispatch.
 - Let business inbound subscribers interpret typed external facts, ensure idempotency, translate semantics, and delegate.
@@ -16,6 +17,7 @@
 
 - Prevent "Repository owns aggregate persistence."
 - Prevent "project code owns Unit of Work mechanics."
+- Prevent "handlers register or flush persistence through Unit of Work."
 - Prevent "Mediator is a business engine."
 - Prevent "subscribers own transport parsing and dispatch."
 - Prevent "HTTP/message subscribers own consume/parse/register/dispatch."

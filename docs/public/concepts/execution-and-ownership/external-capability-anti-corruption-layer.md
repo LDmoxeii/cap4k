@@ -2,7 +2,9 @@
 
 External Capability Anti-Corruption Layer 是 application layer 声明外部能力、adapter layer 完成协议转换的边界。它让内部用例说“我需要媒体处理能力”或“我需要查询外部处理状态”，而不是让 domain model 或 Command handler 直接依赖外部 HTTP、SDK、消息格式或供应商字段。
 
-当业务流程需要调用外部系统、读取外部状态、发送 callback payload 或把外部结果转成内部事实时，应把外部能力建模成清晰的 Capability。application side 看到的是稳定的内部语义；adapter side 负责把内部 request 转成外部协议，把外部 response 转成内部 result，并处理认证、错误码、超时和兼容性差异。Capability 不自动创建、挂起或提交本地事务；它在当前调用环境中执行，外部副作用无法被本地回滚撤销。
+当业务流程需要调用外部系统、读取外部状态、发送 callback payload 或把外部结果转成内部事实时，应把外部能力建模成清晰的 Capability。application side 看到的是稳定的内部语义；adapter side 负责协议转换、认证、错误码、超时和兼容性。Capability 不创建本地事务，也不能调用 Repository、Factory、UoW、Command 或 Query；即使 `callAsync()` 饱和后 Caller Runs 在 Command 线程执行，InvocationScope 仍会保持这个持久化隔离。外部副作用无法被本地回滚撤销。
+
+Capability 只保留一个阻塞 Handler 形态。`call()` 在当前线程执行；`callAsync()` 通过独立于 Query 的有界 executor 提供并行机会，并自动传播 ExecutionContext。队列满时默认 Caller Runs，失败统一通过 `CompletionStage` 表达，timeout 只停止等待而不承诺取消已经运行的 RPC、SDK 或 Handler。
 
 在 cap4k 中，`capability` 和 `capability-handler` 是 generator 表达外部能力防腐层的常见方式。`capability` 可以声明 application 需要的外部能力接口，`capability-handler` 可以落在 adapter 侧实现协议转换。生成骨架提供命名、位置和连接面；外部系统语义、错误映射、重试策略、payload 转换和业务可接受结果必须手写。
 

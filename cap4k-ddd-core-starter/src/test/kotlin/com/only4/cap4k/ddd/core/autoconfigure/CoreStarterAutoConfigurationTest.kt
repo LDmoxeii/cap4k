@@ -2,8 +2,7 @@ package com.only4.cap4k.ddd.core.autoconfigure
 
 import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.Mediator
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
 import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
 import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.application.command.Command
@@ -13,8 +12,11 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.query.QueryHandler
+import com.only4.cap4k.ddd.core.application.query.QueryExecution
+import com.only4.cap4k.ddd.core.application.async.ApplicationAsyncExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -33,6 +35,7 @@ class CoreStarterAutoConfigurationTest {
         )
         .withBean(TestCommandHandler::class.java)
         .withBean(TestUnitOfWork::class.java)
+        .withBean(TestQueryExecution::class.java)
         .withBean(TestQueryHandler::class.java)
         .withBean(TestCapabilityHandler::class.java)
         .withBean(TestEventListener::class.java)
@@ -45,9 +48,24 @@ class CoreStarterAutoConfigurationTest {
             assertEquals(1, context.getBeansOfType(EventSubscriberManager::class.java).size)
             assertEquals("command:ok", Mediator.commands.send(TestCommand("ok")))
             assertEquals("query:ok", Mediator.queries.ask(TestQuery("ok")))
+            assertEquals("query:async", Mediator.queries.askAsync(TestQuery("async")).toCompletableFuture().get())
             assertEquals("capability:ok", Mediator.capabilities.call(TestCapability("ok")))
+            assertEquals(
+                "capability:async",
+                Mediator.capabilities.callAsync(TestCapability("async")).toCompletableFuture().get(),
+            )
             assertTrue(Mediator.identifiers.next("uuid7", String::class).isNotBlank())
             assertEquals(context, Mediator.ioc)
+            assertNotSame(
+                context.getBean(
+                    CoreRuntimeAutoConfiguration.QUERY_ASYNC_EXECUTOR_BEAN,
+                    ApplicationAsyncExecutor::class.java,
+                ),
+                context.getBean(
+                    CoreRuntimeAutoConfiguration.CAPABILITY_ASYNC_EXECUTOR_BEAN,
+                    ApplicationAsyncExecutor::class.java,
+                ),
+            )
 
             val listener = context.getBean(TestEventListener::class.java)
             val entity = Any()
@@ -101,16 +119,22 @@ class CoreStarterAutoConfigurationTest {
         override fun call(request: TestCapability): String = "capability:${request.value}"
     }
 
-    class TestUnitOfWork : UnitOfWork {
+    class TestUnitOfWork : CommandUnitOfWorkCoordinator {
         private var depth = 0
         override val active: Boolean get() = depth > 0
         override fun <RESULT> execute(block: () -> RESULT): RESULT {
             depth++
             return try { block() } finally { depth-- }
         }
-        override fun persist(entity: Any, intent: PersistIntent) = Unit
-        override fun remove(entity: Any) = Unit
-        override fun flush() = check(active)
+    }
+
+    class TestQueryExecution : QueryExecution {
+        private var depth = 0
+        override val active: Boolean get() = depth > 0
+        override fun <RESULT> execute(block: () -> RESULT): RESULT {
+            depth++
+            return try { block() } finally { depth-- }
+        }
     }
 
     class ConflictingCommandSupervisor : com.only4.cap4k.ddd.core.application.command.CommandSupervisor {

@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.application.event
 import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.createFixedThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
@@ -56,7 +57,8 @@ class RabbitMqIntegrationEventPublisher(
             }
 
             val (exchange, tag) = parseDestination(destination)
-            val message = JSON.toJSONString(event.message)
+            val message = JSON.toJSONString(event.payload)
+            val executionContext = IntegrationEventExecutionContextEnvelope.encode(event.executionContext)
 
             if (autoDeclareExchange) {
                 tryDeclareExchange(exchange, defaultExchangeType)
@@ -68,7 +70,7 @@ class RabbitMqIntegrationEventPublisher(
                     exchange,
                     tag,
                     message,
-                    IntegrationEventSendCallback(event, publishCallback)
+                    IntegrationEventSendCallback(event, publishCallback, executionContext)
                 )
             }
         } catch (ex: Exception) {
@@ -103,7 +105,8 @@ class RabbitMqIntegrationEventPublisher(
      */
     class IntegrationEventSendCallback(
         private val event: EventRecord,
-        private val publishCallback: IntegrationEventPublisher.PublishCallback
+        private val publishCallback: IntegrationEventPublisher.PublishCallback,
+        private val executionContext: String? = null,
     ) : MessagePostProcessor {
 
         companion object {
@@ -113,6 +116,9 @@ class RabbitMqIntegrationEventPublisher(
         override fun postProcessMessage(message: Message): Message {
             log.info("集成事件发送成功, ${event.id}")
             message.messageProperties.messageId = event.id
+            executionContext?.let {
+                message.messageProperties.setHeader(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, it)
+            }
 
             try {
                 publishCallback.onSuccess(event)

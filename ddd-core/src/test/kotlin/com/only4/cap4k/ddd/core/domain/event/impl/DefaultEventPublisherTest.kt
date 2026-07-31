@@ -268,7 +268,10 @@ class DefaultEventPublisherTest {
                 eventRecordRepository,
                 integrationEventInterceptorManager,
                 applicationEventPublisher,
-                "test-service"
+                "test-service",
+                invocationScopeAccessor = com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor {
+                    com.only4.cap4k.ddd.core.application.invocation.InvocationKind.DOMAIN_EVENT_HANDLER
+                },
             )
             val testPublisher = TestableDefaultEventPublisher(
                 eventSubscriberManager,
@@ -359,7 +362,10 @@ class DefaultEventPublisherTest {
                 eventRecordRepository,
                 integrationEventInterceptorManager,
                 applicationEventPublisher,
-                "test-service"
+                "test-service",
+                invocationScopeAccessor = com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor {
+                    com.only4.cap4k.ddd.core.application.invocation.InvocationKind.DOMAIN_EVENT_HANDLER
+                },
             )
             val delayedPublisher = CapturingDefaultEventPublisher(
                 eventSubscriberManager,
@@ -438,7 +444,10 @@ class DefaultEventPublisherTest {
                 eventRecordRepository,
                 integrationEventInterceptorManager,
                 applicationEventPublisher,
-                "test-service"
+                "test-service",
+                invocationScopeAccessor = com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor {
+                    com.only4.cap4k.ddd.core.application.invocation.InvocationKind.DOMAIN_EVENT_HANDLER
+                },
             )
             val delayedPublisher = CapturingDefaultEventPublisher(
                 eventSubscriberManager,
@@ -734,6 +743,7 @@ class DefaultEventPublisherTest {
 
         every { eventRecord.message } returns message
         every { eventRecord.payload } returns payload
+        every { eventRecord.executionContext } returns emptyList()
         every { eventRecord.id } returns "test-id"
         every { eventRecord.markPersist(any()) } just Runs
         every { eventRecord.endDelivery(any()) } just Runs

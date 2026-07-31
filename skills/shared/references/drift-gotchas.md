@@ -20,7 +20,7 @@ Do not make a business Integration Event subscriber responsible for HTTP/message
 
 ## Repository Persistence Ownership
 
-Reject exact stale wording like `Repository save` or `Repository saves aggregates`. Repository reads/accesses/loads aggregates. Unit of Work owns persistence and delete intent; the outer Command owns automatic stabilization and transaction completion.
+Reject exact stale wording like `Repository save` or `Repository saves aggregates`. Repository reads/accesses/loads aggregates and explicitly removes roots. Existing managed changes are detected automatically; the outer Command UoW owns stabilization and transaction completion without an application-facing UoW API.
 
 ## UoW And Mediator Implementation Wording
 

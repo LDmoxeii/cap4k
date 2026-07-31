@@ -2,16 +2,16 @@ package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.core.Mediator
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList
 import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
 import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
 import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
-import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
 import com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator
@@ -42,6 +42,7 @@ import org.hibernate.id.IdentifierGenerationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -101,7 +102,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     @Autowired
     @Qualifier("jpaUnitOfWork")
-    private lateinit var unitOfWork: UnitOfWork
+    private lateinit var unitOfWork: JpaUnitOfWork
 
     @Autowired
     private lateinit var rootJpaRepository: RuntimeRootJpaRepository
@@ -205,21 +206,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
-    @DisplayName("whole aggregate load plan can access lazy aggregate children without request transaction")
-    fun wholeAggregateLoadPlanCanAccessLazyAggregateChildrenWithoutRequestTransaction() {
-        val root = saveRoot(RuntimeRoot(name = "lazy-whole-load").apply {
-            children.add(RuntimeChild(name = "lazy-whole-load-child"))
-        })
-        JpaUnitOfWork.reset()
-
-        val response = commandSupervisor.send(CountRuntimeRootChildrenWholeLoadCommand(root.id))
-
-        assertEquals(1, response.childCount)
-    }
-
-    @Test
-    @DisplayName("Mediator Command auto-enrolls default repository load and completes write Unit of Work")
-    fun mediatorCommandAutoEnrollsDefaultRepositoryLoad() {
+    @DisplayName("Mediator Command observes repository load and completes write Unit of Work")
+    fun mediatorCommandObservesRepositoryLoad() {
         val root = saveRoot(RuntimeRoot(name = "command-auto-enroll"))
         JpaUnitOfWork.reset()
 
@@ -372,7 +360,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                     children.add(RuntimeFkMirrorChild(name = "fk-mirror-child"))
                 }
                 unitOfWork.execute {
-                    unitOfWork.persist(root, PersistIntent.CREATE)
+                    unitOfWork.registerNew(root)
                 }
                 assertNotEquals(0L, root.id)
                 val childId = queryLong("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
@@ -458,7 +446,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     loaded.children.first().name = "updated-child"
                     loaded.children.first().grandchildren.first().name = "updated-grandchild"
-                    unitOfWork.persist(loaded)
+                    unitOfWork.observeRepositoryLoad(loaded)
                 }
                 assertEquals(
                     1,
@@ -480,8 +468,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
-    @DisplayName("proxy and concrete instances with the same id conflict before flush")
-    fun proxyAndConcreteInstancesWithTheSameIdConflictBeforeFlush() {
+    @DisplayName("detached root deletion fails before flush")
+    fun detachedRootDeletionFailsBeforeFlush() {
         val root = saveRoot(RuntimeRoot(name = "proxy-conflict"))
         JpaUnitOfWork.reset()
 
@@ -489,12 +477,12 @@ class AggregateJpaRuntimeDefectReproductionTest {
             unitOfWork.execute {
                 val proxy = rootJpaRepository.getReferenceById(root.id)
                 val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
-                unitOfWork.persist(proxy)
-                unitOfWork.remove(detached)
+                unitOfWork.observeRepositoryLoad(proxy)
+                unitOfWork.registerDelete(detached)
             }
         }
 
-        assertTrue(error.message!!.contains("conflicting UnitOfWork registrations"))
+        assertTrue(error.message!!.contains("currently managed root"))
         assertEquals(1, countRows("select count(*) from `runtime_root` where `id` = ?", root.id))
     }
 
@@ -510,7 +498,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 unitOfWork.execute {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     loaded.children.first().grandchildren.removeAt(0)
-                    unitOfWork.persist(loaded)
+                    unitOfWork.observeRepositoryLoad(loaded)
                 }
                 assertEquals(
                     3,
@@ -539,7 +527,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 unitOfWork.execute {
                     val loaded = rootJpaRepository.findById(root.id).orElseThrow()
                     loaded.children.removeAt(0)
-                    unitOfWork.persist(loaded)
+                    unitOfWork.observeRepositoryLoad(loaded)
                 }
                 assertEquals(
                     1,
@@ -574,7 +562,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
                     val firstChild = loaded.children.first()
                     firstChild.grandchildren.clear()
                     firstChild.grandchildren.add(RuntimeGrandchild(name = "clear-readd-new-grandchild"))
-                    unitOfWork.persist(loaded)
+                    unitOfWork.observeRepositoryLoad(loaded)
                 }
                 assertEquals(
                     3,
@@ -603,7 +591,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val grandchildrenByChild = children.associateWith { it.grandchildren.toList() }
 
         unitOfWork.execute {
-            unitOfWork.persist(root, PersistIntent.CREATE)
+            unitOfWork.registerNew(root)
         }
 
         val rootId = checkNotNull(root.id)
@@ -644,7 +632,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
     fun existingRootSaveCompletesANewlyAttachedEntrustedChild() {
         val root = newEntrustedRoot("entrusted-existing")
         unitOfWork.execute {
-            unitOfWork.persist(root, PersistIntent.CREATE)
+            unitOfWork.registerNew(root)
         }
         val rootId = checkNotNull(root.id)
         JpaUnitOfWork.reset()
@@ -659,7 +647,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             }
             loaded.children.add(newChild)
 
-            unitOfWork.persist(loaded)
+            unitOfWork.observeRepositoryLoad(loaded)
         }
 
         val childId = checkNotNull(newChild.id)
@@ -685,7 +673,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val root = newEntrustedRoot("child-version-boundary")
         val child = root.children.first()
         unitOfWork.execute {
-            unitOfWork.persist(root, PersistIntent.CREATE)
+            unitOfWork.registerNew(root)
         }
         val rootId = checkNotNull(root.id)
         val childId = checkNotNull(child.id)
@@ -696,7 +684,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         unitOfWork.execute {
             val loaded = entityManager.find(RuntimeEntrustedRoot::class.java, rootId)
             loaded.children.first { it.id == childId }.rename("child-version-boundary-updated")
-            unitOfWork.persist(loaded)
+            unitOfWork.observeRepositoryLoad(loaded)
         }
 
         assertEquals(
@@ -709,36 +697,35 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
-    @DisplayName("outer rollback keeps assigned entrusted state but removes rows")
-    fun outerRollbackKeepsAssignedEntrustedStateButRemovesRows() {
+    @DisplayName("outer rollback leaves provider-assigned state unallocated and removes rows")
+    fun outerRollbackLeavesProviderAssignedStateUnallocatedAndRemovesRows() {
         val root = newEntrustedRoot("entrusted-rollback")
         val children = root.children.toList()
         val grandchildren = children.flatMap { it.grandchildren }
 
         val failure = assertThrows(IllegalStateException::class.java) {
             unitOfWork.execute {
-                unitOfWork.persist(root, PersistIntent.CREATE)
-                unitOfWork.flush()
+                unitOfWork.registerNew(root)
 
-                assertNotNull(root.id)
-                assertNotNull(root.version)
+                assertNull(root.id)
+                assertNull(root.version)
                 children.forEach { child ->
-                    assertNotNull(child.id)
-                    assertNotNull(child.version)
+                    assertNull(child.id)
+                    assertNull(child.version)
                 }
                 grandchildren.forEach { grandchild ->
-                    assertNotNull(grandchild.id)
-                    assertNotNull(grandchild.version)
+                    assertNull(grandchild.id)
+                    assertNull(grandchild.version)
                 }
                 throw IllegalStateException("rollback entrusted graph")
             }
         }
 
         assertEquals("rollback entrusted graph", failure.message)
-        assertNotNull(root.id)
-        assertNotNull(root.version)
-        assertTrue(children.all { it.id != null && it.version != null })
-        assertTrue(grandchildren.all { it.id != null && it.version != null })
+        assertNull(root.id)
+        assertNull(root.version)
+        assertTrue(children.all { it.id == null && it.version == null })
+        assertTrue(grandchildren.all { it.id == null && it.version == null })
         assertEquals(
             0,
             countRows("select count(*) from `runtime_entrusted_root` where `name` = ?", "entrusted-rollback")
@@ -755,21 +742,21 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
     private fun saveRoot(root: RuntimeRoot): RuntimeRoot {
         unitOfWork.execute {
-            unitOfWork.persist(root, PersistIntent.CREATE)
+            unitOfWork.registerNew(root)
         }
         return root
     }
 
     private fun saveReverseRoot(root: RuntimeReverseRoot): RuntimeReverseRoot {
         unitOfWork.execute {
-            unitOfWork.persist(root, PersistIntent.CREATE)
+            unitOfWork.registerNew(root)
         }
         return root
     }
 
     private fun saveSafeReverseRoot(root: RuntimeSafeReverseRoot): RuntimeSafeReverseRoot {
         unitOfWork.execute {
-            unitOfWork.persist(root, PersistIntent.CREATE)
+            unitOfWork.registerNew(root)
         }
         return root
     }
@@ -905,7 +892,18 @@ class AggregateJpaRuntimeDefectReproductionTest {
         fun snowflakeIdentifierStrategy(
             snowflakeIdGenerator: SnowflakeIdGenerator
         ): IdentifierStrategy = TestSnowflakeIdentifierStrategy(snowflakeIdGenerator)
+
+        @Bean
+        fun runtimeRootFactory(): AggregateFactory<RuntimeRootPayload, RuntimeRoot> = RuntimeRootFactory()
     }
+}
+
+data class RuntimeRootPayload(
+    val name: String,
+) : AggregatePayload<RuntimeRoot>
+
+class RuntimeRootFactory : AggregateFactory<RuntimeRootPayload, RuntimeRoot> {
+    override fun create(entityPayload: RuntimeRootPayload): RuntimeRoot = RuntimeRoot(name = entityPayload.name)
 }
 
 private class TestSnowflakeIdentifierStrategy(
@@ -1280,10 +1278,6 @@ data class CountRuntimeRootChildrenResponse(
     val childCount: Int
 )
 
-data class CountRuntimeRootChildrenWholeLoadCommand(
-    val rootId: Long
-) : Command<CountRuntimeRootChildrenResponse>
-
 @Component
 class CountRuntimeRootChildrenCommandHandler(
     @param:Qualifier("defaultRepositorySupervisor")
@@ -1292,22 +1286,6 @@ class CountRuntimeRootChildrenCommandHandler(
     override fun handle(command: CountRuntimeRootChildrenCommand): CountRuntimeRootChildrenResponse {
         val root = repositorySupervisor.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
-        ) ?: error("RuntimeRoot not found: ${command.rootId}")
-
-        return CountRuntimeRootChildrenResponse(root.children.size)
-    }
-}
-
-@Component
-class CountRuntimeRootChildrenWholeLoadCommandHandler(
-    @param:Qualifier("defaultRepositorySupervisor")
-    private val repositorySupervisor: RepositorySupervisor
-) : CommandHandler<CountRuntimeRootChildrenWholeLoadCommand, CountRuntimeRootChildrenResponse> {
-    override fun handle(command: CountRuntimeRootChildrenWholeLoadCommand): CountRuntimeRootChildrenResponse {
-        val root = repositorySupervisor.findOne(
-            JpaPredicate.byId(RuntimeRoot::class.java, command.rootId),
-            persist = true,
-            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
         ) ?: error("RuntimeRoot not found: ${command.rootId}")
 
         return CountRuntimeRootChildrenResponse(root.children.size)
@@ -1328,7 +1306,7 @@ data class RenameRuntimeRootResult(
 class RenameRuntimeRootCommandHandler(
     @param:Qualifier("defaultRepositorySupervisor")
     private val repositorySupervisor: RepositorySupervisor,
-    private val unitOfWork: UnitOfWork,
+    private val unitOfWork: CommandUnitOfWorkCoordinator,
     private val entityManager: EntityManager,
 ) : CommandHandler<RenameRuntimeRootCommand, RenameRuntimeRootResult> {
     override fun handle(command: RenameRuntimeRootCommand): RenameRuntimeRootResult {
@@ -1358,7 +1336,7 @@ data class NestedRenameRuntimeRootResult(
 
 @Component
 class NestedRenameRuntimeRootCommandHandler(
-    private val unitOfWork: UnitOfWork,
+    private val unitOfWork: CommandUnitOfWorkCoordinator,
     private val entityManager: EntityManager,
 ) : CommandHandler<NestedRenameRuntimeRootCommand, NestedRenameRuntimeRootResult> {
     override fun handle(command: NestedRenameRuntimeRootCommand): NestedRenameRuntimeRootResult {

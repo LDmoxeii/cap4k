@@ -1,39 +1,46 @@
 package com.only4.cap4k.ddd.application
 
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import java.time.Instant
 
-enum class JpaPersistenceChangeType {
+enum class JpaAggregateRootOperation {
+    NONE,
+    CREATE,
+    DELETE,
+}
+
+enum class JpaEntityChangeType {
     CREATE,
     UPDATE,
     DELETE,
 }
 
-/**
- * Stable audit data captured once for the outer transaction-level Unit of Work.
- *
- * Provider integrations may extend the attributes with actor, tenant, and environment
- * information without exposing an unrestricted Unit of Work callback surface.
- */
-data class JpaPersistenceAuditContext(
-    val timestamp: Instant,
-    val attributes: Map<String, Any?> = emptyMap(),
-)
-
-data class JpaPersistenceAuditCandidate(
+data class JpaEntityChange(
     val entity: Any,
-    val type: JpaPersistenceChangeType,
+    val type: JpaEntityChangeType,
+)
+
+/** Net persistent effect for one aggregate in the current stabilization round. */
+data class JpaAggregateChange(
+    val root: Any,
+    val rootOperation: JpaAggregateRootOperation,
+    val entityChanges: List<JpaEntityChange>,
+)
+
+/** Stable audit input captured once for the outer Command Unit of Work. */
+data class JpaPersistenceAuditContext(
+    val auditTime: Instant,
+    val executionContext: ExecutionContextSnapshot,
 )
 
 /**
- * Enriches provider-detected persistence candidates before Hibernate performs its final
- * dirty detection and flush.
- *
- * Implementations must only enrich the supplied candidates. They must not flush, publish
- * events, start Commands, or complete the surrounding transaction.
+ * Enriches aggregate-oriented persistence changes before Hibernate performs
+ * final dirty detection. Implementations may update scalar or embedded audit
+ * values only and must be idempotent across stabilization rounds.
  */
 fun interface JpaPersistenceAuditEnricher {
     fun enrich(
-        candidates: List<JpaPersistenceAuditCandidate>,
+        changeSet: JpaAggregateChange,
         context: JpaPersistenceAuditContext,
     )
 }

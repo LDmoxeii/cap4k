@@ -5,10 +5,14 @@ import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import org.slf4j.LoggerFactory
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
@@ -30,7 +34,11 @@ class HttpIntegrationEventSubscriberAdapter(
     private val applicationName: String,
     private val httpBaseUrl: String,
     private val httpSubscribePath: String,
-    private val httpConsumePath: String
+    private val httpConsumePath: String,
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+    private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
+        AutoCloseable { }
+    },
 ) {
     private val log = LoggerFactory.getLogger(HttpIntegrationEventSubscriberAdapter::class.java)
     private val eventPayloadClassMap = mutableMapOf<String, Class<*>>()
@@ -108,7 +116,16 @@ class HttpIntegrationEventSubscriberAdapter(
             val eventPayload = parseEventPayload(payloadJsonStr, integrationEventClass)
                 ?: return logAndReturnFailure("事件载荷解析失败", event, payloadJsonStr)
 
-            processEventWithInterceptors(eventPayload, headers)
+            val encodedExecutionContext = headers.entries
+                .firstOrNull { (name, _) -> name.equals(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, ignoreCase = true) }
+                ?.value
+            val executionContext = executionContextCodecRegistry.decodeExternal(
+                IntegrationEventExecutionContextEnvelope.decode(encodedExecutionContext),
+                ExecutionContextBoundary.INTEGRATION_EVENT,
+            )
+            executionContextScopeManager.install(executionContext).use {
+                processEventWithInterceptors(eventPayload, headers)
+            }
             true
         }.onFailure { ex ->
             log.error("集成事件消费失败, event: $event, payload: $payloadJsonStr", ex)

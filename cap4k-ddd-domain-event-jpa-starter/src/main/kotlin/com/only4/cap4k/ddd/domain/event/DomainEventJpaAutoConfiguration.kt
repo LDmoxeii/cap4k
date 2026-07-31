@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.domain.event
 
 import com.only4.cap4k.ddd.core.application.distributed.Locker
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
@@ -68,6 +70,8 @@ class DomainEventJpaAutoConfiguration {
         infrastructure: ReliableEventInfrastructure,
         domainEventInterceptorManager: DomainEventInterceptorManager,
         integrationEventManagerProvider: ObjectProvider<IntegrationEventManager>,
+        executionContextScopeManager: ExecutionContextScopeManager,
+        executionContextCodecRegistry: ExecutionContextCodecRegistry,
         properties: EventProperties,
     ): DefaultEventPublisher = DefaultEventPublisher(
         eventSubscriberManager,
@@ -79,6 +83,8 @@ class DomainEventJpaAutoConfiguration {
         integrationEventManagerProvider.getIfUnique(),
         infrastructure,
         properties.publisherThreadPoolSize,
+        executionContextScopeManager,
+        executionContextCodecRegistry,
     ).apply { init() }
 
     @Bean
@@ -88,6 +94,7 @@ class DomainEventJpaAutoConfiguration {
         domainEventInterceptorManager: DomainEventInterceptorManager,
         eventPublisher: EventPublisher,
         applicationEventPublisher: ApplicationEventPublisher,
+        executionContextCodecRegistry: ExecutionContextCodecRegistry,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
     ): JpaReliableDomainEventProvider = JpaReliableDomainEventProvider(
         eventRecordRepository,
@@ -95,6 +102,7 @@ class DomainEventJpaAutoConfiguration {
         eventPublisher,
         applicationEventPublisher,
         serviceName,
+        executionContextCodecRegistry,
     )
 
     @Bean

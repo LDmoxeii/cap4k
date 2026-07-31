@@ -54,6 +54,10 @@ class ArchivedEvent(
     @Column(name = "`data_type`", nullable = false)
     var dataType: String = "",
 
+    /** Original versioned ExecutionContext envelope. Null represents legacy EMPTY context. */
+    @Column(name = "`execution_context`")
+    var executionContext: String? = null,
+
     /**
      * 异常信息
      * text (nullable)
@@ -167,6 +171,7 @@ class ArchivedEvent(
         this.eventType = event.eventType
         this.data = event.data
         this.dataType = event.dataType
+        this.executionContext = event.executionContext
         this.exception = event.exception
         this.createAt = event.createAt
         this.expireAt = event.expireAt

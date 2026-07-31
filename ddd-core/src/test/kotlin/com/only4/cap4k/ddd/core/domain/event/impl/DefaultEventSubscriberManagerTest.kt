@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import io.mockk.every
 import io.mockk.just
@@ -16,19 +18,22 @@ class DefaultEventSubscriberManagerTest {
     @Test
     fun `dispatch uses explicit subscribers and Spring event publication without package scanning`() {
         val received = mutableListOf<TestEvent>()
+        val invocationScopes = DefaultInvocationScopeManager()
         val subscriber = object : EventSubscriber<TestEvent> {
             override fun onEvent(event: TestEvent) {
+                assertEquals(InvocationKind.DOMAIN_EVENT_HANDLER, invocationScopes.current())
                 received += event
             }
         }
         val publisher = mockk<ApplicationEventPublisher>()
         every { publisher.publishEvent(any<Any>()) } just runs
-        val manager = DefaultEventSubscriberManager(listOf(subscriber), publisher).apply { init() }
+        val manager = DefaultEventSubscriberManager(listOf(subscriber), publisher, invocationScopes).apply { init() }
         val event = TestEvent("created")
 
         manager.dispatch(event)
 
         assertEquals(listOf(event), received)
+        assertEquals(null, invocationScopes.current())
         verify(exactly = 1) { publisher.publishEvent(event) }
     }
 
@@ -47,13 +52,15 @@ class DefaultEventSubscriberManagerTest {
             }
         }
         val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
-        val manager = DefaultEventSubscriberManager(listOf(failing, skipped), publisher).apply { init() }
+        val invocationScopes = DefaultInvocationScopeManager()
+        val manager = DefaultEventSubscriberManager(listOf(failing, skipped), publisher, invocationScopes).apply { init() }
 
         assertThrows<EventDispatchException> {
             manager.dispatch(TestEvent("created"))
         }
 
         assertEquals(listOf("failing"), calls)
+        assertEquals(null, invocationScopes.current())
         verify(exactly = 0) { publisher.publishEvent(any<Any>()) }
     }
 
@@ -62,7 +69,11 @@ class DefaultEventSubscriberManagerTest {
         val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
 
         val error = assertThrows<IllegalStateException> {
-            DefaultEventSubscriberManager(listOf(AsyncSubscriber()), publisher).init()
+            DefaultEventSubscriberManager(
+                listOf(AsyncSubscriber()),
+                publisher,
+                DefaultInvocationScopeManager(),
+            ).init()
         }
 
         assertEquals(true, error.message.orEmpty().contains("cannot use @Async"))
@@ -73,7 +84,11 @@ class DefaultEventSubscriberManagerTest {
         val publisher = mockk<ApplicationEventPublisher>(relaxed = true)
 
         val error = assertThrows<IllegalStateException> {
-            DefaultEventSubscriberManager(listOf(AsyncMethodSubscriber()), publisher).init()
+            DefaultEventSubscriberManager(
+                listOf(AsyncMethodSubscriber()),
+                publisher,
+                DefaultInvocationScopeManager(),
+            ).init()
         }
 
         assertEquals(true, error.message.orEmpty().contains("cannot use @Async"))

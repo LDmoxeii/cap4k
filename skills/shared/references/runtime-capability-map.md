@@ -4,21 +4,21 @@ This map captures runtime boundaries that installed cap4k authoring skills may r
 
 ## Repository
 
-Repository capability is read/access/load oriented. A repository can restore aggregates by identity, IDs, or query predicates and may use aggregate load plans where supported. It is not the owner of commit semantics.
+Repository capability is read/access/load oriented. A repository can restore aggregates by identity, IDs, or query predicates. It is not the owner of commit semantics and no longer exposes aggregate load plans or persistence flags.
 
-Agent rule: do not describe Repository as the save owner. Command paths load aggregates through Repository and persist intent through Unit of Work.
+Agent rule: do not describe Repository as the save owner. Command-loaded aggregates stay managed and are observed automatically; actual updates come from provider dirty checking. Factory creation and root Repository removal provide explicit CREATE/DELETE intent. Query may use Repository inside its Handler-wide read-only transaction.
 
 ## Unit Of Work
 
-Unit of Work owns aggregate persistence intent, delete intent, provider synchronization, audit enrichment, Domain Event stabilization, and the outer Command transaction boundary. The outer Command completes it automatically. Application code may use advanced `flush()` to synchronize current provider state, but `flush()` does not commit or drain Domain Events.
+Unit of Work owns aggregate observation, root create/delete intent, provider synchronization, audit enrichment, Domain Event stabilization, and the outer Command transaction boundary. The outer Command completes it automatically. Application code has no UnitOfWork locator and cannot call save, persist, remove, execute, or flush.
 
-Agent rule: application handlers record persistence or delete intent through Unit of Work and return normally; never generate or require a completion-oriented `save()` call. Use `flush()` only for an explicit constraint/provider-value need, and never describe it as Command completion.
+Agent rule: Command handlers load roots through Repository, create them through Factory, remove roots through Repository, mutate through domain behavior, and return normally. Never generate direct UnitOfWork access or manual provider flush.
 
 ## Mediator
 
-Mediator is a static framework namespace across independently configured Command, Query, external Capability, repository, aggregate factory, domain service, Unit of Work, Integration Event, IoC, and identifier providers. It has no aggregate runtime instance or all-capabilities implementation and is not a separate business engine.
+Mediator is a static framework namespace across independently configured Command, Query, external Capability, repository, aggregate factory, domain service, Integration Event, IoC, and identifier providers. It has no aggregate runtime instance, public UnitOfWork entry, or all-capabilities implementation and is not a separate business engine.
 
-Agent rule: use only canonical names (`commands`, `queries`, `capabilities`, `repositories`, `factories`, `services`, `uow`, `events`, `ioc`, `identifiers`). Keep business decisions in domain/application code. An uninstalled optional provider fails when called; do not assume a monolithic starter or silent fallback.
+Agent rule: use only canonical names (`commands`, `queries`, `capabilities`, `repositories`, `factories`, `services`, `events`, `ioc`, `identifiers`). Keep business decisions in domain/application code. An uninstalled optional provider fails when called; do not assume a monolithic starter or silent fallback.
 
 ## Command And Event Reliability
 

@@ -3,10 +3,14 @@ package com.only4.cap4k.ddd.application.event
 import com.alibaba.fastjson.JSON
 import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.rabbitmq.client.Channel
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.AmqpException
@@ -37,7 +41,11 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     private val eventTypeCatalog: EventTypeCatalog,
     private val applicationName: String,
     private val msgCharset: String = "UTF-8",
-    private val autoDeclareQueue: Boolean = false
+    private val autoDeclareQueue: Boolean = false,
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+    private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
+        AutoCloseable { }
+    },
 ) {
 
     companion object {
@@ -149,11 +157,18 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     ) = runCatching {
         log.info("集成事件消费，messageId=${msg.messageProperties.messageId}")
         val eventPayload = msg.parseEventPayload(integrationEventClass)
-
-        if (orderedEventMessageInterceptors.isEmpty()) {
-            eventSubscriberManager.dispatch(eventPayload)
-        } else {
-            processWithInterceptors(msg, eventPayload)
+        val executionContext = executionContextCodecRegistry.decodeExternal(
+            IntegrationEventExecutionContextEnvelope.decode(
+                msg.messageProperties.headers[HEADER_KEY_CAP4K_EXECUTION_CONTEXT],
+            ),
+            ExecutionContextBoundary.INTEGRATION_EVENT,
+        )
+        executionContextScopeManager.install(executionContext).use {
+            if (orderedEventMessageInterceptors.isEmpty()) {
+                eventSubscriberManager.dispatch(eventPayload)
+            } else {
+                processWithInterceptors(msg, eventPayload)
+            }
         }
 
         channel.basicAck(msg.messageProperties.deliveryTag, false)
