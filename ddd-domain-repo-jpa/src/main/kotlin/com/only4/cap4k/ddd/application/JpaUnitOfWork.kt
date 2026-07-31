@@ -1,7 +1,9 @@
 package com.only4.cap4k.ddd.application
 
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.ReflectiveAggregateLifecycleInvoker
@@ -9,7 +11,6 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
-import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import org.hibernate.Hibernate
@@ -19,17 +20,18 @@ import org.hibernate.engine.spi.SessionImplementor
 import org.hibernate.engine.spi.Status
 import org.hibernate.type.EntityType
 import org.springframework.core.Ordered
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.context.annotation.Lazy
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport
 import org.springframework.data.repository.core.EntityInformation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationManager
-import java.time.Instant
+import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
 
 private enum class UnitOfWorkEntryKind {
     CREATE,
-    EXISTING,
     REMOVE,
 }
 
@@ -59,21 +61,14 @@ private class InsertionOrderedIdentitySet<E : Any> : AbstractMutableSet<E>() {
 private class PendingEntrySet {
     private val entries = LinkedHashMap<ObjectIdentityKey, UnitOfWorkEntry>()
 
-    fun persist(entity: Any, intent: PersistIntent): UnitOfWorkEntry {
+    fun registerNew(entity: Any): UnitOfWorkEntry {
         val key = ObjectIdentityKey(entity)
-        val next = intent.toUnitOfWorkEntryKind()
         val current = entries[key]
         val merged = when (current?.kind) {
-            null -> UnitOfWorkEntry(entity, next)
+            null -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.CREATE)
             UnitOfWorkEntryKind.CREATE -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.CREATE)
-            UnitOfWorkEntryKind.EXISTING -> when (next) {
-                UnitOfWorkEntryKind.EXISTING -> UnitOfWorkEntry(entity, UnitOfWorkEntryKind.EXISTING)
-                UnitOfWorkEntryKind.CREATE ->
-                    error("UoW intent conflict: EXISTING cannot become CREATE for the same instance")
-                UnitOfWorkEntryKind.REMOVE -> error("persist cannot register REMOVE intent")
-            }
             UnitOfWorkEntryKind.REMOVE ->
-                error("UoW intent conflict: REMOVE cannot become ${next.name} for the same instance")
+                error("UoW intent conflict: REMOVE cannot become CREATE for the same instance")
         }
         entries[key] = merged
         return merged
@@ -91,15 +86,14 @@ private class PendingEntrySet {
                 entries.remove(key)
                 true
             }
-            UnitOfWorkEntryKind.EXISTING -> {
-                entries[key] = UnitOfWorkEntry(entity, UnitOfWorkEntryKind.REMOVE)
-                false
-            }
             UnitOfWorkEntryKind.REMOVE -> false
         }
     }
 
     fun isNotEmpty(): Boolean = entries.isNotEmpty()
+
+    fun isPendingCreate(entity: Any): Boolean =
+        entries[ObjectIdentityKey(entity)]?.kind == UnitOfWorkEntryKind.CREATE
 
     fun drain(): List<UnitOfWorkEntry> {
         val changes = entries.values.toList()
@@ -108,14 +102,8 @@ private class PendingEntrySet {
     }
 }
 
-private fun PersistIntent.toUnitOfWorkEntryKind(): UnitOfWorkEntryKind = when (this) {
-    PersistIntent.CREATE -> UnitOfWorkEntryKind.CREATE
-    PersistIntent.EXISTING -> UnitOfWorkEntryKind.EXISTING
-}
-
 private data class FlushResult(
     val created: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
-    val existing: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
     val deleted: InsertionOrderedIdentitySet<Any> = InsertionOrderedIdentitySet(),
     val refreshList: MutableList<Any> = mutableListOf(),
     var needsFlush: Boolean = false,
@@ -134,17 +122,21 @@ private enum class JpaUnitOfWorkPhase {
     STABLE,
 }
 
-private class JpaUnitOfWorkContext {
+private class JpaUnitOfWorkContext(
+    auditTime: java.time.Instant,
+    executionContext: ExecutionContextSnapshot,
+) {
     val pendingEntries = PendingEntrySet()
     val trackedRoots = InsertionOrderedIdentitySet<Any>()
+    val deletedLifecycleRoots = InsertionOrderedIdentitySet<Any>()
     val repositoryObservationBaseline = JpaRepositoryObservationBaseline()
-    val auditContext = JpaPersistenceAuditContext(timestamp = Instant.now())
+    val auditContext = JpaPersistenceAuditContext(auditTime, executionContext)
     var phase: JpaUnitOfWorkPhase = JpaUnitOfWorkPhase.HANDLER
     var flushCount: Int = 0
     var frontierCount: Int = 0
     var synchronousEventCount: Int = 0
     var nestedCommandCount: Int = 0
-    var sealedSession: Session? = null
+    var session: Session? = null
     var previousFlushMode: FlushMode? = null
 }
 
@@ -166,7 +158,10 @@ open class JpaUnitOfWork(
     generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
     private val auditEnrichers: List<JpaPersistenceAuditEnricher> = emptyList(),
     private val limits: JpaUnitOfWorkLimits = JpaUnitOfWorkLimits(),
-) : UnitOfWork, JpaRepositoryObservationRecorder {
+    private val clock: Clock = Clock.systemUTC(),
+    private val executionContextAccessor: ExecutionContextAccessor =
+        ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
+) : CommandUnitOfWorkCoordinator, AggregatePersistenceIntentRecorder, JpaRepositoryObservationRecorder {
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
@@ -175,14 +170,11 @@ open class JpaUnitOfWork(
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
     private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
         get() = currentContext().repositoryObservationBaseline
+    @Autowired
+    @Lazy
+    private lateinit var self: JpaUnitOfWork
 
     companion object {
-        lateinit var instance: JpaUnitOfWork
-
-        fun fixAopWrapper(unitOfWork: JpaUnitOfWork) {
-            instance = unitOfWork
-        }
-
         private val contextThreadLocal = ThreadLocal<JpaUnitOfWorkContext>()
 
         private val entityInformationCache = ConcurrentHashMap<Class<*>, EntityInformation<*, *>>()
@@ -239,16 +231,17 @@ open class JpaUnitOfWork(
     }
 
     protected open fun <RESULT> executeRequired(block: () -> RESULT): RESULT =
-        instance.required(block)
+        self.required(block)
 
     @Transactional(rollbackFor = [Exception::class])
     open fun <RESULT> required(block: () -> RESULT): RESULT {
         check(!active) { "Only the outer Unit of Work may create a transaction context" }
-        val context = JpaUnitOfWorkContext()
+        val context = JpaUnitOfWorkContext(clock.instant(), executionContextAccessor.current())
         contextThreadLocal.set(context)
         EventRuntimeContextManager.beginUnitOfWork()
         var cleanupDeferred = false
         return try {
+            enterManualFlush(context)
             cleanupDeferred = registerAfterCompletionCleanup(context)
             val result = block()
             if (cleanupDeferred) {
@@ -290,15 +283,14 @@ open class JpaUnitOfWork(
                 override fun beforeCommit(readOnly: Boolean) {
                     check(!readOnly) { "Command Unit of Work cannot commit through a read-only transaction" }
                     stabilize(context)
-                    sealProviderAutoFlush(context)
                 }
             },
         )
     }
 
-    private fun sealProviderAutoFlush(context: JpaUnitOfWorkContext) {
+    private fun enterManualFlush(context: JpaUnitOfWorkContext) {
         val session = entityManager.unwrap(Session::class.java)
-        context.sealedSession = session
+        context.session = session
         context.previousFlushMode = session.hibernateFlushMode
         session.hibernateFlushMode = FlushMode.MANUAL
     }
@@ -306,7 +298,7 @@ open class JpaUnitOfWork(
     private fun cleanupContext(context: JpaUnitOfWorkContext) {
         if (contextThreadLocal.get() !== context) return
         try {
-            context.sealedSession?.let { session ->
+            context.session?.let { session ->
                 context.previousFlushMode?.let { previous ->
                     runCatching { session.hibernateFlushMode = previous }
                 }
@@ -317,25 +309,28 @@ open class JpaUnitOfWork(
         }
     }
 
-    override fun persist(entity: Any, intent: PersistIntent) {
-        ensureApplicationMutationPhase("persist")
-        validateStandaloneEnrollmentTarget(entity, "persist")
+    override fun registerNew(root: Any) {
+        ensureApplicationMutationPhase("registerNew")
+        validateStandaloneEnrollmentTarget(root, "registerNew")
         val context = currentContext()
-        val entry = context.pendingEntries.persist(entity, intent)
-        context.trackedRoots.add(entity)
+        val entry = context.pendingEntries.registerNew(root)
+        context.trackedRoots.add(root)
         completeIdsForEntry(entry)
     }
 
-    override fun remove(entity: Any) {
-        ensureApplicationMutationPhase("remove")
-        validateStandaloneEnrollmentTarget(entity, "remove")
-        lifecycleInvoker.onDeleted(entity)
+    override fun registerDelete(root: Any) {
+        ensureApplicationMutationPhase("registerDelete")
+        validateStandaloneEnrollmentTarget(root, "registerDelete")
         val context = currentContext()
-        if (context.pendingEntries.remove(entity)) {
-            context.trackedRoots.remove(entity)
-            domainEventManager.discard(entity)
+        check(context.pendingEntries.isPendingCreate(root) || entityManager.contains(root)) {
+            "Aggregate root deletion requires a new-pending or currently managed root: ${persistentEntityClass(root).name}"
+        }
+        if (context.deletedLifecycleRoots.add(root)) lifecycleInvoker.onDeleted(root)
+        if (context.pendingEntries.remove(root)) {
+            context.trackedRoots.remove(root)
+            domainEventManager.discard(root)
         } else {
-            context.trackedRoots.add(entity)
+            context.trackedRoots.add(root)
         }
     }
 
@@ -350,11 +345,20 @@ open class JpaUnitOfWork(
         )
     }
 
-    override fun observeRepositoryLoad(root: Any, loadPlan: AggregateLoadPlan) {
+    override fun observeRepositoryLoad(root: Any) {
         val context = contextThreadLocal.get() ?: return
         ensureApplicationMutationPhase("observe repository load", context)
         val observed = ownedRelationTraversal.reachableOwnedEntities(root)
             .map { entity -> JpaObservedEntity(entity, observedIdentityOf(entity)) }
+        observed.forEach { entry ->
+            val existingRoot = context.repositoryObservationBaseline
+                .observedRootForChild(entry.entity, entry.identity)
+                ?: return@forEach
+            check(samePersistentEntity(existingRoot, root)) {
+                "Persistent Entity ${persistentEntityClass(entry.entity).name} is owned by multiple aggregate roots: " +
+                    "${persistentEntityClass(existingRoot).name}, ${persistentEntityClass(root).name}"
+            }
+        }
         context.repositoryObservationBaseline.record(root, observed)
         context.trackedRoots.add(root)
     }
@@ -368,19 +372,6 @@ open class JpaUnitOfWork(
         if (entityInformation.isNew(entity)) return null
         val id = entityInformation.getId(entity) ?: return null
         return JpaObservedIdentity(entityClass, id)
-    }
-
-    override fun flush() {
-        val context = currentContext()
-        ensureApplicationMutationPhase("flush", context)
-        val previousPhase = context.phase
-        try {
-            context.phase = JpaUnitOfWorkPhase.INTEGRATION_RECORDS
-            integrationEventManager?.release()
-            synchronizePersistence(context)
-        } finally {
-            context.phase = previousPhase
-        }
     }
 
     private fun stabilize(context: JpaUnitOfWorkContext) {
@@ -428,13 +419,24 @@ open class JpaUnitOfWork(
         validateNoSharedReachableOwnership(pendingEntries, lateOwnership)
         validateNoLatePendingOwnedChildEntries(pendingEntries)
         completeGeneratedOwnIds(pendingEntries)
+        completeAndValidateObservedRootIds(context)
 
         context.phase = JpaUnitOfWorkPhase.CANDIDATE_DETECTION
-        val auditCandidates = detectAuditCandidates(context, pendingEntries)
-        if (auditCandidates.isNotEmpty()) {
+        val aggregateChanges = detectAggregateChanges(context, pendingEntries)
+        if (aggregateChanges.isNotEmpty()) {
+            val topologyBefore = capturePersistentTopology(context)
+            val eventCountBefore = domainEventManager.pendingCount()
             context.phase = JpaUnitOfWorkPhase.AUDIT_ENRICHMENT
             auditEnrichers.forEach { enricher ->
-                enricher.enrich(auditCandidates, context.auditContext)
+                aggregateChanges.forEach { changeSet ->
+                    enricher.enrich(changeSet, context.auditContext)
+                }
+            }
+            check(capturePersistentTopology(context) == topologyBefore) {
+                "Audit enrichment must not change persistent Entity or relation topology"
+            }
+            check(domainEventManager.pendingCount() == eventCountBefore) {
+                "Audit enrichment must not produce Domain Events"
             }
         }
 
@@ -443,7 +445,6 @@ open class JpaUnitOfWork(
             context.trackedRoots.add(entry.entity)
             when (entry.kind) {
                 UnitOfWorkEntryKind.CREATE -> applyCreate(entry.entity, results)
-                UnitOfWorkEntryKind.EXISTING -> applyExisting(entry.entity, results)
                 UnitOfWorkEntryKind.REMOVE -> applyRemove(entry.entity, results)
             }
         }
@@ -504,7 +505,6 @@ open class JpaUnitOfWork(
         val roots = InsertionOrderedIdentitySet<Any>().apply {
             addAll(context.trackedRoots)
             addAll(results.created)
-            addAll(results.existing)
         }
         context.repositoryObservationBaseline.clear()
         roots.asSequence()
@@ -516,74 +516,144 @@ open class JpaUnitOfWork(
             }
     }
 
-    private fun detectAuditCandidates(
+    private fun detectAggregateChanges(
         context: JpaUnitOfWorkContext,
         pendingEntries: List<UnitOfWorkEntry>,
-    ): List<JpaPersistenceAuditCandidate> {
-        val candidateTypes = LinkedHashMap<ObjectIdentityKey, JpaPersistenceAuditCandidate>()
+    ): List<JpaAggregateChange> {
+        val candidateTypes = LinkedHashMap<ObjectIdentityKey, JpaEntityChange>()
+        val rootHints = LinkedHashMap<ObjectIdentityKey, Any>()
 
-        fun add(entity: Any, type: JpaPersistenceChangeType) {
+        fun add(entity: Any, type: JpaEntityChangeType, rootHint: Any? = null) {
             val key = ObjectIdentityKey(entity)
+            if (rootHint != null) rootHints.putIfAbsent(key, rootHint)
             val current = candidateTypes[key]
             val effective = when {
                 current == null -> type
-                current.type == JpaPersistenceChangeType.DELETE || type == JpaPersistenceChangeType.DELETE ->
-                    JpaPersistenceChangeType.DELETE
-                current.type == JpaPersistenceChangeType.CREATE || type == JpaPersistenceChangeType.CREATE ->
-                    JpaPersistenceChangeType.CREATE
-                else -> JpaPersistenceChangeType.UPDATE
+                current.type == JpaEntityChangeType.DELETE || type == JpaEntityChangeType.DELETE ->
+                    JpaEntityChangeType.DELETE
+                current.type == JpaEntityChangeType.CREATE || type == JpaEntityChangeType.CREATE ->
+                    JpaEntityChangeType.CREATE
+                else -> JpaEntityChangeType.UPDATE
             }
-            candidateTypes[key] = JpaPersistenceAuditCandidate(entity, effective)
+            candidateTypes[key] = JpaEntityChange(entity, effective)
         }
 
         pendingEntries.forEach { entry ->
             when (entry.kind) {
                 UnitOfWorkEntryKind.CREATE -> ownedRelationTraversal
                     .reachableOwnedEntities(entry.entity)
-                    .filter { isNewPersistentEntity(it) }
-                    .forEach { add(it, JpaPersistenceChangeType.CREATE) }
+                    .forEach { add(it, JpaEntityChangeType.CREATE, entry.entity) }
                 UnitOfWorkEntryKind.REMOVE -> ownedRelationTraversal
-                    .reachableOwnedEntities(entry.entity)
-                    .forEach { add(it, JpaPersistenceChangeType.DELETE) }
-                UnitOfWorkEntryKind.EXISTING -> Unit
+                    .reachableOwnedEntities(entry.entity, initializeOwnedCollections = true)
+                    .forEach { add(it, JpaEntityChangeType.DELETE, entry.entity) }
             }
         }
 
         context.trackedRoots.forEach { root ->
             ownedRelationTraversal.reachableOwnedEntities(root)
-                .filter { isNewPersistentEntity(it) }
-                .forEach { add(it, JpaPersistenceChangeType.CREATE) }
+                .filterNot { context.repositoryObservationBaseline.isObservedObject(it, observedIdentityOf(it)) }
+                .filterNot { it === root && context.repositoryObservationBaseline.hasBaselineFor(root) }
+                .filterNot(entityManager::contains)
+                .forEach { add(it, JpaEntityChangeType.CREATE, root) }
         }
 
-        detectRemovedObservedEntities(context).forEach { add(it, JpaPersistenceChangeType.DELETE) }
+        detectRemovedObservedEntities(context).forEach { add(it, JpaEntityChangeType.DELETE) }
 
-        val session = runCatching { entityManager.unwrap(SessionImplementor::class.java) }.getOrNull()
-        session?.persistenceContextInternal?.reentrantSafeEntityEntries()?.forEach { (entity, entry) ->
+        // A Command with no observed or explicitly registered aggregate has no
+        // persistence candidate for Cap4k to inspect. Provider dirtiness is
+        // still checked by the final phase for unsupported direct JPA access.
+        if (context.trackedRoots.isEmpty() && candidateTypes.isEmpty()) return emptyList()
+
+        val session = entityManager.unwrap(SessionImplementor::class.java)
+        session.persistenceContextInternal.reentrantSafeEntityEntries().forEach { (entity, entry) ->
+            val root = aggregateRootForOrNull(context, entity) ?: return@forEach
             when {
-                entry.status.isDeletedOrGone -> add(entity, JpaPersistenceChangeType.DELETE)
+                entry.status.isDeletedOrGone -> add(entity, JpaEntityChangeType.DELETE, root)
                 entry.status == Status.SAVING || !entry.isExistsInDatabase ->
-                    add(entity, JpaPersistenceChangeType.CREATE)
+                    add(entity, JpaEntityChangeType.CREATE, root)
                 entry.status == Status.MANAGED && isDirtyExistingEntity(session, entity, entry) ->
-                    add(entity, JpaPersistenceChangeType.UPDATE)
+                    add(entity, JpaEntityChangeType.UPDATE, root)
             }
         }
-        session?.persistenceContextInternal?.forEachCollectionEntry({ collection, entry ->
+        session.persistenceContextInternal.forEachCollectionEntry({ collection, entry ->
             val persister = entry.loadedPersister ?: return@forEachCollectionEntry
-            if (!collection.isDirty || !persister.hasOrphanDelete()) return@forEachCollectionEntry
+            if (!collection.isDirty && !collection.hasQueuedOperations()) return@forEachCollectionEntry
+            val owner = collection.owner ?: return@forEachCollectionEntry
+            val ownerRoot = aggregateRootForOrNull(context, owner) ?: return@forEachCollectionEntry
             val entityName = (persister.elementType as? EntityType)?.associatedEntityName
                 ?: return@forEachCollectionEntry
-            entry.getOrphans(entityName, collection).filterNotNull().forEach { orphan ->
-                add(orphan, JpaPersistenceChangeType.DELETE)
+
+            if (collection.hasQueuedOperations()) {
+                collection.queuedAdditionIterator().forEachRemaining { addition ->
+                    if (
+                        addition != null &&
+                        !context.repositoryObservationBaseline.isObservedObject(
+                            addition,
+                            observedIdentityOf(addition),
+                        )
+                    ) {
+                        add(addition, JpaEntityChangeType.CREATE, ownerRoot)
+                    }
+                }
+                if (persister.hasOrphanDelete()) {
+                    collection.getQueuedOrphans(entityName).filterNotNull().forEach { orphan ->
+                        add(orphan, JpaEntityChangeType.DELETE, ownerRoot)
+                    }
+                }
+            }
+            if (collection.isDirty && persister.hasOrphanDelete()) {
+                entry.getOrphans(entityName, collection).filterNotNull().forEach { orphan ->
+                    add(orphan, JpaEntityChangeType.DELETE, ownerRoot)
+                }
             }
         }, true)
 
-        return candidateTypes.values.toList()
+        val byRoot = LinkedHashMap<ObjectIdentityKey, Pair<Any, MutableList<JpaEntityChange>>>()
+        candidateTypes.values.forEach { change ->
+            val root = rootHints[ObjectIdentityKey(change.entity)] ?: aggregateRootFor(context, change.entity)
+            byRoot.getOrPut(ObjectIdentityKey(root)) { root to mutableListOf() }.second += change
+        }
+        val rootOperations = pendingEntries.associate { entry ->
+            ObjectIdentityKey(entry.entity) to when (entry.kind) {
+                UnitOfWorkEntryKind.CREATE -> JpaAggregateRootOperation.CREATE
+                UnitOfWorkEntryKind.REMOVE -> JpaAggregateRootOperation.DELETE
+            }
+        }
+        return byRoot.map { (rootKey, pair) ->
+            JpaAggregateChange(
+                root = pair.first,
+                rootOperation = rootOperations[rootKey] ?: JpaAggregateRootOperation.NONE,
+                entityChanges = pair.second.toList(),
+            )
+        }
     }
 
-    private fun isNewPersistentEntity(entity: Any): Boolean {
-        val entityClass = persistentEntityClass(entity)
-        return getEntityInformation(entityClass).isNew(entity)
+    private fun aggregateRootForOrNull(context: JpaUnitOfWorkContext, entity: Any): Any? {
+        val owners = context.trackedRoots.filter { root ->
+            root === entity || ownedRelationTraversal.reachableOwnedEntities(root)
+                .any { reachable -> samePersistentEntity(reachable, entity) }
+        }
+        check(owners.size <= 1) {
+            val ownerNames = owners.joinToString { persistentEntityClass(it).name }
+            "Changed persistent Entity ${persistentEntityClass(entity).name} must belong to exactly one tracked aggregate root; owners=[$ownerNames]"
+        }
+        owners.singleOrNull()?.let { return it }
+        context.repositoryObservationBaseline
+            .observedRootFor(entity, observedIdentityOf(entity))
+            ?.let { return it }
+        return null
     }
+
+    private fun aggregateRootFor(context: JpaUnitOfWorkContext, entity: Any): Any =
+        aggregateRootForOrNull(context, entity) ?: error(
+            "Changed persistent Entity ${persistentEntityClass(entity).name} must belong to exactly one tracked aggregate root; owners=[]",
+        )
+
+    private fun capturePersistentTopology(context: JpaUnitOfWorkContext): Map<ObjectIdentityKey, List<ObjectIdentityKey>> =
+        context.trackedRoots.associate { root ->
+            ObjectIdentityKey(root) to ownedRelationTraversal.reachableOwnedEntities(root)
+                .map(::ObjectIdentityKey)
+        }
 
     private fun detectRemovedObservedEntities(context: JpaUnitOfWorkContext): List<Any> =
         context.repositoryObservationBaseline.observedRoots().flatMap { root ->
@@ -610,19 +680,23 @@ open class JpaUnitOfWork(
         entries.forEach(::completeIdsForEntry)
     }
 
+    private fun completeAndValidateObservedRootIds(context: JpaUnitOfWorkContext) {
+        context.trackedRoots
+            .filter(context.repositoryObservationBaseline::hasBaselineFor)
+            .forEach { root ->
+                validateObservedIdentityConsistency(root)
+                generatedStrongIdSupport.completeExisting(
+                    root = root,
+                    traversal = ownedRelationTraversal,
+                    baseline = context.repositoryObservationBaseline,
+                )
+            }
+    }
+
     private fun completeIdsForEntry(entry: UnitOfWorkEntry) {
         when (entry.kind) {
             UnitOfWorkEntryKind.CREATE ->
                 generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
-            UnitOfWorkEntryKind.EXISTING -> {
-                validateExistingEvidence(entry.entity)
-                validateObservedIdentityConsistency(entry.entity)
-                generatedStrongIdSupport.completeExisting(
-                    root = entry.entity,
-                    traversal = ownedRelationTraversal,
-                    baseline = repositoryObservationBaseline,
-                )
-            }
             UnitOfWorkEntryKind.REMOVE -> Unit
         }
     }
@@ -635,13 +709,6 @@ open class JpaUnitOfWork(
                 "Observed existing entity ${observed.entityType.name} changed identity " +
                     "from ${observed.id} to ${current?.id}"
             }
-        }
-    }
-
-    private fun validateExistingEvidence(entity: Any) {
-        check(repositoryObservationBaseline.hasBaselineFor(entity) || entityManager.contains(entity)) {
-            "EXISTING persist for ${persistentEntityClass(entity).name} requires a repository observation " +
-                "baseline or provider-managed existing state; detached unobserved instances cannot be merged safely"
         }
     }
 
@@ -672,8 +739,7 @@ open class JpaUnitOfWork(
 
     private fun analyzePendingOwnership(entries: List<UnitOfWorkEntry>): PendingOwnership {
         val activeIndexes = entries.indices.filter { index ->
-            entries[index].kind == UnitOfWorkEntryKind.CREATE ||
-                entries[index].kind == UnitOfWorkEntryKind.EXISTING
+            entries[index].kind == UnitOfWorkEntryKind.CREATE
         }
         val reachableByOwner = activeIndexes.associateWith { index ->
             ownedRelationTraversal.reachableOwnedEntities(entries[index].entity)
@@ -781,7 +847,7 @@ open class JpaUnitOfWork(
 
     private fun validateNoLatePendingOwnedChildEntries(entries: List<UnitOfWorkEntry>) {
         val rootEntries = entries.filter {
-            it.kind == UnitOfWorkEntryKind.CREATE || it.kind == UnitOfWorkEntryKind.EXISTING
+            it.kind == UnitOfWorkEntryKind.CREATE
         }
         if (rootEntries.isEmpty() || entries.size < 2) return
 
@@ -821,30 +887,13 @@ open class JpaUnitOfWork(
         results.needsFlush = true
     }
 
-    private fun applyExisting(entity: Any, results: FlushResult) {
-        validateObservedIdentityConsistency(entity)
-        validateExistingRootIdentified(entity)
-        val managed = if (entityManager.contains(entity)) entity else entityManager.merge(entity)
-        results.existing.add(managed)
-        results.needsFlush = true
-    }
-
     private fun applyRemove(entity: Any, results: FlushResult) {
-        when {
-            entityManager.contains(entity) -> entityManager.remove(entity)
-            else -> entityManager.merge(entity).also { merged ->
-                entityManager.remove(merged)
-            }
+        check(entityManager.contains(entity)) {
+            "Detached aggregate root removal is unsupported: ${persistentEntityClass(entity).name}"
         }
+        entityManager.remove(entity)
         results.deleted.add(entity)
         results.needsFlush = true
-    }
-
-    private fun validateExistingRootIdentified(entity: Any) {
-        val entityClass = persistentEntityClass(entity)
-        check(!getEntityInformation(entityClass).isNew(entity)) {
-            "Existing-intent entity appears new: ${entity.javaClass.name}"
-        }
     }
 
 }

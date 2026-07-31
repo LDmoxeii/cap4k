@@ -21,7 +21,7 @@ Generator-supported structure can come from DB/schema, `design/design.json`, val
 | aggregate | DB/schema aggregate markers and aggregate generator input | Aggregate root structure is not handwritten when generator input can express it. |
 | entity | DB/schema entity/table relation inference | Entity structure follows aggregate modeling and schema input. |
 | factory | Aggregate generator family or design-supported factory skeleton | Keep creation policy in generated factory slots when available. |
-| repository | Aggregate persistence generator family | Repository handles read/access/load; save ownership stays with Unit of Work. |
+| repository | Aggregate persistence generator family | Repository handles read/access/load and explicit root deletion; managed updates are observed and committed automatically by the outer Command UoW. |
 | controller | API/adapter generator family or addon-supported adapter input | Controller skeleton belongs to adapter protocol mapping, not business rule ownership. |
 | job | Scheduled reaction, compensation, polling, or addon-supported job input | Missing job support returns to technical design before handwritten structure. |
 | projection | Aggregate-projection generator family or read-model input | Treat projections as generated/read ownership, not command-side aggregate shortcuts. |

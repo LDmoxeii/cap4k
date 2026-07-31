@@ -7,6 +7,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import jakarta.persistence.EntityManager
 import org.hibernate.Session
+import org.hibernate.FlushMode
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -15,7 +16,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class JpaUnitOfWorkTest {
-    private val session = mockk<Session>()
+    private val session = mockk<Session>(relaxed = true)
     private val entityManager = mockk<EntityManager>(relaxed = true)
 
     @AfterEach
@@ -41,13 +42,13 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    fun `explicit flush synchronizes persistence but does not drain events`() {
+    fun `outer execute enters manual flush before handler and drains events only at completion`() {
         val events = RecordingDomainEventManager(pending = 1)
         val integrationEvents = mockk<IntegrationEventManager>(relaxed = true)
         val unitOfWork = unitOfWork(events, integrationEvents)
 
         unitOfWork.execute {
-            unitOfWork.flush()
+            verify { session.hibernateFlushMode = FlushMode.MANUAL }
             assertEquals(0, events.releaseCalls)
         }
 
@@ -67,11 +68,11 @@ class JpaUnitOfWorkTest {
     }
 
     @Test
-    fun `flush outside command Unit of Work fails`() {
+    fun `persistence intent outside command Unit of Work fails`() {
         val unitOfWork = unitOfWork(RecordingDomainEventManager())
 
         assertThrows(IllegalStateException::class.java) {
-            unitOfWork.flush()
+            unitOfWork.registerNew(Any())
         }
     }
 
@@ -154,6 +155,7 @@ class JpaUnitOfWorkTest {
         dirty: Boolean = false,
     ): JpaUnitOfWork {
         every { entityManager.unwrap(Session::class.java) } returns session
+        every { session.hibernateFlushMode } returns FlushMode.AUTO
         every { session.isDirty } returns dirty
         return object : JpaUnitOfWork(events, integrationEvents, limits = limits) {
             override fun <RESULT> executeRequired(block: () -> RESULT): RESULT = required(block)

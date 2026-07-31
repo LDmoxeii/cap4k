@@ -36,7 +36,9 @@ explicit no-op reasons for normal retreat paths.
 - Return an explicit no-op result for expected non-ready or already-applied states.
 - Throw a domain or application error for missing targets, invalid identities, wrong ownership, invalid child keys, and invariant violations.
 - Read multiple aggregates or facts only for validation or fact observation.
-- Register every aggregate root changed by the Command through Unit of Work; do not persist owned children independently.
+- Load existing aggregate roots through Repository so the active Command can observe managed changes automatically.
+- Create roots through Factory and delete roots through Repository; do not locate Unit of Work or call save/persist/flush.
+- Change owned children only through their managed root relations; do not persist or remove owned children independently.
 
 ## Reliable Record Registration Must Not Flush The Provider
 

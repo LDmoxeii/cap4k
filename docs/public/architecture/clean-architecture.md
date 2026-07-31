@@ -2,7 +2,7 @@
 
 cap4k 项目的 Clean Architecture mental model 是：业务规则在内层，技术入口和运行时装配在外层，源码依赖尽量指向更内侧的抽象。这样做的目的不是制造目录层级，而是让代码审查能快速回答三个问题：业务真相在哪里，用例如何被编排，外部协议在哪里被转换。
 
-四层从内到外分别是 domain、application、adapter 和 start。domain layer 保护业务事实和不变量；application layer 组织一个用例如何读取、调用 domain 行为、提交持久化意图和触发后续反应；adapter layer 把 HTTP、callback、external service、persistence 等技术协议转换成 application layer 能理解的请求和结果；start layer 装配 Spring Boot runtime、配置和启动路径。
+四层从内到外分别是 domain、application、adapter 和 start。domain layer 保护业务事实和不变量；application layer 组织一个用例如何读取、调用 domain 行为并触发后续反应，外层 Command runtime 自动完成持久化稳定化；adapter layer 把 HTTP、callback、external service、persistence 等技术协议转换成 application layer 能理解的请求和结果；start layer 装配 Spring Boot runtime、配置和启动路径。
 
 ## Layer Responsibilities
 

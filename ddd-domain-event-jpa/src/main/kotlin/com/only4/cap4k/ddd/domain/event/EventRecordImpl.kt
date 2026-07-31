@@ -1,10 +1,12 @@
 package com.only4.cap4k.ddd.domain.event
 
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_ID
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_PERSIST
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_SCHEDULE
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
@@ -45,10 +47,12 @@ class EventRecordImpl : EventRecord {
         svcName: String,
         scheduleAt: LocalDateTime,
         expireAfter: Duration,
-        retryTimes: Int
+        retryTimes: Int,
+        executionContext: Collection<EncodedExecutionContextElement>,
     ) {
         event = Event()
         event.init(payload, svcName, scheduleAt, expireAfter, retryTimes)
+        event.executionContext = JpaExecutionContextEnvelope.encode(executionContext)
     }
 
     override val id: String
@@ -59,6 +63,9 @@ class EventRecordImpl : EventRecord {
 
     override val payload: Any
         get() = event.payload!!
+
+    override val executionContext: List<EncodedExecutionContextElement>
+        get() = JpaExecutionContextEnvelope.decode(event.executionContext)
 
     override val scheduleTime: LocalDateTime
         get() = event.createAt
@@ -103,6 +110,10 @@ class EventRecordImpl : EventRecord {
                                 HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
                         )
                         put(HEADER_KEY_CAP4K_PERSIST, this@EventRecordImpl.persist)
+                        put(
+                            HEADER_KEY_CAP4K_EXECUTION_CONTEXT,
+                            event.executionContext ?: JpaExecutionContextEnvelope.encode(emptyList()),
+                        )
 
                         val now = LocalDateTime.now()
                         put(HEADER_KEY_CAP4K_TIMESTAMP, now.toEpochSecond(ZoneOffset.UTC))

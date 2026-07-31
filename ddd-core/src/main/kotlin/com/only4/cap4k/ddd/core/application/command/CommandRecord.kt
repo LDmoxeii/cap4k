@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.application.command
 
+import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -11,11 +12,13 @@ interface CommandRecord {
         scheduleAt: LocalDateTime,
         expireAfter: Duration,
         retryTimes: Int,
+        executionContext: Collection<EncodedExecutionContextElement> = emptyList(),
     )
 
     val id: String
     val type: String
     val command: Command<*>
+    val executionContext: List<EncodedExecutionContextElement>
     fun <RESULT : Any> getResult(): RESULT?
     val scheduleTime: LocalDateTime
     val nextTryTime: LocalDateTime

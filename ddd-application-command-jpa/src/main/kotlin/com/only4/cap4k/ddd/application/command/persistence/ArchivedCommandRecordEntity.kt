@@ -54,6 +54,10 @@ class ArchivedCommandRecordEntity(
     @Column(name = "`param_type`")
     var paramType: String = "",
 
+    /** Original versioned ExecutionContext envelope. Null represents legacy EMPTY context. */
+    @Column(name = "`execution_context`")
+    var executionContext: String? = null,
+
     /**
      * 结果
      * text
@@ -143,6 +147,7 @@ class ArchivedCommandRecordEntity(
         this.commandType = command.commandType
         this.param = command.param
         this.paramType = command.paramType
+        this.executionContext = command.executionContext
         this.result = command.result
         this.resultType = command.resultType
         this.exception = command.exception

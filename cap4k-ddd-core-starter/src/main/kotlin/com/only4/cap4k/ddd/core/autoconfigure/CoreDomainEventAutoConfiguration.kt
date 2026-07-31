@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.core.autoconfigure
 
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
@@ -25,9 +27,11 @@ class CoreDomainEventAutoConfiguration {
     fun defaultEventSubscriberManager(
         eventSubscribers: List<EventSubscriber<*>>,
         applicationEventPublisher: ApplicationEventPublisher,
+        invocationScopeManager: InvocationScopeManager,
     ): DefaultEventSubscriberManager = DefaultEventSubscriberManager(
         eventSubscribers,
         applicationEventPublisher,
+        invocationScopeManager,
     ).apply { init() }
 
     @Bean
@@ -43,11 +47,13 @@ class CoreDomainEventAutoConfiguration {
         eventSubscriberManager: EventSubscriberManager,
         reliableProvider: ObjectProvider<ReliableDomainEventProvider>,
         integrationEventManager: ObjectProvider<IntegrationEventManager>,
+        executionContextAccessor: ExecutionContextAccessor,
     ): DefaultDomainEventSupervisor = DefaultDomainEventSupervisor(
         interceptorManager,
         eventSubscriberManager,
         reliableProvider.getIfUnique(),
         integrationEventManager.getIfUnique(),
+        executionContextAccessor,
     )
 
     @Bean

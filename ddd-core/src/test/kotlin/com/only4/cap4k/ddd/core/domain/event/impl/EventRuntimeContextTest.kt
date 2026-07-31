@@ -215,6 +215,29 @@ class EventRuntimeContextTest {
     }
 
     @Test
+    @DisplayName("Caller Runs 异步任务应该隔离并恢复调用方事件状态")
+    fun `isolated state hides and restores caller event runtime`() {
+        val outer = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
+        outer.attachIntegration(EventAttachment.eager(TestIntegrationEvent("outer")))
+
+        EventRuntimeContext.withCausalFrame("Command:Outer") {
+            EventRuntimeContext.withIsolatedState {
+                assertFalse(EventRuntimeContext.hasScope())
+                assertEquals(emptyList<String>(), EventRuntimeContext.diagnosticCausalPath())
+                EventRuntimeContext.currentOrCreateAmbient()
+                    .attachIntegration(EventAttachment.eager(TestIntegrationEvent("isolated")))
+            }
+
+            assertSame(outer, EventRuntimeContext.current())
+            assertEquals(listOf("Command:Outer"), EventRuntimeContext.diagnosticCausalPath())
+            assertEquals(
+                listOf(TestIntegrationEvent("outer")),
+                outer.integrationAttachments.map { it.resolve() },
+            )
+        }
+    }
+
+    @Test
     @DisplayName("诊断因果路径应该保留最深失败链并在下一次成功调用时清理")
     fun `diagnostic causal path retains the deepest failing frame and resets for the next call`() {
         runCatching {

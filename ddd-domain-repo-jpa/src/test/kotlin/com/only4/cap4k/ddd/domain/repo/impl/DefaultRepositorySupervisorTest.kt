@@ -1,9 +1,10 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
 import com.only4.cap4k.ddd.application.JpaRepositoryObservationRecorder
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
-import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
+import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
+import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateRootCatalog
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -11,52 +12,56 @@ import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import io.mockk.*
-import org.junit.jupiter.api.*
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 class DefaultRepositorySupervisorTest {
-
-    private lateinit var mockUnitOfWork: UnitOfWork
-    private lateinit var mockRepository: Repository<TestEntity>
-    private lateinit var observationRecorder: JpaRepositoryObservationRecorder
+    private val persistenceIntents = mockk<AggregatePersistenceIntentRecorder>(relaxed = true)
+    private val observationRecorder = mockk<JpaRepositoryObservationRecorder>(relaxed = true)
+    private val repository = mockk<Repository<TestEntity>>(relaxed = true)
+    private val childRepository = mockk<Repository<AnotherEntity>>(relaxed = true)
+    private val scopes = DefaultInvocationScopeManager()
+    private val aggregateRoots = AggregateRootCatalog { entityType -> entityType == TestEntity::class.java }
     private lateinit var supervisor: DefaultRepositorySupervisor
 
-    private data class TestEntity(val id: Long, val name: String)
-    private data class AnotherEntity(val id: String, val value: Int)
-
+    private data class TestEntity(val id: Long)
+    private data class AnotherEntity(val id: String)
+    private data class MissingEntity(val id: String)
     private class TestPredicate : Predicate<TestEntity>
-    private class AnotherPredicate : Predicate<TestEntity>
-    private class TestEntityPredicate : Predicate<AnotherEntity>
+    private class UnsupportedPredicate : Predicate<TestEntity>
+    private class AnotherPredicate : Predicate<AnotherEntity>
+    private class MissingPredicate : Predicate<MissingEntity>
 
     @BeforeEach
     fun setup() {
-        mockUnitOfWork = mockk<UnitOfWork>(relaxed = true)
-        mockRepository = mockk<Repository<TestEntity>>(relaxed = true)
-        observationRecorder = mockk(relaxed = true)
-
-        every { mockRepository.supportPredicateClass() } returns TestPredicate::class.java
-
-        // 注册实体类型反射器
+        every { repository.supportPredicateClass() } returns TestPredicate::class.java
+        every { childRepository.supportPredicateClass() } returns AnotherPredicate::class.java
         DefaultRepositorySupervisor.registerPredicateEntityClassReflector(TestPredicate::class.java) {
             TestEntity::class.java
         }
         DefaultRepositorySupervisor.registerPredicateEntityClassReflector(AnotherPredicate::class.java) {
-            TestEntity::class.java
-        }
-        DefaultRepositorySupervisor.registerPredicateEntityClassReflector(TestEntityPredicate::class.java) {
             AnotherEntity::class.java
         }
-
+        DefaultRepositorySupervisor.registerPredicateEntityClassReflector(MissingPredicate::class.java) {
+            MissingEntity::class.java
+        }
         mockkStatic("com.only4.cap4k.ddd.core.share.misc.ClassUtils")
         every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(any(), 0, Repository::class.java)
+            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(repository, 0, Repository::class.java)
         } returns TestEntity::class.java
-
+        every {
+            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(childRepository, 0, Repository::class.java)
+        } returns AnotherEntity::class.java
         supervisor = DefaultRepositorySupervisor(
-            repositories = listOf(mockRepository),
-            unitOfWork = mockUnitOfWork,
+            repositories = listOf(repository, childRepository),
+            persistenceIntents = persistenceIntents,
+            invocationScopeAccessor = scopes,
+            aggregateRootCatalog = aggregateRoots,
             observationRecorder = observationRecorder,
-        )
+        ).apply { init() }
     }
 
     @AfterEach
@@ -65,384 +70,122 @@ class DefaultRepositorySupervisorTest {
     }
 
     @Test
-    @DisplayName("查找默认应该使用非持久化读取")
-    fun `find should default to non persistent reads`() {
+    fun `command read stays managed and records observation without existing intent`() {
         val predicate = TestPredicate()
-        val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
+        val entities = listOf(TestEntity(1), TestEntity(2))
+        every { repository.find(predicate, any<Collection<OrderInfo>>()) } returns entities
 
-        every {
-            mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE)
-        } returns expectedEntities
-
-        val result = supervisor.find(predicate)
-
-        assertEquals(expectedEntities, result)
-        verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), false, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        expectedEntities.forEach { entity ->
-            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        }
-        verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
-    }
-
-    @Test
-    @DisplayName("查找单个实体默认应该使用非持久化读取")
-    fun `findOne should default to non persistent reads`() {
-        val predicate = TestPredicate()
-        val expectedEntity = TestEntity(1L, "test")
-
-        every { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns expectedEntity
-
-        val result = supervisor.findOne(predicate)
-
-        assertEquals(expectedEntity, result)
-        verify { mockRepository.findOne(predicate, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
-    }
-
-    @Test
-    @DisplayName("当实体存在时，使用持久化查找单个实体应该调用工作单元持久化")
-    fun `findOne with persist should call unitOfWork persist when entity present`() {
-        val predicate = TestPredicate()
-        val expectedEntity = TestEntity(1L, "test")
-
-        every { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) } returns expectedEntity
-
-        val result = supervisor.findOne(predicate, true)
-
-        assertEquals(expectedEntity, result)
-        verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.EXISTING) }
-    }
-
-    @Test
-    @DisplayName("findOne should pass aggregate load plan to repository")
-    fun `findOne should pass aggregate load plan to repository`() {
-        val predicate = TestPredicate()
-        val expectedEntity = TestEntity(1L, "test")
-
-        every {
-            mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE)
-        } returns expectedEntity
-
-        val result = supervisor.findOne(
-            predicate = predicate,
-            persist = true,
-            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
-        )
-
-        assertEquals(expectedEntity, result)
-        verify { mockRepository.findOne(predicate, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.EXISTING) }
-    }
-
-    @Test
-    @DisplayName("find should pass aggregate load plan to repository")
-    fun `find should pass aggregate load plan to repository`() {
-        val predicate = TestPredicate()
-        val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-
-        every {
-            mockRepository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
-        } returns expectedEntities
-
-        val result = supervisor.find(
-            predicate = predicate,
-            orders = emptyList(),
-            persist = true,
-            loadPlan = AggregateLoadPlan.WHOLE_AGGREGATE
-        )
-
-        assertEquals(expectedEntities, result)
-        verify { mockRepository.find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        expectedEntities.forEach { entity ->
-            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-            verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
-        }
-    }
-
-    @Test
-    @DisplayName("查找分页默认应该使用非持久化读取")
-    fun `findPage should default to non persistent reads`() {
-        val predicate = TestPredicate()
-        val pageParam = PageParam.of(1, 10)
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val pageData = PageData.create(pageParam, 2L, entities)
-
-        every { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) } returns pageData
-
-        val result = supervisor.findPage(predicate, pageParam)
-
-        assertEquals(pageData, result)
-        verify { mockRepository.findPage(predicate, pageParam, false, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        entities.forEach { entity ->
-            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        }
-        verify(exactly = 0) { mockUnitOfWork.persist(any(), any()) }
-    }
-
-    @Test
-    @DisplayName("使用持久化查找分页应该为每个实体调用工作单元持久化")
-    fun `findPage with persist should call unitOfWork persist for each entity`() {
-        val predicate = TestPredicate()
-        val pageParam = PageParam.of(1, 10)
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val pageData = PageData.create(pageParam, 2L, entities)
-
-        every { mockRepository.findPage(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) } returns pageData
-
-        val result = supervisor.findPage(predicate, pageParam, true)
-
-        assertEquals(pageData, result)
-        verify { mockRepository.findPage(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        entities.forEach { entity ->
-            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-            verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
-        }
-    }
-
-    @Test
-    @DisplayName("使用持久化分页查找应该为每个实体注册已有实体意图")
-    fun `find page overload with persist should register existing intent for each entity`() {
-        val predicate = TestPredicate()
-        val pageParam = PageParam.of(1, 10)
-        val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-
-        every {
-            mockRepository.find(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE)
-        } returns expectedEntities
-
-        val result = supervisor.find(predicate, pageParam, true)
-
-        assertEquals(expectedEntities, result)
-        verify { mockRepository.find(predicate, pageParam, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        expectedEntities.forEach { entity ->
-            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-            verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
-        }
-    }
-
-    @Test
-    @DisplayName("使用持久化分页查找并指定加载计划应该注册已有实体意图")
-    fun `find page overload with load plan should register existing intent for each entity`() {
-        val predicate = TestPredicate()
-        val pageParam = PageParam.of(1, 10)
-        val expectedEntities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-
-        every {
-            mockRepository.find(predicate, pageParam, true, AggregateLoadPlan.MINIMAL)
-        } returns expectedEntities
-
-        val result = supervisor.find(
-            predicate = predicate,
-            pageParam = pageParam,
-            persist = true,
-            loadPlan = AggregateLoadPlan.MINIMAL
-        )
-
-        assertEquals(expectedEntities, result)
-        verify { mockRepository.find(predicate, pageParam, true, AggregateLoadPlan.MINIMAL) }
-        expectedEntities.forEach { entity ->
-            verify { observationRecorder.observeRepositoryLoad(entity, AggregateLoadPlan.MINIMAL) }
-            verify { mockUnitOfWork.persist(entity, PersistIntent.EXISTING) }
-        }
-    }
-
-    @Test
-    @DisplayName("使用持久化查找第一个实体应该注册已有实体意图")
-    fun `findFirst with persist should register existing intent`() {
-        val predicate = TestPredicate()
-        val orders = listOf(OrderInfo.asc("id"))
-        val expectedEntity = TestEntity(1L, "test")
-
-        every {
-            mockRepository.findFirst(predicate, orders, true, AggregateLoadPlan.WHOLE_AGGREGATE)
-        } returns expectedEntity
-
-        val result = supervisor.findFirst(predicate, orders, true)
-
-        assertEquals(expectedEntity, result)
-        verify { mockRepository.findFirst(predicate, orders, true, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { observationRecorder.observeRepositoryLoad(expectedEntity, AggregateLoadPlan.WHOLE_AGGREGATE) }
-        verify { mockUnitOfWork.persist(expectedEntity, PersistIntent.EXISTING) }
-    }
-
-    @Test
-    @DisplayName("删除应该查找实体并为每个实体调用工作单元删除")
-    fun `remove should find entities and call unitOfWork remove for each`() {
-        val predicate = TestPredicate()
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-
-        every {
-            mockRepository.find(predicate, any<Collection<OrderInfo>>(), any(), AggregateLoadPlan.WHOLE_AGGREGATE)
-        } returns entities
-
-        val result = supervisor.remove(predicate)
+        val result = inScope(InvocationKind.COMMAND) { supervisor.find(predicate) }
 
         assertEquals(entities, result)
-        verify { mockRepository.find(predicate, any<Collection<OrderInfo>>(), any(), AggregateLoadPlan.WHOLE_AGGREGATE) }
-        entities.forEach { entity ->
-            verify { mockUnitOfWork.remove(entity) }
+        entities.forEach { verify { observationRecorder.observeRepositoryLoad(it) } }
+        verify(exactly = 0) { persistenceIntents.registerNew(any()) }
+        verify(exactly = 0) { persistenceIntents.registerDelete(any()) }
+    }
+
+    @Test
+    fun `query read is allowed and records observation`() {
+        val predicate = TestPredicate()
+        val entity = TestEntity(1)
+        every { repository.findOne(predicate) } returns entity
+
+        assertEquals(entity, inScope(InvocationKind.QUERY) { supervisor.findOne(predicate) })
+        verify { observationRecorder.observeRepositoryLoad(entity) }
+    }
+
+    @Test
+    fun `query may read an owned child repository`() {
+        val predicate = AnotherPredicate()
+        val child = AnotherEntity("child-1")
+        every { childRepository.findOne(predicate) } returns child
+
+        assertEquals(child, inScope(InvocationKind.QUERY) { supervisor.findOne(predicate) })
+    }
+
+    @Test
+    fun `command first read and removal reject an owned child repository`() {
+        val predicate = AnotherPredicate()
+
+        assertThrows(IllegalStateException::class.java) {
+            inScope(InvocationKind.COMMAND) { supervisor.findOne(predicate) }
+        }
+        assertThrows(IllegalStateException::class.java) {
+            inScope(InvocationKind.COMMAND) { supervisor.remove(predicate) }
+        }
+        verify(exactly = 0) { childRepository.findOne(any()) }
+        verify(exactly = 0) { childRepository.find(any(), any<Collection<OrderInfo>>()) }
+        verify(exactly = 0) { persistenceIntents.registerDelete(any()) }
+    }
+
+    @Test
+    fun `command removal loads roots and records delete intent`() {
+        val predicate = TestPredicate()
+        val entities = listOf(TestEntity(1), TestEntity(2))
+        every { repository.find(predicate, any<Collection<OrderInfo>>()) } returns entities
+
+        val result = inScope(InvocationKind.COMMAND) { supervisor.remove(predicate) }
+
+        assertEquals(entities, result)
+        entities.forEach { verify { persistenceIntents.registerDelete(it) } }
+    }
+
+    @Test
+    fun `capability and ordinary scope cannot read repository`() {
+        assertThrows(IllegalStateException::class.java) { supervisor.count(TestPredicate()) }
+        assertThrows(IllegalStateException::class.java) {
+            inScope(InvocationKind.CAPABILITY) { supervisor.count(TestPredicate()) }
         }
     }
 
     @Test
-    @DisplayName("计数应该返回实体数量")
-    fun `count should return entity count`() {
-        val predicate = TestPredicate()
-        val expectedCount = 42L
-
-        every { mockRepository.count(predicate) } returns expectedCount
-
-        val result = supervisor.count(predicate)
-
-        assertEquals(expectedCount, result)
-        verify { mockRepository.count(predicate) }
-    }
-
-    @Test
-    @DisplayName("当实体存在时存在检查应该返回true")
-    fun `exists should return true when entities exist`() {
-        val predicate = TestPredicate()
-
-        every { mockRepository.exists(predicate) } returns true
-
-        val result = supervisor.exists(predicate)
-
-        assertTrue(result)
-        verify { mockRepository.exists(predicate) }
-    }
-
-    @Test
-    @DisplayName("当实体不存在时存在检查应该返回false")
-    fun `exists should return false when entities do not exist`() {
-        val predicate = TestPredicate()
-
-        every { mockRepository.exists(predicate) } returns false
-
-        val result = supervisor.exists(predicate)
-
-        assertFalse(result)
-        verify { mockRepository.exists(predicate) }
-    }
-
-    @Test
-    @DisplayName("当实体不存在仓储时应该抛出异常")
-    fun `should throw exception when repository not found for entity`() {
-        val predicate = TestEntityPredicate()
-
-        assertThrows<DomainException> {
-            supervisor.find(predicate)
+    fun `query cannot remove aggregate`() {
+        assertThrows(IllegalStateException::class.java) {
+            inScope(InvocationKind.QUERY) { supervisor.remove(TestPredicate()) }
         }
     }
 
     @Test
-    @DisplayName("当谓词类型不支持时应该抛出异常")
-    fun `should throw exception when predicate type not supported`() {
-        class UnsupportedPredicate : Predicate<TestEntity>
-
-        val predicate = UnsupportedPredicate()
-
-        assertThrows<DomainException> {
-            supervisor.find(predicate)
+    fun `unsupported predicate and missing repository retain stable domain failures`() {
+        assertThrows(DomainException::class.java) {
+            inScope(InvocationKind.COMMAND) { supervisor.find(UnsupportedPredicate()) }
+        }
+        assertThrows(DomainException::class.java) {
+            inScope(InvocationKind.QUERY) { supervisor.find(MissingPredicate()) }
         }
     }
 
     @Test
-    @DisplayName("注册谓词实体类反射器不应该替换现有反射器")
-    fun `registerPredicateEntityClassReflector should not replace existing reflector`() {
-        val originalReflector: (Predicate<*>) -> Class<*> = { TestEntity::class.java }
-        val newReflector: (Predicate<*>) -> Class<*> = { AnotherEntity::class.java }
-
-        class NewPredicateType : Predicate<TestEntity>
-
-        // 创建支持NewPredicateType的仓储
-        val newRepository = mockk<Repository<TestEntity>>(relaxed = true)
-        every { newRepository.supportPredicateClass() } returns NewPredicateType::class.java
-        every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(newRepository, 0, Repository::class.java)
-        } returns TestEntity::class.java
-        every { newRepository.count(any()) } returns 5L
-
-        // 创建包含新仓储的supervisor
-        val supervisorWithNewRepo = DefaultRepositorySupervisor(
-            repositories = listOf(mockRepository, newRepository),
-            unitOfWork = mockUnitOfWork
-        )
-
-        DefaultRepositorySupervisor.registerPredicateEntityClassReflector(
-            NewPredicateType::class.java,
-            originalReflector
-        )
-        DefaultRepositorySupervisor.registerPredicateEntityClassReflector(NewPredicateType::class.java, newReflector)
-
-        val predicate = NewPredicateType()
-
-        // 原始反射器应该仍然有效，因为putIfAbsent不会替换现有值
-        val result = supervisorWithNewRepo.count(predicate)
-
-        // 验证使用了正确的仓储（基于原始反射器返回的TestEntity类型）
-        assertEquals(5L, result)
-        verify { newRepository.count(predicate) }
-    }
-
-    @Test
-    @DisplayName("注册仓储实体类反射器应该正确注册反射器")
-    fun `registerRepositoryEntityClassReflector should register reflector correctly`() {
-        val reflector: (Repository<*>) -> Class<*>? = { TestEntity::class.java }
-
-        class NewRepositoryType : Repository<TestEntity> {
+    fun `repository reflector supports erased repository subclasses`() {
+        class ErasedRepository : Repository<TestEntity> {
             override fun supportPredicateClass(): Class<*> = TestPredicate::class.java
-            override fun find(
-                predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                orders: Collection<OrderInfo>,
-                persist: Boolean
-            ): List<TestEntity> = emptyList()
-
-            override fun find(
-                predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                pageParam: PageParam,
-                persist: Boolean
-            ): List<TestEntity> = emptyList()
-
-            override fun findOne(
-                predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                persist: Boolean
-            ): TestEntity? = null
-
-            override fun findFirst(
-                predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                orders: Collection<OrderInfo>,
-                persist: Boolean
-            ): TestEntity? = null
-
-            override fun findPage(
-                predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>,
-                pageParam: PageParam,
-                persist: Boolean
-            ): PageData<TestEntity> = PageData.create(PageParam.of(1, 10), 0L, emptyList())
-
-            override fun count(predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>): Long = 0
-            override fun exists(predicate: com.only4.cap4k.ddd.core.domain.repo.Predicate<TestEntity>): Boolean = false
+            override fun find(predicate: Predicate<TestEntity>, orders: Collection<OrderInfo>) = emptyList<TestEntity>()
+            override fun find(predicate: Predicate<TestEntity>, pageParam: PageParam) = emptyList<TestEntity>()
+            override fun findOne(predicate: Predicate<TestEntity>): TestEntity? = null
+            override fun findFirst(predicate: Predicate<TestEntity>, orders: Collection<OrderInfo>): TestEntity? = null
+            override fun findPage(predicate: Predicate<TestEntity>, pageParam: PageParam) =
+                PageData.create(pageParam, 0, emptyList<TestEntity>())
+            override fun count(predicate: Predicate<TestEntity>) = 0L
+            override fun exists(predicate: Predicate<TestEntity>) = false
         }
 
-        DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(NewRepositoryType::class.java) { TestEntity::class.java }
-
-        val compatibilityOnlyRepository = NewRepositoryType()
-        assertEquals(null, compatibilityOnlyRepository.findOne(TestPredicate(), true, AggregateLoadPlan.MINIMAL))
-        val exception = assertThrows(UnsupportedOperationException::class.java) {
-            compatibilityOnlyRepository.findOne(TestPredicate(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+        DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(ErasedRepository::class.java) {
+            TestEntity::class.java
         }
-        assertTrue(exception.message!!.contains("WHOLE_AGGREGATE"))
 
-        // 验证注册器正确注册了反射器
-        val reflectors =
-            DefaultRepositorySupervisor::class.java.getDeclaredField("repositoryClass2EntityClassReflector")
-        reflectors.isAccessible = true
-        val reflectorMap = reflectors.get(null) as Map<*, *>
+        val field = DefaultRepositorySupervisor::class.java
+            .getDeclaredField("repositoryClass2EntityClassReflector")
+            .apply { isAccessible = true }
+        @Suppress("UNCHECKED_CAST")
+        val reflectors = field.get(null) as Map<Class<*>, *>
+        assertEquals(true, reflectors.containsKey(ErasedRepository::class.java))
+    }
 
-        assertTrue(reflectorMap.containsKey(NewRepositoryType::class.java))
+    private fun <T> inScope(kind: InvocationKind, block: () -> T): T {
+        val scope = scopes.enter(kind)
+        return try {
+            block()
+        } finally {
+            scope.close()
+        }
     }
 }

@@ -1,176 +1,143 @@
 package com.only4.cap4k.ddd.core.domain.aggregate.impl
 
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
-@DisplayName("DefaultAggregateFactorySupervisor 测试")
+@DisplayName("DefaultAggregateFactorySupervisor tests")
 class DefaultAggregateFactorySupervisorTest {
-
-    private lateinit var supervisor: DefaultAggregateFactorySupervisor
-    private lateinit var unitOfWork: UnitOfWork
+    private lateinit var persistenceIntents: AggregatePersistenceIntentRecorder
+    private val commandScope = InvocationScopeAccessor { InvocationKind.COMMAND }
 
     @BeforeEach
     fun setup() {
-        unitOfWork = mockk(relaxed = true)
+        persistenceIntents = mockk(relaxed = true)
     }
 
     @Test
-    @DisplayName("应该使用匹配的工厂创建聚合并调用UnitOfWork持久化")
-    fun `should create aggregate with matching factory and persist`() {
-        // Given
-        val factory = TestAggregateFactory()
-        supervisor = DefaultAggregateFactorySupervisor(listOf(factory), unitOfWork)
-        val payload = TestPayload("test-data")
+    fun `matching factory creates aggregate and registers root create intent`() {
+        val supervisor = supervisor(TestAggregateFactory())
 
-        // When
-        val result = supervisor.create(payload)
+        val result = supervisor.create(TestPayload("test-data"))
 
-        // Then
         assertNotNull(result)
-        assertEquals("test-data", result!!.data)
-        verify { unitOfWork.persist(result, PersistIntent.CREATE) }
+        assertEquals("test-data", result.data)
+        verify { persistenceIntents.registerNew(result) }
     }
 
     @Test
-    fun `create returns only after UoW makes the aggregate graph id ready`() {
-        val uow = mockk<UnitOfWork>()
-        every { uow.persist(any(), PersistIntent.CREATE) } answers {
+    fun `create returns after persistence runtime makes aggregate ids ready`() {
+        every { persistenceIntents.registerNew(any()) } answers {
             firstArg<ReadyRoot>().also { root ->
                 root.id = "ROOT-1"
                 root.children.forEachIndexed { index, child -> child.id = "CHILD-${index + 1}" }
             }
-            Unit
         }
-        val supervisor = DefaultAggregateFactorySupervisor(listOf(ReadyAggregateFactory()), uow)
+        val supervisor = supervisor(ReadyAggregateFactory())
 
         val result = supervisor.create(ReadyPayload(2))
 
         assertEquals("ROOT-1", result.id)
         assertEquals(listOf("CHILD-1", "CHILD-2"), result.children.map { it.id })
-        verify(exactly = 1) { uow.persist(result, PersistIntent.CREATE) }
+        verify(exactly = 1) { persistenceIntents.registerNew(result) }
     }
 
     @Test
-    @DisplayName("当没有匹配的工厂时应该抛出异常")
-    fun `should throw exception when no matching factory found`() {
-        // Given
-        supervisor = DefaultAggregateFactorySupervisor(emptyList(), unitOfWork)
-        val payload = TestPayload("test-data")
+    fun `missing factory fails without registering persistence intent`() {
+        val supervisor = supervisor()
 
-        // When & Then
-        val exception = assertThrows(com.only4.cap4k.ddd.core.share.DomainException::class.java) {
-            supervisor.create(payload)
+        val exception = assertThrows(DomainException::class.java) {
+            supervisor.create(TestPayload("test-data"))
         }
 
-        assertTrue(exception.message!!.contains("No factory found for payload"))
-        verify(exactly = 0) { unitOfWork.persist(any(), any()) }
+        assertTrue(exception.message.orEmpty().contains("No factory found for payload"))
+        verify(exactly = 0) { persistenceIntents.registerNew(any()) }
     }
 
     @Test
-    @DisplayName("应该正确匹配不同类型的payload到对应工厂")
-    fun `should correctly match different payload types to factories`() {
-        // Given
-        val testFactory = TestAggregateFactory()
-        val anotherFactory = AnotherAggregateFactory()
-        supervisor = DefaultAggregateFactorySupervisor(listOf(testFactory, anotherFactory), unitOfWork)
+    fun `different payload types resolve their matching factories`() {
+        val supervisor = supervisor(TestAggregateFactory(), AnotherAggregateFactory())
 
-        val testPayload = TestPayload("test-data")
-        val anotherPayload = AnotherPayload("another-data")
+        val first = supervisor.create(TestPayload("test-data"))
+        val second = supervisor.create(AnotherPayload("another-data"))
 
-        // When
-        val result1 = supervisor.create(testPayload)
-        val result2 = supervisor.create(anotherPayload)
-
-        // Then
-        assertNotNull(result1)
-        assertNotNull(result2)
-        assertEquals("test-data", result1!!.data)
-        assertEquals("another-data", result2!!.data)
-        verify { unitOfWork.persist(result1, PersistIntent.CREATE) }
-        verify { unitOfWork.persist(result2, PersistIntent.CREATE) }
+        assertEquals("test-data", first.data)
+        assertEquals("another-data", second.data)
+        verify { persistenceIntents.registerNew(first) }
+        verify { persistenceIntents.registerNew(second) }
     }
 
     @Test
-    @DisplayName("当UnitOfWork持久化失败时应该抛出异常")
-    fun `should throw exception when UnitOfWork persist fails`() {
-        // Given
-        val factory = TestAggregateFactory()
-        supervisor = DefaultAggregateFactorySupervisor(listOf(factory), unitOfWork)
-        val payload = TestPayload("test-data")
+    fun `persistence intent failure is propagated`() {
+        every { persistenceIntents.registerNew(any()) } throws RuntimeException("Database error")
+        val supervisor = supervisor(TestAggregateFactory())
 
-        every { unitOfWork.persist(any(), PersistIntent.CREATE) } throws RuntimeException("Database error")
-
-        // When & Then
         val exception = assertThrows(RuntimeException::class.java) {
-            supervisor.create(payload)
+            supervisor.create(TestPayload("test-data"))
         }
 
         assertEquals("Database error", exception.message)
     }
 
     @Test
-    @DisplayName("当工厂列表为空时应该抛出异常")
-    fun `should throw exception when factory list is empty`() {
-        // Given
-        supervisor = DefaultAggregateFactorySupervisor(emptyList(), unitOfWork)
-        val payload = TestPayload("test-data")
+    fun `factory access outside Command scope fails before creation`() {
+        val supervisor = DefaultAggregateFactorySupervisor(
+            listOf(TestAggregateFactory()),
+            persistenceIntents,
+            InvocationScopeAccessor { InvocationKind.QUERY },
+        )
 
-        // When & Then
-        val exception = assertThrows(com.only4.cap4k.ddd.core.share.DomainException::class.java) {
-            supervisor.create(payload)
+        val exception = assertThrows(IllegalStateException::class.java) {
+            supervisor.create(TestPayload("test-data"))
         }
 
-        assertTrue(exception.message!!.contains("No factory found for payload"))
-        verify(exactly = 0) { unitOfWork.persist(any(), any()) }
+        assertTrue(exception.message.orEmpty().contains("COMMAND"))
+        verify(exactly = 0) { persistenceIntents.registerNew(any()) }
     }
 
     @Test
-    @DisplayName("应该线程安全地处理并发创建请求")
-    fun `should handle concurrent creation requests thread-safely`() {
-        // Given
-        val factory = TestAggregateFactory()
-        supervisor = DefaultAggregateFactorySupervisor(listOf(factory), unitOfWork)
+    fun `concurrent create requests use the same immutable factory catalog`() {
+        val supervisor = supervisor(TestAggregateFactory())
         val payload = TestPayload("concurrent-data")
 
-        // When
-        val threads = List(10) {
-            Thread {
-                supervisor.create(payload)
-            }
-        }
-        threads.forEach { it.start() }
-        threads.forEach { it.join() }
+        val threads = List(10) { Thread { supervisor.create(payload) } }
+        threads.forEach(Thread::start)
+        threads.forEach(Thread::join)
 
-        // Then
-        verify(exactly = 10) { unitOfWork.persist(any(), PersistIntent.CREATE) }
+        verify(exactly = 10) { persistenceIntents.registerNew(any()) }
     }
 
-    // Test data classes and factories
+    private fun supervisor(vararg factories: AggregateFactory<*, *>): DefaultAggregateFactorySupervisor =
+        DefaultAggregateFactorySupervisor(
+            factories.toList(),
+            persistenceIntents,
+            commandScope,
+        )
+
     data class TestPayload(val data: String) : AggregatePayload<TestEntity>
     data class AnotherPayload(val data: String) : AggregatePayload<AnotherEntity>
-
     data class TestEntity(val data: String)
     data class AnotherEntity(val data: String)
 
     class TestAggregateFactory : AggregateFactory<TestPayload, TestEntity> {
-        override fun create(entityPayload: TestPayload): TestEntity {
-            return TestEntity(entityPayload.data)
-        }
+        override fun create(entityPayload: TestPayload): TestEntity = TestEntity(entityPayload.data)
     }
 
     class AnotherAggregateFactory : AggregateFactory<AnotherPayload, AnotherEntity> {
-        override fun create(entityPayload: AnotherPayload): AnotherEntity {
-            return AnotherEntity(entityPayload.data)
-        }
+        override fun create(entityPayload: AnotherPayload): AnotherEntity = AnotherEntity(entityPayload.data)
     }
 
     private data class ReadyChild(var id: String? = null)
@@ -178,6 +145,7 @@ class DefaultAggregateFactorySupervisorTest {
         var id: String? = null,
         val children: MutableList<ReadyChild>,
     )
+
     private data class ReadyPayload(val childCount: Int) : AggregatePayload<ReadyRoot>
 
     private class ReadyAggregateFactory : AggregateFactory<ReadyPayload, ReadyRoot> {

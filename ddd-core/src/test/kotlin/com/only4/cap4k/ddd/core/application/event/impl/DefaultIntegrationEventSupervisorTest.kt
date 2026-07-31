@@ -4,6 +4,8 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventAttachedTransa
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
@@ -37,6 +39,7 @@ class DefaultIntegrationEventSupervisorTest {
     private lateinit var applicationEventPublisher: ApplicationEventPublisher
     private lateinit var mockEventRecord: EventRecord
     private lateinit var supervisor: DefaultIntegrationEventSupervisor
+    private var currentInvocationKind: InvocationKind? = InvocationKind.COMMAND
 
     private val testServiceName = "test-service"
 
@@ -63,6 +66,7 @@ class DefaultIntegrationEventSupervisorTest {
         mockEventRecord = mockk()
         mockIntegrationEventInterceptor = mockk()
         mockEventInterceptor = mockk()
+        currentInvocationKind = InvocationKind.COMMAND
 
         // Setup default mock behaviors
         every { eventRecordRepository.create() } returns mockEventRecord
@@ -87,7 +91,8 @@ class DefaultIntegrationEventSupervisorTest {
             eventRecordRepository,
             integrationEventInterceptorManager,
             applicationEventPublisher,
-            testServiceName
+            testServiceName,
+            invocationScopeAccessor = InvocationScopeAccessor { currentInvocationKind },
         )
 
         // Reset thread local state before each test
@@ -102,6 +107,18 @@ class DefaultIntegrationEventSupervisorTest {
     @Nested
     @DisplayName("Attach Method Tests")
     inner class AttachMethodTests {
+
+        @Test
+        fun `capability cannot attach an integration event even on a caller runs thread`() {
+            currentInvocationKind = InvocationKind.CAPABILITY
+
+            val failure = assertThrows<IllegalStateException> {
+                supervisor.attach(TestIntegrationEvent("1", "blocked"))
+            }
+
+            assertTrue(failure.message.orEmpty().contains("COMMAND or DOMAIN_EVENT_HANDLER"))
+            verify(exactly = 0) { mockIntegrationEventInterceptor.onAttach(any(), any()) }
+        }
 
         @Test
         @DisplayName("应该成功附加集成事件")

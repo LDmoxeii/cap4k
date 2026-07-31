@@ -282,7 +282,6 @@ private class GraphCollector(
     private val commandSupervisorFq = FqName("com.only4.cap4k.ddd.core.application.command.CommandSupervisor")
     private val querySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.query.QuerySupervisor")
     private val capabilitySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor")
-    private val unitOfWorkFq = FqName(options.unitOfWorkFq)
     private val repositorySupervisorFq = FqName(options.repositorySupervisorFq)
     private val aggregateFactorySupervisorFq = FqName(options.aggregateFactorySupervisorFq)
     private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
@@ -437,9 +436,6 @@ private class GraphCollector(
                 }
                 val isAggregateFactorySupervisor = receiverClass?.isOrImplements(aggregateFactorySupervisorFq) == true ||
                     ownerClass?.isOrImplements(aggregateFactorySupervisorFq) == true
-                val isUnitOfWork = receiverClass?.isOrImplements(unitOfWorkFq) == true ||
-                    ownerClass?.isOrImplements(unitOfWorkFq) == true ||
-                    isUnitOfWorkDefaultCall(expression, unitOfWorkFq)
                 val isRepositorySupervisor = receiverClass?.isOrImplements(repositorySupervisorFq) == true ||
                     ownerClass?.isOrImplements(repositorySupervisorFq) == true
 
@@ -498,12 +494,7 @@ private class GraphCollector(
                     }
                 }
 
-                if (options.includeRepoUow && calleeName == "remove" && isUnitOfWork) {
-                    val aggRootFq = resolveAggregateRootFromExpression(expression.valueArgumentOrNull(0))
-                    if (aggRootFq != null) removedAggregates.add(aggRootFq)
-                }
-
-                if (options.includeRepoUow && calleeName == "remove" && isRepositorySupervisor) {
+                if (calleeName == "remove" && isRepositorySupervisor) {
                     val arg = expression.valueArgumentOrNull(0)
                     val aggRootFq = arg?.type?.let { resolveAggregateFromPredicateType(it) }
                     if (aggRootFq != null) removedAggregates.add(aggRootFq)
@@ -929,14 +920,6 @@ private fun IrClass.isOrImplements(fqName: FqName, visited: MutableSet<IrClass> 
         val owner = st.classifier?.owner as? IrClass ?: return@any false
         owner.isOrImplements(fqName, visited)
     }
-}
-
-private fun isUnitOfWorkDefaultCall(expression: IrCall, unitOfWorkFq: FqName): Boolean {
-    if (expression.symbol.owner.name.asString() != "save\$default") return false
-    val receiverArg = expression.valueArgumentOrNull(0) ?: return false
-    val type = receiverArg.type as? IrSimpleType ?: return false
-    val cls = type.classifier?.owner as? IrClass ?: return false
-    return cls.isOrImplements(unitOfWorkFq)
 }
 
 private fun IrClass.findSuperTypeArgument(fqName: FqName, index: Int): IrType? {

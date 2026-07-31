@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.core
 
-import com.only4.cap4k.ddd.core.application.UnitOfWork
 import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
@@ -56,8 +55,5 @@ class Mediator private constructor() {
         val capabilities: CapabilitySupervisor
             get() = CapabilitySupervisor.instance
 
-        @JvmStatic
-        val uow: UnitOfWork
-            get() = UnitOfWork.instance
     }
 }

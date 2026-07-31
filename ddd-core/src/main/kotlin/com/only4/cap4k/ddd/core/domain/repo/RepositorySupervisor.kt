@@ -30,18 +30,7 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = false
     ): List<ENTITY>
-
-    fun <ENTITY: Any> find(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = false,
-        loadPlan: AggregateLoadPlan
-    ): List<ENTITY> {
-        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
-        return find(predicate, orders, persist)
-    }
 
     /**
      * 根据条件获取实体列表
@@ -49,35 +38,14 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = false
     ): List<ENTITY>
-
-    fun <ENTITY: Any> find(
-        predicate: Predicate<ENTITY>,
-        pageParam: PageParam,
-        persist: Boolean = false,
-        loadPlan: AggregateLoadPlan
-    ): List<ENTITY> {
-        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
-        return find(predicate, pageParam, persist)
-    }
 
     /**
      * 根据条件获取单个实体
      */
     fun <ENTITY : Any> findOne(
         predicate: Predicate<ENTITY>,
-        persist: Boolean = false
     ): ENTITY?
-
-    fun <ENTITY : Any> findOne(
-        predicate: Predicate<ENTITY>,
-        persist: Boolean = false,
-        loadPlan: AggregateLoadPlan
-    ): ENTITY? {
-        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
-        return findOne(predicate, persist)
-    }
 
     /**
      * 根据条件获取实体
@@ -85,18 +53,7 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = false
     ): ENTITY?
-
-    fun <ENTITY: Any> findFirst(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo> = emptyList(),
-        persist: Boolean = false,
-        loadPlan: AggregateLoadPlan
-    ): ENTITY? {
-        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
-        return findFirst(predicate, orders, persist)
-    }
 
     /**
      * 根据条件获取实体
@@ -110,18 +67,7 @@ interface RepositorySupervisor {
     fun <ENTITY: Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean = false
     ): PageData<ENTITY>
-
-    fun <ENTITY: Any> findPage(
-        predicate: Predicate<ENTITY>,
-        pageParam: PageParam,
-        persist: Boolean = false,
-        loadPlan: AggregateLoadPlan
-    ): PageData<ENTITY> {
-        rejectUnsupportedCompatibilityLoadPlan(loadPlan)
-        return findPage(predicate, pageParam, persist)
-    }
 
     /**
      * 根据条件删除实体
@@ -143,11 +89,4 @@ interface RepositorySupervisor {
      */
     fun <ENTITY: Any> exists(predicate: Predicate<ENTITY>): Boolean
 
-    private fun rejectUnsupportedCompatibilityLoadPlan(loadPlan: AggregateLoadPlan) {
-        if (loadPlan == AggregateLoadPlan.WHOLE_AGGREGATE) {
-            throw UnsupportedOperationException(
-                "AggregateLoadPlan.WHOLE_AGGREGATE requires repository-supervisor-specific support"
-            )
-        }
-    }
 }

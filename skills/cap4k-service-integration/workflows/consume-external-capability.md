@@ -31,7 +31,7 @@ Use this workflow when internal code consumes a capability owned by another serv
 - Adapter Capability Handler maps provider protocol, credentials, status codes, and DTOs.
 - Command handler invokes the capability when it is part of the write use case.
 - Aggregate behavior receives translated results and records business state.
-- UoW records persistence intent through framework capability after Domain behavior changes state.
+- The outer Command UoW automatically detects and stabilizes managed changes after Domain behavior returns.
 
 ## Verification Evidence
 

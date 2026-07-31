@@ -10,14 +10,19 @@ import java.util.Collections
 import java.util.IdentityHashMap
 
 internal class JpaGeneratedOwnedRelationTraversal {
-    fun reachableOwnedEntities(root: Any): List<Any> {
+    fun reachableOwnedEntities(root: Any, initializeOwnedCollections: Boolean = false): List<Any> {
         val visited = Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
         val result = mutableListOf<Any>()
-        visit(root, visited, result)
+        visit(root, visited, result, initializeOwnedCollections)
         return result
     }
 
-    private fun visit(candidate: Any, visited: MutableSet<Any>, result: MutableList<Any>) {
+    private fun visit(
+        candidate: Any,
+        visited: MutableSet<Any>,
+        result: MutableList<Any>,
+        initializeOwnedCollections: Boolean,
+    ) {
         val entity = traversalEntity(candidate)
         if (!visited.add(entity)) return
         result += entity
@@ -28,13 +33,18 @@ internal class JpaGeneratedOwnedRelationTraversal {
             if (oneToMany.mappedBy.isNotBlank()) return@forEach
             if (field.getAnnotation(JoinColumn::class.java) == null) return@forEach
             val cascades = oneToMany.cascade.toSet()
-            if (CascadeType.PERSIST !in cascades || CascadeType.MERGE !in cascades) return@forEach
+            if (CascadeType.ALL !in cascades &&
+                (CascadeType.PERSIST !in cascades || CascadeType.MERGE !in cascades)
+            ) return@forEach
             if (!oneToMany.orphanRemoval) return@forEach
             field.isAccessible = true
             val value = field.get(entity) ?: return@forEach
+            if (initializeOwnedCollections) Hibernate.initialize(value)
             if (!Hibernate.isInitialized(value)) return@forEach
             if (value is Iterable<*>) {
-                value.filterNotNull().forEach { visit(it, visited, result) }
+                value.filterNotNull().forEach {
+                    visit(it, visited, result, initializeOwnedCollections)
+                }
             }
         }
     }

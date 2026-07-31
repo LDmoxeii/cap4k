@@ -9,7 +9,7 @@
 ## Current Facts
 
 - Gradle root project name 是 `cap4k`，当前 `settings.gradle.kts` 显式 include 了运行时、pipeline、code analysis、starter/console 等子项目。
-- 运行时 tactical framework 行为主要在 `ddd-*` 模块中维护，包括 `ddd-core`、`ddd-domain-*`、`ddd-application-*`、`ddd-distributed-*`、`ddd-integration-*`。这些模块承载运行期 DDD tactical behavior、repository、event、request、saga、locker、snowflake、integration adapter 等能力。
+- 运行时 tactical framework 行为主要在 `ddd-*` 模块中维护，包括 `ddd-core`、`ddd-domain-*`、`ddd-application-*`、`ddd-distributed-*`、`ddd-integration-*`。这些模块承载运行期 DDD tactical behavior、repository、Command、Query、Capability、event、locker、snowflake、execution context 和 integration adapter 等能力；仓库不再提供 generic Request 或内建 Saga runtime。
 - `cap4k-ddd-*-starter` 是按 capability 拆分的运行时装配模块，`cap4k-ddd-console` 是控制台模块。每个 starter 通过自己的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 暴露且只暴露其所有能力；仓库不保留聚合 starter。
 - `cap4k-plugin-pipeline-*` 是 compile-time generation pipeline 相关模块。它们覆盖 API、core runner、bootstrap、renderer、source providers、generators 和 Gradle plugin，不属于运行时 tactical framework。
 - `cap4k-plugin-code-analysis-*` 是 code analysis 相关模块。当前目录包括 `cap4k-plugin-code-analysis-core`、`cap4k-plugin-code-analysis-compiler`、`cap4k-plugin-code-analysis-flow-export`，用于分析/导出代码结构事实，不是业务运行时模块。
@@ -28,9 +28,8 @@
   - `cap4k-ddd-console`
   - `cap4k-ddd-core-starter`
   - `cap4k-ddd-jpa-starter`
-  - `cap4k-ddd-request-jpa-starter`
+  - `cap4k-ddd-command-jpa-starter`
   - `cap4k-ddd-domain-event-jpa-starter`
-  - `cap4k-ddd-saga-jpa-starter`
   - `cap4k-ddd-locker-jdbc-starter`
   - `cap4k-ddd-snowflake-starter`
   - `cap4k-ddd-integration-event-http-starter`
@@ -58,9 +57,8 @@
   - `cap4k-plugin-pipeline-source-value-object-manifest`
 - Representative runtime roots visible from root directory scan:
   - `ddd-core`
-  - `ddd-application-request-jpa`
+  - `ddd-application-command-jpa`
   - `ddd-distributed-locker-jdbc`
-  - `ddd-distributed-saga-jpa`
   - `ddd-distributed-snowflake`
   - `ddd-domain-event-jpa`
   - `ddd-domain-repo-jpa`

@@ -48,6 +48,9 @@ object Constants {
      */
     const val HEADER_KEY_CAP4K_PERSIST = "cap4k-persist"
 
+    /** Versioned JSON envelope containing encoded ExecutionContext elements. */
+    const val HEADER_KEY_CAP4K_EXECUTION_CONTEXT = "cap4k-execution-context"
+
     /**
      * 服务名称配置键
      */

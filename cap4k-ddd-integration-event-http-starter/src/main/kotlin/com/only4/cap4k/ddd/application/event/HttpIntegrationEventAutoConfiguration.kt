@@ -12,6 +12,10 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
@@ -54,6 +58,9 @@ class HttpIntegrationEventAutoConfiguration {
         eventRecordRepository: EventRecordRepository,
         interceptorManager: IntegrationEventInterceptorManager,
         applicationEventPublisher: ApplicationEventPublisher,
+        executionContextAccessor: ExecutionContextAccessor,
+        executionContextCodecRegistry: ExecutionContextCodecRegistry,
+        invocationScopeAccessor: InvocationScopeAccessor,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
     ): DefaultIntegrationEventSupervisor = DefaultIntegrationEventSupervisor(
         eventPublisher,
@@ -61,6 +68,9 @@ class HttpIntegrationEventAutoConfiguration {
         interceptorManager,
         applicationEventPublisher,
         serviceName,
+        executionContextAccessor,
+        executionContextCodecRegistry,
+        invocationScopeAccessor,
     ).also {
         IntegrationEventSupervisorSupport.configure(it as IntegrationEventSupervisor)
         IntegrationEventSupervisorSupport.configure(it as IntegrationEventManager)
@@ -105,6 +115,8 @@ class HttpIntegrationEventAutoConfiguration {
         subscriberRegister: HttpIntegrationEventSubscriberRegister,
         environment: Environment,
         eventTypeCatalog: EventTypeCatalog,
+        executionContextCodecRegistry: ExecutionContextCodecRegistry,
+        executionContextScopeManager: ExecutionContextScopeManager,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
         @Value("\${server.port:80}") serverPort: String,
         @Value("\${server.servlet.context-path:}") serverServletContextPath: String,
@@ -118,6 +130,8 @@ class HttpIntegrationEventAutoConfiguration {
         "http://localhost:$serverPort$serverServletContextPath",
         SUBSCRIBE_PATH,
         CONSUME_PATH,
+        executionContextCodecRegistry,
+        executionContextScopeManager,
     ).apply { init() }
 
     @Bean(name = [SUBSCRIBE_PATH])

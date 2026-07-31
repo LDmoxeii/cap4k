@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.runtime.softdelete.mixedcase
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
@@ -70,14 +72,14 @@ class SoftDeleteUuidStringH2RuntimeTest {
     @BeforeEach
     fun resetUnitOfWork() {
         JpaUnitOfWork.reset()
-        JpaUnitOfWork.fixAopWrapper(unitOfWork)
     }
 
     @Test
     fun `quoted mixed case UUID7 string lifecycle assigns id before save and soft deletes physically`() {
         val factorySupervisor = DefaultAggregateFactorySupervisor(
             factories = listOf(MixedCaseUuidStringFactory()),
-            unitOfWork = unitOfWork,
+            persistenceIntents = unitOfWork,
+            invocationScopeAccessor = InvocationScopeAccessor { InvocationKind.COMMAND },
         ).apply { init() }
 
         lateinit var entity: MixedCaseUuidStringEntity
@@ -97,7 +99,7 @@ class SoftDeleteUuidStringH2RuntimeTest {
         )
 
         unitOfWork.execute {
-            unitOfWork.remove(repository.findById(id).orElseThrow())
+            unitOfWork.registerDelete(repository.findById(id).orElseThrow())
         }
         entityManager.clear()
 

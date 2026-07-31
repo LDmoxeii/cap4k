@@ -5,6 +5,12 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorMan
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
@@ -29,7 +35,12 @@ open class DefaultIntegrationEventSupervisor(
     private val eventRecordRepository: EventRecordRepository,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
     private val applicationEventPublisher: ApplicationEventPublisher,
-    private val svcName: String
+    private val svcName: String,
+    private val executionContextAccessor: ExecutionContextAccessor = ExecutionContextAccessor {
+        ExecutionContextSnapshot.EMPTY
+    },
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+    private val invocationScopeAccessor: InvocationScopeAccessor,
 ) : IntegrationEventSupervisor, IntegrationEventManager {
 
     companion object {
@@ -51,20 +62,35 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
+        requireRegistrationScope()
         validateIntegrationEvent(eventPayload)
         EventRuntimeContext.attachmentScope()
-            .attachIntegration(EventAttachment.eager(eventPayload, schedule))
+            .attachIntegration(
+                EventAttachment.eager(eventPayload, schedule, executionContextAccessor.current()),
+            )
 
         integrationEventInterceptorManager.orderedIntegrationEventInterceptors
             .forEach { interceptor -> interceptor.onAttach(eventPayload, schedule) }
     }
 
     override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
+        requireRegistrationScope()
         EventRuntimeContext.attachmentScope()
-            .attachIntegration(EventAttachment.lazy(schedule, eventPayloadSupplier))
+            .attachIntegration(
+                EventAttachment.lazy(schedule, executionContextAccessor.current(), eventPayloadSupplier),
+            )
+    }
+
+    private fun requireRegistrationScope() {
+        val current = invocationScopeAccessor.current()
+        check(current == InvocationKind.COMMAND || current == InvocationKind.DOMAIN_EVENT_HANDLER) {
+            "Integration Event registration requires COMMAND or DOMAIN_EVENT_HANDLER invocation scope; " +
+                "current=${current ?: "NONE"}"
+        }
     }
 
     override fun <EVENT : Any> detach(eventPayload: EVENT) {
+        requireRegistrationScope()
         val attachments = (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
             ?.integrationAttachments ?: return
         val removed = attachments.removeAll { attachment -> attachment.matches(eventPayload) }
@@ -83,7 +109,7 @@ open class DefaultIntegrationEventSupervisor(
         for (attachment in attachments) {
             val eventPayload = attachment.resolve()
             validateIntegrationEvent(eventPayload)
-            val event = persistEvent(eventPayload, attachment.schedule)
+            val event = persistEvent(eventPayload, attachment.schedule, attachment.executionContext)
             persistedEvents.add(event)
         }
 
@@ -93,14 +119,22 @@ open class DefaultIntegrationEventSupervisor(
         }
     }
 
-    private fun persistEvent(eventPayload: Any, schedule: LocalDateTime): EventRecord {
+    private fun persistEvent(
+        eventPayload: Any,
+        schedule: LocalDateTime,
+        executionContext: ExecutionContextSnapshot,
+    ): EventRecord {
         val event = eventRecordRepository.create().apply {
             init(
                 eventPayload,
                 svcName,
                 schedule,
                 Duration.ofMinutes(DEFAULT_EVENT_EXPIRE_MINUTES.toLong()),
-                DEFAULT_EVENT_RETRY_TIMES
+                DEFAULT_EVENT_RETRY_TIMES,
+                executionContextCodecRegistry.encode(
+                    executionContext,
+                    ExecutionContextBoundary.INTEGRATION_EVENT,
+                ),
             )
             markPersist(true)
         }

@@ -1,138 +1,262 @@
-# Cap4k Application Execution And UoW Stabilization Design
+# Cap4k Application Execution And Hibernate UoW Stabilization Design
 
 Date: 2026-07-30
-Status: Draft for implementation planning
+Status: Approved for implementation planning
 
 ## Reader Contract
 
-This spec is the current design authority for Cap4k application execution, command transaction ownership, Unit of Work stabilization, synchronous domain-event dispatch, reliable asynchronous command registration, integration-event outbox registration, and external-capability invocation.
+This spec is the current design authority for Cap4k application execution, execution-context propagation, Command transaction ownership, Query read transactions, Capability invocation, Hibernate Unit of Work stabilization, audit enrichment, synchronous Domain Event dispatch, reliable asynchronous Command registration, and Integration Event outbox registration.
 
-After reading it, an implementation agent should be able to answer these questions without relying on chat history:
+It replaces the earlier revision of this file where that revision retained a public explicit `flush()`, described Query as transaction-unspecified, omitted Query/Capability asynchronous composition, retained EXISTING persistence enrollment, or kept the runtime provider-neutral. Earlier specs remain historical evidence for delivered slices, but their conflicting future direction is superseded here.
 
-- Why are Command, Query, Capability, and Event independent public concepts instead of variants of one Request abstraction?
-- Why does only Command create a write transaction and automatically complete a Unit of Work?
-- Why does one physical transaction have exactly one UoW Context and one outer Coordinator?
-- What may a nested Command do, and what must it never complete independently?
-- Why does stabilization use candidate change detection, audit enrichment, final change detection, flush, and event-frontier dispatch as separate phases?
-- Why are domain events dispatched in non-reentrant causal frontiers rather than recursively from each nested Command?
-- What ordering does Cap4k deliberately not promise for events and handlers?
-- What does a Handler learn from an immutable event payload, and what does it learn from a Repository query?
-- How do synchronous failure, asynchronous registration failure, and asynchronous execution failure differ?
-- Why are local asynchronous work and cross-context publication represented by reliable Command and Integration Event rather than `@Async` domain-event handlers?
-- What does explicit `flush()` guarantee, and what does it not guarantee?
-- Why is built-in Saga removed, and why is no speculative Saga SPI defined by this design?
+Issue #115 is closed and is not the backlog owner for this design. Its owned-child factory work remains separate. Issue #19 remains an investigation of backend alternatives and is also not the implementation target: this design deliberately standardizes the current Spring Data JPA plus Hibernate runtime and defers multi-provider SPI work.
 
-Earlier specs remain historical evidence for the slices they delivered. Where an earlier runtime or request-family assumption conflicts with this design, this spec governs the future application execution and UoW redesign.
+After reading this spec, an implementation agent should be able to answer:
+
+- why Command, Query, Capability, and Event are independent public concepts;
+- why only Command creates a write UoW;
+- why Query owns one Handler-wide read-only transaction;
+- why Capability is persistence-neutral even when Caller Runs executes it on a Command thread;
+- what `ExecutionContext` propagates and what `InvocationScope` controls;
+- why Query and Capability have one synchronous Handler shape but synchronous and asynchronous supervisor methods;
+- why Query/Capability overload may run in the caller while asynchronous Command never joins the caller UoW;
+- why application code has no `save()`, `persist()`, `execute()`, or `flush()` UoW surface;
+- why Hibernate uses MANUAL flush for the whole Command UoW;
+- why Repository load means observation rather than EXISTING persistence intent;
+- how lazy owned collections, orphan removal, Strong IDs, and aggregate ownership are detected without `AggregateLoadPlan`;
+- how candidate detection, audit enrichment, final detection, flush, and event frontiers form one stabilization loop;
+- why sibling Domain Events and Handlers have no ordering promise;
+- which failures roll back the current transaction and which belong to later reliable delivery.
 
 ## Summary
 
-Cap4k currently exposes one generic request-dispatch family, a manually completed Unit of Work, event release from coarse post-persistence interception, reliable scheduling for arbitrary requests, and an in-core Saga runtime. Those mechanisms share implementation shape but do not share business semantics.
-
-This design replaces that model with four explicit application concepts:
+Cap4k exposes four explicit application concepts:
 
 ```text
-Command      local state change, REQUIRED transaction, automatic UoW
-Query        local state observation, no write UoW
-Capability   consumption of a context-external capability, transaction-neutral
-Event        immutable fact, with explicit synchronous or outbox ownership
+Command      local state change, REQUIRED write transaction, automatic UoW
+Query        local state observation, Handler-wide read-only transaction
+Capability   context-external capability, persistence-neutral invocation
+Event        immutable fact, synchronous frontier or reliable outbox ownership
 ```
 
-The write path is coordinated by one transaction-level UoW Context. The outer Command Coordinator repeatedly detects changes, enriches audit state, performs final change detection, flushes through the Persistence Provider, snapshots the next synchronous Domain Event frontier, dispatches that frontier, and repeats until both persistent state and synchronous events are stable.
+The write path is one transaction-level Hibernate UoW. The outer Command Coordinator keeps Hibernate in MANUAL flush mode, observes aggregate roots loaded through Repository, records explicit root CREATE and DELETE intent, detects actual Entity and Collection changes, enriches audit metadata, performs final dirty detection, flushes, dispatches one non-reentrant Domain Event frontier, and repeats until stable.
 
-Nested Commands execute immediately and join the current UoW, but they do not independently flush, drain events, commit, roll back, or complete the UoW. Derived domain events enter the next causal frontier. The dispatcher is non-reentrant at the UoW level.
+Application code never saves an existing aggregate. A Factory registers a new root, Repository load keeps an existing root managed and observed, actual mutation is found by Hibernate dirty checking, and Repository removal registers root deletion.
 
-Reliable asynchronous Commands and Integration Events are registered atomically in the current transaction and execute or publish only after commit. Ordinary Domain Events do not mix synchronous and `@Async` handlers.
+Query and Capability share the same blocking Handler shape for synchronous and asynchronous invocation. `askAsync()` and `callAsync()` provide controlled parallel composition, not end-to-end non-blocking I/O. Their bounded executors default to Caller Runs for natural backpressure. Asynchronous Command means durable registration for later execution in a new transaction; it never falls back into the caller UoW.
+
+`ExecutionContext` carries immutable attribution data across framework-owned asynchronous, reliable, RPC, and Integration Event boundaries. `InvocationScope` is a local semantic guard that distinguishes Command, Query, Capability, and Domain Event Handler execution. UoW, EntityManager, transaction state, event runtime state, and InvocationScope are never copied to another thread.
 
 ## Current Code Evidence
 
-The future redesign starts from these current facts:
+The current `master` already contains the first application-execution reset:
 
-- `Mediator.requests`, `Mediator.commands`, and `Mediator.queries` currently resolve to the same `RequestSupervisor`.
-- `RequestSupervisor` exposes synchronous send, reliable async, schedule, delay, and result APIs to every `RequestParam` family.
-- Command and Query classification currently exists on Handler interfaces rather than on message contracts.
-- generated client contracts currently implement `RequestParam`, and generated client handlers implement `RequestHandler`.
-- `DefaultRequestSupervisor` special-cases `SagaParam`, proving that Saga already escapes the generic request abstraction internally.
-- `UnitOfWork` currently exposes `persist`, `remove`, and mandatory-style `save(propagation)`.
-- `JpaUnitOfWork.save()` owns transaction wrapping, flush, persistence listeners, coarse UoW interceptors, and event release.
-- `DomainEventUnitOfWorkInterceptor` releases domain events from `postEntitiesPersisted`.
-- `DefaultDomainEventSupervisor` publishes immediate local events synchronously and can be re-entered when a Handler sends a nested Command that saves again.
-- `DefaultEventSubscriberManager` currently invokes subscribers in an implementation-defined sequence and aggregates failures before throwing.
-- the Saga runtime already owns separate records, scheduling, process execution, compensation, JPA persistence, starter configuration, console support, generator output, and tests.
+- Command, Query, and Capability have independent contracts and supervisors;
+- Command opens or joins `JpaUnitOfWork.execute()`;
+- nested Commands share one UoW Context;
+- synchronous Domain Events use non-reentrant causal frontiers and fail fast;
+- reliable asynchronous work belongs to Command;
+- built-in Saga has been removed;
+- JPA audit already has candidate detection, enrichment, final detection, and explicit provider flush phases.
 
-These facts are evidence of the current implementation, not constraints that the redesign must preserve.
+The remaining code still carries older surfaces that this revision removes:
+
+- `UnitOfWork` exposes `execute`, `persist`, `remove`, `flush`, a static `instance`, and `Mediator.uow`;
+- `PersistIntent.EXISTING` and Repository `persist: Boolean` still convert every Command repository read into persistence enrollment;
+- `AggregateLoadPlan.WHOLE_AGGREGATE` still expands lazy owned graphs by default;
+- `AbstractJpaRepository` explicitly detaches results when `persist=false`;
+- `JpaUnitOfWork` sets Hibernate MANUAL flush only after final stabilization, so Handler-time queries may trigger an early AUTO flush;
+- repository observation and Strong ID completion still rely on a broad reflection baseline;
+- audit context uses `Instant.now()` plus an untyped attributes map;
+- Query and Capability are synchronous only and Query has no Handler-wide read transaction;
+- there is no general execution-context registry or local invocation-kind guard;
+- Hibernate unwrap failures may silently reduce candidate detection.
+
+These are migration facts, not compatibility constraints. There are no external compatibility requirements for this redesign.
 
 ## Goals
 
-- Make Command, Query, Capability, and Event explicit and independent public contracts.
-- Remove the generic public Request abstraction and its accidental cross-family policies.
-- Make Command the only framework-owned write transaction boundary.
-- Support only REQUIRED semantics in the public Command execution model.
-- Automatically complete the Unit of Work at the outer Command boundary.
-- Remove mandatory user calls to `UnitOfWork.save()`.
-- Keep optional explicit `flush()` as an advanced database-synchronization capability.
-- Give one physical transaction exactly one UoW Context and one stabilization Coordinator.
-- Support immediate nested Command execution without recursive UoW completion or event draining.
-- Stabilize audit state before every provider flush.
-- Dispatch synchronous Domain Events in non-reentrant causal frontiers.
-- Keep event and Handler sibling ordering deliberately unspecified.
-- Fail fast on the first synchronous Handler failure.
-- Register asynchronous Commands and Integration Events atomically with the local transaction.
-- Rename application-facing external Client semantics to External Capability.
-- Remove the built-in Saga runtime and its generator family.
-- Keep the design provider-neutral while allowing JPA to remain the first Persistence Provider implementation.
+- Preserve independent Command, Query, Capability, and Event public semantics.
+- Keep Command as the only framework-owned write transaction boundary.
+- Support REQUIRED only for public Command propagation.
+- Give one physical Command transaction exactly one UoW Context and Coordinator.
+- Give every Query one Handler-wide read-only transaction without a write UoW.
+- Give Query and Capability native synchronous and asynchronous composition through one Handler shape.
+- Propagate immutable execution attribution across all framework-owned boundaries.
+- Remove application-facing UoW lifecycle operations and automatic EXISTING enrollment.
+- Remove `AggregateLoadPlan` without breaking generated Strong ID timing or owned-child persistence.
+- Prevent Hibernate AUTO flush from bypassing audit stabilization.
+- Organize persistence changes by aggregate root with Entity-level detail.
+- Keep audit enrichment deterministic, ordered, idempotent, and transaction-bound.
+- Keep Domain Event dispatch non-reentrant, frontier-based, unordered among siblings, and fail-fast.
+- Use current Spring Data JPA plus Hibernate capabilities directly and honestly.
+- Fail fast instead of silently degrading when the required Hibernate integration is unavailable.
 
 ## Non-Goals
 
-- This spec does not design queryable Value Object persistence.
-- This spec does not define the full public third-party Persistence Provider SPI.
-- This spec does not replace JPA or select another ORM.
-- This spec does not require child-entity changes to advance aggregate-root optimistic-lock versions.
-- This spec does not guarantee occurrence-time aggregate snapshots to event Handlers.
-- This spec does not guarantee event order or Handler order.
-- This spec does not provide asynchronous Domain Event handlers.
-- This spec does not provide a workflow engine, process manager, or Saga implementation.
-- This spec does not define a speculative Saga Provider SPI without a real provider integration.
-- This spec does not make Capability calls participate in a local distributed transaction.
-- This spec does not promise that every mutable JVM object graph can be proven deeply immutable at runtime.
-- This spec does not preserve backward compatibility. There are no external compatibility requirements for the affected API.
+- Queryable Value Object persistence is not designed here.
+- A public third-party Persistence Provider SPI is not designed here.
+- EclipseLink, another JPA provider, or another ORM is not supported by this iteration.
+- Child-only changes do not automatically advance root optimistic-lock version or root audit timestamp.
+- Query does not prove that a Handler never mutates an in-memory object.
+- Capability does not participate in distributed transactions.
+- Query/Capability asynchronous invocation is not reactive or end-to-end non-blocking.
+- Generic timeout does not promise cancellation of running SQL, RPC, or Handler code.
+- Domain Event payload does not provide an occurrence-time aggregate snapshot.
+- Sibling event or Handler order is not guaranteed.
+- Ordinary Domain Events do not mix synchronous and `@Async` Handlers.
+- Field-level audit history is not provided by the audit enricher SPI.
+- Direct `EntityManager.flush()`, bulk DML, native SQL, or custom transaction synchronization is not sandboxed.
+- Backward compatibility is not preserved.
 
 ## Terms
 
+### ExecutionContext
+
+An immutable snapshot of typed attribution elements such as actor, trace, correlation, environment, or tenant hint. It is transportable but is not authorization state and does not grant persistence access.
+
+### InvocationScope
+
+A local LIFO runtime scope identifying the current semantic invocation kind. It is used for policy guards and is never serialized or propagated as ambient asynchronous state.
+
 ### Outer Command
 
-The first Command entering without an active Cap4k UoW Context. It owns the REQUIRED transaction, creates the UoW Context, invokes stabilization, and is the only Command allowed to finish the UoW and transaction.
+The first Command entering without an active Cap4k Command UoW. It owns the REQUIRED transaction, creates the UoW Context, and alone may stabilize and finish that UoW.
 
 ### Nested Command
 
-A Command sent while a UoW Context is already active. It executes immediately, uses the same physical transaction and UoW Context, and returns its Handler result. It does not independently stabilize, flush by default, drain events, commit, or roll back.
+A Command sent while a Command UoW is active. It executes immediately in the same physical transaction and UoW, but does not independently flush, drain events, commit, roll back, or complete the UoW.
 
-### UoW Context
+### QueryExecution
 
-The transaction-level state shared by the outer Command, nested Commands, synchronous Domain Event Handlers, Persistence Provider, audit enrichment, reliable Command registration, and Integration Event outbox registration.
+The read-only transaction boundary covering Query validation, interceptors, Handler execution, Repository navigation, and DTO mapping. It is not a write UoW.
 
-### Stabilization
+### Stabilization Round
 
-The repeated process of normalizing persistence intent, detecting candidate changes, enriching audit state, detecting final changes, flushing, snapshotting a Domain Event frontier, dispatching the frontier, and repeating until no persistent work or synchronous event remains.
+One pass of persistence-intent normalization, candidate detection, audit enrichment, final detection, explicit Hibernate flush when needed, and synchronous Domain Event frontier dispatch.
 
 ### Event Frontier
 
-An unordered snapshot of synchronous Domain Events eligible for one dispatch round. Events produced while a frontier is being dispatched enter the next frontier and never re-enter the active dispatcher.
-
-### Capability
-
-An application-facing contract for consuming a capability owned outside the current bounded context. The implementation may be remote, in-process, filesystem-backed, SDK-backed, or otherwise adapter-owned. Capability classification is about ownership, not network transport or read/write behavior.
+An unordered snapshot of synchronous Domain Events eligible for one dispatch round. Events produced while the frontier is active enter the next frontier.
 
 ### Reliable Registration
 
-Writing an asynchronous Command record or Integration Event outbox record into the current local transaction. Registration success does not mean asynchronous execution or external publication has completed.
+Writing an asynchronous Command record or Integration Event outbox record into the current local transaction. Registration success is not later execution or publication success.
+
+## Execution Context
+
+### Typed Elements And Stable Keys
+
+Execution attribution is not a stringly typed mutable map.
+
+```kotlin
+interface ExecutionContextElement
+
+data class ExecutionContextKey<T : ExecutionContextElement>(
+    val name: String,
+    val type: Class<T>,
+)
+```
+
+The registry must reject duplicate wire names and incompatible key types at startup. A snapshot is immutable. A builder rejects duplicate insertion unless the caller uses an explicit replace operation.
+
+```kotlin
+interface ExecutionContextAccessor {
+    fun current(): ExecutionContextSnapshot
+}
+
+interface ExecutionContextScopeManager {
+    fun install(snapshot: ExecutionContextSnapshot): AutoCloseable
+}
+```
+
+The local implementation uses a strict ThreadLocal stack with LIFO close validation. It does not use `InheritableThreadLocal`.
+
+### Codecs And Boundaries
+
+Wire propagation is versioned and opt-in per element.
+
+```text
+RELIABLE_COMMAND
+RELIABLE_DOMAIN_EVENT
+INTEGRATION_EVENT
+RPC
+```
+
+Each codec declares its key, version, and allowed boundaries. Local synchronous invocation serializes nothing.
+
+Reliable persisted boundaries are strict:
+
+- duplicate elements fail;
+- a known malformed element fails;
+- an unsupported known version fails;
+- a known element used on a disallowed boundary fails;
+- execution does not begin after decode failure.
+
+External RPC and Integration Event ingress may ignore unknown element names for rolling compatibility, but known malformed, duplicate, unsupported-version, or disallowed elements still fail. Cap4k does not preserve unknown opaque elements for later relay.
+
+ExecutionContext is attribution, not authorization. Authentication and authorization occur at the transport or application boundary before trusted elements are installed.
+
+### Framework-Owned Asynchronous Propagation
+
+`askAsync()`, `callAsync()`, reliable Command execution, reliable Domain Event handling, Integration Event adapters, and RPC adapters automatically capture and restore ExecutionContext.
+
+Arbitrary user executors, `CompletableFuture.supplyAsync`, `thenApplyAsync`, coroutines, Reactor, SDK callbacks, and user-created threads do not receive automatic propagation. Cap4k provides explicit wrappers:
+
+```kotlin
+executionContextPropagation.decorate(executor)
+executionContextPropagation.wrap(task)
+```
+
+Framework asynchronous tasks propagate ExecutionContext only. They do not propagate:
+
+- Command UoW;
+- EntityManager or Hibernate Session;
+- Spring transaction state;
+- InvocationScope;
+- mutable Domain Event runtime state;
+- arbitrary ThreadLocals.
+
+An asynchronous result is completed only after the installed ExecutionContext and InvocationScope have been closed. This prevents `thenApply` from accidentally observing a scope merely because it happened to execute inline on the completion thread.
+
+### Reliable And Transport Storage
+
+Reliable Command captures an encoded snapshot when it is scheduled. The record and archive retain that snapshot unchanged across retries. Existing rows with no context decode as EMPTY.
+
+Integration Event captures an immutable snapshot when attached and encodes it for the Integration Event boundary when the outbox record is released. Payload and context remain separate record fields. Reliable Domain Event records use their own boundary and restore scope before local Handler dispatch.
+
+RPC uses one bounded, duplicate-rejecting envelope metadata field. The client captures before asynchronous offload. The server authenticates, decodes, installs ExecutionContext, then enters Query or Command transaction setup. Response context is not merged back into the caller.
+
+## Invocation Scope
+
+ExecutionContext answers "who and from where". InvocationScope answers "what semantic operation is currently running".
+
+```kotlin
+enum class InvocationKind {
+    COMMAND,
+    QUERY,
+    CAPABILITY,
+    DOMAIN_EVENT_HANDLER,
+}
+```
+
+InvocationScope is a strict local LIFO stack. Supervisors install the category before validation and interceptors and restore it in `finally`.
+
+| Current scope | Command | Query | Capability |
+| --- | --- | --- | --- |
+| Controller or ordinary orchestration | allowed | allowed | allowed |
+| Command | synchronous nested Command, same UoW | forbidden | allowed |
+| Query | forbidden | synchronous `ask()` allowed; `askAsync()` forbidden | allowed |
+| Capability | forbidden | forbidden | composition allowed |
+| Domain Event Handler | through nested Command | forbidden | allowed |
+
+Repository and Factory guards consult the top InvocationScope, not only `UnitOfWork.active`. When Caller Runs executes a Capability on a Command thread, the stack temporarily becomes `COMMAND -> CAPABILITY`; Cap4k persistence entrypoints therefore remain unavailable inside the Capability even though the physical Spring transaction is still bound to that thread.
+
+An asynchronous supervisor invocation does not copy the caller InvocationScope. It establishes a new target scope in the task.
 
 ## Public Application Concepts
 
 ### Command
-
-Command represents an intent to change local application state.
-
-Target shape:
 
 ```kotlin
 interface Command<R : Any>
@@ -142,22 +266,28 @@ fun interface CommandHandler<C : Command<R>, R : Any> {
 }
 ```
 
-Command behavior:
+Command:
 
-- enters or joins a REQUIRED transaction;
-- enters or joins the current UoW Context;
-- may load and modify aggregates;
+- enters or joins one REQUIRED write transaction and UoW;
+- may load and modify aggregate roots;
 - may send nested Commands;
 - may call Capabilities;
-- may register asynchronous Commands and Integration Events;
-- returns a result without becoming a Query;
+- may register reliable Commands and Integration Events;
+- may not call Query;
 - is automatically stabilized by the outer Coordinator.
 
+There is no public `REQUIRES_NEW`, `NESTED`, `NOT_SUPPORTED`, `SUPPORTS`, `MANDATORY`, or `NEVER` Command propagation. Work requiring a new transaction uses a reliable asynchronous Command or an Integration Event after the current transaction commits.
+
+Asynchronous Command is durable registration:
+
+```kotlin
+val reference = Mediator.commands.enqueue(command)
+val scheduled = Mediator.commands.schedule(command, executeAt)
+```
+
+It never means executor offload with Caller Runs. A worker later creates a new outer Command, REQUIRED transaction, and UoW.
+
 ### Query
-
-Query represents observation of local state.
-
-Target shape:
 
 ```kotlin
 interface Query<R : Any>
@@ -165,22 +295,22 @@ interface Query<R : Any>
 fun interface QueryHandler<Q : Query<R>, R : Any> {
     fun handle(query: Q): R
 }
+
+interface QuerySupervisor {
+    fun <Q : Query<R>, R : Any> ask(query: Q): R
+    fun <Q : Query<R>, R : Any> askAsync(query: Q): CompletionStage<R>
+}
 ```
 
-Query behavior:
+Every Query owns a Handler-wide REQUIRED read-only transaction. The boundary covers validation, Query interceptors, Handler execution, Repository lazy navigation, and DTO mapping. It creates no write UoW, performs no audit, drains no event, and never flushes.
 
-- does not create or complete a write UoW;
-- does not inherit Command transaction policy;
-- does not expose reliable schedule or result APIs;
-- may later receive provider-specific read-only policy without becoming a Command variant.
+Query may use Repository for aggregate detail reads. Criteria, projection, or a separate read component remains the recommended tool for list, report, and cross-shape queries. Query returns DTOs or Values, not Entity, Hibernate Proxy, or lazy collection graphs.
 
-The framework does not claim that JPA can sandbox every managed entity mutation reached from a Query running inside an ambient Command transaction. The public contract is semantic and diagnostic, not an absolute memory-isolation guarantee.
+Repository-loaded entities remain managed during the Handler. Query transaction setup uses Hibernate read-only mode and MANUAL flush. Accidental in-memory mutation is discarded at the end; Cap4k does not snapshot every property merely to prove no setter was called. Direct bulk DML or manual EntityManager flush is outside the contract.
+
+Synchronous nested `ask()` reuses the active read-only QueryExecution. Nested `askAsync()` fails because executor execution would use another transaction while Caller Runs could reuse the current transaction, making snapshot semantics load-dependent. Command-to-Query is forbidden; Command uses Repository and domain services for write decisions.
 
 ### Capability
-
-Capability replaces the public Client concept.
-
-Target shape:
 
 ```kotlin
 interface CapabilityCall<R : Any>
@@ -191,808 +321,538 @@ fun interface CapabilityHandler<C : CapabilityCall<R>, R : Any> {
 
 interface CapabilitySupervisor {
     fun <C : CapabilityCall<R>, R : Any> call(request: C): R
+    fun <C : CapabilityCall<R>, R : Any> callAsync(request: C): CompletionStage<R>
 }
 ```
 
-Target facade:
+Capability consumes functionality owned outside the current bounded context. It may be RPC, SDK, filesystem, in-process adapter, or another external resource. It does not create a persistence transaction and may not use Repository, Factory, UnitOfWork, Command, or Query entrypoints. Capability composition is allowed.
 
-```kotlin
-Mediator.capabilities.call(GetExchangeRate.Request(...))
-```
+Command and Query may call Capability. A Command that needs an asynchronous Capability result explicitly waits for its CompletionStage. Dropping the stage creates work that may outlive the caller and whose later failure cannot roll back the Command; the first implementation does not auto-join outstanding stages or provide structured concurrency.
 
-Capability behavior:
-
-- does not create, complete, suspend, or commit a local write transaction;
-- may execute while an ambient Command transaction remains open;
-- does not participate as a distributed transactional resource;
-- does not expose generic async, schedule, delay, or result APIs;
-- owns validation, Handler resolution, context propagation, telemetry, and diagnostics;
-- leaves provider-specific protocol mapping, authentication, timeout, error translation, and safe retry policy in the adapter implementation;
-- treats expected business-negative outcomes as response semantics and technical inability as technical failure.
-
-The architecture concept is External Capability. Public code may use the shorter Capability name. Existing internal runtime-component terms such as `CapabilitySlot` should be renamed to Provider-oriented terminology so business Capability is not confused with starter availability.
+Capability owns validation, Handler resolution, context propagation, telemetry, and diagnostics. Concrete adapters own authentication, protocol mapping, timeout, retry safety, and technical error translation.
 
 ### Event
 
-Event represents a fact that already occurred.
-
-This design distinguishes:
-
 ```text
-Domain Event       synchronous, current UoW frontier
-Integration Event  reliable outbox registration, publish after commit
+Domain Event       synchronous, current Command UoW frontier
+Integration Event  reliable outbox registration, publication after commit
 ```
 
-The first implementation does not expose asynchronous Domain Event handlers. Local asynchronous work is represented by reliable asynchronous Commands.
+Ordinary Domain Events have no `@Async` Handler mode. Local asynchronous work is a reliable Command. Cross-context publication is an Integration Event.
 
-## Removed Public Concepts
+## Query And Capability Asynchronous Execution
 
-### Generic Request
+### One Handler Shape
 
-The public `RequestParam`, `RequestHandler`, `RequestSupervisor`, `ReliableRequestSupervisor`, and request-wide interceptor family are removed or split into the explicit public concepts above.
-
-Shared Handler resolution, validation, invocation, diagnostics, and observation may remain in an internal invocation kernel. Shared mechanics do not justify a shared public semantic contract.
-
-Target facade:
+There is no `AsyncQueryHandler` or `AsyncCapabilityHandler`. Sync and async supervisor methods invoke the same blocking Handler pipeline.
 
 ```text
-Mediator.commands.send(...)
-Mediator.queries.ask(...)
-Mediator.capabilities.call(...)
-Mediator.events.publish(...)
+ask()/call()
+  -> current thread
+  -> direct result or original exception
+
+askAsync()/callAsync()
+  -> bounded category executor or Caller Runs
+  -> CompletionStage result
 ```
 
-There is no public `Mediator.requests` escape hatch.
+This is controlled concurrent scheduling, not reactive or non-blocking I/O.
 
-### Built-In Saga
+### Executor Isolation And Backpressure
 
-The in-core Saga runtime, JPA implementation, starter, console support, generator family, templates, public docs, and tests are removed.
+Query and Capability use separate bounded, replaceable executors. Slow external Capability calls must not starve database Query execution.
 
-Reason:
+Default overload behavior is Caller Runs. When the queue is full and the executor is active, the caller executes the same wrapped task. This makes `askAsync()` or `callAsync()` eligible for parallel composition but does not guarantee a thread switch or immediate return.
 
-- reliable Saga support requires durable process state, lease and concurrency control, crash recovery, at-least-once semantics, step idempotency, retry and backoff, compensation, definition versioning, observability, and operational intervention;
-- the current runtime offers useful pieces but creates a support promise larger than the mainline can safely maintain;
-- retaining a partial Saga runtime creates false confidence;
-- defining a provider SPI now would freeze assumptions from the partial runtime without evidence from a real orchestration provider.
+`REJECT` remains configurable for deployments that prefer load shedding. Executor shutdown always returns a failed CompletionStage; it never silently discards or runs a task. Cap4k uses its own rejection wrapper rather than raw JDK `CallerRunsPolicy`, whose shutdown behavior can silently discard.
 
-A future orchestration integration should begin from a real provider and expose a narrow adapter around stable Command, Capability, and Event boundaries. It should not revive the removed generic Request abstraction.
+### Failure Contract
 
-## Command Transaction Policy
+Synchronous methods throw original validation, resolution, Handler, or transaction failures. Asynchronous methods always express invocation failures through CompletionStage, including when Caller Runs already executed the task.
 
-### REQUIRED Only
+Asynchronous failure includes:
 
-The public Command model supports REQUIRED semantics only.
+- validation failure;
+- missing or conflicting Handler;
+- Handler or interceptor failure;
+- Query read transaction failure;
+- forbidden nested `askAsync()`;
+- executor shutdown;
+- configured overload rejection.
+
+Sync methods do not implement themselves by calling async and joining. This avoids unnecessary scheduling and `CompletionException` wrapping.
+
+Generic timeout only limits the caller's wait. It does not promise cancellation of JDBC, HTTP, SDK, or Handler execution. Provider-specific timeout and cancellation remain adapter responsibilities.
+
+## Command Transaction And UoW Ownership
+
+### One Transaction, One Context
+
+No active Command UoW:
 
 ```text
-No active transaction
-  -> outer Command creates REQUIRED transaction and UoW Context
-
-Active Cap4k Command transaction
-  -> nested Command joins current transaction and UoW Context
+Command -> create REQUIRED transaction -> create UoW Context
 ```
 
-Public `REQUIRES_NEW`, `NESTED`, `NOT_SUPPORTED`, `SUPPORTS`, `MANDATORY`, and `NEVER` choices are removed from Command and UoW APIs.
-
-If a new transaction is required, the preferred boundary is an after-commit Integration Event or a reliable asynchronous Command. The design does not retain unsupported propagation names as speculative API.
-
-Here, "after commit" means delivery on a new thread/new outer transaction through the reliable Command provider, or publication through the Integration Event boundary. Cap4k does not promise that a synchronous `TransactionSynchronization.afterCommit` callback or `@TransactionalEventListener(AFTER_COMMIT)` listener can call `Mediator.commands.send(...)` to start a new REQUIRED Command: Spring invokes those callbacks before transaction resources are unbound, so the old physical transaction is no longer writable but is still visible to REQUIRED propagation.
-
-### One Physical Transaction, One UoW Context
-
-The UoW Context is created once at the outer Command boundary and cleared once after commit or rollback.
+Active Cap4k Command UoW:
 
 ```text
-Outer Command
-  ├─ Nested Command
-  │    ├─ Nested Command
-  │    └─ Capability
-  ├─ Domain Event Frontier
-  │    └─ Handler -> Nested Command
-  └─ final stabilization and commit
+nested Command -> reuse transaction and UoW Context
 ```
 
-No nested call may create another logical UoW for the same physical transaction.
+An external Spring transaction without an active Cap4k UoW cannot be adopted as a Command transaction. Only the outer Coordinator may stabilize and finish the UoW.
 
-### Automatic Completion
+### No Application UoW Surface
 
-Application code no longer calls mandatory `UnitOfWork.save()`.
-
-Repository loads enroll aggregate roots for write tracking according to the Command path. Aggregate factories register CREATE intent. Remove operations register REMOVE intent. Managed aggregate changes are detected during stabilization.
-
-The outer Coordinator completes the UoW automatically after the outer Handler returns.
-
-## UoW Context Model
-
-The exact implementation may differ, but the context must be able to represent at least:
+Application code does not call UoW lifecycle operations.
 
 ```text
-UnitOfWorkContext
-├── execution phase
-├── outer Command identity
-├── nested Command depth and causal identity
-├── tracked aggregate roots
-├── repository/provider observation baseline
-├── CREATE / EXISTING / REMOVE intent
-├── provider dirty/change state
-├── pending Domain Event attachments
-├── current Event Frontier
-├── next Event Frontier
-├── pending asynchronous Command records
-├── pending Integration Event outbox records
-├── audit context
-├── flush count
-├── frontier round count
-├── synchronous event count
-├── nested Command count
-└── Command -> Event -> Handler -> Command causal graph
+Factory create       -> framework records Root CREATE
+Repository load      -> framework observes managed Root
+Root mutation        -> Hibernate detects actual dirty state
+Repository remove    -> framework records Root DELETE
+Command return       -> outer Coordinator stabilizes automatically
 ```
 
-Suggested phases:
+Remove public or application-facing access to:
+
+- `UnitOfWork.instance`;
+- `Mediator.uow`;
+- `UnitOfWork.execute()`;
+- `UnitOfWork.persist()`;
+- `UnitOfWork.remove()`;
+- `UnitOfWork.flush()`;
+- propagation parameters.
+
+Cross-module coordinator and intent-recorder interfaces may remain JVM-public because Kotlin `internal` cannot cross Gradle module boundaries. They are framework-internal contracts, have no static locator, and are not third-party SPI.
+
+### MANUAL Flush For The Entire Command
+
+The outer UoW captures the current Hibernate flush mode and sets `FlushMode.MANUAL` before Command validation, interceptors, and Handler execution. It keeps MANUAL mode through all nested Commands and event frontiers and restores the previous mode during cleanup.
+
+Only the UoW provider-flush phase calls `EntityManager.flush()`.
+
+This prevents a Repository or JPQL query inside a Command from triggering SQL before candidate detection and audit enrichment. A database query after an in-memory aggregate mutation is therefore not guaranteed to observe that unflushed mutation. Command business logic inspects the aggregate in memory; it does not query the database to rediscover its own pending write.
+
+Direct EntityManager flush, bulk DML, native SQL, or user changes to Hibernate flush mode bypass Cap4k and are outside the contract.
+
+## Repository And Aggregate Tracking
+
+### Repository API
+
+Remove `persist: Boolean` and `AggregateLoadPlan` from Repository and RepositorySupervisor APIs. Repository never explicitly detaches a result and never merges an existing aggregate merely because it was read.
 
 ```text
-COMMAND_EXECUTION
-CHANGE_DETECTION
-AUDIT_ENRICHMENT
-FLUSHING
-EVENT_DISPATCH
-COMMITTING
-COMMITTED
-ROLLED_BACK
+Repository load
+  != persistence intent
+  != dirty state
+  != SQL update
 ```
 
-The phase model is internal but diagnostics should identify illegal operations in a way that reflects the active phase.
+In Command, a returned aggregate root remains Hibernate-managed and is recorded as observed. In Query, a returned Entity remains managed for the Handler-wide read transaction but is not recorded in a write UoW. Outside a framework transaction, a repository method's own transaction ends naturally and the returned object becomes detached without explicit `detach()`.
 
-## Aggregate Lifecycle Decisions
+### Root Boundary
 
-### Root-Oriented Enrollment
+Command repository load and Repository removal accept Aggregate Root types only. Query may read roots or owned entities because it creates no write UoW.
 
-Public persistence enrollment remains aggregate-root oriented. Owned child entities participate through the root graph and Provider lifecycle classification. Application code does not persist owned children independently.
-
-### Root-Only Domain Events
-
-All Domain Events are attached to and released from aggregate roots. Owned child entities do not publish Domain Events independently.
-
-### `onCreate` And `onDeleted`
-
-Optional aggregate-root callbacks remain useful because creation and deletion do not automatically imply one universal domain fact.
-
-- factory creation may invoke optional `onCreate` reflectively;
-- remove may invoke optional `onDeleted` reflectively;
-- absence of either method is valid and must not fail compilation or runtime;
-- callbacks may attach zero or more Domain Events;
-- callback naming remains framework convention and reflective discovery rather than generated adapter hard coupling.
-
-### `onUpdate`
-
-`onUpdate` is removed.
-
-Reason:
-
-- update is not one unambiguous domain fact;
-- one transaction may mutate the same aggregate repeatedly across Commands and event frontiers;
-- dirty detection and flush do not define a useful domain callback boundary;
-- emitting business facts remains explicit aggregate behavior responsibility.
-
-### Child Changes And Root Version
-
-The first implementation does not force every owned-child change to advance aggregate-root optimistic-lock version or audit timestamp.
-
-JPA/provider-native entity dirty tracking and optimistic locking remain sufficient for the current support level. Aggregate-wide version advancement may be revisited only with concrete concurrency evidence.
-
-## Persistence Intent Normalization
-
-Before change detection, the Coordinator normalizes unresolved intent for the same aggregate instance.
+An `AggregateRootCatalog` identifies root types. The initial implementation may derive it from registered `AggregateFactory<Payload, Root>` definitions because every generated root has a canonical creation graph. Hibernate proxy types are normalized before lookup.
 
 ```text
-NONE     + CREATE  -> CREATE
-EXISTING + REMOVE  -> REMOVE
-CREATE   + REMOVE  -> NONE, before first synchronization
-REMOVE   + CREATE  -> invalid unless a future explicit recreate operation exists
+COMMAND Repository load  -> require root -> observe root
+QUERY Repository load    -> root or child -> no write observation
+Repository remove        -> require managed root in active Command
 ```
 
-### CREATE Then REMOVE
+Capability and Domain Event Handler scopes cannot call Repository directly. A Domain Event Handler that changes state sends a nested Command.
 
-When a CREATE-pending aggregate is removed before its first synchronization:
+### Observation And Ownership
 
-- no aggregate INSERT or DELETE SQL is emitted;
-- the net persistence effect is NONE;
-- pending unreleased Domain Events attached to that root are discarded;
-- optional `onCreate` and `onDeleted` may already have executed, but their unreleased events do not escape;
-- no external observer receives a fact about an aggregate that never existed outside the transaction.
-
-After explicit or stabilization flush has already synchronized the CREATE, a later REMOVE cannot eliminate the already executed INSERT SQL. It remains inside the same transaction and may later be followed by DELETE.
-
-## Audit Lifecycle
-
-Audit must not depend on a generic listener after flush. The required lifecycle is:
+The UoW tracks root object identity and known owned-entity ownership:
 
 ```text
-candidate change detection
-  -> audit enrichment
-  -> final change detection
-  -> provider flush
+trackedRoots
+ownerByEntityInstance
 ```
 
-### Candidate Change Detection
+Repository observation traverses only currently initialized owned relations. It never initializes a lazy proxy or collection merely to build a baseline. Before each stabilization round, the provider expands the currently initialized ownership graph to a fixed point.
 
-The Persistence Provider identifies business changes before audit fields are modified.
+Hibernate CollectionEntry supplies collection owner, dirty state, orphans, and queued additions/removals. A changed relation may be initialized when exact classification requires it; untouched lazy relations must remain unloaded.
 
-Candidate changes may include:
+If one owned Entity instance or persistent identity is associated with multiple unrelated roots, stabilization fails. A changed aggregate-owned Entity reached through supported root observation that cannot be assigned to one tracked root also fails rather than becoming an independent aggregate. Cap4k infrastructure records that share the Session, such as reliable Command or Event records, remain provider-managed and are excluded from aggregate change sets and audit enrichment. Direct EntityManager writes are an unsupported bypass and do not gain aggregate ownership semantics merely by entering the same Session.
 
-- created roots and owned entities;
-- dirty existing roots and owned entities;
-- removed roots and owned entities;
-- pending reliable Command records;
-- pending Integration Event outbox records.
+## Hibernate Change Detection
 
-Merely loading or enrolling an existing aggregate does not make it an update candidate.
+Spring Data JPA plus Hibernate is the only supported persistence runtime for this iteration. Cap4k may use Hibernate EntityEntry, CollectionEntry, ActionQueue, persisters, and dirty checking directly.
 
-### Audit Enrichment
+There is no public Persistence Provider selection, capability declaration, or fallback. Internal helpers such as `JpaChangeTracker` exist only to control `JpaUnitOfWork` complexity and enable focused tests.
 
-Audit enrichment applies only to candidates.
+Failure to unwrap the required Hibernate Session or access the required change-tracking behavior is a startup error. Candidate detection must never silently skip Hibernate state.
 
-Typical enrichment:
+### Aggregate-Oriented Change Set
 
-```text
-CREATE  -> createdAt, createdBy, tenant, initial updated fields
-UPDATE  -> updatedAt, updatedBy
-DELETE  -> deletedAt, deletedBy, soft-delete metadata
-```
-
-The outer UoW captures one stable audit context containing timestamp, actor, tenant, and required environment context. Repeated frontier rounds use the same audit context so audit fields do not create meaningless timestamp churn.
-
-Audit enrichment is framework/provider lifecycle, not an unrestricted public UoW callback surface.
-
-### Final Change Detection
-
-After audit fields are enriched, the Provider computes the actual final change set.
-
-Final detection excludes:
-
-- mutations restored to the original baseline before stabilization;
-- normalized NONE effects;
-- clean loaded objects;
-- objects already flushed in an earlier round and not modified again.
-
-Only the final change set enters persistence planning and flush.
-
-## Stabilization State Machine
-
-### High-Level Flow
-
-```text
-BEGIN REQUIRED
-  -> create UoW Context
-  -> invoke outer Command
-  -> invoke any nested Commands
-  -> stabilize
-       -> normalize intent
-       -> detect candidates
-       -> audit enrich
-       -> detect final changes
-       -> flush local persistence and reliable records
-       -> snapshot current Domain Event frontier
-       -> dispatch frontier fail-fast
-       -> repeat while dirty state or pending event remains
-  -> final stability check
-  -> COMMIT
-  -> signal reliable workers after commit
-  -> clear UoW Context
-```
-
-### Stabilization Loop
-
-Illustrative pseudocode:
+Persistence changes are organized by root and contain Entity detail:
 
 ```kotlin
-fun executeOuterCommand(command: Command<*>): Any = requiredTransaction {
-    val context = UnitOfWorkContext.create(command)
+data class AggregatePersistenceChangeSet(
+    val root: Any,
+    val rootOperation: RootOperation,
+    val entityChanges: List<EntityPersistenceChange>,
+)
 
-    try {
-        val response = invokeCommand(command, context)
-
-        while (true) {
-            context.normalizeIntents()
-
-            val candidates = persistence.detectCandidateChanges(context)
-            audit.enrich(candidates, context.auditContext)
-            val finalChanges = persistence.detectFinalChanges(context)
-
-            if (finalChanges.isNotEmpty() || context.hasUnflushedReliableRecords()) {
-                persistence.flush(finalChanges, context)
-                context.advanceProviderBaseline()
-            }
-
-            val frontier = context.snapshotPendingDomainEvents()
-            if (frontier.isEmpty()) {
-                check(!context.hasUnflushedPersistentWork())
-                break
-            }
-
-            domainEvents.dispatchFailFast(frontier, context)
-            context.advanceFrontierRound()
-        }
-
-        context.verifyStable()
-        commitTransaction()
-        reliableWork.signalAfterCommit()
-        response
-    } catch (ex: Exception) {
-        rollbackTransaction()
-        throw ex
-    } finally {
-        context.clear()
-    }
-}
+enum class RootOperation { NONE, CREATE, DELETE }
+enum class EntityOperation { CREATE, UPDATE, DELETE }
 ```
-
-### Stability Condition
-
-The UoW is stable only when all of these are true:
-
-- no dirty persistent state remains;
-- no unresolved CREATE, EXISTING, or REMOVE work remains;
-- no pending Domain Event remains;
-- no unflushed asynchronous Command record remains;
-- no unflushed Integration Event outbox record remains;
-- no active frontier remains;
-- the Provider baseline matches the last successful flush.
-
-Asynchronous work does not need to be executed or externally delivered for the local UoW to be stable. It only needs to be durably registered in the current transaction.
-
-## Synchronous Domain Event Semantics
-
-### Causal Frontiers
-
-Domain Events are dispatched by causal generation rather than one global total order.
-
-```text
-Frontier 0 = events pending after current flush
-  -> dispatch all events and handlers in unspecified sibling order
-  -> nested Commands may create more events
-
-Frontier 1 = events created while Frontier 0 was handled
-  -> dispatch after Frontier 0 finishes
-```
-
-The only ordering guarantee is the frontier partial order:
-
-```text
-parent frontier < derived frontier
-```
-
-Cap4k does not guarantee:
-
-- event order within one UoW flush;
-- Handler order for one event;
-- order among derived sibling events;
-- global order across independent transactions.
-
-An implementation may be deterministic for operational reasons, but application correctness must not rely on that incidental order.
-
-### Non-Reentrant Dispatch
-
-While a frontier is active, nested Commands may execute and attach new events, but those events enter the next frontier. They never recursively invoke the active dispatcher.
-
-Only the outer Coordinator drains frontiers. Nested Command, explicit flush, audit enrichment, and Provider callbacks cannot start an independent event-drain loop.
-
-### Historical Fact Versus Current State
-
-Domain Event payload is the immutable historical fact. Repository access inside a Handler returns the current UoW state at the time of the query.
-
-Cap4k does not promise that a Handler can reconstruct occurrence-time aggregate state by reloading the aggregate. The aggregate may have changed after the event was attached and before the frontier was dispatched, or an earlier unspecified Handler may have executed a nested Command.
-
-Therefore:
-
-- payload contains the IDs, scalars, timestamps, old/new values, and Value Objects required to understand the fact;
-- payload does not contain Aggregate, Entity, persistence proxy, or mutable Carrier references;
-- a `val` property pointing to a mutable entity is not deeply immutable;
-- Repository queries are deliberate current-state queries;
-- Commands sent by event Handlers revalidate against current state and support idempotent, reject, or no-op outcomes.
-
-### Handler Independence
-
-Sibling Handlers must not depend on execution order.
-
-If reaction B must happen after reaction A, the dependency is represented explicitly:
-
-```text
-E1
-  -> Handler A
-      -> Command A
-          -> E2
-              -> Handler B
-```
-
-It is not represented by relying on Handler A being registered before Handler B.
-
-"One Handler sends one Command" may be useful authoring guidance, but it is not a runtime restriction and does not solve occurrence-state ambiguity. A Handler may send multiple Commands when one reaction intentionally owns explicit orchestration. Artificially splitting ordered work across unordered Handlers is worse than keeping the order explicit.
-
-### Fail-Fast
-
-Synchronous frontier dispatch fails fast.
-
-```text
-E1
-  -> H1 succeeds
-  -> H2 fails
-  -> H3 does not run
-  -> active frontier stops
-  -> next frontier is discarded
-  -> local transaction rolls back
-```
-
-The framework does not aggregate and continue sibling Handler failures after the transaction is already doomed.
-
-Because Handler order is unspecified, the subset that executed before failure is unspecified. Database effects roll back. External Capability side effects cannot be rolled back, so synchronous Domain Event Handlers should not perform irreversible external side effects unless the application explicitly accepts that consistency model.
-
-## Asynchronous Commands
-
-Local reliable asynchronous work uses Command records rather than asynchronous Domain Event handlers.
-
-Target API direction:
-
-```kotlin
-val ref = Mediator.commands.enqueue(command)
-val scheduled = Mediator.commands.schedule(command, executeAt)
-```
-
-`enqueue` is preferred to an ambiguous `async` name because it means durable registration, not merely another thread.
-
-Registration behavior:
-
-- serialize and write a reliable Command record in the current local transaction;
-- capture required tenant, actor, trace, correlation, and environment context in an explicit envelope;
-- do not execute before commit;
-- roll back the record when the current transaction rolls back;
-- signal a worker only after commit.
-
-Execution behavior:
-
-- worker execution creates a new outer Command;
-- the Command receives its own REQUIRED transaction and UoW Context;
-- its synchronous Domain Events use the same frontier and fail-fast semantics;
-- later failure does not roll back the original transaction;
-- retry, terminal failure, result retention, and dead-letter behavior belong to the reliable Command provider.
-
-The built-in recovery scheduler is named `retry`, not `compense` or `compensation`: it resumes a failed reliable record and does not infer or execute a reverse business action. The same naming applies to reliable Domain Event delivery retries. Business compensation remains an explicit orchestration concern.
-
-An asynchronous Command returns a Command reference, not an immediate business result. Result lookup may remain a reliable Command capability but is not shared with Query or Capability.
-
-## Integration Events
-
-Integration Event represents a fact published outside the current bounded context.
-
-Registration behavior:
-
-- write the event and delivery metadata into an outbox record in the current transaction;
-- do not call MQ, HTTP, or another external transport before commit;
-- roll back the outbox record with the local transaction;
-- signal publishers after commit;
-- retain polling or recovery so a failed after-commit signal does not lose the outbox record.
-
-Delivery behavior:
-
-- external publication failure does not roll back the already committed local transaction;
-- retry and terminal delivery state belong to the Integration Event transport/provider;
-- multiple asynchronous consumers have independent delivery and failure state;
-- no cross-consumer fail-fast or total order is promised.
-
-The first implementation does not support one ordinary event type with a mixture of synchronous and `@Async` Handlers. If one business fact needs both local synchronous reaction and external publication, the aggregate attaches a synchronous Domain Event and the local reaction registers a distinct Integration Event, or the aggregate/application explicitly registers both fact contracts.
-
-## Explicit Flush
-
-Mandatory `save()` is removed. An optional advanced `flush()` remains.
-
-Target semantics:
-
-```text
-candidate change detection
-  -> audit enrichment
-  -> final change detection
-  -> Provider SQL synchronization
-  -> Provider baseline advancement
-```
-
-`flush()` guarantees:
-
-- current eligible persistent changes are synchronized to the database;
-- database constraints may fail at the call site;
-- provider-generated values may be available;
-- later database queries in the same transaction can observe synchronized state according to Provider behavior.
-
-`flush()` does not guarantee:
-
-- Domain Event frontier drain;
-- nested Command completion beyond its Handler result;
-- transaction commit;
-- after-commit publication;
-- asynchronous Command execution;
-- Integration Event delivery.
-
-Events created before or during explicit flush remain pending for the outer Coordinator. Explicit flush cannot be used to restore reentrant event dispatch.
-
-## Failure Domains
-
-### Synchronous Execution Failure
 
 Examples:
 
-- Command Handler failure;
-- candidate/final detection failure;
-- audit enrichment failure;
-- Provider flush or database constraint failure;
+```text
+existing Root scalar change
+  -> rootOperation NONE
+  -> Root UPDATE
+
+existing Child-only change
+  -> rootOperation NONE
+  -> Child UPDATE
+
+new aggregate
+  -> rootOperation CREATE
+  -> Root CREATE plus owned CREATE entries
+
+remove aggregate
+  -> rootOperation DELETE
+  -> Root DELETE plus provider cascade DELETE entries
+```
+
+The provider emits net effects, not an operation log. Child CREATE then DELETE before synchronization is NONE. Existing Child UPDATE then DELETE is DELETE. Existing Child removed and re-added as the same relation is NONE when Hibernate final state matches its baseline.
+
+Child-only change creates an aggregate change set but does not make the Root Entity dirty and does not automatically advance root version or root audit fields.
+
+## Strong ID And Owned Entity Creation
+
+Application-side generated Strong IDs use three layers:
+
+```text
+Factory creates Root               -> assign Root ID immediately
+Factory/OwnedEntityList adds Child -> assign Child ID immediately
+UoW stabilization                 -> assign missing ID as final safety net
+```
+
+Immediate generation allows domain behavior and Domain Event payload to use IDs before flush. The stabilization fallback guarantees persistence integrity but cannot repair an event payload that was already constructed with a missing ID.
+
+Application-assigned ID being non-null is not evidence that an Entity already exists. CREATE classification uses explicit root CREATE intent, Hibernate state, and owned-relation delta rather than `EntityInformation.isNew()` alone.
+
+For existing managed Entities, the generated ID must equal Hibernate's original identifier. Clearing or changing it fails. Attaching a detached owned child, merging owned children independently, or moving an owned child between aggregate roots is unsupported. A move is modeled as deletion from the old aggregate plus creation of a new child in the new aggregate.
+
+## Create And Delete Semantics
+
+`onCreate` and `onDeleted` remain optional reflective root callbacks. Missing methods are valid. `onUpdate` does not exist. Owned children never invoke aggregate lifecycle callbacks and never originate Domain Events.
+
+Factory creation records root CREATE and invokes `onCreate`. Repository removal records managed root DELETE and invokes `onDeleted` at most once per UoW.
+
+CREATE followed by REMOVE before the first provider synchronization folds to NONE:
+
+- no INSERT or DELETE SQL;
+- both optional callbacks may already have executed;
+- all unreleased Domain Events attached to the root are discarded.
+
+After a CREATE was already synchronized in an earlier stabilization round, a later DELETE remains an INSERT followed by DELETE inside the same transaction.
+
+Root deletion requires a new-pending or currently managed root. Cap4k no longer merges detached roots for removal. Child deletion is expressed by changing an owned ONE or MANY relation and is classified through orphan removal and cascade state. `UnitOfWork.remove(child)` has no public or internal application path.
+
+Normal updates never load untouched relations. Explicit aggregate-root deletion may load lazy owned relations required to complete cascade deletion and delete classification.
+
+## Audit Lifecycle
+
+### Audit Context
+
+The outer Command UoW captures audit data once:
+
+```kotlin
+data class JpaPersistenceAuditContext(
+    val auditTime: Instant,
+    val executionContext: ExecutionContextSnapshot,
+)
+```
+
+`Clock` and `ExecutionContextAccessor` are injected. `Instant` is the absolute-time semantic; formatting and database representation belong to the enricher and JPA mapping. Cap4k does not define built-in Actor, Tenant, or Trace audit fields.
+
+### Ordered Enrichers
+
+```kotlin
+interface JpaPersistenceAuditEnricher {
+    fun enrich(
+        changeSet: AggregatePersistenceChangeSet,
+        context: JpaPersistenceAuditContext,
+    )
+}
+```
+
+All enrichers run sequentially in Spring `Ordered` or `@Order` order. A later enricher sees earlier scalar changes. Cap4k does not detect two enrichers writing the same property; normal ordered last-write behavior applies. An enricher failure rolls back the Command transaction.
+
+The outer UoW auditTime and ExecutionContext snapshot remain fixed across all stabilization rounds. The same Entity may be enriched again if a later Domain Event frontier creates a real new change. Enrichers must therefore be idempotent for one UoW and must assign context values rather than increment counters or perform external work.
+
+### Candidate, Enrich, Final
+
+```text
+detect candidate business and persistence changes
+  -> run ordered audit enrichers for candidates
+  -> verify audit topology boundary
+  -> detect final dirty state
+  -> explicit Hibernate flush
+```
+
+Clean loaded aggregates are not candidates and receive no audit update. An Entity changed only by audit enrichment joins final dirty state but does not cause a new round after the successful flush advances Hibernate's baseline.
+
+Audit enrichers may modify scalar properties or embedded audit values on supplied existing Entities. They may not create or delete persistent Entities, change owned relations, call persistence lifecycle operations, send Commands, or publish Domain Events. The provider records Entity/Collection topology and the Domain Event cursor before enrichment and fails if those structures change.
+
+Without a declared audit-field registry, Cap4k cannot distinguish `updatedAt` from `status` when both are scalar properties. It enforces topology and event boundaries but treats scalar correctness as the enricher author's responsibility.
+
+## Stabilization State Machine
+
+### Phases
+
+```text
+HANDLER
+NESTED_COMMAND
+INTEGRATION_RECORDS
+NORMALIZE_INTENT
+CANDIDATE_DETECTION
+AUDIT_ENRICHMENT
+FINAL_DETECTION
+PROVIDER_FLUSH
+DOMAIN_EVENT_FRONTIER
+STABLE
+```
+
+Only Handler, nested Command, and a nested Command entered from a Domain Event Handler may create application persistence changes. Audit, provider callbacks, and generic transaction callbacks have no mutation permission.
+
+### Loop
+
+```text
+BEGIN REQUIRED
+  -> install COMMAND InvocationScope
+  -> create UoW Context and fixed audit context
+  -> set Hibernate FlushMode.MANUAL
+  -> invoke Command pipeline
+  -> repeat
+       -> release local reliable/outbox records into persistence context
+       -> normalize root CREATE/DELETE intent
+       -> expand initialized aggregate ownership
+       -> detect aggregate candidate change sets
+       -> run ordered audit enrichment
+       -> verify audit did not change persistence topology or events
+       -> detect final Hibernate dirty/action state
+       -> explicit flush when persistent work exists
+       -> snapshot one pending Domain Event frontier
+       -> dispatch frontier fail-fast
+     until no dirty state, action, reliable record, or pending event remains
+  -> mark STABLE
+  -> final late-mutation assertion
+  -> COMMIT
+  -> signal reliable workers after commit
+  -> cleanup and restore flush mode/scopes
+```
+
+The final late-mutation assertion checks Hibernate dirty/action state, pending Domain Events, and unpersisted reliable records after stabilization. A change appearing after STABLE causes `LatePersistenceMutationException` and rollback. Cap4k does not expose an `onBeforeCommit`, `afterFlush`, or seal callback that can reopen mutation.
+
+The UoW retains configurable limits for frontier rounds, synchronous events, nested Commands, and provider flushes. Overflow diagnostics include phase, causal Command/Event/Handler path, aggregate identity where available, pending counts, and last successful flush.
+
+## Synchronous Domain Event Semantics
+
+Domain Events use non-reentrant causal frontiers:
+
+```text
+Frontier N
+  -> dispatch sibling events and handlers in unspecified order
+  -> Handler may send nested Command
+  -> new events enter Frontier N+1
+```
+
+Only the outer Coordinator drains frontiers. Sibling Event order, Handler order, derived sibling order, and global cross-transaction order are not promised. Synchronous dispatch fails fast on the first observed Handler failure; remaining siblings do not run and the transaction rolls back.
+
+The immutable event payload is the historical fact. A Repository query would show current UoW state, not occurrence-time state, which is one reason Domain Event Handler scope cannot access Repository directly. A Handler sends a nested Command, whose Handler reloads and revalidates current aggregate state.
+
+Event payloads contain required IDs, scalars, timestamps, immutable Values, and immutable collections. They do not contain Aggregate, Entity, Hibernate Proxy, or mutable Carrier references. "One Handler sends one Command" remains authoring guidance rather than a runtime count restriction.
+
+Capability side effects cannot be rolled back. A synchronous Domain Event Handler should prefer reliable Command or Integration Event registration over irreversible external calls unless the application explicitly accepts the consistency model.
+
+## Reliable Command And Integration Event
+
+Reliable Command registration serializes the Command and execution-context envelope into the current local transaction. It executes only after commit in a new outer Command transaction. Registration failure rolls back the current transaction; later execution failure belongs to the reliable Command retry or terminal-failure policy and cannot roll back the origin transaction.
+
+Integration Event writes payload, execution-context envelope, and delivery metadata to an outbox record in the current transaction. External publication never occurs before commit. Later publication failure leaves the committed outbox recoverable. Consumers have independent delivery and failure state; no total order or cross-consumer fail-fast is promised.
+
+An after-commit wake-up is an optimization. Polling or recovery must discover a committed record when signaling fails.
+
+## Failure Domains
+
+Current transaction rollback failures include:
+
+- Command validation, interceptor, or Handler failure;
+- forbidden InvocationScope transition;
+- candidate or final detection failure;
+- audit enricher failure or topology violation;
+- Strong ID or aggregate ownership violation;
+- Hibernate flush or database constraint failure;
 - synchronous Domain Event Handler failure;
-- reliable record serialization or local insert failure.
+- reliable Command or outbox serialization/persistence failure;
+- loop limit or late-mutation failure;
+- local transaction commit failure.
 
-Result:
+Later reliable execution or external publication failure does not roll back the origin transaction.
 
-- stop immediately;
-- roll back the current transaction;
-- discard current and next frontiers;
-- discard uncommitted reliable records;
-- clear event attachments and UoW Context;
-- return failure from the outer Command.
+Query/Capability asynchronous invocation returns a failed CompletionStage for its own validation, Handler, transaction, or scheduling failure. Cancellation and timeout do not imply underlying work stopped.
 
-### Asynchronous Registration Failure
+## Removed Public Concepts And Surfaces
 
-If an asynchronous Command record or Integration Event outbox record cannot be serialized or persisted in the local transaction, registration fails synchronously and the local transaction rolls back.
+The following remain removed or are removed by this revision:
 
-### Asynchronous Execution Or Delivery Failure
-
-If a committed asynchronous Command later fails, its own transaction rolls back and its provider applies retry or terminal-failure policy. The original transaction remains committed.
-
-If a committed Integration Event later fails to publish, the outbox record remains recoverable and the transport/provider applies retry or terminal-failure policy. The original transaction remains committed.
-
-### Commit Failure
-
-No asynchronous worker or external publisher may treat work as available before successful local commit. Commit failure discards the local transaction and its reliable registrations.
-
-### After-Commit Signal Failure
-
-After-commit signaling is an optimization. Failure to wake a worker or publisher after commit does not make the already committed Command fail. Durable polling or recovery must eventually find the record.
-
-## Diagnostics And Loop Protection
-
-Protection belongs to the transaction-level UoW Context, not a recursive function argument.
-
-The implementation must track configurable limits for at least:
-
-- maximum frontier rounds;
-- maximum synchronous Domain Events;
-- maximum nested Commands;
-- maximum Provider flushes.
-
-On overflow, diagnostics include the causal path:
-
-```text
-CreateOrderCommand
-  -> OrderCreated
-  -> ReserveInventoryHandler
-  -> ReserveInventoryCommand
-  -> InventoryReserved
-  -> ConfirmOrderHandler
-  -> ConfirmOrderCommand
-  -> OrderConfirmed
-```
-
-Diagnostics should also report:
-
-- active UoW phase;
-- frontier number;
-- source aggregate identity when available;
-- Handler identity;
-- pending event and reliable-record counts;
-- last successful flush;
-- whether the transaction is rollback-only.
-
-## Internal Invocation Reuse
-
-Command, Query, and Capability may reuse internal infrastructure:
-
-```text
-resolve Handler
-validate input
-create invocation context
-run category-specific interceptors
-invoke
-observe diagnostics
-```
-
-The internal kernel must preserve the category discriminator. It must not expose a public common Request marker merely to simplify generics.
-
-Category-specific policy remains isolated:
-
-```text
-Command     transaction, UoW, audit, synchronous event stabilization
-Query       read policy, query diagnostics, possible cache/projection support
-Capability  context propagation, telemetry, protocol/resilience adapters
-```
-
-## Persistence Provider Boundary
-
-This design intentionally describes runtime phases in provider-neutral terms:
-
-- observe/enroll aggregate roots;
-- detect candidate changes;
-- enrich provider/audit state;
-- detect final changes;
-- plan persistence operations;
-- flush;
-- advance provider baseline;
-- expose diagnostics.
-
-JPA remains the first implementation. The redesign must not leak Hibernate-specific state into Command, Query, Capability, event, or audit public contracts.
-
-This spec does not define the complete public third-party Persistence Provider SPI. That SPI should be designed from the stabilized runtime phases and at least one real alternate provider or integration need, rather than by wrapping the current `JpaUnitOfWork` class.
+- generic public Request contracts and `Mediator.requests`;
+- built-in Saga runtime, persistence, starter, console, generator, templates, and docs;
+- public Command propagation choices other than REQUIRED;
+- ordinary asynchronous Domain Event Handler mode;
+- Client naming in favor of Capability;
+- public UoW instance and lifecycle methods;
+- Repository `persist` flags;
+- `PersistIntent.EXISTING`;
+- `AggregateLoadPlan`;
+- automatic whole-aggregate expansion;
+- Repository explicit detach and detached-root merge;
+- coarse public persistence callbacks such as `onUpdate`;
+- silent non-Hibernate fallback;
+- speculative public Persistence Provider SPI.
 
 ## Generator And Ownership Direction
 
-Checked-in generator ownership remains unchanged in principle: first generation creates ordinary repository source and later runs use SKIP.
+Checked-in Factory and Behavior ownership remains unchanged: first generation creates ordinary checked-in source and later runs use SKIP. This runtime redesign does not restore framework overwrite policies for checked-in code.
 
-Future generator/runtime alignment:
+Generator vocabulary remains:
 
 ```text
 command                 -> Command / CommandHandler
 query                   -> Query / QueryHandler
+capability              -> CapabilityCall / CapabilityHandler
 client                  -> removed
-client-handler          -> removed
-capability              -> CapabilityCall
-capability-handler      -> CapabilityHandler
 saga                    -> removed
 ```
 
-Recommended paths:
+Command, Query, and Capability use one Handler shape each. Async methods belong to supervisors and do not create async Handler templates.
 
-```text
-application/commands
-application/queries
-application/capabilities
-adapter/application/capabilities
-```
-
-The application Capability contract uses internal business language. The adapter Capability Handler owns protocol conversion, authentication, provider DTO mapping, timeout, and technical error translation.
-
-Canonical generator models may share private field or type-rendering structures, but Command, Query, and Capability are independent semantic models rather than values of one public Request kind.
-
-## Breaking API Direction
-
-Expected breaking changes include:
-
-- remove public generic `RequestParam` and `RequestHandler` usage from generated Command, Query, and Capability code;
-- replace Handler-category interfaces named `Command` and `Query` with message markers plus `CommandHandler` and `QueryHandler`;
-- replace `Mediator.requests` aliases with real category-specific supervisors;
-- move reliable async/schedule/result APIs to Command-only ownership;
-- remove `UnitOfWork.save(propagation)`;
-- add optional `UnitOfWork.flush()` or equivalent advanced facade;
-- remove public propagation parameters;
-- replace coarse public `UnitOfWorkInterceptor` lifecycle with explicit internal/provider phases;
-- replace immediate nested event release with UoW-owned frontier queues;
-- change synchronous subscriber failure from aggregate-and-continue to fail-fast;
-- rename Client generator/runtime concepts to Capability;
-- rename internal starter-availability `CapabilitySlot` terminology to Provider terminology;
-- remove Saga core, persistence, starter, console, generator, templates, tests, and public docs.
-
-Exact package migration and class names belong to the implementation plan, but no compatibility layer should preserve the semantic problems this design removes.
+Generated aggregate metadata must continue supporting immediate Root and owned-child Strong ID allocation. Aggregate root identity needed by runtime may be derived from registered generated factories before introducing another catalog artifact.
 
 ## Verification Strategy
 
-### Command Boundary Tests
+### Execution Context And Invocation Tests
 
-- outer Command creates one REQUIRED transaction and one UoW Context;
-- nested Command reuses both;
-- nested Command does not independently commit or drain events;
-- outer Command returns only after stabilization and commit;
-- Query and Capability do not create a write UoW.
+- immutable snapshots and strict LIFO scopes;
+- duplicate key/codec startup failure;
+- strict reliable decode and tolerant unknown external decode;
+- framework async propagation without UoW, transaction, InvocationScope, or event-state propagation;
+- Caller Runs installs target scope and closes it before CompletionStage completion;
+- forbidden invocation matrix transitions fail through the correct sync or async channel.
 
-### Audit Tests
+### Query And Capability Tests
 
-- clean loaded aggregate does not receive update audit fields;
-- business dirty state becomes a candidate before audit enrichment;
-- audit enrichment participates in final change detection;
-- repeated frontiers reuse one audit context;
-- child-entity audit can occur without forced root version advancement.
+- Query transaction spans validation, interceptors, Handler, lazy Repository navigation, and DTO mapping;
+- Query never creates a write UoW or flushes accidental entity mutation;
+- Command-to-Query and nested `askAsync()` fail;
+- Query-to-Query synchronous reuse works;
+- Query and Capability use separate bounded executors;
+- Caller Runs preserves result and failure semantics;
+- configured reject and executor shutdown return failed stages;
+- Capability cannot use Repository even when invoked inline from Command.
 
-### Frontier Tests
+### Repository And UoW Tests
 
-- events created in one flush form one frontier snapshot;
-- events created by a Handler enter the next frontier;
-- nested Command cannot re-enter the active dispatcher;
-- no test relies on sibling event or Handler order;
-- first Handler failure stops the frontier and rolls back;
-- causal limits detect Event -> Command -> Event loops across frontiers.
+- Repository reads have no persist/load-plan parameter and never explicitly detach;
+- Command loads A and B unchanged, changes C, and only C produces SQL/audit;
+- Query can use Repository and lazy navigation inside its read transaction;
+- public UoW locator and facade are absent;
+- Hibernate MANUAL mode is active before Command Handler queries;
+- no query-triggered SQL bypasses audit enrichment;
+- late mutation after STABLE rolls back.
 
-### Historical Fact Tests
+### Aggregate Change Tests
 
-- event payload rejects or diagnoses Aggregate/Entity references;
-- immutable IDs, scalars, timestamps, Value Objects, and immutable collections are accepted;
-- a Handler query observes current UoW state rather than a promised historical snapshot;
-- an order-dependent reaction is represented through a derived event rather than Handler registration order.
+- new Root and nested Strong IDs are available at creation time;
+- existing Root lazy collection addition receives Child Strong ID and persists;
+- untouched lazy collections remain unloaded;
+- dirty queued collection additions and orphan removals are classified;
+- owned ONE replacement creates/deletes the correct children;
+- detached child/root merge paths fail;
+- same child under two roots fails;
+- child-only update does not advance root version by framework policy;
+- root delete may load required cascade graph;
+- CREATE then REMOVE before first flush folds to NONE and discards events.
 
-### Reliable Work Tests
+### Audit And Event Tests
 
-- async Command registration rolls back with the originating transaction;
-- committed async Command starts a new outer REQUIRED transaction;
-- async Command failure does not roll back the originating transaction;
-- Integration Event outbox registration rolls back with the local transaction;
-- external publish never happens before commit;
-- after-commit signal failure remains recoverable through durable polling.
+- clean loaded Entity is not enriched;
+- candidate detection precedes enrichment and final detection follows it;
+- one auditTime and ExecutionContext snapshot span all rounds;
+- multiple enrichers follow Spring order;
+- audit topology or event mutation fails;
+- scalar audit fields persist in the same flush;
+- same Entity may be idempotently enriched in later rounds;
+- frontier dispatch is non-reentrant and fail-fast;
+- sibling ordering is not asserted;
+- current-state-dependent reaction goes through a nested Command.
 
-### Explicit Flush Tests
+### Reliable Boundary Tests
 
-- flush performs candidate detection, audit enrichment, final detection, and SQL synchronization;
-- flush advances Provider baseline;
-- flush does not drain Domain Events;
-- flush does not commit;
-- CREATE then REMOVE before first synchronization folds to NONE;
-- CREATE then explicit flush then REMOVE performs synchronized INSERT and later DELETE within the transaction.
-
-### Removal Tests
-
-- generic Request APIs no longer exist in production code;
-- Saga modules and runtime APIs are absent;
-- client and `*Cli` generator terminology is absent from active generator/runtime contracts;
-- archived historical evidence may continue to mention removed paths without becoming active runtime documentation.
-
-## Implementation Slices
-
-Recommended sequencing:
-
-1. Introduce explicit Command, Query, and Capability message and Handler contracts plus category-specific supervisors.
-2. Introduce the outer Command Coordinator and transaction-level UoW Context while keeping current persistence behavior behind an adapter.
-3. Move candidate/final detection and audit enrichment into explicit stabilization phases.
-4. Replace recursive domain-event release with current/next frontier queues and fail-fast dispatch.
-5. Move reliable request persistence to Command-only enqueue/schedule ownership.
-6. Enforce Integration Event outbox commit boundary.
-7. Remove generic Request APIs and compatibility aliases.
-8. Rename Client generator/runtime concepts to Capability.
-9. Remove Saga runtime, modules, generator, templates, tests, and active docs.
-10. Replace coarse UoW interceptors and remove obsolete transaction propagation API.
-
-Each slice must preserve focused runtime fixtures. Do not combine all removals and lifecycle changes into one unverified mechanical rewrite.
+- reliable Command and Event records persist execution context separately from payload;
+- retry and archive retain the original snapshot;
+- existing null-context rows decode as EMPTY;
+- decode failure prevents Handler execution;
+- record registration rolls back with the origin transaction;
+- external publication never precedes commit;
+- wake-up failure remains recoverable.
 
 ## Fixed Decisions
 
 - Command, Query, Capability, and Event are independent public concepts.
-- There is no public generic Request abstraction.
-- Command alone owns automatic REQUIRED transaction and UoW completion.
-- Public propagation supports REQUIRED only.
-- One physical transaction has one UoW Context and one outer Coordinator.
-- Nested Commands execute immediately but do not independently stabilize or drain events.
-- Mandatory user `save()` is removed.
-- Optional explicit flush synchronizes persistence but never drains events or commits.
-- Audit uses candidate detection, enrichment, and final detection before flush.
-- Domain Events are root-originated immutable facts.
-- Domain Events use non-reentrant causal frontiers.
-- Sibling events and Handlers have no ordering guarantee.
-- Derived events enter the next frontier.
-- Synchronous Handler failure is fail-fast.
-- Repository queries in Handlers return current UoW state, not event-time snapshots.
-- Event payloads do not contain Aggregate or Entity references.
-- One Handler/one Command is guidance, not a hard limit.
-- Local async work uses reliable asynchronous Commands.
-- Integration Events use transactional outbox registration and publish after commit.
-- ordinary Domain Events do not mix synchronous and `@Async` Handlers.
-- the first implementation has no separate Async Domain Event category.
-- CREATE then REMOVE before first synchronization folds to NONE and discards unreleased root events.
-- `onCreate` and `onDeleted` remain optional reflective root callbacks; `onUpdate` is removed.
-- child changes do not automatically advance root version in the first implementation.
-- Client is renamed to External Capability, shortened to Capability in code.
-- built-in Saga is removed.
-- no speculative Saga Provider SPI is defined.
-- JPA remains the first Persistence Provider implementation, but public execution semantics remain provider-neutral.
+- Command alone owns automatic REQUIRED write transaction and UoW completion.
+- one physical Command transaction has one UoW Context and outer Coordinator.
+- Query owns a Handler-wide read-only transaction and no write UoW.
+- Capability is persistence-neutral and may not access Repository or UoW.
+- ExecutionContext propagates attribution; InvocationScope enforces local semantic policy.
+- Query and Capability have one blocking Handler shape plus sync/async supervisor methods.
+- Query/Capability executors are separate, bounded, and default to Caller Runs.
+- asynchronous API failures always complete the stage exceptionally.
+- generic timeout does not promise underlying cancellation.
+- asynchronous Command is reliable later execution, never Caller Runs.
+- application code has no UoW save, persist, remove, execute, or flush surface.
+- Hibernate MANUAL flush covers the entire Command UoW.
+- Repository load observes but does not enroll EXISTING persistence intent.
+- Repository `persist` flags, explicit detach, `AggregateLoadPlan`, and `PersistIntent.EXISTING` are removed.
+- Spring Data JPA plus Hibernate is the only persistence runtime in this iteration.
+- no public Persistence Provider SPI is introduced.
+- persistence changes are aggregate-organized with Entity-level detail.
+- untouched lazy relations remain unloaded; changed or deleting relations may be initialized as required.
+- Strong IDs are assigned at creation and verified/completed before persistence.
+- detached owned children and detached root removal are unsupported.
+- audit uses one UoW auditTime and ExecutionContext snapshot.
+- audit enrichers are ordered, idempotent, scalar-only, and topology-guarded.
+- `onCreate` and `onDeleted` are optional reflective Root callbacks; `onUpdate` is removed.
+- Child changes do not automatically advance Root version.
+- Domain Events are Root-originated immutable facts dispatched in non-reentrant causal frontiers.
+- sibling events and Handlers have no ordering guarantee; synchronous failure is fail-fast.
+- CREATE then REMOVE before first synchronization folds to NONE and discards unreleased Root events.
+- ordinary Domain Events have no asynchronous Handler mode.
+- built-in Saga remains removed.
 
 ## Open Implementation Details
 
-These details may be selected during implementation without reopening the architecture:
+Implementation may select without reopening this design:
 
-- exact public package names;
-- exact Command reference and reliable result types;
-- exact UoW Context internal classes;
-- concrete default limits for rounds, events, Commands, and flushes;
-- best-effort runtime validation strategy for deep event immutability;
-- exact JPA dirty-inspection and baseline implementation;
-- exact after-commit worker wake-up mechanism;
-- exact migration sequencing across starters and generator modules.
+- exact internal interface and package names;
+- exact default Query/Capability executor sizes and queue capacities;
+- exact custom overload-strategy property names;
+- exact AggregateRootCatalog derivation implementation;
+- exact Hibernate internal APIs used for queued collection operations and late-action detection;
+- exact schema column names and serialized envelope format for execution context;
+- exact transport header name and size limit;
+- exact default loop limits, provided they remain bounded and configurable;
+- exact migration ordering across core, JPA, reliable Command/Event, transports, and generators.
 
-Any implementation choice that reintroduces nested UoW completion, recursive event draining, mixed Request policies, pre-commit external publication, or Handler-order dependency is not an implementation detail and requires revision of this spec.
+Any choice that restores a public generic Request, public flush/save, recursive event dispatch, mixed synchronous/async Domain Event Handlers, load-dependent Query transaction semantics, silent Hibernate degradation, or Handler-order dependency requires a design revision.

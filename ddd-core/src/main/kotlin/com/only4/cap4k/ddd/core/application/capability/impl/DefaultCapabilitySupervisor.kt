@@ -4,14 +4,27 @@ import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
 import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.application.capability.CapabilityInterceptor
 import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextPropagation
+import com.only4.cap4k.ddd.core.application.async.ApplicationAsyncExecutor
 import com.only4.cap4k.ddd.core.application.impl.SynchronousApplicationDispatcher
+import com.only4.cap4k.ddd.core.application.async.failedStage
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationPolicy
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import jakarta.validation.Validator
+import java.util.concurrent.CompletionStage
 
 open class DefaultCapabilitySupervisor(
     handlers: List<CapabilityHandler<*, *>>,
     interceptors: List<CapabilityInterceptor<*, *>>,
     validator: Validator?,
+    private val invocationPolicy: InvocationPolicy,
+    private val invocationScopeManager: InvocationScopeManager,
+    private val executionContextAccessor: ExecutionContextAccessor,
+    private val executionContextPropagation: ExecutionContextPropagation,
+    private val asyncExecutor: ApplicationAsyncExecutor,
 ) : CapabilitySupervisor {
     private val dispatcher = SynchronousApplicationDispatcher(
         category = "capability",
@@ -41,8 +54,35 @@ open class DefaultCapabilitySupervisor(
 
     fun init() = dispatcher.init()
 
-    override fun <CALL : CapabilityCall<RESULT>, RESULT : Any> call(request: CALL): RESULT =
-        EventRuntimeContext.withCausalFrame("Capability:${request.javaClass.name}") {
-            dispatcher.dispatch(request)
+    override fun <CALL : CapabilityCall<RESULT>, RESULT : Any> call(request: CALL): RESULT {
+        invocationPolicy.check(InvocationKind.CAPABILITY)
+        return invoke(request)
+    }
+
+    override fun <CALL : CapabilityCall<RESULT>, RESULT : Any> callAsync(request: CALL): CompletionStage<RESULT> {
+        return try {
+            val snapshot = executionContextAccessor.current()
+            invocationPolicy.check(InvocationKind.CAPABILITY, asynchronous = true)
+            asyncExecutor.submit {
+                EventRuntimeContext.withIsolatedState {
+                    executionContextPropagation.withSnapshot(snapshot) {
+                        invoke(request)
+                    }
+                }
+            }
+        } catch (ex: Throwable) {
+            failedStage(ex)
         }
+    }
+
+    private fun <CALL : CapabilityCall<RESULT>, RESULT : Any> invoke(request: CALL): RESULT {
+        val scope = invocationScopeManager.enter(InvocationKind.CAPABILITY)
+        return try {
+            EventRuntimeContext.withCausalFrame("Capability:${request.javaClass.name}") {
+                dispatcher.dispatch(request)
+            }
+        } finally {
+            scope.close()
+        }
+    }
 }

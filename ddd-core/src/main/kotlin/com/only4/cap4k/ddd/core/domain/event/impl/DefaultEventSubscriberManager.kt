@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
 import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
@@ -18,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap
 class DefaultEventSubscriberManager(
     private val subscribers: List<EventSubscriber<*>>,
     private val applicationEventPublisher: ApplicationEventPublisher,
+    private val invocationScopeManager: InvocationScopeManager,
 ) : EventSubscriberManager {
 
     private val subscriberMap by lazy {
@@ -63,29 +66,34 @@ class DefaultEventSubscriberManager(
 
 
     override fun dispatch(eventPayload: Any) {
-        subscriberMap[eventPayload.javaClass].orEmpty().forEach { subscriber ->
-            val subscriberClass = AopUtils.getTargetClass(subscriber)
-            try {
-                EventRuntimeContext.withCausalFrame("Handler:${subscriberClass.name}") {
-                    @Suppress("UNCHECKED_CAST")
-                    (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
+        val invocationScope = invocationScopeManager.enter(InvocationKind.DOMAIN_EVENT_HANDLER)
+        try {
+            subscriberMap[eventPayload.javaClass].orEmpty().forEach { subscriber ->
+                val subscriberClass = AopUtils.getTargetClass(subscriber)
+                try {
+                    EventRuntimeContext.withCausalFrame("Handler:${subscriberClass.name}") {
+                        @Suppress("UNCHECKED_CAST")
+                        (subscriber as EventSubscriber<Any>).onEvent(eventPayload)
+                    }
+                } catch (ex: Exception) {
+                    throw EventDispatchException(
+                        eventPayload.javaClass,
+                        EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
+                        listOf(EventSubscriberFailure(subscriberClass, ex)),
+                    )
                 }
+            }
+            try {
+                applicationEventPublisher.publishEvent(eventPayload)
             } catch (ex: Exception) {
                 throw EventDispatchException(
                     eventPayload.javaClass,
                     EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
-                    listOf(EventSubscriberFailure(subscriberClass, ex)),
+                    listOf(EventSubscriberFailure(applicationEventPublisher.javaClass, ex)),
                 )
             }
-        }
-        try {
-            applicationEventPublisher.publishEvent(eventPayload)
-        } catch (ex: Exception) {
-            throw EventDispatchException(
-                eventPayload.javaClass,
-                EventDispatchException.snapshot(EventRuntimeContext.currentOrNull()),
-                listOf(EventSubscriberFailure(applicationEventPublisher.javaClass, ex)),
-            )
+        } finally {
+            invocationScope.close()
         }
     }
 

@@ -4,8 +4,11 @@ import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandInterceptor
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
 import com.only4.cap4k.ddd.core.application.impl.SynchronousApplicationDispatcher
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationPolicy
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import jakarta.validation.Validator
 
@@ -17,7 +20,9 @@ open class DefaultCommandSupervisor(
     handlers: List<CommandHandler<*, *>>,
     interceptors: List<CommandInterceptor<*, *>>,
     validator: Validator?,
-    private val unitOfWorkProvider: () -> UnitOfWork,
+    private val unitOfWorkProvider: () -> CommandUnitOfWorkCoordinator,
+    private val invocationPolicy: InvocationPolicy,
+    private val invocationScopeManager: InvocationScopeManager,
 ) : CommandSupervisor {
     private val dispatcher = SynchronousApplicationDispatcher(
         category = "command",
@@ -45,8 +50,15 @@ open class DefaultCommandSupervisor(
 
     fun init() = dispatcher.init()
 
-    override fun <COMMAND : Command<RESULT>, RESULT : Any> send(command: COMMAND): RESULT =
-        EventRuntimeContext.withCausalFrame("Command:${command.javaClass.name}") {
-            unitOfWorkProvider().execute { dispatcher.dispatch(command) }
+    override fun <COMMAND : Command<RESULT>, RESULT : Any> send(command: COMMAND): RESULT {
+        invocationPolicy.check(InvocationKind.COMMAND)
+        val scope = invocationScopeManager.enter(InvocationKind.COMMAND)
+        return try {
+            EventRuntimeContext.withCausalFrame("Command:${command.javaClass.name}") {
+                unitOfWorkProvider().execute { dispatcher.dispatch(command) }
+            }
+        } finally {
+            scope.close()
         }
+    }
 }

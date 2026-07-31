@@ -4,6 +4,9 @@ import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.*
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_PERSIST
@@ -34,7 +37,11 @@ open class DefaultEventPublisher(
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
     private val integrationEventManager: IntegrationEventManager? = null,
     private val integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
-    private val threadPoolSize: Int
+    private val threadPoolSize: Int,
+    private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
+        AutoCloseable { }
+    },
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
 ) : EventPublisher {
 
     companion object {
@@ -154,6 +161,16 @@ open class DefaultEventPublisher(
      * 内部发布实现 - 领域事件
      */
     protected open fun internalPublish4DomainEvent(event: EventRecord) {
+        val executionContext = executionContextCodecRegistry.decodeReliable(
+            event.executionContext,
+            ExecutionContextBoundary.RELIABLE_DOMAIN_EVENT,
+        )
+        executionContextScopeManager.install(executionContext).use {
+            publishDomainEvent(event)
+        }
+    }
+
+    private fun publishDomainEvent(event: EventRecord) {
         var scope: EventRuntimeScope? = null
         try {
             val message = event.message

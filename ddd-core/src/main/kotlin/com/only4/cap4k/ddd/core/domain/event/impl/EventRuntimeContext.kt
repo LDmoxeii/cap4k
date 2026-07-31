@@ -29,6 +29,27 @@ internal object EventRuntimeContext {
 
     fun diagnosticCausalPath(): List<String> = lastCausalPath.get().orEmpty()
 
+    /**
+     * Runs an asynchronous application task without inheriting event attachments,
+     * listener metadata, or causal frames when overload executes it on the caller thread.
+     */
+    fun <RESULT> withIsolatedState(block: () -> RESULT): RESULT {
+        val detachedScopes = scopes.get()
+        val detachedCausalFrames = causalFrames.get()
+        val detachedLastCausalPath = lastCausalPath.get()
+        scopes.remove()
+        causalFrames.remove()
+        lastCausalPath.remove()
+        return try {
+            block()
+        } finally {
+            reset()
+            detachedScopes?.let(scopes::set)
+            detachedCausalFrames?.let(causalFrames::set)
+            detachedLastCausalPath?.let(lastCausalPath::set)
+        }
+    }
+
     fun push(type: EventRuntimeScopeType): EventRuntimeScope {
         val stack = scopes.get() ?: ArrayDeque<EventRuntimeScope>().also(scopes::set)
         val scope = EventRuntimeScope(type)

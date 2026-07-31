@@ -1,9 +1,10 @@
 package com.only4.cap4k.ddd.domain.repo.impl
 
 import com.only4.cap4k.ddd.application.JpaRepositoryObservationRecorder
-import com.only4.cap4k.ddd.core.application.PersistIntent
-import com.only4.cap4k.ddd.core.application.UnitOfWork
-import com.only4.cap4k.ddd.core.domain.repo.AggregateLoadPlan
+import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateRootCatalog
 import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
@@ -16,26 +17,23 @@ import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 默认仓储管理器
- *
- * @author LD_moxeii
- * @date 2025/08/03
+ * Routes aggregate repository operations without changing persistence state.
+ * Reads stay managed for the surrounding Command/Query transaction and are
+ * observed only when a Command Unit of Work is active.
  */
 class DefaultRepositorySupervisor(
     private val repositories: List<Repository<*>>,
-    private val unitOfWork: UnitOfWork,
+    private val persistenceIntents: AggregatePersistenceIntentRecorder,
+    private val invocationScopeAccessor: InvocationScopeAccessor,
+    private val aggregateRootCatalog: AggregateRootCatalog,
     private val observationRecorder: JpaRepositoryObservationRecorder? =
-        unitOfWork as? JpaRepositoryObservationRecorder,
+        persistenceIntents as? JpaRepositoryObservationRecorder,
 ) : RepositorySupervisor {
 
     private val repositoryMap: Map<Class<*>, Map<Class<*>, Repository<*>>> by lazy {
         buildMap<Class<*>, MutableMap<Class<*>, Repository<*>>> {
             repositories.forEach { repository ->
-                var entityClass = resolveGenericTypeClass(
-                    repository, 0,
-                    Repository::class.java
-                )
-
+                var entityClass = resolveGenericTypeClass(repository, 0, Repository::class.java)
                 if (Any::class.java == entityClass) {
                     for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
                         if (repositoryClass.isAssignableFrom(repository.javaClass)) {
@@ -47,9 +45,7 @@ class DefaultRepositorySupervisor(
                         }
                     }
                 }
-
-                computeIfAbsent(entityClass) { mutableMapOf() }[repository.supportPredicateClass()] =
-                    repository
+                computeIfAbsent(entityClass) { mutableMapOf() }[repository.supportPredicateClass()] = repository
             }
         }.toMap()
     }
@@ -65,7 +61,7 @@ class DefaultRepositorySupervisor(
         @JvmStatic
         fun registerPredicateEntityClassReflector(
             predicateClass: Class<*>,
-            entityClassReflector: (Predicate<*>) -> Class<*>
+            entityClassReflector: (Predicate<*>) -> Class<*>,
         ) {
             predicateClass2EntityClassReflector.putIfAbsent(predicateClass, entityClassReflector)
         }
@@ -73,190 +69,130 @@ class DefaultRepositorySupervisor(
         @JvmStatic
         fun registerRepositoryEntityClassReflector(
             repositoryClass: Class<*>,
-            entityClassReflector: (Repository<*>) -> Class<*>
+            entityClassReflector: (Repository<*>) -> Class<*>,
         ) {
             repositoryClass2EntityClassReflector.putIfAbsent(repositoryClass, entityClassReflector)
         }
     }
 
-
     @Suppress("UNCHECKED_CAST")
     private fun <ENTITY : Any> repo(entityClass: Class<ENTITY>, predicate: Predicate<*>): Repository<ENTITY> {
         val repos = repositoryMap[entityClass]
             ?: throw DomainException("仓储不存在：${entityClass.typeName}")
-
-        if (repos.isEmpty()) {
-            throw DomainException("仓储不存在：${entityClass.typeName}")
-        }
-
         val predicateClass = predicate.javaClass
-
-        if (!repos.containsKey(predicateClass)) {
-            throw DomainException("仓储不兼容断言条件：${predicateClass.name}")
-        }
-
-        return repos[predicateClass] as Repository<ENTITY>
+        return repos[predicateClass] as? Repository<ENTITY>
+            ?: throw DomainException("仓储不兼容断言条件：${predicateClass.name}")
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun <ENTITY : Any> reflectEntityClass(predicate: Predicate<*>): Class<ENTITY> {
         val reflector = predicateClass2EntityClassReflector[predicate.javaClass]
             ?: throw DomainException("实体断言类型不支持：${predicate.javaClass.name}")
-
         return reflector(predicate) as Class<ENTITY>
     }
 
-    private fun observe(entity: Any, loadPlan: AggregateLoadPlan) {
-        observationRecorder?.observeRepositoryLoad(entity, loadPlan)
+    private fun <ENTITY : Any> observeLoaded(entities: Iterable<ENTITY>) {
+        entities.forEach { observationRecorder?.observeRepositoryLoad(it) }
     }
 
-    private fun enrollExisting(entity: Any) {
-        unitOfWork.persist(entity, PersistIntent.EXISTING)
-    }
-
-    private fun <ENTITY : Any> observeLoaded(
-        entities: Iterable<ENTITY>,
-        loadPlan: AggregateLoadPlan,
-        persist: Boolean,
-    ) {
-        entities.forEach { observe(it, loadPlan) }
-        if (persist) entities.forEach(::enrollExisting)
-    }
-
-    private fun effectivePersist(requested: Boolean): Boolean = requested || unitOfWork.active
-
-    private fun <ENTITY : Any> observeLoaded(
-        entity: ENTITY,
-        loadPlan: AggregateLoadPlan,
-        persist: Boolean,
-    ) {
-        observe(entity, loadPlan)
-        if (persist) enrollExisting(entity)
-    }
-
-    override fun <ENTITY : Any> find(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean
-    ): List<ENTITY> =
-        effectivePersist(persist).let { managed ->
-            repo(reflectEntityClass<ENTITY>(predicate), predicate)
-                .find(predicate, orders, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
-                .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    private fun requireReadScope(): InvocationKind {
+        val current = invocationScopeAccessor.current()
+        check(current == InvocationKind.COMMAND || current == InvocationKind.QUERY) {
+            "Repository reads require COMMAND or QUERY invocation scope; current=${current ?: "NONE"}"
         }
+        return current
+    }
+
+    private fun requireWriteScope() {
+        val current = invocationScopeAccessor.current()
+        check(current == InvocationKind.COMMAND) {
+            "Repository removal requires COMMAND invocation scope; current=${current ?: "NONE"}"
+        }
+    }
+
+    private fun requireAggregateRoot(entityClass: Class<*>, operation: String) {
+        check(aggregateRootCatalog.isAggregateRoot(entityClass)) {
+            "Repository $operation in COMMAND requires an aggregate-root type; actual=${entityClass.name}"
+        }
+    }
+
+    private fun <ENTITY : Any> repositoryForRead(predicate: Predicate<ENTITY>): Repository<ENTITY> {
+        val entityClass = reflectEntityClass<ENTITY>(predicate)
+        if (requireReadScope() == InvocationKind.COMMAND) {
+            requireAggregateRoot(entityClass, "read")
+        }
+        return repo(entityClass, predicate)
+    }
+
+    private fun <ENTITY : Any> repositoryForRemoval(predicate: Predicate<ENTITY>): Repository<ENTITY> {
+        requireWriteScope()
+        val entityClass = reflectEntityClass<ENTITY>(predicate)
+        requireAggregateRoot(entityClass, "removal")
+        return repo(entityClass, predicate)
+    }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): List<ENTITY> = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate).find(predicate, orders, managed, loadPlan)
-            .also { observeLoaded(it, loadPlan, managed) }
-    }
-
-
-    override fun <ENTITY : Any> find(
-        predicate: Predicate<ENTITY>,
-        pageParam: PageParam,
-        persist: Boolean
-    ): List<ENTITY> = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .find(predicate, pageParam, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    ): List<ENTITY> {
+        return repositoryForRead(predicate)
+            .find(predicate, orders)
+            .also(::observeLoaded)
     }
 
     override fun <ENTITY : Any> find(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): List<ENTITY> = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .find(predicate, pageParam, managed, loadPlan)
-            .also { observeLoaded(it, loadPlan, managed) }
+    ): List<ENTITY> {
+        return repositoryForRead(predicate)
+            .find(predicate, pageParam)
+            .also(::observeLoaded)
     }
 
-    override fun <ENTITY : Any> findOne(
-        predicate: Predicate<ENTITY>,
-        persist: Boolean
-    ): ENTITY? = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findOne(predicate, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
-            ?.also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
-    }
-
-    override fun <ENTITY : Any> findOne(
-        predicate: Predicate<ENTITY>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): ENTITY? = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findOne(predicate, managed, loadPlan)
-            ?.also { observeLoaded(it, loadPlan, managed) }
+    override fun <ENTITY : Any> findOne(predicate: Predicate<ENTITY>): ENTITY? {
+        return repositoryForRead(predicate)
+            .findOne(predicate)
+            ?.also { observationRecorder?.observeRepositoryLoad(it) }
     }
 
     override fun <ENTITY : Any> findFirst(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
-        persist: Boolean
-    ): ENTITY? = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findFirst(predicate, orders, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
-            ?.also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
-    }
-
-    override fun <ENTITY : Any> findFirst(
-        predicate: Predicate<ENTITY>,
-        orders: Collection<OrderInfo>,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): ENTITY? = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findFirst(predicate, orders, managed, loadPlan)
-            ?.also { observeLoaded(it, loadPlan, managed) }
+    ): ENTITY? {
+        return repositoryForRead(predicate)
+            .findFirst(predicate, orders)
+            ?.also { observationRecorder?.observeRepositoryLoad(it) }
     }
 
     override fun <ENTITY : Any> findPage(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
-        persist: Boolean
-    ): PageData<ENTITY> = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findPage(predicate, pageParam, managed, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .apply { observeLoaded(list, AggregateLoadPlan.WHOLE_AGGREGATE, managed) }
+    ): PageData<ENTITY> {
+        return repositoryForRead(predicate)
+            .findPage(predicate, pageParam)
+            .apply { observeLoaded(list) }
     }
 
-    override fun <ENTITY : Any> findPage(
-        predicate: Predicate<ENTITY>,
-        pageParam: PageParam,
-        persist: Boolean,
-        loadPlan: AggregateLoadPlan,
-    ): PageData<ENTITY> = effectivePersist(persist).let { managed ->
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findPage(predicate, pageParam, managed, loadPlan)
-            .apply { observeLoaded(list, loadPlan, managed) }
+    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> {
+        return repositoryForRemoval(predicate)
+            .find(predicate, emptyList())
+            .also(::observeLoaded)
+            .onEach(persistenceIntents::registerDelete)
     }
 
-    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>): List<ENTITY> =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .find(predicate, emptyList(), true, AggregateLoadPlan.WHOLE_AGGREGATE)
-            .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, false) }
-            .onEach(unitOfWork::remove)
-
-
-    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .findPage(predicate, limit(limit), true, AggregateLoadPlan.WHOLE_AGGREGATE)
+    override fun <ENTITY : Any> remove(predicate: Predicate<ENTITY>, limit: Int): List<ENTITY> {
+        return repositoryForRemoval(predicate)
+            .findPage(predicate, limit(limit))
             .list
-            .also { observeLoaded(it, AggregateLoadPlan.WHOLE_AGGREGATE, false) }
-            .onEach(unitOfWork::remove)
+            .also(::observeLoaded)
+            .onEach(persistenceIntents::registerDelete)
+    }
 
-    override fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate)
-            .count(predicate)
+    override fun <ENTITY : Any> count(predicate: Predicate<ENTITY>): Long {
+        return repositoryForRead(predicate).count(predicate)
+    }
 
-
-    override fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean =
-        repo(reflectEntityClass<ENTITY>(predicate), predicate).exists(predicate)
+    override fun <ENTITY : Any> exists(predicate: Predicate<ENTITY>): Boolean {
+        return repositoryForRead(predicate).exists(predicate)
+    }
 }

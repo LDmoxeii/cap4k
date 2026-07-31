@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapter
 import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
 import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -28,7 +29,7 @@ object IntegrationEventHttpCallbackTriggerCapability {
             val url = buildUrlWithParams(request.url, uriParams)
 
             return runCatching {
-                val requestEntity = createRequestEntity(request.payload)
+                val requestEntity = createRequestEntity(request.payload, request.executionContext)
                 val response = restTemplate.postForEntity(
                     url,
                     requestEntity,
@@ -55,9 +56,12 @@ object IntegrationEventHttpCallbackTriggerCapability {
             }
         }
 
-        private fun createRequestEntity(payload: Any?) = HttpEntity(
+        private fun createRequestEntity(payload: Any?, executionContext: String) = HttpEntity(
             payload?.let { JSON.toJSONString(it).toByteArray(StandardCharsets.UTF_8) },
-            HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON },
+            HttpHeaders().apply {
+                contentType = MediaType.APPLICATION_JSON
+                set(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, executionContext)
+            },
         )
 
         private fun processResponse(
@@ -95,6 +99,7 @@ object IntegrationEventHttpCallbackTriggerCapability {
         val uuid: String,
         val event: String,
         val payload: Any?,
+        val executionContext: String = "[]",
     ) : CapabilityCall<Response>
 
     data class Response(

@@ -67,6 +67,10 @@ class Event(
     @Column(name = "`data_type`")
     var dataType: String = "",
 
+    /** Versioned ExecutionContext envelope captured at event attachment/registration time. */
+    @Column(name = "`execution_context`")
+    var executionContext: String? = null,
+
     /**
      * 异常信息
      * text (nullable)
@@ -140,6 +144,7 @@ class Event(
         const val F_EVENT_TYPE = "eventType"
         const val F_DATA = "data"
         const val F_DATA_TYPE = "dataType"
+        const val F_EXECUTION_CONTEXT = "executionContext"
         const val F_EXCEPTION = "exception"
         const val F_CREATE_AT = "createAt"
         const val F_EXPIRE_AT = "expireAt"

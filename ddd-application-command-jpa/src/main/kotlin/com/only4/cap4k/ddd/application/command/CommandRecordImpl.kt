@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.application.command
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
+import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandRecord
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -30,10 +31,12 @@ class CommandRecordImpl : CommandRecord {
         commandType: String,
         scheduleAt: LocalDateTime,
         expireAfter: Duration,
-        retryTimes: Int
+        retryTimes: Int,
+        executionContext: Collection<EncodedExecutionContextElement>,
     ) {
         entity = CommandRecordEntity()
         entity.init(command, serviceName, commandType, scheduleAt, expireAfter, retryTimes)
+        entity.executionContext = JpaExecutionContextEnvelope.encode(executionContext)
     }
 
     override val id: String
@@ -44,6 +47,9 @@ class CommandRecordImpl : CommandRecord {
 
     override val command: Command<*>
         get() = entity.commandParam!!
+
+    override val executionContext: List<EncodedExecutionContextElement>
+        get() = JpaExecutionContextEnvelope.decode(entity.executionContext)
 
     override fun <R : Any> getResult(): R? {
         @Suppress("UNCHECKED_CAST")

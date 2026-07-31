@@ -592,6 +592,7 @@ class JpaEventRecordRepositoryTest {
             every { payload } returns TestEvent("test", 12345)
             every { data } returns """{"value":"test","number":12345}"""
             every { dataType } returns "TestEvent"
+            every { executionContext } returns null
             every { exception } returns null
             every { expireAt } returns testTime.plusHours(1)
             every { tryTimes } returns 3

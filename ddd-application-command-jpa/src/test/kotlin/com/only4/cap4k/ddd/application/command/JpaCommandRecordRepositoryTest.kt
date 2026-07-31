@@ -653,6 +653,7 @@ class JpaCommandRecordRepositoryTest {
             every { commandParam } returns TestCommand("test", mapOf("key" to "value"))
             every { param } returns """{"action":"test","data":{"key":"value"},"timestamp":123456789}"""
             every { paramType } returns "TestCommand"
+            every { executionContext } returns null
             every { result } returns """{"success":true,"message":"completed"}"""
             every { resultType } returns "TestResult"
             every { exception } returns null

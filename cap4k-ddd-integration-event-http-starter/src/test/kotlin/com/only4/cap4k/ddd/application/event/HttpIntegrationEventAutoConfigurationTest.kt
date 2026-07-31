@@ -4,6 +4,11 @@ import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpCa
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpUnsubscribeCapability
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
@@ -29,6 +34,16 @@ class HttpIntegrationEventAutoConfigurationTest {
                 Supplier { mock(IntegrationEventInterceptorManager::class.java) },
             )
             .withBean(EventSubscriberManager::class.java, Supplier { mock(EventSubscriberManager::class.java) })
+            .withBean(
+                ExecutionContextAccessor::class.java,
+                Supplier { ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY } },
+            )
+            .withBean(
+                ExecutionContextScopeManager::class.java,
+                Supplier { ExecutionContextScopeManager { AutoCloseable { } } },
+            )
+            .withBean(ExecutionContextCodecRegistry::class.java, Supplier { ExecutionContextCodecRegistry(emptyList()) })
+            .withBean(InvocationScopeAccessor::class.java, Supplier { InvocationScopeAccessor { null } })
             .withBean(
                 EventTypeCatalog::class.java,
                 Supplier {

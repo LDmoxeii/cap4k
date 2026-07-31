@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.application.command.impl
 
-import com.only4.cap4k.ddd.core.application.UnitOfWork
+import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandManager
 import com.only4.cap4k.ddd.core.application.command.CommandRecord
@@ -8,6 +8,13 @@ import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandTransaction
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
+import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.createScheduledThreadPool
 import jakarta.validation.ConstraintViolationException
@@ -20,11 +27,19 @@ open class DefaultReliableCommandSupervisor(
     private val commandSupervisor: CommandSupervisor,
     private val validator: Validator?,
     private val commandRecordRepository: CommandRecordRepository,
-    private val unitOfWorkProvider: () -> UnitOfWork,
+    private val unitOfWorkProvider: () -> CommandUnitOfWorkCoordinator,
     private val transaction: ReliableCommandTransaction,
     private val serviceName: String,
     private val threadPoolSize: Int,
     private val threadFactoryClassName: String,
+    private val executionContextAccessor: ExecutionContextAccessor = ExecutionContextAccessor {
+        ExecutionContextSnapshot.EMPTY
+    },
+    private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
+        AutoCloseable { }
+    },
+    private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+    private val invocationScopeAccessor: InvocationScopeAccessor,
 ) : ReliableCommandSupervisor, CommandManager {
     companion object {
         private const val DEFAULT_COMMAND_EXPIRE_MINUTES = 1440
@@ -44,6 +59,7 @@ open class DefaultReliableCommandSupervisor(
         command: COMMAND,
         schedule: LocalDateTime,
     ): String {
+        requireRegistrationScope("Reliable Command")
         check(unitOfWorkProvider().active) {
             "Reliable Command registration requires an active Command Unit of Work"
         }
@@ -54,6 +70,14 @@ open class DefaultReliableCommandSupervisor(
             transaction.afterCommit { scheduleExecution(record.command, record) }
         }
         return record.id
+    }
+
+    private fun requireRegistrationScope(kind: String) {
+        val current = invocationScopeAccessor.current()
+        check(current == InvocationKind.COMMAND || current == InvocationKind.DOMAIN_EVENT_HANDLER) {
+            "$kind registration requires COMMAND or DOMAIN_EVENT_HANDLER invocation scope; " +
+                "current=${current ?: "NONE"}"
+        }
     }
 
     override fun <RESULT : Any> result(commandId: String): RESULT? =
@@ -100,6 +124,10 @@ open class DefaultReliableCommandSupervisor(
             scheduleAt = scheduleAt,
             expireAfter = Duration.ofMinutes(DEFAULT_COMMAND_EXPIRE_MINUTES.toLong()),
             retryTimes = DEFAULT_COMMAND_RETRY_TIMES,
+            executionContext = executionContextCodecRegistry.encode(
+                executionContextAccessor.current(),
+                ExecutionContextBoundary.RELIABLE_COMMAND,
+            ),
         )
 
         val duration = Duration.between(LocalDateTime.now(), scheduleAt)
@@ -118,7 +146,13 @@ open class DefaultReliableCommandSupervisor(
 
     @Suppress("UNCHECKED_CAST")
     protected open fun internalSend(command: Command<*>, record: CommandRecord): Any = try {
-        val result = commandSupervisor.send(command as Command<Any>)
+        val snapshot = executionContextCodecRegistry.decodeReliable(
+            record.executionContext,
+            ExecutionContextBoundary.RELIABLE_COMMAND,
+        )
+        val result = executionContextScopeManager.install(snapshot).use {
+            commandSupervisor.send(command as Command<Any>)
+        }
         record.endCommand(LocalDateTime.now(), result)
         commandRecordRepository.save(record)
         result

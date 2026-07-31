@@ -55,7 +55,8 @@ class HttpIntegrationEventPublisher(
                                 url = subscriber.callbackUrl,
                                 uuid = event.id,
                                 event = resolvedDestination,
-                                payload = event.payload
+                                payload = event.payload,
+                                executionContext = IntegrationEventExecutionContextEnvelope.encode(event.executionContext),
                             )
                         )
                     }

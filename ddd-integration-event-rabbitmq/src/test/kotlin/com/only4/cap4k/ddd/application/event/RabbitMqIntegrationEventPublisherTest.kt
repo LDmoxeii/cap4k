@@ -332,6 +332,7 @@ class RabbitMqIntegrationEventPublisherTest {
         return mockk<EventRecord> {
             every { id } returns "test-id"
             every { this@mockk.type } returns type
+            every { executionContext } returns emptyList()
             every { message } returns mockk {
                 every { payload } returns mapOf("test" to "data")
             }
