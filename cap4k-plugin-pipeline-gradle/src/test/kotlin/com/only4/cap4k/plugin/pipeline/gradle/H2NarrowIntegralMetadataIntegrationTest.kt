@@ -2,8 +2,6 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
-import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -74,8 +72,8 @@ class H2NarrowIntegralMetadataIntegrationTest {
             { assertEquals("Int", deletedColumn.kotlinType, evidence) },
             { assertEquals(fixture.physicalBits, idColumn.columnSize, evidence) },
             { assertEquals(fixture.physicalBits, deletedColumn.columnSize, evidence) },
-            { assertEquals(DbIdStrategy.DB_IDENTITY, idColumn.idStrategy, evidence) },
-            { assertEquals(DbManagedRole.DELETED, deletedColumn.managedRole, evidence) },
+            { assertEquals("identifier.database-identity", idColumn.managedPolicyKey, evidence) },
+            { assertEquals("soft-delete", deletedColumn.managedPolicyKey, evidence) },
             { assertEquals("0", deletedColumn.defaultValue, evidence) },
         )
 
@@ -139,10 +137,10 @@ class H2NarrowIntegralMetadataIntegrationTest {
                     """.trimIndent()
                 )
                 statement.execute(
-                    "comment on column \"${fixture.tableName}\".\"Id\" is '@IdStrategy=db_identity;'"
+                    "comment on column \"${fixture.tableName}\".\"Id\" is '@Managed=identifier.database-identity;'"
                 )
                 statement.execute(
-                    "comment on column \"${fixture.tableName}\".\"Deleted\" is '@Managed=deleted;'"
+                    "comment on column \"${fixture.tableName}\".\"Deleted\" is '@Managed=soft-delete;'"
                 )
             }
         }

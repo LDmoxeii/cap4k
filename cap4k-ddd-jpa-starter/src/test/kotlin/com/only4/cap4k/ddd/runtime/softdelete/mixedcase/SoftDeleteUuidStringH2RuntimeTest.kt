@@ -1,19 +1,30 @@
 package com.only4.cap4k.ddd.runtime.softdelete.mixedcase
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
-import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityInitializer
+import com.only4.cap4k.ddd.core.domain.managed.ManagedExplicitValuePolicy
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldBinding
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldCatalog
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldLifecycle
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRole
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRuntimeSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority
+import com.only4.cap4k.ddd.core.domain.managed.PersistenceParticipation
+import com.only4.cap4k.ddd.core.domain.managed.StandardManagedEntityInitializer
 import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
@@ -69,6 +80,9 @@ class SoftDeleteUuidStringH2RuntimeTest {
     @Autowired
     private lateinit var unitOfWork: JpaUnitOfWork
 
+    @Autowired
+    private lateinit var admissionCoordinator: ManagedEntityAdmissionCoordinator
+
     @BeforeEach
     fun resetUnitOfWork() {
         JpaUnitOfWork.reset()
@@ -80,6 +94,7 @@ class SoftDeleteUuidStringH2RuntimeTest {
             factories = listOf(MixedCaseUuidStringFactory()),
             persistenceIntents = unitOfWork,
             invocationScopeAccessor = InvocationScopeAccessor { InvocationKind.COMMAND },
+            managedEntityAdmissionCoordinator = admissionCoordinator,
         ).apply { init() }
 
         lateinit var entity: MixedCaseUuidStringEntity
@@ -134,19 +149,33 @@ class SoftDeleteUuidStringH2RuntimeTest {
         }
 
         @Bean
-        fun generatedOwnIdCatalog(): GeneratedOwnIdCatalog = MixedCaseUuidStringGeneratedOwnIdCatalog()
+        fun managedFieldCatalog(): ManagedFieldCatalog = MixedCaseUuidStringManagedFieldCatalog()
 
         @Bean
-        fun generatedOwnIdRegistry(catalog: GeneratedOwnIdCatalog): GeneratedOwnIdRegistry =
-            MapBackedGeneratedOwnIdRegistry(listOf(catalog))
+        fun standardManagedEntityInitializer(): ManagedEntityInitializer = StandardManagedEntityInitializer()
+
+        @Bean
+        fun managedFieldRegistry(
+            catalog: ManagedFieldCatalog,
+            initializers: List<ManagedEntityInitializer>,
+        ): ManagedFieldRegistry = DefaultManagedFieldRegistry(listOf(catalog), initializers)
+
+        @Bean
+        fun managedEntityAdmissionCoordinator(registry: ManagedFieldRegistry): ManagedEntityAdmissionCoordinator =
+            DefaultManagedEntityAdmissionCoordinator(
+                registry,
+                ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
+            )
 
         @Bean
         fun jpaUnitOfWork(
             domainEventManager: DomainEventManager,
-            generatedOwnIdRegistry: GeneratedOwnIdRegistry,
+            managedFieldRegistry: ManagedFieldRegistry,
+            managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator,
         ): JpaUnitOfWork = JpaUnitOfWork(
             domainEventManager = domainEventManager,
-            generatedOwnIdRegistry = generatedOwnIdRegistry,
+            managedFieldRegistry = managedFieldRegistry,
+            managedEntityAdmissionCoordinator = managedEntityAdmissionCoordinator,
         )
     }
 }
@@ -166,32 +195,40 @@ private class MixedCaseUuidStringFactory :
     ) : AggregatePayload<MixedCaseUuidStringEntity>
 }
 
-private class MixedCaseUuidStringGeneratedOwnIdCatalog : GeneratedOwnIdCatalog {
-    override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
-        MixedCaseUuidStringGeneratedOwnIdAccessor()
-    )
-}
-
-private class MixedCaseUuidStringGeneratedOwnIdAccessor :
-    GeneratedOwnIdAccessor<MixedCaseUuidStringEntity, MixedCaseUuidStringId> {
-    override val entityType = MixedCaseUuidStringEntity::class
-    override val label = "MixedCaseUuidStringEntity.id"
-    private val idField = MixedCaseUuidStringEntity::class.java.getDeclaredField("id").apply {
-        isAccessible = true
-    }
+private class MixedCaseUuidStringManagedFieldCatalog : ManagedFieldCatalog {
     private var sequence = 0L
 
-    override fun current(entity: MixedCaseUuidStringEntity): MixedCaseUuidStringId? =
-        readInitializedOrNull { entity.id }
-
-    override fun assign(entity: MixedCaseUuidStringEntity, id: MixedCaseUuidStringId) {
-        idField.set(entity, id)
-    }
-
-    override fun next(): MixedCaseUuidStringId =
-        MixedCaseUuidStringId.parse(
-            "019c0000-0000-7000-8003-${(++sequence).toString(16).padStart(12, '0')}"
+    override val bindings: List<ManagedFieldBinding> = listOf(
+        ManagedFieldBinding(
+            entityType = MixedCaseUuidStringEntity::class,
+            fieldName = "id",
+            persistencePropertyName = "id",
+            columnName = "StrongId",
+            targetType = MixedCaseUuidStringId::class,
+            nullable = false,
+            policyKey = "identifier.uuid7",
+            role = ManagedFieldRole.IDENTIFIER,
+            explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+            lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+            handlerQualifier = "identifier.uuid7",
+            handlerSlot = null,
+            semanticValueType = MixedCaseUuidStringId::class,
+            valueAdapterQualifier = null,
+            persistence = PersistenceParticipation(
+                insert = ManagedValueAuthority.FRAMEWORK,
+                update = ManagedValueAuthority.NONE,
+            ),
+            runtimeSupport = ManagedFieldRuntimeSupport.ApplicationIdentifier(
+                isAbsent = { it == null },
+                allocateTarget = {
+                    MixedCaseUuidStringId.parse(
+                        "019c0000-0000-7000-8003-${(++sequence).toString(16).padStart(12, '0')}"
+                    )
+                },
+                validateTarget = { value -> require(value is MixedCaseUuidStringId) },
+            ),
         )
+    )
 }
 
 @Embeddable

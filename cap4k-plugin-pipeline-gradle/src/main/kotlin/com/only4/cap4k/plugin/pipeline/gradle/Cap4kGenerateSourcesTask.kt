@@ -43,8 +43,8 @@ abstract class Cap4kGenerateSourcesTask : DefaultTask() {
         )
 
     @get:Classpath
-    val addonClasspath: FileCollection
-        get() = artifactAddonClasspath(project)
+    val pipelineExtensionClasspath: FileCollection
+        get() = pipelineExtensionClasspath(project)
 
     @get:OutputDirectories
     val outputDirectories: FileCollection

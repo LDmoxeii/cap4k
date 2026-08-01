@@ -1,30 +1,31 @@
 create table video_post (
-    id bigint primary key comment '@IdStrategy=db_identity;',
+    id bigint primary key comment '@Managed=identifier.database-identity;',
     version bigint not null comment '@Managed=version;',
-    deleted bigint not null default 0 comment '@Managed=deleted;',
+    deleted bigint not null default 0 comment '@Managed=soft-delete;',
+    db_updated_at timestamp default current_timestamp comment '@Managed=database.generated-always;',
     title varchar(128) not null
 );
 
 create table snowflake_long_record (
-    id bigint primary key comment '@IdStrategy=snowflake;',
-    deleted bigint not null default 0 comment '@Managed=deleted;',
+    id bigint primary key comment '@Managed=identifier.snowflake;',
+    deleted bigint not null default 0 comment '@Managed=soft-delete;',
     title varchar(128) not null
 );
 
 create table snowflake_string_record (
-    id varchar(19) primary key comment '@IdStrategy=snowflake;',
-    deleted varchar(19) not null default '0' comment '@Managed=deleted;',
+    id varchar(19) primary key comment '@Managed=identifier.snowflake;',
+    deleted varchar(19) not null default '0' comment '@Managed=soft-delete;',
     title varchar(128) not null
 );
 
 create table uuid_string_record (
-    id varchar(36) primary key comment '@IdStrategy=uuid7;',
-    deleted varchar(36) not null default '00000000-0000-0000-0000-000000000000' comment '@Managed=deleted;',
+    id varchar(36) primary key comment '@Managed=identifier.uuid7;',
+    deleted varchar(36) not null default '00000000-0000-0000-0000-000000000000' comment '@Managed=soft-delete;',
     title varchar(128) not null
 );
 
 create table uuid_native_record (
-    id uuid primary key comment '@IdStrategy=uuid7;',
-    deleted uuid not null default '00000000-0000-0000-0000-000000000000' comment '@Managed=deleted;',
+    id uuid primary key comment '@Managed=identifier.uuid7;',
+    deleted uuid not null default '00000000-0000-0000-0000-000000000000' comment '@Managed=soft-delete;',
     title varchar(128) not null
 );

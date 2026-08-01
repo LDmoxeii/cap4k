@@ -1,0 +1,177 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "managed-field-policy-and-pipeline-extension",
+  "sourceRevision": 6,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "f25b4682c40df65c168d894ab6e70b3143fe665b4a6a23ad169ae260605a1cc1",
+  "acceptanceCriteriaHash": "9d4ae5de65aef6af702944b5ce9d40bc487d2f3838bae1e9b2678524be90128e",
+  "implementationScopeRef": "runtime/evidence/scopes/e029166b203a2c0b2534050161482abd74328618b2ce0575581292e87bfb5c35.json",
+  "implementationScopeHash": "e029166b203a2c0b2534050161482abd74328618b2ce0575581292e87bfb5c35",
+  "reportRef": "verification.md",
+  "reportHash": "073fbd15579e8a858ca76229d1653a665872870f83677d9170eed3117c4ef0c6",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "9d4ae5de65aef6af702944b5ce9d40bc487d2f3838bae1e9b2678524be90128e",
+    "total": 15,
+    "evidenced": 15,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-125ffccd57390fed278250d1d163f5d50fc416868d0b10aeb659df2de198f165",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-12e624629dcb46377eb30f42f6fe906210f9e7b741e58ecaee20c03d474c6e73",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelineExtensionLoaderTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-189b790c305685b92a74931ed7020b089f7445429bce37af5109dcf2cc55e0de",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/AggregateJpaRuntimeDefectReproductionTest.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-1bc6ad5036684038dd4e987b0300924c23bf9a92065b47e9a9c62b8693d47848",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/softdelete/mixedcase/SoftDeleteUuidStringH2RuntimeTest.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/softdelete/mysql/SoftDeleteH2MySqlRuntimeTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedEntityAdmissionTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2aeddf9ab39de980533e6c288f2e24696b8545a3fcf37a7d784dfa7b949fb3f8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelineExtensionLoader.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelineExtensionLoaderTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-3c603a927465b99140e872ccf2ab18bfad2c826402a88345a749a4d73f814a58",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedEntityAdmissionTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-57527c019b88d2f045f64c1da5a0d8d0c1a760d04e84f6f90087cafb19e3828a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedFieldRegistryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7142f0f4e1475442fc8f6659e1665079eaf0b34f480f327b3464be549c03763d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7f746d8edb0849c01a2406c564ae0a67f9cd51a549aafc82c376bcbe20454039",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-84ffe397edb1443125f38578fce7bd4586a4fdd1d54cd36b6033bee031096a1c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-867fcec38c54de554b2b5daf5e34c3483dfce9eab067fb40aa2eb3c36f372b0b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedEntityAdmissionTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a1c42f4f06ff93e629e25f7029f9f9d0d202256a30b13c3363faad6df67dafbf",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/ManagedFieldPolicyResolverTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedFieldRegistryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d03e63d0ab90ea2396376b6e588453ee6c8b3408d5997a5b56fbb207592bb14b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedEntityAdmissionTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e2df07982135502f0e6738327a82c7df1104fd0c5f3d9b37ab29637a2e396442",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/JpaAuditTimePersistenceEnricherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e6f96086b5af36bf0ca6f70b10d5adf497eb41a16ad0b63b2693e1ca50694adf",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "a3dea0999eb2d01ac9fb84295663589acd0733e73bdfedc63bbdc53203438ff1"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/9c8c01a056f97db2c74c58c32c733515d7548fe0b8665e5e942d531116bc5933.json",
+  "createdAt": "2026-07-31T18:48:03.008Z",
+  "envelopeHash": "bf3e25d1a45d46a0f5b8ae9ffed59532544c0573994ed900d7acb48f0b883691"
+}

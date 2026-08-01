@@ -72,7 +72,7 @@ import {{ import }}
 {% endif -%}
 class {{ typeName }} internal constructor(
 {% for field in constructorFields -%}
-{{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.nullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{{ "    " }}{{ field.name }}: {{ type(field) | raw }}{% if field.constructorNullable %}?{% endif %}{% if field.defaultValue is not null %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
@@ -82,7 +82,8 @@ class {{ typeName }} internal constructor(
     @AttributeOverride(name = "value", column = Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %}, nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}{% if field.attributeOverrideLength is not null %}, length = {{ field.attributeOverrideLength }}{% endif %}))
 {% elseif field.isId %}    @Id
 {% endif %}{% if field.isId and field.generatedValueStrategy == "IDENTITY" %}    @GeneratedValue(strategy = GenerationType.IDENTITY)
-{% endif %}{% if field.isVersion %}    @Version
+    {% endif %}{% if field.isVersion %}    @Version
+    {% endif %}{% if field.generatedEvents is not empty %}    @org.hibernate.annotations.Generated(event = [{% for event in field.generatedEvents %}org.hibernate.generator.EventType.{{ event }}{% if not loop.last %}, {% endif %}{% endfor %}])
 {% endif %}{% if field.embeddedId or field.strongId -%}
 {% elseif field.insertable is not null or field.updatable is not null %}    @Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %}, insertable = {{ field.insertable }}, updatable = {{ field.updatable }})
 {% else %}    @Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %})
@@ -118,21 +119,15 @@ class {{ typeName }} internal constructor(
 
 {% if relation.ownedCardinality == "ONE" %}    @get:Transient
     var {{ relation.singleAccessorName }}: {{ relation.targetTypeRef }}?
-        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
-                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
-            }{% endif %})
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
             .singleOrNull()
         set(value) {
-            OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
-                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
-            }{% endif %})
+            OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
                 .replace(value)
         }
 {% else %}    @get:Transient
     val {{ relation.name }}: OwnedEntityList<{{ relation.targetTypeRef }}>
-        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}"{% if relation.generatedOwnIdAccessorFqn is not null %}, { entity ->
-                {{ relation.generatedOwnIdAccessorFqn }}.assignIfMissing(entity)
-            }{% endif %})
+        get() = OwnedEntityList.of({{ relation.backingCollectionName }}, {{ relation.targetTypeRef }}::class, "{{ typeName }}.{{ relation.domainName }}")
 {% endif %}
 {% else %}    val {{ relation.name }}: MutableList<{{ relation.targetTypeRef }}> = mutableListOf()
 {% endif %}

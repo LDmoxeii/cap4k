@@ -4,7 +4,11 @@ import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
 import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
+import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionKind
 import com.only4.cap4k.ddd.core.share.DomainException
 import io.mockk.every
 import io.mockk.mockk
@@ -39,19 +43,44 @@ class DefaultAggregateFactorySupervisorTest {
     }
 
     @Test
-    fun `create returns after persistence runtime makes aggregate ids ready`() {
-        every { persistenceIntents.registerNew(any()) } answers {
-            firstArg<ReadyRoot>().also { root ->
-                root.id = "ROOT-1"
-                root.children.forEachIndexed { index, child -> child.id = "CHILD-${index + 1}" }
+    fun `root admission makes aggregate ids ready before persistence intent registration`() {
+        var onCreateObserved = false
+        val admission = object : ManagedEntityAdmissionCoordinator {
+            override fun admit(entity: Any, kind: ManagedEntityAdmissionKind) {
+                assertEquals(ManagedEntityAdmissionKind.AGGREGATE_ROOT, kind)
+                (entity as ReadyRoot).also { root ->
+                    root.id = "ROOT-1"
+                    root.children.forEachIndexed { index, child -> child.id = "CHILD-${index + 1}" }
+                }
             }
+
+            override fun validate(entity: Any, executionContext: ExecutionContextSnapshot) = Unit
         }
-        val supervisor = supervisor(ReadyAggregateFactory())
+        val lifecycleInvoker = object : AggregateLifecycleInvoker {
+            override fun onCreate(root: Any) {
+                assertEquals("ROOT-1", (root as ReadyRoot).id)
+                assertEquals(listOf("CHILD-1", "CHILD-2"), root.children.map { it.id })
+                onCreateObserved = true
+            }
+
+            override fun onDeleted(root: Any) = Unit
+        }
+        every { persistenceIntents.registerNew(any()) } answers {
+            assertEquals("ROOT-1", firstArg<ReadyRoot>().id)
+        }
+        val supervisor = DefaultAggregateFactorySupervisor(
+            factories = listOf(ReadyAggregateFactory()),
+            persistenceIntents = persistenceIntents,
+            invocationScopeAccessor = commandScope,
+            lifecycleInvoker = lifecycleInvoker,
+            managedEntityAdmissionCoordinator = admission,
+        )
 
         val result = supervisor.create(ReadyPayload(2))
 
         assertEquals("ROOT-1", result.id)
         assertEquals(listOf("CHILD-1", "CHILD-2"), result.children.map { it.id })
+        assertTrue(onCreateObserved)
         verify(exactly = 1) { persistenceIntents.registerNew(result) }
     }
 

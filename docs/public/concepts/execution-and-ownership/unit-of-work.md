@@ -1,10 +1,12 @@
 # Unit of Work
 
-Unit of Work 是外层 Command 拥有的应用写入边界。它关注一次物理事务中哪些聚合变化、审计 enrich、同步 Domain Event frontier、可靠 Command 和 Integration Event 登记应作为同一个应用结果稳定化并提交，而不是解释 JPA、事务代理或数据库内部机制的细节。
+Unit of Work 是外层 Command 拥有的应用写入边界。它关注一次物理事务中哪些聚合变化、managed persistence enrichment、同步 Domain Event frontier、可靠 Command 和 Integration Event 登记应作为同一个应用结果稳定化并提交，而不是解释 JPA、事务代理或数据库内部机制的细节。
 
-Command handler 加载 Aggregate、调用领域行为并返回后，外层 Coordinator 自动反复执行候选变化识别、审计 enrich、最终变化识别、provider flush 与同步事件 frontier，直到状态稳定。应用代码不需要也不能调用 `save()`、`persist()` 或 `flush()`。Query 拥有 Handler 全程的只读事务，但不创建 write UoW。
+Command handler 加载 Aggregate、调用领域行为并返回后，外层 Coordinator 自动反复执行候选变化识别、managed persistence enrichment、最终变化识别、provider flush 与同步事件 frontier，直到状态稳定。普通应用代码不需要调用 `save()`、`persist()` 或 `flush()`。Query 不创建 write UoW。
 
-审计是持久化稳定化的一部分：先识别业务候选变化，再 enrich 审计字段，最后重新识别最终变化。子 Entity 的变化可以被处理，但当前实现不会因为子 Entity 单独变化就强制推进 Aggregate Root 的 version。
+Managed persistence enrichment 是持久化稳定化的一部分：先识别业务候选变化，再让 qualifier-owned Enricher 处理其声明的 managed fields，最后重新识别最终变化。审计时间和审计操作者是标准 policy，而不是 extension point 本身。干净的已加载 Aggregate 不进入 enrichment，因此读取不会仅为审计产生 UPDATE。
+
+每个 Enricher 只能收到自己 qualifier 对应的 field handles。框架在每次调用前后独立比较 Hibernate provider-property 变化，拒绝超出声明 mutation footprint 的写入。不同 qualifier 之间不承诺顺序；需要协调的字段应由同一 qualifier 使用 slots 统一处理。子 Entity 的变化可以 enrich 自己的字段，但当前实现不会因为子 Entity 单独变化就强制推进 Aggregate Root 的 version 或 audit fields。
 
 在 cap4k 中，同一物理事务只有一个 UoW Context 和一个外层 Coordinator。嵌套 Command 与同步 Domain Event Handler 可以继续修改聚合，但只登记下一轮工作，不能独立提交或递归释放事件。同步失败 fail-fast 并回滚整个事务；提交后的可靠工作拥有独立失败域。
 

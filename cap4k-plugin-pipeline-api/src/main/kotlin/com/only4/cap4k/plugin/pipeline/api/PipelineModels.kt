@@ -8,8 +8,6 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
-    val managedRole: DbManagedRole? = null,
-    val inherited: Boolean = false,
 )
 
 data class ProjectModel(
@@ -31,19 +29,6 @@ data class TypeRegistryModel(
     }
 }
 
-enum class DbManagedRole {
-    SYSTEM,
-    SCOPE,
-    DELETED,
-    VERSION,
-}
-
-enum class DbIdStrategy {
-    DB_IDENTITY,
-    UUID7,
-    SNOWFLAKE,
-}
-
 data class DbColumnSnapshot(
     val name: String,
     val dbType: String,
@@ -57,9 +42,7 @@ data class DbColumnSnapshot(
     val parentRef: Boolean = false,
     val refAggregate: String? = null,
     val refId: String? = null,
-    val idStrategy: DbIdStrategy? = null,
-    val managedRole: DbManagedRole? = null,
-    val inherited: Boolean? = null,
+    val managedPolicyKey: String? = null,
     val jdbcType: Int? = null,
     val columnSize: Int? = null,
 )
@@ -338,6 +321,7 @@ data class AggregatePersistenceFieldControl(
     val fieldName: String,
     val columnName: String,
     val generatedValueStrategy: String? = null,
+    val generatedEvents: List<String> = emptyList(),
     val version: Boolean? = null,
     val insertable: Boolean? = null,
     val updatable: Boolean? = null,
@@ -388,60 +372,6 @@ data class AggregateIdPolicyControl(
     val idFieldType: String,
     val strategy: String,
     val kind: AggregateIdPolicyKind,
-)
-
-enum class SpecialFieldSource {
-    DB_EXPLICIT,
-    DSL_DEFAULT,
-    NONE,
-}
-
-enum class SpecialFieldWritePolicy {
-    READ_WRITE,
-    CREATE_ONLY,
-    READ_ONLY,
-    SYSTEM_TRANSITION_ONLY,
-}
-
-data class ResolvedIdPolicy(
-    val fieldName: String,
-    val columnName: String,
-    val strategy: String,
-    val kind: AggregateIdPolicyKind,
-    val source: SpecialFieldSource,
-    val writePolicy: SpecialFieldWritePolicy,
-)
-
-data class ResolvedMarkerPolicy(
-    val enabled: Boolean,
-    val fieldName: String? = null,
-    val columnName: String? = null,
-    val source: SpecialFieldSource,
-    val writePolicy: SpecialFieldWritePolicy = SpecialFieldWritePolicy.READ_WRITE,
-)
-
-data class ResolvedManagedFieldPolicy(
-    val fieldName: String,
-    val columnName: String,
-    val writePolicy: SpecialFieldWritePolicy,
-    val source: SpecialFieldSource,
-    val managedRole: DbManagedRole? = null,
-)
-
-data class ResolvedWriteSurfacePolicy(
-    val createAllowedFields: List<String> = emptyList(),
-    val updateAllowedFields: List<String> = emptyList(),
-)
-
-data class AggregateSpecialFieldResolvedPolicy(
-    val entityName: String,
-    val entityPackageName: String,
-    val tableName: String,
-    val id: ResolvedIdPolicy,
-    val deleted: ResolvedMarkerPolicy,
-    val version: ResolvedMarkerPolicy,
-    val managedFields: List<ResolvedManagedFieldPolicy> = emptyList(),
-    val writeSurface: ResolvedWriteSurfacePolicy = ResolvedWriteSurfacePolicy(),
 )
 
 data class RepositoryModel(
@@ -588,7 +518,7 @@ data class CanonicalModel(
     val aggregatePersistenceFieldControls: List<AggregatePersistenceFieldControl> = emptyList(),
     val aggregatePersistenceProviderControls: List<AggregatePersistenceProviderControl> = emptyList(),
     val aggregateIdPolicyControls: List<AggregateIdPolicyControl> = emptyList(),
-    val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
+    val managedFieldPolicies: List<ResolvedManagedEntityPolicy> = emptyList(),
     val strongIds: List<StrongIdModel> = emptyList(),
     val valueObjects: List<ValueObjectModel> = emptyList(),
     val aggregateCreationGraphs: List<AggregateCreationGraphModel> = emptyList(),
@@ -658,8 +588,8 @@ data class RenderedArtifact(
 data class PlanReport(
     val items: List<ArtifactPlanItem>,
     val diagnostics: PipelineDiagnostics? = null,
-    val aggregateSpecialFieldDefaults: AggregateSpecialFieldDefaultsConfig? = null,
-    val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
+    val managedFieldDefaults: ManagedFieldDefaultsConfig? = null,
+    val managedFieldPolicies: List<ResolvedManagedEntityPolicy> = emptyList(),
 )
 
 data class PipelineResult(
@@ -667,6 +597,6 @@ data class PipelineResult(
     val renderedArtifacts: List<RenderedArtifact> = emptyList(),
     val writtenPaths: List<String> = emptyList(),
     val warnings: List<String> = emptyList(),
-    val aggregateSpecialFieldResolvedPolicies: List<AggregateSpecialFieldResolvedPolicy> = emptyList(),
+    val managedFieldPolicies: List<ResolvedManagedEntityPolicy> = emptyList(),
     val diagnostics: PipelineDiagnostics? = null,
 )

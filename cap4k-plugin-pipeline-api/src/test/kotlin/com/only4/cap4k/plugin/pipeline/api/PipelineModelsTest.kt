@@ -50,34 +50,32 @@ class PipelineModelsTest {
     }
 
     @Test
-    fun `db column snapshot carries parent ref managed role and id strategy`() {
+    fun `db column snapshot carries parent ref and raw managed policy key`() {
         val column = DbColumnSnapshot(
             name = "parent_id",
             dbType = "BIGINT",
             kotlinType = "Long",
             nullable = false,
             parentRef = true,
-            managedRole = DbManagedRole.SCOPE,
-            idStrategy = DbIdStrategy.DB_IDENTITY,
+            managedPolicyKey = "scope.tenant",
         )
 
         assertTrue(column.parentRef)
-        assertEquals(DbManagedRole.SCOPE, column.managedRole)
-        assertEquals(DbIdStrategy.DB_IDENTITY, column.idStrategy)
+        assertEquals("scope.tenant", column.managedPolicyKey)
     }
 
     @Test
-    fun `db id strategy carries uuid7 application side strategy`() {
+    fun `db snapshot preserves exact identifier policy`() {
         val column = DbColumnSnapshot(
             name = "id",
             dbType = "varchar(36)",
             kotlinType = "String",
             nullable = false,
             isPrimaryKey = true,
-            idStrategy = DbIdStrategy.UUID7,
+            managedPolicyKey = "identifier.uuid7",
         )
 
-        assertEquals(DbIdStrategy.UUID7, column.idStrategy)
+        assertEquals("identifier.uuid7", column.managedPolicyKey)
     }
 
     @Test

@@ -499,20 +499,11 @@ analysis evidence boundary：
 
 ### `skills/cap4k-generator-inputs/references/db-schema-annotations.md`
 
-DB/schema DDL 注释支持：
+DB/schema DDL 注释采用严格、无别名的 allow-list。当前表注解为 `@Parent=<table>`、`@Ignore`；
+列注解为 `@ParentRef`、`@Type=<TypeName>`、`@RefAggregate=<AggregateName>`、
+`@RefId=<TypeName>`、`@Managed=<exact-policy-key>`。
 
-- 表注解：`@Parent` / `@P`、`@AggregateRoot` / `@Root` / `@R`、`@ValueObject` / `@VO`、`@Ignore` / `@I`、`@DynamicInsert`、`@DynamicUpdate`。
-- 列注解：`@T` / `@TYPE`、`@E` / `@ENUM`、`@RefId`、`@Deleted`、`@Version`、`@GeneratedValue=identity`、`@GeneratedValue=database-identity`、`@Managed`、`@Inherited`、`@Reference` / `@Ref`、`@Relation` / `@Rel`、`@Lazy` / `@L`、`@Count` / `@C`、`@RefAggregate`。
-
-规则：
-
-- presence annotation 不显式取值。
-- boolean 必须是小写 `true` / `false`。
-- `@Parent` / `@P` 不能与 `@AggregateRoot=true`、`@Root=true`、`@R=true` 组合。
-- `@E` / `@ENUM` 需要 `@T` / `@TYPE`。
-- `@Relation` / `@Rel`、`@Lazy` / `@L`、`@Count` / `@C` 需要同一列有 `@Reference` 或 `@Ref`。
-- `@Relation` / `@Rel` 支持 `MANY_TO_ONE`、`ONE_TO_ONE`、`1:1`、`*:1`、`MANYTOONE`、`ONETOONE`。
-- `@RefAggregate` 与 `@Reference` / `@Ref` 冲突。
+完整组合约束和标准 managed policy key 以该 reference 为唯一来源，本审查文档不再复制第二份规则表。
 - `@RefAggregate` 与 `@RefId` 冲突。
 
 当前无效注解：

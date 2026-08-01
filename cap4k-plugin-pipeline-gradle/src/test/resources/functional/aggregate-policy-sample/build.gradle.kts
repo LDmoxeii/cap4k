@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
@@ -23,12 +23,12 @@ cap4k {
             schema.set("PUBLIC")
         }
     }
+    managedFields {
+        identifierDefaultPolicy.set("identifier.database-identity")
+    }
     generators {
         aggregate {
             unsupportedTablePolicy.set("SKIP")
-            specialFields {
-                idDefaultStrategy.set("identity")
-            }
         }
     }
 }

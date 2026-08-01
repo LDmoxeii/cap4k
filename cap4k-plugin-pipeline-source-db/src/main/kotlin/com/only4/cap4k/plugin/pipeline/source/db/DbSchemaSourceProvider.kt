@@ -117,9 +117,7 @@ class DbSchemaSourceProvider : SourceProvider {
                             parentRef = columnMetadata.parentRef,
                             refAggregate = columnMetadata.refAggregate,
                             refId = columnMetadata.refId,
-                            idStrategy = columnMetadata.idStrategy,
-                            managedRole = columnMetadata.managedRole,
-                            inherited = columnMetadata.inherited,
+                            managedPolicyKey = columnMetadata.managedPolicyKey,
                             jdbcType = jdbcType,
                             columnSize = columnSize,
                         )
@@ -181,10 +179,6 @@ class DbSchemaSourceProvider : SourceProvider {
             require(parentRefCount == 1) {
                 "table ${table.tableName.uppercase(Locale.ROOT)} declares @Parent=${table.parentTable} but must declare exactly one @ParentRef column."
             }
-        }
-
-        require(table.columns.filter { it.idStrategy != null }.all { it.isPrimaryKey }) {
-            "@IdStrategy is valid only on a primary-key column"
         }
     }
 

@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.aggregate
 
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinatorSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionKind
 import java.util.Collections
 import kotlin.reflect.KClass
 
@@ -12,6 +14,7 @@ open class OwnedEntityList<E : Any> protected constructor(
     protected open fun prepareEntry(entity: E) = Unit
 
     fun add(entity: E): Boolean {
+        ManagedEntityAdmissionCoordinatorSupport.admit(entity, ManagedEntityAdmissionKind.OWNED_CHILD)
         prepareEntry(entity)
         return delegate.add(entity)
     }
@@ -29,7 +32,10 @@ open class OwnedEntityList<E : Any> protected constructor(
         check(delegate.size <= 1) {
             "owned relation $path expected at most one ${entityType.simpleName} but found ${delegate.size}"
         }
-        if (value != null) prepareEntry(value)
+        if (value != null) {
+            ManagedEntityAdmissionCoordinatorSupport.admit(value, ManagedEntityAdmissionKind.OWNED_CHILD)
+            prepareEntry(value)
+        }
         delegate.clear()
         if (value != null) delegate.add(value)
     }

@@ -14,8 +14,8 @@ abstract class Cap4kGenerateTask : DefaultTask() {
     lateinit var configFactory: Cap4kProjectConfigFactory
 
     @get:Classpath
-    val addonClasspath: FileCollection
-        get() = artifactAddonClasspath(project)
+    val pipelineExtensionClasspath: FileCollection
+        get() = pipelineExtensionClasspath(project)
 
     @TaskAction
     fun generate() {

@@ -17,8 +17,8 @@ abstract class Cap4kAnalysisPlanTask : DefaultTask() {
     lateinit var configFactory: Cap4kProjectConfigFactory
 
     @get:Classpath
-    val addonClasspath: FileCollection
-        get() = artifactAddonClasspath(project)
+    val pipelineExtensionClasspath: FileCollection
+        get() = pipelineExtensionClasspath(project)
 
     @TaskAction
     fun runPlan() {
@@ -32,8 +32,8 @@ abstract class Cap4kAnalysisPlanTask : DefaultTask() {
                 report = PlanReport(
                     items = result.planItems,
                     diagnostics = result.diagnostics,
-                    aggregateSpecialFieldDefaults = null,
-                    aggregateSpecialFieldResolvedPolicies = emptyList(),
+                    managedFieldDefaults = null,
+                    managedFieldPolicies = emptyList(),
                 )
             )
         } catch (error: PipelineDiagnosticsException) {
@@ -42,8 +42,8 @@ abstract class Cap4kAnalysisPlanTask : DefaultTask() {
                 report = PlanReport(
                     items = emptyList(),
                     diagnostics = error.diagnostics,
-                    aggregateSpecialFieldDefaults = null,
-                    aggregateSpecialFieldResolvedPolicies = emptyList(),
+                    managedFieldDefaults = null,
+                    managedFieldPolicies = emptyList(),
                 )
             )
             throw error

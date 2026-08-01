@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy
 import java.util.Locale
 
 internal object AggregateRelationInference {
@@ -37,10 +38,12 @@ internal object AggregateRelationInference {
     fun fromTables(
         artifactLayout: ArtifactLayoutResolver,
         tables: List<DbTableSnapshot>,
+        managedFieldPolicies: List<ResolvedManagedEntityPolicy> = emptyList(),
         skippedTableNames: Set<String> = emptySet(),
         outOfScopeTableNames: Set<String> = emptySet(),
     ): List<AggregateRelationModel> {
         val tablesByName = tables.associateBy { tableKey(it.tableName) }
+        val managedPolicyByTable = managedFieldPolicies.associateBy { tableKey(it.tableName) }
         val entityLookup = tables.associateBy(
             keySelector = { tableKey(it.tableName) },
             valueTransform = { table ->
@@ -78,7 +81,10 @@ internal object AggregateRelationInference {
                 val target = requireNotNull(entityLookup[tableKey(child.tableName)]) {
                     "unknown child table: ${child.tableName}"
                 }
-                val cardinality = OwnedRelationCardinalityInference.infer(binding)
+                val cardinality = OwnedRelationCardinalityInference.infer(
+                    binding,
+                    managedPolicyByTable[tableKey(child.tableName)],
+                )
                 val fieldNames = parentChildFieldNames(parentTable, child.tableName, cardinality)
                 AggregateRelationModel(
                     ownerEntityName = resolvedParent.entityName,

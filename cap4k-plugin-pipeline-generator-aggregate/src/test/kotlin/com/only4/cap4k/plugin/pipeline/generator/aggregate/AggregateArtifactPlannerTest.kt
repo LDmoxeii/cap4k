@@ -20,9 +20,7 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
-import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -36,9 +34,16 @@ import com.only4.cap4k.plugin.pipeline.api.PackageLayout
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RepositoryModel
-import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedCreationInputPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedExplicitValuePolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldLifecycle
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicyDefinitionOwner
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicySelectionProvenance
+import com.only4.cap4k.plugin.pipeline.api.ManagedValueAuthority
+import com.only4.cap4k.plugin.pipeline.api.PersistenceParticipation
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy
 import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedFieldPolicy
-import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
 import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
@@ -52,13 +57,10 @@ import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
 import org.junit.jupiter.api.Assertions.assertAll
@@ -92,7 +94,7 @@ class AggregateArtifactPlannerTest {
                                     kotlinType = "String",
                                     nullable = false,
                                     isPrimaryKey = true,
-                                    idStrategy = DbIdStrategy.UUID7,
+                                    managedPolicyKey = "identifier.uuid7",
                                     jdbcType = Types.VARCHAR,
                                     columnSize = 36,
                                 )
@@ -111,7 +113,7 @@ class AggregateArtifactPlannerTest {
                                     kotlinType = "String",
                                     nullable = false,
                                     isPrimaryKey = true,
-                                    idStrategy = DbIdStrategy.UUID7,
+                                    managedPolicyKey = "identifier.uuid7",
                                     jdbcType = Types.VARCHAR,
                                     columnSize = 36,
                                 ),
@@ -139,7 +141,7 @@ class AggregateArtifactPlannerTest {
                                     kotlinType = "String",
                                     nullable = false,
                                     isPrimaryKey = true,
-                                    idStrategy = DbIdStrategy.UUID7,
+                                    managedPolicyKey = "identifier.uuid7",
                                     jdbcType = Types.VARCHAR,
                                     columnSize = 36,
                                 ),
@@ -369,7 +371,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `aggregate planner plans generated own id accessors and catalog for complete eligible owners`() {
+    fun `aggregate planner does not emit legacy generated own id accessors or catalog`() {
         val packageName = "com.acme.demo.domain.aggregates.orders"
         val entities = listOf(
             EntityModel(
@@ -438,42 +440,14 @@ class AggregateArtifactPlannerTest {
         )
 
         val accessors = plan.filter { it.templateId == "aggregate/generated_own_id_accessor.kt.peb" }
-        val catalogs = plan.filter { it.templateId == "aggregate/generated_own_id_catalog.kt.peb" }
+        val catalogs = plan.filter { it.templateId == "aggregate/managed_field_catalog.kt.peb" }
 
-        assertEquals(4, accessors.size)
-        assertEquals(1, catalogs.size)
-        assertEquals(
-            listOf(
-                "LineGeneratedOwnIdAccessor",
-                "OrderGeneratedOwnIdAccessor",
-                "PaymentGeneratedOwnIdAccessor",
-                "ShipmentGeneratedOwnIdAccessor",
-            ),
-            accessors.map { it.context.getValue("typeName") as String },
-        )
-        assertEquals("GeneratedOwnIdCatalogContribution", catalogs.single().context["typeName"])
-        assertEquals(ConflictPolicy.OVERWRITE, catalogs.single().conflictPolicy)
-        assertEquals(ArtifactOutputKind.GENERATED_SOURCE, catalogs.single().outputKind)
-        assertEquals("orderId", accessors.single { it.context["entityName"] == "Order" }.context["idFieldName"])
-        assertEquals(
-            listOf(
-                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/LineGeneratedOwnIdAccessor.kt",
-                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/OrderGeneratedOwnIdAccessor.kt",
-                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/PaymentGeneratedOwnIdAccessor.kt",
-                "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/orders/ShipmentGeneratedOwnIdAccessor.kt",
-            ),
-            accessors.map { it.outputPath },
-        )
-        assertTrue(accessors.all { it.conflictPolicy == ConflictPolicy.OVERWRITE })
-        assertTrue(accessors.all { it.outputKind == ArtifactOutputKind.GENERATED_SOURCE })
-        assertEquals(
-            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt",
-            catalogs.single().outputPath,
-        )
+        assertTrue(accessors.isEmpty())
+        assertTrue(catalogs.isEmpty())
     }
 
     @Test
-    fun `aggregate planner omits generated own id catalog when no eligible owner exists`() {
+    fun `aggregate planner omits managed field catalog without resolved policies`() {
         val databaseIdentity = EntityModel(
             name = "DatabaseIdentity",
             packageName = "com.acme.demo.domain.aggregates.orders",
@@ -502,7 +476,7 @@ class AggregateArtifactPlannerTest {
             ),
         )
 
-        assertTrue(plan.none { it.templateId == "aggregate/generated_own_id_catalog.kt.peb" })
+        assertTrue(plan.none { it.templateId == "aggregate/managed_field_catalog.kt.peb" })
     }
 
     @Test
@@ -980,33 +954,33 @@ class AggregateArtifactPlannerTest {
                         },
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "Content",
                         entityPackageName = "com.acme.demo.domain.aggregates.content",
                         tableName = "content",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "strong-id",
                             kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(
+                        deleted = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
-                        version = ResolvedMarkerPolicy(
+                        version = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
                         managedFields = listOf(
-                            ResolvedManagedFieldPolicy(
+                            managedField(
                                 fieldName = "id",
                                 columnName = "id",
-                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
-                                source = SpecialFieldSource.DSL_DEFAULT,
+                                writePolicy = ManagedWritePolicy.CREATE_ONLY,
+                                source = ManagedSelectionSource.DSL_DEFAULT,
                             )
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
@@ -1147,21 +1121,21 @@ class AggregateArtifactPlannerTest {
                     defaultAggregateEntityJpa(entity),
                     defaultAggregateEntityJpa(author),
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = entity.name,
                         entityPackageName = entity.packageName,
                         tableName = entity.tableName,
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "strong-id",
                             kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
-                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                        version = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
                         writeSurface = ResolvedWriteSurfacePolicy(
                             createAllowedFields = listOf("id", "authorId"),
                             updateAllowedFields = listOf("authorId"),
@@ -1826,7 +1800,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner omits inherited scalar fields from default entity render context`() {
+    fun `entity planner keeps ordinary scalar fields without inheritance metadata`() {
         val entity = EntityModel(
             name = "Content",
             packageName = "com.acme.demo.domain.content",
@@ -1835,7 +1809,7 @@ class AggregateArtifactPlannerTest {
             fields = listOf(
                 FieldModel("id", "ContentId", columnName = "id"),
                 FieldModel("title", "String", columnName = "title"),
-                FieldModel("createdAt", "java.time.Instant", columnName = "created_at", inherited = true),
+                FieldModel("createdAt", "java.time.Instant", columnName = "created_at"),
             ),
             idField = FieldModel("id", "ContentId", columnName = "id"),
         )
@@ -1860,7 +1834,7 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val scalarFields = item.context["scalarFields"] as List<Map<String, Any?>>
 
-        assertEquals(listOf("id", "title"), scalarFields.map { it["name"] })
+        assertEquals(listOf("id", "title", "createdAt"), scalarFields.map { it["name"] })
     }
 
     @Test
@@ -1973,6 +1947,181 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
+    fun `resolved managed authority drives JPA writes version and database readback metadata`() {
+        val config = aggregateConfig()
+        val model = DefaultCanonicalAssembler().assemble(
+            config = config,
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        DbTableSnapshot(
+                            tableName = "video_post",
+                            comment = "video post",
+                            columns = listOf(
+                                DbColumnSnapshot(
+                                    name = "id",
+                                    dbType = "BIGINT",
+                                    kotlinType = "Long",
+                                    nullable = false,
+                                    isPrimaryKey = true,
+                                    managedPolicyKey = "identifier.assigned",
+                                ),
+                                DbColumnSnapshot("title", "VARCHAR", "String", false),
+                                DbColumnSnapshot(
+                                    "revision",
+                                    "BIGINT",
+                                    "Long",
+                                    false,
+                                    managedPolicyKey = "version",
+                                ),
+                                DbColumnSnapshot(
+                                    "created_at",
+                                    "TIMESTAMP",
+                                    "java.time.Instant",
+                                    false,
+                                    managedPolicyKey = "enrichment.audit-time.created-at",
+                                ),
+                                DbColumnSnapshot(
+                                    "updated_at",
+                                    "TIMESTAMP",
+                                    "java.time.Instant",
+                                    false,
+                                    managedPolicyKey = "enrichment.audit-time.updated-at",
+                                ),
+                                DbColumnSnapshot(
+                                    "computed_label",
+                                    "VARCHAR",
+                                    "String",
+                                    true,
+                                    managedPolicyKey = "database.generated-always",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            uniqueConstraints = emptyList(),
+                            aggregateRoot = true,
+                        )
+                    )
+                )
+            ),
+        ).model
+
+        val artifact = planAggregate(config, model)
+            .single { it.templateId == "aggregate/entity.kt.peb" && it.context["typeName"] == "VideoPost" }
+        @Suppress("UNCHECKED_CAST")
+        val fields = artifact.context["scalarFields"] as List<Map<String, Any?>>
+        val id = fields.single { it["name"] == "id" }
+        val revision = fields.single { it["name"] == "revision" }
+        val createdAt = fields.single { it["name"] == "createdAt" }
+        val updatedAt = fields.single { it["name"] == "updatedAt" }
+        val computed = fields.single { it["name"] == "computedLabel" }
+
+        assertAll(
+            { assertEquals(true, id["insertable"]) },
+            { assertEquals(false, id["updatable"]) },
+            { assertEquals(true, revision["isVersion"]) },
+            { assertEquals(true, revision["insertable"]) },
+            { assertEquals(true, revision["updatable"]) },
+            { assertEquals(true, createdAt["insertable"]) },
+            { assertEquals(false, createdAt["updatable"]) },
+            { assertEquals(true, updatedAt["insertable"]) },
+            { assertEquals(true, updatedAt["updatable"]) },
+            { assertEquals(false, computed["insertable"]) },
+            { assertEquals(false, computed["updatable"]) },
+            { assertEquals(listOf("INSERT", "UPDATE"), computed["generatedEvents"]) },
+            { assertEquals(true, artifact.context["hasVersionFields"]) },
+        )
+    }
+
+    @Test
+    fun `optional managed input remains nullable but preserves an explicit constructor value`() {
+        val entity = EntityModel(
+            name = "VideoPost",
+            packageName = "com.acme.demo.domain.aggregates.video_post",
+            tableName = "video_post",
+            comment = "video post",
+            fields = listOf(
+                FieldModel("id", "Long", columnName = "id"),
+                FieldModel("externalRef", "String", columnName = "external_ref"),
+            ),
+            idField = FieldModel("id", "Long", columnName = "id"),
+        )
+        val policy = ResolvedManagedEntityPolicy(
+            entityName = entity.name,
+            entityPackageName = entity.packageName,
+            tableName = entity.tableName,
+            fields = listOf(
+                ResolvedManagedFieldPolicy(
+                    fieldName = "id",
+                    columnName = "id",
+                    fieldType = "Long",
+                    nullable = false,
+                    selection = ManagedPolicySelectionProvenance.ExplicitColumnAnnotation("test"),
+                    definitionOwner = ManagedPolicyDefinitionOwner.BuiltIn,
+                    policyKey = "identifier.assigned",
+                    role = ManagedFieldRole.IDENTIFIER,
+                    creationInput = ManagedCreationInputPolicy.REQUIRED,
+                    explicitValue = ManagedExplicitValuePolicy.REQUIRE,
+                    lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+                    handlerQualifier = "identifier.assigned",
+                    handlerSlot = null,
+                    semanticValueType = "Long",
+                    valueAdapterQualifier = null,
+                    persistence = PersistenceParticipation(
+                        ManagedValueAuthority.CALLER,
+                        ManagedValueAuthority.NONE,
+                    ),
+                ),
+                ResolvedManagedFieldPolicy(
+                    fieldName = "externalRef",
+                    columnName = "external_ref",
+                    fieldType = "String",
+                    nullable = false,
+                    selection = ManagedPolicySelectionProvenance.ExplicitColumnAnnotation("test"),
+                    definitionOwner = ManagedPolicyDefinitionOwner.Extension("sample-extension", "external-reference"),
+                    policyKey = "initialization.external-reference",
+                    role = ManagedFieldRole.INITIALIZATION,
+                    creationInput = ManagedCreationInputPolicy.OPTIONAL,
+                    explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+                    lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+                    handlerQualifier = "initialization.external-reference",
+                    handlerSlot = null,
+                    semanticValueType = "String",
+                    valueAdapterQualifier = null,
+                    persistence = PersistenceParticipation(
+                        ManagedValueAuthority.MANAGED_HANDLER,
+                        ManagedValueAuthority.NONE,
+                    ),
+                ),
+            ),
+            writeSurface = ResolvedWriteSurfacePolicy(
+                createAllowedFields = listOf("id", "externalRef"),
+                updateAllowedFields = emptyList(),
+            ),
+        )
+        val artifact = EntityArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                entities = listOf(entity),
+                aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                managedFieldPolicies = listOf(policy),
+            ),
+        ).single()
+        @Suppress("UNCHECKED_CAST")
+        val fields = artifact.context["scalarFields"] as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val constructorFields = artifact.context["constructorFields"] as List<Map<String, Any?>>
+        val externalRef = fields.single { it["name"] == "externalRef" }
+
+        assertAll(
+            { assertEquals(true, externalRef["constructorIncluded"]) },
+            { assertEquals(true, externalRef["constructorNullable"]) },
+            { assertEquals(true, externalRef["propertyNullable"]) },
+            { assertEquals("externalRef", externalRef["propertyInitializer"]) },
+            { assertEquals(listOf("id", "externalRef"), constructorFields.map { it["name"] }) },
+        )
+    }
+
+    @Test
     fun `entity planner omits application side uuid7 render keys on id field`() {
         val entity = EntityModel(
             name = "VideoPost",
@@ -2003,33 +2152,33 @@ class AggregateArtifactPlannerTest {
                         kind = AggregateIdPolicyKind.APPLICATION_SIDE,
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "uuid7",
                             kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(
+                        deleted = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
-                        version = ResolvedMarkerPolicy(
+                        version = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
                         managedFields = listOf(
-                            ResolvedManagedFieldPolicy(
+                            managedField(
                                 fieldName = "id",
                                 columnName = "id",
-                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
-                                source = SpecialFieldSource.DSL_DEFAULT,
+                                writePolicy = ManagedWritePolicy.CREATE_ONLY,
+                                source = ManagedSelectionSource.DSL_DEFAULT,
                             )
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
@@ -2046,7 +2195,6 @@ class AggregateArtifactPlannerTest {
         val scalarFields = entityArtifact.context["scalarFields"] as List<Map<String, Any?>>
         val idField = scalarFields.single { it["fieldName"] == "id" }
 
-        assertEquals("CREATE_ONLY", idField["writePolicy"])
         assertEquals(null, idField["defaultValue"])
         assertEquals(null, idField["updatable"])
         assertEquals(null, idField["generatedValueStrategy"])
@@ -2098,29 +2246,29 @@ class AggregateArtifactPlannerTest {
                         versionFieldName = "version",
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "database-identity",
                             kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.READ_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(
+                        deleted = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
-                        version = ResolvedMarkerPolicy(
+                        version = managedMarkerPolicy(
                             enabled = true,
                             fieldName = "version",
                             columnName = "version",
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.READ_ONLY,
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
                             createAllowedFields = listOf("title"),
@@ -2137,7 +2285,7 @@ class AggregateArtifactPlannerTest {
         val versionField = scalarFields.single { it["fieldName"] == "version" }
 
         assertEquals(true, versionField["isVersion"])
-        assertEquals("READ_ONLY", versionField["writePolicy"])
+        assertFalse(versionField.containsKey("writePolicy"))
     }
 
     @Test
@@ -2307,7 +2455,6 @@ class AggregateArtifactPlannerTest {
                         "createdAt",
                         "java.time.LocalDateTime",
                         columnName = "created_at",
-                        managedRole = DbManagedRole.SYSTEM,
                     )
                 )
             }
@@ -2319,12 +2466,12 @@ class AggregateArtifactPlannerTest {
                 fields = fields,
                 idField = fields.first(),
             )
-            val versionPolicy = ResolvedMarkerPolicy(
+            val versionPolicy = managedMarkerPolicy(
                 enabled = case.versionType != null,
                 fieldName = case.versionType?.let { "version" },
                 columnName = case.versionType?.let { "version" },
-                source = if (case.versionType == null) SpecialFieldSource.NONE else SpecialFieldSource.DB_EXPLICIT,
-                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                source = if (case.versionType == null) ManagedSelectionSource.NONE else ManagedSelectionSource.DB_EXPLICIT,
+                writePolicy = ManagedWritePolicy.READ_ONLY,
             )
             val strongIds = if (case.idKind == AggregateIdPolicyKind.APPLICATION_SIDE) {
                 listOf(
@@ -2371,12 +2518,12 @@ class AggregateArtifactPlannerTest {
                         versionFieldName = case.versionType?.let { "version" },
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = entity.name,
                         entityPackageName = packageName,
                         tableName = entity.tableName,
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = if (case.idKind == AggregateIdPolicyKind.DATABASE_SIDE) {
@@ -2385,22 +2532,21 @@ class AggregateArtifactPlannerTest {
                                 "uuid7"
                             },
                             kind = case.idKind,
-                            source = SpecialFieldSource.DB_EXPLICIT,
+                            source = ManagedSelectionSource.DB_EXPLICIT,
                             writePolicy = if (case.idKind == AggregateIdPolicyKind.DATABASE_SIDE) {
-                                SpecialFieldWritePolicy.READ_ONLY
+                                ManagedWritePolicy.READ_ONLY
                             } else {
-                                SpecialFieldWritePolicy.CREATE_ONLY
+                                ManagedWritePolicy.CREATE_ONLY
                             },
                         ),
-                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
                         version = versionPolicy,
                         managedFields = listOf(
-                            ResolvedManagedFieldPolicy(
+                            managedField(
                                 fieldName = "createdAt",
                                 columnName = "created_at",
-                                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                                source = SpecialFieldSource.DB_EXPLICIT,
-                                managedRole = DbManagedRole.SYSTEM,
+                                writePolicy = ManagedWritePolicy.READ_ONLY,
+                                source = ManagedSelectionSource.DB_EXPLICIT,
                             )
                         ),
                     )
@@ -2419,26 +2565,26 @@ class AggregateArtifactPlannerTest {
 
             assertAll(
                 case.name,
-                { assertEquals(case.idKind == AggregateIdPolicyKind.DATABASE_SIDE, id["providerAssignedIdentity"]) },
-                { assertEquals(false, id["providerAssignedVersion"]) },
-                { assertEquals(case.idKind == AggregateIdPolicyKind.DATABASE_SIDE, id["propertyNullable"]) },
-                { assertEquals(if (case.idKind == AggregateIdPolicyKind.DATABASE_SIDE) "null" else "id", id["propertyInitializer"]) },
+                { assertEquals(case.idKind == AggregateIdPolicyKind.DATABASE_SIDE, id["providerAssignedIdentity"] == true) },
+                { assertEquals(false, id["providerAssignedVersion"] == true) },
+                { assertEquals(true, id["propertyNullable"]) },
+                { assertEquals("null", id["propertyInitializer"]) },
                 { assertEquals(false, id["constructorIncluded"]) },
                 { assertEquals(false, id["nullable"]) },
                 { assertEquals(false, id["attributeOverrideNullable"]) },
-                { assertEquals(case.idKind == AggregateIdPolicyKind.APPLICATION_SIDE, id["generatedOwnId"]) },
+                { assertEquals(case.idKind == AggregateIdPolicyKind.APPLICATION_SIDE, id["generatedOwnId"] == true) },
                 { assertEquals(false, title["propertyNullable"]) },
                 { assertEquals("title", title["propertyInitializer"]) },
                 { assertEquals(true, title["constructorIncluded"]) },
-                { assertEquals(false, createdAt["providerAssignedIdentity"]) },
-                { assertEquals(false, createdAt["providerAssignedVersion"]) },
+                { assertEquals(false, createdAt["providerAssignedIdentity"] == true) },
+                { assertEquals(false, createdAt["providerAssignedVersion"] == true) },
                 { assertEquals(true, createdAt["propertyNullable"]) },
                 { assertEquals("null", createdAt["propertyInitializer"]) },
                 { assertEquals(false, createdAt["constructorIncluded"]) },
-                { assertEquals(false, createdAt["insertable"]) },
-                { assertEquals(false, createdAt["updatable"]) },
-                { assertEquals(true, createdAt["providerAssignedManagedField"]) },
-                { assertEquals("READ_ONLY", createdAt["writePolicy"]) },
+                { assertNull(createdAt["insertable"]) },
+                { assertNull(createdAt["updatable"]) },
+                { assertEquals(false, createdAt["providerAssignedManagedField"] == true) },
+                { assertFalse(createdAt.containsKey("writePolicy")) },
                 { assertEquals(listOf("title"), constructorFields.map { it["name"] }) },
             )
 
@@ -2447,7 +2593,7 @@ class AggregateArtifactPlannerTest {
                 assertAll(
                     case.name,
                     { assertEquals(versionType, version["fieldType"]) },
-                    { assertEquals(false, version["providerAssignedIdentity"]) },
+                    { assertEquals(false, version["providerAssignedIdentity"] == true) },
                     { assertEquals(true, version["providerAssignedVersion"]) },
                     { assertEquals(true, version["propertyNullable"]) },
                     { assertEquals("null", version["propertyInitializer"]) },
@@ -3121,7 +3267,6 @@ class AggregateArtifactPlannerTest {
                     "Long",
                     defaultValue = "0::bigint",
                     columnName = "deleted",
-                    managedRole = DbManagedRole.DELETED,
                 ),
                 FieldModel("title", "String", columnName = "title"),
             ),
@@ -3153,7 +3298,7 @@ class AggregateArtifactPlannerTest {
                         versionFieldName = "version",
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
+                managedFieldPolicies = listOf(
                     softDeleteResolvedPolicy(
                         entity = entity,
                         versionFieldName = "version",
@@ -3698,7 +3843,6 @@ class AggregateArtifactPlannerTest {
                         case.deletedType,
                         defaultValue = case.deletedDefault,
                         columnName = "deleted",
-                        managedRole = DbManagedRole.DELETED,
                     ),
                     FieldModel("title", "String", columnName = "title"),
                 ),
@@ -3719,7 +3863,7 @@ class AggregateArtifactPlannerTest {
                         idFieldName = "id",
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
+                managedFieldPolicies = listOf(
                     softDeleteResolvedPolicy(
                         entity = entity,
                         idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
@@ -3783,7 +3927,6 @@ class AggregateArtifactPlannerTest {
                     "Long",
                     defaultValue = "0",
                     columnName = "deleted",
-                    managedRole = DbManagedRole.DELETED,
                 ),
                 FieldModel("title", "String", columnName = "title"),
             ),
@@ -3802,7 +3945,6 @@ class AggregateArtifactPlannerTest {
                     "Long",
                     defaultValue = "0",
                     columnName = "deleted",
-                    managedRole = DbManagedRole.DELETED,
                 ),
                 FieldModel("lineNo", "Int", columnName = "line_no"),
             ),
@@ -3834,7 +3976,7 @@ class AggregateArtifactPlannerTest {
                         idFieldName = "id",
                     ),
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
+                managedFieldPolicies = listOf(
                     softDeleteResolvedPolicy(
                         entity = root,
                         idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
@@ -3928,7 +4070,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner fails for system transition only field without semantic initializer`() {
+    fun `entity planner renders managed field without legacy write policy metadata`() {
         val entity = EntityModel(
             name = "FutureManaged",
             packageName = "com.acme.demo.domain.aggregates.future_managed",
@@ -3954,27 +4096,27 @@ class AggregateArtifactPlannerTest {
                     kind = AggregateIdPolicyKind.DATABASE_SIDE,
                 )
             ),
-            aggregateSpecialFieldResolvedPolicies = listOf(
-                AggregateSpecialFieldResolvedPolicy(
+            managedFieldPolicies = listOf(
+                managedEntityPolicy(
                     entityName = entity.name,
                     entityPackageName = entity.packageName,
                     tableName = entity.tableName,
-                    id = ResolvedIdPolicy(
+                    id = managedIdPolicy(
                         fieldName = "id",
                         columnName = "id",
                         strategy = "identity",
                         kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                        source = SpecialFieldSource.DB_EXPLICIT,
-                        writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                        source = ManagedSelectionSource.DB_EXPLICIT,
+                        writePolicy = ManagedWritePolicy.READ_ONLY,
                     ),
-                    deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
-                    version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                    deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                    version = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
                     managedFields = listOf(
-                        ResolvedManagedFieldPolicy(
+                        managedField(
                             fieldName = "archived",
                             columnName = "archived",
-                            writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-                            source = SpecialFieldSource.DB_EXPLICIT,
+                            writePolicy = ManagedWritePolicy.SYSTEM_TRANSITION_ONLY,
+                            source = ManagedSelectionSource.DB_EXPLICIT,
                         )
                     ),
                     writeSurface = ResolvedWriteSurfacePolicy(),
@@ -3982,17 +4124,10 @@ class AggregateArtifactPlannerTest {
             ),
         )
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            EntityArtifactPlanner().plan(aggregateConfig(), model)
-        }
-
-        assertTrue(
-            error.message!!.contains(
-                "com.acme.demo.domain.aggregates.future_managed.FutureManaged.archived"
-            ),
-            error.message,
-        )
-        assertTrue(error.message!!.contains("SYSTEM_TRANSITION_ONLY"), error.message)
+        val artifact = EntityArtifactPlanner().plan(aggregateConfig(), model).single()
+        @Suppress("UNCHECKED_CAST")
+        val fields = artifact.context["scalarFields"] as List<Map<String, Any?>>
+        assertTrue(fields.any { it["fieldName"] == "archived" })
     }
 
     @Test
@@ -4255,14 +4390,8 @@ class AggregateArtifactPlannerTest {
         @Suppress("UNCHECKED_CAST")
         val relations = orderArtifact.context["relationFields"] as List<Map<String, Any?>>
 
-        assertEquals(
-            "$packageName.OrderLineGeneratedOwnIdAccessor",
-            relations.single { it["name"] == "lines" }["generatedOwnIdAccessorFqn"],
-        )
-        assertEquals(
-            "$packageName.ShippingAddressGeneratedOwnIdAccessor",
-            relations.single { it["name"] == "shippingAddresses" }["generatedOwnIdAccessorFqn"],
-        )
+        assertNull(relations.single { it["name"] == "lines" }["generatedOwnIdAccessorFqn"])
+        assertNull(relations.single { it["name"] == "shippingAddresses" }["generatedOwnIdAccessorFqn"])
     }
 
     @Test
@@ -4372,11 +4501,7 @@ class AggregateArtifactPlannerTest {
 
         excludedRelationNames.forEach { relationName ->
             val relation = relations.single { it["name"] == relationName }
-            assertTrue(
-                relation.containsKey("generatedOwnIdAccessorFqn"),
-                "$relationName should expose an explicit null accessor context",
-            )
-            assertNull(relation["generatedOwnIdAccessorFqn"], relationName)
+            assertFalse(relation["generatedOwnIdAccessorFqn"] != null, relationName)
         }
     }
 
@@ -5315,26 +5440,26 @@ class AggregateArtifactPlannerTest {
                         kind = AggregateIdPolicyKind.DATABASE_SIDE,
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "database-identity",
                             kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                            source = SpecialFieldSource.NONE,
-                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                            source = ManagedSelectionSource.NONE,
+                            writePolicy = ManagedWritePolicy.READ_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(
+                        deleted = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
-                        version = ResolvedMarkerPolicy(
+                        version = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
                             createAllowedFields = listOf("id", "title"),
@@ -5392,51 +5517,49 @@ class AggregateArtifactPlannerTest {
                                 "deleted",
                                 "Long",
                                 columnName = "deleted",
-                                managedRole = DbManagedRole.DELETED,
                             )
                         )
                     }
                 },
                 idField = FieldModel("id", "Long", columnName = "id"),
             )
-            val policy = AggregateSpecialFieldResolvedPolicy(
+            val policy = managedEntityPolicy(
                 entityName = entity.name,
                 entityPackageName = entity.packageName,
                 tableName = entity.tableName,
-                id = ResolvedIdPolicy(
+                id = managedIdPolicy(
                     fieldName = "id",
                     columnName = "id",
                     strategy = "database-identity",
                     kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                    source = ManagedSelectionSource.DB_EXPLICIT,
+                    writePolicy = ManagedWritePolicy.READ_ONLY,
                 ),
                 deleted = if (cell.softDelete) {
-                    ResolvedMarkerPolicy(
+                    managedMarkerPolicy(
                         enabled = true,
                         fieldName = "deleted",
                         columnName = "deleted",
-                        source = SpecialFieldSource.DB_EXPLICIT,
-                        writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                        source = ManagedSelectionSource.DB_EXPLICIT,
+                        writePolicy = ManagedWritePolicy.SYSTEM_TRANSITION_ONLY,
                     )
                 } else {
-                    ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE)
+                    managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE)
                 },
-                version = ResolvedMarkerPolicy(
+                version = managedMarkerPolicy(
                     enabled = true,
                     fieldName = "version",
                     columnName = "version",
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                    source = ManagedSelectionSource.DB_EXPLICIT,
+                    writePolicy = ManagedWritePolicy.READ_ONLY,
                 ),
                 managedFields = if (cell.softDelete) {
                     listOf(
-                        ResolvedManagedFieldPolicy(
+                        managedField(
                             fieldName = "deleted",
                             columnName = "deleted",
-                            writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-                            source = SpecialFieldSource.DB_EXPLICIT,
-                            managedRole = DbManagedRole.DELETED,
+                            writePolicy = ManagedWritePolicy.SYSTEM_TRANSITION_ONLY,
+                            source = ManagedSelectionSource.DB_EXPLICIT,
                         )
                     )
                 } else {
@@ -5474,7 +5597,7 @@ class AggregateArtifactPlannerTest {
                             softDelete = if (cell.softDelete) semanticSoftDeletePolicy() else null,
                         )
                     ),
-                    aggregateSpecialFieldResolvedPolicies = listOf(policy),
+                    managedFieldPolicies = listOf(policy),
                 ),
             ).first { it.templateId == "aggregate/factory.kt.peb" }.context
             @Suppress("UNCHECKED_CAST")
@@ -5544,21 +5667,21 @@ class AggregateArtifactPlannerTest {
                         ownerAggregatePackageName = "com.acme.demo.domain.aggregates.content",
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "MediaProcessingTask",
                         entityPackageName = "com.acme.demo.domain.aggregates.media_processing_task",
                         tableName = "media_processing_task",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "database-identity",
                             kind = AggregateIdPolicyKind.DATABASE_SIDE,
-                            source = SpecialFieldSource.NONE,
-                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                            source = ManagedSelectionSource.NONE,
+                            writePolicy = ManagedWritePolicy.READ_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
-                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                        version = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
                         writeSurface = ResolvedWriteSurfacePolicy(
                             createAllowedFields = listOf(
                                 "id",
@@ -5612,7 +5735,7 @@ class AggregateArtifactPlannerTest {
     }
 
     @Test
-    fun `entity planner omits domain parent ref context while retaining managed field metadata`() {
+    fun `entity planner omits domain parent ref and legacy managed field context`() {
         val entity = EntityModel(
             name = "VideoPost",
             packageName = "com.acme.demo.domain.aggregates.video_post",
@@ -5624,13 +5747,11 @@ class AggregateArtifactPlannerTest {
                     name = "tenantId",
                     type = "Long",
                     columnName = "tenant_id",
-                    managedRole = DbManagedRole.SCOPE,
                 ),
                 FieldModel(
                     name = "createdBy",
                     type = "String",
                     columnName = "created_by",
-                    inherited = true,
                 ),
             ),
             idField = FieldModel("id", "Long", columnName = "id"),
@@ -5641,6 +5762,37 @@ class AggregateArtifactPlannerTest {
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
+                        entityName = entity.name,
+                        entityPackageName = entity.packageName,
+                        tableName = entity.tableName,
+                        id = managedIdPolicy(
+                            fieldName = "id",
+                            columnName = "id",
+                            strategy = "assigned",
+                            kind = AggregateIdPolicyKind.APPLICATION_SIDE,
+                            source = ManagedSelectionSource.DB_EXPLICIT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
+                        ),
+                        deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                        version = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                        managedFields = listOf(
+                            managedField(
+                                fieldName = "tenantId",
+                                columnName = "tenant_id",
+                                source = ManagedSelectionSource.DB_EXPLICIT,
+                                managedRole = ManagedRole.SCOPE,
+                            ),
+                            managedField(
+                                fieldName = "createdBy",
+                                columnName = "created_by",
+                                source = ManagedSelectionSource.DB_EXPLICIT,
+                                managedRole = ManagedRole.SYSTEM,
+                            ),
+                        ),
+                    ),
+                ),
             )
         )
 
@@ -5651,9 +5803,9 @@ class AggregateArtifactPlannerTest {
         assertAll(
             { assertTrue(fields.all { "parentRef" !in it }) },
             { assertTrue(fields.all { "structural" + "ParentRef" !in it }) },
-            { assertTrue(fields.any { it["managed"] == true }) },
-            { assertTrue(fields.any { it["managedRole"] == "SCOPE" }) },
-            { assertTrue(fields.any { it["inherited"] == true }) },
+            { assertTrue(fields.all { "writePolicy" !in it }) },
+            { assertTrue(fields.all { "managedRole" !in it }) },
+            { assertTrue(fields.all { "inherited" !in it }) },
         )
     }
 
@@ -5681,21 +5833,21 @@ class AggregateArtifactPlannerTest {
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "uuid7",
                             kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
-                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                        version = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
                         writeSurface = ResolvedWriteSurfacePolicy(
                             createAllowedFields = listOf("id", "title"),
                             updateAllowedFields = listOf("title"),
@@ -5753,42 +5905,42 @@ class AggregateArtifactPlannerTest {
                         versionFieldName = "version",
                     )
                 ),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+                managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = "VideoPost",
                         entityPackageName = "com.acme.demo.domain.aggregates.video_post",
                         tableName = "video_post",
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "uuid7",
                             kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(
+                        deleted = managedMarkerPolicy(
                             enabled = false,
-                            source = SpecialFieldSource.NONE,
+                            source = ManagedSelectionSource.NONE,
                         ),
-                        version = ResolvedMarkerPolicy(
+                        version = managedMarkerPolicy(
                             enabled = true,
                             fieldName = "version",
                             columnName = "version",
-                            source = SpecialFieldSource.DB_EXPLICIT,
-                            writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                            source = ManagedSelectionSource.DB_EXPLICIT,
+                            writePolicy = ManagedWritePolicy.READ_ONLY,
                         ),
                         managedFields = listOf(
-                            ResolvedManagedFieldPolicy(
+                            managedField(
                                 fieldName = "id",
                                 columnName = "id",
-                                writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
-                                source = SpecialFieldSource.DSL_DEFAULT,
+                                writePolicy = ManagedWritePolicy.CREATE_ONLY,
+                                source = ManagedSelectionSource.DSL_DEFAULT,
                             ),
-                            ResolvedManagedFieldPolicy(
+                            managedField(
                                 fieldName = "version",
                                 columnName = "version",
-                                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                                source = SpecialFieldSource.DB_EXPLICIT,
+                                writePolicy = ManagedWritePolicy.READ_ONLY,
+                                source = ManagedSelectionSource.DB_EXPLICIT,
                             ),
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
@@ -5842,7 +5994,6 @@ class AggregateArtifactPlannerTest {
                     name = "auditStamp",
                     type = "String",
                     columnName = "audit_stamp",
-                    managedRole = DbManagedRole.SYSTEM,
                 ),
                 FieldModel("title", "String", columnName = "title"),
             ),
@@ -5854,28 +6005,27 @@ class AggregateArtifactPlannerTest {
             CanonicalModel(
                 entities = listOf(entity),
                 aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
-                aggregateSpecialFieldResolvedPolicies = listOf(
-                    AggregateSpecialFieldResolvedPolicy(
+            managedFieldPolicies = listOf(
+                    managedEntityPolicy(
                         entityName = entity.name,
                         entityPackageName = entity.packageName,
                         tableName = entity.tableName,
-                        id = ResolvedIdPolicy(
+                        id = managedIdPolicy(
                             fieldName = "id",
                             columnName = "id",
                             strategy = "uuid7",
                             kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                            source = SpecialFieldSource.DSL_DEFAULT,
-                            writePolicy = SpecialFieldWritePolicy.CREATE_ONLY,
+                            source = ManagedSelectionSource.DSL_DEFAULT,
+                            writePolicy = ManagedWritePolicy.CREATE_ONLY,
                         ),
-                        deleted = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
-                        version = ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE),
+                        deleted = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
+                        version = managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE),
                         managedFields = listOf(
-                            ResolvedManagedFieldPolicy(
+                            managedField(
                                 fieldName = "auditStamp",
                                 columnName = "audit_stamp",
-                                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-                                source = SpecialFieldSource.DB_EXPLICIT,
-                                managedRole = DbManagedRole.SYSTEM,
+                                writePolicy = ManagedWritePolicy.READ_ONLY,
+                                source = ManagedSelectionSource.DB_EXPLICIT,
                             )
                         ),
                         writeSurface = ResolvedWriteSurfacePolicy(
@@ -6450,6 +6600,203 @@ class AggregateArtifactPlannerTest {
             artifactLayout = artifactLayout,
         )
 
+    private enum class ManagedSelectionSource {
+        DB_EXPLICIT,
+        DSL_DEFAULT,
+        NONE,
+    }
+
+    private enum class ManagedWritePolicy {
+        READ_ONLY,
+        CREATE_ONLY,
+        SYSTEM_TRANSITION_ONLY,
+    }
+
+    private enum class ManagedRole {
+        SYSTEM,
+        DELETED,
+        SCOPE,
+    }
+
+    private data class ManagedIdInput(
+        val fieldName: String,
+        val columnName: String,
+        val strategy: String,
+        val kind: AggregateIdPolicyKind,
+        val source: ManagedSelectionSource,
+        val writePolicy: ManagedWritePolicy,
+    )
+
+    private data class ManagedMarkerInput(
+        val enabled: Boolean,
+        val fieldName: String? = null,
+        val columnName: String? = null,
+        val source: ManagedSelectionSource,
+        val writePolicy: ManagedWritePolicy = ManagedWritePolicy.READ_ONLY,
+    )
+
+    private data class ManagedFieldInput(
+        val fieldName: String,
+        val columnName: String,
+        val fieldType: String = "String",
+        val writePolicy: ManagedWritePolicy = ManagedWritePolicy.READ_ONLY,
+        val source: ManagedSelectionSource = ManagedSelectionSource.DB_EXPLICIT,
+        val managedRole: ManagedRole? = null,
+    )
+
+    private fun managedIdPolicy(
+        fieldName: String,
+        columnName: String,
+        strategy: String,
+        kind: AggregateIdPolicyKind,
+        source: ManagedSelectionSource,
+        writePolicy: ManagedWritePolicy,
+    ) = ManagedIdInput(fieldName, columnName, strategy, kind, source, writePolicy)
+
+    private fun managedMarkerPolicy(
+        enabled: Boolean,
+        fieldName: String? = null,
+        columnName: String? = null,
+        source: ManagedSelectionSource,
+        writePolicy: ManagedWritePolicy = ManagedWritePolicy.READ_ONLY,
+    ) = ManagedMarkerInput(enabled, fieldName, columnName, source, writePolicy)
+
+    private fun managedField(
+        fieldName: String,
+        columnName: String,
+        fieldType: String = "String",
+        writePolicy: ManagedWritePolicy = ManagedWritePolicy.READ_ONLY,
+        source: ManagedSelectionSource = ManagedSelectionSource.DB_EXPLICIT,
+        managedRole: ManagedRole? = null,
+    ) = ManagedFieldInput(fieldName, columnName, fieldType, writePolicy, source, managedRole)
+
+    private fun managedEntityPolicy(
+        entityName: String,
+        entityPackageName: String,
+        tableName: String,
+        id: ManagedIdInput,
+        deleted: ManagedMarkerInput,
+        version: ManagedMarkerInput,
+        managedFields: List<ManagedFieldInput> = emptyList(),
+        writeSurface: ResolvedWriteSurfacePolicy = ResolvedWriteSurfacePolicy(),
+    ): ResolvedManagedEntityPolicy {
+        val fields = buildList {
+            add(
+                resolvedManagedField(
+                    fieldName = id.fieldName,
+                    columnName = id.columnName,
+                    fieldType = "String",
+                    policyKey = if (id.kind == AggregateIdPolicyKind.DATABASE_SIDE) {
+                        "identifier.database-identity"
+                    } else {
+                        "identifier.uuid7"
+                    },
+                    role = ManagedFieldRole.IDENTIFIER,
+                    source = id.source,
+                    insert = if (id.kind == AggregateIdPolicyKind.DATABASE_SIDE) {
+                        ManagedValueAuthority.DATABASE
+                    } else {
+                        ManagedValueAuthority.FRAMEWORK
+                    },
+                ),
+            )
+            if (deleted.enabled && deleted.fieldName != null && deleted.columnName != null) {
+                add(
+                    resolvedManagedField(
+                        fieldName = deleted.fieldName,
+                        columnName = deleted.columnName,
+                        fieldType = "Long",
+                        policyKey = "soft-delete",
+                        role = ManagedFieldRole.SOFT_DELETE,
+                        source = deleted.source,
+                        insert = ManagedValueAuthority.FRAMEWORK,
+                        update = ManagedValueAuthority.PERSISTENCE_PROVIDER,
+                    ),
+                )
+            }
+            if (version.enabled && version.fieldName != null && version.columnName != null) {
+                add(
+                    resolvedManagedField(
+                        fieldName = version.fieldName,
+                        columnName = version.columnName,
+                        fieldType = "Long",
+                        policyKey = "version",
+                        role = ManagedFieldRole.VERSION,
+                        source = version.source,
+                        insert = ManagedValueAuthority.PERSISTENCE_PROVIDER,
+                        update = ManagedValueAuthority.PERSISTENCE_PROVIDER,
+                    ),
+                )
+            }
+            managedFields.forEach { input ->
+                if (input.fieldName !in map { it.fieldName }) {
+                    add(
+                        resolvedManagedField(
+                            fieldName = input.fieldName,
+                            columnName = input.columnName,
+                            fieldType = input.fieldType,
+                            policyKey = when (input.managedRole) {
+                                ManagedRole.DELETED -> "soft-delete"
+                                ManagedRole.SCOPE -> "scope.tenant"
+                                ManagedRole.SYSTEM, null -> "database.generated-always"
+                            },
+                            role = when (input.managedRole) {
+                                ManagedRole.DELETED -> ManagedFieldRole.SOFT_DELETE
+                                ManagedRole.SCOPE -> ManagedFieldRole.SCOPE
+                                ManagedRole.SYSTEM, null -> ManagedFieldRole.DATABASE_GENERATED
+                            },
+                            source = input.source,
+                            insert = if (input.writePolicy == ManagedWritePolicy.READ_ONLY) {
+                                ManagedValueAuthority.NONE
+                            } else {
+                                ManagedValueAuthority.FRAMEWORK
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+        return ResolvedManagedEntityPolicy(
+            entityName = entityName,
+            entityPackageName = entityPackageName,
+            tableName = tableName,
+            fields = fields,
+            writeSurface = writeSurface,
+        )
+    }
+
+    private fun resolvedManagedField(
+        fieldName: String,
+        columnName: String,
+        fieldType: String,
+        policyKey: String,
+        role: ManagedFieldRole,
+        source: ManagedSelectionSource,
+        insert: ManagedValueAuthority,
+        update: ManagedValueAuthority = ManagedValueAuthority.NONE,
+    ) = ResolvedManagedFieldPolicy(
+        fieldName = fieldName,
+        columnName = columnName,
+        fieldType = fieldType,
+        nullable = false,
+        selection = when (source) {
+            ManagedSelectionSource.DB_EXPLICIT -> ManagedPolicySelectionProvenance.ExplicitColumnAnnotation("test")
+            ManagedSelectionSource.DSL_DEFAULT -> ManagedPolicySelectionProvenance.IdentifierDefault("test")
+            ManagedSelectionSource.NONE -> ManagedPolicySelectionProvenance.ExactColumnDefault("test")
+        },
+        definitionOwner = ManagedPolicyDefinitionOwner.BuiltIn,
+        policyKey = policyKey,
+        role = role,
+        creationInput = ManagedCreationInputPolicy.OMIT,
+        explicitValue = ManagedExplicitValuePolicy.FORBID,
+        lifecycles = emptySet<ManagedFieldLifecycle>(),
+        handlerQualifier = null,
+        handlerSlot = null,
+        semanticValueType = fieldType,
+        valueAdapterQualifier = null,
+        persistence = PersistenceParticipation(insert, update),
+    )
+
     private fun semanticSoftDeletePolicy(
         fieldName: String = "deleted",
         columnName: String = "deleted",
@@ -6477,48 +6824,47 @@ class AggregateArtifactPlannerTest {
         createAllowedFields: List<String> = entity.fields
             .map { it.name }
             .filterNot { it == idFieldName || it == deletedFieldName || it == versionFieldName },
-    ): AggregateSpecialFieldResolvedPolicy =
-        AggregateSpecialFieldResolvedPolicy(
+    ): ResolvedManagedEntityPolicy =
+        managedEntityPolicy(
             entityName = entity.name,
             entityPackageName = entity.packageName,
             tableName = entity.tableName,
-            id = ResolvedIdPolicy(
+            id = managedIdPolicy(
                 fieldName = idFieldName,
                 columnName = idColumnName,
                 strategy = idStrategy,
                 kind = idKind,
-                source = SpecialFieldSource.DB_EXPLICIT,
+                source = ManagedSelectionSource.DB_EXPLICIT,
                 writePolicy = if (idKind == AggregateIdPolicyKind.DATABASE_SIDE) {
-                    SpecialFieldWritePolicy.READ_ONLY
+                    ManagedWritePolicy.READ_ONLY
                 } else {
-                    SpecialFieldWritePolicy.CREATE_ONLY
+                    ManagedWritePolicy.CREATE_ONLY
                 },
             ),
-            deleted = ResolvedMarkerPolicy(
+            deleted = managedMarkerPolicy(
                 enabled = true,
                 fieldName = deletedFieldName,
                 columnName = deletedColumnName,
-                source = SpecialFieldSource.DB_EXPLICIT,
-                writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
+                source = ManagedSelectionSource.DB_EXPLICIT,
+                writePolicy = ManagedWritePolicy.SYSTEM_TRANSITION_ONLY,
             ),
             version = if (versionFieldName == null) {
-                ResolvedMarkerPolicy(enabled = false, source = SpecialFieldSource.NONE)
+                managedMarkerPolicy(enabled = false, source = ManagedSelectionSource.NONE)
             } else {
-                ResolvedMarkerPolicy(
+                managedMarkerPolicy(
                     enabled = true,
                     fieldName = versionFieldName,
                     columnName = versionColumnName,
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    writePolicy = SpecialFieldWritePolicy.READ_ONLY,
+                    source = ManagedSelectionSource.DB_EXPLICIT,
+                    writePolicy = ManagedWritePolicy.READ_ONLY,
                 )
             },
             managedFields = listOf(
-                ResolvedManagedFieldPolicy(
+                managedField(
                     fieldName = deletedFieldName,
                     columnName = deletedColumnName,
-                    writePolicy = SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY,
-                    source = SpecialFieldSource.DB_EXPLICIT,
-                    managedRole = DbManagedRole.DELETED,
+                    writePolicy = ManagedWritePolicy.SYSTEM_TRANSITION_ONLY,
+                    source = ManagedSelectionSource.DB_EXPLICIT,
                 )
             ),
             writeSurface = ResolvedWriteSurfacePolicy(
@@ -6581,7 +6927,7 @@ class AggregateArtifactPlannerTest {
             .filter { it.aggregateRoot }
             .filterNot { entity -> "${entity.packageName}.${entity.name}" in existingGraphRoots }
             .map { entity ->
-                val createAllowedFields = model.aggregateSpecialFieldResolvedPolicies
+                val createAllowedFields = model.managedFieldPolicies
                     .singleOrNull {
                         it.entityName == entity.name && it.entityPackageName == entity.packageName
                     }

@@ -24,7 +24,7 @@ Place each carrier in domain, application, adapter, or start. Record framework r
 
 ## generatorInputPlan
 
-Name the generator input surface for each expected skeleton: DB/schema, `design/design.json`, value-object manifest, enum manifest, Gradle extension, addons/options, or template override.
+Name the generator input surface for each expected skeleton: DB/schema, `design/design.json`, value-object manifest, enum manifest, Gradle extension, Pipeline Extension contribution/options, or template override.
 
 ## skeletonExpectations
 

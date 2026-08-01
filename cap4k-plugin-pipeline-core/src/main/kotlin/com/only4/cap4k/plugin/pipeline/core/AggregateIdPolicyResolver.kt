@@ -28,7 +28,11 @@ internal object AggregateIdPolicyResolver {
         }
     }
 
-    fun toControl(entity: EntityModel, strategy: String): AggregateIdPolicyControl {
+    fun toControl(
+        entity: EntityModel,
+        strategy: String,
+        kind: AggregateIdPolicyKind = resolveKind(strategy),
+    ): AggregateIdPolicyControl {
         val normalizedStrategy = normalizeStrategy(strategy)
         return AggregateIdPolicyControl(
             entityName = entity.name,
@@ -37,7 +41,7 @@ internal object AggregateIdPolicyResolver {
             idFieldName = entity.idField.name,
             idFieldType = entity.idField.type,
             strategy = normalizedStrategy,
-            kind = resolveKind(normalizedStrategy),
+            kind = kind,
         )
     }
 

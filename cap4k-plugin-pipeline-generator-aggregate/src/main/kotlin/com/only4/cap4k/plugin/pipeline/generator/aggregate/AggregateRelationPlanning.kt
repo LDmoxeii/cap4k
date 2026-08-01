@@ -26,7 +26,6 @@ internal object AggregateRelationPlanning {
     fun planFor(
         entity: EntityModel,
         relations: List<AggregateRelationModel>,
-        generatedOwnIdsByEntity: Map<String, GeneratedOwnIdDescriptor> = emptyMap(),
     ): AggregateRelationRenderPlan {
         val entityRelations = relations
             .filter { it.ownerEntityName == entity.name && it.ownerEntityPackageName == entity.packageName }
@@ -42,15 +41,6 @@ internal object AggregateRelationPlanning {
         }
 
         val ownerRelationFields = entityRelations.map { relation ->
-            val generatedOwnIdAccessorFqn = if (
-                relation.owned && relation.relationType == AggregateRelationType.ONE_TO_MANY
-            ) {
-                generatedOwnIdsByEntity[
-                    "${relation.targetEntityPackageName}.${relation.targetEntityName}"
-                ]?.accessorFqn
-            } else {
-                null
-            }
             val targetTypeRef = when {
                 relation.targetEntityPackageName == entity.packageName -> relation.targetEntityName
                 targetPackagesByType.getValue(relation.targetEntityName).size == 1 -> relation.targetEntityName
@@ -98,7 +88,6 @@ internal object AggregateRelationPlanning {
                 "persistenceShape" to relation.persistenceShape?.name,
                 "backingCollectionName" to backingCollectionName,
                 "singleAccessorName" to relation.singleAccessorName,
-                "generatedOwnIdAccessorFqn" to generatedOwnIdAccessorFqn,
             )
         }
         val relationTargetImports = entityRelations.map {

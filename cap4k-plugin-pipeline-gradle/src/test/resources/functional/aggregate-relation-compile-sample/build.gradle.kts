@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
@@ -25,12 +25,12 @@ cap4k {
             excludeTables.set(emptyList())
         }
     }
+    managedFields {
+        identifierDefaultPolicy.set("identifier.database-identity")
+    }
     generators {
         aggregate {
             artifacts {
-            }
-            specialFields {
-                idDefaultStrategy.set("identity")
             }
         }
     }

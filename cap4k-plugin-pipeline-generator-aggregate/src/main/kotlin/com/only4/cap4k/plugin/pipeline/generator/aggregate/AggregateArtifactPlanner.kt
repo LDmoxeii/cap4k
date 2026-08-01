@@ -16,7 +16,7 @@ class AggregateArtifactPlanner : GeneratorProvider {
         CreationValueArtifactPlanner(),
         FactoryArtifactPlanner(),
         StrongIdArtifactPlanner(),
-        GeneratedOwnIdArtifactPlanner(),
+        ManagedFieldCatalogArtifactPlanner(),
         LocalEnumArtifactPlanner(),
     )
 

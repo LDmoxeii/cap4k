@@ -6,7 +6,7 @@
 - Treat design JSON as a generator input.
 - Treat enum and value-object manifests as generator inputs.
 - Treat Gradle extension settings as generator inputs.
-- Treat addons, options, and template override decisions as generator inputs.
+- Treat Pipeline Extension contributions/options and template override decisions as generator inputs.
 - Treat `plan.json`, generated output, generated snapshots, flow output, and drawing-board output as generated evidence.
 - Treat analysis outputs as observation evidence by default, not ordinary source-generation input skeletons.
 - Treat a manually copied analysis fragment as generator input only when it is placed on a supported input surface and satisfies the current contract.

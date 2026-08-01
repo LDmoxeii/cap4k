@@ -97,7 +97,7 @@ routes:
     trigger_examples:
       - "write design.json"
       - "project this design into generator inputs"
-      - "author DB schema, manifests, Gradle extension, or addons"
+      - "author DB schema, manifests, Gradle extension, or pipeline extensions"
     route_first: cap4k-generator-inputs
     required_reads:
       - ../shared/rules/generator-input-source-of-truth.md

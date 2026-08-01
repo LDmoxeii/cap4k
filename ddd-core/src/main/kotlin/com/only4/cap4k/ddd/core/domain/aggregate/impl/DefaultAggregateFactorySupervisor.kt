@@ -7,6 +7,8 @@ import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionKind
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass
 
@@ -21,6 +23,8 @@ class DefaultAggregateFactorySupervisor(
     private val persistenceIntents: AggregatePersistenceIntentRecorder,
     private val invocationScopeAccessor: InvocationScopeAccessor,
     private val lifecycleInvoker: AggregateLifecycleInvoker = ReflectiveAggregateLifecycleInvoker(),
+    private val managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator =
+        ManagedEntityAdmissionCoordinator.NO_OP,
 ) : AggregateFactorySupervisor {
 
     private val factoryMap: Map<Class<*>, AggregateFactory<*, *>> by lazy {
@@ -43,6 +47,7 @@ class DefaultAggregateFactorySupervisor(
         @Suppress("UNCHECKED_CAST")
         val instance = (factory as AggregateFactory<ENTITY_PAYLOAD, ENTITY>).create(entityPayload)
 
+        managedEntityAdmissionCoordinator.admit(instance, ManagedEntityAdmissionKind.AGGREGATE_ROOT)
         persistenceIntents.registerNew(instance)
         lifecycleInvoker.onCreate(instance)
         return instance

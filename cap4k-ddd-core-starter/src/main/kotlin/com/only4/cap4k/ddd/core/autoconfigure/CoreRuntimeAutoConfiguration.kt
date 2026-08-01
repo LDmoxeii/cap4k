@@ -39,6 +39,10 @@ import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisorSupport
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinatorSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
@@ -88,6 +92,14 @@ class CoreRuntimeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(InvocationPolicy::class)
     fun invocationPolicy(scopeAccessor: InvocationScopeAccessor): InvocationPolicy = InvocationPolicy(scopeAccessor)
+
+    @Bean
+    @ConditionalOnMissingBean(ManagedEntityAdmissionCoordinator::class)
+    fun managedEntityAdmissionCoordinator(
+        registry: ManagedFieldRegistry,
+        executionContextAccessor: ExecutionContextAccessor,
+    ): ManagedEntityAdmissionCoordinator =
+        DefaultManagedEntityAdmissionCoordinator(registry, executionContextAccessor)
 
     @Bean(name = [QUERY_ASYNC_EXECUTOR_BEAN])
     @ConditionalOnMissingBean(name = [QUERY_ASYNC_EXECUTOR_BEAN])
@@ -208,6 +220,8 @@ class CoreRuntimeAutoConfiguration {
             ?.let(ReliableCommandSupervisorSupport::configure)
         optionalUniqueBean(beanFactory, AggregateFactorySupervisor::class.java, "factories")
             ?.let(AggregateFactorySupervisorSupport::configure)
+        optionalUniqueBean(beanFactory, ManagedEntityAdmissionCoordinator::class.java, "managed-entity-admission")
+            ?.let(ManagedEntityAdmissionCoordinatorSupport::configure)
         optionalUniqueBean(beanFactory, RepositorySupervisor::class.java, "repositories")
             ?.let(RepositorySupervisorSupport::configure)
         optionalUniqueBean(beanFactory, IntegrationEventSupervisor::class.java, "integration-events")

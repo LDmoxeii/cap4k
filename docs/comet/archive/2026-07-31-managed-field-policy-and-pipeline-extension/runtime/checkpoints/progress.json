@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.progress-checkpoint.v1",
+  "id": "131f40d1-f0dd-4168-beb7-b199e3071293",
+  "change": "managed-field-policy-and-pipeline-extension",
+  "phase": "build",
+  "previousRevision": 2,
+  "stateRevision": 3,
+  "summary": "Implemented Pipeline Extension, canonical managed-field policies, generated catalog, admission registry, and JPA enrichment; core pipeline and runtime suites pass.",
+  "nextAction": "Finish Gradle and only-engine integration, run repository-wide verification, then advance to Verify.",
+  "inputHash": "e6b949bcf6d38596b85a3f5d571daaaf7a4fcf92ac3a6997870daddf2c240358",
+  "manifestHash": "17ceb7532f221c19c66a3db2a50a85eafaf0badf77e4a7cbde24e29ddad0700b",
+  "manifestRef": "runtime/checkpoints/manifests/17ceb7532f221c19c66a3db2a50a85eafaf0badf77e4a7cbde24e29ddad0700b.json",
+  "artifactCount": 4,
+  "createdAt": "2026-07-31T16:18:36.455Z"
+}

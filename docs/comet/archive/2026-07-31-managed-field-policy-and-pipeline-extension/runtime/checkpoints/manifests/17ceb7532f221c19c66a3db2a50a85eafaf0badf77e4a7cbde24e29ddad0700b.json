@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.checkpoint-manifest.v1",
+  "change": "managed-field-policy-and-pipeline-extension",
+  "artifacts": [
+    {
+      "path": "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/ManagedFieldPolicies.kt",
+      "hash": "7851a121ee764fda13f4b142315be0a8b8cfecbe2673291a4e1a30a8f564391b",
+      "size": 11174
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/managed/ManagedFieldModel.kt",
+      "hash": "ba372eba6104d059526b5d6d27820b34654fe1098c2cc8373589dac967c25f4c",
+      "size": 4225
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaPersistenceEnricher.kt",
+      "hash": "c0283cbde1e0ea5a7d0bc780d31847846c4d7b75296a3d61aab86112bcd7cd7e",
+      "size": 2734
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-31-cap4k-managed-field-policy-and-pipeline-extension-design.md",
+      "hash": "50dfeff7b9b80ab66da1532838c4584fa1ce7a2f27749dd6d97a0242a5e7915f",
+      "size": 109573
+    }
+  ],
+  "totalBytes": 127706
+}

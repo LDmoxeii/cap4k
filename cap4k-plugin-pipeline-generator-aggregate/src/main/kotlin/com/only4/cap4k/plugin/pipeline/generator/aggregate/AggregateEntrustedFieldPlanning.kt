@@ -3,7 +3,7 @@ package com.only4.cap4k.plugin.pipeline.generator.aggregate
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
 
 internal data class AggregateEntrustedFields(
     val databaseIdentityFieldName: String? = null,
@@ -18,7 +18,7 @@ internal data class AggregateEntrustedFields(
 
 internal object AggregateEntrustedFieldPlanning {
     fun resolve(entity: EntityModel, model: CanonicalModel): AggregateEntrustedFields {
-        val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
+        val resolvedPolicy = model.managedFieldPolicies.singleOrNull {
             it.entityName == entity.name && it.entityPackageName == entity.packageName
         } ?: return AggregateEntrustedFields()
         val idPolicyControl = model.aggregateIdPolicyControls.singleOrNull {
@@ -27,11 +27,10 @@ internal object AggregateEntrustedFieldPlanning {
         val providerControl = model.aggregatePersistenceProviderControls.singleOrNull {
             it.entityName == entity.name && it.entityPackageName == entity.packageName
         }
-        val id = resolvedPolicy.id
-        val databaseIdentityFieldName = if (id.kind == AggregateIdPolicyKind.DATABASE_SIDE) {
+        val id = resolvedPolicy.requireIdentifier()
+        val databaseIdentityFieldName = if (id.policyKey == "identifier.database-identity") {
             require(
                 id.fieldName == entity.idField.name &&
-                    id.writePolicy == SpecialFieldWritePolicy.READ_ONLY &&
                     idPolicyControl?.idFieldName == id.fieldName &&
                     idPolicyControl.kind == AggregateIdPolicyKind.DATABASE_SIDE
             ) {
@@ -42,11 +41,10 @@ internal object AggregateEntrustedFieldPlanning {
         } else {
             null
         }
-        val version = resolvedPolicy.version
-        val versionFieldName = if (version.enabled) {
+        val version = resolvedPolicy.fieldByRole(ManagedFieldRole.VERSION)
+        val versionFieldName = if (version != null) {
             require(
-                version.writePolicy == SpecialFieldWritePolicy.READ_ONLY &&
-                    providerControl?.versionFieldName == version.fieldName
+                providerControl?.versionFieldName == version.fieldName
             ) {
                 "resolved version projection mismatch for ${entity.packageName}.${entity.name}: " +
                     "resolved=${version.fieldName}, provider=${providerControl?.versionFieldName}"

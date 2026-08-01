@@ -8,10 +8,16 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
-import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionConfig
+import com.only4.cap4k.plugin.pipeline.api.OwnedManagedFieldPolicyDefinition
+import com.only4.cap4k.plugin.pipeline.api.BuiltInManagedFieldPolicies
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyContributionContext
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyDefinition
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicyDefinitionOwner
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
@@ -19,7 +25,8 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.RenderedArtifact
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedCreationInputPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.SourceSnapshot
@@ -52,7 +59,11 @@ class DefaultPipelineRunnerTest {
             sources = listOf(sourceProvider),
             generators = emptyList(),
             assembler = object : CanonicalAssembler {
-                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                override fun assemble(
+                    config: ProjectConfig,
+                    snapshots: List<SourceSnapshot>,
+                    managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+                ): CanonicalAssemblyResult {
                     receivedSnapshots = snapshots
                     return CanonicalAssemblyResult(CanonicalModel())
                 }
@@ -89,7 +100,11 @@ class DefaultPipelineRunnerTest {
             sources = listOf(sourceProvider),
             generators = emptyList(),
             assembler = object : CanonicalAssembler {
-                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+                override fun assemble(
+                    config: ProjectConfig,
+                    snapshots: List<SourceSnapshot>,
+                    managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+                ): CanonicalAssemblyResult {
                     receivedSnapshots = snapshots
                     return CanonicalAssemblyResult(CanonicalModel())
                 }
@@ -130,7 +145,11 @@ class DefaultPipelineRunnerTest {
             sources = emptyList(),
             generators = listOf(generatorProvider),
             assembler = object : CanonicalAssembler {
-                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
+                override fun assemble(
+                    config: ProjectConfig,
+                    snapshots: List<SourceSnapshot>,
+                    managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+                ): CanonicalAssemblyResult =
                     CanonicalAssemblyResult(CanonicalModel())
             },
             renderer = object : ArtifactRenderer {
@@ -202,7 +221,11 @@ class DefaultPipelineRunnerTest {
                 },
             ),
             assembler = object : CanonicalAssembler {
-                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult = assembly
+                override fun assemble(
+                    config: ProjectConfig,
+                    snapshots: List<SourceSnapshot>,
+                    managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+                ): CanonicalAssemblyResult = assembly
             },
             renderer = object : ArtifactRenderer {
                 override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
@@ -404,10 +427,15 @@ class DefaultPipelineRunnerTest {
             plannedItems = emptyList(),
             addonProviders = listOf(addon),
             config = configuredConfig(
-                addons = mapOf(
-                    "sample-addon" to AddonProviderConfig(
-                        id = "sample-addon",
-                        options = mapOf("enumPackage" to "domain.enums"),
+                pipelineExtensions = mapOf(
+                    "sample-extension" to PipelineExtensionConfig(
+                        id = "sample-extension",
+                        contributions = mapOf(
+                            "sample-addon" to PipelineContributionConfig(
+                                id = "sample-addon",
+                                options = mapOf("enumPackage" to "domain.enums"),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -417,16 +445,56 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `fails when addon config key does not match provider id`() {
+    fun `managed policy contribution receives scoped options and definition ownership`() {
+        var receivedOptions: Map<String, String>? = null
+        var receivedDefinitions: List<OwnedManagedFieldPolicyDefinition> = emptyList()
+        val provider = object : ManagedFieldPolicyProvider {
+            override val id: String = "sample-policy"
+
+            override fun definitions(
+                context: ManagedFieldPolicyContributionContext,
+            ): List<ManagedFieldPolicyDefinition> {
+                receivedOptions = context.options
+                return listOf(BuiltInManagedFieldPolicies.definitions.first())
+            }
+        }
+
+        runWithCapturedPlanItems(
+            plannedItems = emptyList(),
+            managedFieldPolicies = listOf(provider),
+            onManagedFieldPolicyDefinitions = { receivedDefinitions = it },
+            config = configuredConfig(
+                pipelineExtensions = mapOf(
+                    "sample-extension" to PipelineExtensionConfig(
+                        id = "sample-extension",
+                        contributions = mapOf(
+                            "sample-policy" to PipelineContributionConfig(
+                                id = "sample-policy",
+                                options = mapOf("mode" to "strict"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(mapOf("mode" to "strict"), receivedOptions)
+        assertEquals(
+            ManagedPolicyDefinitionOwner.Extension("sample-extension", "sample-policy"),
+            receivedDefinitions.single().owner,
+        )
+    }
+
+    @Test
+    fun `fails when pipeline extension config key does not match extension id`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = listOf(addonProvider("sample-addon", emptyList())),
                 config = configuredConfig(
-                    addons = mapOf(
-                        "sample-addon" to AddonProviderConfig(
-                            id = "other-addon",
-                            options = mapOf("enabled" to "true"),
+                    pipelineExtensions = mapOf(
+                        "sample-extension" to PipelineExtensionConfig(
+                            id = "other-extension",
                         ),
                     ),
                 ),
@@ -434,29 +502,37 @@ class DefaultPipelineRunnerTest {
         }
 
         assertEquals(
-            "Configured addon provider key does not match provider id: sample-addon != other-addon",
+            "Configured pipeline extension key does not match extension id: sample-extension != other-extension",
             error.message,
         )
     }
 
     @Test
-    fun `fails when addon options reference unloaded provider`() {
+    fun `fails when pipeline contribution config key does not match contribution id`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             runWithCapturedPlanItems(
                 plannedItems = emptyList(),
                 addonProviders = emptyList(),
                 config = configuredConfig(
-                    addons = mapOf(
-                        "missing-addon" to AddonProviderConfig(
-                            id = "missing-addon",
-                            options = mapOf("enabled" to "true"),
+                    pipelineExtensions = mapOf(
+                        "sample-extension" to PipelineExtensionConfig(
+                            id = "sample-extension",
+                            contributions = mapOf(
+                                "sample-addon" to PipelineContributionConfig(
+                                    id = "other-addon",
+                                ),
+                            ),
                         ),
                     ),
                 ),
             )
         }
 
-        assertTrue(error.message?.contains("Configured addon provider is not loaded: missing-addon") == true)
+        assertEquals(
+            "Configured pipeline contribution key does not match contribution id in " +
+                "sample-extension: sample-addon != other-addon",
+            error.message,
+        )
     }
 
     @Test
@@ -790,7 +866,11 @@ class DefaultPipelineRunnerTest {
         }
 
         val assembler = object : CanonicalAssembler {
-            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+            override fun assemble(
+                config: ProjectConfig,
+                snapshots: List<SourceSnapshot>,
+                managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+            ): CanonicalAssemblyResult {
                 callOrder += "normalize"
                 return CanonicalAssemblyResult(CanonicalModel())
             }
@@ -867,7 +947,11 @@ class DefaultPipelineRunnerTest {
             }
         }
         val assembler = object : CanonicalAssembler {
-            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+            override fun assemble(
+                config: ProjectConfig,
+                snapshots: List<SourceSnapshot>,
+                managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+            ): CanonicalAssemblyResult {
                 callOrder += "normalize"
                 return CanonicalAssemblyResult(CanonicalModel())
             }
@@ -912,7 +996,11 @@ class DefaultPipelineRunnerTest {
     fun `run fails fast when configured source has no registered provider`() {
         val callOrder = mutableListOf<String>()
         val assembler = object : CanonicalAssembler {
-            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+            override fun assemble(
+                config: ProjectConfig,
+                snapshots: List<SourceSnapshot>,
+                managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+            ): CanonicalAssemblyResult {
                 callOrder += "normalize"
                 return CanonicalAssemblyResult(CanonicalModel())
             }
@@ -992,7 +1080,7 @@ class DefaultPipelineRunnerTest {
     }
 
     @Test
-    fun `pipeline result carries aggregate diagnostics and resolved special field policies`() {
+    fun `pipeline result carries aggregate diagnostics and resolved managed field policies`() {
         var capturedModel: CanonicalModel? = null
         val result = DefaultPipelineRunner(
             sources = listOf(
@@ -1023,7 +1111,7 @@ class DefaultPipelineRunnerTest {
                                             nullable = false,
                                             comment = "",
                                             isPrimaryKey = true,
-                                            idStrategy = DbIdStrategy.UUID7,
+                                            managedPolicyKey = "identifier.uuid7",
                                             jdbcType = Types.VARCHAR,
                                             columnSize = 40,
                                         ),
@@ -1044,7 +1132,7 @@ class DefaultPipelineRunnerTest {
                                             nullable = false,
                                             comment = "",
                                             isPrimaryKey = true,
-                                            idStrategy = DbIdStrategy.UUID7,
+                                            managedPolicyKey = "identifier.uuid7",
                                             jdbcType = Types.OTHER,
                                             columnSize = 16,
                                         ),
@@ -1085,14 +1173,16 @@ class DefaultPipelineRunnerTest {
                     )
                 ),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-                aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                    idDefaultStrategy = "snowflake",
-                    managedDefaultColumns = listOf("created_by"),
+                managedFields = ManagedFieldDefaultsConfig(
+                    identifierDefaultPolicy = "identifier.snowflake",
+                    columnPolicyDefaults = mapOf(
+                        "created_by" to "initialization.request-context",
+                    ),
                 ),
             )
         )
 
-        val policy = result.aggregateSpecialFieldResolvedPolicies.single { it.tableName == "video_post" }
+        val policy = result.managedFieldPolicies.single { it.tableName == "video_post" }
         val aggregateEntityJpa = requireNotNull(capturedModel).aggregateEntityJpa
         val textId = aggregateEntityJpa
             .single { it.entityName == "VideoPost" }
@@ -1103,11 +1193,11 @@ class DefaultPipelineRunnerTest {
 
         assertEquals(listOf("audit_record", "video_post"), result.diagnostics!!.aggregate!!.supportedTables)
         assertEquals("composite_primary_key", result.diagnostics!!.aggregate!!.unsupportedTables.single().reason)
-        assertEquals(2, result.aggregateSpecialFieldResolvedPolicies.size)
+        assertEquals(2, result.managedFieldPolicies.size)
         assertEquals("video_post", policy.tableName)
-        assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, policy.id.writePolicy)
-        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
-        assertEquals(listOf("id", "title"), policy.writeSurface.createAllowedFields)
+        assertEquals(ManagedCreationInputPolicy.OMIT, policy.requireIdentifier().creationInput)
+        assertEquals(listOf("id", "created_by"), policy.fields.map { it.columnName })
+        assertEquals(listOf("title"), policy.writeSurface.createAllowedFields)
         assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
         assertEquals(40, textId.columnLength)
         assertEquals(null, nativeId.columnLength)
@@ -1140,7 +1230,11 @@ class DefaultPipelineRunnerTest {
         }
 
         val assembler = object : CanonicalAssembler {
-            override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
+            override fun assemble(
+                config: ProjectConfig,
+                snapshots: List<SourceSnapshot>,
+                managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+            ): CanonicalAssemblyResult =
                 CanonicalAssemblyResult(CanonicalModel())
         }
 
@@ -1161,6 +1255,8 @@ class DefaultPipelineRunnerTest {
         plannedItems: List<ArtifactPlanItem>,
         config: ProjectConfig,
         addonProviders: List<ArtifactAddonProvider> = emptyList(),
+        managedFieldPolicies: List<ManagedFieldPolicyProvider> = emptyList(),
+        onManagedFieldPolicyDefinitions: (List<OwnedManagedFieldPolicyDefinition>) -> Unit = {},
         assembledModel: CanonicalModel = CanonicalModel(),
         transformPlanItem: (ArtifactPlanItem) -> ArtifactPlanItem = { it },
         includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
@@ -1183,8 +1279,14 @@ class DefaultPipelineRunnerTest {
                 }
             ).filter { it.id in config.generators },
             assembler = object : CanonicalAssembler {
-                override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult =
-                    CanonicalAssemblyResult(assembledModel)
+                override fun assemble(
+                    config: ProjectConfig,
+                    snapshots: List<SourceSnapshot>,
+                    managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+                ): CanonicalAssemblyResult {
+                    onManagedFieldPolicyDefinitions(managedFieldPolicyDefinitions)
+                    return CanonicalAssemblyResult(assembledModel)
+                }
             },
             renderer = object : ArtifactRenderer {
                 override fun render(planItems: List<ArtifactPlanItem>, config: ProjectConfig): List<RenderedArtifact> {
@@ -1195,7 +1297,12 @@ class DefaultPipelineRunnerTest {
             exporter = NoopArtifactExporter(),
             transformPlanItem = transformPlanItem,
             includePlanItem = includePlanItem,
-            addonProviders = addonProviders,
+            artifactAddons = addonProviders.map { provider ->
+                PipelineContributionBinding("sample-extension", provider)
+            },
+            managedFieldPolicies = managedFieldPolicies.map { provider ->
+                PipelineContributionBinding("sample-extension", provider)
+            },
         )
 
         return CapturedPlanItemsResult(
@@ -1211,7 +1318,7 @@ class DefaultPipelineRunnerTest {
             overrideDirs = emptyList(),
             conflictPolicy = ConflictPolicy.OVERWRITE,
         ),
-        addons: Map<String, AddonProviderConfig> = emptyMap(),
+        pipelineExtensions: Map<String, PipelineExtensionConfig> = emptyMap(),
     ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.only4.cap4k.sample",
@@ -1220,7 +1327,7 @@ class DefaultPipelineRunnerTest {
             sources = mapOf("design-json" to SourceConfig()),
             generators = generators,
             templates = templates,
-            addons = addons,
+            pipelineExtensions = pipelineExtensions,
         )
     }
 

@@ -2,14 +2,15 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonToken
-import com.only4.cap4k.plugin.pipeline.api.AddonProviderConfig
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -50,8 +51,8 @@ class Cap4kProjectConfigFactory {
         validateGeneratorDependencies(sourceStates, generatorStates)
         val typeRegistry = buildTypeRegistry(project, extension)
         val artifactLayout = buildArtifactLayout(basePackage, extension)
-        val aggregateSpecialFieldDefaults = buildAggregateSpecialFieldDefaults(extension)
-        val addons = buildAddons(extension)
+        val managedFields = buildManagedFieldDefaults(extension)
+        val pipelineExtensions = buildPipelineExtensions(extension)
 
         return ProjectConfig(
             basePackage = basePackage,
@@ -69,8 +70,8 @@ class Cap4kProjectConfigFactory {
                 templateConflictPolicies = buildTemplateConflictPolicies(extension),
             ),
             artifactLayout = artifactLayout,
-            aggregateSpecialFieldDefaults = aggregateSpecialFieldDefaults,
-            addons = addons,
+            managedFields = managedFields,
+            pipelineExtensions = pipelineExtensions,
         )
     }
 
@@ -222,13 +223,22 @@ class Cap4kProjectConfigFactory {
         return artifactLayout
     }
 
-    private fun buildAggregateSpecialFieldDefaults(extension: Cap4kExtension): AggregateSpecialFieldDefaultsConfig {
-        val specialFields = extension.generators.aggregate.specialFields
-        return AggregateSpecialFieldDefaultsConfig(
-            idDefaultStrategy = specialFields.idDefaultStrategy.normalized().ifEmpty { "uuid7" },
-            deletedDefaultColumn = specialFields.deletedDefaultColumn.normalized(),
-            versionDefaultColumn = specialFields.versionDefaultColumn.normalized(),
-            managedDefaultColumns = specialFields.managedDefaultColumns.normalizedValues(),
+    private fun buildManagedFieldDefaults(extension: Cap4kExtension): ManagedFieldDefaultsConfig {
+        val managedFields = extension.managedFields
+        val columnPolicyDefaults = linkedMapOf<String, String>()
+        managedFields.columnPolicyDefaults.getOrElse(emptyMap()).forEach { (rawColumn, rawPolicy) ->
+            val column = rawColumn.trim()
+            val policy = rawPolicy.trim()
+            require(column.isNotEmpty()) { "managedFields.columnPolicyDefaults contains a blank column name" }
+            require(columnPolicyDefaults.keys.none { it.equals(column, ignoreCase = true) }) {
+                "managedFields.columnPolicyDefaults contains duplicate normalized column $column"
+            }
+            columnPolicyDefaults[column] = policy
+        }
+        return ManagedFieldDefaultsConfig(
+            identifierDefaultPolicy = managedFields.identifierDefaultPolicy.normalized()
+                .ifEmpty { "identifier.uuid7" },
+            columnPolicyDefaults = columnPolicyDefaults,
         )
     }
 
@@ -293,11 +303,16 @@ class Cap4kProjectConfigFactory {
         return registry
     }
 
-    private fun buildAddons(extension: Cap4kExtension): Map<String, AddonProviderConfig> =
-        extension.addons.providers.associate { provider ->
-            provider.id to AddonProviderConfig(
+    private fun buildPipelineExtensions(extension: Cap4kExtension): Map<String, PipelineExtensionConfig> =
+        extension.pipelineExtensions.providers.associate { provider ->
+            provider.id to PipelineExtensionConfig(
                 id = provider.id,
-                options = provider.options.getOrElse(emptyMap()),
+                contributions = provider.contributions.associate { contribution ->
+                    contribution.id to PipelineContributionConfig(
+                        id = contribution.id,
+                        options = contribution.options.getOrElse(emptyMap()),
+                    )
+                },
             )
         }
 
