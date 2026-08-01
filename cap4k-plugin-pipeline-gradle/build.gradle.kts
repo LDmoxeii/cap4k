@@ -58,6 +58,15 @@ tasks.withType<Test>().configureEach {
 }
 
 tasks.named<Test>("test") {
+    // Functional fixtures include this repository as a composite build. Build the
+    // runtime artifacts they consume before TestKit starts another Gradle process,
+    // otherwise both builds can write the same Kotlin incremental-cache directory.
+    dependsOn(
+        ":ddd-core:jar",
+        ":ddd-domain-repo-jpa:jar",
+        ":cap4k-ddd-core-starter:jar",
+        ":cap4k-ddd-jpa-starter:jar",
+    )
     outputs.upToDateWhen { false }
     outputs.cacheIf { false }
 }

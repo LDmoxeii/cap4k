@@ -20,6 +20,7 @@ import jakarta.persistence.PersistenceContext
 import org.hibernate.Hibernate
 import org.hibernate.FlushMode
 import org.hibernate.Session
+import org.hibernate.action.spi.BeforeTransactionCompletionProcess
 import org.hibernate.collection.spi.PersistentCollection
 import org.hibernate.engine.spi.SessionImplementor
 import org.hibernate.engine.spi.SessionFactoryImplementor
@@ -152,6 +153,8 @@ private data class EntityIdentity(
     val id: Any,
 )
 
+private class LatePersistenceMutationException(message: String) : IllegalStateException(message)
+
 /**
  * 基于Jpa的UnitOfWork实现
  *
@@ -280,6 +283,8 @@ open class JpaUnitOfWork(
         }
         if (!transactionActive) return false
 
+        registerLatePersistenceMutationAssertion(context)
+
         TransactionSynchronizationManager.registerSynchronization(
             object : TransactionSynchronization {
                 override fun getOrder(): Int = Ordered.HIGHEST_PRECEDENCE
@@ -290,6 +295,44 @@ open class JpaUnitOfWork(
             },
         )
         return true
+    }
+
+    private fun registerLatePersistenceMutationAssertion(context: JpaUnitOfWorkContext) {
+        val session = entityManager.unwrap(SessionImplementor::class.java)
+        session.actionQueue.registerProcess(
+            BeforeTransactionCompletionProcess { committingSession ->
+                assertNoLatePersistenceMutation(context, committingSession)
+            },
+        )
+    }
+
+    private fun assertNoLatePersistenceMutation(
+        context: JpaUnitOfWorkContext,
+        session: SessionImplementor,
+    ) {
+        if (context.phase != JpaUnitOfWorkPhase.STABLE) return
+
+        val pendingEntries = context.pendingEntries.isNotEmpty()
+        val providerDirty = session.isDirty
+        val queuedActions = session.actionQueue.hasAnyQueuedActions()
+        val pendingDomainEvents = domainEventManager.pendingCount()
+        val pendingIntegrationEvents = EventRuntimeContextManager.pendingIntegrationAttachmentCount()
+        if (
+            !pendingEntries &&
+            !providerDirty &&
+            !queuedActions &&
+            pendingDomainEvents == 0 &&
+            pendingIntegrationEvents == 0
+        ) {
+            return
+        }
+
+        throw LatePersistenceMutationException(
+            "Late persistence mutation after UnitOfWork stabilization: " +
+                "phase=${context.phase}, pendingEntries=$pendingEntries, providerDirty=$providerDirty, " +
+                "queuedActions=$queuedActions, pendingDomainEvents=$pendingDomainEvents, " +
+                "pendingIntegrationEvents=$pendingIntegrationEvents",
+        )
     }
 
     private fun registerBeforeCommitFinalization(context: JpaUnitOfWorkContext) {

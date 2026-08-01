@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-application-execution-uow-stabilization",
+  "role": "post",
+  "hash": "0dc1fea1fb5431f6529bf4d04d3127c26abe7cc798e032f2a992bd7ad71a653a",
+  "identity": {
+    "dev": 950912656,
+    "ino": 8162774329985045,
+    "birthtimeMs": 1785562111157.8044
+  }
+}
