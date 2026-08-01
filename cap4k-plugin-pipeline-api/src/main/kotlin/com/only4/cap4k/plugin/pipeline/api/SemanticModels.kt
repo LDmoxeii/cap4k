@@ -78,6 +78,11 @@ data class SemanticSetTypeRef(
     override val nullable: Boolean = false,
 ) : SemanticTypeRef
 
+data class SemanticArrayTypeRef(
+    val elementType: SemanticTypeRef,
+    override val nullable: Boolean = false,
+) : SemanticTypeRef
+
 data class SemanticMapTypeRef(
     val keyType: SemanticTypeRef,
     val valueType: SemanticTypeRef,

@@ -50,5 +50,6 @@
 | --- | --- |
 | 把 cap4k 当成内置长流程编排器。 | 先组合 reliable Command 与 Integration Event；仍不足时选择显式 orchestration provider。 |
 | 把 Domain Event 当作 technical continuation step。 | Domain Event 描述 aggregate state change 之后形成的 business fact。 |
+| 因为 `domain_event.aggregates` 声明了 owner，就把 Aggregate/Entity 放进 payload。 | `aggregates` 仅表达归属；payload 只来自显式 `fields`，使用 Strong ID、Value Object、标量或不可变 snapshot。运行时 Entity 拒绝规则不能放宽。 |
 | 通过 templates 或 addon magic 直接发布 outbound integration event payloads。 | Business code 从 application orchestration points attach outbound facts。 |
 | 把 adapter/protocol concerns 放进 domain。 | Domain keeps business language；adapter 处理 HTTP、messaging、persistence mapping、callback protocol 和 external API details。 |

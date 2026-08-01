@@ -10,6 +10,7 @@ class DesignDomainEventHandlerArtifactPlanner : GeneratorProvider {
     override val id: String = "domain-subscriber"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        model.validateDomainEventPayloads()
         val blocks = model.designBlocks.filter { block -> block.selects(id) }
         if (blocks.isEmpty()) {
             return emptyList()

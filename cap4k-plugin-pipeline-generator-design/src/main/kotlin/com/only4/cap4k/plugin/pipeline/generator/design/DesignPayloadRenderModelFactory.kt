@@ -2,7 +2,7 @@ package com.only4.cap4k.plugin.pipeline.generator.design
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
 import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
-import com.only4.cap4k.plugin.pipeline.api.EntityModel
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
@@ -72,14 +72,12 @@ internal object DesignPayloadRenderModelFactory {
     fun createForDomainEventBlock(
         packageName: String,
         block: DesignBlockModel,
-        aggregate: EntityModel,
     ): DesignRenderModel = createForBlock(
         packageName = packageName,
         typeName = block.domainEventTypeName(),
         description = block.description,
         request = block.request,
         response = null,
-        aggregateName = aggregate.name,
     )
 
     fun createForIntegrationEventBlock(
@@ -99,7 +97,6 @@ internal object DesignPayloadRenderModelFactory {
         description: String,
         request: SemanticValueDefinition,
         response: SemanticValueDefinition?,
-        aggregateName: String? = null,
         pageRequest: Boolean = false,
     ): DesignRenderModel {
         val definitions = listOfNotNull(request, response)
@@ -117,7 +114,6 @@ internal object DesignPayloadRenderModelFactory {
             descriptionText = description,
             descriptionCommentText = description.toKDocCommentText(),
             descriptionKotlinStringLiteral = description.toKotlinStringLiteral(),
-            aggregateName = aggregateName,
             imports = (requestProjection.imports + responseProjection.imports).distinct().sorted(),
             fields = requestProjection.fields,
             resultFields = responseProjection.fields,
@@ -207,6 +203,7 @@ private class SemanticTypeRenderer(
             is SemanticNamedTypeRef -> renderNamed(type.symbol, imports)
             is SemanticListTypeRef -> "List<${renderType(type.elementType, imports)}>"
             is SemanticSetTypeRef -> "Set<${renderType(type.elementType, imports)}>"
+            is SemanticArrayTypeRef -> "Array<${renderType(type.elementType, imports)}>"
             is SemanticMapTypeRef -> "Map<${renderType(type.keyType, imports)}, ${renderType(type.valueType, imports)}>"
         }
         return rendered + if (type.nullable) "?" else ""
@@ -252,6 +249,7 @@ private class SemanticTypeRenderer(
         is SemanticNamedTypeRef -> listOf(type.symbol)
         is SemanticListTypeRef -> collectNamedSymbols(type.elementType)
         is SemanticSetTypeRef -> collectNamedSymbols(type.elementType)
+        is SemanticArrayTypeRef -> collectNamedSymbols(type.elementType)
         is SemanticMapTypeRef -> collectNamedSymbols(type.keyType) + collectNamedSymbols(type.valueType)
     }
 

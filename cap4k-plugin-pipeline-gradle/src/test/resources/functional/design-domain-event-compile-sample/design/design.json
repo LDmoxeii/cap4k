@@ -8,19 +8,6 @@
       "Order"
     ],
     "persist": false,
-    "fields": [
-      {
-        "name": "reason",
-        "type": "String"
-      },
-      {
-        "name": "snapshot",
-        "type": "Snapshot?"
-      },
-      {
-        "name": "snapshot.traceId",
-        "type": "String"
-      }
-    ]
+    "fields": []
   }
 ]

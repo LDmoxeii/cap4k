@@ -10,6 +10,7 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
     override val id: String = "domain-event"
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        model.validateDomainEventPayloads()
         val blocks = model.designBlocks.filter { block -> block.selects(id) }
         if (blocks.isEmpty()) {
             return emptyList()
@@ -19,14 +20,12 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
         return blocks.map { block ->
-            val aggregate = block.ownerAggregateEntity(model)
             val packageKey = block.domainEventPackageKey(config, model)
             val typeName = block.domainEventTypeName()
             val packageName = artifactLayout.designDomainEventPackage(packageKey)
             val renderModel = DesignPayloadRenderModelFactory.createForDomainEventBlock(
                 packageName = packageName,
                 block = block,
-                aggregate = aggregate,
             )
             ArtifactPlanItem(
                 generatorId = id,
@@ -41,8 +40,6 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                     "descriptionText" to renderModel.descriptionText,
                     "descriptionCommentText" to renderModel.descriptionCommentText,
                     "descriptionKotlinStringLiteral" to renderModel.descriptionKotlinStringLiteral,
-                    "aggregateName" to renderModel.aggregateName,
-                    "aggregateType" to "${aggregate.packageName}.${aggregate.name}",
                     "persist" to (block.persist ?: false),
                     "imports" to renderModel.imports,
                     "fields" to renderModel.fields,

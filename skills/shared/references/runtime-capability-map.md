@@ -22,9 +22,9 @@ Agent rule: use only canonical names (`commands`, `queries`, `capabilities`, `re
 
 ## Command And Event Reliability
 
-Command dispatch owns the REQUIRED transaction and automatic Unit of Work. Reliable enqueue/schedule/result requires the Command JPA provider and registration inside an active Command transaction. Local Domain Event delivery is synchronous inside the Unit of Work; persisted or delayed events require the Domain Event JPA provider.
+Command dispatch owns the REQUIRED transaction and automatic Unit of Work. Reliable enqueue/schedule/result requires the Command JPA provider and registration inside an active Command transaction. Local Domain Event delivery is synchronous inside the Unit of Work; persisted or delayed events require the Domain Event JPA provider. Domain Event payload validation rejects Aggregate/Entity references, including references reachable through the payload object graph, so reliable records remain immutable historical facts rather than persisted live domain objects.
 
-Agent rule: do not assign reliable APIs to Query or Capability. Do not model local asynchronous work as an ordinary Domain Event plus `@Async`; use a reliable Command. Reliable record registration joins the local transaction but must not call `saveAndFlush()` or otherwise force a provider-wide flush; only the outer Coordinator owns final provider synchronization. Record recovery is retry, not inferred business compensation. Event payload types come from explicit listener signatures or a supplied event catalog, never an event-scan package.
+Agent rule: do not assign reliable APIs to Query or Capability. Do not model local asynchronous work as an ordinary Domain Event plus `@Async`; use a reliable Command. Reliable record registration joins the local transaction but must not call `saveAndFlush()` or otherwise force a provider-wide flush; only the outer Coordinator owns final provider synchronization. Record recovery is retry, not inferred business compensation. Event payload types come from explicit listener signatures or a supplied event catalog, never an event-scan package. Never relax the runtime payload validator to accommodate generated Aggregate/Entity fields; fix the design input or generator output instead.
 
 ## Integration Event Transport Split
 

@@ -14,7 +14,7 @@ Generator-supported structure can come from DB/schema, `design/design.json`, val
 | query | `design/design.json` `query` block | Keep read-only semantics; do not patch missing query skeletons by hand before plan review. |
 | capability | `design/design.json` `capability` block | Treat the application-facing external capability call and adapter handler as generated structure. |
 | api payload | `design/design.json` `api_payload` block | Keep protocol DTO shape in adapter-facing generated payload slots. |
-| domain event | `design/design.json` `domain_event` block, often aggregate-linked | Use for internal domain facts; do not convert to Integration Event to obtain a skeleton. |
+| domain event | `design/design.json` `domain_event` block, often aggregate-linked | Use for internal domain facts. `aggregates` controls ownership only; explicit `fields` are the complete payload and must resolve without Aggregate/Entity types. Do not convert to Integration Event to obtain a skeleton. |
 | integration event | `design/design.json` `integration_event` block with inbound/outbound variant | Use for published language; inbound subscriber requires explicit supported selection. |
 | subscriber | domain-subscriber or integration-subscriber artifact selection | Keep subscribers thin; missing subscriber returns to event design or artifact selection. |
 | domain service | `design/design.json` `domain_service` block | Use when domain collaboration has no single aggregate owner. |

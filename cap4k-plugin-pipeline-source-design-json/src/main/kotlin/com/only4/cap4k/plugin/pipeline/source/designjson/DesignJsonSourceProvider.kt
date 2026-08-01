@@ -117,7 +117,6 @@ class DesignJsonSourceProvider : SourceProvider {
             val persist = parsePersist(obj, tag, name)
             validateResultFields(tag, name, resultFields)
             validateEventName(tag, name, obj)
-            validateReservedFields(tag, name, fields)
             validateNoSelfTypes(name, fields + resultFields)
             DesignSpecEntry(
                 tag = tag,
@@ -196,15 +195,6 @@ class DesignJsonSourceProvider : SourceProvider {
             throw IllegalArgumentException(
                 "design entry $name field ${field.name} must use an explicit type name instead of self",
             )
-        }
-    }
-
-    private fun validateReservedFields(tag: String, name: String, fields: List<SemanticFieldSnapshot>) {
-        if (tag != "domain_event") {
-            return
-        }
-        require(fields.none { it.name.equals("entity", ignoreCase = true) }) {
-            "domain_event $name field 'entity' is reserved and derived from aggregates[0]."
         }
     }
 

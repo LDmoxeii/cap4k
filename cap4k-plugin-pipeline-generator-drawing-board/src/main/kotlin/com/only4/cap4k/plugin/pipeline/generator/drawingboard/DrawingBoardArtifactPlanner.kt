@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticMapTypeRef
@@ -136,6 +137,9 @@ private fun SemanticTypeRef.nestedReference(
     nestedDefinitions: Map<String, SemanticValueDefinition>,
 ): NestedReference? = when (this) {
     is SemanticNamedTypeRef -> nestedDefinitions[symbol.fqn]?.let { NestedReference(it, "") }
+    is SemanticArrayTypeRef -> (elementType as? SemanticNamedTypeRef)
+        ?.let { named -> nestedDefinitions[named.symbol.fqn] }
+        ?.let { definition -> NestedReference(definition, "[]") }
     is SemanticListTypeRef -> (elementType as? SemanticNamedTypeRef)
         ?.let { named -> nestedDefinitions[named.symbol.fqn] }
         ?.let { definition -> NestedReference(definition, "[]") }
@@ -146,6 +150,7 @@ private fun SemanticTypeRef.toSourceExpression(nestedIdentities: Set<String>): S
     val rendered = when (this) {
         is SemanticBuiltinTypeRef -> kind.name.lowercase(Locale.ROOT).replaceFirstChar { it.titlecase(Locale.ROOT) }
         is SemanticNamedTypeRef -> if (symbol.fqn in nestedIdentities) symbol.simpleName else symbol.fqn
+        is SemanticArrayTypeRef -> "Array<${elementType.toSourceExpression(nestedIdentities)}>"
         is SemanticListTypeRef -> "List<${elementType.toSourceExpression(nestedIdentities)}>"
         is SemanticSetTypeRef -> "Set<${elementType.toSourceExpression(nestedIdentities)}>"
         is SemanticMapTypeRef ->

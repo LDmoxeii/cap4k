@@ -1,0 +1,158 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "domain-event-payload-generation",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "f0914bf68e06abc2a94158319e0351e8fa8a2214c930c8f8b6010067f65146bc",
+  "acceptanceCriteriaHash": "e361ab3b30c0c509a5a06bc2d31d7fd9336cac91c436ddfdfee7e4eeef9384b4",
+  "implementationScopeRef": "runtime/evidence/scopes/29117f6a0ca3b8e3e58fc2939ce883ee1dc808d41e438ac4f6ba679214420a57.json",
+  "implementationScopeHash": "29117f6a0ca3b8e3e58fc2939ce883ee1dc808d41e438ac4f6ba679214420a57",
+  "reportRef": "verification.md",
+  "reportHash": "dddefa1b430e763a5723f123b903462c3a8301ccb8316fea43f4e48cb3688a05",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "e361ab3b30c0c509a5a06bc2d31d7fd9336cac91c436ddfdfee7e4eeef9384b4",
+    "total": 11,
+    "evidenced": 11,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-1a17c79adde40933c56b021fe7de2ebd99b7c910784cbe494532ffa5dffca379",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignBlockSelection.kt",
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventHandlerArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-generator-design/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlannerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-20f7cf398f3f1671609cf4b85d473bab07700475eafe07d1092e883a8a86092f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignPayloadRenderModelFactory.kt",
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignRenderModels.kt",
+          "cap4k-plugin-pipeline-generator-design/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlannerTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2801db45b8f32aded9688990a0368b14caa82e5c42c7087a630ca74543cc8a7c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2a857b5e0827d0530f7c0969bf960146b7e1532f7851dde60ffef48663eb0cea",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/design-domain-event-compile-sample/design/design.json",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4f2ff51021a729000923d202ee9bda53326399b423d18cdd9a9f83a23ea518b4",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/design-domain-event-compile-sample/design/design.json",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/design-domain-event-sample/codegen/templates/design/domain_event.kt.peb",
+          "docs/reviews/cap4k-skills.zh-CN-review.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-55291b0b77b69b1d36d9cd5a952a6892f8d99a478c530b5a2a18afafdfa98a8a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DomainEventPayloadModelValidator.kt",
+          "cap4k-plugin-pipeline-generator-design/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlannerTest.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6aed36796dd66116385be649b10e5e4a9f198fa38714b287f63fc10b28f7f8d7",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventHandlerArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DomainEventPayloadModelValidator.kt",
+          "cap4k-plugin-pipeline-generator-design/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlannerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-92e43079dded9c697d47e52fe54c349812c39451bf4ec5ac258215249b5772f1",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/GeneratedDomainEventRuntimeContractTest.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidator.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidatorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-95067e934822fc330b1b2c04e71a298dee7cfac91d84f31933974b22a217d9fc",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e29b52dcd508fa5549c666074d164960bd5b6276a9d1fb8932dffbea09ee32ff",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DomainEventPayloadModelValidator.kt",
+          "cap4k-plugin-pipeline-generator-design/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlannerTest.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidator.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidatorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e60d1829c197cfd856235e14400e36250e075dcc5818f22a896de44ee314944a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignPayloadRenderModelFactory.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/GeneratedDomainEventRuntimeContractTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "76d05ca8d90af7617465a05f59a5e294c140bb8f6ff8e37c1e3282fff8190c03"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/7aca39042f13e94d24731420dc8f658ba44a445970ec55d5b3cff8caff54c858.json",
+  "createdAt": "2026-08-01T13:02:21.462Z",
+  "envelopeHash": "6228372227f0b499c9750eb2ed8e9cac4f6c62ec2feee706caf92330ff76a0d6"
+}
