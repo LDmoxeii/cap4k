@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: audit-pr-149-application-execution-uow
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 38e3c3ad41123bb7e79296eff97e8df8f6723c08612ed72fb0bfd3f177310b0b
+spec_changes:
+  - capability: application-execution-uow-stabilization
+    operation: replace
+    source: specs/application-execution-uow-stabilization/spec.md
+    base_hash: ae0d054b10ac8c95f4e946d4bd6bce8f95775413a73792806454da7943500228
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/366f56aff9031b0174812941c36c789c508464ad019e24b849dce3db0c282985.json
+verification_evidence: runtime/evidence/verifications/a47cc2be627a8271a23ced6835780442908319476160d4d4262aeebc173530ec.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-01
+run_id: ab6a44b1-27fa-418f-9f40-374e8670344a

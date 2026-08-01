@@ -98,6 +98,19 @@ class EventRuntimeContextTest {
                 scope.integrationAttachments.map { it.resolve() }
             )
         }
+
+        @Test
+        fun `manager reports pending integration attachments in Unit of Work scope`() {
+            EventRuntimeContextManager.beginUnitOfWork()
+            EventRuntimeContext.current().attachIntegration(
+                EventAttachment.eager(TestIntegrationEvent("pending")),
+            )
+
+            assertEquals(1, EventRuntimeContextManager.pendingIntegrationAttachmentCount())
+
+            EventRuntimeContextManager.endUnitOfWork()
+            assertEquals(0, EventRuntimeContextManager.pendingIntegrationAttachmentCount())
+        }
     }
 
     @Nested

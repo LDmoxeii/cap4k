@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "9db0ebd2-5927-4d01-9be3-f0e214110acd",
+  "kind": "archive",
+  "status": "committed",
+  "change": "audit-pr-149-application-execution-uow",
+  "createdAt": "2026-08-01T05:28:26.433Z",
+  "preflightHash": "8416777513b3ea9940bfa6636245246e81e5a1459f145e0176db798979e64e42",
+  "operations": [
+    {
+      "id": "spec-1-application-execution-uow-stabilization",
+      "type": "write",
+      "target": "specs/application-execution-uow-stabilization/spec.md",
+      "staged": "runtime/transactions/9db0ebd2-5927-4d01-9be3-f0e214110acd/staged/specs/application-execution-uow-stabilization/spec.md",
+      "backup": "runtime/transactions/9db0ebd2-5927-4d01-9be3-f0e214110acd/backups/specs/application-execution-uow-stabilization/spec.md",
+      "expectedTargetHash": "ae0d054b10ac8c95f4e946d4bd6bce8f95775413a73792806454da7943500228",
+      "stagedHash": "0dc1fea1fb5431f6529bf4d04d3127c26abe7cc798e032f2a992bd7ad71a653a"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/audit-pr-149-application-execution-uow",
+      "target": "archive/2026-08-01-audit-pr-149-application-execution-uow",
+      "expectedSourceHash": "872dc101f8c6572befebfc2f9bb968d46c531256a11d41f192c02a52d81ff554",
+      "expectedTargetHash": null
+    }
+  ]
+}

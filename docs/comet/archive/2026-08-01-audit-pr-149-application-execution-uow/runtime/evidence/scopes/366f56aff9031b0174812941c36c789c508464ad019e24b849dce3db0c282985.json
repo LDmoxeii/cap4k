@@ -1,0 +1,105 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "38e3c3ad41123bb7e79296eff97e8df8f6723c08612ed72fb0bfd3f177310b0b",
+  "baselineProjectionRef": "runtime/evidence/snapshots/158ec0112f23e4c473fa07caf3ef670a9b8aef1b4633b7312c835d8618c97588.json",
+  "baselineProjectionHash": "158ec0112f23e4c473fa07caf3ef670a9b8aef1b4633b7312c835d8618c97588",
+  "currentProjectionRef": "runtime/evidence/snapshots/bced184f4eb8584513772bfa95be96326ded09901aa628c0a05216411470a7e5.json",
+  "currentProjectionHash": "bced184f4eb8584513772bfa95be96326ded09901aa628c0a05216411470a7e5",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/EventRuntimeContextManager.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/EventRuntimeContextTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "cf5ff1cb3bf3a5ebb052ca1c8b0d731d1dd02b8ab2207b967dbf5abad145d346",
+        "size": 32022
+      },
+      "after": {
+        "hash": "e722cfd6fca5efc42d567caaf78c06bc46a8fcc6f98fee6268e0042f8d7733af",
+        "size": 35695
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/EventRuntimeContextManager.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "69e61a3f06bb09b50e68a7784babbe44c6f3d84ffe29322932abfaa2b6c1b5c8",
+        "size": 642
+      },
+      "after": {
+        "hash": "6c0947b9618c521a07aa80b0d63f1d6aa82af893039cb0682faab63652321d04",
+        "size": 798
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/EventRuntimeContextManager.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/EventRuntimeContextTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "f3773772e0f7110ba82b229aec67ac58c3370667f1b8265f3579fc2318042dc7",
+        "size": 12696
+      },
+      "after": {
+        "hash": "c004197e9ae1cea52384c38c46a7f67f71b4aa6b50f31f97a779223ef5ea3242",
+        "size": 13247
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/EventRuntimeContextTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b04869d99ace02581ab5bdf0be519489b4cb22f45c2f2531f4d29ed8ac94a34f",
+        "size": 54787
+      },
+      "after": {
+        "hash": "402be195d127e6d3dbc0a538257a2bcc5cdd8cecefe4f9b1cb9275fa2cdc92f1",
+        "size": 56564
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaUnitOfWork.kt",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "366f56aff9031b0174812941c36c789c508464ad019e24b849dce3db0c282985"
+}

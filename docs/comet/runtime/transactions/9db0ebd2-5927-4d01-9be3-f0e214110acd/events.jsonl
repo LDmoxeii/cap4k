@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-01T05:28:28.899Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-01T05:28:31.028Z","type":"operation-started","operationId":"spec-1-application-execution-uow-stabilization"}
+{"sequence":3,"timestamp":"2026-08-01T05:28:31.254Z","type":"operation-completed","operationId":"spec-1-application-execution-uow-stabilization"}
+{"sequence":4,"timestamp":"2026-08-01T05:28:31.277Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-01T05:28:31.572Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-01T05:28:31.795Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-01T05:28:31.866Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-01T05:28:31.955Z","type":"commit"}

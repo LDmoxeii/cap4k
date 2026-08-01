@@ -6,6 +6,7 @@ import com.only4.cap4k.ddd.application.JpaPersistenceEnricher
 import com.only4.cap4k.ddd.application.JpaPersistenceEnrichmentContext
 import com.only4.cap4k.ddd.application.JpaEntityChange
 import com.only4.cap4k.ddd.application.JpaEntityChangeType
+import com.only4.cap4k.ddd.application.JpaQueryExecution
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
@@ -30,6 +31,7 @@ import com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority
 import com.only4.cap4k.ddd.core.domain.managed.PersistenceParticipation
 import com.only4.cap4k.ddd.core.domain.managed.StandardManagedEntityInitializer
 import jakarta.persistence.EntityManager
+import org.hibernate.Hibernate
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -68,6 +70,9 @@ class StrongIdUowRuntimeTest {
 
     @Autowired
     lateinit var unitOfWork: JpaUnitOfWork
+
+    @Autowired
+    lateinit var queryExecution: JpaQueryExecution
 
     @Autowired
     lateinit var admissionCoordinator: ManagedEntityAdmissionCoordinator
@@ -224,6 +229,97 @@ class StrongIdUowRuntimeTest {
         assertTrue(
             repository.findById(content.id).orElseThrow().title
                 .startsWith("changed-in-before-commit|audit:"),
+        )
+    }
+
+    @Test
+    fun `before completion mutation after stable is rejected and rolled back`() {
+        val content = StrongContent(
+            id = StrongContentId.parse("019c0000-0000-7000-8000-000000000024"),
+            title = "before-completion-original",
+            authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000025"),
+            mediaProcessingTaskId = null,
+        )
+        repository.saveAndFlush(content)
+        entityManager.clear()
+
+        val failure = assertThrows(RuntimeException::class.java) {
+            unitOfWork.execute {
+                val loaded = repository.findById(content.id).orElseThrow()
+                unitOfWork.observeRepositoryLoad(loaded)
+                TransactionSynchronizationManager.registerSynchronization(
+                    object : TransactionSynchronization {
+                        override fun beforeCompletion() {
+                            loaded.rename("changed-in-before-completion")
+                        }
+                    },
+                )
+            }
+        }
+
+        assertTrue(
+            generateSequence(failure as Throwable?) { it.cause }
+                .mapNotNull(Throwable::message)
+                .any { it.contains("Late persistence mutation after UnitOfWork stabilization") },
+        )
+        entityManager.clear()
+        assertEquals(
+            "before-completion-original",
+            repository.findById(content.id).orElseThrow().title,
+        )
+    }
+
+    @Test
+    fun `before completion Domain Event after stable is rejected`() {
+        val content = StrongContent.unassigned("late-domain-event")
+
+        val failure = assertThrows(RuntimeException::class.java) {
+            unitOfWork.execute {
+                TransactionSynchronizationManager.registerSynchronization(
+                    object : TransactionSynchronization {
+                        override fun beforeCompletion() {
+                            domainEvents.attachFor(content)
+                        }
+                    },
+                )
+            }
+        }
+
+        assertTrue(
+            generateSequence(failure as Throwable?) { it.cause }
+                .mapNotNull(Throwable::message)
+                .any {
+                    it.contains("Late persistence mutation after UnitOfWork stabilization") &&
+                        it.contains("pendingDomainEvents=1")
+                },
+        )
+    }
+
+    @Test
+    fun `query transaction supports lazy navigation and discards accidental mutation`() {
+        val content = StrongContent.unassigned("query-read-only").also {
+            it.items += StrongContentItem.unassigned("query-lazy-child")
+        }
+        unitOfWork.execute {
+            admitGraph(content)
+            unitOfWork.registerNew(content)
+        }
+        entityManager.clear()
+
+        val labels = queryExecution.execute {
+            assertTrue(TransactionSynchronizationManager.isActualTransactionActive())
+            val loaded = repository.findById(content.id).orElseThrow()
+            assertFalse(Hibernate.isInitialized(loaded.items))
+            loaded.rename("query-accidental-mutation")
+            loaded.items.map { it.label }
+        }
+
+        assertEquals(listOf("query-lazy-child"), labels)
+        assertFalse(queryExecution.active)
+        entityManager.clear()
+        assertEquals(
+            "query-read-only",
+            repository.findById(content.id).orElseThrow().title,
         )
     }
 
@@ -599,6 +695,9 @@ class StrongIdUowRuntimeTest {
             managedEntityAdmissionCoordinator = managedEntityAdmissionCoordinator,
             persistenceEnrichers = persistenceEnrichers,
         )
+
+        @Bean
+        fun jpaQueryExecution(): JpaQueryExecution = JpaQueryExecution()
 
         @Bean
         fun auditEnricher(): RecordingJpaAuditEnricher = RecordingJpaAuditEnricher()
