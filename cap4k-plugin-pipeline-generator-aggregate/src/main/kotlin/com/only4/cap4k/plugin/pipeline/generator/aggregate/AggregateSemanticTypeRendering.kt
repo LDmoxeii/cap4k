@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
@@ -53,6 +54,7 @@ internal class AggregateSemanticTypeRenderer(
 
             is SemanticNamedTypeRef -> renderNamed(type.symbol)
 
+            is SemanticArrayTypeRef -> renderContainer("Array", listOf(type.elementType))
             is SemanticListTypeRef -> renderContainer("List", listOf(type.elementType))
             is SemanticSetTypeRef -> renderContainer("Set", listOf(type.elementType))
             is SemanticMapTypeRef -> renderContainer("Map", listOf(type.keyType, type.valueType))
@@ -95,6 +97,7 @@ internal class AggregateSemanticTypeRenderer(
 internal fun SemanticTypeRef.namedSymbols(): List<CanonicalTypeIdentity> = when (this) {
     is SemanticBuiltinTypeRef -> emptyList()
     is SemanticNamedTypeRef -> listOf(symbol)
+    is SemanticArrayTypeRef -> elementType.namedSymbols()
     is SemanticListTypeRef -> elementType.namedSymbols()
     is SemanticSetTypeRef -> elementType.namedSymbols()
     is SemanticMapTypeRef -> keyType.namedSymbols() + valueType.namedSymbols()

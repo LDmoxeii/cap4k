@@ -2830,10 +2830,11 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventContent.contains("* order * / \"created\" \\event ${'$'}status"))
         assertFalse(eventContent.contains("* order */ \"created\" \\event ${'$'}status"))
         assertFalse(eventContent.contains("&quot;"))
-        assertTrue(eventContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
+        assertFalse(eventContent.contains("import com.acme.demo.domain.aggregates.order.Order"))
         assertTrue(eventContent.contains("import java.util.UUID"))
         assertTrue(eventContent.contains("class OrderCreatedDomainEvent("))
-        assertTrue(eventContent.contains("val entity: Order"))
+        assertTrue(eventContent.contains("val reason: String"))
+        assertFalse(eventContent.contains("val entity:"))
         assertTrue(eventContent.contains("data class Snapshot("))
         assertTrue(eventContent.contains("val traceId: UUID"))
         assertTrue(handlerContent.contains("@Service"))
@@ -3189,8 +3190,10 @@ class PipelinePluginFunctionalTest {
 
         val domainEventContent = domainEventFile.readText()
         assertTrue(domainEventContent.contains("package com.acme.demo.domain.aggregates.user_message.events"))
-        assertTrue(domainEventContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessage"))
         assertTrue(domainEventContent.contains("class UserMessageCreatedDomainEvent("))
+        assertTrue(domainEventContent.contains("val reason: String"))
+        assertFalse(domainEventContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessage"))
+        assertFalse(domainEventContent.contains("val entity:"))
         assertFalse(
             projectDir.resolve(
                 "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/message/events/UserMessageCreatedDomainEvent.kt"

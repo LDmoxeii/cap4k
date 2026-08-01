@@ -28,6 +28,8 @@ Use `../../shared/references/tactical-affordance-map.md` as the carrier authorit
 - Use Integration Event for a stable fact crossing service, team, bounded-context, callback, or messaging boundaries.
 - Do not model external callbacks as Domain Events.
 - Split events only when the completed business facts differ, not because several consumers exist.
+- Record the Domain Event's owner Aggregate separately from its payload facts. Ownership never means carrying the Aggregate or one of its Entities in the event.
+- Define every payload fact explicitly. Prefer Strong IDs, Value Objects, enums, scalars, timestamps, and purpose-built immutable snapshots; reject any resolved field graph that contains a cap4k-known Aggregate or Entity.
 
 ## Subscriber/Orchestration/Scheduled Reaction Decision
 

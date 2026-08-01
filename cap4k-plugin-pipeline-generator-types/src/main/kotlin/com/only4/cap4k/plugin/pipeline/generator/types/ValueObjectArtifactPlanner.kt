@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.JsonValuePersistenceProjection
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticMapTypeRef
@@ -246,6 +247,13 @@ private object ValueObjectRenderModelFactory {
                     else -> RenderedSemanticType(simpleName, setOf(fqn))
                 }
             }
+            is SemanticArrayTypeRef -> renderContainer(
+                "Array",
+                listOf(type.elementType),
+                ownerPackageName,
+                localNestedTypeFqns,
+                collidingNamedTypeFqns,
+            )
             is SemanticListTypeRef -> renderContainer(
                 "List",
                 listOf(type.elementType),
@@ -295,6 +303,7 @@ private object ValueObjectRenderModelFactory {
     private fun collectNamedTypeFqns(type: SemanticTypeRef): List<String> = when (type) {
         is SemanticBuiltinTypeRef -> emptyList()
         is SemanticNamedTypeRef -> listOf(type.symbol.fqn)
+        is SemanticArrayTypeRef -> collectNamedTypeFqns(type.elementType)
         is SemanticListTypeRef -> collectNamedTypeFqns(type.elementType)
         is SemanticSetTypeRef -> collectNamedTypeFqns(type.elementType)
         is SemanticMapTypeRef -> collectNamedTypeFqns(type.keyType) + collectNamedTypeFqns(type.valueType)

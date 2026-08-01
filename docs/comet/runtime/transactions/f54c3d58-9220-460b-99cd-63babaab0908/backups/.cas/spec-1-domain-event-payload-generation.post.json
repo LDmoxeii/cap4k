@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-domain-event-payload-generation",
+  "role": "post",
+  "hash": "72816f15f3061e248d6805013c4caa976204e3278731c3f234a0f94581be2d18",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1407374889062935,
+    "birthtimeMs": 1785589373386.7935
+  }
+}

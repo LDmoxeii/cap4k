@@ -44,16 +44,20 @@ Edit files registered through `sources.designJson.files`, commonly `design/desig
 - `integration_event` requires `eventName`.
 - `eventName` is allowed only on `domain_event` and `integration_event`.
 - `persist` is allowed only on `domain_event`.
-- Field `type` values use Kotlin-style type expressions and compile into the canonical semantic type tree. Supported forms are builtin/named types, `List<T>`, `Set<T>`, `Map<K, V>`, and recursive `?`. Do not use `self`.
+- `domain_event.fields` is the complete generated event payload. Omitted or empty `fields` generates a marker event with no payload values.
+- `domain_event.aggregates` must contain exactly one owner aggregate and records ownership and placement only. It never contributes an Aggregate instance, Entity instance, Strong ID, snapshot, or any other implicit payload field.
+- Every Domain Event payload fact must be declared explicitly in `fields`. Use scalars, Strong IDs, Value Objects, enums, or purpose-built immutable snapshots.
+- The resolved semantic type graph of a Domain Event field must not contain a cap4k-known Aggregate or Entity, whether directly or inside a supported nested collection, `Array<T>` element, or named value type. This rule is identical for `persist = true` and `persist = false`.
+- Field `type` values use Kotlin-style type expressions and compile into the canonical semantic type tree. Supported forms are builtin/named types, `List<T>`, `Set<T>`, `Map<K, V>`, `Array<T>`, and recursive `?`. Do not use `self`.
 - Do not declare a separate `nullable` property. Write `Money?` or `List<Money?>?` in `type`.
-- Mutable collections, `Collection`, `Iterable`, `Sequence`, arrays, tuples, and arbitrary generic types are unsupported.
+- Mutable collections, `Collection`, `Iterable`, `Sequence`, primitive array aliases such as `IntArray`/`LongArray`, tuples, and arbitrary generic types are unsupported.
 - `PageData<Item>` is a query/API result-only envelope, not a general generic type.
 - Explicit `defaultValue` must be accepted by the semantic default compiler; nullability alone does not synthesize a default.
-- In `domain_event.fields`, field name `entity` is reserved.
+- Field names have no special payload-safety behavior; validate the resolved semantic type graph instead.
 
 ## Field Set Boundary
 
-Design JSON input uses only the supported public fields listed above. Keep ownership, request shape, result shape, event naming, persistence intent, and artifact selection on those fields.
+Design JSON input uses only the supported public fields listed above. Keep ownership, request shape, result shape, event naming, persistence intent, and artifact selection on those fields. For Domain Events, keep aggregate ownership in `aggregates` and historical fact values in explicit `fields`; do not merge the two concerns.
 
 ## Analysis Evidence Boundary
 

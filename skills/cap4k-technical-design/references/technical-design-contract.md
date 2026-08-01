@@ -16,7 +16,7 @@ Record each Aggregate candidate, identity concept, owned Entities, invariants, a
 
 ## cap4kCarriers
 
-List Command, Query, Domain Event, Integration Event, Subscriber, Scheduled Reaction, Domain Service, Value Object, Strong ID, External Capability, Open Host Service, and any provider-owned orchestration decisions that apply.
+List Command, Query, Domain Event, Integration Event, Subscriber, Scheduled Reaction, Domain Service, Value Object, Strong ID, External Capability, Open Host Service, and any provider-owned orchestration decisions that apply. For each Domain Event, record the owner Aggregate separately from its explicit payload facts; payload facts may use Strong IDs, Value Objects, enums, scalars, or immutable snapshots but must not resolve to an Aggregate or Entity.
 
 ## cleanArchitecturePlacement
 

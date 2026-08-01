@@ -8457,8 +8457,6 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" event",
                         "descriptionCommentText" to "order * / \"created\" event",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
-                        "aggregateName" to "Order",
-                        "aggregateType" to "com.acme.demo.domain.order.Order",
                         "persist" to true,
                         "imports" to listOf("java.util.UUID"),
                         "fields" to listOf(
@@ -8501,9 +8499,9 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("description = "))
         assertFalse(content.contains("&quot;"))
         assertTrue(content.contains("class OrderCreatedDomainEvent("))
-        assertTrue(content.contains("val entity: Order"))
-        assertTrue(content.indexOf("val entity: Order") < content.indexOf("val reason: String"))
-        assertTrue(content.contains("import com.acme.demo.domain.order.Order"))
+        assertTrue(content.contains("val reason: String"))
+        assertFalse(content.contains("val entity:"))
+        assertFalse(content.contains("import com.acme.demo.domain.order.Order"))
         assertTrue(content.contains("data class Snapshot("))
         assertTrue(content.contains("val traceId: UUID"))
         assertTrue(
@@ -8513,9 +8511,31 @@ class PebbleArtifactRendererTest {
         val importBlock = normalizedContent.substringAfter("package com.acme.demo.domain.order.events\n").substringBefore("/**")
         assertFalse(importBlock.contains("\n\nimport"), "domain event imports should not contain blank lines between imports")
         assertFalse(
-            normalizedContent.contains("val entity: Order,\n\n    val reason: String"),
-            "domain event constructor fields should not contain blank lines between parameters"
+            normalizedContent.contains("class OrderCreatedDomainEvent(\n\n    val reason: String"),
+            "domain event constructor fields should not start with a blank line"
         )
+    }
+
+    @Test
+    fun `domain event preset renders an empty explicit payload as a marker event`() {
+        val content = renderTemplate(
+            templateId = "design/domain_event.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderReconciledDomainEvent.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.order.events",
+                "typeName" to "OrderReconciledDomainEvent",
+                "descriptionCommentText" to "order reconciled event",
+                "persist" to false,
+                "imports" to emptyList<String>(),
+                "fields" to emptyList<Map<String, Any?>>(),
+                "nestedTypes" to emptyList<Map<String, Any?>>(),
+            ),
+        )
+
+        assertTrue(content.contains("class OrderReconciledDomainEvent {"))
+        assertFalse(content.contains("class OrderReconciledDomainEvent("))
+        assertFalse(content.contains("val entity:"))
+        assertFalse(content.contains("import com.acme.demo.domain.order.Order"))
     }
 
     @Test
@@ -8613,8 +8633,6 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" \\event ${'$'}status",
                         "descriptionCommentText" to "order * / \"created\" \\event ${'$'}status",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" \\\\event \\${'$'}status\"",
-                        "aggregateName" to "Order",
-                        "aggregateType" to "com.acme.demo.domain.order.Order",
                         "persist" to true,
                         "imports" to listOf("java.util.UUID"),
                         "fields" to listOf(
@@ -9015,8 +9033,6 @@ class PebbleArtifactRendererTest {
                         "packageName" to "com.acme.demo.domain.order.events",
                         "typeName" to "OrderCreatedDomainEvent",
                         "description" to "order created event",
-                        "aggregateName" to "Order",
-                        "aggregateType" to "com.acme.demo.domain.order.Order",
                         "persist" to true,
                         "imports" to emptyList<String>(),
                         "fields" to emptyList<Map<String, Any?>>(),

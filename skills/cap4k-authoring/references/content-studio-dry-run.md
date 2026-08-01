@@ -29,6 +29,7 @@ Flow: draft content -> submit review -> approve content -> media processing exte
 - Commands: `DraftContent`, `SubmitContentReview`, `ApproveContent`, `RecordMediaProcessingFact`, `MarkMediaReady`, `MarkPublicationReady`, and `PublishContent`.
 - Queries: `ListReviewQueue`, `GetMediaReadiness`, `ListPublicationReadyContent`, and `GetPublishedContentHistory`.
 - Domain Events: `ContentDrafted`, `ContentReviewSubmitted`, `ContentApproved`, `MediaReadyRecorded`, `PublicationReadyMarked`, and `ContentPublished`.
+- Domain Event payloads: each event declares its historical facts explicitly, such as `contentId: ContentId`, status/value changes, and occurrence time. `ContentItem` is ownership metadata and is never embedded in the payload.
 - Inbound external fact: `MediaProcessingCompleted` is interpreted by an application subscriber and delegated to the appropriate command path.
 - Outbound Integration Event: `ContentPublishedNotice` uses published language for downstream readers.
 - Subscriber or scheduled reaction: a publication readiness reaction checks approval and media readiness before sending the Command that marks publication ready.
@@ -53,6 +54,7 @@ Flow: draft content -> submit review -> approve content -> media processing exte
 - DB/schema or design JSON represents `ContentItem`, lifecycle states, review state, media readiness fields, publication state, and read projections.
 - Type manifests define strong IDs, value objects, and status enums used by the lifecycle.
 - Input options identify generated skeleton families for commands, queries, domain events, integration events, subscribers, projections, and adapter payloads.
+- Each `domain_event` keeps `aggregates: ["ContentItem"]` separate from explicit `fields`; no field resolves to `ContentItem` or an owned Entity.
 - External fact input names must preserve the boundary between media processing observation and internal publication readiness.
 - Missing expected skeleton evidence returns to generator inputs or technical design.
 

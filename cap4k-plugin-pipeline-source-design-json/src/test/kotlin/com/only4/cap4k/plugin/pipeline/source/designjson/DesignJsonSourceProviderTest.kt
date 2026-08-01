@@ -401,8 +401,8 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `rejects domain event field named entity`() {
-        val tempFile = tempDir.resolve("domain-event-reserved-entity.json")
+    fun `allows domain event field named entity because payload safety is type based`() {
+        val tempFile = tempDir.resolve("domain-event-named-entity.json")
         Files.writeString(
             tempFile,
             """
@@ -422,13 +422,14 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
+        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
 
         assertEquals(
-            "domain_event OrderCreated field 'entity' is reserved and derived from aggregates[0].",
-            error.message,
+            listOf(
+                SemanticFieldSnapshot("entity", "Order", sourcePath = "fields.entity"),
+                SemanticFieldSnapshot("reason", "String", sourcePath = "fields.reason"),
+            ),
+            snapshot.entries.single().fields,
         )
     }
 

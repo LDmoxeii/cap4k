@@ -553,7 +553,9 @@ DB/schema DDL 注释采用严格、无别名的 allow-list。当前表注解为 
 - `eventName` 只允许在 `domain_event` 和 `integration_event` 上。
 - `persist` 只允许在 `domain_event` 上。
 - field 的 `type` 必须是显式类型名，不能用 `self`。
-- `domain_event.fields` 中字段名 `entity` 保留。
+- `domain_event.aggregates` 必须且只能声明一个 owner aggregate，只用于归属与放置，不注入 payload。
+- `domain_event.fields` 是完整 payload；字段名没有保留语义，安全性按 resolved type graph 校验。
+- Domain Event 的 resolved field graph 不得直接或嵌套包含 Aggregate/Entity。
 
 无效字段：
 

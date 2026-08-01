@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
@@ -34,6 +35,20 @@ class SemanticValueCompilerTest {
     }
 
     @Test
+    fun `parses generic Kotlin arrays as semantic containers`() {
+        val orderId = identity("com.acme.order", "OrderId", CanonicalTypeKind.STRONG_ID)
+        val type = CanonicalTypeCatalog(listOf(orderId)).resolveExpression(
+            expression = "Array<OrderId?>?",
+            fieldPath = "OrderCreated.orderIds",
+        )
+
+        val array = type as SemanticArrayTypeRef
+        assertTrue(array.nullable)
+        assertEquals(orderId, (array.elementType as SemanticNamedTypeRef).symbol)
+        assertTrue((array.elementType as SemanticNamedTypeRef).nullable)
+    }
+
+    @Test
     fun `rejects unsupported generic constructors with field evidence`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             SemanticTypeExpressionParser.parse("MutableList<String>", "Order.items")
@@ -48,6 +63,7 @@ class SemanticValueCompilerTest {
         listOf(
             "java.util.List<String>",
             "kotlin.collections.List<String>",
+            "kotlin.Array<String>",
             "com.foo.Map<String, Int>",
         ).forEach { expression ->
             val error = assertThrows(IllegalArgumentException::class.java) {
@@ -218,6 +234,14 @@ class SemanticValueCompilerTest {
             SemanticDefaultCompiler.compile(
                 "emptyList()",
                 SemanticListTypeRef(SemanticBuiltinTypeRef(SemanticBuiltinType.STRING)),
+                "Payload.items",
+            )?.kotlinExpression,
+        )
+        assertEquals(
+            "emptyArray()",
+            SemanticDefaultCompiler.compile(
+                "emptyArray()",
+                SemanticArrayTypeRef(SemanticBuiltinTypeRef(SemanticBuiltinType.STRING)),
                 "Payload.items",
             )?.kotlinExpression,
         )

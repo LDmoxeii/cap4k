@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticDefaultExpression
@@ -77,6 +78,7 @@ object SemanticTypeExpressionParser {
             return when (identifier) {
                 "List" -> ParsedSemanticType.ListType(requireArity(identifier, arguments, 1).single(), nullable)
                 "Set" -> ParsedSemanticType.SetType(requireArity(identifier, arguments, 1).single(), nullable)
+                "Array" -> ParsedSemanticType.ArrayType(requireArity(identifier, arguments, 1).single(), nullable)
                 "Map" -> {
                     val checked = requireArity(identifier, arguments, 2)
                     ParsedSemanticType.MapType(checked[0], checked[1], nullable)
@@ -154,9 +156,8 @@ object SemanticTypeExpressionParser {
     }
 
     private val identifierPattern = Regex("[A-Za-z_][A-Za-z0-9_]*")
-    private val canonicalConstructors = setOf("List", "Map", "Set")
+    private val canonicalConstructors = setOf("Array", "List", "Map", "Set")
     private val unsupportedConstructors = setOf(
-        "Array",
         "Collection",
         "Iterable",
         "MutableCollection",
@@ -184,6 +185,11 @@ sealed interface ParsedSemanticType {
     ) : ParsedSemanticType
 
     data class SetType(
+        val elementType: ParsedSemanticType,
+        override val nullable: Boolean,
+    ) : ParsedSemanticType
+
+    data class ArrayType(
         val elementType: ParsedSemanticType,
         override val nullable: Boolean,
     ) : ParsedSemanticType
@@ -251,6 +257,10 @@ class CanonicalTypeCatalog(
             nullable = parsed.nullable,
         )
         is ParsedSemanticType.SetType -> SemanticSetTypeRef(
+            elementType = compile(parsed.elementType, fieldPath, originalExpression, ownerPackageName, aggregateContext),
+            nullable = parsed.nullable,
+        )
+        is ParsedSemanticType.ArrayType -> SemanticArrayTypeRef(
             elementType = compile(parsed.elementType, fieldPath, originalExpression, ownerPackageName, aggregateContext),
             nullable = parsed.nullable,
         )
@@ -341,6 +351,7 @@ class CanonicalTypeCatalog(
         is ParsedSemanticType.Named -> listOf(token)
         is ParsedSemanticType.ListType -> elementType.namedTokens()
         is ParsedSemanticType.SetType -> elementType.namedTokens()
+        is ParsedSemanticType.ArrayType -> elementType.namedTokens()
         is ParsedSemanticType.MapType -> keyType.namedTokens() + valueType.namedTokens()
     }
 }
@@ -378,6 +389,7 @@ object SemanticDefaultCompiler {
             )
             type is SemanticListTypeRef -> requireEmptyCollection(value, "emptyList()", fieldPath)
             type is SemanticSetTypeRef -> requireEmptyCollection(value, "emptySet()", fieldPath)
+            type is SemanticArrayTypeRef -> requireEmptyCollection(value, "emptyArray()", fieldPath)
             type is SemanticMapTypeRef -> requireEmptyCollection(value, "emptyMap()", fieldPath)
             type is SemanticNamedTypeRef -> compileNamedConstant(value, type.symbol, fieldPath)
             else -> error("unsupported semantic default type: $type")

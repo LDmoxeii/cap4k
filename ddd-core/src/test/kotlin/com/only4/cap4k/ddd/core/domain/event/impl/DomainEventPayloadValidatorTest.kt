@@ -34,6 +34,33 @@ class DomainEventPayloadValidatorTest {
         assertTrue(error.message.orEmpty().contains(OrderEntity::class.java.name))
     }
 
+    @Test
+    fun `nested persistent entity references remain rejected`() {
+        val error = assertThrows<DomainException> {
+            DomainEventPayloadValidator.validate(NestedInvalidEvent(OrderSnapshot(OrderEntity(42))))
+        }
+
+        assertTrue(error.message.orEmpty().contains("payload.snapshot.order"))
+        assertTrue(error.message.orEmpty().contains(OrderEntity::class.java.name))
+    }
+
+    @Test
+    fun `collection map and array persistent entity references remain rejected`() {
+        val payloads = listOf(
+            CollectionInvalidEvent(listOf(OrderEntity(42))) to "payload.orders[0]",
+            MapInvalidEvent(mapOf("order" to OrderEntity(42))) to "payload.orders.values[0]",
+            ArrayInvalidEvent(arrayOf(OrderEntity(42))) to "payload.orders[0]",
+        )
+
+        payloads.forEach { (payload, expectedPath) ->
+            val error = assertThrows<DomainException> {
+                DomainEventPayloadValidator.validate(payload)
+            }
+            assertTrue(error.message.orEmpty().contains(expectedPath))
+            assertTrue(error.message.orEmpty().contains(OrderEntity::class.java.name))
+        }
+    }
+
     data class Price(val amount: BigDecimal, val currency: String)
 
     data class PriceChanged(
@@ -44,6 +71,16 @@ class DomainEventPayloadValidatorTest {
     )
 
     data class InvalidEvent(val order: OrderEntity)
+
+    data class NestedInvalidEvent(val snapshot: OrderSnapshot)
+
+    data class OrderSnapshot(val order: OrderEntity)
+
+    data class CollectionInvalidEvent(val orders: List<OrderEntity>)
+
+    data class MapInvalidEvent(val orders: Map<String, OrderEntity>)
+
+    data class ArrayInvalidEvent(val orders: Array<OrderEntity>)
 
     @Entity
     class OrderEntity(

@@ -43,6 +43,8 @@ schema 可以帮助 generator 理解字段、类型和 persistence mapping，但
 - `domain_event`：例如 `ContentPublicationReady`、`MediaProcessingSucceeded`。
 - `integration_event`：例如 inbound `MediaProcessingCallback` 和 outbound `ContentPublished`。
 
+对 `domain_event`，`aggregates` 只记录事件归属，`fields` 才是生成 payload 的完整来源。每个历史事实都应显式投影为标量、Strong ID、Value Object、enum 或不可变 snapshot；不得把 Aggregate/Entity 的 resolved type graph 当成事件数据。`persist` 是否启用不会改变这条边界。
+
 这些 entries 说明“有哪些结构锚点应该存在”。它们不说明 `Content` 何时可以发布，也不为跨时间编排定义恢复或补偿；这些属于 handwritten logic、额外 provider 和 focused evidence。
 
 ## Type Manifests
