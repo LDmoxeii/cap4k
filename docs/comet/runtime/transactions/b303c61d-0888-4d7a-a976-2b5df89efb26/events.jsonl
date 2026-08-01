@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-07-31T18:48:35.137Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-07-31T18:48:38.795Z","type":"operation-started","operationId":"spec-1-managed-field-policy-and-pipeline-extension"}
+{"sequence":3,"timestamp":"2026-07-31T18:48:39.103Z","type":"operation-completed","operationId":"spec-1-managed-field-policy-and-pipeline-extension"}
+{"sequence":4,"timestamp":"2026-07-31T18:48:39.146Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-07-31T18:48:40.092Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-07-31T18:48:40.676Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-07-31T18:48:40.821Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-07-31T18:48:40.930Z","type":"commit"}

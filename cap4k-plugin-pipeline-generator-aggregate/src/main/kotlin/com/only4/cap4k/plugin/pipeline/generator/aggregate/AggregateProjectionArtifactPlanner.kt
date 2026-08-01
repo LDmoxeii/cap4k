@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 
 class AggregateProjectionArtifactPlanner : GeneratorProvider {
@@ -21,7 +22,7 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
-            val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
+            val resolvedPolicy = model.managedFieldPolicies.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val relationPlan = AggregateRelationPlanning.planFor(
@@ -36,10 +37,8 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                 val control = controlsByField[field.name]
                 val fieldType = enumPlanning.resolveFieldType(entity.packageName, field)
                 val renderedType = aggregateRenderedTypeWithModelImports(model, fieldType)
-                val isVersionField = when {
-                    resolvedPolicy?.version?.enabled == true -> resolvedPolicy.version.fieldName == field.name
-                    else -> control?.version == true
-                }
+                val isVersionField = resolvedPolicy?.fieldByRole(ManagedFieldRole.VERSION)?.fieldName == field.name ||
+                    control?.version == true
                 mapOf(
                     "fieldName" to field.name,
                     "fieldType" to fieldType,

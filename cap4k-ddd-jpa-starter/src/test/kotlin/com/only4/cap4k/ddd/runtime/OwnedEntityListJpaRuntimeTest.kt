@@ -1,7 +1,20 @@
 package com.only4.cap4k.ddd.runtime
 
 import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinatorSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedExplicitValuePolicy
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldBinding
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldCatalog
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldLifecycle
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRole
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRuntimeSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority
+import com.only4.cap4k.ddd.core.domain.managed.PersistenceParticipation
+import com.only4.cap4k.ddd.core.domain.managed.StandardManagedEntityInitializer
 import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListFile
 import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListItem
 import com.only4.cap4k.ddd.runtime.ownedentitylistfixture.OwnedEntityListRoot
@@ -12,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -38,6 +52,11 @@ class OwnedEntityListJpaRuntimeTest {
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
+
+    @AfterEach
+    fun resetAdmissionCoordinator() {
+        ManagedEntityAdmissionCoordinatorSupport.reset()
+    }
 
     @Test
     fun `hibernate persists reloads and orphan removes private owned facade backing collections`() {
@@ -69,8 +88,8 @@ class OwnedEntityListJpaRuntimeTest {
 
     @Test
     fun `owned relation facades assign generated ids before mutation`() {
-        val accessor = TimingChildGeneratedOwnIdAccessor()
-        val parent = TimingParent(accessor)
+        val admission = TimingChildAdmissionFixture().apply { configure() }
+        val parent = TimingParent()
 
         val child = parent.addChild("line")
         assertTrue(child.hasAssignedId())
@@ -78,17 +97,18 @@ class OwnedEntityListJpaRuntimeTest {
         val replacement = TimingChild.unassigned("replacement")
         parent.primaryChild = replacement
         assertTrue(replacement.hasAssignedId())
+        assertEquals(2, admission.nextCalls)
     }
 
     @Test
     fun `failed generated id allocation preserves owned relation backing values`() {
-        val accessor = TimingChildGeneratedOwnIdAccessor()
-        val parent = TimingParent(accessor)
+        val admission = TimingChildAdmissionFixture().apply { configure() }
+        val parent = TimingParent()
         val oldChild = TimingChild.preassigned("old-line", "line-existing")
         val oldPrimaryChild = TimingChild.preassigned("old-primary", "primary-existing")
         parent.children.add(oldChild)
         parent.primaryChild = oldPrimaryChild
-        accessor.failAllocation = true
+        admission.failAllocation = true
 
         assertThrows(IllegalStateException::class.java) {
             parent.children.add(TimingChild.unassigned("failed-line"))
@@ -104,8 +124,8 @@ class OwnedEntityListJpaRuntimeTest {
 
     @Test
     fun `owned relation facades preserve preassigned ids`() {
-        val accessor = TimingChildGeneratedOwnIdAccessor()
-        val parent = TimingParent(accessor)
+        val admission = TimingChildAdmissionFixture().apply { configure() }
+        val parent = TimingParent()
         val child = TimingChild.preassigned("line", "line-existing")
         val primaryChild = TimingChild.preassigned("primary", "primary-existing")
 
@@ -114,7 +134,7 @@ class OwnedEntityListJpaRuntimeTest {
 
         assertEquals("line-existing", child.assignedId())
         assertEquals("primary-existing", primaryChild.assignedId())
-        assertEquals(0, accessor.nextCalls)
+        assertEquals(0, admission.nextCalls)
     }
 
     private fun rowCount(tableName: String): Long =
@@ -126,25 +146,17 @@ class OwnedEntityListJpaRuntimeTest {
     class TestApplication
 }
 
-private class TimingParent(
-    private val accessor: TimingChildGeneratedOwnIdAccessor,
-) {
+private class TimingParent {
     private val childrenBacking = mutableListOf<TimingChild>()
     private val primaryBacking = mutableListOf<TimingChild>()
 
     val children: OwnedEntityList<TimingChild>
-        get() = OwnedEntityList.of(childrenBacking, TimingChild::class, "TimingParent.children") { child ->
-            accessor.assignIfMissing(child)
-        }
+        get() = OwnedEntityList.of(childrenBacking, TimingChild::class, "TimingParent.children")
 
     var primaryChild: TimingChild?
-        get() = OwnedEntityList.of(primaryBacking, TimingChild::class, "TimingParent.primaryChild") { child ->
-            accessor.assignIfMissing(child)
-        }.singleOrNull()
+        get() = OwnedEntityList.of(primaryBacking, TimingChild::class, "TimingParent.primaryChild").singleOrNull()
         set(value) {
-            OwnedEntityList.of(primaryBacking, TimingChild::class, "TimingParent.primaryChild") { child ->
-                accessor.assignIfMissing(child)
-            }.replace(value)
+            OwnedEntityList.of(primaryBacking, TimingChild::class, "TimingParent.primaryChild").replace(value)
         }
 
     fun addChild(name: String): TimingChild =
@@ -187,20 +199,52 @@ private class TimingChild private constructor(
     }
 }
 
-private class TimingChildGeneratedOwnIdAccessor : GeneratedOwnIdAccessor<TimingChild, String> {
-    override val entityType = TimingChild::class
-    override val label: String = "TimingChild.id"
+private class TimingChildAdmissionFixture {
     var failAllocation: Boolean = false
     var nextCalls: Int = 0
         private set
 
-    override fun current(entity: TimingChild): String? = entity.currentId()
-
-    override fun assign(entity: TimingChild, id: String) = entity.assignId(id)
-
-    override fun next(): String {
-        nextCalls++
-        check(!failAllocation) { "allocation failed" }
-        return "timing-child-$nextCalls"
+    fun configure() {
+        val binding = ManagedFieldBinding(
+            entityType = TimingChild::class,
+            fieldName = "id",
+            persistencePropertyName = "id",
+            columnName = "id",
+            targetType = String::class,
+            nullable = false,
+            policyKey = "identifier.uuid7",
+            role = ManagedFieldRole.IDENTIFIER,
+            explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+            lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+            handlerQualifier = "identifier.uuid7",
+            handlerSlot = null,
+            semanticValueType = String::class,
+            valueAdapterQualifier = null,
+            persistence = PersistenceParticipation(
+                insert = ManagedValueAuthority.FRAMEWORK,
+                update = ManagedValueAuthority.NONE,
+            ),
+            runtimeSupport = ManagedFieldRuntimeSupport.ApplicationIdentifier(
+                isAbsent = { it == null },
+                allocateTarget = {
+                    nextCalls++
+                    check(!failAllocation) { "allocation failed" }
+                    "timing-child-$nextCalls"
+                },
+                validateTarget = { value -> require((value as String).isNotBlank()) },
+            ),
+        )
+        val registry = DefaultManagedFieldRegistry(
+            catalogs = listOf(object : ManagedFieldCatalog {
+                override val bindings = listOf(binding)
+            }),
+            initializers = listOf(StandardManagedEntityInitializer()),
+        )
+        ManagedEntityAdmissionCoordinatorSupport.configure(
+            DefaultManagedEntityAdmissionCoordinator(
+                registry = registry,
+                executionContextAccessor = ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
+            )
+        )
     }
 }

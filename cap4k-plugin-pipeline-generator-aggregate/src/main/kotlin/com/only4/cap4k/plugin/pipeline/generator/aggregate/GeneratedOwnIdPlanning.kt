@@ -11,10 +11,8 @@ internal data class GeneratedOwnIdDescriptor(
     val idTypeFqn: String,
     val strategy: String,
     val backingType: String,
-    val accessorTypeName: String,
 ) {
     val entityFqn: String = "$entityPackageName.$entityName"
-    val accessorFqn: String = "$entityPackageName.$accessorTypeName"
 }
 
 internal object GeneratedOwnIdPlanning {
@@ -56,7 +54,6 @@ internal object GeneratedOwnIdPlanning {
                     idTypeFqn = "${strongId.packageName}.${strongId.typeName}",
                     strategy = requireNotNull(strongId.idStrategy),
                     backingType = strongId.valueType,
-                    accessorTypeName = "${entityName}GeneratedOwnIdAccessor",
                 )
             }
             .sortedBy { it.entityFqn }

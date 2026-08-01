@@ -1,20 +1,16 @@
 package com.acme.demo.domain.aggregates.video_post
 
-import com.acme.demo.domain._share.identity.GeneratedOwnIdCatalogContribution
+import com.acme.demo.domain._share.managed.ManagedFieldCatalogContribution
 import com.acme.demo.domain.aggregates.snowflake_long_record.SnowflakeLongRecord
-import com.acme.demo.domain.aggregates.snowflake_long_record.SnowflakeLongRecordGeneratedOwnIdAccessor
 import com.acme.demo.domain.aggregates.snowflake_long_record.SnowflakeLongRecordId
 import com.acme.demo.domain.aggregates.snowflake_long_record.factory.SnowflakeLongRecordFactory
 import com.acme.demo.domain.aggregates.snowflake_string_record.SnowflakeStringRecord
-import com.acme.demo.domain.aggregates.snowflake_string_record.SnowflakeStringRecordGeneratedOwnIdAccessor
 import com.acme.demo.domain.aggregates.snowflake_string_record.SnowflakeStringRecordId
 import com.acme.demo.domain.aggregates.snowflake_string_record.factory.SnowflakeStringRecordFactory
 import com.acme.demo.domain.aggregates.uuid_native_record.UuidNativeRecord
-import com.acme.demo.domain.aggregates.uuid_native_record.UuidNativeRecordGeneratedOwnIdAccessor
 import com.acme.demo.domain.aggregates.uuid_native_record.UuidNativeRecordId
 import com.acme.demo.domain.aggregates.uuid_native_record.factory.UuidNativeRecordFactory
 import com.acme.demo.domain.aggregates.uuid_string_record.UuidStringRecord
-import com.acme.demo.domain.aggregates.uuid_string_record.UuidStringRecordGeneratedOwnIdAccessor
 import com.acme.demo.domain.aggregates.uuid_string_record.UuidStringRecordId
 import com.acme.demo.domain.aggregates.uuid_string_record.factory.UuidStringRecordFactory
 import com.acme.demo.domain.aggregates.video_post.factory.VideoPostFactory
@@ -31,7 +27,7 @@ object AggregateProviderPersistenceCompileSmoke {
         snowflakeStringRecordFactory: SnowflakeStringRecordFactory,
         uuidStringRecordFactory: UuidStringRecordFactory,
         uuidNativeRecordFactory: UuidNativeRecordFactory,
-        generatedOwnIdCatalogContribution: GeneratedOwnIdCatalogContribution,
+        managedFieldCatalogContribution: ManagedFieldCatalogContribution,
     ): List<Any> {
         val videoPostPayload = VideoPostFactory.Payload(title = "identity")
         val snowflakeLongPayload = SnowflakeLongRecordFactory.Payload(title = "snowflake long")
@@ -60,11 +56,7 @@ object AggregateProviderPersistenceCompileSmoke {
             SnowflakeStringRecordId::class,
             UuidStringRecordId::class,
             UuidNativeRecordId::class,
-            SnowflakeLongRecordGeneratedOwnIdAccessor,
-            SnowflakeStringRecordGeneratedOwnIdAccessor,
-            UuidStringRecordGeneratedOwnIdAccessor,
-            UuidNativeRecordGeneratedOwnIdAccessor,
-            generatedOwnIdCatalogContribution,
+            managedFieldCatalogContribution,
         )
     }
 }

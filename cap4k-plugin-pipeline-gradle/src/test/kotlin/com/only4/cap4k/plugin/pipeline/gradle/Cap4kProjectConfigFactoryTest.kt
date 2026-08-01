@@ -20,9 +20,8 @@ class Cap4kProjectConfigFactoryTest {
 
         assertFalse(extension.sources.db.enabled.get())
         assertEquals("FAIL", extension.generators.aggregate.unsupportedTablePolicy.get())
-        assertEquals("uuid7", extension.generators.aggregate.specialFields.idDefaultStrategy.get())
-        assertEquals("", extension.generators.aggregate.specialFields.deletedDefaultColumn.get())
-        assertEquals("", extension.generators.aggregate.specialFields.versionDefaultColumn.get())
+        assertEquals("identifier.uuid7", extension.managedFields.identifierDefaultPolicy.get())
+        assertTrue(extension.managedFields.columnPolicyDefaults.get().isEmpty())
         assertEquals("ddd-default", extension.templates.preset.get())
         assertEquals("SKIP", extension.templates.conflictPolicy.get())
         assertTrue(extension.templates.templateConflictPolicies.get().isEmpty())
@@ -65,7 +64,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory copies normalized aggregate special field defaults into project config`() {
+    fun `factory copies normalized managed field defaults into project config`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -83,21 +82,23 @@ class Cap4kProjectConfigFactoryTest {
                 password.set("secret")
             }
         }
+        extension.managedFields {
+            identifierDefaultPolicy.set("   ")
+            columnPolicyDefaults.put(" deleted ", " soft-delete ")
+            columnPolicyDefaults.put(" version ", " version ")
+        }
         extension.generators {
             aggregate {
-                specialFields {
-                    idDefaultStrategy.set("   ")
-                    deletedDefaultColumn.set(" deleted ")
-                    versionDefaultColumn.set(" version ")
-                }
             }
         }
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
-        assertEquals("uuid7", config.aggregateSpecialFieldDefaults.idDefaultStrategy)
-        assertEquals("deleted", config.aggregateSpecialFieldDefaults.deletedDefaultColumn)
-        assertEquals("version", config.aggregateSpecialFieldDefaults.versionDefaultColumn)
+        assertEquals("identifier.uuid7", config.managedFields.identifierDefaultPolicy)
+        assertEquals(
+            mapOf("deleted" to "soft-delete", "version" to "version"),
+            config.managedFields.columnPolicyDefaults,
+        )
     }
 
     @Test
@@ -189,7 +190,7 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `addons block maps provider scoped options`() {
+    fun `pipeline extensions block maps contribution scoped options`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
@@ -199,10 +200,12 @@ class Cap4kProjectConfigFactoryTest {
             applicationModulePath.set("demo-application")
             adapterModulePath.set("demo-adapter")
         }
-        extension.addons {
-            provider("only-engine-validator") {
-                option("manifestFile", "validation/validators.json")
-                option("strict", "true")
+        extension.pipelineExtensions {
+            provider("only-engine") {
+                contribution("only-engine-validator") {
+                    option("manifestFile", "validation/validators.json")
+                    option("strict", "true")
+                }
             }
         }
 
@@ -210,7 +213,11 @@ class Cap4kProjectConfigFactoryTest {
 
         assertEquals(
             mapOf("manifestFile" to "validation/validators.json", "strict" to "true"),
-            config.addons.getValue("only-engine-validator").options,
+            config.pipelineExtensions
+                .getValue("only-engine")
+                .contributions
+                .getValue("only-engine-validator")
+                .options,
         )
     }
 
@@ -240,44 +247,43 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
-    fun `factory maps managed default columns from aggregate special fields with trimming and filtering`() {
+    fun `factory maps exact managed column policies with trimming`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
         extension.project {
             basePackage.set("com.acme.demo")
         }
-        extension.generators.aggregate.specialFields.managedDefaultColumns.set(
-            listOf(" created_at ", "", "  ", "updated_at  ")
+        extension.managedFields.columnPolicyDefaults.set(
+            mapOf(
+                " created_at " to " enrichment.audit-time.created-at ",
+                "updated_at  " to "enrichment.audit-time.updated-at  ",
+            )
         )
 
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(
-            listOf("created_at", "updated_at"),
-            config.aggregateSpecialFieldDefaults.managedDefaultColumns,
+            mapOf(
+                "created_at" to "enrichment.audit-time.created-at",
+                "updated_at" to "enrichment.audit-time.updated-at",
+            ),
+            config.managedFields.columnPolicyDefaults,
         )
     }
 
     @Test
-    fun `factory rejects legacy aggregate entity id override dsl`() {
+    fun `managed field policy defaults are a top level capability`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            extension.generators {
-                aggregate {
-                    idPolicy {
-                        aggregate("message.UserMessage", "uuid7")
-                    }
-                }
-            }
-        }
+        val rootMethodNames = extension.javaClass.methods.map { it.name }.toSet()
+        val aggregateMethodNames = extension.generators.aggregate.javaClass.methods.map { it.name }.toSet()
 
-        assertEquals(
-            "generators.aggregate.idPolicy is removed. Use generators.aggregate.specialFields { idDefaultStrategy, deletedDefaultColumn, versionDefaultColumn }.",
-            error.message,
-        )
+        assertTrue("managedFields" in rootMethodNames)
+        assertFalse("managedFields" in aggregateMethodNames)
+        assertFalse("specialFields" in aggregateMethodNames)
+        assertFalse("idPolicy" in aggregateMethodNames)
     }
 
     @Test

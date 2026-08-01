@@ -2,8 +2,6 @@
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
-import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -200,8 +198,8 @@ class DbSchemaSourceProviderTest {
                     create table video_post_item (
                         id bigint primary key comment 'pk',
                         video_post_id bigint not null comment 'owning parent @ParentRef;',
-                        tenant_id bigint not null comment 'tenant scope @Managed=scope;',
-                        deleted int not null comment 'soft marker @Managed=deleted;'
+                        tenant_id bigint not null comment 'tenant scope @Managed=scope.tenant;',
+                        deleted int not null comment 'soft marker @Managed=soft-delete;'
                     )
                     """.trimIndent()
                 )
@@ -243,8 +241,8 @@ class DbSchemaSourceProviderTest {
         assertFalse(childTable.comment.contains("@Parent"))
         assertEquals(1, childTable.columns.count { it.parentRef })
         assertEquals(true, childTable.columns.single { it.name.equals("VIDEO_POST_ID", true) }.parentRef)
-        assertEquals(DbManagedRole.SCOPE, childTable.columns.single { it.name.equals("TENANT_ID", true) }.managedRole)
-        assertEquals(DbManagedRole.DELETED, childTable.columns.single { it.name.equals("DELETED", true) }.managedRole)
+        assertEquals("scope.tenant", childTable.columns.single { it.name.equals("TENANT_ID", true) }.managedPolicyKey)
+        assertEquals("soft-delete", childTable.columns.single { it.name.equals("DELETED", true) }.managedPolicyKey)
         assertEquals("owning parent", childTable.columns.single { it.name.equals("VIDEO_POST_ID", true) }.comment)
     }
 
@@ -347,7 +345,7 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `provider rejects db identity id strategy on non primary key columns`() {
+    fun `provider preserves identifier policy on non primary key for canonical validation`() {
         val url = "jdbc:h2:mem:cap4k-db-source-db-identity-non-pk;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -355,15 +353,14 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key,
-                        external_id bigint not null comment '@IdStrategy=db_identity;'
+                        external_id bigint not null comment '@Managed=identifier.database-identity;'
                     )
                     """.trimIndent()
                 )
             }
         }
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DbSchemaSourceProvider().collect(
+        val snapshot = DbSchemaSourceProvider().collect(
                 ProjectConfig(
                     basePackage = "com.acme.demo",
                     layout = ProjectLayout.MULTI_MODULE,
@@ -383,10 +380,12 @@ class DbSchemaSourceProviderTest {
                     generators = emptyMap(),
                     templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
                 )
-            )
-        }
+            ) as DbSchemaSnapshot
 
-        assertEquals("@IdStrategy is valid only on a primary-key column", error.message)
+        assertEquals(
+            "identifier.database-identity",
+            snapshot.tables.single().columns.single { it.name.equals("EXTERNAL_ID", true) }.managedPolicyKey,
+        )
     }
 
     @Test
@@ -534,16 +533,16 @@ class DbSchemaSourceProviderTest {
     }
 
     @Test
-    fun `provider carries id strategy and managed role column metadata into db snapshot`() {
+    fun `provider carries exact managed policy keys into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-persistence-field-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(
                     """
                     create table video_post (
-                        id bigint primary key comment '@IdStrategy=db_identity;',
+                        id bigint primary key comment '@Managed=identifier.database-identity;',
                         version bigint not null comment '@Managed=version;',
-                        deleted int not null comment '@Managed=deleted;',
+                        deleted int not null comment '@Managed=soft-delete;',
                         title varchar(128) not null
                     );
                     """.trimIndent()
@@ -575,13 +574,13 @@ class DbSchemaSourceProviderTest {
 
         val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
 
-        assertEquals(DbIdStrategy.DB_IDENTITY, table.columns.single { it.name.equals("ID", true) }.idStrategy)
-        assertEquals(DbManagedRole.VERSION, table.columns.single { it.name.equals("VERSION", true) }.managedRole)
-        assertEquals(DbManagedRole.DELETED, table.columns.single { it.name.equals("DELETED", true) }.managedRole)
+        assertEquals("identifier.database-identity", table.columns.single { it.name.equals("ID", true) }.managedPolicyKey)
+        assertEquals("version", table.columns.single { it.name.equals("VERSION", true) }.managedPolicyKey)
+        assertEquals("soft-delete", table.columns.single { it.name.equals("DELETED", true) }.managedPolicyKey)
     }
 
     @Test
-    fun `provider carries managed column role into db snapshot`() {
+    fun `provider carries custom managed policy key into db snapshot`() {
         val url = "jdbc:h2:mem:cap4k-db-source-managed-exposed-column-behavior;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -589,7 +588,7 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key,
-                        created_at timestamp not null comment '@Managed=system;',
+                        created_at timestamp not null comment '@Managed=custom.created-at;',
                         title varchar(128) not null
                     );
                     """.trimIndent()
@@ -621,12 +620,12 @@ class DbSchemaSourceProviderTest {
 
         val table = snapshot.tables.single { it.tableName.equals("VIDEO_POST", true) }
 
-        assertEquals(DbManagedRole.SYSTEM, table.columns.single { it.name.equals("CREATED_AT", true) }.managedRole)
-        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.managedRole)
+        assertEquals("custom.created-at", table.columns.single { it.name.equals("CREATED_AT", true) }.managedPolicyKey)
+        assertEquals(null, table.columns.single { it.name.equals("TITLE", true) }.managedPolicyKey)
     }
 
     @Test
-    fun `provider carries inherited column marker into db snapshot`() {
+    fun `provider carries audit policy without declaration placement metadata`() {
         val url = "jdbc:h2:mem:cap4k-db-source-inherited-column;MODE=MySQL;DB_CLOSE_DELAY=-1"
         DriverManager.getConnection(url, "sa", "").use { connection ->
             connection.createStatement().use { statement ->
@@ -635,7 +634,7 @@ class DbSchemaSourceProviderTest {
                     create table content (
                         id varchar(36) primary key,
                         title varchar(100) not null,
-                        created_at timestamp not null comment '@Inherited;@Managed=system;'
+                        created_at timestamp not null comment '@Managed=enrichment.audit-time.created-at;'
                     )
                     """.trimIndent()
                 )
@@ -663,8 +662,7 @@ class DbSchemaSourceProviderTest {
         ) as DbSchemaSnapshot
 
         val createdAt = snapshot.tables.single().columns.single { it.name.equals("CREATED_AT", true) }
-        assertEquals(true, createdAt.inherited)
-        assertEquals(DbManagedRole.SYSTEM, createdAt.managedRole)
+        assertEquals("enrichment.audit-time.created-at", createdAt.managedPolicyKey)
     }
 
     @Test
@@ -708,7 +706,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @Managed=<policy-key>.",
             error.message,
         )
     }
@@ -722,7 +720,7 @@ class DbSchemaSourceProviderTest {
                     """
                     create table video_post (
                         id bigint primary key,
-                        title varchar(128) not null comment '@Managed=system;@Exposed;'
+                        title varchar(128) not null comment '@Managed=custom.system;@Exposed;'
                     );
                     """.trimIndent()
                 )
@@ -754,7 +752,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Exposed. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @Managed=<policy-key>.",
             error.message,
         )
     }
@@ -898,7 +896,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Version. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @Managed=<policy-key>.",
             error.message,
         )
     }
@@ -943,7 +941,7 @@ class DbSchemaSourceProviderTest {
 
         val column = snapshot.tables.single().columns.single { it.name.equals("VERSION", true) }
 
-        assertEquals(null, column.managedRole)
+        assertEquals(null, column.managedPolicyKey)
     }
 
     @Test
@@ -987,7 +985,7 @@ class DbSchemaSourceProviderTest {
         }
 
         assertEquals(
-            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @IdStrategy=db_identity|uuid7|snowflake, @Managed=system|scope|deleted|version, @Inherited.",
+            "unsupported column annotation @Lazy. Supported column annotations: @ParentRef, @Type, @RefAggregate, @RefId, @Managed=<policy-key>.",
             error.message,
         )
     }

@@ -22,7 +22,9 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
     val templates: Cap4kTemplatesExtension = objects.newInstance(Cap4kTemplatesExtension::class.java)
     val bootstrap: Cap4kBootstrapExtension = objects.newInstance(Cap4kBootstrapExtension::class.java)
     val layout: Cap4kLayoutExtension = objects.newInstance(Cap4kLayoutExtension::class.java)
-    val addons: Cap4kAddonsExtension = objects.newInstance(Cap4kAddonsExtension::class.java)
+    val managedFields: ManagedFieldsExtension = objects.newInstance(ManagedFieldsExtension::class.java)
+    val pipelineExtensions: Cap4kPipelineExtensionsExtension =
+        objects.newInstance(Cap4kPipelineExtensionsExtension::class.java)
 
     fun project(block: Cap4kProjectExtension.() -> Unit) {
         project.block()
@@ -52,8 +54,12 @@ open class Cap4kExtension @Inject constructor(objects: ObjectFactory) {
         layout.block()
     }
 
-    fun addons(block: Cap4kAddonsExtension.() -> Unit) {
-        addons.block()
+    fun managedFields(block: ManagedFieldsExtension.() -> Unit) {
+        managedFields.block()
+    }
+
+    fun pipelineExtensions(block: Cap4kPipelineExtensionsExtension.() -> Unit) {
+        pipelineExtensions.block()
     }
 }
 
@@ -84,18 +90,34 @@ open class TypeManifestExtension @Inject constructor(objects: ObjectFactory) {
     val files: ConfigurableFileCollection = objects.fileCollection()
 }
 
-open class Cap4kAddonsExtension @Inject constructor(objects: ObjectFactory) {
-    val providers: NamedDomainObjectContainer<Cap4kAddonProviderExtension> =
-        objects.domainObjectContainer(Cap4kAddonProviderExtension::class.java) { id ->
-            objects.newInstance(Cap4kAddonProviderExtension::class.java, id)
+open class Cap4kPipelineExtensionsExtension @Inject constructor(objects: ObjectFactory) {
+    val providers: NamedDomainObjectContainer<Cap4kPipelineExtensionProviderExtension> =
+        objects.domainObjectContainer(Cap4kPipelineExtensionProviderExtension::class.java) { id ->
+            objects.newInstance(Cap4kPipelineExtensionProviderExtension::class.java, id)
         }
 
-    fun provider(id: String, block: Cap4kAddonProviderExtension.() -> Unit) {
+    fun provider(id: String, block: Cap4kPipelineExtensionProviderExtension.() -> Unit) {
         providers.maybeCreate(id).block()
     }
 }
 
-abstract class Cap4kAddonProviderExtension @Inject constructor(
+abstract class Cap4kPipelineExtensionProviderExtension @Inject constructor(
+    val id: String,
+    objects: ObjectFactory,
+) : Named {
+    val contributions: NamedDomainObjectContainer<Cap4kPipelineContributionExtension> =
+        objects.domainObjectContainer(Cap4kPipelineContributionExtension::class.java) { id ->
+            objects.newInstance(Cap4kPipelineContributionExtension::class.java, id)
+        }
+
+    override fun getName(): String = id
+
+    fun contribution(id: String, block: Cap4kPipelineContributionExtension.() -> Unit) {
+        contributions.maybeCreate(id).block()
+    }
+}
+
+abstract class Cap4kPipelineContributionExtension @Inject constructor(
     val id: String,
     objects: ObjectFactory,
 ) : Named {
@@ -299,47 +321,13 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
 open class AggregateGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     internal var configured: Boolean = false
     val unsupportedTablePolicy: Property<String> = objects.property(String::class.java).convention("FAIL")
-    val specialFields: AggregateSpecialFieldsExtension =
-        objects.newInstance(AggregateSpecialFieldsExtension::class.java)
-
-    fun specialFields(block: AggregateSpecialFieldsExtension.() -> Unit) {
-        specialFields.block()
-    }
-
-    @Deprecated("generators.aggregate.idPolicy is removed. Use generators.aggregate.specialFields instead.")
-    fun idPolicy(@Suppress("UNUSED_PARAMETER") block: AggregateIdPolicyExtension.() -> Unit) {
-        throw IllegalArgumentException(
-            "generators.aggregate.idPolicy is removed. Use generators.aggregate.specialFields { idDefaultStrategy, deletedDefaultColumn, versionDefaultColumn }."
-        )
-    }
-
 }
 
-open class AggregateIdPolicyExtension @Inject constructor(objects: ObjectFactory) {
-    @Deprecated("Use generators.aggregate.specialFields.idDefaultStrategy instead.")
-    val defaultStrategy: Property<String> = objects.property(String::class.java).convention("uuid7")
-
-    @Deprecated("aggregate-level id overrides are removed.")
-    fun aggregate(name: String, strategy: String) {
-        throw IllegalArgumentException(
-            "generators.aggregate.idPolicy.aggregate(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column comments with @IdStrategy=db_identity."
-        )
-    }
-
-    @Deprecated("entity-level id overrides are removed.")
-    fun entity(name: String, strategy: String) {
-        throw IllegalArgumentException(
-            "generators.aggregate.idPolicy.entity(...) is removed. Use generators.aggregate.specialFields.idDefaultStrategy and column comments with @IdStrategy=db_identity."
-        )
-    }
-}
-
-open class AggregateSpecialFieldsExtension @Inject constructor(objects: ObjectFactory) {
-    val idDefaultStrategy: Property<String> = objects.property(String::class.java).convention("uuid7")
-    val deletedDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
-    val versionDefaultColumn: Property<String> = objects.property(String::class.java).convention("")
-    val managedDefaultColumns: ListProperty<String> =
-        objects.listProperty(String::class.java).convention(emptyList())
+open class ManagedFieldsExtension @Inject constructor(objects: ObjectFactory) {
+    val identifierDefaultPolicy: Property<String> =
+        objects.property(String::class.java).convention("identifier.uuid7")
+    val columnPolicyDefaults: MapProperty<String, String> =
+        objects.mapProperty(String::class.java, String::class.java).convention(emptyMap())
 }
 
 open class AggregateProjectionGeneratorExtension @Inject constructor(objects: ObjectFactory) {

@@ -2,8 +2,6 @@ package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
-import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -159,8 +157,8 @@ class PostgreSqlSoftDeleteIntegrationTest {
 
         assertAll(
             { assertEquals("PgUuidRecord", table.tableName) },
-            { assertEquals(DbIdStrategy.UUID7, idColumn.idStrategy) },
-            { assertEquals(DbManagedRole.DELETED, deletedColumn.managedRole) },
+            { assertEquals("identifier.uuid7", idColumn.managedPolicyKey) },
+            { assertEquals("soft-delete", deletedColumn.managedPolicyKey) },
             {
                 assertTrue(
                     idColumn.jdbcType in setOf(Types.OTHER, Types.BINARY),
@@ -335,10 +333,10 @@ class PostgreSqlSoftDeleteIntegrationTest {
                 """.trimIndent()
             )
             statement.execute(
-                "comment on column \"$schemaName\".\"PgUuidRecord\".\"Id\" is '@IdStrategy=uuid7;'"
+                "comment on column \"$schemaName\".\"PgUuidRecord\".\"Id\" is '@Managed=identifier.uuid7;'"
             )
             statement.execute(
-                "comment on column \"$schemaName\".\"PgUuidRecord\".\"Deleted\" is '@Managed=deleted;'"
+                "comment on column \"$schemaName\".\"PgUuidRecord\".\"Deleted\" is '@Managed=soft-delete;'"
             )
         }
     }

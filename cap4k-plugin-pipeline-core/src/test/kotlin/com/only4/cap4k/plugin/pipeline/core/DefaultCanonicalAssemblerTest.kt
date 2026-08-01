@@ -7,10 +7,8 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationPersistenceShape
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldDefaultsConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -20,8 +18,6 @@ import com.only4.cap4k.plugin.pipeline.api.DesignBlockModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
-import com.only4.cap4k.plugin.pipeline.api.DbManagedRole
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
@@ -38,12 +34,23 @@ import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.ManagedCreationInputPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedExplicitValuePolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldDefaultsConfig
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldLifecycle
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyDefinition
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicyDefinitionOwner
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicySelectionProvenance
+import com.only4.cap4k.plugin.pipeline.api.ManagedValueAuthority
+import com.only4.cap4k.plugin.pipeline.api.ManagedSemanticTypeRef
+import com.only4.cap4k.plugin.pipeline.api.OwnedManagedFieldPolicyDefinition
+import com.only4.cap4k.plugin.pipeline.api.PersistenceParticipation
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedFieldPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout.MULTI_MODULE
 import com.only4.cap4k.plugin.pipeline.api.PackageLayout
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldSource
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
-import com.only4.cap4k.plugin.pipeline.api.ResolvedIdPolicy
-import com.only4.cap4k.plugin.pipeline.api.ResolvedMarkerPolicy
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
@@ -1931,7 +1938,7 @@ class DefaultCanonicalAssemblerTest {
                                     kotlinType = "Long",
                                     nullable = false,
                                     isPrimaryKey = true,
-                                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                                    idStrategy = "identifier.database-identity",
                                 ),
                                 DbColumnSnapshot(
                                     name = "status",
@@ -2699,9 +2706,9 @@ class DefaultCanonicalAssemblerTest {
                                     "Long",
                                     false,
                                     isPrimaryKey = true,
-                                    idStrategy = DbIdStrategy.DB_IDENTITY
+                                    idStrategy = "identifier.database-identity"
                                 ),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = "version"),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2747,7 +2754,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf("id"), controls.map { it.fieldName })
         assertEquals("IDENTITY", controls.single().generatedValueStrategy)
         assertNull(controls.single().version)
-        assertFalse(result.model.aggregateSpecialFieldResolvedPolicies.single().version.enabled)
+        assertNull(result.model.managedFieldPolicies.single().fieldByRole(ManagedFieldRole.VERSION))
     }
 
     @Test
@@ -2780,7 +2787,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `assembler does not record managed role columns as persistence field controls`() {
+    fun `assembler projects managed role authority into persistence field controls`() {
         val result = DefaultCanonicalAssembler().assemble(
             aggregateProjectConfig(),
             listOf(
@@ -2791,8 +2798,8 @@ class DefaultCanonicalAssemblerTest {
                             comment = "@AggregateRoot=true;",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, managedRole = DbManagedRole.SYSTEM),
-                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, managedRole = DbManagedRole.SCOPE),
+                                DbColumnSnapshot("created_by", "VARCHAR", "String", false, managedRole = "initialization.request-context"),
+                                DbColumnSnapshot("display_name", "VARCHAR", "String", false, managedRole = "scope.tenant"),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2804,12 +2811,16 @@ class DefaultCanonicalAssemblerTest {
 
 
         val controls = result.model.aggregatePersistenceFieldControls
-        assertEquals(listOf("id"), controls.map { it.fieldName })
-        assertTrue(controls.none { it.fieldName == "createdBy" || it.fieldName == "displayName" })
+        assertEquals(listOf("id", "createdBy", "displayName"), controls.map { it.fieldName })
+        listOf("createdBy", "displayName").forEach { fieldName ->
+            val control = controls.single { it.fieldName == fieldName }
+            assertEquals(true, control.insertable)
+            assertEquals(false, control.updatable)
+        }
     }
 
     @Test
-    fun `db inherited columns remain canonical fields with inherited flag`() {
+    fun `managed columns remain canonical fields without a source level inheritance contract`() {
         val snapshot = DbSchemaSnapshot(
             tables = listOf(
                 DbTableSnapshot(
@@ -2817,7 +2828,7 @@ class DefaultCanonicalAssemblerTest {
                     comment = "",
                     columns = listOf(
                         DbColumnSnapshot("id", "VARCHAR", "String", false, isPrimaryKey = true),
-                        DbColumnSnapshot("created_at", "TIMESTAMP", "java.time.Instant", false, inherited = true, managedRole = DbManagedRole.SYSTEM),
+                        DbColumnSnapshot("created_at", "TIMESTAMP", "java.time.Instant", false, inherited = true, managedRole = "initialization.request-context"),
                     ),
                     primaryKey = listOf("id"),
                     uniqueConstraints = emptyList(),
@@ -2828,7 +2839,11 @@ class DefaultCanonicalAssemblerTest {
         val model = DefaultCanonicalAssembler().assemble(baseConfig(), listOf(snapshot)).model
         val field = model.entities.single().fields.single { it.name == "createdAt" }
 
-        assertEquals(true, field.inherited)
+        assertEquals("created_at", field.columnName)
+        assertEquals(
+            "initialization.request-context",
+            model.managedFieldPolicies.single().fields.single { it.fieldName == "createdAt" }.policyKey,
+        )
     }
 
     @Test
@@ -2848,10 +2863,10 @@ class DefaultCanonicalAssemblerTest {
                                     "Long",
                                     false,
                                     isPrimaryKey = true,
-                                    idStrategy = DbIdStrategy.DB_IDENTITY
+                                    idStrategy = "identifier.database-identity"
                                 ),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
-                                DbColumnSnapshot("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = "version"),
+                                DbColumnSnapshot("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = "soft-delete"),
                             ),
                             primaryKey = listOf("id"),
                             uniqueConstraints = emptyList(),
@@ -2906,7 +2921,7 @@ class DefaultCanonicalAssemblerTest {
                             comment = "@AggregateRoot=true;",
                             columns = listOf(
                                 DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
+                                DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = "version"),
                                 DbColumnSnapshot("slug", "VARCHAR", "String", false),
                             ),
                             primaryKey = listOf("id"),
@@ -2933,7 +2948,7 @@ class DefaultCanonicalAssemblerTest {
                     table(
                         name = "video_post",
                         columns = listOf(
-                            column("id", "BIGINT", type, false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                            column("id", "BIGINT", type, false, primaryKey = true, idStrategy = "identifier.database-identity"),
                         ),
                         primaryKey = listOf("id"),
                     )
@@ -2953,20 +2968,21 @@ class DefaultCanonicalAssemblerTest {
                     table(
                         name = "video_post",
                         columns = listOf(
-                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
-                            column("lock_version", "BIGINT", type, false, managedRole = DbManagedRole.VERSION),
+                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = "identifier.database-identity"),
+                            column("lock_version", "BIGINT", type, false, managedRole = "version"),
                         ),
                         primaryKey = listOf("id"),
                     )
                 ),
             )
 
-            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single().version
-            assertTrue(policy.enabled)
+            val policy = requireNotNull(
+                result.model.managedFieldPolicies.single().fieldByRole(ManagedFieldRole.VERSION)
+            )
             assertEquals("lockVersion", policy.fieldName)
             assertEquals("lock_version", policy.columnName)
-            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.writePolicy)
-            assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.source)
+            assertEquals(ManagedCreationInputPolicy.OMIT, policy.creationInput)
+            assertTrue(policy.selection is ManagedPolicySelectionProvenance.ExplicitColumnAnnotation)
             assertEquals("lockVersion", result.model.aggregatePersistenceFieldControls.single { it.version == true }.fieldName)
             assertEquals("lockVersion", result.model.aggregatePersistenceProviderControls.single().versionFieldName)
         }
@@ -2984,7 +3000,7 @@ class DefaultCanonicalAssemblerTest {
                     table(
                         name = "video_post",
                         columns = listOf(
-                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                            column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = "identifier.database-identity"),
                             column("lock_version", "BIGINT", type, false),
                         ),
                         primaryKey = listOf("id"),
@@ -2992,14 +3008,14 @@ class DefaultCanonicalAssemblerTest {
                 ),
             )
 
-            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single().version
-            assertTrue(policy.enabled)
+            val policy = requireNotNull(
+                result.model.managedFieldPolicies.single().fieldByRole(ManagedFieldRole.VERSION)
+            )
             assertEquals("lockVersion", policy.fieldName)
             assertEquals("lock_version", policy.columnName)
-            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.writePolicy)
-            assertEquals(SpecialFieldSource.DSL_DEFAULT, policy.source)
-            assertTrue(result.model.aggregatePersistenceFieldControls.none { it.version == true })
-            assertNull(result.model.aggregatePersistenceFieldControls.single().version)
+            assertEquals(ManagedCreationInputPolicy.OMIT, policy.creationInput)
+            assertTrue(policy.selection is ManagedPolicySelectionProvenance.ExactColumnDefault)
+            assertEquals("lockVersion", result.model.aggregatePersistenceFieldControls.single { it.version == true }.fieldName)
             assertEquals("lockVersion", result.model.aggregatePersistenceProviderControls.single().versionFieldName)
         }
     }
@@ -3008,7 +3024,7 @@ class DefaultCanonicalAssemblerTest {
     fun `resolved version rejects unsupported explicit and DSL default types with physical evidence`() {
         listOf("String", "UUID").forEach { type ->
             listOf(
-                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7") to DbManagedRole.VERSION,
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7") to "version",
                 projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7", versionDefaultColumn = "lock_version") to null,
             ).forEach { (config, managedRole) ->
                 val error = assertThrows(IllegalArgumentException::class.java) {
@@ -3018,7 +3034,7 @@ class DefaultCanonicalAssemblerTest {
                             table(
                                 name = "video_post",
                                 columns = listOf(
-                                    column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                                    column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = "identifier.database-identity"),
                                     column("lock_version", "BIGINT", type, false, managedRole = managedRole),
                                 ),
                                 primaryKey = listOf("id"),
@@ -3031,7 +3047,6 @@ class DefaultCanonicalAssemblerTest {
                 listOf(
                     "video_post",
                     "VideoPost",
-                    "lockVersion",
                     "lock_version",
                     type,
                     "Short, Int, Long",
@@ -3050,7 +3065,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "order",
                     columns = listOf(
-                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                         column("title", "VARCHAR(64)", "String", false),
                     ),
                     primaryKey = listOf("id"),
@@ -3059,7 +3074,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "order_line",
                     columns = listOf(
-                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                         column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
                         column("sku", "VARCHAR(64)", "String", false),
                     ),
@@ -3089,6 +3104,97 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `assigned identifier is a required Factory input and entity constructor field`() {
+        val result = assembleAggregate(
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "assigned"),
+            tables = listOf(
+                table(
+                    name = "order",
+                    columns = listOf(
+                        column(
+                            "id",
+                            "BIGINT",
+                            "Long",
+                            false,
+                            primaryKey = true,
+                            idStrategy = "identifier.assigned",
+                        ),
+                        column("title", "VARCHAR(64)", "String", false),
+                    ),
+                    primaryKey = listOf("id"),
+                    aggregateRoot = true,
+                )
+            ),
+        )
+
+        val graph = result.model.aggregateCreationGraphs.single()
+        assertEquals(listOf("id", "title"), graph.rootConstructorFieldNames)
+        assertEquals(listOf("id", "title"), graph.factoryPayload.fields.map { it.name })
+        assertNull(graph.factoryPayload.fields.single { it.name == "id" }.defaultValue)
+    }
+
+    @Test
+    fun `optional managed creation input is nullable with a null default despite non null storage`() {
+        val optionalPolicy = ManagedFieldPolicyDefinition(
+            key = "initialization.external-reference",
+            role = ManagedFieldRole.INITIALIZATION,
+            creationInput = ManagedCreationInputPolicy.OPTIONAL,
+            explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+            lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+            handlerQualifier = "initialization.external-reference",
+            semanticValueType = ManagedSemanticTypeRef.TargetField,
+            persistence = PersistenceParticipation(
+                insert = ManagedValueAuthority.MANAGED_HANDLER,
+                update = ManagedValueAuthority.NONE,
+            ),
+        )
+        val config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "assigned")
+        val result = DefaultCanonicalAssembler().assemble(
+            config = config,
+            snapshots = listOf(
+                DbSchemaSnapshot(
+                    tables = listOf(
+                        table(
+                            name = "order",
+                            columns = listOf(
+                                column(
+                                    "id",
+                                    "BIGINT",
+                                    "Long",
+                                    false,
+                                    primaryKey = true,
+                                    idStrategy = "identifier.assigned",
+                                ),
+                                column(
+                                    "external_ref",
+                                    "VARCHAR(64)",
+                                    "String",
+                                    false,
+                                    managedRole = "initialization.external-reference",
+                                ),
+                            ),
+                            primaryKey = listOf("id"),
+                            aggregateRoot = true,
+                        )
+                    )
+                )
+            ),
+            managedFieldPolicyDefinitions = listOf(
+                OwnedManagedFieldPolicyDefinition(
+                    definition = optionalPolicy,
+                    owner = ManagedPolicyDefinitionOwner.Extension("sample-extension", "external-reference"),
+                )
+            ),
+        )
+
+        val graph = result.model.aggregateCreationGraphs.single()
+        val field = graph.factoryPayload.fields.single { it.name == "externalRef" }
+        assertTrue(field.type.nullable)
+        assertEquals("null", field.defaultValue?.kotlinExpression)
+        assertEquals(listOf("id", "externalRef"), graph.rootConstructorFieldNames)
+    }
+
+    @Test
     fun `assembler compiles recursive owned one and many creation graph from resolved write surfaces`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "identity"),
@@ -3096,10 +3202,10 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "order",
                     columns = listOf(
-                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                         column("title", "VARCHAR(64)", "String", false, defaultValue = "'draft'"),
                         column("published", "BOOLEAN", "Boolean", false, defaultValue = "FALSE"),
-                        column("version", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.VERSION),
+                        column("version", "BIGINT", "Long", false, defaultValue = "0", managedRole = "version"),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3107,10 +3213,10 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "order_profile",
                     columns = listOf(
-                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                         column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
                         column("display_name", "VARCHAR(64)", "String", false),
-                        column("version", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.VERSION),
+                        column("version", "BIGINT", "Long", false, defaultValue = "0", managedRole = "version"),
                     ),
                     primaryKey = listOf("id"),
                     parentTable = "order",
@@ -3120,7 +3226,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "order_line",
                     columns = listOf(
-                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                         column("order_id", "VARCHAR(36)", "String", false, parentRef = true),
                         column("sku", "VARCHAR(64)", "String", false),
                     ),
@@ -3131,7 +3237,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "order_line_option",
                     columns = listOf(
-                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR(36)", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                         column("order_line_id", "VARCHAR(36)", "String", false, parentRef = true),
                         column("code", "VARCHAR(64)", "String", false),
                     ),
@@ -3205,7 +3311,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "invoice",
                     columns = listOf(
-                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = "identifier.database-identity"),
                         column("title", "VARCHAR(64)", "String", false),
                     ),
                     primaryKey = listOf("id"),
@@ -3219,7 +3325,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `db schema primary key without explicit id strategy fails fast`() {
+    fun `db schema primary key uses identifier default and validates its physical storage`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             assembleAggregate(
                 config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
@@ -3242,10 +3348,7 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals(
-            "primary key video.id must declare @IdStrategy=uuid7, @IdStrategy=snowflake, or @IdStrategy=db_identity",
-            error.message,
-        )
+        assertTrue(error.message.orEmpty().contains("unsupported UUID7 storage for video.id"))
     }
 
     @Test
@@ -3332,7 +3435,7 @@ class DefaultCanonicalAssemblerTest {
                                 "Long",
                                 false,
                                 primaryKey = true,
-                                idStrategy = DbIdStrategy.DB_IDENTITY,
+                                idStrategy = "identifier.database-identity",
                             )
                         ),
                         primaryKey = listOf("id"),
@@ -3491,13 +3594,17 @@ class DefaultCanonicalAssemblerTest {
             )
 
             val child = result.model.entities.single { it.name == "VideoFile" }
-            val policy = result.model.aggregateSpecialFieldResolvedPolicies.single { it.entityName == "VideoFile" }
+            val policy = result.model.managedFieldPolicies.single { it.entityName == "VideoFile" }
+            val identifier = policy.requireIdentifier()
 
             assertEquals("Long", child.idField.type)
-            assertEquals("identity", policy.id.strategy)
-            assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, policy.id.kind)
-            assertEquals(SpecialFieldWritePolicy.READ_ONLY, policy.id.writePolicy)
-            assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
+            assertEquals("identifier.database-identity", identifier.policyKey)
+            assertEquals(ManagedCreationInputPolicy.OMIT, identifier.creationInput)
+            assertTrue(identifier.selection is ManagedPolicySelectionProvenance.ExplicitColumnAnnotation)
+            assertEquals(
+                AggregateIdPolicyKind.DATABASE_SIDE,
+                result.model.aggregateIdPolicyControls.single { it.entityName == "VideoFile" }.kind,
+            )
         }
     }
 
@@ -3519,15 +3626,15 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val entity = result.model.entities.single()
-        val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val resolved = result.model.managedFieldPolicies.single().requireIdentifier()
 
         assertEquals("ContentId", entity.idField.type)
         assertEquals("ContentId", entity.fields.single { it.name == "id" }.type)
         assertEquals("ContentId", result.model.strongIds.single().typeName)
-        assertEquals("uuid7", resolved.id.strategy)
-        assertEquals(AggregateIdPolicyKind.APPLICATION_SIDE, resolved.id.kind)
-        assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, resolved.id.writePolicy)
-        assertEquals(SpecialFieldSource.DB_EXPLICIT, resolved.id.source)
+        assertEquals("identifier.uuid7", resolved.policyKey)
+        assertEquals(ManagedCreationInputPolicy.OMIT, resolved.creationInput)
+        assertEquals(ManagedExplicitValuePolicy.PRESERVE_IF_VALID, resolved.explicitValue)
+        assertTrue(resolved.selection is ManagedPolicySelectionProvenance.ExplicitColumnAnnotation)
         assertEquals("uuid7", result.model.aggregateIdPolicyControls.single().strategy)
     }
 
@@ -3545,7 +3652,7 @@ class DefaultCanonicalAssemblerTest {
                             "Long",
                             false,
                             primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                            idStrategy = "identifier.database-identity",
                         ),
                         column("message", "VARCHAR", "String", false),
                     ),
@@ -3575,7 +3682,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "category",
                     columns = listOf(
-                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3583,9 +3690,10 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single().requireIdentifier()
 
-        assertEquals(SpecialFieldWritePolicy.CREATE_ONLY, policy.id.writePolicy)
+        assertEquals(ManagedCreationInputPolicy.OMIT, policy.creationInput)
+        assertEquals(ManagedExplicitValuePolicy.PRESERVE_IF_VALID, policy.explicitValue)
     }
 
     @Test
@@ -3607,7 +3715,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `aggregate projection only does not validate write model id strategy`() {
+    fun `aggregate projection consumes the same canonical managed policy resolution`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7").copy(
                 generators = mapOf("aggregate-projection" to GeneratorConfig()),
@@ -3623,8 +3731,8 @@ class DefaultCanonicalAssemblerTest {
         )
 
         assertEquals(listOf("Video"), result.model.entities.map { it.name })
-        assertTrue(result.model.aggregateSpecialFieldResolvedPolicies.isEmpty())
-        assertTrue(result.model.aggregateIdPolicyControls.isEmpty())
+        assertEquals("identifier.database-identity", result.model.managedFieldPolicies.single().requireIdentifier().policyKey)
+        assertEquals("identity", result.model.aggregateIdPolicyControls.single().strategy)
     }
 
     @Test
@@ -3635,7 +3743,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "audit_log",
                     columns = listOf(
-                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = DbIdStrategy.DB_IDENTITY),
+                        column("id", "BIGINT", "Long", false, primaryKey = true, idStrategy = "identifier.database-identity"),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3644,12 +3752,12 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val control = result.model.aggregateIdPolicyControls.single()
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single().requireIdentifier()
 
         assertEquals("identity", control.strategy)
         assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, control.kind)
-        assertEquals("identity", policy.id.strategy)
-        assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
+        assertEquals("identifier.database-identity", policy.policyKey)
+        assertTrue(policy.selection is ManagedPolicySelectionProvenance.ExplicitColumnAnnotation)
     }
 
     @Test
@@ -3660,7 +3768,7 @@ class DefaultCanonicalAssemblerTest {
                 table(
                     name = "video",
                     columns = listOf(
-                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3674,7 +3782,7 @@ class DefaultCanonicalAssemblerTest {
                             "Long",
                             false,
                             primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                            idStrategy = "identifier.database-identity",
                         ),
                         column("video_id", "UUID", "UUID", false, referenceTable = "video"),
                     ),
@@ -3698,8 +3806,8 @@ class DefaultCanonicalAssemblerTest {
                     name = "video_post",
                     columns = listOf(
                         column("id", "BIGINT", "Long", false, primaryKey = true),
-                        column("tenant_id", "BIGINT", "Long", false, managedRole = DbManagedRole.SCOPE),
-                        column("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
+                        column("tenant_id", "BIGINT", "Long", false, managedRole = "scope.tenant"),
+                        column("deleted", "BIGINT", "Long", false, defaultValue = "0", managedRole = "soft-delete"),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -3707,28 +3815,31 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single()
 
-        assertEquals("tenantId", policy.managedFields.single { it.columnName == "tenant_id" }.fieldName)
-        assertEquals(DbManagedRole.SCOPE, policy.managedFields.single { it.columnName == "tenant_id" }.managedRole)
-        assertEquals("deleted", policy.deleted.columnName)
+        assertEquals("tenantId", policy.fields.single { it.columnName == "tenant_id" }.fieldName)
+        assertEquals(ManagedFieldRole.SCOPE, policy.fields.single { it.columnName == "tenant_id" }.role)
+        assertEquals("deleted", requireNotNull(policy.fieldByRole(ManagedFieldRole.SOFT_DELETE)).columnName)
     }
 
     @Test
     fun `identity integral soft delete publishes zero semantic policy`() {
         listOf("0", "0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
             val result = assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "BIGINT",
                 idKotlinType = "Long",
                 deletedDbType = "BIGINT",
                 deletedKotlinType = "Long",
                 defaultValue = defaultValue,
             )
-            val resolved = result.model.aggregateSpecialFieldResolvedPolicies.single()
+            val resolved = result.model.managedFieldPolicies.single()
             val control = result.model.aggregatePersistenceProviderControls.single()
 
-            assertEquals(SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY, resolved.deleted.writePolicy)
+            assertEquals(
+                ManagedValueAuthority.PERSISTENCE_PROVIDER,
+                requireNotNull(resolved.fieldByRole(ManagedFieldRole.SOFT_DELETE)).persistence.update,
+            )
             assertEquals(listOf("title"), resolved.writeSurface.createAllowedFields)
             assertEquals(listOf("title"), resolved.writeSurface.updateAllowedFields)
             assertSemanticSoftDelete(
@@ -3745,7 +3856,7 @@ class DefaultCanonicalAssemblerTest {
     fun `snowflake Long soft delete keeps Long strong id backing and publishes zero integral semantics`() {
         listOf("0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
             val result = assembleSoftDelete(
-                idStrategy = DbIdStrategy.SNOWFLAKE,
+                idStrategy = "identifier.snowflake",
                 idDbType = "BIGINT",
                 idKotlinType = "Long",
                 deletedDbType = "BIGINT",
@@ -3766,7 +3877,7 @@ class DefaultCanonicalAssemblerTest {
     fun `snowflake String soft delete keeps String strong id backing and publishes zero character semantics`() {
         listOf("'0'", "'0'::character varying", "CAST('0' AS VARCHAR)", "((('0')))").forEach { defaultValue ->
             val result = assembleSoftDelete(
-                idStrategy = DbIdStrategy.SNOWFLAKE,
+                idStrategy = "identifier.snowflake",
                 idDbType = "VARCHAR(19)",
                 idKotlinType = "String",
                 deletedDbType = "VARCHAR(32)",
@@ -3793,7 +3904,7 @@ class DefaultCanonicalAssemblerTest {
             "((('$nilUuid')))",
         ).forEach { defaultValue ->
             val result = assembleSoftDelete(
-                idStrategy = DbIdStrategy.UUID7,
+                idStrategy = "identifier.uuid7",
                 idDbType = "VARCHAR(36)",
                 idKotlinType = "String",
                 deletedDbType = "VARCHAR(40)",
@@ -3820,7 +3931,7 @@ class DefaultCanonicalAssemblerTest {
             "((('$nilUuid')))",
         ).forEach { defaultValue ->
             val result = assembleSoftDelete(
-                idStrategy = DbIdStrategy.UUID7,
+                idStrategy = "identifier.uuid7",
                 idDbType = "UUID",
                 idKotlinType = "java.util.UUID",
                 deletedDbType = "UUID",
@@ -3849,7 +3960,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "BIGINT",
                 idKotlinType = "Long",
                 deletedDbType = "BIGINT",
@@ -3872,7 +3983,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "BIGINT",
                 idKotlinType = "Long",
                 deletedDbType = "BIGINT",
@@ -3896,7 +4007,7 @@ class DefaultCanonicalAssemblerTest {
                 ),
             ) {
                 assembleSoftDelete(
-                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                    idStrategy = "identifier.database-identity",
                     idDbType = "BIGINT",
                     idKotlinType = "Long",
                     deletedDbType = "BIGINT",
@@ -3911,19 +4022,19 @@ class DefaultCanonicalAssemblerTest {
     fun `soft delete policy rejects cross storage SELF_ID assignment in every direction`() {
         val nilUuid = "'00000000-0000-0000-0000-000000000000'"
         val cases = listOf(
-            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "BIGINT", "Long", "VARCHAR(19)", "String", "'0'"),
-            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "BIGINT", "Long", "UUID", "java.util.UUID", nilUuid),
-            SoftDeleteStorageCase(DbIdStrategy.SNOWFLAKE, "VARCHAR(19)", "String", "BIGINT", "Long", "0"),
-            SoftDeleteStorageCase(DbIdStrategy.UUID7, "VARCHAR(36)", "String", "UUID", "java.util.UUID", nilUuid),
-            SoftDeleteStorageCase(DbIdStrategy.UUID7, "UUID", "java.util.UUID", "BIGINT", "Long", "0"),
-            SoftDeleteStorageCase(DbIdStrategy.UUID7, "UUID", "java.util.UUID", "VARCHAR(36)", "String", nilUuid),
+            SoftDeleteStorageCase("identifier.snowflake", "BIGINT", "Long", "VARCHAR(19)", "String", "'0'"),
+            SoftDeleteStorageCase("identifier.snowflake", "BIGINT", "Long", "UUID", "java.util.UUID", nilUuid),
+            SoftDeleteStorageCase("identifier.snowflake", "VARCHAR(19)", "String", "BIGINT", "Long", "0"),
+            SoftDeleteStorageCase("identifier.uuid7", "VARCHAR(36)", "String", "UUID", "java.util.UUID", nilUuid),
+            SoftDeleteStorageCase("identifier.uuid7", "UUID", "java.util.UUID", "BIGINT", "Long", "0"),
+            SoftDeleteStorageCase("identifier.uuid7", "UUID", "java.util.UUID", "VARCHAR(36)", "String", nilUuid),
         )
 
         cases.forEach { case ->
             assertSoftDeleteRejected(
                 expectedFragments = listOf(
                     "video_post.deleted",
-                    "strategy=${case.idStrategy.name.lowercase()}",
+                    "strategy=${case.idStrategy.removePrefix("identifier.").replace("database-identity", "identity")}",
                     "idStorage=",
                     "deletedStorage=",
                     "same storage kind",
@@ -3953,7 +4064,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.UUID7,
+                idStrategy = "identifier.uuid7",
                 idDbType = "VARCHAR(36)",
                 idKotlinType = "String",
                 deletedDbType = "VARCHAR(35)",
@@ -3975,7 +4086,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "BIGINT",
                 idKotlinType = "Long",
                 deletedDbType = "INT",
@@ -3996,7 +4107,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "INT",
                 idKotlinType = "Int",
                 deletedDbType = "INT UNSIGNED",
@@ -4017,7 +4128,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "INT UNSIGNED",
                 idKotlinType = "Int",
                 deletedDbType = "INT",
@@ -4030,7 +4141,7 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `soft delete policy accepts unsigned id only when signed deleted is wider`() {
         val result = assembleSoftDelete(
-            idStrategy = DbIdStrategy.DB_IDENTITY,
+            idStrategy = "identifier.database-identity",
             idDbType = "INT UNSIGNED",
             idKotlinType = "Int",
             deletedDbType = "BIGINT",
@@ -4070,7 +4181,7 @@ class DefaultCanonicalAssemblerTest {
                 ),
             ) {
                 assembleSoftDelete(
-                    idStrategy = DbIdStrategy.DB_IDENTITY,
+                    idStrategy = "identifier.database-identity",
                     idDbType = id.dbType,
                     idKotlinType = id.kotlinType,
                     idJdbcType = id.jdbcType,
@@ -4098,7 +4209,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ) {
             assembleSoftDelete(
-                idStrategy = DbIdStrategy.DB_IDENTITY,
+                idStrategy = "identifier.database-identity",
                 idDbType = "BIGINT",
                 idKotlinType = "Long",
                 deletedDbType = "BIGINT",
@@ -4120,44 +4231,6 @@ class DefaultCanonicalAssemblerTest {
                 deletedColumnName = null,
             )
         )
-    }
-
-    @Test
-    fun `enabled soft delete marker validates missing field name after endpoint semantics`() {
-        assertSoftDeleteRejected(
-            expectedFragments = listOf(
-                "strategy=identity",
-                "id=video_post.id",
-                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
-                "deleted=video_post.deleted",
-                "deletedStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
-                "fieldName=null",
-            ),
-        ) {
-            resolveSoftDeleteDirect(
-                columns = directIntegralSoftDeleteColumns(),
-                deletedFieldName = null,
-            )
-        }
-    }
-
-    @Test
-    fun `enabled soft delete marker reports unresolved deleted column name with endpoint context`() {
-        assertSoftDeleteRejected(
-            expectedFragments = listOf(
-                "strategy=identity",
-                "id=video_post.id",
-                "idStorage=Integral(bits=64, unsigned=false, kotlinType=Long)",
-                "deleted=video_post.<unresolved-deleted-column>",
-                "deletedStorage=unresolved",
-                "columnName=null",
-            ),
-        ) {
-            resolveSoftDeleteDirect(
-                columns = directIntegralSoftDeleteColumns(),
-                deletedColumnName = null,
-            )
-        }
     }
 
     @Test
@@ -4216,7 +4289,7 @@ class DefaultCanonicalAssemblerTest {
                         kotlinType = "Long",
                         nullable = false,
                         defaultValue = "0",
-                        managedRole = DbManagedRole.DELETED,
+                        managedRole = "soft-delete",
                         jdbcType = Types.DECIMAL,
                         columnSize = 19,
                     ),
@@ -4272,7 +4345,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `inherited managed fields remain visible to canonical policy`() {
+    fun `managed fields remain visible without source level inheritance metadata`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
@@ -4280,7 +4353,7 @@ class DefaultCanonicalAssemblerTest {
                     name = "video_post",
                     columns = listOf(
                         column("id", "BIGINT", "Long", false, primaryKey = true),
-                        column("created_at", "TIMESTAMP", "java.time.Instant", false, managedRole = DbManagedRole.SYSTEM, inherited = true),
+                        column("created_at", "TIMESTAMP", "java.time.Instant", false, managedRole = "initialization.request-context", inherited = true),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -4288,9 +4361,11 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single()
 
-        assertTrue(policy.managedFields.any { it.columnName == "created_at" && it.managedRole == DbManagedRole.SYSTEM })
+        assertTrue(policy.fields.any {
+            it.columnName == "created_at" && it.policyKey == "initialization.request-context"
+        })
     }
 
 
@@ -4299,14 +4374,14 @@ class DefaultCanonicalAssemblerTest {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
                 idDefaultStrategy = "uuid7",
-                deletedDefaultColumn = "deleted",
+            deletedDefaultColumn = "",
                 versionDefaultColumn = "version",
             ),
             tables = listOf(
                 table(
                     name = "video",
                     columns = listOf(
-                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = DbIdStrategy.UUID7),
+                        column("id", "VARCHAR", "String", false, primaryKey = true, idStrategy = "identifier.uuid7"),
                     ),
                     primaryKey = listOf("id"),
                     aggregateRoot = true,
@@ -4314,12 +4389,10 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single()
 
-        assertEquals(false, policy.deleted.enabled)
-        assertEquals(false, policy.version.enabled)
-        assertEquals(SpecialFieldSource.NONE, policy.deleted.source)
-        assertEquals(SpecialFieldSource.NONE, policy.version.source)
+        assertNull(policy.fieldByRole(ManagedFieldRole.SOFT_DELETE))
+        assertNull(policy.fieldByRole(ManagedFieldRole.VERSION))
     }
 
     @Test
@@ -4341,7 +4414,7 @@ class DefaultCanonicalAssemblerTest {
                             "Long",
                             false,
                             primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                            idStrategy = "identifier.database-identity",
                         ),
                     ),
                     primaryKey = listOf("id"),
@@ -4350,10 +4423,10 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single()
 
-        assertEquals(listOf("id"), policy.managedFields.map { it.columnName })
-        assertEquals(emptyList<String>(), policy.managedFields.filterNot { it.columnName == "id" }.map { it.columnName })
+        assertEquals(listOf("id"), policy.fields.map { it.columnName })
+        assertEquals(emptyList<String>(), policy.fields.filterNot { it.columnName == "id" }.map { it.columnName })
     }
 
     @Test
@@ -4375,9 +4448,9 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                            idStrategy = "identifier.database-identity",
                         ),
-                        column("created_by", "VARCHAR", "String", false, managedRole = DbManagedRole.SYSTEM),
+                        column("created_by", "VARCHAR", "String", false, managedRole = "initialization.request-context"),
                         column("title", "VARCHAR", "String", false),
                     ),
                     primaryKey = listOf("id"),
@@ -4386,11 +4459,11 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
-        val createdByPolicy = policy.managedFields.single { it.columnName == "created_by" }
+        val policy = result.model.managedFieldPolicies.single()
+        val createdByPolicy = policy.fields.single { it.columnName == "created_by" }
 
-        assertEquals(SpecialFieldWritePolicy.READ_ONLY, createdByPolicy.writePolicy)
-        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
+        assertEquals(ManagedCreationInputPolicy.OMIT, createdByPolicy.creationInput)
+        assertEquals(listOf("id", "created_by"), policy.fields.map { it.columnName })
         assertEquals(listOf("title"), policy.writeSurface.createAllowedFields)
         assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
     }
@@ -4414,9 +4487,9 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                            idStrategy = "identifier.database-identity",
                         ),
-                        column("created_by", "VARCHAR", "String", false, managedRole = DbManagedRole.SCOPE),
+                        column("created_by", "VARCHAR", "String", false, managedRole = "scope.tenant"),
                         column("title", "VARCHAR", "String", false),
                     ),
                     primaryKey = listOf("id"),
@@ -4425,9 +4498,9 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single()
 
-        assertEquals(listOf("id", "created_by"), policy.managedFields.map { it.columnName })
+        assertEquals(listOf("id", "created_by"), policy.fields.map { it.columnName })
         assertEquals(listOf("title"), policy.writeSurface.createAllowedFields)
         assertEquals(listOf("title"), policy.writeSurface.updateAllowedFields)
     }
@@ -4437,14 +4510,14 @@ class DefaultCanonicalAssemblerTest {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
                 idDefaultStrategy = "snowflake",
-                deletedDefaultColumn = "deleted",
+                deletedDefaultColumn = "",
             ),
             tables = listOf(
                 table(
                     name = "video_post",
                     columns = listOf(
                         column(name = "id", dbType = "BIGINT", kotlinType = "Long", nullable = false, primaryKey = true),
-                        column(name = "is_deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false, defaultValue = "0", managedRole = DbManagedRole.DELETED),
+                        column(name = "is_deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false, defaultValue = "0", managedRole = "soft-delete"),
                         column(name = "deleted", dbType = "BIGINT", kotlinType = "Long", nullable = false),
                     ),
                     primaryKey = listOf("id"),
@@ -4453,12 +4526,12 @@ class DefaultCanonicalAssemblerTest {
             )
         )
 
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single()
+        val deleted = requireNotNull(policy.fieldByRole(ManagedFieldRole.SOFT_DELETE))
 
-        assertEquals(true, policy.deleted.enabled)
-        assertEquals("isDeleted", policy.deleted.fieldName)
-        assertEquals("is_deleted", policy.deleted.columnName)
-        assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.deleted.source)
+        assertEquals("isDeleted", deleted.fieldName)
+        assertEquals("is_deleted", deleted.columnName)
+        assertTrue(deleted.selection is ManagedPolicySelectionProvenance.ExplicitColumnAnnotation)
         assertEquals("is_deleted", result.model.aggregatePersistenceProviderControls.single().softDelete?.columnName)
     }
 
@@ -4476,7 +4549,7 @@ class DefaultCanonicalAssemblerTest {
                             kotlinType = "Long",
                             nullable = false,
                             primaryKey = true,
-                            idStrategy = DbIdStrategy.DB_IDENTITY,
+                            idStrategy = "identifier.database-identity",
                         )
                     ),
                     primaryKey = listOf("id"),
@@ -4486,11 +4559,11 @@ class DefaultCanonicalAssemblerTest {
         )
 
         val control = result.model.aggregateIdPolicyControls.single()
-        val policy = result.model.aggregateSpecialFieldResolvedPolicies.single()
+        val policy = result.model.managedFieldPolicies.single().requireIdentifier()
 
         assertEquals("identity", control.strategy)
         assertEquals(AggregateIdPolicyKind.DATABASE_SIDE, control.kind)
-        assertEquals(SpecialFieldSource.DB_EXPLICIT, policy.id.source)
+        assertTrue(policy.selection is ManagedPolicySelectionProvenance.ExplicitColumnAnnotation)
     }
 
 
@@ -4512,7 +4585,7 @@ class DefaultCanonicalAssemblerTest {
                                         "TIMESTAMP",
                                         "java.time.Instant",
                                         false,
-                                        idStrategy = DbIdStrategy.DB_IDENTITY,
+                                        idStrategy = "identifier.database-identity",
                                     ),
                                 ),
                                 primaryKey = listOf("id"),
@@ -4524,7 +4597,11 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("generated value annotation can only be declared on id column: audit_log.created_at", error.message)
+        assertEquals(
+            "managed field policy identifier.database-identity with role IDENTIFIER is incompatible with " +
+                "non-primary-key column audit_log.created_at",
+            error.message,
+        )
     }
 
     @Test
@@ -4540,8 +4617,8 @@ class DefaultCanonicalAssemblerTest {
                                 comment = "@AggregateRoot=true;",
                                 columns = listOf(
                                     DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
-                                    DbColumnSnapshot("is_deleted", "INT", "Int", false, managedRole = DbManagedRole.DELETED),
+                                    DbColumnSnapshot("deleted", "INT", "Int", false, managedRole = "soft-delete"),
+                                    DbColumnSnapshot("is_deleted", "INT", "Int", false, managedRole = "soft-delete"),
                                 ),
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
@@ -4552,7 +4629,11 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("multiple explicit deleted columns found for table video_post", error.message)
+        assertEquals(
+            "entity com.acme.demo.domain.aggregates.video_post.VideoPost has multiple managed fields with role " +
+                "SOFT_DELETE: deleted, isDeleted",
+            error.message,
+        )
     }
 
     @Test
@@ -4568,8 +4649,8 @@ class DefaultCanonicalAssemblerTest {
                                 comment = "@AggregateRoot=true;",
                                 columns = listOf(
                                     DbColumnSnapshot("id", "BIGINT", "Long", false, isPrimaryKey = true),
-                                    DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
-                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, managedRole = DbManagedRole.VERSION),
+                                    DbColumnSnapshot("version", "BIGINT", "Long", false, managedRole = "version"),
+                                    DbColumnSnapshot("lock_version", "BIGINT", "Long", false, managedRole = "version"),
                                 ),
                                 primaryKey = listOf("id"),
                                 uniqueConstraints = emptyList(),
@@ -4580,7 +4661,11 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertEquals("multiple explicit version columns found for table video_post", error.message)
+        assertEquals(
+            "entity com.acme.demo.domain.aggregates.video_post.VideoPost has multiple managed fields with role " +
+                "VERSION: version, lockVersion",
+            error.message,
+        )
     }
 
     @Test
@@ -6407,7 +6492,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     private fun assembleSoftDelete(
-        idStrategy: DbIdStrategy,
+        idStrategy: String,
         idDbType: String,
         idKotlinType: String,
         deletedDbType: String,
@@ -6420,7 +6505,7 @@ class DefaultCanonicalAssemblerTest {
         deletedColumnSize: Int? = defaultTestColumnSize(deletedDbType),
     ) = assembleAggregate(
         config = projectConfigWithSpecialFieldDefaults(
-            idDefaultStrategy = idStrategy.name.lowercase(),
+            idDefaultStrategy = idStrategy,
             deletedDefaultColumn = "",
         ),
         tables = listOf(
@@ -6443,7 +6528,7 @@ class DefaultCanonicalAssemblerTest {
                         kotlinType = deletedKotlinType,
                         nullable = deletedNullable,
                         defaultValue = defaultValue,
-                        managedRole = DbManagedRole.DELETED,
+                        managedRole = "soft-delete",
                         jdbcType = deletedJdbcType,
                         columnSize = deletedColumnSize,
                     ),
@@ -6500,7 +6585,7 @@ class DefaultCanonicalAssemblerTest {
             kotlinType = "Long",
             nullable = false,
             defaultValue = "0",
-            managedRole = DbManagedRole.DELETED,
+            managedRole = "soft-delete",
         ),
     )
 
@@ -6519,7 +6604,7 @@ class DefaultCanonicalAssemblerTest {
                 kotlinType = case.deletedKotlinType,
                 nullable = false,
                 defaultValue = case.defaultValue,
-                managedRole = DbManagedRole.DELETED,
+                managedRole = "soft-delete",
             ),
         ),
         strategy = case.strategy,
@@ -6538,42 +6623,70 @@ class DefaultCanonicalAssemblerTest {
             columns = columns,
             primaryKey = listOf(idColumnName),
         ),
-        resolvedPolicy = AggregateSpecialFieldResolvedPolicy(
+        resolvedPolicy = ResolvedManagedEntityPolicy(
             entityName = "VideoPost",
             entityPackageName = "com.acme.demo.domain.aggregates.video_post",
             tableName = "video_post",
-            id = ResolvedIdPolicy(
-                fieldName = "id",
-                columnName = idColumnName,
-                strategy = strategy,
-                kind = if (strategy == "identity") {
-                    AggregateIdPolicyKind.DATABASE_SIDE
-                } else {
-                    AggregateIdPolicyKind.APPLICATION_SIDE
-                },
-                source = SpecialFieldSource.DB_EXPLICIT,
-                writePolicy = SpecialFieldWritePolicy.READ_ONLY,
-            ),
-            deleted = ResolvedMarkerPolicy(
-                enabled = deletedEnabled,
-                fieldName = deletedFieldName,
-                columnName = deletedColumnName,
-                source = if (deletedEnabled) SpecialFieldSource.DB_EXPLICIT else SpecialFieldSource.NONE,
-                writePolicy = if (deletedEnabled) {
-                    SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
-                } else {
-                    SpecialFieldWritePolicy.READ_WRITE
-                },
-            ),
-            version = ResolvedMarkerPolicy(
-                enabled = false,
-                source = SpecialFieldSource.NONE,
-            ),
+            fields = buildList {
+                add(
+                    resolvedManagedField(
+                        fieldName = "id",
+                        columnName = idColumnName,
+                        policyKey = when (strategy) {
+                            "identity" -> "identifier.database-identity"
+                            else -> "identifier.$strategy"
+                        },
+                        role = ManagedFieldRole.IDENTIFIER,
+                    )
+                )
+                if (deletedEnabled) {
+                    add(
+                        resolvedManagedField(
+                            fieldName = requireNotNull(deletedFieldName),
+                            columnName = requireNotNull(deletedColumnName),
+                            policyKey = "soft-delete",
+                            role = ManagedFieldRole.SOFT_DELETE,
+                        )
+                    )
+                }
+            },
+            writeSurface = ResolvedWriteSurfacePolicy(),
+        ),
+    )
+
+    private fun resolvedManagedField(
+        fieldName: String,
+        columnName: String,
+        policyKey: String,
+        role: ManagedFieldRole,
+    ): ResolvedManagedFieldPolicy = ResolvedManagedFieldPolicy(
+        fieldName = fieldName,
+        columnName = columnName,
+        fieldType = "Long",
+        nullable = false,
+        selection = ManagedPolicySelectionProvenance.ExplicitColumnAnnotation("test"),
+        definitionOwner = ManagedPolicyDefinitionOwner.BuiltIn,
+        policyKey = policyKey,
+        role = role,
+        creationInput = ManagedCreationInputPolicy.OMIT,
+        explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+        lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+        handlerQualifier = policyKey,
+        handlerSlot = null,
+        semanticValueType = "Long",
+        valueAdapterQualifier = null,
+        persistence = PersistenceParticipation(
+            insert = ManagedValueAuthority.FRAMEWORK,
+            update = if (role == ManagedFieldRole.SOFT_DELETE) {
+                ManagedValueAuthority.PERSISTENCE_PROVIDER
+            } else {
+                ManagedValueAuthority.NONE
+            },
         ),
     )
 
     private data class SoftDeleteStorageCase(
-        val idStrategy: DbIdStrategy,
+        val idStrategy: String,
         val idDbType: String,
         val idKotlinType: String,
         val deletedDbType: String,
@@ -6653,13 +6766,21 @@ class DefaultCanonicalAssemblerTest {
             aggregate = PackageLayout("domain.aggregates"),
         ),
     ).copy(
-        aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-            idDefaultStrategy = idDefaultStrategy,
-            deletedDefaultColumn = deletedDefaultColumn,
-            versionDefaultColumn = versionDefaultColumn,
-            managedDefaultColumns = managedDefaultColumns,
+        managedFields = ManagedFieldDefaultsConfig(
+            identifierDefaultPolicy = identifierPolicyKey(idDefaultStrategy),
+            columnPolicyDefaults = buildMap {
+                if (deletedDefaultColumn.isNotBlank()) put(deletedDefaultColumn, "soft-delete")
+                if (versionDefaultColumn.isNotBlank()) put(versionDefaultColumn, "version")
+                managedDefaultColumns.forEach { put(it, "initialization.request-context") }
+            },
         )
     )
+
+    private fun identifierPolicyKey(value: String): String = when (value) {
+        "identity", "db_identity", "database-identity" -> "identifier.database-identity"
+        "uuid7", "snowflake", "assigned" -> "identifier.$value"
+        else -> value
+    }
 
     private fun supportedVersionTypes(): List<String> = listOf(
         "Short", "kotlin.Short", "java.lang.Short",
@@ -6703,8 +6824,8 @@ class DefaultCanonicalAssemblerTest {
         parentRef: Boolean = false,
         refAggregate: String? = null,
         refId: String? = null,
-        idStrategy: DbIdStrategy? = null,
-        managedRole: DbManagedRole? = null,
+        idStrategy: String? = null,
+        managedRole: String? = null,
         inherited: Boolean? = null,
         jdbcType: Int? = defaultTestJdbcType(dbType),
         columnSize: Int? = defaultTestColumnSize(dbType),
@@ -6726,9 +6847,7 @@ class DefaultCanonicalAssemblerTest {
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
-        idStrategy = idStrategy ?: defaultTestIdStrategy(isPrimaryKey, kotlinType),
-        managedRole = managedRole,
-        inherited = inherited,
+        managedPolicyKey = idStrategy ?: managedRole ?: defaultTestIdStrategy(isPrimaryKey, kotlinType),
         jdbcType = jdbcType,
         columnSize = columnSize,
     )
@@ -6753,8 +6872,8 @@ class DefaultCanonicalAssemblerTest {
         parentRef: Boolean = false,
         refAggregate: String? = null,
         refId: String? = null,
-        idStrategy: DbIdStrategy? = null,
-        managedRole: DbManagedRole? = null,
+        idStrategy: String? = null,
+        managedRole: String? = null,
         inherited: Boolean? = null,
         jdbcType: Int? = defaultTestJdbcType(dbType),
         columnSize: Int? = defaultTestColumnSize(dbType),
@@ -6768,19 +6887,17 @@ class DefaultCanonicalAssemblerTest {
         parentRef = parentRef || !referenceTable.isNullOrBlank(),
         refAggregate = refAggregate,
         refId = refId,
-        idStrategy = idStrategy ?: defaultTestIdStrategy(
-            primaryKey = primaryKey,
-            kotlinType = kotlinType,
-            dbGenerated = generatedValueDeclared || generatedValueStrategy != null,
-        ),
-        managedRole = managedRole ?: when {
-            deleted == true -> DbManagedRole.DELETED
-            version == true -> DbManagedRole.VERSION
-            managed == true -> DbManagedRole.SYSTEM
-            exposed == true -> DbManagedRole.SCOPE
-            else -> null
+        managedPolicyKey = idStrategy ?: managedRole ?: when {
+            deleted == true -> "soft-delete"
+            version == true -> "version"
+            managed == true -> "initialization.request-context"
+            exposed == true -> "scope.tenant"
+            else -> defaultTestIdStrategy(
+                primaryKey = primaryKey,
+                kotlinType = kotlinType,
+                dbGenerated = generatedValueDeclared || generatedValueStrategy != null,
+            )
         },
-        inherited = inherited,
         jdbcType = jdbcType,
         columnSize = columnSize,
     )
@@ -6805,7 +6922,7 @@ class DefaultCanonicalAssemblerTest {
                     "String",
                     false,
                     primaryKey = true,
-                    idStrategy = DbIdStrategy.UUID7,
+                    idStrategy = "identifier.uuid7",
                     jdbcType = Types.VARCHAR,
                     columnSize = 36,
                 )
@@ -6825,7 +6942,7 @@ class DefaultCanonicalAssemblerTest {
                     "java.util.UUID",
                     false,
                     primaryKey = true,
-                    idStrategy = DbIdStrategy.UUID7,
+                    idStrategy = "identifier.uuid7",
                     jdbcType = Types.OTHER,
                     columnSize = 16,
                 )
@@ -6845,7 +6962,7 @@ class DefaultCanonicalAssemblerTest {
                     "String",
                     false,
                     primaryKey = true,
-                    idStrategy = DbIdStrategy.SNOWFLAKE,
+                    idStrategy = "identifier.snowflake",
                     jdbcType = Types.VARCHAR,
                     columnSize = 19,
                 )
@@ -6865,7 +6982,7 @@ class DefaultCanonicalAssemblerTest {
                     "Long",
                     false,
                     primaryKey = true,
-                    idStrategy = DbIdStrategy.SNOWFLAKE,
+                    idStrategy = "identifier.snowflake",
                     jdbcType = Types.BIGINT,
                     columnSize = 64,
                 )
@@ -6885,7 +7002,7 @@ class DefaultCanonicalAssemblerTest {
                     "String",
                     false,
                     primaryKey = true,
-                    idStrategy = DbIdStrategy.UUID7,
+                    idStrategy = "identifier.uuid7",
                     jdbcType = null,
                     columnSize = 36,
                 )
@@ -6910,7 +7027,7 @@ class DefaultCanonicalAssemblerTest {
                                 "java.util.UUID",
                                 false,
                                 primaryKey = true,
-                                idStrategy = DbIdStrategy.UUID7,
+                                idStrategy = "identifier.uuid7",
                             )
                         ),
                         primaryKey = listOf("id"),
@@ -6953,12 +7070,12 @@ class DefaultCanonicalAssemblerTest {
         primaryKey: Boolean,
         kotlinType: String,
         dbGenerated: Boolean = false,
-    ): DbIdStrategy? = when {
-        dbGenerated -> DbIdStrategy.DB_IDENTITY
+    ): String? = when {
+        dbGenerated -> "identifier.database-identity"
         !primaryKey -> null
         kotlinType in setOf("Long", "kotlin.Long", "Int", "kotlin.Int", "Short", "kotlin.Short") ->
-            DbIdStrategy.DB_IDENTITY
-        kotlinType == "String" -> DbIdStrategy.UUID7
+            "identifier.database-identity"
+        kotlinType == "String" -> "identifier.uuid7"
         else -> null
     }
 
@@ -6989,8 +7106,8 @@ class DefaultCanonicalAssemblerTest {
             sources = emptyMap(),
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
-            aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                idDefaultStrategy = "snowflake",
+            managedFields = ManagedFieldDefaultsConfig(
+                identifierDefaultPolicy = "identifier.snowflake",
             ),
         )
     }
@@ -7010,8 +7127,8 @@ class DefaultCanonicalAssemblerTest {
             generators = generators,
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
-            aggregateSpecialFieldDefaults = AggregateSpecialFieldDefaultsConfig(
-                idDefaultStrategy = "snowflake",
+            managedFields = ManagedFieldDefaultsConfig(
+                identifierDefaultPolicy = "identifier.snowflake",
             ),
         )
     }

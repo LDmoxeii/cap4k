@@ -7,6 +7,13 @@ import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
+import com.only4.cap4k.plugin.pipeline.api.PIPELINE_EXTENSION_SPI_VERSION
+import com.only4.cap4k.plugin.pipeline.api.PipelineContribution
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
+import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
@@ -55,19 +62,20 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `plugin registers cap4k addon configuration`() {
+    fun `plugin registers cap4k pipeline extension configuration without legacy alias`() {
         val project = ProjectBuilder.builder().build()
 
         project.pluginManager.apply(PipelinePlugin::class.java)
 
-        val configuration = project.configurations.getByName("cap4kAddon")
+        val configuration = project.configurations.getByName("cap4kPipelineExtension")
 
         assertTrue(configuration.isCanBeResolved)
         assertFalse(configuration.isCanBeConsumed)
+        assertNull(project.configurations.findByName("cap4kAddon"))
     }
 
     @Test
-    fun `addon consuming tasks declare cap4k addon classpath inputs`() {
+    fun `extension consuming tasks declare cap4k pipeline extension classpath inputs`() {
         val projectDir = tempProjectDir("pipeline-plugin-addon-classpath-input")
         val addonJar = projectDir.resolve("addon.jar")
         addonJar.writeText("addon")
@@ -75,7 +83,7 @@ class PipelinePluginTest {
             .withProjectDir(projectDir)
             .build()
         project.pluginManager.apply(PipelinePlugin::class.java)
-        project.dependencies.add("cap4kAddon", project.files(addonJar))
+        project.dependencies.add("cap4kPipelineExtension", project.files(addonJar))
 
         listOf(
             "cap4kPlan" to Cap4kPlanTask::class.java,
@@ -85,10 +93,13 @@ class PipelinePluginTest {
             "cap4kAnalysisGenerate" to Cap4kAnalysisGenerateTask::class.java,
         ).forEach { (taskName, taskType) ->
             val getter = taskType.methods.singleOrNull {
-                it.name == "getAddonClasspath" && it.parameterCount == 0
+                it.name == "getPipelineExtensionClasspath" && it.parameterCount == 0
             }
-            assertNotNull(getter, "$taskName must expose addonClasspath")
-            assertNotNull(getter!!.getAnnotation(Classpath::class.java), "$taskName addonClasspath must be @Classpath")
+            assertNotNull(getter, "$taskName must expose pipelineExtensionClasspath")
+            assertNotNull(
+                getter!!.getAnnotation(Classpath::class.java),
+                "$taskName pipelineExtensionClasspath must be @Classpath",
+            )
 
             val task = project.tasks.named(taskName).get()
             val classpath = getter.invoke(task) as FileCollection
@@ -97,13 +108,13 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `source and analysis runners receive providers loaded from cap4k addon configuration`() {
+    fun `source and analysis runners receive artifact contributions from pipeline extensions`() {
         val projectDir = tempProjectDir("pipeline-plugin-addon-runtime")
         val project = ProjectBuilder.builder()
             .withProjectDir(projectDir)
             .build()
         project.pluginManager.apply(PipelinePlugin::class.java)
-        project.dependencies.add("cap4kAddon", project.files(addonProviderJar(projectDir)))
+        project.dependencies.add("cap4kPipelineExtension", project.files(addonProviderJar(projectDir)))
 
         val sourceRunner = buildSourceRunner(project, minimalConfig(), exportEnabled = false)
         val analysisRunner = buildAnalysisRunner(project, minimalConfig(), exportEnabled = false)
@@ -155,18 +166,18 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `addon runtime closes classloader when provider loading fails`() {
+    fun `pipeline extension runtime closes classloader when provider loading fails`() {
         val addonFile = tempProjectDir("pipeline-plugin-addon-load-failure").resolve("addon.jar")
         addonFile.writeText("addon")
         val closeFailure = IllegalStateException("close failed")
         val classLoader = CloseTrackingUrlClassLoader(closeFailure)
 
         val exception = assertThrows(IllegalStateException::class.java) {
-            loadArtifactAddonRuntime(
+            loadPipelineExtensionRuntime(
                 files = setOf(addonFile),
                 parent = javaClass.classLoader,
                 classLoaderFactory = { _, _ -> classLoader },
-                providerLoader = { error("load failed") },
+                extensionLoader = { error("load failed") },
             )
         }
 
@@ -176,24 +187,61 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `addon runtime exposes template classloader by provider id`() {
+    fun `pipeline extension runtime exposes template classloader by addon id`() {
         val addonFile = tempProjectDir("pipeline-plugin-addon-template-classloader").resolve("addon.jar")
         addonFile.writeText("addon")
         val classLoader = CloseTrackingUrlClassLoader(closeFailure = null)
         val templateClassLoader = CloseTrackingUrlClassLoader(closeFailure = null)
 
-        val runtime = loadArtifactAddonRuntime(
+        val runtime = loadPipelineExtensionRuntime(
             files = setOf(addonFile),
             parent = javaClass.classLoader,
             classLoaderFactory = { _, _ -> classLoader },
-            providerLoader = { listOf(TestPipelinePluginAddonProvider()) },
+            extensionLoader = {
+                PipelineExtensionLoader.validateAndBind(listOf(TestPipelinePluginExtensionProvider()))
+            },
             templateClassLoaderFactory = { templateClassLoader },
         )
 
-        assertEquals(listOf("plugin-test-addon"), runtime.providers.map { it.id })
-        assertSame(templateClassLoader, runtime.templateClassLoaders["plugin-test-addon"])
+        assertEquals(listOf("plugin-test-addon"), runtime.artifactAddons.map { it.contribution.id })
+        assertSame(templateClassLoader, runtime.addonTemplateClassLoaders["plugin-test-addon"])
 
         runtime.closeables.forEach { it.close() }
+    }
+
+    @Test
+    fun `pipeline extension runtime rejects configured contribution that was not loaded and closes classloader`() {
+        val extensionFile = tempProjectDir("pipeline-extension-missing-contribution").resolve("extension.jar")
+        extensionFile.writeText("extension")
+        val classLoader = CloseTrackingUrlClassLoader(closeFailure = null)
+        val config = minimalConfig().copy(
+            pipelineExtensions = mapOf(
+                "plugin-test-extension" to PipelineExtensionConfig(
+                    id = "plugin-test-extension",
+                    contributions = mapOf(
+                        "missing" to PipelineContributionConfig(id = "missing"),
+                    ),
+                ),
+            ),
+        )
+
+        val exception = assertThrows(IllegalArgumentException::class.java) {
+            loadPipelineExtensionRuntime(
+                files = setOf(extensionFile),
+                parent = javaClass.classLoader,
+                config = config,
+                classLoaderFactory = { _, _ -> classLoader },
+                extensionLoader = {
+                    PipelineExtensionLoader.validateAndBind(listOf(TestPipelinePluginExtensionProvider()))
+                },
+            )
+        }
+
+        assertEquals(
+            "Configured pipeline contribution is not loaded: plugin-test-extension/missing",
+            exception.message,
+        )
+        assertTrue(classLoader.closed)
     }
 
     @Test
@@ -205,14 +253,14 @@ class PipelinePluginTest {
             name = "unrelated-resource.jar",
             entries = mapOf("cap4k/addons/plugin-test-addon/sample.kt.peb" to "wrong addon template"),
         )
-        val runtime = loadArtifactAddonRuntime(
+        val runtime = loadPipelineExtensionRuntime(
             files = setOf(providerJar, unrelatedResourceJar),
             parent = ArtifactAddonProvider::class.java.classLoader,
         )
         val resolver = PresetTemplateResolver(
             preset = "test-bootstrap",
             overrideDirs = emptyList(),
-            addonTemplateClassLoaders = runtime.templateClassLoaders,
+            addonTemplateClassLoaders = runtime.addonTemplateClassLoaders,
         )
 
         val exception = assertThrows(IllegalArgumentException::class.java) {
@@ -1439,10 +1487,11 @@ class PipelinePluginTest {
     }
 
     private fun addonProviderIds(runner: Any): List<String> {
-        val effectiveRunner = runnerWithInternalProperty(runner, "addonProviders")
-        val providers = readInternalProperty(effectiveRunner, "addonProviders") as List<*>
-        return providers.map { provider ->
-            readInternalProperty(provider!!, "id").toString()
+        val effectiveRunner = runnerWithInternalProperty(runner, "artifactAddons")
+        val bindings = readInternalProperty(effectiveRunner, "artifactAddons") as List<*>
+        return bindings.map { binding ->
+            @Suppress("UNCHECKED_CAST")
+            (binding as PipelineContributionBinding<ArtifactAddonProvider>).contribution.id
         }
     }
 
@@ -1455,18 +1504,23 @@ class PipelinePluginTest {
     private fun addonProviderJar(projectDir: File, name: String = "plugin-test-addon.jar"): File {
         val jar = projectDir.resolve(name)
         JarOutputStream(jar.outputStream()).use { output ->
-            val providerClassPath = TestPipelinePluginAddonProvider::class.java.name.replace('.', '/') + ".class"
-            output.putNextEntry(JarEntry(providerClassPath))
-            output.write(
-                requireNotNull(TestPipelinePluginAddonProvider::class.java.classLoader.getResourceAsStream(providerClassPath)) {
-                    "provider class resource not found: $providerClassPath"
-                }.readBytes()
-            )
-            output.closeEntry()
+            listOf(
+                TestPipelinePluginExtensionProvider::class.java,
+                TestPipelinePluginAddonProvider::class.java,
+            ).forEach { providerClass ->
+                val providerClassPath = providerClass.name.replace('.', '/') + ".class"
+                output.putNextEntry(JarEntry(providerClassPath))
+                output.write(
+                    requireNotNull(providerClass.classLoader.getResourceAsStream(providerClassPath)) {
+                        "provider class resource not found: $providerClassPath"
+                    }.readBytes()
+                )
+                output.closeEntry()
+            }
             output.putNextEntry(
-                JarEntry("META-INF/services/com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider")
+                JarEntry("META-INF/services/com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider")
             )
-            output.write(TestPipelinePluginAddonProvider::class.java.name.toByteArray(Charsets.UTF_8))
+            output.write(TestPipelinePluginExtensionProvider::class.java.name.toByteArray(Charsets.UTF_8))
             output.closeEntry()
         }
         return jar
@@ -1627,4 +1681,12 @@ class TestPipelinePluginAddonProvider : com.only4.cap4k.plugin.pipeline.api.Arti
     override fun plan(
         context: com.only4.cap4k.plugin.pipeline.api.ArtifactAddonContext,
     ): List<com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem> = emptyList()
+}
+
+class TestPipelinePluginExtensionProvider : PipelineExtensionProvider {
+    override val descriptor: PipelineExtensionDescriptor = PipelineExtensionDescriptor(
+        id = "plugin-test-extension",
+        spiVersion = PIPELINE_EXTENSION_SPI_VERSION,
+    )
+    override val contributions: List<PipelineContribution> = listOf(TestPipelinePluginAddonProvider())
 }

@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("io.github.ldmoxeii.cap4k.pipeline")
 }
 
@@ -28,11 +28,11 @@ cap4k {
             files.from("design/design.json")
         }
     }
+    managedFields {
+        identifierDefaultPolicy.set("identifier.database-identity")
+    }
     generators {
         aggregate {
-            specialFields {
-                idDefaultStrategy.set("identity")
-            }
             artifacts {
             }
         }

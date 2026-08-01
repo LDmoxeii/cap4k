@@ -790,8 +790,8 @@ class PipelinePluginCompileFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             """
-            create table video_post (id bigint primary key comment '@IdStrategy=db_identity;');
-            create table video_post_item (id bigint primary key comment '@IdStrategy=db_identity;', video_post_id bigint not null);
+            create table video_post (id bigint primary key comment '@Managed=identifier.database-identity;');
+            create table video_post_item (id bigint primary key comment '@Managed=identifier.database-identity;', video_post_id bigint not null);
             comment on table video_post_item is '@Parent=video_post;';
             """.trimIndent()
         )
@@ -813,7 +813,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `aggregate inherited persistence fields omitted entity participates in domain compileKotlin`() {
+    fun `aggregate managed persistence fields remain declared and participate in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-persistence-compile-sample")
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
@@ -832,8 +832,8 @@ class PipelinePluginCompileFunctionalTest {
 
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))
-        assertFalse(generatedEntity.contains("createdBy"))
-        assertFalse(generatedEntity.contains("updatedBy"))
+        assertTrue(generatedEntity.contains("createdBy"))
+        assertTrue(generatedEntity.contains("updatedBy"))
         assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
     }
@@ -862,7 +862,6 @@ class PipelinePluginCompileFunctionalTest {
         ) {
             val packageName: String = "com.acme.demo.domain.aggregates.$tableName"
             val idType: String = "${entityName}Id"
-            val accessorType: String = "${entityName}GeneratedOwnIdAccessor"
             val factoryType: String = "${entityName}Factory"
         }
 
@@ -922,13 +921,8 @@ class PipelinePluginCompileFunctionalTest {
                 "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idType}.kt"
             )
         }
-        val accessorPaths = applicationSideCells.map { cell ->
-            generatedSource(
-                "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
-            )
-        }
         val catalogPath = generatedSource(
-            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt"
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/managed/ManagedFieldCatalogContribution.kt"
         )
         val applicationFactoryPaths = applicationSideCells.map { cell ->
             "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/factory/${cell.factoryType}.kt"
@@ -936,7 +930,7 @@ class PipelinePluginCompileFunctionalTest {
 
         assertGeneratedFilesExist(
             projectDir,
-            *(entityPaths + strongIdPaths + accessorPaths + catalogPath + applicationFactoryPaths).toTypedArray(),
+            *(entityPaths + strongIdPaths + catalogPath + applicationFactoryPaths).toTypedArray(),
         )
 
         val generatedVideoPost = projectDir.resolve(entityPaths.first()).readText()
@@ -951,13 +945,6 @@ class PipelinePluginCompileFunctionalTest {
             projectDir.resolve(
                 generatedSource(
                     "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.idType}.kt"
-                )
-            ).readText()
-        }
-        val generatedAccessors = applicationSideCells.associateWith { cell ->
-            projectDir.resolve(
-                generatedSource(
-                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
                 )
             ).readText()
         }
@@ -984,6 +971,18 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
         assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedVideoPost.contains("@Version"))
+        assertTrue(
+            generatedVideoPost.contains(
+                "@org.hibernate.annotations.Generated(event = [org.hibernate.generator.EventType.INSERT, " +
+                    "org.hibernate.generator.EventType.UPDATE])"
+            )
+        )
+        assertTrue(
+            generatedVideoPost.contains(
+                "@Column(name = \"`db_updated_at`\", insertable = false, updatable = false)"
+            )
+        )
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("dbUpdatedAt"))
         assertFalse(internalConstructorParameters(generatedVideoPost).contains("id"))
         assertFalse(internalConstructorParameters(generatedVideoPost).contains("version"))
         assertTrue(generatedVideoPost.contains("var id: Long? = null"))
@@ -995,9 +994,12 @@ class PipelinePluginCompileFunctionalTest {
         applicationSideCells.forEach { cell ->
             val entity = generatedEntities.getValue(cell)
             val strongId = generatedStrongIds.getValue(cell)
-            val accessor = generatedAccessors.getValue(cell)
             val factory = generatedFactories.getValue(cell)
             val constructorParameters = internalConstructorParameters(entity)
+            val allocationBackingType = when (cell.backingType) {
+                "UUID" -> "java.util.UUID"
+                else -> cell.backingType
+            }
 
             assertTrue(entity.contains("@EmbeddedId"), cell.entityName)
             assertGeneratedOwnIdShape(entity, cell.idType)
@@ -1019,15 +1021,18 @@ class PipelinePluginCompileFunctionalTest {
             assertFalse(entity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"), cell.entityName)
             assertTrue(strongId.contains("StrongId<${cell.backingType}>"), cell.idType)
             assertTrue(
-                accessor.contains(
-                    "Mediator.identifiers.next(\"${cell.strategy}\", ${cell.backingType}::class)"
+                generatedCatalog.contains(
+                    "Mediator.identifiers.next(\"${cell.strategy}\", $allocationBackingType::class)"
                 ),
-                cell.accessorType,
+                cell.entityName,
             )
-            assertTrue(accessor.contains("${cell.idType}.of("), cell.accessorType)
             assertTrue(
-                generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
-                cell.accessorType,
+                generatedCatalog.contains("${cell.idType}.of("),
+                cell.entityName,
+            )
+            assertTrue(
+                generatedCatalog.contains("entityType = ${cell.packageName}.${cell.entityName}::class"),
+                cell.entityName,
             )
             assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
             assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
@@ -1040,12 +1045,13 @@ class PipelinePluginCompileFunctionalTest {
 
         assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(generatedIdentityFactory.contains("deleted"))
+        assertTrue(generatedCatalog.contains("class ManagedFieldCatalogContribution : ManagedFieldCatalog"))
+        assertFalse(generatedCatalog.contains("GeneratedOwnIdAccessor"))
 
         val allGeneratedEvidence = buildString {
             append(generatedVideoPost)
             generatedEntities.values.forEach { append(it) }
             generatedStrongIds.values.forEach { append(it) }
-            generatedAccessors.values.forEach { append(it) }
             append(generatedCatalog)
             generatedFactories.values.forEach { append(it) }
             append(generatedIdentityFactory)
@@ -1076,14 +1082,14 @@ class PipelinePluginCompileFunctionalTest {
         projectDir.resolve("schema.sql").writeText(
             """
             create table "MixedCaseOwner" (
-                "Id" bigint generated by default as identity primary key comment '@IdStrategy=db_identity;',
-                "Deleted" bigint not null default 0 comment '@Managed=deleted;',
+                "Id" bigint generated by default as identity primary key comment '@Managed=identifier.database-identity;',
+                "Deleted" bigint not null default 0 comment '@Managed=soft-delete;',
                 "Name" varchar(128) not null
             );
 
             create table "MixedCaseRecord" (
-                "Id" bigint generated by default as identity primary key comment '@IdStrategy=db_identity;',
-                "Deleted" bigint not null default 0 comment '@Managed=deleted;',
+                "Id" bigint generated by default as identity primary key comment '@Managed=identifier.database-identity;',
+                "Deleted" bigint not null default 0 comment '@Managed=soft-delete;',
                 "OwnerId" bigint not null,
                 "Title" varchar(128) not null,
                 constraint "FkMixedCaseRecordOwner" foreign key ("OwnerId") references "MixedCaseOwner" ("Id")
@@ -1331,7 +1337,11 @@ class PipelinePluginCompileFunctionalTest {
 
         assertTrue(generatedEntity.contains("""@Table(name = "\"MixedCaseRecord\"")"""))
         assertTrue(generatedEntity.contains("""@Column(name = "\"Title\"")"""))
-        assertTrue(generatedEntity.contains("""@Column(name = "\"Deleted\"")"""))
+        assertTrue(
+            generatedEntity.contains(
+                """@Column(name = "\"Deleted\"", insertable = true, updatable = true)"""
+            )
+        )
         assertTrue(
             generatedEntity.contains(
                 """@JoinColumn(name = "\"OwnerId\"", nullable = false)"""
@@ -1348,14 +1358,14 @@ class PipelinePluginCompileFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
-            ).replaceFirst("@Managed=deleted;", "") +
+                "id bigint primary key comment '@Managed=identifier.database-identity;',",
+                "id varchar(36) primary key comment '@Managed=identifier.uuid7;',",
+            ).replaceFirst("@Managed=soft-delete;", "") +
                 "\n\n" +
                 """
                 create table audit_log (
-                    id bigint primary key comment '@IdStrategy=db_identity;',
-                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    id bigint primary key comment '@Managed=identifier.database-identity;',
+                    deleted bigint not null default 0 comment '@Managed=soft-delete;',
                     content varchar(128) not null
                 );
                 """.trimIndent()
@@ -1375,18 +1385,17 @@ class PipelinePluginCompileFunctionalTest {
             )
             .replace(
                 """
-                |        aggregate { }
+                |    generators {
                 """.trimMargin(),
                 """
-                |        aggregate {
-                |            specialFields {
-                |                idDefaultStrategy.set("identity")
-                |            }
-                |        }
+                |    managedFields {
+                |        identifierDefaultPolicy.set("identifier.database-identity")
+                |    }
+                |    generators {
                 """.trimMargin(),
             )
         buildFile.writeText(patchedBuildFile)
-        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
+        assertTrue(patchedBuildFile.contains("""identifierDefaultPolicy.set("identifier.database-identity")"""))
         assertTrue(patchedBuildFile.contains("\"audit_log\""))
         projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +
@@ -1435,9 +1444,9 @@ class PipelinePluginCompileFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
-            ).replaceFirst("@Managed=deleted;", "")
+                "id bigint primary key comment '@Managed=identifier.database-identity;',",
+                "id varchar(36) primary key comment '@Managed=identifier.uuid7;',",
+            ).replaceFirst("@Managed=soft-delete;", "")
         )
         projectDir.resolve(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/" +

@@ -7,6 +7,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationNodeModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationRelationModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRef
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
@@ -23,7 +24,6 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.DomainServiceModel
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -42,6 +42,9 @@ import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 import com.only4.cap4k.plugin.pipeline.api.JsonValuePersistenceProjection
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
+import com.only4.cap4k.plugin.pipeline.api.OwnedManagedFieldPolicyDefinition
+import com.only4.cap4k.plugin.pipeline.api.ManagedValueAuthority
+import com.only4.cap4k.plugin.pipeline.api.ManagedCreationInputPolicy
 import com.only4.cap4k.plugin.pipeline.api.SemanticDefaultExpression
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
@@ -59,11 +62,19 @@ import com.only4.cap4k.plugin.pipeline.api.ownerAggregate
 import java.util.Locale
 
 interface CanonicalAssembler {
-    fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult
+    fun assemble(
+        config: ProjectConfig,
+        snapshots: List<SourceSnapshot>,
+        managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition> = emptyList(),
+    ): CanonicalAssemblyResult
 }
 
 class DefaultCanonicalAssembler : CanonicalAssembler {
-    override fun assemble(config: ProjectConfig, snapshots: List<SourceSnapshot>): CanonicalAssemblyResult {
+    override fun assemble(
+        config: ProjectConfig,
+        snapshots: List<SourceSnapshot>,
+        managedFieldPolicyDefinitions: List<OwnedManagedFieldPolicyDefinition>,
+    ): CanonicalAssemblyResult {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
         val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
@@ -135,8 +146,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             )
         }
 
-        val aggregateRelations = AggregateRelationInference.fromTables(
-            artifactLayout = artifactLayout,
+        // Parent-binding failures must be reported before entity scalar projection removes @ParentRef columns.
+        OwnedParentBindingResolver.resolve(
             tables = supportedTables,
             skippedTableNames = if (aggregatePolicy == UnsupportedTablePolicy.SKIP) {
                 unsupportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
@@ -148,7 +159,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
         val generatedOwnStrongIdsByTableName = supportedTables
             .mapNotNull { table ->
-                generatedOwnStrongId(table)?.let { strongId ->
+                generatedOwnStrongId(config, table)?.let { strongId ->
                     table.tableName.lowercase(Locale.ROOT) to strongId
                 }
             }
@@ -199,8 +210,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         typeBinding = column.typeBinding,
                         enumItems = column.enumItems,
                         columnName = column.name,
-                        managedRole = column.managedRole,
-                        inherited = column.inherited == true,
                     )
                 }
             val primaryKeyColumn = table.primaryKey.first()
@@ -352,30 +361,50 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             typeRegistry = config.typeRegistry.entries,
             artifactLayout = artifactLayout,
         )
-        val aggregatePersistenceFieldControls = AggregatePersistenceFieldBehaviorInference.infer(
+        val managedFieldPolicies = ManagedFieldPolicyResolver.resolve(
+            config = config,
             entities = entities,
-            schema = dbSnapshot,
+            tables = supportedTables,
+            contributedDefinitions = managedFieldPolicyDefinitions,
         )
-        val specialFieldResolution = if (config.isAggregateProjectionOnly()) {
-            AggregateSpecialFieldResolutionResult(
-                resolvedPolicies = emptyList(),
-                idControls = emptyList(),
-                providerControls = emptyList(),
-            )
-        } else {
-            AggregateSpecialFieldPolicyResolver.resolve(
-                config = config,
-                entities = entities,
-                tables = supportedTables,
+        val aggregatePersistenceProviderControls = AggregatePersistenceProviderInference.infer(
+            tables = supportedTables,
+            resolvedPolicies = managedFieldPolicies,
+        )
+        val aggregateIdPolicyControls = managedFieldPolicies.map { policy ->
+            val entity = entities.single {
+                it.name == policy.entityName && it.packageName == policy.entityPackageName
+            }
+            val identifier = policy.requireIdentifier()
+            val kind = when (identifier.persistence.insert) {
+                ManagedValueAuthority.DATABASE,
+                ManagedValueAuthority.PERSISTENCE_PROVIDER,
+                -> AggregateIdPolicyKind.DATABASE_SIDE
+                else -> AggregateIdPolicyKind.APPLICATION_SIDE
+            }
+            AggregateIdPolicyResolver.toControl(
+                entity = entity,
+                strategy = identifierStrategy(identifier.policyKey),
+                kind = kind,
             )
         }
-        val aggregatePersistenceProviderControls = specialFieldResolution.providerControls
-        val aggregateIdPolicyControls = specialFieldResolution.idControls
+        val aggregatePersistenceFieldControls = AggregatePersistenceFieldBehaviorInference.infer(managedFieldPolicies)
+        val aggregateRelations = AggregateRelationInference.fromTables(
+            artifactLayout = artifactLayout,
+            tables = supportedTables,
+            managedFieldPolicies = managedFieldPolicies,
+            skippedTableNames = if (aggregatePolicy == UnsupportedTablePolicy.SKIP) {
+                unsupportedTables.map { it.tableName.lowercase(Locale.ROOT) }.toSet()
+            } else {
+                emptySet()
+            },
+            outOfScopeTableNames = outOfScopeTableNames,
+        )
         val aggregateCreationGraphs = buildAggregateCreationGraphs(
             artifactLayout = artifactLayout,
             entities = entities,
             relations = aggregateRelations,
-            resolvedPolicies = specialFieldResolution.resolvedPolicies,
+            resolvedPolicies = managedFieldPolicies,
             catalog = semanticTypeCatalog,
         )
         validateValueObjectPersistenceProjectionIdentities(
@@ -462,7 +491,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 aggregatePersistenceFieldControls = aggregatePersistenceFieldControls,
                 aggregatePersistenceProviderControls = aggregatePersistenceProviderControls,
                 aggregateIdPolicyControls = aggregateIdPolicyControls,
-                aggregateSpecialFieldResolvedPolicies = specialFieldResolution.resolvedPolicies,
+                managedFieldPolicies = managedFieldPolicies,
                 strongIds = strongIds,
                 valueObjects = valueObjects,
                 aggregateCreationGraphs = aggregateCreationGraphs,
@@ -498,14 +527,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             val aggregateRootId = requireNotNull(aggregateRootIdsByName[refAggregate]) {
                 "@RefAggregate=$refAggregate does not match a generated aggregate root"
             }
-            val referenceStrategy = when (aggregateRootId.generated.strategy) {
-                "uuid7" -> DbIdStrategy.UUID7
-                "snowflake" -> DbIdStrategy.SNOWFLAKE
-                else -> error("unsupported generated Strong ID strategy: ${aggregateRootId.generated.strategy}")
-            }
             val referenceBacking = AggregateStrongIdBackingResolver.resolve(
                 tableName = tableName,
-                column = column.copy(idStrategy = referenceStrategy),
+                column = column,
+                strategy = aggregateRootId.generated.strategy,
             )
             require(referenceBacking.valueType == aggregateRootId.generated.backing.valueType) {
                 "aggregate reference $tableName.${column.name} storage ${referenceBacking.valueType} " +
@@ -518,14 +543,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return refId
     }
 
-    private fun generatedOwnStrongId(table: DbTableSnapshot): GeneratedOwnStrongId? {
+    private fun generatedOwnStrongId(config: ProjectConfig, table: DbTableSnapshot): GeneratedOwnStrongId? {
         val primaryKeyColumn = table.primaryKey.singleOrNull() ?: return null
         val idColumn = table.columns.firstOrNull { it.name.equals(primaryKeyColumn, ignoreCase = true) }
             ?: return null
-        val strategy = when (idColumn.idStrategy) {
-            DbIdStrategy.UUID7 -> "uuid7"
-            DbIdStrategy.SNOWFLAKE -> "snowflake"
-            DbIdStrategy.DB_IDENTITY, null -> return null
+        val strategy = when (identifierPolicyKey(config, idColumn)) {
+            "identifier.uuid7" -> "uuid7"
+            "identifier.snowflake" -> "snowflake"
+            else -> return null
         }
         require(idColumn.refAggregate.isNullOrBlank() && idColumn.refId.isNullOrBlank()) {
             "primary key ${table.tableName}.${idColumn.name} cannot also be @RefAggregate or @RefId"
@@ -534,7 +559,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return GeneratedOwnStrongId(
             typeName = ownStrongIdTypeName(AggregateNaming.entityName(table.tableName)),
             strategy = strategy,
-            backing = AggregateStrongIdBackingResolver.resolve(table.tableName, idColumn),
+            backing = AggregateStrongIdBackingResolver.resolve(table.tableName, idColumn, strategy),
         )
     }
 
@@ -542,6 +567,21 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         table: DbTableSnapshot,
         column: DbColumnSnapshot,
     ): Boolean = table.primaryKey.any { it.equals(column.name, ignoreCase = true) }
+
+    private fun identifierPolicyKey(config: ProjectConfig, column: DbColumnSnapshot): String =
+        column.managedPolicyKey
+            ?: config.managedFields.columnPolicyDefaults.entries
+                .singleOrNull { (name, _) -> name.equals(column.name, ignoreCase = true) }
+                ?.value
+            ?: config.managedFields.identifierDefaultPolicy
+
+    private fun identifierStrategy(policyKey: String): String = when (policyKey) {
+        "identifier.uuid7" -> "uuid7"
+        "identifier.snowflake" -> "snowflake"
+        "identifier.assigned" -> "assigned"
+        "identifier.database-identity" -> "identity"
+        else -> policyKey.removePrefix("identifier.")
+    }
 
     private fun ownStrongIdTypeName(entityName: String): String = "${entityName}Id"
 
@@ -1410,7 +1450,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         artifactLayout: ArtifactLayoutResolver,
         entities: List<EntityModel>,
         relations: List<com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel>,
-        resolvedPolicies: List<com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy>,
+        resolvedPolicies: List<com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy>,
         catalog: CanonicalTypeCatalog,
     ): List<AggregateCreationGraphModel> {
         if (resolvedPolicies.isEmpty()) return emptyList()
@@ -1535,7 +1575,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         entity: EntityModel,
         identity: CanonicalTypeIdentity,
         relations: List<AggregateCreationRelationModel>,
-        resolvedPolicy: com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy,
+        resolvedPolicy: com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy,
         catalog: CanonicalTypeCatalog,
         creationIdentityByEntityFqn: Map<String, CanonicalTypeIdentity>,
         role: SemanticValueRole,
@@ -1543,8 +1583,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val aggregateContext = listOf(requireNotNull(identity.ownerAggregateName))
         val scalarFields = scalarCreationFieldNames(entity, resolvedPolicy).map { fieldName ->
             val field = entity.fields.single { it.name == fieldName }
+            val managedPolicy = resolvedPolicy.fields.singleOrNull { it.fieldName == field.name }
+            val optionalInput = managedPolicy?.creationInput == ManagedCreationInputPolicy.OPTIONAL
             val expression = (field.typeBinding?.takeIf { it.isNotBlank() } ?: field.type) +
-                if (field.nullable) "?" else ""
+                if (field.nullable || optionalInput) "?" else ""
             val fieldPath = "${identity.fqn}.${field.name}"
             val type = catalog.resolveExpression(
                 expression = expression,
@@ -1555,7 +1597,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             SemanticValueField(
                 name = field.name,
                 type = type,
-                defaultValue = compileEntityFieldDefault(field, type, fieldPath),
+                defaultValue = if (optionalInput) {
+                    SemanticDefaultExpression("null", "null")
+                } else {
+                    compileEntityFieldDefault(field, type, fieldPath)
+                },
                 sourcePath = fieldPath,
             )
         }
@@ -1649,9 +1695,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun scalarCreationFieldNames(
         entity: EntityModel,
-        resolvedPolicy: com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy,
-    ): List<String> = resolvedPolicy.writeSurface.createAllowedFields
-        .filter { it != entity.idField.name }
+        resolvedPolicy: com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy,
+    ): List<String> {
+        val exposeIdentifier = resolvedPolicy.fields
+            .singleOrNull { it.fieldName == entity.idField.name }
+            ?.creationInput in setOf(
+                ManagedCreationInputPolicy.REQUIRED,
+                ManagedCreationInputPolicy.OPTIONAL,
+            )
+        return resolvedPolicy.writeSurface.createAllowedFields
+        .filter { it != entity.idField.name || exposeIdentifier }
         .also { fieldNames ->
             fieldNames.firstOrNull { fieldName -> entity.fields.none { it.name == fieldName } }?.let { missing ->
                 throw IllegalArgumentException(
@@ -1659,6 +1712,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
         }
+    }
 
     private fun buildAggregateRootNameByEntity(entities: List<EntityModel>): Map<String, String> =
         entities.associate { entity -> entityKey(entity) to resolveAggregateRootEntity(entity, entities).name }
@@ -1944,7 +1998,4 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return fieldEnums + manifestEnums
     }
 
-    private fun ProjectConfig.isAggregateProjectionOnly(): Boolean =
-        "aggregate-projection" in generators &&
-            "aggregate" !in generators
 }

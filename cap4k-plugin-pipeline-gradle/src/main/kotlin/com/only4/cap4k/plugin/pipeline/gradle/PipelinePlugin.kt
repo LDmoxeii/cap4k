@@ -10,6 +10,9 @@ import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
 import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
+import com.only4.cap4k.plugin.pipeline.api.PipelineContribution
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -67,10 +70,10 @@ class PipelinePlugin : Plugin<Project> {
         val configFactory = Cap4kProjectConfigFactory()
         val bootstrapConfigFactory = Cap4kBootstrapConfigFactory()
 
-        project.configurations.create(CAP4K_ADDON_CONFIGURATION_NAME) { configuration ->
+        project.configurations.create(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME) { configuration ->
             configuration.isCanBeConsumed = false
             configuration.isCanBeResolved = true
-            configuration.description = "Build-time cap4k artifact addon dependencies."
+            configuration.description = "Build-time Cap4k Pipeline Extension dependencies."
         }
 
         project.tasks.register("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java) { task ->
@@ -165,7 +168,7 @@ private const val JACKSON_MODULE_KOTLIN_GROUP = "com.fasterxml.jackson.module"
 private const val JACKSON_MODULE_KOTLIN_NAME = "jackson-module-kotlin"
 private const val JACKSON_MODULE_KOTLIN_COORDINATE =
     "$JACKSON_MODULE_KOTLIN_GROUP:$JACKSON_MODULE_KOTLIN_NAME:2.17.2"
-private const val CAP4K_ADDON_CONFIGURATION_NAME = "cap4kAddon"
+private const val CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME = "cap4kPipelineExtension"
 private const val GENERATED_SOURCE_MANAGED_ROOTS_STATE_VERSION = 1
 private const val GENERATED_SOURCE_MANAGED_ROOTS_STATE_PATH = "cap4k/generated-source-managed-roots.json"
 private val GENERATED_SOURCE_MANAGED_ROLES = setOf("domain", "adapter")
@@ -191,8 +194,8 @@ private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("types-value-object", "a
 private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
 private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
 
-internal fun artifactAddonClasspath(project: Project): FileCollection =
-    project.configurations.findByName(CAP4K_ADDON_CONFIGURATION_NAME)
+internal fun pipelineExtensionClasspath(project: Project): FileCollection =
+    project.configurations.findByName(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME)
         ?: project.files()
 
 private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf(
@@ -793,7 +796,7 @@ internal fun buildSourceRunner(
     exportEnabled: Boolean,
     generatedSourcesOnly: Boolean = false,
 ): PipelineRunner {
-    val addonRuntime = loadArtifactAddonRuntime(project)
+    val extensionRuntime = loadPipelineExtensionRuntime(project, config)
     val runner = DefaultPipelineRunner(
         sources = listOf(
             DbSchemaSourceProvider(),
@@ -823,7 +826,7 @@ internal fun buildSourceRunner(
             PresetTemplateResolver(
                 preset = config.templates.preset,
                 overrideDirs = config.templates.overrideDirs,
-                addonTemplateClassLoaders = addonRuntime.templateClassLoaders,
+                addonTemplateClassLoaders = extensionRuntime.addonTemplateClassLoaders,
             )
         ),
         exporter = if (exportEnabled) {
@@ -844,9 +847,10 @@ internal fun buildSourceRunner(
         } else {
             { true }
         },
-        addonProviders = addonRuntime.providers,
+        artifactAddons = extensionRuntime.artifactAddons,
+        managedFieldPolicies = extensionRuntime.managedFieldPolicies,
     )
-    return ValueObjectManifestSourceConfigPipelineRunner(project, runner.closeAfterRun(addonRuntime))
+    return ValueObjectManifestSourceConfigPipelineRunner(project, runner.closeAfterRun(extensionRuntime))
 }
 
 private class ValueObjectManifestSourceConfigPipelineRunner(
@@ -871,7 +875,7 @@ private fun ProjectConfig.withValueObjectManifestSourceConfig(project: Project):
 }
 
 internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
-    val addonRuntime = loadArtifactAddonRuntime(project)
+    val extensionRuntime = loadPipelineExtensionRuntime(project, config)
     val runner = DefaultPipelineRunner(
         sources = listOf(
             IrAnalysisSourceProvider(),
@@ -885,7 +889,7 @@ internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, export
             PresetTemplateResolver(
                 preset = config.templates.preset,
                 overrideDirs = config.templates.overrideDirs,
-                addonTemplateClassLoaders = addonRuntime.templateClassLoaders,
+                addonTemplateClassLoaders = extensionRuntime.addonTemplateClassLoaders,
             )
         ),
         exporter = if (exportEnabled) {
@@ -893,39 +897,48 @@ internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, export
         } else {
             NoopArtifactExporter()
         },
-        addonProviders = addonRuntime.providers,
+        artifactAddons = extensionRuntime.artifactAddons,
     )
-    return runner.closeAfterRun(addonRuntime)
+    return runner.closeAfterRun(extensionRuntime)
 }
 
-internal data class ArtifactAddonRuntime(
-    val providers: List<ArtifactAddonProvider>,
-    val templateClassLoaders: Map<String, ClassLoader>,
+internal data class PipelineExtensionRuntime(
+    val contributions: List<PipelineContributionBinding<PipelineContribution>>,
+    val artifactAddons: List<PipelineContributionBinding<ArtifactAddonProvider>>,
+    val managedFieldPolicies: List<PipelineContributionBinding<ManagedFieldPolicyProvider>>,
+    val addonTemplateClassLoaders: Map<String, ClassLoader>,
     val closeables: List<AutoCloseable>,
 )
 
-private fun loadArtifactAddonRuntime(project: Project): ArtifactAddonRuntime {
-    val configuration = project.configurations.findByName(CAP4K_ADDON_CONFIGURATION_NAME)
-        ?: return emptyArtifactAddonRuntime()
-    return loadArtifactAddonRuntime(
+private fun loadPipelineExtensionRuntime(project: Project, config: ProjectConfig): PipelineExtensionRuntime {
+    val configuration = project.configurations.findByName(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME)
+        ?: return emptyPipelineExtensionRuntime()
+    return loadPipelineExtensionRuntime(
         files = configuration.files,
-        parent = ArtifactAddonLoader::class.java.classLoader,
+        parent = PipelineExtensionLoader::class.java.classLoader,
+        config = config,
     )
 }
 
-internal fun loadArtifactAddonRuntime(
+internal fun loadPipelineExtensionRuntime(
     files: Collection<File>,
     parent: ClassLoader,
-    classLoaderFactory: (Collection<File>, ClassLoader) -> URLClassLoader = ArtifactAddonLoader::classLoader,
-    providerLoader: (ClassLoader) -> List<ArtifactAddonProvider> = ArtifactAddonLoader::load,
-    templateClassLoaderFactory: (ArtifactAddonProvider) -> URLClassLoader = ArtifactAddonLoader::templateClassLoader,
-): ArtifactAddonRuntime {
+    config: ProjectConfig = ProjectConfig(),
+    classLoaderFactory: (Collection<File>, ClassLoader) -> URLClassLoader = PipelineExtensionLoader::classLoader,
+    extensionLoader: (ClassLoader) -> LoadedPipelineExtensions = PipelineExtensionLoader::load,
+    templateClassLoaderFactory: (ArtifactAddonProvider) -> URLClassLoader = PipelineExtensionLoader::templateClassLoader,
+): PipelineExtensionRuntime {
     if (files.isEmpty()) {
-        return emptyArtifactAddonRuntime()
+        require(config.pipelineExtensions.isEmpty()) {
+            "Configured Pipeline Extensions are not installed: ${config.pipelineExtensions.keys.sorted().joinToString(", ")}"
+        }
+        return emptyPipelineExtensionRuntime()
     }
     val classLoader = classLoaderFactory(files, parent)
-    val providers = try {
-        providerLoader(classLoader)
+    val loaded = try {
+        extensionLoader(classLoader).also { extensions ->
+            validatePipelineExtensionConfiguration(config, extensions)
+        }
     } catch (failure: Throwable) {
         closeAfterLoadFailure(classLoader, failure)
         throw failure
@@ -933,7 +946,8 @@ internal fun loadArtifactAddonRuntime(
     val closeables = mutableListOf<AutoCloseable>(classLoader)
     val templateClassLoaders = linkedMapOf<String, ClassLoader>()
     try {
-        providers.forEach { provider ->
+        loaded.artifactAddons.forEach { binding ->
+            val provider = binding.contribution
             val templateClassLoader = templateClassLoaderFactory(provider)
             closeables += templateClassLoader
             templateClassLoaders[provider.id] = templateClassLoader
@@ -942,19 +956,52 @@ internal fun loadArtifactAddonRuntime(
         closeAfterLoadFailure(closeables.asReversed(), failure)
         throw failure
     }
-    return ArtifactAddonRuntime(
-        providers = providers,
-        templateClassLoaders = templateClassLoaders,
+    return PipelineExtensionRuntime(
+        contributions = loaded.contributions,
+        artifactAddons = loaded.artifactAddons,
+        managedFieldPolicies = loaded.managedFieldPolicies,
+        addonTemplateClassLoaders = templateClassLoaders,
         closeables = closeables,
     )
 }
 
-private fun emptyArtifactAddonRuntime(): ArtifactAddonRuntime =
-    ArtifactAddonRuntime(
-        providers = emptyList(),
-        templateClassLoaders = emptyMap(),
+private fun emptyPipelineExtensionRuntime(): PipelineExtensionRuntime =
+    PipelineExtensionRuntime(
+        contributions = emptyList(),
+        artifactAddons = emptyList(),
+        managedFieldPolicies = emptyList(),
+        addonTemplateClassLoaders = emptyMap(),
         closeables = emptyList(),
     )
+
+private fun validatePipelineExtensionConfiguration(
+    config: ProjectConfig,
+    loaded: LoadedPipelineExtensions,
+) {
+    val providersById = loaded.providers.associateBy { it.descriptor.id }
+    val contributionsByExtension = loaded.contributions.groupBy { it.extensionId }
+    config.pipelineExtensions.forEach { (extensionKey, extensionConfig) ->
+        require(extensionKey == extensionConfig.id) {
+            "Configured pipeline extension key does not match extension id: $extensionKey != ${extensionConfig.id}"
+        }
+        require(extensionKey in providersById) {
+            "Configured pipeline extension is not loaded: $extensionKey"
+        }
+        val contributionIds = contributionsByExtension[extensionKey]
+            .orEmpty()
+            .map { binding -> PipelineExtensionLoader.contributionId(binding.contribution) }
+            .toSet()
+        extensionConfig.contributions.forEach { (contributionKey, contributionConfig) ->
+            require(contributionKey == contributionConfig.id) {
+                "Configured pipeline contribution key does not match contribution id in " +
+                    "$extensionKey: $contributionKey != ${contributionConfig.id}"
+            }
+            require(contributionKey in contributionIds) {
+                "Configured pipeline contribution is not loaded: $extensionKey/$contributionKey"
+            }
+        }
+    }
+}
 
 private fun closeAfterLoadFailure(closeable: AutoCloseable, failure: Throwable) {
     closeAfterLoadFailure(listOf(closeable), failure)
@@ -970,7 +1017,7 @@ private fun closeAfterLoadFailure(closeables: Iterable<AutoCloseable>, failure: 
     }
 }
 
-private fun PipelineRunner.closeAfterRun(runtime: ArtifactAddonRuntime): PipelineRunner =
+private fun PipelineRunner.closeAfterRun(runtime: PipelineExtensionRuntime): PipelineRunner =
     if (runtime.closeables.isEmpty()) {
         this
     } else {

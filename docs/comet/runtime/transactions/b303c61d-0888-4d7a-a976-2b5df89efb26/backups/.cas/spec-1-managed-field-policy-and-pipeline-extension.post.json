@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-managed-field-policy-and-pipeline-extension",
+  "role": "post",
+  "hash": "d3fe24a767326aa90b426dfdbfaa5771474589518edc1820174f6be2557e8722",
+  "identity": {
+    "dev": 950912656,
+    "ino": 3377699725926074,
+    "birthtimeMs": 1785523718897.405
+  }
+}

@@ -2,22 +2,24 @@ package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.AggregateSoftDeletePolicy
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
-import com.only4.cap4k.plugin.pipeline.api.AggregateSpecialFieldResolvedPolicy
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteActiveSentinel
 import com.only4.cap4k.plugin.pipeline.api.SoftDeleteTombstoneStrategy
 
 internal object AggregateSoftDeletePolicyResolver {
     fun resolve(
         table: DbTableSnapshot,
-        resolvedPolicy: AggregateSpecialFieldResolvedPolicy,
+        resolvedPolicy: ResolvedManagedEntityPolicy,
     ): AggregateSoftDeletePolicy? {
-        val deleted = resolvedPolicy.deleted.takeIf { it.enabled } ?: return null
+        val deleted = resolvedPolicy.fieldByRole(ManagedFieldRole.SOFT_DELETE) ?: return null
+        val identifier = resolvedPolicy.requireIdentifier()
         val idLocation = locateEndpoint(
             table = table,
             label = "ID",
-            columnName = resolvedPolicy.id.columnName,
+            columnName = identifier.columnName,
             unresolvedColumnName = "<unresolved-id-column>",
         )
         val deletedLocation = locateEndpoint(
@@ -28,7 +30,10 @@ internal object AggregateSoftDeletePolicyResolver {
         )
         val idResolution = classifyEndpoint(table, idLocation)
         val deletedResolution = classifyEndpoint(table, deletedLocation)
-        val strategy = resolvedPolicy.id.strategy
+        val strategy = when (identifier.policyKey) {
+            "identifier.database-identity" -> "identity"
+            else -> identifier.policyKey.removePrefix("identifier.")
+        }
         if (!idResolution.isResolved || !deletedResolution.isResolved) {
             reject(
                 idPath = idResolution.path,

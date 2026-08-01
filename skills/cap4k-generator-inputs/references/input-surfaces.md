@@ -7,7 +7,7 @@ Supported generator input surfaces:
 - value-object manifest
 - enum manifest
 - Gradle extension
-- addons/options
+- Pipeline Extension installation and contribution options
 - template override decisions
 
 Use these surfaces as source inputs only when the technical design contract supports the carrier, placement, ownership, and expected skeleton.
@@ -25,14 +25,14 @@ Use these surfaces as source inputs only when the technical design contract supp
 - `design/design.json` carries command, query, capability, api payload, domain event, integration event, and domain service contracts.
 - Value-object manifests carry pure structured-value definitions and an optional explicit persistence projection.
 - Enum manifests carry shared enum definitions referenced by schema type annotations.
-- Gradle extension settings, addons/options, and template override decisions are authoring infrastructure; they are not business source truth.
+- Gradle extension settings, Pipeline Extension installation/options, and template override decisions are authoring infrastructure; they are not business source truth.
 
 ## Identity And Reference Contracts
 
 - Aggregate-root primary-key metadata defaults to generated Strong ID types.
 - Same-context aggregate references use `@RefAggregate=<AggregateName>` and resolve to the referenced aggregate ID type.
 - Local external-reference identities use `@RefId=<TypeName>` when local language maps an upstream or external concept.
-- `@IdStrategy=db_identity` expresses explicit database identity semantics, not the default aggregate ID path.
+- Primary-key ownership uses an exact `@Managed=identifier.*` policy. `identifier.database-identity` selects database identity; application-side identifiers default through `managedFields.identifierDefaultPolicy` when no explicit identifier policy is present.
 - If identity, reference, or generated-value facts are missing or unclear, return to `cap4k-technical-design` before plan review.
 
 ## Analysis Evidence Boundary

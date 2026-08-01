@@ -1,0 +1,68 @@
+package {{ packageName }}
+
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedExplicitValuePolicy") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedFieldBinding") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedFieldCatalog") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedFieldLifecycle") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRole") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRuntimeSupport") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority") -}}
+{{ use("com.only4.cap4k.ddd.core.domain.managed.PersistenceParticipation") -}}
+{{ use("org.springframework.stereotype.Component") -}}
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+@Component("{{ beanName }}")
+class {{ typeName }} : ManagedFieldCatalog {
+    override val bindings: List<ManagedFieldBinding> = listOf(
+{% for binding in bindings -%}
+        ManagedFieldBinding(
+            entityType = {{ binding.entityTypeExpression | raw }},
+            fieldName = {{ binding.fieldNameKotlinStringLiteral | raw }},
+            persistencePropertyName = {{ binding.persistencePropertyNameKotlinStringLiteral | raw }},
+            columnName = {{ binding.columnNameKotlinStringLiteral | raw }},
+            targetType = {{ binding.targetTypeExpression | raw }},
+            nullable = {{ binding.nullable }},
+            policyKey = {{ binding.policyKeyKotlinStringLiteral | raw }},
+            role = ManagedFieldRole.{{ binding.role }},
+            explicitValue = ManagedExplicitValuePolicy.{{ binding.explicitValue }},
+            lifecycles = setOf({% for lifecycle in binding.lifecycles %}ManagedFieldLifecycle.{{ lifecycle }}{% if not loop.last %}, {% endif %}{% endfor %}),
+            handlerQualifier = {% if binding.handlerQualifierKotlinStringLiteral is null %}null{% else %}{{ binding.handlerQualifierKotlinStringLiteral | raw }}{% endif %},
+            handlerSlot = {% if binding.handlerSlotKotlinStringLiteral is null %}null{% else %}{{ binding.handlerSlotKotlinStringLiteral | raw }}{% endif %},
+            semanticValueType = {{ binding.semanticTypeExpression | raw }},
+            valueAdapterQualifier = {% if binding.valueAdapterQualifierKotlinStringLiteral is null %}null{% else %}{{ binding.valueAdapterQualifierKotlinStringLiteral | raw }}{% endif %},
+            persistence = PersistenceParticipation(
+                insert = ManagedValueAuthority.{{ binding.insertAuthority }},
+                update = ManagedValueAuthority.{{ binding.updateAuthority }},
+            ),
+{% if binding.runtimeSupport is null -%}
+            runtimeSupport = null,
+{% elseif binding.runtimeSupport.kind == "SOFT_DELETE" -%}
+            runtimeSupport = ManagedFieldRuntimeSupport.SoftDelete(
+                activeSentinel = {{ binding.runtimeSupport.activeSentinelExpression | raw }},
+            ),
+{% elseif binding.runtimeSupport.kind == "APPLICATION_IDENTIFIER" -%}
+            runtimeSupport = ManagedFieldRuntimeSupport.ApplicationIdentifier(
+                isAbsent = { value -> value == null },
+                allocateTarget = {% if binding.runtimeSupport.allocateExpression is null %}null{% else %}{ {{ binding.runtimeSupport.allocateExpression | raw }} }{% endif %},
+                validateTarget = { value ->
+                    require(value is {{ binding.targetTypeCheck | raw }}) {
+                        "managed identifier value for {{ binding.fieldName }} must be {{ binding.targetTypeCheck }}"
+                    }
+{% if binding.runtimeSupport.validateExpression is not null -%}
+                    {{ binding.runtimeSupport.validateExpression | raw }}
+{% endif -%}
+                },
+            ),
+{% elseif binding.runtimeSupport.kind == "FORBIDDEN_EXPLICIT_VALUE" -%}
+            runtimeSupport = ManagedFieldRuntimeSupport.ForbiddenExplicitValue(
+                isProviderPlaceholder = { value ->
+                    value == null{% if binding.runtimeSupport.allowsIntegralZero %} || (value as? Number)?.toLong() == 0L{% endif %}
+                },
+            ),
+{% endif -%}
+        ){% if not loop.last %},{% endif %}
+{% endfor -%}
+    )
+}

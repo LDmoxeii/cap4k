@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b303c61d-0888-4d7a-a976-2b5df89efb26",
+  "kind": "archive",
+  "status": "committed",
+  "change": "managed-field-policy-and-pipeline-extension",
+  "createdAt": "2026-07-31T18:48:32.773Z",
+  "preflightHash": "7c6819e57a725f0c063ec43c2c081c543d5000c04e5ed7de758140cab29f8e49",
+  "operations": [
+    {
+      "id": "spec-1-managed-field-policy-and-pipeline-extension",
+      "type": "write",
+      "target": "specs/managed-field-policy-and-pipeline-extension/spec.md",
+      "staged": "runtime/transactions/b303c61d-0888-4d7a-a976-2b5df89efb26/staged/specs/managed-field-policy-and-pipeline-extension/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "d3fe24a767326aa90b426dfdbfaa5771474589518edc1820174f6be2557e8722"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/managed-field-policy-and-pipeline-extension",
+      "target": "archive/2026-07-31-managed-field-policy-and-pipeline-extension",
+      "expectedSourceHash": "3836309d041d36fd2dc7e66c38f8ec74762de7a4bb47689d937e173e5be032db",
+      "expectedTargetHash": null
+    }
+  ]
+}

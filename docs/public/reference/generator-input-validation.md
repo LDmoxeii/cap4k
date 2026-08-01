@@ -16,8 +16,8 @@
 
 Design JSON 和 value-object manifest field 不再接受独立 `nullable`；请把 nullability 写进 `type`，例如 `Money?` 或 `List<Money?>?`。Value Object 不再隐式采用 JSON storage：省略 `persistence` 表示纯值，需要 JSON projection 时显式写 `"persistence": {"kind": "json"}`。旧 `storage` 会被拒绝。
 
-DB/schema comments 使用严格、大小写敏感的现行 allow-list。table comments 只接受 `@Parent=<table>` 和 `@Ignore`；column comments 只接受 `@ParentRef`、`@Type=<TypeName>`、`@RefAggregate=<AggregateName>`、`@RefId=<TypeName>`、`@IdStrategy=db_identity`、`@Managed=system|scope|deleted|version` 和 `@Inherited`。
-`@RefAggregate` 和 `@RefId` 不能声明在同一列上。
+DB/schema comments 使用严格、大小写敏感的现行 allow-list。table comments 只接受 `@Parent=<table>` 和 `@Ignore`；column comments 只接受 `@ParentRef`、`@Type=<TypeName>`、`@RefAggregate=<AggregateName>`、`@RefId=<TypeName>` 和 `@Managed=<policy-key>`。Policy key 必须匹配 `[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*`；脚本接受语法合法的扩展 key，是否存在对应 built-in 或 Pipeline Extension definition 由 `cap4kPlan` 的 Canonical Resolution 判断。
+`@RefAggregate` 和 `@RefId` 不能声明在同一列上，`@Managed` 在同一列最多声明一次。
 
 脚本不会连接数据库、运行 Gradle、生成代码、编译、运行测试，也不会改写或整理输入文件。
 

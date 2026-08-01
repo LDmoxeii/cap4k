@@ -2,7 +2,8 @@ package com.only4.cap4k.ddd.domain.repo
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
 import com.only4.cap4k.ddd.application.JpaQueryExecution
-import com.only4.cap4k.ddd.application.JpaPersistenceAuditEnricher
+import com.only4.cap4k.ddd.application.JpaAuditTimePersistenceEnricher
+import com.only4.cap4k.ddd.application.JpaPersistenceEnricher
 import com.only4.cap4k.ddd.application.JpaUnitOfWorkLimits
 import com.only4.cap4k.ddd.core.application.AggregatePersistenceIntentRecorder
 import com.only4.cap4k.ddd.core.application.CommandUnitOfWorkCoordinator
@@ -18,7 +19,8 @@ import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySup
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.FactoryDerivedAggregateRootCatalog
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.ReflectiveAggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
 import com.only4.cap4k.ddd.core.domain.repo.Repository
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
@@ -63,11 +65,13 @@ class JpaRepositoryAutoConfiguration {
         persistenceIntents: AggregatePersistenceIntentRecorder,
         invocationScopeAccessor: InvocationScopeAccessor,
         lifecycleInvoker: AggregateLifecycleInvoker,
+        managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator,
     ): DefaultAggregateFactorySupervisor = DefaultAggregateFactorySupervisor(
         factories,
         persistenceIntents,
         invocationScopeAccessor,
         lifecycleInvoker,
+        managedEntityAdmissionCoordinator,
     ).apply {
         init()
     }
@@ -79,16 +83,18 @@ class JpaRepositoryAutoConfiguration {
         integrationEventManager: ObjectProvider<IntegrationEventManager>,
         lifecycleInvoker: AggregateLifecycleInvoker,
         jpaUnitOfWorkProperties: JpaUnitOfWorkProperties,
-        generatedOwnIdRegistry: GeneratedOwnIdRegistry,
-        auditEnrichers: List<JpaPersistenceAuditEnricher>,
+        managedFieldRegistry: ManagedFieldRegistry,
+        managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator,
+        persistenceEnrichers: List<JpaPersistenceEnricher>,
         clock: ObjectProvider<Clock>,
         executionContextAccessor: ExecutionContextAccessor,
     ): JpaUnitOfWork = JpaUnitOfWork(
         domainEventManager = domainEventManager,
         integrationEventManager = integrationEventManager.getIfUnique(),
         lifecycleInvoker = lifecycleInvoker,
-        generatedOwnIdRegistry = generatedOwnIdRegistry,
-        auditEnrichers = auditEnrichers,
+        managedFieldRegistry = managedFieldRegistry,
+        managedEntityAdmissionCoordinator = managedEntityAdmissionCoordinator,
+        persistenceEnrichers = persistenceEnrichers,
         clock = clock.getIfAvailable { Clock.systemUTC() },
         executionContextAccessor = executionContextAccessor,
         limits = JpaUnitOfWorkLimits(
@@ -98,6 +104,11 @@ class JpaRepositoryAutoConfiguration {
             maxProviderFlushes = jpaUnitOfWorkProperties.maxProviderFlushes,
         ),
     ).also { JpaQueryUtils.configure(it, jpaUnitOfWorkProperties.retrieveCountWarnThreshold) }
+
+    @Bean
+    @ConditionalOnMissingBean(JpaAuditTimePersistenceEnricher::class)
+    fun jpaAuditTimePersistenceEnricher(): JpaAuditTimePersistenceEnricher =
+        JpaAuditTimePersistenceEnricher()
 
     @Bean
     @ConditionalOnMissingBean(QueryExecution::class)

@@ -137,9 +137,7 @@ COLUMN_ANNOTATIONS = {
     "Type",
     "RefAggregate",
     "RefId",
-    "IdStrategy",
     "Managed",
-    "Inherited",
 }
 REJECTED_TABLE_ANNOTATIONS = {
     "P",
@@ -164,6 +162,8 @@ REJECTED_COLUMN_ANNOTATIONS = {
     "Deleted",
     "Version",
     "GeneratedValue",
+    "IdStrategy",
+    "Inherited",
     "Reference",
     "Ref",
     "Relation",
@@ -179,7 +179,6 @@ REJECTED_COLUMN_ANNOTATIONS = {
 PRESENCE_ANNOTATIONS = {
     "Ignore",
     "ParentRef",
-    "Inherited",
 }
 BOOLEAN_ANNOTATIONS: set[str] = set()
 REQUIRED_VALUE_ANNOTATIONS = {
@@ -187,10 +186,9 @@ REQUIRED_VALUE_ANNOTATIONS = {
     "Type",
     "RefAggregate",
     "RefId",
-    "IdStrategy",
     "Managed",
 }
-MANAGED_ROLES = {"system", "scope", "deleted", "version"}
+MANAGED_POLICY_KEY_RE = re.compile(r"[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)*")
 LIVE_REFERENCE_ROOTS = ("docs/public", "skills")
 LIVE_REFERENCE_SUFFIXES = {".md", ".mdx", ".txt", ".yaml", ".yml"}
 REMOVED_DB_REFERENCE_PATTERNS = {
@@ -217,6 +215,8 @@ REMOVED_DB_REFERENCE_PATTERNS = {
     "@Deleted": re.compile(r"@Deleted(?:=|\b)"),
     "@Version": re.compile(r"@Version(?:=|\b)"),
     "@GeneratedValue": re.compile(r"@GeneratedValue(?:=|\b)"),
+    "@IdStrategy": re.compile(r"@IdStrategy(?:=|\b)"),
+    "@Inherited": re.compile(r"@Inherited(?:=|\b)"),
     "@Exposed": re.compile(r"@Exposed(?:=|\b)"),
     "@Insertable": re.compile(r"@Insertable(?:=|\b)"),
     "@Updatable": re.compile(r"@Updatable(?:=|\b)"),
@@ -713,25 +713,32 @@ def validate_annotation_values(
             not has_equals or not value.strip()
         ):
             add_issue(issues, ERROR, file, path, f"@{name} requires a nonblank value")
-        if name == "IdStrategy" and value != "db_identity":
+        if name == "Managed" and value and not MANAGED_POLICY_KEY_RE.fullmatch(value):
             add_issue(
                 issues,
                 ERROR,
                 file,
                 path,
-                f"unsupported @IdStrategy value: {value}",
+                f"managed policy key must match {MANAGED_POLICY_KEY_RE.pattern}: {value}",
             )
-        if name == "Managed" and value not in MANAGED_ROLES:
-            add_issue(issues, ERROR, file, path, f"unsupported @Managed value: {value}")
+
+    if sum(1 for name, _, _ in annotations if name == "Managed") > 1:
+        add_issue(
+            issues,
+            ERROR,
+            file,
+            path,
+            "a column comment may declare @Managed only once",
+        )
 
     if context == "column":
-        if "ParentRef" in names and has_any(names, {"RefAggregate", "RefId", "IdStrategy"}):
+        if "ParentRef" in names and has_any(names, {"RefAggregate", "RefId"}):
             add_issue(
                 issues,
                 ERROR,
                 file,
                 path,
-                "@ParentRef cannot be combined with @RefAggregate, @RefId, or @IdStrategy",
+                "@ParentRef cannot be combined with @RefAggregate or @RefId",
             )
         if "RefAggregate" in names and "RefId" in names:
             add_issue(
@@ -740,14 +747,6 @@ def validate_annotation_values(
                 file,
                 path,
                 "conflicting @RefAggregate and @RefId annotations on the same column comment",
-            )
-        if "Inherited" in names and "Managed" not in names:
-            add_issue(
-                issues,
-                ERROR,
-                file,
-                path,
-                "@Inherited is valid only with @Managed=system, @Managed=scope, @Managed=deleted, or @Managed=version",
             )
 
 

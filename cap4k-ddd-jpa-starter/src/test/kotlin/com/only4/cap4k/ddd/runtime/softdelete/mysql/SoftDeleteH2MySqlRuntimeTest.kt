@@ -1,19 +1,30 @@
 package com.only4.cap4k.ddd.runtime.softdelete.mysql
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.id.StrongIds
-import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityInitializer
+import com.only4.cap4k.ddd.core.domain.managed.ManagedExplicitValuePolicy
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldBinding
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldCatalog
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldLifecycle
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRole
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRuntimeSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority
+import com.only4.cap4k.ddd.core.domain.managed.PersistenceParticipation
+import com.only4.cap4k.ddd.core.domain.managed.StandardManagedEntityInitializer
 import jakarta.persistence.AttributeOverride
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
@@ -41,6 +52,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.io.Serializable
 import java.util.UUID
+import kotlin.reflect.KClass
 
 private const val MYSQL_NIL_UUID_TEXT = "00000000-0000-0000-0000-000000000000"
 
@@ -75,6 +87,9 @@ class SoftDeleteH2MySqlRuntimeTest {
 
     @Autowired
     private lateinit var unitOfWork: JpaUnitOfWork
+
+    @Autowired
+    private lateinit var admissionCoordinator: ManagedEntityAdmissionCoordinator
 
     @BeforeEach
     fun resetUnitOfWork() {
@@ -180,6 +195,7 @@ class SoftDeleteH2MySqlRuntimeTest {
             ),
             persistenceIntents = unitOfWork,
             invocationScopeAccessor = InvocationScopeAccessor { InvocationKind.COMMAND },
+            managedEntityAdmissionCoordinator = admissionCoordinator,
         ).apply { init() }
 
     private fun columnType(tableName: String, columnName: String): String =
@@ -244,19 +260,33 @@ class SoftDeleteH2MySqlRuntimeTest {
         }
 
         @Bean
-        fun generatedOwnIdCatalog(): GeneratedOwnIdCatalog = MySqlSoftDeleteGeneratedOwnIdCatalog()
+        fun managedFieldCatalog(): ManagedFieldCatalog = MySqlSoftDeleteManagedFieldCatalog()
 
         @Bean
-        fun generatedOwnIdRegistry(catalog: GeneratedOwnIdCatalog): GeneratedOwnIdRegistry =
-            MapBackedGeneratedOwnIdRegistry(listOf(catalog))
+        fun standardManagedEntityInitializer(): ManagedEntityInitializer = StandardManagedEntityInitializer()
+
+        @Bean
+        fun managedFieldRegistry(
+            catalog: ManagedFieldCatalog,
+            initializers: List<ManagedEntityInitializer>,
+        ): ManagedFieldRegistry = DefaultManagedFieldRegistry(listOf(catalog), initializers)
+
+        @Bean
+        fun managedEntityAdmissionCoordinator(registry: ManagedFieldRegistry): ManagedEntityAdmissionCoordinator =
+            DefaultManagedEntityAdmissionCoordinator(
+                registry,
+                ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
+            )
 
         @Bean
         fun jpaUnitOfWork(
             domainEventManager: DomainEventManager,
-            generatedOwnIdRegistry: GeneratedOwnIdRegistry,
+            managedFieldRegistry: ManagedFieldRegistry,
+            managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator,
         ): JpaUnitOfWork = JpaUnitOfWork(
             domainEventManager = domainEventManager,
-            generatedOwnIdRegistry = generatedOwnIdRegistry,
+            managedFieldRegistry = managedFieldRegistry,
+            managedEntityAdmissionCoordinator = managedEntityAdmissionCoordinator,
         )
     }
 }
@@ -306,74 +336,55 @@ private class MySqlNativeUuidFactory :
     ) : AggregatePayload<MySqlNativeUuidEntity>
 }
 
-private class MySqlSoftDeleteGeneratedOwnIdCatalog : GeneratedOwnIdCatalog {
-    override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
-        MySqlSnowflakeLongGeneratedOwnIdAccessor(),
-        MySqlSnowflakeStringGeneratedOwnIdAccessor(),
-        MySqlNativeUuidGeneratedOwnIdAccessor(),
+private class MySqlSoftDeleteManagedFieldCatalog : ManagedFieldCatalog {
+    private var longSequence = 0L
+    private var stringSequence = 0L
+    private var uuidSequence = 0L
+
+    override val bindings: List<ManagedFieldBinding> = listOf(
+        identifierBinding(MySqlSnowflakeLongEntity::class, MySqlSnowflakeLongId::class, "identifier.snowflake") {
+            MySqlSnowflakeLongId.of(7_288_198_123_456_789_000L + ++longSequence)
+        },
+        identifierBinding(MySqlSnowflakeStringEntity::class, MySqlSnowflakeStringId::class, "identifier.snowflake") {
+            MySqlSnowflakeStringId.of((7_388_198_123_456_789_000L + ++stringSequence).toString())
+        },
+        identifierBinding(MySqlNativeUuidEntity::class, MySqlNativeUuidId::class, "identifier.uuid7") {
+            MySqlNativeUuidId.parse(
+                "019c0000-0000-7000-8004-${(++uuidSequence).toString(16).padStart(12, '0')}"
+            )
+        },
     )
-}
 
-private class MySqlSnowflakeLongGeneratedOwnIdAccessor :
-    GeneratedOwnIdAccessor<MySqlSnowflakeLongEntity, MySqlSnowflakeLongId> {
-    override val entityType = MySqlSnowflakeLongEntity::class
-    override val label = "MySqlSnowflakeLongEntity.id"
-    private val idField = MySqlSnowflakeLongEntity::class.java.getDeclaredField("id").apply {
-        isAccessible = true
-    }
-    private var sequence = 0L
-
-    override fun current(entity: MySqlSnowflakeLongEntity): MySqlSnowflakeLongId? =
-        readInitializedOrNull { entity.id }
-
-    override fun assign(entity: MySqlSnowflakeLongEntity, id: MySqlSnowflakeLongId) {
-        idField.set(entity, id)
-    }
-
-    override fun next(): MySqlSnowflakeLongId =
-        MySqlSnowflakeLongId.of(7_288_198_123_456_789_000L + ++sequence)
-}
-
-private class MySqlSnowflakeStringGeneratedOwnIdAccessor :
-    GeneratedOwnIdAccessor<MySqlSnowflakeStringEntity, MySqlSnowflakeStringId> {
-    override val entityType = MySqlSnowflakeStringEntity::class
-    override val label = "MySqlSnowflakeStringEntity.id"
-    private val idField = MySqlSnowflakeStringEntity::class.java.getDeclaredField("id").apply {
-        isAccessible = true
-    }
-    private var sequence = 0L
-
-    override fun current(entity: MySqlSnowflakeStringEntity): MySqlSnowflakeStringId? =
-        readInitializedOrNull { entity.id }
-
-    override fun assign(entity: MySqlSnowflakeStringEntity, id: MySqlSnowflakeStringId) {
-        idField.set(entity, id)
-    }
-
-    override fun next(): MySqlSnowflakeStringId =
-        MySqlSnowflakeStringId.of((7_388_198_123_456_789_000L + ++sequence).toString())
-}
-
-private class MySqlNativeUuidGeneratedOwnIdAccessor :
-    GeneratedOwnIdAccessor<MySqlNativeUuidEntity, MySqlNativeUuidId> {
-    override val entityType = MySqlNativeUuidEntity::class
-    override val label = "MySqlNativeUuidEntity.id"
-    private val idField = MySqlNativeUuidEntity::class.java.getDeclaredField("id").apply {
-        isAccessible = true
-    }
-    private var sequence = 0L
-
-    override fun current(entity: MySqlNativeUuidEntity): MySqlNativeUuidId? =
-        readInitializedOrNull { entity.id }
-
-    override fun assign(entity: MySqlNativeUuidEntity, id: MySqlNativeUuidId) {
-        idField.set(entity, id)
-    }
-
-    override fun next(): MySqlNativeUuidId =
-        MySqlNativeUuidId.parse(
-            "019c0000-0000-7000-8004-${(++sequence).toString(16).padStart(12, '0')}"
+    private fun <ID : Any> identifierBinding(
+        entityType: KClass<*>,
+        idType: KClass<ID>,
+        qualifier: String,
+        allocate: () -> ID,
+    ): ManagedFieldBinding = ManagedFieldBinding(
+        entityType = entityType,
+        fieldName = "id",
+        persistencePropertyName = "id",
+        columnName = "id",
+        targetType = idType,
+        nullable = false,
+        policyKey = qualifier,
+        role = ManagedFieldRole.IDENTIFIER,
+        explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+        lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+        handlerQualifier = qualifier,
+        handlerSlot = null,
+        semanticValueType = idType,
+        valueAdapterQualifier = null,
+        persistence = PersistenceParticipation(
+            insert = ManagedValueAuthority.FRAMEWORK,
+            update = ManagedValueAuthority.NONE,
+        ),
+        runtimeSupport = ManagedFieldRuntimeSupport.ApplicationIdentifier(
+            isAbsent = { it == null },
+            allocateTarget = allocate,
+            validateTarget = { value -> require(idType.isInstance(value)) },
         )
+    )
 }
 
 @Embeddable

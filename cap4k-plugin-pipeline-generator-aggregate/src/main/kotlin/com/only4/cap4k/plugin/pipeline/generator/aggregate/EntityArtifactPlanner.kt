@@ -7,8 +7,10 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
+import com.only4.cap4k.plugin.pipeline.api.ManagedCreationInputPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
+import com.only4.cap4k.plugin.pipeline.api.ManagedValueAuthority
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.SpecialFieldWritePolicy
 import com.only4.cap4k.plugin.pipeline.api.StrongIdKind
 import com.only4.cap4k.plugin.pipeline.api.StrongIdModel
 
@@ -24,7 +26,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val entityJpa = model.aggregateEntityJpa.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
-            val resolvedPolicy = model.aggregateSpecialFieldResolvedPolicies.singleOrNull {
+            val resolvedPolicy = model.managedFieldPolicies.singleOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
             val entrustedFields = AggregateEntrustedFieldPlanning.resolve(entity, model)
@@ -32,7 +34,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val controlsByField = model.aggregatePersistenceFieldControls
                 .filter { it.entityName == entity.name && it.entityPackageName == entity.packageName }
                 .associateBy { it.fieldName }
-            val managedByField = resolvedPolicy?.managedFields.orEmpty().associateBy { it.fieldName }
+            val managedByField = resolvedPolicy?.fields.orEmpty().associateBy { it.fieldName }
             val idPolicyControl = model.aggregateIdPolicyControls.firstOrNull {
                 it.entityName == entity.name && it.entityPackageName == entity.packageName
             }
@@ -42,7 +44,6 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
             val relationPlan = AggregateRelationPlanning.planFor(
                 entity = entity,
                 relations = model.aggregateRelations,
-                generatedOwnIdsByEntity = generatedOwnIdsByEntity,
             )
             val relationJoinColumns = relationPlan.relationFields
                 .filter {
@@ -107,22 +108,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                     )
                 }
             }
-            val systemTransitionFieldNames = (
-                listOfNotNull(
-                    resolvedPolicy
-                        ?.deleted
-                        ?.takeIf {
-                            it.enabled &&
-                                it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY
-                        }
-                        ?.fieldName
-                ) +
-                    resolvedPolicy
-                        ?.managedFields
-                        .orEmpty()
-                        .filter { it.writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY }
-                        .map { it.fieldName }
-                ).distinct()
+            val systemTransitionFieldNames = resolvedPolicy?.fields.orEmpty()
+                .filter { it.role == ManagedFieldRole.SOFT_DELETE }
+                .map { it.fieldName }
             systemTransitionFieldNames.forEach { fieldName ->
                 require(
                     renderedSoftDelete != null &&
@@ -193,43 +181,38 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                                 enumItems = planning.resolveEnumItems(entity.packageName, field),
                             )
                         }
-                        val providerAssignedManagedField =
-                            managedByField[field.name]?.writePolicy == SpecialFieldWritePolicy.READ_ONLY
+                        val managedField = managedByField[field.name]
+                        val providerInitializedManagedField = managedField?.let { policy ->
+                            policy.persistence.insert in setOf(
+                                ManagedValueAuthority.PERSISTENCE_PROVIDER,
+                                ManagedValueAuthority.DATABASE,
+                            )
+                        } == true
                         val insertable = when {
                             embeddedId -> null
-                            providerAssignedManagedField -> false
                             control?.insertable != null -> control.insertable
                             control?.updatable != null -> true
                             else -> null
                         }
                         val updatable = when {
                             embeddedId -> null
-                            providerAssignedManagedField -> false
                             control?.updatable != null -> control.updatable
                             control?.insertable != null -> true
                             else -> null
                         }
-                        val writePolicy = when {
-                            jpa.isId && resolvedPolicy != null -> resolvedPolicy.id.writePolicy.name
-                            providerAssignedVersion -> requireNotNull(resolvedPolicy).version.writePolicy.name
-                            resolvedPolicy?.deleted?.enabled == true &&
-                                resolvedPolicy.deleted.fieldName == field.name ->
-                                resolvedPolicy.deleted.writePolicy.name
-                            managedByField[field.name] != null -> managedByField.getValue(field.name).writePolicy.name
-                            else -> "READ_WRITE"
-                        }
                         val constructorIncluded =
-                            !generatedOwnId && !providerAssigned && !providerAssignedManagedField &&
-                                writePolicy != SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name
-                        val propertyNullable = providerAssigned || providerAssignedManagedField || field.nullable
+                            !generatedOwnId && !providerAssigned && !providerInitializedManagedField &&
+                                managedField?.creationInput != ManagedCreationInputPolicy.OMIT
+                        val optionalManagedField =
+                            managedField?.creationInput == ManagedCreationInputPolicy.OPTIONAL
+                        val initializedManagedField = managedField != null &&
+                            managedField.creationInput == ManagedCreationInputPolicy.OMIT &&
+                            !isSoftDeleteField
+                        val propertyNullable = providerAssigned || providerInitializedManagedField ||
+                            initializedManagedField || optionalManagedField || field.nullable
                         val propertyInitializer = when {
-                            providerAssigned || providerAssignedManagedField -> "null"
+                            providerAssigned || providerInitializedManagedField || initializedManagedField -> "null"
                             isSoftDeleteField -> requireNotNull(renderedSoftDelete).propertyInitializer
-                            writePolicy == SpecialFieldWritePolicy.SYSTEM_TRANSITION_ONLY.name ->
-                                error(
-                                    "aggregate field ${entity.packageName}.${entity.name}.${field.name} has " +
-                                        "SYSTEM_TRANSITION_ONLY write policy but no semantic property initializer"
-                                )
                             else -> field.name
                         }
                         mapOf(
@@ -240,6 +223,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "renderedType" to renderedType.renderedType,
                             "typeImports" to renderedType.imports,
                             "nullable" to field.nullable,
+                            "constructorNullable" to (field.nullable || optionalManagedField),
                             "defaultValue" to defaultValue,
                             "propertyNullable" to propertyNullable,
                             "propertyInitializer" to propertyInitializer,
@@ -259,12 +243,9 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "generatedValueStrategy" to generatedValueStrategy,
                             "providerAssignedIdentity" to providerAssignedIdentity,
                             "providerAssignedVersion" to providerAssignedVersion,
-                            "providerAssignedManagedField" to providerAssignedManagedField,
+                            "providerAssignedManagedField" to providerInitializedManagedField,
+                            "generatedEvents" to control?.generatedEvents.orEmpty(),
                             "isVersion" to providerAssignedVersion,
-                            "writePolicy" to writePolicy,
-                            "managedRole" to field.managedRole?.name,
-                            "managed" to (field.managedRole != null),
-                            "inherited" to field.inherited,
                             "insertable" to insertable,
                             "updatable" to updatable,
                             "attributeOverrideNullable" to field.nullable,
@@ -278,7 +259,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                         )
                     }
                 }
-            val scalarFields = fieldContexts.filterNot { it["inherited"] == true }
+            val scalarFields = fieldContexts
             validateScalarTypeImportCollisions(entity, scalarFields)
             val scalarTypeImports = scalarFields.flatMap { field ->
                 (field["typeImports"] as? List<*>)?.filterIsInstance<String>().orEmpty()
@@ -408,6 +389,7 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
     private fun StrongIdModel.fqn(): String = "${packageName}.${typeName}"
 
     private fun String.shortTypeName(): String = removeSuffix("?").substringAfterLast('.')
+
 }
 
 private data class ScalarImportCandidate(

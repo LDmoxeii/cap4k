@@ -9,18 +9,25 @@ import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.ReflectiveAggregateLifecycleInvoker
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldBinding
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldLifecycle
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import org.hibernate.Hibernate
 import org.hibernate.FlushMode
 import org.hibernate.Session
+import org.hibernate.collection.spi.PersistentCollection
 import org.hibernate.engine.spi.SessionImplementor
+import org.hibernate.engine.spi.SessionFactoryImplementor
 import org.hibernate.engine.spi.Status
 import org.hibernate.type.EntityType
 import org.springframework.core.Ordered
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.InitializingBean
 import org.springframework.context.annotation.Lazy
 import org.springframework.data.jpa.repository.support.JpaEntityInformationSupport
 import org.springframework.data.repository.core.EntityInformation
@@ -115,7 +122,7 @@ private enum class JpaUnitOfWorkPhase {
     INTEGRATION_RECORDS,
     NORMALIZE_INTENT,
     CANDIDATE_DETECTION,
-    AUDIT_ENRICHMENT,
+    PERSISTENCE_ENRICHMENT,
     FINAL_DETECTION,
     PROVIDER_FLUSH,
     DOMAIN_EVENT_FRONTIER,
@@ -130,7 +137,7 @@ private class JpaUnitOfWorkContext(
     val trackedRoots = InsertionOrderedIdentitySet<Any>()
     val deletedLifecycleRoots = InsertionOrderedIdentitySet<Any>()
     val repositoryObservationBaseline = JpaRepositoryObservationBaseline()
-    val auditContext = JpaPersistenceAuditContext(auditTime, executionContext)
+    val enrichmentContext = JpaPersistenceEnrichmentContext(auditTime, executionContext)
     var phase: JpaUnitOfWorkPhase = JpaUnitOfWorkPhase.HANDLER
     var flushCount: Int = 0
     var frontierCount: Int = 0
@@ -155,24 +162,34 @@ open class JpaUnitOfWork(
     private val domainEventManager: DomainEventManager,
     private val integrationEventManager: IntegrationEventManager? = null,
     private val lifecycleInvoker: AggregateLifecycleInvoker = ReflectiveAggregateLifecycleInvoker(),
-    generatedOwnIdRegistry: GeneratedOwnIdRegistry = MapBackedGeneratedOwnIdRegistry(emptyList()),
-    private val auditEnrichers: List<JpaPersistenceAuditEnricher> = emptyList(),
+    private val managedFieldRegistry: ManagedFieldRegistry = DefaultManagedFieldRegistry(emptyList()),
+    private val managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator =
+        ManagedEntityAdmissionCoordinator.NO_OP,
+    persistenceEnrichers: List<JpaPersistenceEnricher> = emptyList(),
     private val limits: JpaUnitOfWorkLimits = JpaUnitOfWorkLimits(),
     private val clock: Clock = Clock.systemUTC(),
     private val executionContextAccessor: ExecutionContextAccessor =
         ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
-) : CommandUnitOfWorkCoordinator, AggregatePersistenceIntentRecorder, JpaRepositoryObservationRecorder {
+) : CommandUnitOfWorkCoordinator,
+    AggregatePersistenceIntentRecorder,
+    JpaRepositoryObservationRecorder,
+    InitializingBean {
 
     @PersistenceContext
     lateinit var entityManager: EntityManager
 
-    private val generatedStrongIdSupport = JpaGeneratedStrongIdSupport(generatedOwnIdRegistry)
+    private val persistenceEnrichers: List<JpaPersistenceEnricher> =
+        validateAndSortPersistenceEnrichers(persistenceEnrichers)
     private val ownedRelationTraversal = JpaGeneratedOwnedRelationTraversal()
     private val repositoryObservationBaseline: JpaRepositoryObservationBaseline
         get() = currentContext().repositoryObservationBaseline
     @Autowired
     @Lazy
     private lateinit var self: JpaUnitOfWork
+
+    override fun afterPropertiesSet() {
+        validateProviderMutationFootprints()
+    }
 
     companion object {
         private val contextThreadLocal = ThreadLocal<JpaUnitOfWorkContext>()
@@ -313,9 +330,8 @@ open class JpaUnitOfWork(
         ensureApplicationMutationPhase("registerNew")
         validateStandaloneEnrollmentTarget(root, "registerNew")
         val context = currentContext()
-        val entry = context.pendingEntries.registerNew(root)
+        context.pendingEntries.registerNew(root)
         context.trackedRoots.add(root)
-        completeIdsForEntry(entry)
     }
 
     override fun registerDelete(root: Any) {
@@ -412,31 +428,28 @@ open class JpaUnitOfWork(
     private fun synchronizePersistence(context: JpaUnitOfWorkContext): Boolean {
         context.phase = JpaUnitOfWorkPhase.NORMALIZE_INTENT
         val pendingEntries = reconcilePendingOwnedChildren(context.pendingEntries.drain())
-        completeGeneratedOwnIds(pendingEntries)
         validateSameIdentityConflicts(pendingEntries)
 
         val lateOwnership = analyzePendingOwnership(pendingEntries)
         validateNoSharedReachableOwnership(pendingEntries, lateOwnership)
         validateNoLatePendingOwnedChildEntries(pendingEntries)
-        completeGeneratedOwnIds(pendingEntries)
-        completeAndValidateObservedRootIds(context)
+        validateObservedRootIds(context)
 
         context.phase = JpaUnitOfWorkPhase.CANDIDATE_DETECTION
         val aggregateChanges = detectAggregateChanges(context, pendingEntries)
         if (aggregateChanges.isNotEmpty()) {
+            aggregateChanges.flatMap(JpaAggregateChange::entityChanges)
+                .filter { it.type == JpaEntityChangeType.CREATE }
+                .forEach { managedEntityAdmissionCoordinator.validate(it.entity, context.enrichmentContext.executionContext) }
             val topologyBefore = capturePersistentTopology(context)
             val eventCountBefore = domainEventManager.pendingCount()
-            context.phase = JpaUnitOfWorkPhase.AUDIT_ENRICHMENT
-            auditEnrichers.forEach { enricher ->
-                aggregateChanges.forEach { changeSet ->
-                    enricher.enrich(changeSet, context.auditContext)
-                }
-            }
+            context.phase = JpaUnitOfWorkPhase.PERSISTENCE_ENRICHMENT
+            enrichPersistenceCandidates(aggregateChanges, context.enrichmentContext)
             check(capturePersistentTopology(context) == topologyBefore) {
-                "Audit enrichment must not change persistent Entity or relation topology"
+                "Managed persistence enrichment must not change persistent Entity or relation topology"
             }
             check(domainEventManager.pendingCount() == eventCountBefore) {
-                "Audit enrichment must not produce Domain Events"
+                "Managed persistence enrichment must not produce Domain Events"
             }
         }
 
@@ -464,6 +477,308 @@ open class JpaUnitOfWork(
         advanceRepositoryBaseline(context, results)
         context.flushCount++
         return true
+    }
+
+    private fun enrichPersistenceCandidates(
+        aggregateChanges: List<JpaAggregateChange>,
+        enrichmentContext: JpaPersistenceEnrichmentContext,
+    ) {
+        persistenceEnrichers.forEach { enricher ->
+            aggregateChanges.forEach { change ->
+                val fields = managedFieldsFor(change, enricher.qualifiers)
+                if (!fields.iterator().hasNext()) return@forEach
+                val session = entityManager.unwrap(SessionImplementor::class.java)
+                val guardedEntities = InsertionOrderedIdentitySet<Any>().apply {
+                    addAll(
+                        session.persistenceContextInternal.reentrantSafeEntityEntries()
+                            .map { (entity, _) -> entity },
+                    )
+                    addAll(ownedRelationTraversal.reachableOwnedEntities(change.root))
+                    addAll(change.entityChanges.map(JpaEntityChange::entity))
+                }
+                val before = linkedMapOf<ObjectIdentityKey, ProviderState>().apply {
+                    guardedEntities.forEach { entity ->
+                        put(ObjectIdentityKey(entity), captureProviderState(entity))
+                    }
+                }
+                enricher.enrich(change, enrichmentContext, fields)
+                session.persistenceContextInternal.reentrantSafeEntityEntries().forEach entryLoop@{ (entity, entry) ->
+                    if (!guardedEntities.add(entity)) return@entryLoop
+                    val loadedState = checkNotNull(entry.loadedState) {
+                        "JpaPersistenceEnricher ${enricher.javaClass.name} introduced provider-managed entity " +
+                            "${persistentEntityClass(entity).name} without a loaded-state baseline"
+                    }
+                    before[ObjectIdentityKey(entity)] = captureProviderState(entity, loadedState)
+                }
+                guardedEntities.forEach { entity ->
+                    val entityFields = fields.forEntity(entity)
+                    val allowed = entityFields?.handles
+                        ?.flatMapTo(linkedSetOf()) { it.mutationFootprint }
+                        .orEmpty()
+                    val changed = changedProviderProperties(
+                        before = before.getValue(ObjectIdentityKey(entity)),
+                        entity = entity,
+                    )
+                    check(changed.all(allowed::contains)) {
+                        val unauthorized = changed.filterNot(allowed::contains).sorted()
+                        val policies = entityFields?.handles.orEmpty().joinToString { handle ->
+                            "${handle.policyKey}:${handle.handlerSlot ?: "<default>"}"
+                        }
+                        "JpaPersistenceEnricher ${enricher.javaClass.name} changed unauthorized provider properties " +
+                            "$unauthorized on ${persistentEntityClass(entity).name}; " +
+                            "qualifiers=${enricher.qualifiers.sorted()}; policies=[$policies]; allowed=${allowed.sorted()}"
+                    }
+                }
+            }
+        }
+    }
+
+    private fun managedFieldsFor(
+        change: JpaAggregateChange,
+        qualifiers: Set<String>,
+    ): JpaManagedFieldSet {
+        val entries = change.entityChanges.mapNotNull { entityChange ->
+            val operation = when (entityChange.type) {
+                JpaEntityChangeType.CREATE -> JpaManagedOperation.CREATE
+                JpaEntityChangeType.UPDATE -> JpaManagedOperation.UPDATE
+                JpaEntityChangeType.DELETE -> return@mapNotNull null
+            }
+            val entityType = persistentEntityClass(entityChange.entity).kotlin
+            val allowedBindings = managedFieldRegistry
+                .bindings(entityType, ManagedFieldLifecycle.PERSISTENCE_ENRICHMENT)
+                .filter { it.handlerQualifier in qualifiers }
+                .filter { binding ->
+                    when (operation) {
+                        JpaManagedOperation.CREATE ->
+                            binding.persistence.insert == ManagedValueAuthority.MANAGED_HANDLER
+                        JpaManagedOperation.UPDATE ->
+                            binding.persistence.update == ManagedValueAuthority.MANAGED_HANDLER
+                    }
+                }
+            if (allowedBindings.isEmpty()) return@mapNotNull null
+            val allowedKeys = allowedBindings.mapTo(hashSetOf()) { it.fieldName to it.policyKey }
+            val handles = managedFieldRegistry.handles(
+                entity = entityChange.entity,
+                lifecycle = ManagedFieldLifecycle.PERSISTENCE_ENRICHMENT,
+                qualifiers = qualifiers,
+            ).filter { (it.fieldName to it.policyKey) in allowedKeys }
+            if (handles.isEmpty()) return@mapNotNull null
+            JpaManagedEntityFields(entityChange.entity, operation, handles)
+        }
+        return DefaultJpaManagedFieldSet(entries)
+    }
+
+    private data class ProviderState(
+        val propertyNames: Array<String>,
+        val propertyTypes: Array<org.hibernate.type.Type>,
+        val values: Array<Any?>,
+        val associationSnapshots: Map<Int, Any?>,
+        val collectionSnapshots: Map<Int, ProviderCollectionState>,
+    )
+
+    private data class ProviderCollectionState(
+        val wrapperIdentity: ObjectIdentityKey?,
+        val dirty: Boolean,
+        val queuedOperations: Boolean,
+        val queuedAdditions: List<Any?>,
+        val contents: Any?,
+    ) {
+        fun changedTo(after: ProviderCollectionState): Boolean =
+            wrapperIdentity != after.wrapperIdentity ||
+                dirty != after.dirty ||
+                queuedOperations != after.queuedOperations ||
+                queuedAdditions != after.queuedAdditions ||
+                (contents != null && after.contents != null && contents != after.contents)
+    }
+
+    private data class ProviderSequenceSnapshot(val elements: List<Any?>)
+
+    private data class ProviderSetSnapshot(val elements: Set<Any?>)
+
+    private data class ProviderMapSnapshot(val entries: Set<Pair<Any?, Any?>>)
+
+    private data class ProviderArraySnapshot(val elements: List<Any?>)
+
+    private data class ProviderPersistentReference(
+        val entityClassName: String,
+        val identifier: Any,
+    )
+
+    private fun captureProviderState(
+        entity: Any,
+        baseline: Array<out Any?>? = null,
+    ): ProviderState {
+        val session = entityManager.unwrap(SessionImplementor::class.java)
+        val persister = session.factory.mappingMetamodel.getEntityDescriptor(persistentEntityClass(entity))
+        val types = persister.propertyTypes
+        val sourceValues = baseline ?: persister.getValues(entity)
+        val values = sourceValues
+            .mapIndexed { index, value -> types[index].deepCopy(value, session.factory) }
+            .toTypedArray()
+        val associationSnapshots = types.indices
+            .filter { index -> types[index].isAssociationType && !types[index].isCollectionType }
+            .associateWith { index -> providerRelationSnapshot(session, sourceValues[index]) }
+        val collectionSnapshots = types.indices
+            .filter { index -> types[index].isCollectionType }
+            .associateWith { index ->
+                captureProviderCollectionState(
+                    session = session,
+                    value = sourceValues[index],
+                    loadedBaseline = baseline != null,
+                )
+            }
+        return ProviderState(
+            persister.propertyNames,
+            types,
+            values,
+            associationSnapshots,
+            collectionSnapshots,
+        )
+    }
+
+    private fun changedProviderProperties(before: ProviderState, entity: Any): Set<String> {
+        val session = entityManager.unwrap(SessionImplementor::class.java)
+        val persister = session.factory.mappingMetamodel.getEntityDescriptor(persistentEntityClass(entity))
+        check(before.propertyNames.contentEquals(persister.propertyNames)) {
+            "Hibernate provider metadata changed during managed persistence enrichment for ${persistentEntityClass(entity).name}"
+        }
+        val after = persister.getValues(entity)
+        return before.propertyNames.indices
+            .filterTo(linkedSetOf()) { index ->
+                val propertyType = before.propertyTypes[index]
+                if (before.propertyNames[index].endsWith("Backref")) return@filterTo false
+                when {
+                    propertyType.isCollectionType -> before.collectionSnapshots.getValue(index).changedTo(
+                        captureProviderCollectionState(session, after[index], loadedBaseline = false)
+                    )
+                    propertyType.isAssociationType ->
+                        before.associationSnapshots[index] != providerRelationSnapshot(session, after[index])
+                    else -> {
+                        val equal = runCatching {
+                            propertyType.isEqual(before.values[index], after[index], session.factory)
+                        }.getOrElse {
+                            before.values[index] === after[index] || before.values[index] == after[index]
+                        }
+                        !equal
+                    }
+                }
+            }
+            .mapTo(linkedSetOf()) { before.propertyNames[it] }
+    }
+
+    private fun captureProviderCollectionState(
+        session: SessionImplementor,
+        value: Any?,
+        loadedBaseline: Boolean,
+    ): ProviderCollectionState {
+        val persistent = value as? PersistentCollection<*>
+        val initialized = persistent == null || persistent.wasInitialized()
+        return ProviderCollectionState(
+            wrapperIdentity = value?.let(::ObjectIdentityKey),
+            dirty = if (loadedBaseline) false else persistent?.isDirty == true,
+            queuedOperations = if (loadedBaseline) false else persistent?.hasQueuedOperations() == true,
+            queuedAdditions = if (loadedBaseline || persistent?.hasQueuedOperations() != true) {
+                emptyList()
+            } else {
+                persistent.queuedAdditionIterator().asSequence()
+                    .map { providerRelationSnapshot(session, it) }
+                    .toList()
+            },
+            contents = if (!loadedBaseline && initialized) {
+                providerCollectionContentsSnapshot(session, persistent?.value ?: value)
+            } else {
+                null
+            },
+        )
+    }
+
+    private fun providerCollectionContentsSnapshot(session: SessionImplementor, value: Any?): Any? = when (value) {
+        null -> null
+        is Map<*, *> -> ProviderMapSnapshot(
+            value.entries.mapTo(linkedSetOf()) { (key, item) ->
+                providerRelationSnapshot(session, key) to providerRelationSnapshot(session, item)
+            }
+        )
+        is Set<*> -> ProviderSetSnapshot(
+            value.mapTo(linkedSetOf()) { providerRelationSnapshot(session, it) }
+        )
+        is Iterable<*> -> ProviderSequenceSnapshot(
+            value.map { providerRelationSnapshot(session, it) }
+        )
+        is Array<*> -> ProviderArraySnapshot(
+            value.map { providerRelationSnapshot(session, it) }
+        )
+        else -> ObjectIdentityKey(value)
+    }
+
+    private fun providerRelationSnapshot(session: SessionImplementor, value: Any?): Any? = when (value) {
+        null,
+        is String,
+        is Number,
+        is Boolean,
+        is Char,
+        is Enum<*>,
+        -> value
+        else -> session.persistenceContextInternal.getEntry(value)?.let { entry ->
+            entry.id?.let { identifier ->
+                ProviderPersistentReference(persistentEntityClass(value).name, identifier)
+            }
+        } ?: ObjectIdentityKey(value)
+    }
+
+    private fun validateAndSortPersistenceEnrichers(
+        enrichers: List<JpaPersistenceEnricher>,
+    ): List<JpaPersistenceEnricher> {
+        val owners = linkedMapOf<String, JpaPersistenceEnricher>()
+        enrichers.forEach { enricher ->
+            require(enricher.qualifiers.isNotEmpty() && enricher.qualifiers.none(String::isBlank)) {
+                "JpaPersistenceEnricher ${enricher.javaClass.name} must own nonblank qualifiers"
+            }
+            enricher.qualifiers.forEach { qualifier ->
+                val previous = owners.putIfAbsent(qualifier, enricher)
+                require(previous == null || previous === enricher) {
+                    "duplicate JpaPersistenceEnricher qualifier '$qualifier': " +
+                        "${previous?.javaClass?.name} and ${enricher.javaClass.name}"
+                }
+                require(managedFieldRegistry.initializerFor(qualifier) == null) {
+                    "managed qualifier '$qualifier' cannot belong to both admission and persistence enrichment"
+                }
+            }
+        }
+        managedFieldRegistry.allBindings
+            .filter { ManagedFieldLifecycle.PERSISTENCE_ENRICHMENT in it.lifecycles }
+            .forEach { binding ->
+                val qualifier = requireNotNull(binding.handlerQualifier) {
+                    "persistence-enriched binding ${binding.label} requires a handler qualifier"
+                }
+                require(owners.containsKey(qualifier)) {
+                    "persistence-enriched binding ${binding.label} has no JpaPersistenceEnricher for '$qualifier'"
+                }
+            }
+        return enrichers.sortedWith(
+            compareBy<JpaPersistenceEnricher>({ it.qualifiers.sorted().joinToString("\u0000") }, { it.javaClass.name })
+        )
+    }
+
+    private fun validateProviderMutationFootprints() {
+        val sessionFactory = entityManager.entityManagerFactory.unwrap(SessionFactoryImplementor::class.java)
+        managedFieldRegistry.allBindings
+            .forEach { binding ->
+                val persister = sessionFactory.mappingMetamodel.getEntityDescriptor(binding.entityType.java)
+                val providerProperties = buildSet {
+                    addAll(persister.propertyNames)
+                    persister.identifierPropertyName?.let(::add)
+                }
+                val footprint = managedFieldRegistry.mutationFootprint(
+                    binding.entityType,
+                    binding.fieldName,
+                    binding.policyKey,
+                )
+                require(footprint.all(providerProperties::contains)) {
+                    "managed binding ${binding.label} has unknown Hibernate mutation footprint " +
+                        "${footprint - providerProperties}; known=${providerProperties.sorted()}"
+                }
+            }
     }
 
     private fun checkLimit(
@@ -676,29 +991,10 @@ open class JpaUnitOfWork(
         return entry.persister.findDirty(currentState, loadedState, entity, session)?.isNotEmpty() == true
     }
 
-    private fun completeGeneratedOwnIds(entries: List<UnitOfWorkEntry>) {
-        entries.forEach(::completeIdsForEntry)
-    }
-
-    private fun completeAndValidateObservedRootIds(context: JpaUnitOfWorkContext) {
+    private fun validateObservedRootIds(context: JpaUnitOfWorkContext) {
         context.trackedRoots
             .filter(context.repositoryObservationBaseline::hasBaselineFor)
-            .forEach { root ->
-                validateObservedIdentityConsistency(root)
-                generatedStrongIdSupport.completeExisting(
-                    root = root,
-                    traversal = ownedRelationTraversal,
-                    baseline = context.repositoryObservationBaseline,
-                )
-            }
-    }
-
-    private fun completeIdsForEntry(entry: UnitOfWorkEntry) {
-        when (entry.kind) {
-            UnitOfWorkEntryKind.CREATE ->
-                generatedStrongIdSupport.completeCreate(entry.entity, ownedRelationTraversal)
-            UnitOfWorkEntryKind.REMOVE -> Unit
-        }
+            .forEach(::validateObservedIdentityConsistency)
     }
 
     private fun validateObservedIdentityConsistency(root: Any) {

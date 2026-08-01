@@ -80,7 +80,7 @@ internal object AggregateSoftDeleteRendering {
             }
         }
 
-    private fun renderPropertyInitializer(
+    fun renderPropertyInitializer(
         policy: AggregateSoftDeletePolicy,
         deletedKotlinType: String,
     ): String {

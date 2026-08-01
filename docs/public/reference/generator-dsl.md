@@ -10,10 +10,11 @@ cap4k {
     types { }
     sources { }
     generators { }
+    managedFields { }
     templates { }
     bootstrap { }
     layout { }
-    addons { }
+    pipelineExtensions { }
 }
 ```
 
@@ -23,10 +24,11 @@ cap4k {
 | `types` | type registry、enum manifest、value-object manifest。 |
 | `sources` | design JSON、DB/schema、IR analysis input。 |
 | `generators` | aggregate、aggregate projection、flow、drawing-board generator block。 |
+| `managedFields` | 项目级 managed-field 精确策略默认值。 |
 | `templates` | source generation template preset、override dirs、conflict policies。 |
 | `bootstrap` | project structure bootstrap configuration。 |
 | `layout` | package layout 与 analysis output root。 |
-| `addons` | provider-scoped addon options；addon 安装仍通过 `cap4kAddon` dependency。 |
+| `pipelineExtensions` | Pipeline Extension provider 与 contribution 级选项。 |
 
 ## `project { }`
 
@@ -96,7 +98,7 @@ sources {
 
 | Block | Fields | 说明 |
 | --- | --- | --- |
-| `aggregate` | `unsupportedTablePolicy`, `specialFields` | DB/schema driven aggregate family。 |
+| `aggregate` | `unsupportedTablePolicy` | DB/schema driven aggregate family。 |
 | `aggregateProjection` | block presence | aggregate projection generator configuration marker。 |
 | `flow` | none | analysis output generator id `flow`。 |
 | `drawingBoard` | none | analysis output generator id `drawing-board`。 |
@@ -105,17 +107,32 @@ sources {
 generators {
     aggregate {
         unsupportedTablePolicy.set("FAIL")
-        specialFields {
-            idDefaultStrategy.set("uuid7")
-            deletedDefaultColumn.set("")
-            versionDefaultColumn.set("")
-            managedDefaultColumns.set(emptyList())
-        }
     }
     flow { }
     drawingBoard { }
 }
 ```
+
+## `managedFields { }`
+
+Managed-field defaults select exact policy keys. An explicit database column annotation takes precedence over an exact column-name default, which takes precedence over the identifier default.
+
+| Field | 说明 |
+| --- | --- |
+| `identifierDefaultPolicy` | 未显式标注的单列物理主键所使用的精确 `identifier.*` policy key；默认 `identifier.uuid7`。 |
+| `columnPolicyDefaults` | exact column name 到 exact managed policy key 的映射。 |
+
+```kotlin
+managedFields {
+    identifierDefaultPolicy.set("identifier.uuid7")
+    columnPolicyDefaults.put("created_at", "enrichment.audit-time.created-at")
+    columnPolicyDefaults.put("updated_at", "enrichment.audit-time.updated-at")
+    columnPolicyDefaults.put("version", "version")
+    columnPolicyDefaults.put("deleted", "soft-delete")
+}
+```
+
+策略键区分大小写，并使用小写 kebab-case 点分段。自定义策略必须由已安装的 Pipeline Extension 提供定义；DB source 只保留键，Canonical Model 阶段负责解析。
 
 ## `templates { }`
 
@@ -211,19 +228,24 @@ layout {
 
 公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designCapability`, `designQueryHandler`, `designCapabilityHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
 
-## `addons { }`
+## `pipelineExtensions { }`
 
-addon 安装使用 Gradle configuration `cap4kAddon`。`addons {}` 只承载 provider-scoped options。
+构建期扩展安装使用 Gradle configuration `cap4kPipelineExtension`。配置按 extension provider ID 和 contribution ID 两级寻址；选项只对对应 contribution 可见。
 
 ```kotlin
 dependencies {
-    cap4kAddon("com.only4:engine-cap4k-addon:0.1.12-SNAPSHOT")
+    cap4kPipelineExtension("com.only4:engine-cap4k-pipeline-extension:1.0.0")
+
+    // 使用扩展定义的运行时 policy 时，运行时依赖需要显式声明。
+    implementation("com.only4:engine-cap4k-managed-runtime:1.0.0")
 }
 
 cap4k {
-    addons {
-        provider("only-engine-enum-translation") {
-            option("mode", "project-default")
+    pipelineExtensions {
+        provider("only-engine") {
+            contribution("enum-translation") {
+                option("mode", "project-default")
+            }
         }
     }
     templates {
@@ -235,4 +257,6 @@ cap4k {
 }
 ```
 
-addon artifacts 会列入 `cap4kPlan`，并使用和 built-in artifacts 相同的 ownership fields：`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy`。
+Pipeline Extension 是唯一的构建期安装根。当前允许的 contribution 类型是 Managed Field Policy 和 Artifact Addon；未知 contribution 类型会失败，扩展不能插入或重排 pipeline stage。
+
+Artifact Addon artifacts 会列入 `cap4kPlan`，并使用和 built-in artifacts 相同的 ownership fields：`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy`。现有 addon template namespace `addons/<addonId>/...` 保持不变。

@@ -14,17 +14,15 @@ data class ProjectConfig(
         conflictPolicy = ConflictPolicy.SKIP,
     ),
     val artifactLayout: ArtifactLayoutConfig = ArtifactLayoutConfig(),
-    val aggregateSpecialFieldDefaults: AggregateSpecialFieldDefaultsConfig = AggregateSpecialFieldDefaultsConfig(),
-    val addons: Map<String, AddonProviderConfig> = emptyMap(),
+    val managedFields: ManagedFieldDefaultsConfig = ManagedFieldDefaultsConfig(),
+    val pipelineExtensions: Map<String, PipelineExtensionConfig> = emptyMap(),
 ) {
     fun typeRegistryFqns(): Map<String, String> = typeRegistry.entries.mapValues { it.value.fqn }
 }
 
-data class AggregateSpecialFieldDefaultsConfig(
-    val idDefaultStrategy: String = "uuid7",
-    val deletedDefaultColumn: String = "",
-    val versionDefaultColumn: String = "",
-    val managedDefaultColumns: List<String> = emptyList(),
+data class ManagedFieldDefaultsConfig(
+    val identifierDefaultPolicy: String = "identifier.uuid7",
+    val columnPolicyDefaults: Map<String, String> = emptyMap(),
 )
 
 data class TypeRegistryConfig(
@@ -64,7 +62,12 @@ enum class ProjectLayout {
     MULTI_MODULE,
 }
 
-data class AddonProviderConfig(
+data class PipelineExtensionConfig(
+    val id: String,
+    val contributions: Map<String, PipelineContributionConfig> = emptyMap(),
+)
+
+data class PipelineContributionConfig(
     val id: String,
     val options: Map<String, String> = emptyMap(),
 )

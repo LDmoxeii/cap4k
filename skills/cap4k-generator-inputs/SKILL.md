@@ -3,7 +3,7 @@ name: cap4k-generator-inputs
 description: >
   Use when projecting an approved cap4k technical design into generator inputs
   such as DB/schema, design JSON, manifests, Gradle extension settings,
-  addons/options, or template override decisions.
+  Pipeline Extension contributions/options, or template override decisions.
 ---
 
 # Cap4k Generator Inputs

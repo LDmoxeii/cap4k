@@ -1,20 +1,34 @@
 package com.only4.cap4k.ddd.runtime.strongid
 
 import com.only4.cap4k.ddd.application.JpaUnitOfWork
-import com.only4.cap4k.ddd.application.JpaPersistenceAuditEnricher
+import com.only4.cap4k.ddd.application.JpaManagedFieldSet
+import com.only4.cap4k.ddd.application.JpaPersistenceEnricher
+import com.only4.cap4k.ddd.application.JpaPersistenceEnrichmentContext
 import com.only4.cap4k.ddd.application.JpaEntityChange
 import com.only4.cap4k.ddd.application.JpaEntityChangeType
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.impl.DefaultAggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdAccessor
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdCatalog
-import com.only4.cap4k.ddd.core.domain.id.GeneratedOwnIdRegistry
-import com.only4.cap4k.ddd.core.domain.id.MapBackedGeneratedOwnIdRegistry
-import com.only4.cap4k.ddd.core.domain.id.readInitializedOrNull
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionKind
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityInitializer
+import com.only4.cap4k.ddd.core.domain.managed.ManagedExplicitValuePolicy
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldBinding
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldCatalog
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldLifecycle
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRole
+import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRuntimeSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedValueAuthority
+import com.only4.cap4k.ddd.core.domain.managed.PersistenceParticipation
+import com.only4.cap4k.ddd.core.domain.managed.StandardManagedEntityInitializer
 import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -28,7 +42,6 @@ import org.springframework.boot.autoconfigure.domain.EntityScan
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
-import org.springframework.core.Ordered
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -57,20 +70,19 @@ class StrongIdUowRuntimeTest {
     lateinit var unitOfWork: JpaUnitOfWork
 
     @Autowired
+    lateinit var admissionCoordinator: ManagedEntityAdmissionCoordinator
+
+    @Autowired
     lateinit var auditEnricher: RecordingJpaAuditEnricher
 
     @Autowired
     lateinit var domainEvents: RecordingDomainEventManager
-
-    @Autowired
-    lateinit var auditInvocationLog: AuditInvocationLog
 
     @BeforeEach
     fun reset() {
         JpaUnitOfWork.reset()
         auditEnricher.reset()
         domainEvents.reset()
-        auditInvocationLog.entries.clear()
     }
 
     @Test
@@ -82,6 +94,7 @@ class StrongIdUowRuntimeTest {
         var expectedItemIds: List<StrongContentItemId> = emptyList()
 
         unitOfWork.execute {
+            admitGraph(content)
             unitOfWork.registerNew(content)
             assertTrue(content.hasAssignedId())
             assertTrue(content.items.all { it.hasAssignedId() })
@@ -99,9 +112,10 @@ class StrongIdUowRuntimeTest {
     @Test
     fun `factory participates in active Unit of Work without explicit save`() {
         val factorySupervisor = DefaultAggregateFactorySupervisor(
-            factories = listOf(StrongContentFactory()),
+            factories = listOf(StrongContentFactory(admissionCoordinator)),
             persistenceIntents = unitOfWork,
             invocationScopeAccessor = InvocationScopeAccessor { InvocationKind.COMMAND },
+            managedEntityAdmissionCoordinator = admissionCoordinator,
         ).apply { init() }
         lateinit var content: StrongContent
         var expectedItemIds: List<StrongContentItemId> = emptyList()
@@ -132,6 +146,7 @@ class StrongIdUowRuntimeTest {
         val content = StrongContent.unassigned("create-remove-none")
 
         unitOfWork.execute {
+            admitGraph(content)
             unitOfWork.registerNew(content)
             domainEvents.attachFor(content)
             unitOfWork.registerDelete(content)
@@ -225,7 +240,7 @@ class StrongIdUowRuntimeTest {
     }
 
     @Test
-    fun `existing root synchronization completes newly attached owned child`() {
+    fun `synthetic collection backref is governed by topology and not rejected as managed field mutation`() {
         val content = repository.saveAndFlush(
             StrongContent(
                 id = StrongContentId.parse("019c0000-0000-7000-8000-000000000002"),
@@ -241,6 +256,7 @@ class StrongIdUowRuntimeTest {
             val loaded = repository.findById(content.id).orElseThrow()
             unitOfWork.observeRepositoryLoad(loaded)
             child = StrongContentItem.unassigned("new-child")
+            admissionCoordinator.admit(child, ManagedEntityAdmissionKind.OWNED_CHILD)
             loaded.items += child
         }
         assertTrue(child.hasAssignedId())
@@ -276,44 +292,178 @@ class StrongIdUowRuntimeTest {
     }
 
     @Test
-    fun `audit enrichment runs each enricher across all aggregates before the next enricher`() {
-        val first = repository.saveAndFlush(
+    fun `clean loaded aggregate does not invoke persistence enrichment`() {
+        val content = repository.saveAndFlush(
             StrongContent(
-                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000032"),
-                title = "audit-order-first",
-                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000033"),
-                mediaProcessingTaskId = null,
-            )
-        )
-        val second = repository.saveAndFlush(
-            StrongContent(
-                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000034"),
-                title = "audit-order-second",
-                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000035"),
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000042"),
+                title = "clean-read",
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000043"),
                 mediaProcessingTaskId = null,
             )
         )
         entityManager.clear()
-        auditInvocationLog.entries.clear()
+        auditEnricher.reset()
 
         unitOfWork.execute {
-            val firstLoaded = repository.findById(first.id).orElseThrow()
-            val secondLoaded = repository.findById(second.id).orElseThrow()
-            unitOfWork.observeRepositoryLoad(firstLoaded)
-            unitOfWork.observeRepositoryLoad(secondLoaded)
-            firstLoaded.rename("audit-order-first-changed")
-            secondLoaded.rename("audit-order-second-changed")
+            val loaded = repository.findById(content.id).orElseThrow()
+            unitOfWork.observeRepositoryLoad(loaded)
+            assertEquals("clean-read", loaded.title)
         }
 
-        assertEquals(
-            listOf(
-                "first:${first.id}",
-                "first:${second.id}",
-                "second:${first.id}",
-                "second:${second.id}",
-            ),
-            auditInvocationLog.entries,
+        assertTrue(auditEnricher.seen.isEmpty())
+    }
+
+    @Test
+    fun `delete-only change exposes no enrichment handles`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000044"),
+                title = "delete-only",
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000045"),
+                mediaProcessingTaskId = null,
+            )
         )
+        entityManager.clear()
+        auditEnricher.reset()
+
+        unitOfWork.execute {
+            val loaded = repository.findById(content.id).orElseThrow()
+            unitOfWork.observeRepositoryLoad(loaded)
+            unitOfWork.registerDelete(loaded)
+        }
+
+        assertTrue(auditEnricher.seen.isEmpty())
+    }
+
+    @Test
+    fun `enricher cannot mutate a provider property outside supplied footprints`() {
+        val content = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000046"),
+                title = "unauthorized-before",
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000047"),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        auditEnricher.reset()
+        auditEnricher.mutateUnauthorized = true
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            unitOfWork.execute {
+                val loaded = repository.findById(content.id).orElseThrow()
+                unitOfWork.observeRepositoryLoad(loaded)
+                loaded.rename("candidate-change")
+            }
+        }
+
+        assertTrue(failure.message.orEmpty().contains("unauthorized provider properties"))
+        assertTrue(failure.message.orEmpty().contains("authorId"))
+        assertTrue(failure.message.orEmpty().contains(RecordingJpaAuditEnricher.QUALIFIER))
+    }
+
+    @Test
+    fun `enricher cannot load and mutate another aggregate outside its supplied footprints`() {
+        val candidate = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000049"),
+                title = "candidate-before",
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000050"),
+                mediaProcessingTaskId = null,
+            )
+        )
+        val other = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000051"),
+                title = "other-before",
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000052"),
+                mediaProcessingTaskId = null,
+            )
+        )
+        entityManager.clear()
+        auditEnricher.reset()
+        auditEnricher.duringEnrichment = {
+            repository.findById(other.id).orElseThrow().rename("other-illicit-change")
+        }
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            unitOfWork.execute {
+                val loaded = repository.findById(candidate.id).orElseThrow()
+                unitOfWork.observeRepositoryLoad(loaded)
+                loaded.rename("candidate-change")
+            }
+        }
+
+        assertTrue(failure.message.orEmpty().contains("unauthorized provider properties"))
+        assertTrue(failure.message.orEmpty().contains("title"))
+        assertTrue(failure.message.orEmpty().contains("allowed=[]"))
+    }
+
+    @Test
+    fun `enricher cannot load and mutate another aggregate collection outside its supplied footprints`() {
+        val candidate = repository.saveAndFlush(
+            StrongContent(
+                id = StrongContentId.parse("019c0000-0000-7000-8000-000000000053"),
+                title = "candidate-collection-before",
+                authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000054"),
+                mediaProcessingTaskId = null,
+            )
+        )
+        val other = StrongContent(
+            id = StrongContentId.parse("019c0000-0000-7000-8000-000000000055"),
+            title = "other-collection-before",
+            authorId = StrongAuthorId("019c0000-0000-7000-8000-000000000056"),
+            mediaProcessingTaskId = null,
+        ).also { root ->
+            root.items += StrongContentItem(
+                StrongContentItemId.parse("019c0000-0000-7000-8000-000000000057"),
+                "other-child",
+            )
+        }
+        repository.saveAndFlush(other)
+        entityManager.clear()
+        auditEnricher.reset()
+        auditEnricher.duringEnrichment = {
+            repository.findById(other.id).orElseThrow().items.clear()
+        }
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            unitOfWork.execute {
+                val loaded = repository.findById(candidate.id).orElseThrow()
+                unitOfWork.observeRepositoryLoad(loaded)
+                loaded.rename("candidate-collection-change")
+            }
+        }
+
+        assertTrue(failure.message.orEmpty().contains("unauthorized provider properties"))
+        assertTrue(failure.message.orEmpty().contains("items"))
+        assertTrue(failure.message.orEmpty().contains("allowed=[]"))
+    }
+
+    @Test
+    fun `child-only enricher handles cannot authorize mutation of a clean aggregate root`() {
+        val content = StrongContent.unassigned("guarded-root").also {
+            it.items += StrongContentItem.unassigned("guarded-child")
+        }
+        unitOfWork.execute {
+            admitGraph(content)
+            unitOfWork.registerNew(content)
+        }
+        auditEnricher.reset()
+        entityManager.clear()
+        auditEnricher.mutateUnauthorized = true
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            unitOfWork.execute {
+                val loaded = repository.findById(content.id).orElseThrow()
+                unitOfWork.observeRepositoryLoad(loaded)
+                loaded.items.single().relabel("child-only-change")
+            }
+        }
+
+        assertTrue(failure.message.orEmpty().contains("unauthorized provider properties"))
+        assertTrue(failure.message.orEmpty().contains("authorId"))
+        assertTrue(failure.message.orEmpty().contains("allowed=[]"))
     }
 
     @Test
@@ -325,6 +475,7 @@ class StrongIdUowRuntimeTest {
         lateinit var removedId: StrongContentItemId
         lateinit var updatedId: StrongContentItemId
         unitOfWork.execute {
+            admitGraph(content)
             unitOfWork.registerNew(content)
             removedId = content.items.first().id
             updatedId = content.items.last().id
@@ -364,6 +515,27 @@ class StrongIdUowRuntimeTest {
         assertEquals(1, auditEnricher.timestamps.distinct().size)
     }
 
+    @Test
+    fun `uow rejects a new graph that bypassed admission without allocating ids`() {
+        val content = StrongContent.unassigned("bypassed-admission")
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            unitOfWork.execute {
+                unitOfWork.registerNew(content)
+            }
+        }
+
+        assertTrue(failure.message.orEmpty().contains("managed identifier id is absent"))
+        assertFalse(content.hasAssignedId())
+    }
+
+    private fun admitGraph(content: StrongContent) {
+        admissionCoordinator.admit(content, ManagedEntityAdmissionKind.AGGREGATE_ROOT)
+        content.items.forEach { child ->
+            admissionCoordinator.admit(child, ManagedEntityAdmissionKind.OWNED_CHILD)
+        }
+    }
+
     @SpringBootApplication
     @EntityScan(basePackageClasses = [StrongContent::class])
     @EnableJpaRepositories(basePackageClasses = [StrongIdJpaRepository::class])
@@ -374,41 +546,131 @@ class StrongIdUowRuntimeTest {
         fun domainEventManager(): RecordingDomainEventManager = RecordingDomainEventManager()
 
         @Bean
-        fun generatedOwnIdCatalog(): GeneratedOwnIdCatalog = object : GeneratedOwnIdCatalog {
-            override val accessors: List<GeneratedOwnIdAccessor<*, *>> = listOf(
-                StrongContentGeneratedOwnIdAccessor(),
-                StrongContentItemGeneratedOwnIdAccessor(),
+        fun managedFieldCatalog(): ManagedFieldCatalog = object : ManagedFieldCatalog {
+            override val bindings: List<ManagedFieldBinding> = listOf(
+                identifierBinding(
+                    StrongContent::class,
+                    StrongContentId::class,
+                    "019c0000-0000-7000-8001-",
+                    StrongContentId::parse,
+                ),
+                identifierBinding(
+                    StrongContentItem::class,
+                    StrongContentItemId::class,
+                    "019c0000-0000-7000-8002-",
+                    StrongContentItemId::parse,
+                ),
+                enrichmentBinding(StrongContent::class, "title"),
+                enrichmentBinding(StrongContentItem::class, "label"),
+                enrichmentBinding(
+                    StrongContent::class,
+                    "authorId",
+                    StrongAuthorId::class,
+                    OtherQualifierJpaEnricher.QUALIFIER,
+                ),
             )
         }
 
         @Bean
-        fun generatedOwnIdRegistry(catalog: GeneratedOwnIdCatalog): GeneratedOwnIdRegistry =
-            MapBackedGeneratedOwnIdRegistry(listOf(catalog))
+        fun standardManagedEntityInitializer(): ManagedEntityInitializer = StandardManagedEntityInitializer()
+
+        @Bean
+        fun managedFieldRegistry(
+            catalog: ManagedFieldCatalog,
+            initializers: List<ManagedEntityInitializer>,
+        ): ManagedFieldRegistry = DefaultManagedFieldRegistry(listOf(catalog), initializers)
+
+        @Bean
+        fun managedEntityAdmissionCoordinator(registry: ManagedFieldRegistry): ManagedEntityAdmissionCoordinator =
+            DefaultManagedEntityAdmissionCoordinator(
+                registry,
+                ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY },
+            )
 
         @Bean
         fun jpaUnitOfWork(
             domainEventManager: DomainEventManager,
-            generatedOwnIdRegistry: GeneratedOwnIdRegistry,
-            auditEnrichers: List<JpaPersistenceAuditEnricher>,
+            managedFieldRegistry: ManagedFieldRegistry,
+            managedEntityAdmissionCoordinator: ManagedEntityAdmissionCoordinator,
+            persistenceEnrichers: List<JpaPersistenceEnricher>,
         ): JpaUnitOfWork = JpaUnitOfWork(
             domainEventManager = domainEventManager,
-            generatedOwnIdRegistry = generatedOwnIdRegistry,
-            auditEnrichers = auditEnrichers,
+            managedFieldRegistry = managedFieldRegistry,
+            managedEntityAdmissionCoordinator = managedEntityAdmissionCoordinator,
+            persistenceEnrichers = persistenceEnrichers,
         )
 
         @Bean
         fun auditEnricher(): RecordingJpaAuditEnricher = RecordingJpaAuditEnricher()
 
         @Bean
-        fun auditInvocationLog(): AuditInvocationLog = AuditInvocationLog()
+        fun otherQualifierJpaEnricher(): OtherQualifierJpaEnricher = OtherQualifierJpaEnricher()
 
-        @Bean
-        fun firstOrderedAuditEnricher(log: AuditInvocationLog): FirstOrderedAuditEnricher =
-            FirstOrderedAuditEnricher(log)
+        private fun enrichmentBinding(
+            entityType: kotlin.reflect.KClass<*>,
+            fieldName: String,
+            targetType: kotlin.reflect.KClass<*> = String::class,
+            qualifier: String = RecordingJpaAuditEnricher.QUALIFIER,
+        ): ManagedFieldBinding = ManagedFieldBinding(
+            entityType = entityType,
+            fieldName = fieldName,
+            persistencePropertyName = fieldName,
+            columnName = fieldName,
+            targetType = targetType,
+            nullable = false,
+            policyKey = "enrichment.test.$fieldName",
+            role = ManagedFieldRole.ENRICHMENT,
+            explicitValue = ManagedExplicitValuePolicy.OVERWRITE,
+            lifecycles = setOf(ManagedFieldLifecycle.PERSISTENCE_ENRICHMENT),
+            handlerQualifier = qualifier,
+            handlerSlot = null,
+            semanticValueType = targetType,
+            valueAdapterQualifier = null,
+            persistence = PersistenceParticipation(
+                ManagedValueAuthority.MANAGED_HANDLER,
+                ManagedValueAuthority.MANAGED_HANDLER,
+            ),
+        )
 
-        @Bean
-        fun secondOrderedAuditEnricher(log: AuditInvocationLog): SecondOrderedAuditEnricher =
-            SecondOrderedAuditEnricher(log)
+        private var rootSequence = 0L
+        private var childSequence = 0L
+
+        private fun <ID : Any> identifierBinding(
+            entityType: kotlin.reflect.KClass<*>,
+            idType: kotlin.reflect.KClass<ID>,
+            prefix: String,
+            parse: (String) -> ID,
+        ): ManagedFieldBinding {
+            val allocate = {
+                val sequence = if (entityType == StrongContent::class) ++rootSequence else ++childSequence
+                parse(prefix + sequence.toString(16).padStart(12, '0'))
+            }
+            return ManagedFieldBinding(
+                entityType = entityType,
+                fieldName = "id",
+                persistencePropertyName = "id",
+                columnName = "id",
+                targetType = idType,
+                nullable = false,
+                policyKey = "identifier.uuid7",
+                role = ManagedFieldRole.IDENTIFIER,
+                explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+                lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+                handlerQualifier = "identifier.uuid7",
+                handlerSlot = null,
+                semanticValueType = idType,
+                valueAdapterQualifier = null,
+                persistence = PersistenceParticipation(
+                    ManagedValueAuthority.FRAMEWORK,
+                    ManagedValueAuthority.NONE,
+                ),
+                runtimeSupport = ManagedFieldRuntimeSupport.ApplicationIdentifier(
+                    isAbsent = { it == null },
+                    allocateTarget = allocate,
+                    validateTarget = { value -> require(idType.isInstance(value)) },
+                ),
+            )
+        }
     }
 }
 
@@ -441,71 +703,79 @@ class RecordingDomainEventManager : DomainEventManager {
     }
 }
 
-class RecordingJpaAuditEnricher : JpaPersistenceAuditEnricher {
+class RecordingJpaAuditEnricher : JpaPersistenceEnricher {
+    override val qualifiers: Set<String> = setOf(QUALIFIER)
     val seen = mutableListOf<JpaEntityChange>()
     val timestamps = mutableListOf<java.time.Instant>()
     val entitiesById = mutableMapOf<StrongContentItemId, StrongContentItem>()
+    var mutateUnauthorized: Boolean = false
+    var duringEnrichment: (() -> Unit)? = null
 
     override fun enrich(
-        changeSet: com.only4.cap4k.ddd.application.JpaAggregateChange,
-        context: com.only4.cap4k.ddd.application.JpaPersistenceAuditContext,
+        change: com.only4.cap4k.ddd.application.JpaAggregateChange,
+        context: JpaPersistenceEnrichmentContext,
+        fields: JpaManagedFieldSet,
     ) {
-        val candidates = changeSet.entityChanges
+        val candidates = change.entityChanges
         seen += candidates
-        timestamps += context.auditTime
+        timestamps += context.timestamp
+        duringEnrichment?.also { callback ->
+            duringEnrichment = null
+            callback()
+        }
         candidates.map { it.entity }.filterIsInstance<StrongContentItem>().forEach { item ->
             if (item.hasAssignedId()) entitiesById[item.id] = item
         }
-        candidates
-            .filter { it.type == JpaEntityChangeType.UPDATE }
-            .map { it.entity }
-            .filterIsInstance<StrongContent>()
-            .filter { it.title == "audit-business-change" || it.title == "changed-in-before-commit" }
-            .forEach { it.rename("${it.title}|audit:${context.auditTime.toEpochMilli()}") }
+        if (mutateUnauthorized) {
+            (change.root as? StrongContent)?.let { root ->
+                StrongContent::class.java.getDeclaredField("authorId").apply { isAccessible = true }
+                    .set(root, StrongAuthorId("019c0000-0000-7000-8000-000000000048"))
+            }
+        }
+        fields.filter { it.operation == com.only4.cap4k.ddd.application.JpaManagedOperation.UPDATE }
+            .flatMap { it.handles }
+            .filter { it.readTarget() == "audit-business-change" || it.readTarget() == "changed-in-before-commit" }
+            .forEach { handle ->
+                handle.assignSemantic("${handle.readTarget()}|audit:${context.timestamp.toEpochMilli()}")
+            }
     }
 
     fun reset() {
         seen.clear()
         timestamps.clear()
         entitiesById.clear()
+        mutateUnauthorized = false
+        duringEnrichment = null
+    }
+
+    companion object {
+        const val QUALIFIER = "enrichment.test"
     }
 }
 
-class AuditInvocationLog {
-    val entries = mutableListOf<String>()
-}
-
-class FirstOrderedAuditEnricher(
-    private val log: AuditInvocationLog,
-) : JpaPersistenceAuditEnricher, Ordered {
-    override fun getOrder(): Int = 100
+class OtherQualifierJpaEnricher : JpaPersistenceEnricher {
+    override val qualifiers: Set<String> = setOf(QUALIFIER)
 
     override fun enrich(
-        changeSet: com.only4.cap4k.ddd.application.JpaAggregateChange,
-        context: com.only4.cap4k.ddd.application.JpaPersistenceAuditContext,
-    ) {
-        (changeSet.root as? StrongContent)?.let { root -> log.entries += "first:${root.id}" }
+        change: com.only4.cap4k.ddd.application.JpaAggregateChange,
+        context: JpaPersistenceEnrichmentContext,
+        fields: JpaManagedFieldSet,
+    ) = Unit
+
+    companion object {
+        const val QUALIFIER = "enrichment.other"
     }
 }
 
-class SecondOrderedAuditEnricher(
-    private val log: AuditInvocationLog,
-) : JpaPersistenceAuditEnricher, Ordered {
-    override fun getOrder(): Int = 200
-
-    override fun enrich(
-        changeSet: com.only4.cap4k.ddd.application.JpaAggregateChange,
-        context: com.only4.cap4k.ddd.application.JpaPersistenceAuditContext,
-    ) {
-        (changeSet.root as? StrongContent)?.let { root -> log.entries += "second:${root.id}" }
-    }
-}
-
-private class StrongContentFactory : AggregateFactory<StrongContentFactory.Payload, StrongContent> {
+private class StrongContentFactory(
+    private val admissionCoordinator: ManagedEntityAdmissionCoordinator,
+) : AggregateFactory<StrongContentFactory.Payload, StrongContent> {
     override fun create(entityPayload: Payload): StrongContent =
         StrongContent.unassigned(entityPayload.title).also { content ->
             entityPayload.itemLabels.forEach { label ->
-                content.items += StrongContentItem.unassigned(label)
+                val child = StrongContentItem.unassigned(label)
+                admissionCoordinator.admit(child, ManagedEntityAdmissionKind.OWNED_CHILD)
+                content.items += child
             }
         }
 
@@ -513,37 +783,4 @@ private class StrongContentFactory : AggregateFactory<StrongContentFactory.Paylo
         val title: String,
         val itemLabels: List<String>,
     ) : AggregatePayload<StrongContent>
-}
-
-private class StrongContentGeneratedOwnIdAccessor : GeneratedOwnIdAccessor<StrongContent, StrongContentId> {
-    override val entityType = StrongContent::class
-    override val label = "StrongContent.id"
-    private val idField = StrongContent::class.java.getDeclaredField("id").apply { isAccessible = true }
-    private var sequence = 0L
-
-    override fun current(entity: StrongContent): StrongContentId? = readInitializedOrNull { entity.id }
-
-    override fun assign(entity: StrongContent, id: StrongContentId) {
-        idField.set(entity, id)
-    }
-
-    override fun next(): StrongContentId =
-        StrongContentId.parse("019c0000-0000-7000-8001-${(++sequence).toString(16).padStart(12, '0')}")
-}
-
-private class StrongContentItemGeneratedOwnIdAccessor :
-    GeneratedOwnIdAccessor<StrongContentItem, StrongContentItemId> {
-    override val entityType = StrongContentItem::class
-    override val label = "StrongContentItem.id"
-    private val idField = StrongContentItem::class.java.getDeclaredField("id").apply { isAccessible = true }
-    private var sequence = 0L
-
-    override fun current(entity: StrongContentItem): StrongContentItemId? = readInitializedOrNull { entity.id }
-
-    override fun assign(entity: StrongContentItem, id: StrongContentItemId) {
-        idField.set(entity, id)
-    }
-
-    override fun next(): StrongContentItemId =
-        StrongContentItemId.parse("019c0000-0000-7000-8002-${(++sequence).toString(16).padStart(12, '0')}")
 }

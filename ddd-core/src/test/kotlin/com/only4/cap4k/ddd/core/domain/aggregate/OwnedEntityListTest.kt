@@ -1,5 +1,9 @@
 package com.only4.cap4k.ddd.core.domain.aggregate
 
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinatorSupport
+import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionKind
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -8,6 +12,37 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class OwnedEntityListTest {
+
+    @Test
+    fun `add admits an owned child before mutating the relation`() {
+        val events = mutableListOf<String>()
+        val child = TestChild("new")
+        ManagedEntityAdmissionCoordinatorSupport.configure(
+            object : ManagedEntityAdmissionCoordinator {
+                override fun admit(entity: Any, kind: ManagedEntityAdmissionKind) {
+                    assertSame(child, entity)
+                    assertEquals(ManagedEntityAdmissionKind.OWNED_CHILD, kind)
+                    events += "admit"
+                }
+
+                override fun validate(entity: Any, executionContext: ExecutionContextSnapshot) = Unit
+            }
+        )
+        val delegate = object : ArrayList<TestChild>() {
+            override fun add(element: TestChild): Boolean {
+                events += "attach"
+                return super.add(element)
+            }
+        }
+
+        try {
+            OwnedEntityList.of(delegate, TestChild::class, "Parent.children").add(child)
+        } finally {
+            ManagedEntityAdmissionCoordinatorSupport.reset()
+        }
+
+        assertEquals(listOf("admit", "attach"), events)
+    }
 
     @Test
     fun `add mutates delegate and read operations use same delegate`() {

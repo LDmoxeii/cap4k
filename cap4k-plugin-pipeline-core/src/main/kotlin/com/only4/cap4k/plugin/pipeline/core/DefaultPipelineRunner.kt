@@ -7,7 +7,12 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
+import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyContributionContext
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicyDefinitionOwner
+import com.only4.cap4k.plugin.pipeline.api.OwnedManagedFieldPolicyDefinition
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.renderer.api.ArtifactRenderer
@@ -20,7 +25,8 @@ class DefaultPipelineRunner(
     private val exporter: ArtifactExporter,
     private val transformPlanItem: (ArtifactPlanItem) -> ArtifactPlanItem = { it },
     private val includePlanItem: (ArtifactPlanItem) -> Boolean = { true },
-    private val addonProviders: List<ArtifactAddonProvider> = emptyList(),
+    private val artifactAddons: List<PipelineContributionBinding<ArtifactAddonProvider>> = emptyList(),
+    private val managedFieldPolicies: List<PipelineContributionBinding<ManagedFieldPolicyProvider>> = emptyList(),
 ) : PipelineRunner {
     private val configKeyRequiredGeneratorIds = setOf("aggregate", "aggregate-projection")
 
@@ -49,7 +55,7 @@ class DefaultPipelineRunner(
             .filter { it.id in config.sources }
             .map { it.collect(config) }
 
-        val assembly = assembler.assemble(config, snapshots)
+        val assembly = assembler.assemble(config, snapshots, managedFieldPolicyDefinitions(config))
         val model = assembly.model
 
         val builtInPlanItems = generators
@@ -57,8 +63,13 @@ class DefaultPipelineRunner(
             .flatMap { it.plan(config, model) }
             .map { ProvenancedPlanItem(it) }
 
-        val addonPlanItems = addonProviders.flatMap { provider ->
-            val providerOptions = config.addons[provider.id]?.options.orEmpty()
+        val addonPlanItems = artifactAddons.flatMap { binding ->
+            val provider = binding.contribution
+            val providerOptions = config.pipelineExtensions[binding.extensionId]
+                ?.contributions
+                ?.get(provider.id)
+                ?.options
+                .orEmpty()
             try {
                 provider.plan(
                     ArtifactAddonContext(
@@ -95,14 +106,14 @@ class DefaultPipelineRunner(
             renderedArtifacts = renderedArtifacts,
             writtenPaths = writtenPaths,
             warnings = emptyList(),
-            aggregateSpecialFieldResolvedPolicies = model.aggregateSpecialFieldResolvedPolicies,
+            managedFieldPolicies = model.managedFieldPolicies,
             diagnostics = assembly.diagnostics,
         )
     }
 
     private fun validateAddonProviders(config: ProjectConfig) {
-        val duplicate = addonProviders
-            .groupingBy { it.id }
+        val duplicate = artifactAddons
+            .groupingBy { it.contribution.id }
             .eachCount()
             .entries
             .firstOrNull { it.value > 1 }
@@ -112,22 +123,54 @@ class DefaultPipelineRunner(
             "duplicate artifact addon provider id: $duplicate"
         }
 
-        config.addons.entries
+        config.pipelineExtensions.entries
             .firstOrNull { it.key != it.value.id }
-            ?.let { (key, providerConfig) ->
+            ?.let { (key, extensionConfig) ->
                 throw IllegalArgumentException(
-                    "Configured addon provider key does not match provider id: $key != ${providerConfig.id}",
+                    "Configured pipeline extension key does not match extension id: $key != ${extensionConfig.id}",
                 )
             }
-
-        val loadedProviderIds = addonProviders.map { it.id }.toSet()
-        val unloadedConfiguredProvider = config.addons.keys
-            .firstOrNull { it !in loadedProviderIds }
-
-        require(unloadedConfiguredProvider == null) {
-            "Configured addon provider is not loaded: $unloadedConfiguredProvider"
+        config.pipelineExtensions.values.forEach { extensionConfig ->
+            extensionConfig.contributions.entries
+                .firstOrNull { it.key != it.value.id }
+                ?.let { (key, contributionConfig) ->
+                    throw IllegalArgumentException(
+                        "Configured pipeline contribution key does not match contribution id in " +
+                            "${extensionConfig.id}: $key != ${contributionConfig.id}",
+                    )
+                }
         }
     }
+
+    private fun managedFieldPolicyDefinitions(config: ProjectConfig): List<OwnedManagedFieldPolicyDefinition> =
+        managedFieldPolicies.flatMap { binding ->
+            val provider = binding.contribution
+            val options = config.pipelineExtensions[binding.extensionId]
+                ?.contributions
+                ?.get(provider.id)
+                ?.options
+                .orEmpty()
+            val definitions = try {
+                provider.definitions(
+                    ManagedFieldPolicyContributionContext(
+                        config = config,
+                        options = options,
+                    )
+                )
+            } catch (failure: Exception) {
+                throw IllegalStateException(
+                    "Managed Field Policy contribution ${binding.extensionId}/${provider.id} " +
+                        "failed while defining policies",
+                    failure,
+                )
+            }
+            definitions.map { definition ->
+                OwnedManagedFieldPolicyDefinition(
+                    definition = definition,
+                    owner = ManagedPolicyDefinitionOwner.Extension(binding.extensionId, provider.id),
+                )
+            }
+        }
 
     private fun validateAddonTemplateNamespace(item: ArtifactPlanItem, providerId: String) {
         require(item.templateId.startsWith("addons/$providerId/")) {

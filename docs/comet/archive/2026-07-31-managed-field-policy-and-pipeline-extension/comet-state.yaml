@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 8
+name: managed-field-policy-and-pipeline-extension
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: f25b4682c40df65c168d894ab6e70b3143fe665b4a6a23ad169ae260605a1cc1
+spec_changes:
+  - capability: managed-field-policy-and-pipeline-extension
+    operation: create
+    source: specs/managed-field-policy-and-pipeline-extension/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/e029166b203a2c0b2534050161482abd74328618b2ce0575581292e87bfb5c35.json
+verification_evidence: runtime/evidence/verifications/bf3e25d1a45d46a0f5b8ae9ffed59532544c0573994ed900d7acb48f0b883691.json
+partial_allowance: null
+archived: true
+created_at: 2026-07-31
+run_id: 9072cbf1-a227-4f46-9525-d3e2bf56ef08

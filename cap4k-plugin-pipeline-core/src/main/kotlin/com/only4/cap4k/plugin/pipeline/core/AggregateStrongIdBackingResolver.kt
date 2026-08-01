@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.core
 
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
-import com.only4.cap4k.plugin.pipeline.api.DbIdStrategy
 
 internal data class ResolvedStrongIdBacking(
     val valueType: String,
@@ -9,10 +8,7 @@ internal data class ResolvedStrongIdBacking(
 )
 
 internal object AggregateStrongIdBackingResolver {
-    fun resolve(tableName: String, column: DbColumnSnapshot): ResolvedStrongIdBacking {
-        val strategy = requireNotNull(column.idStrategy) {
-            "missing application-side ID strategy for $tableName.${column.name}"
-        }
+    fun resolve(tableName: String, column: DbColumnSnapshot, strategy: String): ResolvedStrongIdBacking {
         val path = "$tableName.${column.name}"
         val storage = try {
             AggregateIdStorageCatalog.resolve(tableName, column)
@@ -22,14 +18,15 @@ internal object AggregateStrongIdBackingResolver {
             } else {
                 error.message
             }
-            throw IllegalArgumentException("unsupported ${strategy.name} storage for $path: $evidence", error)
+            throw IllegalArgumentException("unsupported ${strategy.uppercase()} storage for $path: $evidence", error)
         }
 
         return when (strategy) {
-            DbIdStrategy.UUID7 -> resolveUuid7(path, storage, column)
-            DbIdStrategy.SNOWFLAKE -> resolveSnowflake(path, storage, column)
-            DbIdStrategy.DB_IDENTITY ->
+            "uuid7" -> resolveUuid7(path, storage, column)
+            "snowflake" -> resolveSnowflake(path, storage, column)
+            "identity" ->
                 error("database identity $path does not have an application-side Strong ID backing")
+            else -> throw IllegalArgumentException("unsupported application-side identifier policy for $path: $strategy")
         }
     }
 
@@ -46,7 +43,7 @@ internal object AggregateStrongIdBackingResolver {
         }
 
         is ResolvedAggregateIdStorage.NativeUuid -> ResolvedStrongIdBacking("UUID", null)
-        is ResolvedAggregateIdStorage.Integral -> unsupported(column.idStrategy, path, column)
+        is ResolvedAggregateIdStorage.Integral -> unsupported("uuid7", path, column)
     }
 
     private fun resolveSnowflake(
@@ -73,12 +70,12 @@ internal object AggregateStrongIdBackingResolver {
             ResolvedStrongIdBacking("Long", null)
         }
 
-        is ResolvedAggregateIdStorage.NativeUuid -> unsupported(column.idStrategy, path, column)
+        is ResolvedAggregateIdStorage.NativeUuid -> unsupported("snowflake", path, column)
     }
 
-    private fun unsupported(strategy: DbIdStrategy?, path: String, column: DbColumnSnapshot): Nothing =
+    private fun unsupported(strategy: String, path: String, column: DbColumnSnapshot): Nothing =
         throw IllegalArgumentException(
-            "unsupported ${strategy?.name} storage for $path: " +
+            "unsupported ${strategy.uppercase()} storage for $path: " +
                 "jdbcType=${column.jdbcType}, dbType=${column.dbType}, " +
                 "kotlinType=${column.kotlinType}, columnSize=${column.columnSize}",
         )

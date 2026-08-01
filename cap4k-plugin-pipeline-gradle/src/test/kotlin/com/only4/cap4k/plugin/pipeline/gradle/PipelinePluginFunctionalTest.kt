@@ -1231,9 +1231,6 @@ class PipelinePluginFunctionalTest {
                 .replace("\r\n", "\n")
                 .replace(
                     """        aggregate {
-            specialFields {
-                idDefaultStrategy.set("identity")
-            }
         }""",
                     """        aggregateProjection {
             }""",
@@ -1440,8 +1437,8 @@ class PipelinePluginFunctionalTest {
     fun `cap4kGenerate fails fast when parent table has no parent ref`() {
         val result = runCap4kGenerateWithSchema(
             """
-            create table video_post (id bigint primary key comment '@IdStrategy=db_identity;');
-            create table video_post_item (id bigint primary key comment '@IdStrategy=db_identity;', video_post_id bigint not null);
+            create table video_post (id bigint primary key comment '@Managed=identifier.database-identity;');
+            create table video_post_item (id bigint primary key comment '@Managed=identifier.database-identity;', video_post_id bigint not null);
             comment on table video_post_item is '@Parent=video_post;';
             """.trimIndent()
         )
@@ -1459,7 +1456,7 @@ class PipelinePluginFunctionalTest {
         val tableResult = runCap4kGenerateWithSchema(
             """
             create table video_post (
-                id bigint primary key comment '@IdStrategy=db_identity;',
+                id bigint primary key comment '@Managed=identifier.database-identity;',
                 version bigint,
                 deleted boolean
             );
@@ -1469,7 +1466,7 @@ class PipelinePluginFunctionalTest {
         val columnResult = runCap4kGenerateWithSchema(
             """
             create table video_post (
-                id bigint primary key comment '@IdStrategy=db_identity;',
+                id bigint primary key comment '@Managed=identifier.database-identity;',
                 version bigint,
                 deleted boolean
             );
@@ -1490,7 +1487,7 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `aggregate inherited persistence fields are omitted from generated entity`() {
+    fun `aggregate managed persistence fields remain declared in generated entity`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-persistence-generate")
         copyFixture(projectDir, "aggregate-persistence-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts").readText().trim()
@@ -1514,8 +1511,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedEntity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedEntity.contains("@Version"))
         assertTrue(generatedEntity.contains("@Column(name = \"title\")"))
-        assertFalse(generatedEntity.contains("createdBy"))
-        assertFalse(generatedEntity.contains("updatedBy"))
+        assertTrue(generatedEntity.contains("createdBy"))
+        assertTrue(generatedEntity.contains("updatedBy"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1551,7 +1548,6 @@ class PipelinePluginFunctionalTest {
         ) {
             val packageName: String = "com.acme.demo.domain.aggregates.$tableName"
             val idType: String = "${entityName}Id"
-            val accessorType: String = "${entityName}GeneratedOwnIdAccessor"
             val factoryType: String = "${entityName}Factory"
         }
 
@@ -1608,16 +1604,9 @@ class PipelinePluginFunctionalTest {
                 )
             ).readText()
         }
-        val generatedAccessors = applicationSideCells.associateWith { cell ->
-            projectDir.generatedFile(
-                generatedSource(
-                    "demo-domain/src/main/kotlin/${cell.packageName.replace('.', '/')}/${cell.accessorType}.kt"
-                )
-            ).readText()
-        }
         val generatedCatalog = projectDir.generatedFile(
             generatedSource(
-                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/identity/GeneratedOwnIdCatalogContribution.kt"
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/_share/managed/ManagedFieldCatalogContribution.kt"
             )
         ).readText()
         val generatedFactories = applicationSideCells.associateWith { cell ->
@@ -1641,6 +1630,18 @@ class PipelinePluginFunctionalTest {
         assertTrue(generatedVideoPost.contains("""@Where(clause = "`deleted` = 0")"""))
         assertTrue(generatedVideoPost.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"))
         assertTrue(generatedVideoPost.contains("@Version"))
+        assertTrue(
+            generatedVideoPost.contains(
+                "@org.hibernate.annotations.Generated(event = [org.hibernate.generator.EventType.INSERT, " +
+                    "org.hibernate.generator.EventType.UPDATE])"
+            )
+        )
+        assertTrue(
+            generatedVideoPost.contains(
+                "@Column(name = \"`db_updated_at`\", insertable = false, updatable = false)"
+            )
+        )
+        assertFalse(internalConstructorParameters(generatedVideoPost).contains("dbUpdatedAt"))
         assertFalse(internalConstructorParameters(generatedVideoPost).contains("id"))
         assertFalse(internalConstructorParameters(generatedVideoPost).contains("version"))
         assertTrue(generatedVideoPost.contains("var id: Long? = null"))
@@ -1652,9 +1653,12 @@ class PipelinePluginFunctionalTest {
         applicationSideCells.forEach { cell ->
             val entity = generatedEntities.getValue(cell)
             val strongId = generatedStrongIds.getValue(cell)
-            val accessor = generatedAccessors.getValue(cell)
             val factory = generatedFactories.getValue(cell)
             val constructorParameters = internalConstructorParameters(entity)
+            val allocationBackingType = when (cell.backingType) {
+                "UUID" -> "java.util.UUID"
+                else -> cell.backingType
+            }
 
             assertTrue(entity.contains("@EmbeddedId"), cell.entityName)
             assertGeneratedOwnIdShape(entity, cell.idType)
@@ -1676,15 +1680,18 @@ class PipelinePluginFunctionalTest {
             assertFalse(entity.contains("@GeneratedValue(strategy = GenerationType.IDENTITY)"), cell.entityName)
             assertTrue(strongId.contains("StrongId<${cell.backingType}>"), cell.idType)
             assertTrue(
-                accessor.contains(
-                    "Mediator.identifiers.next(\"${cell.strategy}\", ${cell.backingType}::class)"
+                generatedCatalog.contains(
+                    "Mediator.identifiers.next(\"${cell.strategy}\", $allocationBackingType::class)"
                 ),
-                cell.accessorType,
+                cell.entityName,
             )
-            assertTrue(accessor.contains("${cell.idType}.of("), cell.accessorType)
             assertTrue(
-                generatedCatalog.contains("${cell.packageName}.${cell.accessorType}"),
-                cell.accessorType,
+                generatedCatalog.contains("${cell.idType}.of("),
+                cell.entityName,
+            )
+            assertTrue(
+                generatedCatalog.contains("entityType = ${cell.packageName}.${cell.entityName}::class"),
+                cell.entityName,
             )
             assertTrue(factory.contains("${cell.entityName}("), cell.factoryType)
             assertTrue(factory.contains("title = entityPayload.title"), cell.factoryType)
@@ -1697,12 +1704,13 @@ class PipelinePluginFunctionalTest {
 
         assertFalse(generatedIdentityFactory.contains("TODO(\"Implement aggregate construction\")"))
         assertFalse(generatedIdentityFactory.contains("deleted"))
+        assertTrue(generatedCatalog.contains("class ManagedFieldCatalogContribution : ManagedFieldCatalog"))
+        assertFalse(generatedCatalog.contains("GeneratedOwnIdAccessor"))
 
         val allGeneratedEvidence = buildString {
             append(generatedVideoPost)
             generatedEntities.values.forEach { append(it) }
             generatedStrongIds.values.forEach { append(it) }
-            generatedAccessors.values.forEach { append(it) }
             append(generatedCatalog)
             generatedFactories.values.forEach { append(it) }
             append(generatedIdentityFactory)
@@ -1719,14 +1727,14 @@ class PipelinePluginFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
-            ).replaceFirst("@Managed=deleted;", "") +
+                "id bigint primary key comment '@Managed=identifier.database-identity;',",
+                "id varchar(36) primary key comment '@Managed=identifier.uuid7;',",
+            ).replaceFirst("@Managed=soft-delete;", "") +
                 "\n\n" +
                 """
                 create table audit_log (
-                    id bigint primary key comment '@IdStrategy=db_identity;',
-                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    id bigint primary key comment '@Managed=identifier.database-identity;',
+                    deleted bigint not null default 0 comment '@Managed=soft-delete;',
                     content varchar(128) not null
                 );
                 """.trimIndent()
@@ -1746,18 +1754,17 @@ class PipelinePluginFunctionalTest {
             )
             .replace(
                 """
-                |        aggregate { }
+                |    generators {
                 """.trimMargin(),
                 """
-                |        aggregate {
-                |            specialFields {
-                |                idDefaultStrategy.set("identity")
-                |            }
-                |        }
+                |    managedFields {
+                |        identifierDefaultPolicy.set("identifier.database-identity")
+                |    }
+                |    generators {
                 """.trimMargin(),
             )
         buildFile.writeText(patchedBuildFile)
-        assertTrue(patchedBuildFile.contains("""idDefaultStrategy.set("identity")"""))
+        assertTrue(patchedBuildFile.contains("""identifierDefaultPolicy.set("identifier.database-identity")"""))
         assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
         val result = GradleRunner.create()
@@ -1793,9 +1800,9 @@ class PipelinePluginFunctionalTest {
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id varchar(36) primary key comment '@IdStrategy=uuid7;',",
-            ).replaceFirst("@Managed=deleted;", "")
+                "id bigint primary key comment '@Managed=identifier.database-identity;',",
+                "id varchar(36) primary key comment '@Managed=identifier.uuid7;',",
+            ).replaceFirst("@Managed=soft-delete;", "")
         )
 
         val result = GradleRunner.create()
@@ -1829,13 +1836,13 @@ class PipelinePluginFunctionalTest {
         schemaFile.writeText(
             """
             create table video (
-                id bigint primary key comment '@IdStrategy=uuid7;',
+                id bigint primary key comment '@Managed=identifier.uuid7;',
                 title varchar(128) not null
             );
 
             create table audit_log (
-                id bigint primary key comment '@IdStrategy=db_identity;',
-                deleted bigint not null default 0 comment '@Managed=deleted;',
+                id bigint primary key comment '@Managed=identifier.database-identity;',
+                deleted bigint not null default 0 comment '@Managed=soft-delete;',
                 content varchar(128) not null
             );
                         """.trimIndent()
@@ -1962,7 +1969,7 @@ class PipelinePluginFunctionalTest {
                     |}
                     |
                     |dependencies {
-                    |    cap4kAddon(files("local-addons/functional-test-addon.jar"))
+                    |    cap4kPipelineExtension(files("local-addons/functional-test-addon.jar"))
                     |}
                     """.trimMargin(),
                 )
@@ -2065,15 +2072,15 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kPlan includes aggregate special-field defaults and resolved policies`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-special-field-plan")
+    fun `cap4kPlan includes managed field defaults and resolved policies`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-managed-field-plan")
         copyFixture(projectDir, "aggregate-provider-persistence-sample")
 
         val schemaFile = projectDir.resolve("schema.sql")
         schemaFile.writeText(
             schemaFile.readText().replaceFirst(
-                "id bigint primary key comment '@IdStrategy=db_identity;',",
-                "id bigint primary key comment '@IdStrategy=db_identity;',",
+                "id bigint primary key comment '@Managed=identifier.database-identity;',",
+                "id bigint primary key comment '@Managed=identifier.database-identity;',",
             ).replaceFirst(
                 "title varchar(128) not null",
                 "created_by varchar(64) not null,\n    title varchar(128) not null",
@@ -2081,8 +2088,8 @@ class PipelinePluginFunctionalTest {
                 "\n\n" +
                 """
                 create table audit_log (
-                    id bigint primary key comment '@IdStrategy=db_identity;',
-                    deleted bigint not null default 0 comment '@Managed=deleted;',
+                    id bigint primary key comment '@Managed=identifier.database-identity;',
+                    deleted bigint not null default 0 comment '@Managed=soft-delete;',
                     content varchar(128) not null
                 );
                 """.trimIndent()
@@ -2104,14 +2111,13 @@ class PipelinePluginFunctionalTest {
             )
             .replace(
                 """
-                |        aggregate { }
+                |    generators {
                 """.trimMargin(),
                 """
-                |        aggregate {
-                |            specialFields {
-                |                managedDefaultColumns.set(listOf(" created_by "))
-                |            }
-                |        }
+                |    managedFields {
+                |        columnPolicyDefaults.put(" created_by ", "database.generated-always")
+                |    }
+                |    generators {
                 """.trimMargin(),
             )
         buildFile.writeText(patchedBuildFile)
@@ -2125,8 +2131,8 @@ class PipelinePluginFunctionalTest {
 
         val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
         val planObject = JsonParser.parseString(planJson).asJsonObject
-        val defaults = planObject.getAsJsonObject("aggregateSpecialFieldDefaults")
-        val resolvedPoliciesArray = planObject.getAsJsonArray("aggregateSpecialFieldResolvedPolicies")
+        val defaults = planObject.getAsJsonObject("managedFieldDefaults")
+        val resolvedPoliciesArray = planObject.getAsJsonArray("managedFieldPolicies")
         val firstResolvedPolicy = resolvedPoliciesArray.first().asJsonObject
         val resolvedPolicies = resolvedPoliciesArray
             .map { it.asJsonObject }
@@ -2136,10 +2142,11 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
-        assertEquals("uuid7", defaults.get("idDefaultStrategy").asString)
-        assertEquals("", defaults.get("deletedDefaultColumn").asString)
-        assertEquals("", defaults.get("versionDefaultColumn").asString)
-        assertEquals(listOf("created_by"), defaults.getAsJsonArray("managedDefaultColumns").map { it.asString })
+        assertEquals("identifier.uuid7", defaults.get("identifierDefaultPolicy").asString)
+        assertEquals(
+            "database.generated-always",
+            defaults.getAsJsonObject("columnPolicyDefaults").get("created_by").asString,
+        )
         assertEquals(6, resolvedPolicies.size)
         assertEquals(
             setOf(
@@ -2152,18 +2159,26 @@ class PipelinePluginFunctionalTest {
             ),
             resolvedPolicies.keys,
         )
-        assertTrue(firstResolvedPolicy.has("managedFields"))
-        assertTrue(firstResolvedPolicy.getAsJsonArray("managedFields").size() > 0)
+        assertTrue(firstResolvedPolicy.has("fields"))
+        assertTrue(firstResolvedPolicy.getAsJsonArray("fields").size() > 0)
         assertTrue(firstResolvedPolicy.has("writeSurface"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
         assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
-        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("id").get("source").asString)
-        assertEquals("identity", videoPostPolicy.getAsJsonObject("id").get("strategy").asString)
-        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("deleted").get("source").asString)
-        assertEquals("DB_EXPLICIT", videoPostPolicy.getAsJsonObject("version").get("source").asString)
-        assertEquals(listOf("id", "deleted", "version", "created_by"), videoPostPolicy.getAsJsonArray("managedFields").map {
-            it.asJsonObject.get("columnName").asString
-        })
+        assertEquals("identifier.database-identity", videoPostPolicy.getAsJsonArray("fields").single {
+            it.asJsonObject.get("columnName").asString == "id"
+        }.asJsonObject.get("policyKey").asString)
+        assertEquals("soft-delete", videoPostPolicy.getAsJsonArray("fields").single {
+            it.asJsonObject.get("columnName").asString == "deleted"
+        }.asJsonObject.get("policyKey").asString)
+        assertEquals("version", videoPostPolicy.getAsJsonArray("fields").single {
+            it.asJsonObject.get("columnName").asString == "version"
+        }.asJsonObject.get("policyKey").asString)
+        assertEquals(
+            setOf("id", "deleted", "version", "db_updated_at", "created_by"),
+            videoPostPolicy.getAsJsonArray("fields").map {
+                it.asJsonObject.get("columnName").asString
+            }.toSet(),
+        )
         assertEquals(
             listOf("title"),
             videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("createAllowedFields").map { it.asString }
@@ -2172,15 +2187,22 @@ class PipelinePluginFunctionalTest {
             listOf("title"),
             videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("updateAllowedFields").map { it.asString }
         )
-        assertEquals("READ_ONLY", videoPostPolicy.getAsJsonArray("managedFields").single {
+        assertEquals("database.generated-always", videoPostPolicy.getAsJsonArray("fields").single {
             it.asJsonObject.get("columnName").asString == "created_by"
-        }.asJsonObject.get("writePolicy").asString)
-        assertEquals("DB_EXPLICIT", snowflakeLongPolicy.getAsJsonObject("id").get("source").asString)
-        assertEquals("snowflake", snowflakeLongPolicy.getAsJsonObject("id").get("strategy").asString)
-        assertEquals("NONE", snowflakeLongPolicy.getAsJsonObject("version").get("source").asString)
+        }.asJsonObject.get("policyKey").asString)
+        assertEquals("identifier.snowflake", snowflakeLongPolicy.getAsJsonArray("fields").single {
+            it.asJsonObject.get("columnName").asString == "id"
+        }.asJsonObject.get("policyKey").asString)
+        assertTrue(snowflakeLongPolicy.getAsJsonArray("fields").none {
+            it.asJsonObject.get("role").asString == "VERSION"
+        })
         val auditLogPolicy = resolvedPolicies.getValue("audit_log")
-        assertEquals("DB_EXPLICIT", auditLogPolicy.getAsJsonObject("id").get("source").asString)
-        assertEquals("NONE", auditLogPolicy.getAsJsonObject("version").get("source").asString)
+        assertEquals("identifier.database-identity", auditLogPolicy.getAsJsonArray("fields").single {
+            it.asJsonObject.get("columnName").asString == "id"
+        }.asJsonObject.get("policyKey").asString)
+        assertTrue(auditLogPolicy.getAsJsonArray("fields").none {
+            it.asJsonObject.get("role").asString == "VERSION"
+        })
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -2966,7 +2988,7 @@ class PipelinePluginFunctionalTest {
         projectDir.resolve("schema.sql").writeText(
             """
             create table if not exists video_post (
-                id bigint primary key comment '@IdStrategy=db_identity;',
+                id bigint primary key comment '@Managed=identifier.database-identity;',
                 title varchar(255) not null
             );
             """.trimIndent()
@@ -2986,12 +3008,8 @@ class PipelinePluginFunctionalTest {
                         applicationModulePath.set("demo-application")
                         adapterModulePath.set("demo-adapter")
                     }
-                    generators {
-                        aggregate {
-                            specialFields {
-                                idDefaultStrategy.set("identity")
-                            }
-                        }
+                    managedFields {
+                        identifierDefaultPolicy.set("identifier.database-identity")
                     }
                 }
                 """.trimIndent()
@@ -3221,10 +3239,11 @@ class PipelinePluginFunctionalTest {
         val jar = projectDir.resolve("local-addons/functional-test-addon.jar")
         Files.createDirectories(jar.parent)
         JarOutputStream(Files.newOutputStream(jar)).use { output ->
+            output.writeClassEntry(FunctionalTestPipelineExtensionProvider::class.java)
             output.writeClassEntry(FunctionalTestArtifactAddonProvider::class.java)
             output.writeTextEntry(
-                "META-INF/services/com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider",
-                FunctionalTestArtifactAddonProvider::class.java.name,
+                "META-INF/services/com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider",
+                FunctionalTestPipelineExtensionProvider::class.java.name,
             )
             output.writeTextEntry(
                 "cap4k/addons/functional-test-addon/aggregate/addon_marker.kt.peb",
@@ -3525,4 +3544,14 @@ class FunctionalTestArtifactAddonProvider : com.only4.cap4k.plugin.pipeline.api.
             )
         )
     }
+}
+
+class FunctionalTestPipelineExtensionProvider :
+    com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider {
+    override val descriptor = com.only4.cap4k.plugin.pipeline.api.PipelineExtensionDescriptor(
+        id = "functional-test-extension",
+        spiVersion = com.only4.cap4k.plugin.pipeline.api.PIPELINE_EXTENSION_SPI_VERSION,
+    )
+    override val contributions: List<com.only4.cap4k.plugin.pipeline.api.PipelineContribution> =
+        listOf(FunctionalTestArtifactAddonProvider())
 }
