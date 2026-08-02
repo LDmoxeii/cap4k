@@ -274,6 +274,8 @@ Put(Get(generated skeleton))
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query.kt.peb:27-55`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/api_payload.kt.peb:26-54`
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:239-299`
+
+   已确认修复边界：`pageNum/pageSize` 是由 `page` variant 隐含的 framework-owned PageRequest structure，不是 Design JSON 的普通 `fields`。Generator 继续自动投影，Analyzer 只有在确认当前 carrier 是 `page` variant 且属性满足 PageRequest contract 后才排除它们，不能全局按字段名过滤。`page` variant 显式声明同名 fields 必须 fail fast；非 `page` variant 可正常使用这些名称。当前 `1/10` 默认值属于 variant contract，未来若需要可配置分页策略，应增加明确配置而不是借用普通 fields。
 2. **Type identity 丢失。** `IrTypeFormatter` 对普通 class-backed type 只输出 simple name，使 Strong ID、Value Object、enum、外部 FQN 变成 unknown 或 ambiguous short type。Analyzer 应恢复 resolved canonical FQN；只有 builtin 和当前 block nested type 可安全使用短名：
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt:24-53`
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/SemanticValueCompiler.kt:287-319`

@@ -67,10 +67,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Keep explicit BINARY-retained annotation metadata as the lossless carrier for Drawing Board and flow recovery, but move and rename `BuildingBlock` and `AggregateElement` out of `ddd-core` into a dedicated compile-time analysis-metadata contract/module with no runtime meaning and a compile-only project dependency. Default generator templates emit this metadata. Projects may remove it in custom templates when they intentionally opt out of Drawing Board and the corresponding analysis recovery. Do not introduce a sidecar skeleton index in this cycle.
 - Fail fast when a requested Drawing Board or flow-analysis task lacks metadata required for complete recovery. Diagnostics must identify the missing symbols, affected capability, and how to restore the default metadata-emitting templates or annotations. Never silently omit unannotated elements or emit a complete-looking partial Drawing Board.
 - Permit `entity` as an ordinary Domain Event payload field name. Remove name-based filtering from canonical assembly and Analyzer recovery, and rely exclusively on the resolved recursive semantic type validator to reject actual Entity/Aggregate payload types. Preserve PR #152's runtime refusal to persist reliable-event entity payloads.
+- Treat `pageNum/pageSize` on `page` Query and API Payload variants as framework-owned PageRequest structure implied by the variant, not ordinary Design JSON fields. Generator keeps deriving them; Analyzer excludes them only after confirming the page carrier and PageRequest semantics, never by global name filtering. Reject explicit same-name fields on a page variant, allow them on non-page variants, and keep `1/10` as the current variant default contract until a separate explicit page configuration is designed.
 
 # Open questions
 
-- [blocking] For `page` Query and API Payload variants, should `pageNum/pageSize` remain framework-derived infrastructure fields implied by the variant and excluded from recovered Design JSON fields, or become explicit authoring fields with Generator auto-insertion removed?
+- [blocking] Should Analyzer emit resolved canonical FQNs for every non-builtin, non-current-block-nested type in Drawing Board, or continue emitting the shortest name that appears unambiguous in the current analysis context?
 
 # Verification expectations
 

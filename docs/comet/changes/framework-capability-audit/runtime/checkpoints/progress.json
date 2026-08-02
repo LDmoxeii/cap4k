@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "1f8e949b-0e4b-49fd-8a89-4e0bffd8345c",
+  "id": "8c5f4c9d-89c7-4288-ae9d-da77a419365d",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 14,
-  "stateRevision": 15,
-  "summary": "User confirmed that entity is an ordinary Domain Event payload field name. Generator canonical assembly and Analyzer recovery must remove name-based filtering and rely only on resolved recursive semantic type validation; PR #152 runtime persistence rejection remains authoritative.",
-  "nextAction": "Decide whether pageNum/pageSize remain framework-derived fields implied by page variants or become explicit Design JSON fields.",
-  "inputHash": "a9f5d6e018547b9f0e2c79e148b9be14be40a103ac6c65614e098dbc97d642f1",
-  "manifestHash": "e1be15ab15ee083f4d3989f5102c46b454178ad435a9710d9508cac73b087ccb",
-  "manifestRef": "runtime/checkpoints/manifests/e1be15ab15ee083f4d3989f5102c46b454178ad435a9710d9508cac73b087ccb.json",
+  "previousRevision": 15,
+  "stateRevision": 16,
+  "summary": "User confirmed pageNum/pageSize are framework-owned PageRequest structure implied by page Query/API Payload variants. Generator derives them; Analyzer excludes them only after semantic page-carrier confirmation. Page variants reject explicit collisions, while non-page variants may use the names.",
+  "nextAction": "Decide whether Drawing Board uses canonical FQNs for all non-builtin, non-local-nested types or context-dependent shortest names.",
+  "inputHash": "2e8334cd4ccbef9bfcac6c109fa1db0c54207629082edde3290bf0ca977a1983",
+  "manifestHash": "34dcfbe6e775fbacd353719536a8a29dac45f843c0ded913ddc4e1cde18323ce",
+  "manifestRef": "runtime/checkpoints/manifests/34dcfbe6e775fbacd353719536a8a29dac45f843c0ded913ddc4e1cde18323ce.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:44:33.750Z"
+  "createdAt": "2026-08-02T05:46:43.958Z"
 }
