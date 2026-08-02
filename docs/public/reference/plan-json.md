@@ -20,25 +20,27 @@
 | `generatorId` | planned item 的 generator 来源 | 是否能被 DB/schema、design JSON、type manifest、analysis input 或 addon 解释？ |
 | `templateId` | selected template id | 是否匹配预期 artifact family？ |
 | `outputKind` | ownership kind | 是 `CHECKED_IN_SOURCE`、`GENERATED_SOURCE` 还是 `OUTPUT_ARTIFACT`？ |
-| `resolvedOutputRoot` | resolved output root | 是否落在正确 module 与 source/artifact root？ |
+| `resolvedOutputRoot` | resolved output root | 对 generated source / artifact output，是否落在正确 root；对 checked-in source 允许为空串。 |
 | `conflictPolicy` | existing file handling | 会不会覆盖 handwritten logic？ |
-| `outputPath` | relative output path | file name、package path、module placement 是否合理？ |
+| `outputPath` | repo-relative planned path | file name、package path、module placement 是否合理？ |
 | `context` | generator-specific context | aggregate、building block、package、module role 是否和输入一致？ |
 
 最小 item shape：
 
 ```json
 {
-  "generatorId": "design-command",
+  "generatorId": "command",
   "templateId": "design/command.kt.peb",
   "outputKind": "CHECKED_IN_SOURCE",
-  "resolvedOutputRoot": "demo-application/src/main/kotlin",
-  "outputPath": "com/acme/demo/application/commands/content/workflow/SubmitContentForReviewCmd.kt",
+  "resolvedOutputRoot": "",
+  "outputPath": "demo-application/src/main/kotlin/com/acme/demo/application/commands/content/workflow/SubmitContentForReviewCmd.kt",
   "conflictPolicy": "SKIP"
 }
 ```
 
-字段名是 review contract；实际 item 可能包含更多 context。
+字段名是 review contract；实际 item 可能包含更多 context。`outputPath` 已经是完整的 repo-relative 目标路径，不要再把它和 `resolvedOutputRoot` 重新拼接。对 checked-in source，当前 item 可能让 `resolvedOutputRoot` 保持空串；对 generated source 或 output artifact，它才承担被解析后的 root 说明。
+
+当前内建 design generator ids 使用 `command`、`query`、`domain-service` 这类稳定短 id，不保留 `design-*` 旧名。
 
 ## Output Kind Values
 

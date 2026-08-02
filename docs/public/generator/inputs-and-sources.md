@@ -84,7 +84,7 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 
 ## Input Feedback
 
-进入 generation 前，可以用 [Generator Input Validation](../reference/generator-input-validation.md) 对已编写的输入文件做离线预检查。它只给出静态、保守的反馈，不连接数据库、不运行 Gradle、不生成代码、不编译、不运行测试，也不改写输入文件。
+进入 generation 前，当前 authoritative input validation 来自 source provider parse、canonical assembly、`cap4kPlan` diagnostics 和 `cap4kAgentSnapshot`。cap4k 不再维护独立的离线 Python generator-input validator；如果输入有问题，应回到 `diagnostics.json`、`plan.json` 和对应 source contract 修正输入，而不是依赖第二套离线规则复制。
 
 这些信号说明输入需要回到 authoring loop：
 
