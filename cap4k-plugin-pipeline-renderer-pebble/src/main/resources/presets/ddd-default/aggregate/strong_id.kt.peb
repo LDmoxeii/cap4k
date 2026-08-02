@@ -75,6 +75,9 @@ class {{ typeName }} protected constructor() : StrongId<{{ valueType }}>, Serial
 {% endif %}
 
         @JvmStatic
+        fun from(value: String): {{ typeName }} = parse(value)
+
+        @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         fun fromJson(value: JsonNode): {{ typeName }} {
             require(value.isTextual) { "{{ typeName }} JSON value must be a string" }

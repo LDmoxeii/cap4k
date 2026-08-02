@@ -14,5 +14,15 @@ dependencies {
     implementation("jakarta.persistence:jakarta.persistence-api:3.1.0")
     implementation("org.springframework:spring-context")
     implementation("org.springframework.data:spring-data-jpa")
+
+    testImplementation(platform("org.springframework.boot:spring-boot-dependencies:3.5.6"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("org.springframework:spring-test")
+    testImplementation("org.springframework:spring-webmvc")
+    testImplementation("jakarta.servlet:jakarta.servlet-api")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
