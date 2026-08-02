@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: strong-id-mvc-binding
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 047b7b73a02771bf355fad4fc3d8b655121fff223b1bbdcb6fd28756a3248962
+spec_changes:
+  - capability: strong-id-mvc-binding
+    operation: create
+    source: specs/strong-id-mvc-binding/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/55923bc0e3c59f26e078acd649c731a03354c6cfb95963644944bb2a2448005e.json
+verification_evidence: runtime/evidence/verifications/cfdc0a5502f9ef246c6db7bdec4af03570370c1df6fcaa6b94a10a5dc137b2ee.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-02
+run_id: d4db6d03-b37e-417d-b0df-4171a2d24a83

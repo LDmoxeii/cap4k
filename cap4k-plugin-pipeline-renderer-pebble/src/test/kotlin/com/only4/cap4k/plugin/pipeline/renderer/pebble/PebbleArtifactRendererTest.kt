@@ -1742,6 +1742,7 @@ class PebbleArtifactRendererTest {
             assertFalse(source.contains("AttributeConverter"))
             assertFalse(source.contains("length ="))
             assertTrue(source.contains("value.isTextual"))
+            assertTrue(source.contains("@JvmStatic\n        fun from(value: String): OrderId = parse(value)"))
             assertTrue(
                 source.contains(
                     "@JsonCreator(mode = JsonCreator.Mode.DISABLED)\n    private constructor(value:"

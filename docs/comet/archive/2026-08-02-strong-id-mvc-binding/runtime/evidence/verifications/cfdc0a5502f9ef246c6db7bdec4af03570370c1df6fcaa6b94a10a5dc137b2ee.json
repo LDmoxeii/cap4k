@@ -1,0 +1,84 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "strong-id-mvc-binding",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "047b7b73a02771bf355fad4fc3d8b655121fff223b1bbdcb6fd28756a3248962",
+  "acceptanceCriteriaHash": "49aafff0a1216a052a8ed2a82af70cbc09d82da2296dd2ee473def7dcb3aea46",
+  "implementationScopeRef": "runtime/evidence/scopes/55923bc0e3c59f26e078acd649c731a03354c6cfb95963644944bb2a2448005e.json",
+  "implementationScopeHash": "55923bc0e3c59f26e078acd649c731a03354c6cfb95963644944bb2a2448005e",
+  "reportRef": "verification.md",
+  "reportHash": "1336c89779ac82bfd8872634bc29d4427ad39cea3f07042b04ad4eada5e84c18",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "49aafff0a1216a052a8ed2a82af70cbc09d82da2296dd2ee473def7dcb3aea46",
+    "total": 5,
+    "evidenced": 5,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-23c132faffddea65026a31dd5d250cf7c3818540219cf0da8da08ff91cbea87e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-29bf43169fba11c9a886393e54aa037187a0a56c3688b6844ed3ff0d018b5260",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIdsTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-970f6be9bb5f8ead91561f9cb687c228cbefa455fbe25e087417aea4a8157938",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c021c207546935ce530a92b37eb43c5356edc652af941125f364065f4c690b5a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/id/StrongIdsTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f5a48e87fb5811c64542a5fdc22925a134a6e3db11af33992826f36fab4a690d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt",
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "fd74758013d70af85a1541aa182519db38670d84a1a83a8254936ecaf197809a"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/6e91fa8fe08127d72a7d2aacda2c881e96a41623f5c21ef564b1a0aa736a6d8c.json",
+  "createdAt": "2026-08-02T06:24:18.372Z",
+  "envelopeHash": "cfdc0a5502f9ef246c6db7bdec4af03570370c1df6fcaa6b94a10a5dc137b2ee"
+}
