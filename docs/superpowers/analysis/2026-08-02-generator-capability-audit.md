@@ -441,6 +441,21 @@ JdbcSQLNonTransientConnectionException: Database may be already in use
 
 建议将 file-backed functional fixture 改为不会跨 build invocation 长期持锁的 URL/lifecycle，并新增可重复执行证据。不要把该环境性失败列为已知可忽略债务；它应有明确 owner，因为它会掩盖真实 generator regression。
 
+## Implementation handoff
+
+已确认将 Generator repair 拆为四个独立、短生命周期分支/PR；实现分支均从当时最新的 `origin/master` 开始，审计分支不承载生产代码修复：
+
+| 顺序 | Branch | Scope | Merge/verification boundary |
+| --- | --- | --- | --- |
+| 1 | `fix/generator-contract-surface` | G-01 Scheduled Reaction overclaim、G-03 stale `plan.json` example、G-04 standalone Python validator retirement、G-08 dead Specification layout helper，以及 descriptor/Agent API/docs/tests 同步 | 可与 2、3 并行；不得恢复旧 generator surface 或 validator compatibility entry |
+| 2 | `fix/strong-id-mvc-binding` | G-02：四种 Strong ID backing 的 JVM-static String factory 与真实 Spring MVC path/query binding evidence | 可与 1、3 并行；Runtime 不增加 reflection converter |
+| 3 | `feature/analysis-metadata-contract` | 将 analyzer-only annotations 迁出 `ddd-core` 到专用 compile-time module/package，更新默认 templates、Analyzer/flow consumers、compile-only wiring，并实现缺失 metadata fail-fast | 可与 1、2 并行；是 4 的前置，默认模板保留 metadata，自定义模板可明确 opt out |
+| 4 | `fix/design-roundtrip-contract` | G-05 全部 semantic repair、metadata/runtime conflict validation、七 tag 真实二次 generate/compile gate，以及为该 gate 提供稳定证据所需的 G-09 H2 TestKit isolation | 必须从 3 已合并后的最新 `master` 开始；不得手写 `design-elements.json` 代替真实 Analyzer |
+
+G-06 保持 optional provider boundary；G-07 继续作为独立 P2 diagnostics backlog，不进入以上 blocking repair；G-09 仅在它影响真实 round-trip gate 的 fixture 范围内由第 4 个分支处理。
+
+每个 PR 合并后，审计线应刷新 `origin/master`、复核对应 finding 和验收证据，再改变 Generator gate 结论。只有第 4 个 PR 合并并通过共同 gate 后，Generator 才能从 `NOT READY` 改为 `READY`，随后进入 Runtime capability audit。
+
 ## Backlog reconciliation
 
 | Issue | 当前判断 |

@@ -71,10 +71,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Emit stable type identities in Drawing Board: use normalized short names only for Design JSON builtins, standard containers, and nested DTOs declared by the current building block; emit resolved canonical FQNs for Strong IDs, Value Objects, enums, other project/context types, and external types. Apply the rule recursively inside containers, and never choose a short name merely because the current analysis classpath happens to make it unambiguous.
 - Retain `Array<T>` as a first-class Design JSON type and implement lossless Analyzer/Drawing Board recovery for recursive container nesting, element/container nullability, and normalized `emptyArray()` defaults. Keep recursive reliable-event payload validation. Primitive arrays such as `IntArray` and `ByteArray` remain outside the current contract.
 - Preserve declaration order for `fields`, `resultFields`, and every nested DTO. Drawing Board may normalize artifact, file, and entry order, but constructor position is tactical semantics and must not be sorted away.
+- Deliver Generator repairs through four focused branches/PRs: `fix/generator-contract-surface`, `fix/strong-id-mvc-binding`, `feature/analysis-metadata-contract`, then `fix/design-roundtrip-contract`. The first three may run in parallel from current `origin/master`; the round-trip branch starts only after the metadata-contract PR has merged and includes the real seven-tag gate plus required TestKit isolation. Refresh this audit line from merged `master` evidence after each PR. Keep G-06 optional and G-07 outside the blocking repair set.
 
 # Open questions
 
-- [blocking] Should the accepted Generator repairs be delivered as four focused implementation branches/PRs—contract-surface cleanup, Strong ID MVC binding, analysis-metadata contract, then semantic round-trip plus its real gate—or as one combined Generator repair branch/PR?
+- No remaining Generator design decision. The audit is waiting for independently merged implementation evidence before changing the Generator gate or starting the Runtime slice.
 
 # Verification expectations
 

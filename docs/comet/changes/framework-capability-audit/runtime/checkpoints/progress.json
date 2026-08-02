@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "201790d3-7e1a-4192-ad61-dd4661350bd3",
+  "id": "7a48c52f-a549-4512-94fe-4b06660ecd22",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 17,
-  "stateRevision": 18,
-  "summary": "User confirmed Array<T> remains a first-class Design JSON type. Analyzer and Drawing Board must recover recursive nesting, element/container nullability, and normalized emptyArray() defaults losslessly; primitive arrays remain unsupported. The audit also made the already-confirmed field-order preservation explicit.",
-  "nextAction": "Choose focused repair branches/PRs versus one combined Generator repair branch before implementation handoff.",
-  "inputHash": "2c92cfb6c9bde4a3f0528456dedf3d081b80f609eeefd31a5cb609d0cd5c512e",
-  "manifestHash": "2c7e51dbc41e56f16230ad6c50c2f316738b664fe8ca6de786add408b2cd66a5",
-  "manifestRef": "runtime/checkpoints/manifests/2c7e51dbc41e56f16230ad6c50c2f316738b664fe8ca6de786add408b2cd66a5.json",
+  "previousRevision": 18,
+  "stateRevision": 19,
+  "summary": "User selected four focused Generator repair branches: contract surface, Strong ID MVC binding, analysis metadata contract, then semantic round-trip and its real gate. The first three may run in parallel; the round-trip branch starts after metadata-contract merge. Generator clarification is complete and the audit now awaits merged implementation evidence.",
+  "nextAction": "Fork implementation sessions from origin/master for the first three repair branches; after each PR merges, refresh the audit line and verify the corresponding finding. Start the round-trip branch only after analysis metadata is in master.",
+  "inputHash": "aa03abbd56684e062f0df4a1288095072fff09e87bf014c9b4aa01d150aeb7ef",
+  "manifestHash": "9b897941b13b0a3e2406fe8d345ae543c1a7d7904a71544342a37818a482b9bf",
+  "manifestRef": "runtime/checkpoints/manifests/9b897941b13b0a3e2406fe8d345ae543c1a7d7904a71544342a37818a482b9bf.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:52:52.486Z"
+  "createdAt": "2026-08-02T05:55:05.138Z"
 }
