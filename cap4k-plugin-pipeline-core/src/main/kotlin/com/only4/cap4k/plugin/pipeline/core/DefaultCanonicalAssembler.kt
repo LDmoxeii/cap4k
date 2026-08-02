@@ -437,6 +437,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         name = node.name,
                         fullName = node.fullName,
                         type = node.type,
+                        missingMetadata = node.missingMetadata,
+                        metadataOwner = node.metadataOwner,
                     )
                 },
                 edges = it.edges.map { edge ->

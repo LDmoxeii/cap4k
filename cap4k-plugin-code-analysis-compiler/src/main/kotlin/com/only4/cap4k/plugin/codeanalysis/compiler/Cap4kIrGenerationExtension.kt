@@ -197,7 +197,8 @@ private class ClassIndexBuilder(
     private val domainEventClasses = mutableSetOf<String>()
     private val integrationEventClasses = mutableSetOf<String>()
 
-    private val aggregateElementAnn = FqName(options.aggregateElementAnnFq)
+    private val designBlockMetadataAnn = FqName(DESIGN_BLOCK_METADATA_ANNOTATION_FQ)
+    private val aggregateElementMetadataAnn = FqName(AGGREGATE_ELEMENT_METADATA_ANNOTATION_FQ)
     private val domainEventAnn = FqName(options.domainEventAnnFq)
     private val integrationEventAnn = FqName(options.integrationEventAnnFq)
 
@@ -215,7 +216,7 @@ private class ClassIndexBuilder(
             integrationEventClasses.add(fqcn)
         }
 
-        val aggInfo = declaration.readAggregateElementInfo(aggregateElementAnn)
+        val aggInfo = declaration.readAggregateElementInfo(aggregateElementMetadataAnn)
         if (aggInfo != null) {
             aggregateInfoByClass[fqcn] = aggInfo
             when (aggInfo.type) {
@@ -251,6 +252,8 @@ private class GraphCollector(
 ) : IrElementTransformerVoidWithContext() {
     private val nodes = LinkedHashMap<String, Node>()
     private val rels = LinkedHashSet<Relationship>()
+    private val missingMetadataByNodeId = LinkedHashMap<String, LinkedHashSet<String>>()
+    private val metadataOwnerByNodeId = LinkedHashMap<String, String>()
     private val handlerToCommand: MutableMap<String, String> = mutableMapOf()
     private val handlerContext: ArrayDeque<String> = ArrayDeque()
     private val functionContext: ArrayDeque<FunctionCtx> = ArrayDeque()
@@ -269,7 +272,8 @@ private class GraphCollector(
         "org.springframework.web.bind.annotation.PatchMapping"
     ).map(::FqName).toSet()
 
-    private val aggregateElementAnn = FqName(options.aggregateElementAnnFq)
+    private val designBlockMetadataAnn = FqName(DESIGN_BLOCK_METADATA_ANNOTATION_FQ)
+    private val aggregateElementMetadataAnn = FqName(AGGREGATE_ELEMENT_METADATA_ANNOTATION_FQ)
     private val domainEventAnn = FqName(options.domainEventAnnFq)
     private val integrationEventAnn = FqName(options.integrationEventAnnFq)
     private val eventListenerAnn = FqName(options.eventListenerAnnFq)
@@ -287,6 +291,9 @@ private class GraphCollector(
     private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
     private val constraintValidatorJavaxFq = FqName("javax.validation.ConstraintValidator")
     private val predicateFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Predicate")
+    private val domainServiceAnn = FqName("com.only4.cap4k.ddd.core.domain.service.annotation.DomainService")
+    private val jakartaEntityAnn = FqName("jakarta.persistence.Entity")
+    private val javaxEntityAnn = FqName("javax.persistence.Entity")
 
     override fun visitClassNew(declaration: IrClass): IrStatement {
         val fqcn = declaration.fqNameWhenAvailable?.asString() ?: return super.visitClassNew(declaration)
@@ -294,18 +301,45 @@ private class GraphCollector(
 
         if (index.domainEventClasses.contains(fqcn) || declaration.hasAnnotation(domainEventAnn)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.domainevent))
+            requireDesignBlockMetadata(fqcn, declaration)
         }
         if (index.integrationEventClasses.contains(fqcn) || declaration.hasAnnotation(integrationEventAnn)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.integrationevent))
+            requireDesignBlockMetadata(fqcn, declaration)
         }
 
         val aggInfo = index.aggregateInfoByClass[fqcn]
-        if (aggInfo != null && aggInfo.type == AGG_TYPE_ENTITY && aggInfo.root) {
+        if (aggInfo != null) {
+            if (aggInfo.type == AGG_TYPE_ENTITY && aggInfo.root) {
+                addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.aggregate))
+            }
+        } else if (declaration.hasAnnotation(jakartaEntityAnn) || declaration.hasAnnotation(javaxEntityAnn)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.aggregate))
+            requireAggregateElementMetadata(fqcn, declaration)
+        }
+
+        if (declaration.hasAnnotation(domainServiceAnn)) {
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.domainservice))
+            requireDesignBlockMetadata(fqcn, declaration)
+        }
+        if (declaration.isUnannotatedApiPayloadCandidate()) {
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.apipayload))
+            requireDesignBlockMetadata(fqcn, declaration)
         }
 
         if (options.scanSpring && declaration.hasAnnotation(restController)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.controller))
+        }
+
+        val applicationContractNodeType = when {
+            fqcn != commandInterfaceFq.asString() && declaration.isOrImplements(commandInterfaceFq) -> NodeType.command
+            fqcn != queryInterfaceFq.asString() && declaration.isOrImplements(queryInterfaceFq) -> NodeType.query
+            fqcn != capabilityCallFq.asString() && declaration.isOrImplements(capabilityCallFq) -> NodeType.capability
+            else -> null
+        }
+        if (applicationContractNodeType != null) {
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = applicationContractNodeType))
+            requireDesignBlockMetadata(fqcn, declaration)
         }
 
         val implementsCommandHandler = declaration.isOrImplements(commandHandlerFq)
@@ -313,27 +347,33 @@ private class GraphCollector(
         val implementsCapabilityHandler = declaration.isOrImplements(capabilityHandlerFq)
         if (implementsCommandHandler) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.commandhandler))
+            requireDesignBlockMetadata(fqcn, declaration)
             val cmdReqClass = resolveRequestClassFromHandlerInterface(declaration, commandHandlerFq)
             val cmdReqFq = cmdReqClass?.fqNameWhenAvailable?.asString()
             if (cmdReqClass != null && cmdReqFq != null) {
                 addNode(Node(id = cmdReqFq, name = cmdReqClass.nestedSimpleName(), fullName = cmdReqFq, type = NodeType.command))
+                requireDesignBlockMetadata(cmdReqFq, cmdReqClass)
                 handlerToCommand[fqcn] = cmdReqFq
                 addRel(Relationship(fromId = cmdReqFq, toId = fqcn, type = RelationshipType.CommandToCommandHandler))
             }
         } else if (implementsQueryHandler) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.queryhandler))
+            requireDesignBlockMetadata(fqcn, declaration)
             val qryReqClass = resolveRequestClassFromHandlerInterface(declaration, queryHandlerFq)
             val qryReqFq = qryReqClass?.fqNameWhenAvailable?.asString()
             if (qryReqClass != null && qryReqFq != null) {
                 addNode(Node(id = qryReqFq, name = qryReqClass.nestedSimpleName(), fullName = qryReqFq, type = NodeType.query))
+                requireDesignBlockMetadata(qryReqFq, qryReqClass)
                 addRel(Relationship(fromId = qryReqFq, toId = fqcn, type = RelationshipType.QueryToQueryHandler))
             }
         } else if (implementsCapabilityHandler) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.capabilityhandler))
+            requireDesignBlockMetadata(fqcn, declaration)
             val capabilityCallClass = resolveRequestClassFromHandlerInterface(declaration, capabilityHandlerFq)
             val capabilityCallFq = capabilityCallClass?.fqNameWhenAvailable?.asString()
             if (capabilityCallClass != null && capabilityCallFq != null) {
                 addNode(Node(id = capabilityCallFq, name = capabilityCallClass.nestedSimpleName(), fullName = capabilityCallFq, type = NodeType.capability))
+                requireDesignBlockMetadata(capabilityCallFq, capabilityCallClass)
                 addRel(Relationship(fromId = capabilityCallFq, toId = fqcn, type = RelationshipType.CapabilityToCapabilityHandler))
             }
         }
@@ -372,10 +412,12 @@ private class GraphCollector(
         if ((isDomainEventHandler || isIntegrationEventHandler) && eventTypeFq != null) {
             val handlerType = if (isDomainEventHandler) NodeType.domaineventhandler else NodeType.integrationeventhandler
             addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = handlerType))
+            parentClass?.let { requireDesignBlockMetadata(methodId, it) }
             val eventType = eventTypeFq!!
             val eventNodeType = if (isDomainEventHandler) NodeType.domainevent else NodeType.integrationevent
             val eventDisplayName = eventClass?.nestedSimpleName() ?: typeDisplayNameForFqcn(eventType)
             addNode(Node(id = eventType, name = eventDisplayName, fullName = eventType, type = eventNodeType))
+            eventClass?.let { requireDesignBlockMetadata(eventType, it) }
             val relType = if (isDomainEventHandler) RelationshipType.DomainEventToHandler else RelationshipType.IntegrationEventToHandler
             addRel(Relationship(fromId = eventType, toId = methodId, type = relType))
         }
@@ -455,6 +497,7 @@ private class GraphCollector(
                         }
                         val requestDisplayName = requestClass.nestedSimpleName()
                         addNode(Node(id = requestFq, name = requestDisplayName, fullName = requestFq, type = nodeType))
+                        requireDesignBlockMetadata(requestFq, requestClass)
 
                         val ctx = functionContext.lastOrNull()
                         val senderId = methodId
@@ -556,6 +599,7 @@ private class GraphCollector(
                 val evtFq = evtClass.fqNameWhenAvailable?.asString()
                 if (evtFq != null && isDomainEventClass(evtClass)) {
                     addNode(Node(id = evtFq, name = evtClass.nestedSimpleName(), fullName = evtFq, type = NodeType.domainevent))
+                    requireDesignBlockMetadata(evtFq, evtClass)
                     val eventSourceId = entityMethodRef?.methodId ?: methodId
                     addRel(Relationship(fromId = eventSourceId, toId = evtFq, type = RelationshipType.EntityMethodToDomainEvent))
                 }
@@ -740,18 +784,76 @@ private class GraphCollector(
         nodes.putIfAbsent(node.id, node)
     }
 
+    private fun requireDesignBlockMetadata(nodeId: String, declaration: IrClass) {
+        if (declaration.findEnclosingAnnotation(designBlockMetadataAnn) == null) {
+            missingMetadataByNodeId
+                .getOrPut(nodeId) { linkedSetOf() }
+                .add(designBlockMetadataAnn.asString())
+            metadataOwnerByNodeId.putIfAbsent(nodeId, declaration.analysisMetadataOwnerSymbol())
+        }
+    }
+
+    private fun requireAggregateElementMetadata(nodeId: String, declaration: IrClass) {
+        if (!declaration.hasAnnotation(aggregateElementMetadataAnn)) {
+            missingMetadataByNodeId
+                .getOrPut(nodeId) { linkedSetOf() }
+                .add(aggregateElementMetadataAnn.asString())
+            metadataOwnerByNodeId.putIfAbsent(nodeId, declaration.analysisMetadataOwnerSymbol())
+        }
+    }
+
+    private fun IrClass.analysisMetadataOwnerSymbol(): String {
+        var current = this
+        while (current.parent is IrClass) {
+            current = current.parent as IrClass
+        }
+        return current.fqNameWhenAvailable?.asString()
+            ?: fqNameWhenAvailable?.asString()
+            ?: name.asString()
+    }
+
+    private fun IrClass.findEnclosingAnnotation(annotation: FqName): IrClass? {
+        var current: IrClass? = this
+        while (current != null) {
+            if (current.hasAnnotation(annotation)) {
+                return current
+            }
+            current = current.parent as? IrClass
+        }
+        return null
+    }
+
+    private fun IrClass.isUnannotatedApiPayloadCandidate(): Boolean {
+        if (findEnclosingAnnotation(designBlockMetadataAnn) != null || parent is IrClass) {
+            return false
+        }
+        val request = declarations.filterIsInstance<IrClass>().firstOrNull { it.name.asString() == "Request" }
+            ?: return false
+        val response = declarations.filterIsInstance<IrClass>().firstOrNull { it.name.asString() == "Response" }
+            ?: return false
+        val requestUsesApplicationContract = request.isOrImplements(commandInterfaceFq) ||
+            request.isOrImplements(queryInterfaceFq) ||
+            request.isOrImplements(capabilityCallFq)
+        return !requestUsesApplicationContract && response.name.asString() == "Response"
+    }
+
     private fun addRel(rel: Relationship) {
         rels.add(rel)
     }
 
-    fun nodesAsSequence(): Sequence<Node> = nodes.values.asSequence()
+    fun nodesAsSequence(): Sequence<Node> = nodes.values.asSequence().map { node ->
+        node.copy(
+            missingMetadata = missingMetadataByNodeId[node.id].orEmpty().toList(),
+            metadataOwner = metadataOwnerByNodeId[node.id],
+        )
+    }
     fun relsAsSequence(): Sequence<Relationship> = rels.asSequence()
 
     private fun IrClass.aggregateInfo(): AggregateInfo? {
         val fq = fqNameWhenAvailable?.asString() ?: return null
         return aggregateInfoCache.getOrPut(fq) {
             index.aggregateInfoByClass[fq]
-                ?: readAggregateElementInfo(aggregateElementAnn)
+                ?: readAggregateElementInfo(aggregateElementMetadataAnn)
         }
     }
 }
@@ -932,21 +1034,23 @@ private fun IrClass.findSuperTypeArgument(fqName: FqName, index: Int): IrType? {
     }
 }
 
-private fun IrClass.readAggregateElementInfo(aggregateElementAnn: FqName): AggregateInfo? {
-    val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == aggregateElementAnn }
+private fun IrClass.readAggregateElementInfo(aggregateElementMetadataAnn: FqName): AggregateInfo? {
+    val ann = annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == aggregateElementMetadataAnn }
         ?: return null
     val className = fqNameWhenAvailable?.asString() ?: name.asString()
     val aggregateName = ann.getStringArg("aggregate").orEmpty().trim()
     val type = ann.getStringArg("type").orEmpty().trim()
+    require(aggregateName.isNotEmpty()) {
+        "AggregateElementMetadata annotation on $className must declare non-blank aggregate"
+    }
     require(type.isNotEmpty()) {
-        "AggregateElement annotation on $className must declare non-blank type"
+        "AggregateElementMetadata annotation on $className must declare non-blank type"
     }
     require(type in SUPPORTED_AGGREGATE_ELEMENT_TYPES) {
-        "AggregateElement annotation on $className has unsupported type: $type"
+        "AggregateElementMetadata annotation on $className has unsupported type: $type"
     }
     val root = ann.getBooleanArg("root") ?: false
-    val resolvedName = if (aggregateName.isNotEmpty()) aggregateName else name.asString()
-    return AggregateInfo(resolvedName, type, root)
+    return AggregateInfo(aggregateName, type, root)
 }
 
 private fun inferGeneratedAggregateRootFq(entityFq: String, aggregateName: String): String? {
@@ -1057,7 +1161,19 @@ private class JsonFileMetadataSink(private val outputDir: String) : MetadataSink
             append("{\"id\":\"").append(escape(n.id)).append("\",")
             append("\"name\":\"").append(escape(n.name)).append("\",")
             append("\"fullName\":\"").append(escape(n.fullName)).append("\",")
-            append("\"type\":\"").append(n.type.name).append("\"}")
+            append("\"type\":\"").append(n.type.name).append('\"')
+            if (n.missingMetadata.isNotEmpty()) {
+                append(",\"missingMetadata\":[")
+                n.missingMetadata.forEachIndexed { index, metadataFq ->
+                    if (index > 0) append(',')
+                    append('\"').append(escape(metadataFq)).append('\"')
+                }
+                append(']')
+            }
+            n.metadataOwner?.takeIf { owner -> owner.isNotBlank() }?.let { owner ->
+                append(",\"metadataOwner\":\"").append(escape(owner)).append('\"')
+            }
+            append('}')
         }
         append(']')
     }

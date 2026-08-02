@@ -77,12 +77,40 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `aggregate element fails fast for blank aggregate identity`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            categorySources(
+                useTopLevelBehavior = true,
+                categoryBody = """
+                    @AggregateElementMetadata(
+                        aggregate = " ",
+                        type = "entity",
+                        name = "Category",
+                        packageName = "demo.domain.aggregates.category",
+                        root = true,
+                    )
+                    class Category
+                """.trimIndent(),
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent(),
+            )
+        )
+
+        assertTrue(
+            messages.contains("AggregateElementMetadata annotation on demo.domain.aggregates.category.Category must declare non-blank aggregate"),
+        )
+    }
+
+    @Test
     fun `aggregate element fails fast for blank type`() {
         val messages = compileWithCap4kPluginExpectingFailure(
             categorySources(
                 useTopLevelBehavior = true,
                 categoryBody = """
-                    @AggregateElement(
+                    @AggregateElementMetadata(
                         aggregate = "Category",
                         type = " ",
                         name = "Category",
@@ -100,7 +128,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains("AggregateElement annotation on demo.domain.aggregates.category.Category must declare non-blank type"),
+            messages.contains("AggregateElementMetadata annotation on demo.domain.aggregates.category.Category must declare non-blank type"),
         )
     }
 
@@ -110,7 +138,7 @@ class AnalysisOutputCorrectnessTest {
             categorySources(
                 useTopLevelBehavior = true,
                 categoryBody = """
-                    @AggregateElement(
+                    @AggregateElementMetadata(
                         aggregate = "Category",
                         type = "unknown",
                         name = "Category",
@@ -128,7 +156,7 @@ class AnalysisOutputCorrectnessTest {
         )
 
         assertTrue(
-            messages.contains("AggregateElement annotation on demo.domain.aggregates.category.Category has unsupported type: unknown"),
+            messages.contains("AggregateElementMetadata annotation on demo.domain.aggregates.category.Category has unsupported type: unknown"),
         )
     }
 
@@ -138,7 +166,7 @@ class AnalysisOutputCorrectnessTest {
             categorySources(
                 useTopLevelBehavior = true,
                 categoryBody = """
-                    @AggregateElement(
+                    @AggregateElementMetadata(
                         aggregate = "Category",
                         type = "projection",
                         name = "CategoryView",
@@ -235,11 +263,147 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `analyzer records missing aggregate metadata on unannotated jpa symbol`() {
+        val outputDir = compileWithCap4kPlugin(
+            categorySources(
+                categoryBody = GENERATED_STYLE_CATEGORY_BODY_WITHOUT_AGGREGATE_ANNOTATION,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        assertTrue(nodes.contains("\"fullName\":\"demo.domain.aggregates.category.Category\""))
+        assertTrue(
+            nodes.contains(
+                "\"missingMetadata\":[\"com.only4.cap4k.analysis.metadata.AggregateElementMetadata\"]"
+            )
+        )
+    }
+
+    @Test
+    fun `analyzer records missing design metadata on command and event symbols`() {
+        val outputDir = compileWithCap4kPlugin(
+            categorySources(
+                categoryBody = DEFAULT_CATEGORY_BODY,
+                useTopLevelBehavior = true,
+                behaviorBody = """
+                    fun Category.changeSort(sort: Int) {
+                        CategorySortChanged(sort)
+                    }
+                """.trimIndent()
+            )
+        )
+
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        assertTrue(
+            nodes.contains(
+                "\"fullName\":\"demo.application.commands.category.UpdateCategorySortCmd\"," +
+                    "\"type\":\"command\",\"missingMetadata\":[" +
+                    "\"com.only4.cap4k.analysis.metadata.DesignBlockMetadata\"]," +
+                    "\"metadataOwner\":\"demo.application.commands.category.UpdateCategorySortCmd\""
+            ),
+            nodes,
+        )
+        assertTrue(
+            nodes.contains(
+                "\"fullName\":\"demo.domain.aggregates.category.events.CategorySortChanged\"," +
+                    "\"type\":\"domainevent\",\"missingMetadata\":[" +
+                    "\"com.only4.cap4k.analysis.metadata.DesignBlockMetadata\"]," +
+                    "\"metadataOwner\":\"demo.domain.aggregates.category.events.CategorySortChanged\""
+            ),
+            nodes,
+        )
+    }
+
+    @Test
+    fun `analyzer records missing design metadata on standalone application contracts`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "Command.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.command
+
+                        interface Command<RESULT : Any>
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "Query.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.query
+
+                        interface Query<RESULT : Any>
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "CapabilityCall.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.capability
+
+                        interface CapabilityCall<RESULT : Any>
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "StandaloneContracts.kt",
+                    """
+                        package demo.application.contracts
+
+                        import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
+                        import com.only4.cap4k.ddd.core.application.command.Command
+                        import com.only4.cap4k.ddd.core.application.query.Query
+
+                        object StandaloneCmd {
+                            class Request : Command<Response>
+                            class Response
+                        }
+
+                        object StandaloneQry {
+                            class Request : Query<Response>
+                            class Response
+                        }
+
+                        object StandaloneCapability {
+                            class Request : CapabilityCall<Response>
+                            class Response
+                        }
+                    """.trimIndent(),
+                ),
+            )
+        )
+
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        mapOf(
+            "demo.application.contracts.StandaloneCmd.Request" to "demo.application.contracts.StandaloneCmd",
+            "demo.application.contracts.StandaloneQry.Request" to "demo.application.contracts.StandaloneQry",
+            "demo.application.contracts.StandaloneCapability.Request" to "demo.application.contracts.StandaloneCapability",
+        ).forEach { (symbol, owner) ->
+            assertTrue(
+                nodes.contains(
+                    "\"fullName\":\"$symbol\"," +
+                        "\"type\":" + when {
+                            "Cmd" in owner -> "\"command\""
+                            "Qry" in owner -> "\"query\""
+                            else -> "\"capability\""
+                        } +
+                        ",\"missingMetadata\":[\"com.only4.cap4k.analysis.metadata.DesignBlockMetadata\"]," +
+                        "\"metadataOwner\":\"$owner\""
+                ),
+                nodes,
+            )
+        }
+    }
+
+    @Test
     fun `command handler calling aggregate member method keeps exact entity method edges`() {
         val rels = compileRelationships(
             categorySources(
                 categoryBody = """
-                    @com.only4.cap4k.ddd.core.annotation.AggregateElement(
+                    @com.only4.cap4k.analysis.metadata.AggregateElementMetadata(
                         aggregate = "Category",
                         type = "entity",
                         name = "Category",
@@ -680,11 +844,11 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "AggregateElement.kt",
+                "AggregateElementMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class AggregateElement(
+                    annotation class AggregateElementMetadata(
                         val aggregate: String = "",
                         val type: String = "",
                         val name: String = "",
@@ -722,7 +886,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.domain.aggregates.category
 
-                    import com.only4.cap4k.ddd.core.annotation.AggregateElement
+                    import com.only4.cap4k.analysis.metadata.AggregateElementMetadata
                     import demo.domain.aggregates.category.events.CategorySortChanged
 
                     $categoryBody
@@ -786,11 +950,11 @@ class AnalysisOutputCorrectnessTest {
     ): List<SourceFile> {
         return listOf(
             SourceFile.kotlin(
-                "AggregateElement.kt",
+                "AggregateElementMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class AggregateElement(
+                    annotation class AggregateElementMetadata(
                         val aggregate: String = "",
                         val type: String = "",
                         val name: String = "",
@@ -828,7 +992,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.domain.aggregates.category
 
-                    import com.only4.cap4k.ddd.core.annotation.AggregateElement
+                    import com.only4.cap4k.analysis.metadata.AggregateElementMetadata
 
                     $categoryBody
                 """.trimIndent()
@@ -973,11 +1137,11 @@ class AnalysisOutputCorrectnessTest {
                 """.trimIndent(),
             ),
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -994,7 +1158,7 @@ class AnalysisOutputCorrectnessTest {
                 """
                     package demo.application.commands.auth
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
                     import com.only4.cap4k.ddd.core.application.command.Command
                     import demo.application.shared.defaults.CaptchaStableDefaults
                     import demo.application.shared.defaults.SharedCaptchaChannel
@@ -1033,7 +1197,7 @@ class AnalysisOutputCorrectnessTest {
                     object CaptchaPolicy
 
                     object IssueCaptchaCmd {
-                        @BuildingBlock(
+                        @DesignBlockMetadata(
                             tag = "command",
                             packageName = "auth",
                             name = "IssueCaptcha",
@@ -1194,7 +1358,7 @@ class AnalysisOutputCorrectnessTest {
     companion object {
         private const val UNDEFINED_OFFSET = -1
         private const val DEFAULT_CATEGORY_BODY = """
-            @AggregateElement(
+            @AggregateElementMetadata(
                 aggregate = "Category",
                 type = "entity",
                 name = "Category",
@@ -1207,7 +1371,7 @@ class AnalysisOutputCorrectnessTest {
             import jakarta.persistence.Entity
             import jakarta.persistence.Table
 
-            @AggregateElement(
+            @AggregateElementMetadata(
                 aggregate = "Category",
                 type = "entity",
                 name = "Category",

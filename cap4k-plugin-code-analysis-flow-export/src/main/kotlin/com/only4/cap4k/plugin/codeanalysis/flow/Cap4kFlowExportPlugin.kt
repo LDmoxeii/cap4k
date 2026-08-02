@@ -147,6 +147,7 @@ abstract class Cap4kFlowExportTask : DefaultTask() {
 
         val nodesById = linkedMapOf<String, Node>()
         val edgeKeys = linkedSetOf<EdgeKey>()
+        val missingFlowMetadataBySymbol = linkedMapOf<String, LinkedHashSet<String>>()
 
         val inputDirectories = inputDirs.get().map { it.asFile.toPath() }
         inputDirectories.forEach { dir ->
@@ -159,6 +160,14 @@ abstract class Cap4kFlowExportTask : DefaultTask() {
             val rawNodes: List<RawNode> = mapper.readValue(nodesPath.toFile())
             rawNodes.forEach { raw ->
                 val id = raw.id?.takeIf { it.isNotBlank() } ?: return@forEach
+                if (AGGREGATE_ELEMENT_METADATA_FQ in raw.missingMetadata) {
+                    val symbol = raw.metadataOwner?.takeIf { it.isNotBlank() }
+                        ?: raw.fullName?.takeIf { it.isNotBlank() }
+                        ?: id
+                    missingFlowMetadataBySymbol
+                        .getOrPut(symbol) { linkedSetOf() }
+                        .add(AGGREGATE_ELEMENT_METADATA_FQ)
+                }
                 if (!nodesById.containsKey(id)) {
                     nodesById[id] = normalizeNode(raw)
                 }
@@ -172,6 +181,8 @@ abstract class Cap4kFlowExportTask : DefaultTask() {
                 edgeKeys.add(EdgeKey(fromId, toId, type, raw.label))
             }
         }
+
+        requireFlowAnalysisMetadata(missingFlowMetadataBySymbol)
 
         val edges = edgeKeys.map { Edge(it.fromId, it.toId, it.type, it.label) }
             .filter { ALLOWED_EDGE_TYPES.contains(it.type) }
@@ -406,6 +417,27 @@ private fun Any?.readGradleFiles(): List<File> {
         .orEmpty()
 }
 
+internal fun requireFlowAnalysisMetadata(missingBySymbol: Map<String, Set<String>>) {
+    if (missingBySymbol.isEmpty()) {
+        return
+    }
+    val details = missingBySymbol.entries.joinToString(separator = System.lineSeparator()) { (symbol, metadata) ->
+        "- symbol: $symbol; missing metadata: ${metadata.joinToString(", ")}; affected capability: Flow Analysis"
+    }
+    throw GradleException(
+        buildString {
+            appendLine("Cap4k analysis metadata contract violation.")
+            appendLine(details)
+            append(
+                "Recovery: restore the default ddd-default generator template for each symbol, or add the listed " +
+                    "metadata annotation and keep io.github.ldmoxeii:cap4k-analysis-metadata on the owning business " +
+                    "module compileOnly classpath. Custom templates that omit analysis metadata explicitly opt out " +
+                    "of Flow Analysis; Cap4k will not emit an apparently complete partial result."
+            )
+        }
+    )
+}
+
 private fun normalizeNode(raw: RawNode): Node {
     val id = raw.id ?: ""
     val name = raw.name?.takeIf { it.isNotBlank() } ?: shortNameForId(id)
@@ -550,7 +582,9 @@ private data class RawNode(
     val id: String? = null,
     val name: String? = null,
     val fullName: String? = null,
-    val type: String? = null
+    val type: String? = null,
+    val missingMetadata: List<String> = emptyList(),
+    val metadataOwner: String? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -603,6 +637,9 @@ private data class IndexPayload(
     val flowCount: Int,
     val flows: List<FlowIndexEntry>
 )
+
+private const val AGGREGATE_ELEMENT_METADATA_FQ =
+    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
 
 private val ALLOWED_EDGE_TYPES = setOf(
     "ControllerMethodToCommand",

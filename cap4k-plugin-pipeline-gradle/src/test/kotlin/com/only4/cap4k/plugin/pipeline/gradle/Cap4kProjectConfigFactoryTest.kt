@@ -1348,6 +1348,29 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `configured analysis generator blocks are retained for capability specific metadata validation`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+        }
+        extension.sources {
+            irAnalysis {
+                inputDirs.from(project.file("build/cap4k-code-analysis"))
+            }
+        }
+        extension.generators {
+            drawingBoard {}
+            flow {}
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(setOf("drawing-board", "flow"), config.generators.keys)
+    }
+
+    @Test
     fun `ir analysis input dirs create source without flow or drawing board generator keys`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

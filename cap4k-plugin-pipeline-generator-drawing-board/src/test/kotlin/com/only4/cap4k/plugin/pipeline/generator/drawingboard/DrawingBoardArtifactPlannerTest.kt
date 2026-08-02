@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 
+import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
+import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
@@ -12,6 +14,7 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -60,6 +63,7 @@ class DrawingBoardArtifactPlannerTest {
             ),
             plan.map { it.templateId },
         )
+        assertEquals(PipelineCapabilityActivation.EXPLICIT_CONFIGURATION, planner.descriptor.activation)
         assertEquals("drawing-board", plan.first().generatorId)
         assertEquals("project", plan.first().moduleRole)
         assertEquals("command", plan.first().context["drawingBoardTag"])
@@ -75,6 +79,37 @@ class DrawingBoardArtifactPlannerTest {
             listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
             planner.descriptor.tasks,
         )
+    }
+
+    @Test
+    fun `rejects missing design metadata before drawing board planning`() {
+        val planner = DrawingBoardArtifactPlanner()
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config(),
+                CanonicalModel(
+                    analysisGraph = AnalysisGraphModel(
+                        inputDirs = listOf("application/build/cap4k-code-analysis"),
+                        nodes = listOf(
+                            AnalysisNodeModel(
+                                id = "demo.FindOrderQry.Request",
+                                name = "Request",
+                                fullName = "demo.FindOrderQry.Request",
+                                type = "query",
+                                missingMetadata = listOf("com.only4.cap4k.analysis.metadata.DesignBlockMetadata"),
+                                metadataOwner = "demo.FindOrderQry",
+                            )
+                        ),
+                        edges = emptyList(),
+                    ),
+                    drawingBoard = DrawingBoardModel(emptyList()),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("demo.FindOrderQry"))
+        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
+        assertTrue(error.message!!.contains("compileOnly classpath"))
     }
 
     @Test

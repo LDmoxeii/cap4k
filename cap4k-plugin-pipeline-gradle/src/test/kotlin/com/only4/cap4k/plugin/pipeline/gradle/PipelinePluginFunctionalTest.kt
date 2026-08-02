@@ -2405,6 +2405,39 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kAnalysisPlan alone rejects incomplete flow metadata without writing partial artifacts`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow-missing-metadata")
+        copyFixture(projectDir, "flow-sample")
+        val nodesFile = projectDir.resolve("analysis/app/build/cap4k-code-analysis/nodes.json")
+        nodesFile.writeText(
+            """
+            [
+              {
+                "id": "demo.domain.aggregates.order.Order",
+                "name": "Order",
+                "fullName": "demo.domain.aggregates.order.Order",
+                "type": "aggregate",
+                "missingMetadata": ["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisPlan")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("demo.domain.aggregates.order.Order"))
+        assertTrue(result.output.contains("AggregateElementMetadata"))
+        assertTrue(result.output.contains("affected capability: Flow Analysis"))
+        assertTrue(result.output.contains("restore the default ddd-default generator template"))
+        assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kAnalysisGenerate flow artifacts support custom layout output root`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow-layout")
         copyFixture(projectDir, "flow-sample")
@@ -2507,6 +2540,45 @@ class PipelinePluginFunctionalTest {
         assertTrue(domainEventContent.contains("\"tag\": \"domain_event\""))
         assertTrue(domainEventContent.contains("\"name\": \"reason\""))
         assertFalse(domainEventContent.contains("\"name\": \"entity\""))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `cap4kAnalysisGenerate alone rejects incomplete drawing board metadata without replacing outputs`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-drawing-missing-metadata")
+        copyFixture(projectDir, "drawing-board-sample")
+        val nodesFile = projectDir.resolve("analysis/app/build/cap4k-code-analysis/nodes.json")
+        nodesFile.writeText(
+            """
+            [
+              {
+                "id": "SubmitOrderCmd",
+                "name": "SubmitOrderCmd",
+                "fullName": "com.acme.demo.application.commands.SubmitOrderCmd",
+                "type": "command",
+                "missingMetadata": ["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val outputDir = projectDir.resolve("design")
+        Files.createDirectories(outputDir)
+        val sentinel = outputDir.resolve("sentinel.txt")
+        sentinel.writeText("unchanged")
+
+        val result = GradleRunner.create()
+            .withProjectDir(projectDir.toFile())
+            .withPluginClasspath()
+            .withArguments("cap4kAnalysisGenerate")
+            .buildAndFail()
+
+        assertTrue(result.output.contains("com.acme.demo.application.commands.SubmitOrderCmd"))
+        assertTrue(result.output.contains("DesignBlockMetadata"))
+        assertTrue(result.output.contains("affected capability: Drawing Board"))
+        assertTrue(result.output.contains("compileOnly classpath"))
+        assertFalse(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
+        assertEquals("unchanged", sentinel.readText())
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -2848,8 +2920,8 @@ class PipelinePluginFunctionalTest {
         assertTrue(eventFile.toFile().exists())
         assertTrue(handlerFile.toFile().exists())
         assertTrue(eventContent.contains("@DomainEvent"))
-        assertTrue(eventContent.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertTrue(eventContent.contains("@BuildingBlock("))
+        assertTrue(eventContent.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(eventContent.contains("@DesignBlockMetadata("))
         assertTrue(eventContent.contains("tag = \"domain_event\""))
         assertTrue(eventContent.contains("name = \"OrderCreated\""))
         assertTrue(eventContent.contains("packageName = \"order\""))
@@ -3377,8 +3449,8 @@ class PipelinePluginFunctionalTest {
         type: String,
         root: Boolean,
     ) {
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
-        assertTrue(content.contains("@AggregateElement("))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.AggregateElementMetadata"))
+        assertTrue(content.contains("@AggregateElementMetadata("))
         assertTrue(content.contains("aggregate = \"$aggregate\""))
         assertTrue(content.contains("name = \"$name\""))
         assertTrue(content.contains("packageName = \"$packageName\""))
@@ -3391,8 +3463,8 @@ class PipelinePluginFunctionalTest {
         family: String,
         variant: String,
     ) {
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("family = \"$family\""))
         assertFalse(content.contains("eventName = "))
         if (variant.isBlank()) {

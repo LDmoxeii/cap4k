@@ -4,8 +4,6 @@ object OptionsKeys {
     const val OUTPUT_DIR = "cap4k.codeanalysis.outputDir"
     const val SCAN_SPRING = "cap4k.codeanalysis.scanSpring"
     const val MEDIATOR_FQ = "cap4k.codeanalysis.mediatorFq"
-    const val BUILDING_BLOCK_ANNOTATION_FQ = "cap4k.codeanalysis.buildingBlockAnnotationFq"
-    const val AGGREGATE_ELEMENT_ANNOTATION_FQ = "cap4k.codeanalysis.aggregateElementAnnotationFq"
     const val DOMAIN_EVENT_ANNOTATION_FQ = "cap4k.codeanalysis.domainEventAnnotationFq"
     const val INTEGRATION_EVENT_ANNOTATION_FQ = "cap4k.codeanalysis.integrationEventAnnotationFq"
     const val EVENT_LISTENER_ANNOTATION_FQ = "cap4k.codeanalysis.eventListenerAnnotationFq"

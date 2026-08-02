@@ -8,8 +8,6 @@ data class Cap4kOptions(
     val outputDir: Path = Path("build/cap4k-code-analysis"),
     val scanSpring: Boolean = true,
     val mediatorFq: String = "com.only4.cap4k.ddd.core.Mediator",
-    val buildingBlockAnnFq: String = "com.only4.cap4k.ddd.core.annotation.BuildingBlock",
-    val aggregateElementAnnFq: String = "com.only4.cap4k.ddd.core.annotation.AggregateElement",
     val domainEventAnnFq: String = "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
     val integrationEventAnnFq: String = "com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent",
     val eventListenerAnnFq: String = "org.springframework.context.event.EventListener",
@@ -26,10 +24,6 @@ data class Cap4kOptions(
             scanSpring = System.getProperty(OptionsKeys.SCAN_SPRING)?.toBooleanStrictOrNull() ?: true,
             mediatorFq = System.getProperty(OptionsKeys.MEDIATOR_FQ)
                 ?: "com.only4.cap4k.ddd.core.Mediator",
-            aggregateElementAnnFq = System.getProperty(OptionsKeys.AGGREGATE_ELEMENT_ANNOTATION_FQ)
-                ?: "com.only4.cap4k.ddd.core.annotation.AggregateElement",
-            buildingBlockAnnFq = System.getProperty(OptionsKeys.BUILDING_BLOCK_ANNOTATION_FQ)
-                ?: "com.only4.cap4k.ddd.core.annotation.BuildingBlock",
             domainEventAnnFq = System.getProperty(OptionsKeys.DOMAIN_EVENT_ANNOTATION_FQ)
                 ?: "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
             integrationEventAnnFq = System.getProperty(OptionsKeys.INTEGRATION_EVENT_ANNOTATION_FQ)
@@ -49,3 +43,8 @@ data class Cap4kOptions(
         )
     }
 }
+
+internal const val DESIGN_BLOCK_METADATA_ANNOTATION_FQ =
+    "com.only4.cap4k.analysis.metadata.DesignBlockMetadata"
+internal const val AGGREGATE_ELEMENT_METADATA_ANNOTATION_FQ =
+    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"

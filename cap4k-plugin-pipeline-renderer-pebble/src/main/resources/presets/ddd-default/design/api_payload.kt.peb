@@ -1,5 +1,5 @@
 {% if buildingBlock is defined -%}
-{{ use("com.only4.cap4k.ddd.core.annotation.BuildingBlock") -}}
+{{ use("com.only4.cap4k.analysis.metadata.DesignBlockMetadata") -}}
 {% endif -%}
 {% if pageRequest %}
 {{ use("com.only4.cap4k.ddd.core.application.query.PageRequest") -}}
@@ -10,7 +10,7 @@ package {{ packageName }}
 import {{ import }}
 {% endfor %}
 {% if buildingBlock is defined -%}
-@BuildingBlock(
+@DesignBlockMetadata(
     tag = {{ buildingBlock.tagKotlinStringLiteral | raw }},
     name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
     packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},

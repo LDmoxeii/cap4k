@@ -8,14 +8,55 @@ import org.junit.jupiter.api.Test
 
 class DesignElementExtractionTest {
     @Test
-    fun `recovers and merges design blocks from BuildingBlock annotations`() {
+    fun `analyzer consumes the published analysis metadata annotation abi`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "Command.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.command
+
+                        interface Command<RESULT : Any>
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "RealMetadataCommand.kt",
+                    """
+                        package demo.application.commands
+
+                        import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                        import com.only4.cap4k.ddd.core.application.command.Command
+
+                        @DesignBlockMetadata(
+                            tag = "command",
+                            name = "RealMetadata",
+                            packageName = "real",
+                            family = "command",
+                        )
+                        object RealMetadataCmd {
+                            data class Request(val id: Long) : Command<Response>
+                            data class Response(val accepted: Boolean)
+                        }
+                    """.trimIndent(),
+                ),
+            )
+        )
+
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        assertTrue(json.contains("\"name\":\"RealMetadata\""), json)
+        assertTrue(json.contains("\"family\":\"command\""), json)
+        assertTrue(json.contains("\"name\":\"id\",\"type\":\"Long\""), json)
+    }
+
+    @Test
+    fun `recovers and merges design blocks from DesignBlockMetadata annotations`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -32,9 +73,9 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.queries.order
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "query",
                         packageName = "order.read",
                         name = "FindOrder",
@@ -56,9 +97,9 @@ class DesignElementExtractionTest {
                 """
                     package demo.adapter.queries.order
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "query",
                         packageName = "order.read",
                         name = "FindOrder",
@@ -96,14 +137,14 @@ class DesignElementExtractionTest {
     }
 
     @Test
-    fun `recovers generated outer BuildingBlock command request and response`() {
+    fun `recovers generated outer DesignBlockMetadata command request and response`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -120,9 +161,9 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.commands.order
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "command",
                         packageName = "order.submit",
                         name = "SubmitOrder",
@@ -152,14 +193,14 @@ class DesignElementExtractionTest {
     }
 
     @Test
-    fun `rejects conflicting BuildingBlock shared metadata`() {
+    fun `rejects conflicting DesignBlockMetadata shared metadata`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -176,9 +217,9 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.queries.order
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "query",
                         packageName = "order.read",
                         name = "FindOrder",
@@ -193,9 +234,9 @@ class DesignElementExtractionTest {
                 """
                     package demo.adapter.queries.order
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "query",
                         packageName = "order.read",
                         name = "FindOrder",
@@ -210,18 +251,18 @@ class DesignElementExtractionTest {
         val messages = compileWithCap4kPluginExpectingFailure(sources)
 
         assertTrue(
-            messages.contains("conflicting BuildingBlock metadata for query order.read FindOrder: description"),
+            messages.contains("conflicting DesignBlockMetadata for query order.read FindOrder: description"),
         )
     }
 
     @Test
-    fun `rejects BuildingBlock annotations with blank required identity`() {
+    fun `rejects DesignBlockMetadata annotations with blank required identity`() {
         val annotationSource = SourceFile.kotlin(
-            "BuildingBlock.kt",
+            "DesignBlockMetadata.kt",
             """
-                package com.only4.cap4k.ddd.core.annotation
+                package com.only4.cap4k.analysis.metadata
 
-                annotation class BuildingBlock(
+                annotation class DesignBlockMetadata(
                     val tag: String,
                     val name: String,
                     val packageName: String,
@@ -241,9 +282,9 @@ class DesignElementExtractionTest {
                     """
                         package demo.application.queries.order
 
-                        import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                        import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                        @BuildingBlock(
+                        @DesignBlockMetadata(
                             tag = " ",
                             packageName = "order.read",
                             name = "FindOrder",
@@ -262,9 +303,9 @@ class DesignElementExtractionTest {
                     """
                         package demo.application.queries.order
 
-                        import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                        import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                        @BuildingBlock(
+                        @DesignBlockMetadata(
                             tag = "query",
                             packageName = "order.read",
                             name = "FindOrder",
@@ -277,10 +318,10 @@ class DesignElementExtractionTest {
         )
 
         assertTrue(
-            blankTagMessages.contains("BuildingBlock annotation on demo.application.queries.order.BlankTagBlock must declare non-blank tag"),
+            blankTagMessages.contains("DesignBlockMetadata annotation on demo.application.queries.order.BlankTagBlock must declare non-blank tag"),
         )
         assertTrue(
-            blankFamilyMessages.contains("BuildingBlock annotation on demo.application.queries.order.BlankFamilyBlock must declare non-blank family"),
+            blankFamilyMessages.contains("DesignBlockMetadata annotation on demo.application.queries.order.BlankFamilyBlock must declare non-blank family"),
         )
     }
 
@@ -288,11 +329,11 @@ class DesignElementExtractionTest {
     fun `query handler dependencies do not become recovered fields`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -309,9 +350,9 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.queries.customer
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "query",
                         packageName = "customer.read",
                         name = "FindCustomer",
@@ -329,12 +370,12 @@ class DesignElementExtractionTest {
                 """
                     package demo.adapter.queries.customer
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
                     interface CustomerReadRepository
                     interface ClockProvider
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "query",
                         packageName = "customer.read",
                         name = "FindCustomer",
@@ -363,11 +404,11 @@ class DesignElementExtractionTest {
     fun `generated domain event recovery excludes synthetic entity constructor parameter`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -391,12 +432,12 @@ class DesignElementExtractionTest {
                 """
                     package demo.domain.aggregates.order.events
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
                     import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 
                     class Order
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "domain_event",
                         packageName = "order.events",
                         name = "OrderCreated",
@@ -430,11 +471,11 @@ class DesignElementExtractionTest {
     fun `integration subscriber dependencies do not conflict with event body fields`() {
         val sources = listOf(
             SourceFile.kotlin(
-                "BuildingBlock.kt",
+                "DesignBlockMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
+                    package com.only4.cap4k.analysis.metadata
 
-                    annotation class BuildingBlock(
+                    annotation class DesignBlockMetadata(
                         val tag: String,
                         val name: String,
                         val packageName: String,
@@ -458,11 +499,11 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.subscribers.integration.inbound.payment
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
                     import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 
                     @IntegrationEvent("demo.payment.received")
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "integration_event",
                         packageName = "payment.integration",
                         name = "PaymentReceived",
@@ -480,12 +521,12 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.subscribers.integration.inbound.payment
 
-                    import com.only4.cap4k.ddd.core.annotation.BuildingBlock
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
 
                     interface PaymentCommandPort
                     interface AuditTrail
 
-                    @BuildingBlock(
+                    @DesignBlockMetadata(
                         tag = "integration_event",
                         packageName = "payment.integration",
                         name = "PaymentReceived",
@@ -556,10 +597,10 @@ class DesignElementExtractionTest {
                 """.trimIndent()
             ),
             SourceFile.kotlin(
-                "AggregateElement.kt",
+                "AggregateElementMetadata.kt",
                 """
-                    package com.only4.cap4k.ddd.core.annotation
-                    annotation class AggregateElement(
+                    package com.only4.cap4k.analysis.metadata
+                    annotation class AggregateElementMetadata(
                         val aggregate: String = "",
                         val type: String = "",
                         val root: Boolean = false

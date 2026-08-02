@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.source.ir
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
@@ -323,6 +324,131 @@ class IrAnalysisSourceProviderTest {
     }
 
     @Test
+    fun `drawing board fails fast with symbol capability and recovery when design metadata is missing`() {
+        val dir = Files.createTempDirectory("cap4k-ir-missing-design-metadata")
+        dir.resolve("nodes.json").writeText(
+            """
+            [
+              {
+                "id":"demo.application.queries.FindOrderQry.Request",
+                "name":"FindOrderQry.Request",
+                "fullName":"demo.application.queries.FindOrderQry.Request",
+                "type":"query",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"],
+                "metadataOwner":"demo.application.queries.FindOrderQry"
+              }
+            ]
+            """.trimIndent()
+        )
+        dir.resolve("rels.json").writeText("""[]""")
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
+        }
+
+        assertTrue(error.message!!.contains("demo.application.queries.FindOrderQry"))
+        assertTrue(!error.message!!.contains("FindOrderQry.Request; missing metadata"))
+        assertTrue(error.message!!.contains("DesignBlockMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
+        assertTrue(error.message!!.contains("restore the default ddd-default generator template"))
+        assertTrue(error.message!!.contains("compileOnly classpath"))
+        assertTrue(error.message!!.contains("will not emit an apparently complete partial result"))
+    }
+
+    @Test
+    fun `flow analysis fails fast only for aggregate metadata loss`() {
+        val dir = Files.createTempDirectory("cap4k-ir-missing-aggregate-metadata")
+        dir.resolve("nodes.json").writeText(
+            """
+            [
+              {
+                "id":"demo.domain.aggregates.order.Order",
+                "name":"Order",
+                "fullName":"demo.domain.aggregates.order.Order",
+                "type":"aggregate",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"]
+              },
+              {
+                "id":"demo.application.commands.SubmitOrderCmd.Request",
+                "name":"SubmitOrderCmd.Request",
+                "fullName":"demo.application.commands.SubmitOrderCmd.Request",
+                "type":"command",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"]
+              }
+            ]
+            """.trimIndent()
+        )
+        dir.resolve("rels.json").writeText("""[]""")
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("flow")))
+        }
+
+        assertTrue(error.message!!.contains("demo.domain.aggregates.order.Order"))
+        assertTrue(error.message!!.contains("AggregateElementMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
+        assertTrue(!error.message!!.contains("SubmitOrderCmd.Request; missing metadata"))
+    }
+
+    @Test
+    fun `combined analysis request reports every missing metadata owner and affected capability`() {
+        val dir = Files.createTempDirectory("cap4k-ir-multiple-metadata-gaps")
+        dir.resolve("nodes.json").writeText(
+            """
+            [
+              {
+                "id":"demo.FindOrderQry.Request",
+                "name":"Request",
+                "fullName":"demo.FindOrderQry.Request",
+                "type":"query",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"],
+                "metadataOwner":"demo.FindOrderQry"
+              },
+              {
+                "id":"demo.Order",
+                "name":"Order",
+                "fullName":"demo.Order",
+                "type":"aggregate",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],
+                "metadataOwner":"demo.domain.Order"
+              }
+            ]
+            """.trimIndent()
+        )
+        dir.resolve("rels.json").writeText("[]")
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(
+                config(dir.toString(), generators = setOf("drawing-board", "flow"))
+            )
+        }
+
+        assertTrue(error.message!!.contains("demo.FindOrderQry"))
+        assertTrue(error.message!!.contains("DesignBlockMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
+        assertTrue(error.message!!.contains("demo.domain.Order"))
+        assertTrue(error.message!!.contains("AggregateElementMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
+        assertTrue(error.message!!.contains("Requested analysis capabilities: Drawing Board, Flow Analysis"))
+    }
+
+    @Test
+    fun `drawing board rejects candidate graph when design elements are absent even without legacy completeness fields`() {
+        val dir = Files.createTempDirectory("cap4k-ir-legacy-incomplete-drawing")
+        dir.resolve("nodes.json").writeText(
+            """[{"id":"FindOrderQry.Request","name":"Request","fullName":"demo.FindOrderQry.Request","type":"query"}]"""
+        )
+        dir.resolve("rels.json").writeText("""[]""")
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
+        }
+
+        assertTrue(error.message!!.contains("demo.FindOrderQry.Request"))
+        assertTrue(error.message!!.contains("Drawing Board"))
+    }
+
+    @Test
     fun `collect returns empty design elements when file is absent`() {
         val dir = Files.createTempDirectory("cap4k-ir-no-design")
         dir.resolve("nodes.json").writeText("""[]""")
@@ -346,7 +472,10 @@ class IrAnalysisSourceProviderTest {
         assertTrue(error.message!!.contains(dir.toString()))
     }
 
-    private fun config(vararg inputDirs: String): ProjectConfig {
+    private fun config(
+        vararg inputDirs: String,
+        generators: Set<String> = emptySet(),
+    ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
@@ -356,7 +485,7 @@ class IrAnalysisSourceProviderTest {
                     options = mapOf("inputDirs" to inputDirs.toList()),
                 )
             ),
-            generators = emptyMap(),
+            generators = generators.associateWith { GeneratorConfig() },
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
         )
     }

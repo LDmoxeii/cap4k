@@ -125,6 +125,7 @@ class PipelinePlugin : Plugin<Project> {
             ensureAggregateProjectionAdapterJpaDependency(project, config)
             ensureEnumManifestDomainDependencies(project, config)
             ensureValueObjectDomainDependencies(project, config)
+            ensureAnalysisMetadataCompileOnlyDependencies(project, config)
             val inferredSourceDependencies = inferSourceDependencies(project, config)
             if (inferredSourceDependencies.isNotEmpty()) {
                 planTask.configure { task -> task.dependsOn(inferredSourceDependencies) }
@@ -151,6 +152,8 @@ internal fun shouldInferPipelineDependencies(extension: Cap4kExtension): Boolean
         hasEnabledRegularSource(extension) ||
         hasEnabledRegularGenerator(extension)
 
+private const val CAP4K_ANALYSIS_METADATA_GROUP = "io.github.ldmoxeii"
+private const val CAP4K_ANALYSIS_METADATA_NAME = "cap4k-analysis-metadata"
 private const val JAKARTA_PERSISTENCE_GROUP = "jakarta.persistence"
 private const val JAKARTA_PERSISTENCE_NAME = "jakarta.persistence-api"
 private const val JAKARTA_PERSISTENCE_COORDINATE = "$JAKARTA_PERSISTENCE_GROUP:$JAKARTA_PERSISTENCE_NAME:3.1.0"
@@ -264,6 +267,47 @@ internal fun ensureValueObjectDomainDependencies(project: Project, config: Proje
     ensureJacksonModuleKotlinDependency(project, config, moduleRole = "domain")
 }
 
+internal fun ensureAnalysisMetadataCompileOnlyDependencies(project: Project, config: ProjectConfig) {
+    val moduleRoles = analysisMetadataModuleRoles(config)
+    if (moduleRoles.isEmpty()) {
+        return
+    }
+    val coordinate = analysisMetadataCoordinate()
+    moduleRoles.forEach { moduleRole ->
+        ensureCompileOnlyModuleDependency(
+            project = project,
+            config = config,
+            moduleRole = moduleRole,
+            group = CAP4K_ANALYSIS_METADATA_GROUP,
+            name = CAP4K_ANALYSIS_METADATA_NAME,
+            coordinate = coordinate,
+        )
+    }
+}
+
+internal fun analysisMetadataModuleRoles(config: ProjectConfig): Set<String> {
+    val roles = linkedSetOf<String>()
+    if ("design-json" in config.sources) {
+        roles += "domain"
+        roles += "application"
+        roles += "adapter"
+    }
+    if ("enum-manifest" in config.sources) {
+        roles += "domain"
+    }
+    if ("value-object-manifest" in config.sources) {
+        roles += "domain"
+    }
+    if ("aggregate" in config.generators) {
+        roles += "domain"
+        roles += "adapter"
+    }
+    if ("aggregate-projection" in config.generators) {
+        roles += "adapter"
+    }
+    return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
+}
+
 private fun hasJsonValueObjectPersistenceProjection(project: Project, config: ProjectConfig): Boolean {
     val source = config.sources["value-object-manifest"] ?: return false
     val configuredFiles = source.options["files"].asStringList()
@@ -321,6 +365,32 @@ private fun ensureJacksonModuleKotlinDependency(project: Project, config: Projec
         name = JACKSON_MODULE_KOTLIN_NAME,
         coordinate = JACKSON_MODULE_KOTLIN_COORDINATE,
     )
+}
+
+private fun analysisMetadataCoordinate(): String {
+    val version = PipelinePlugin::class.java.`package`.implementationVersion
+        ?.takeIf { value -> value.isNotBlank() }
+        ?: "development"
+    return "$CAP4K_ANALYSIS_METADATA_GROUP:$CAP4K_ANALYSIS_METADATA_NAME:$version"
+}
+
+private fun ensureCompileOnlyModuleDependency(
+    project: Project,
+    config: ProjectConfig,
+    moduleRole: String,
+    group: String,
+    name: String,
+    coordinate: String,
+) {
+    val modulePath = config.modules[moduleRole] ?: return
+    val moduleProject = resolveModuleProject(project.rootProject, modulePath) ?: return
+    val compileOnlyConfiguration = moduleProject.configurations.findByName("compileOnly") ?: return
+    val hasDependency = compileOnlyConfiguration.dependencies.any { dependency ->
+        dependency.group == group && dependency.name == name
+    }
+    if (!hasDependency) {
+        moduleProject.dependencies.add("compileOnly", coordinate)
+    }
 }
 
 private fun ensureImplementationDependency(
