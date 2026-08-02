@@ -259,6 +259,8 @@ Put(Get(generated skeleton))
 - Drawing Board 不会自动注册到 `sources.designJson.files`，采用它仍是显式的人/Agent 动作；
 - 一旦某项设计已进入 Design JSON，框架不能再要求人补字段、类型、artifact、事件方向、runtime annotation 或其他框架所有的结构。
 
+已确认采用 normalized tactical semantics，而不是 JSON 字面相等。允许归一化文件名称/数量/拆分、JSON formatting、file/entry order、artifact order、可选空数组、相同有效默认值的省略/显式写法，以及解析到相同 canonical FQN 的 type-expression spelling。不得归一化掉 field/resultField 与 nested DTO 顺序、resolved type identity、nullability、default semantics、artifact set/variant、event direction、persist/eventName 或 runtime annotation semantics。
+
 当前方向正确的部分包括：
 
 - Generator 通过 `@BuildingBlock` 携带 `tag/package/name/description/aggregates/eventName/family/variant`；

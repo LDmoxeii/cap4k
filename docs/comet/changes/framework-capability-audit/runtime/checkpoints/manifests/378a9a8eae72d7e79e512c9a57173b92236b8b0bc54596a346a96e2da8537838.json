@@ -1,0 +1,12 @@
+{
+  "schema": "comet.native.checkpoint-manifest.v1",
+  "change": "framework-capability-audit",
+  "artifacts": [
+    {
+      "path": "docs/superpowers/analysis/2026-08-02-generator-capability-audit.md",
+      "hash": "3e45c58c58de5e1d5309b963c3f2356d9fe6276774a8db7be20dfb339ac5baba",
+      "size": 31325
+    }
+  ],
+  "totalBytes": 31325
+}

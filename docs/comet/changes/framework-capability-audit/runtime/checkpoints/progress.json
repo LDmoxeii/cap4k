@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "be9dfa88-9efe-40aa-907d-70fc76552a0a",
+  "id": "efc25af1-9433-4475-b08d-b3bcea43f68f",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 6,
-  "stateRevision": 7,
-  "summary": "User clarified that Design JSON, generated skeleton, and Drawing Board must carry the same tactical design without manual structural repair. Audit reclassified G-05 as a blocking Generator/Analyzer semantic round-trip gap and recorded concrete irreversible drifts plus real acceptance evidence.",
-  "nextAction": "Confirm normalized semantic equality versus literal JSON equality, then resolve downstream round-trip contract decisions such as domain_service field ownership.",
-  "inputHash": "ec525e05bf3aa4772eb5bca749e0f2aba674485bcfd74574562bdcfdb02ca709",
-  "manifestHash": "2e8b49282751534a1548243a805a77377eeb96b690521bec62c0b4577a003bcb",
-  "manifestRef": "runtime/checkpoints/manifests/2e8b49282751534a1548243a805a77377eeb96b690521bec62c0b4577a003bcb.json",
+  "previousRevision": 7,
+  "stateRevision": 8,
+  "summary": "User selected normalized tactical semantic equality. The contract now permits representation-only normalization while preserving field order, canonical type identity, defaults, artifacts, event semantics, and runtime annotations.",
+  "nextAction": "Decide whether domain_service remains a metadata-only anchor that rejects fields or expands into a first-class operation schema.",
+  "inputHash": "509b89181b686bffb628e24cd02256ac8530736723a92a21c0131b2c32965def",
+  "manifestHash": "378a9a8eae72d7e79e512c9a57173b92236b8b0bc54596a346a96e2da8537838",
+  "manifestRef": "runtime/checkpoints/manifests/378a9a8eae72d7e79e512c9a57173b92236b8b0bc54596a346a96e2da8537838.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:15:37.837Z"
+  "createdAt": "2026-08-02T05:20:35.242Z"
 }
