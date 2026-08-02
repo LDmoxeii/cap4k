@@ -2357,7 +2357,7 @@ class PipelinePluginFunctionalTest {
         val result = GradleRunner.create()
             .withProjectDir(projectDir.toFile())
             .withPluginClasspath()
-            .withArguments("cap4kAnalysisPlan")
+            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
             .build()
 
         val analysisPlanFile = projectDir.resolve("build/cap4k/analysis-plan.json")
@@ -3630,5 +3630,3 @@ class FunctionalTestPipelineExtensionProvider :
     override val contributions: List<com.only4.cap4k.plugin.pipeline.api.PipelineContribution> =
         listOf(FunctionalTestArtifactAddonProvider())
 }
-
-\n
