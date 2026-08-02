@@ -203,9 +203,9 @@ Spring 默认 String conversion 无法识别这些生成类型。仓库也没有
 
 ### G-04 — Offline input validator is useful but non-authoritative
 
-- 分类：`partial`
+- 分类：`partial` / accepted retirement
 - 责任块：authoring diagnostics
-- Gate 影响：non-blocking
+- Gate 影响：accepted cleanup required
 
 `scripts/validate-cap4k-generator-inputs.py` 能提前发现一部分明显输入错误，且文档已明确它不能替代 `cap4kPlan`。当前脚本执行通过。
 
@@ -223,7 +223,16 @@ Spring 默认 String conversion 无法识别这些生成类型。仓库也没有
 - `DefaultCanonicalAssembler.kt:1154-1159`
 - `docs/public/reference/generator-input-validation.md:3-7`
 
-这不是当前 core 缺口。后续应明确二选一：若保留离线 validator，则只承诺稳定、低成本的 preflight subset 并为该 subset 加测试；若实际 authoring 全部走 Gradle/Agent API，则可以删除重复 contract，避免形成第二套易漂移 parser。Issue #113 不能按其旧的“大型静态 Skill 事实库”方案继续执行。
+已确认决策：删除这套独立 Python validator，不再把它强化成第二个 authoring product。权威校验收敛到实际 source provider、canonical assembler、`cap4kPlan` diagnostics 与 Agent API evidence。Issue #113 不能按其旧的“大型静态 Skill 事实库 + 离线规则复制”方案继续执行。
+
+清理验收应包含：
+
+- 删除 `scripts/validate-cap4k-generator-inputs.py`；
+- 删除 `docs/public/reference/generator-input-validation.md` 及所有导航、README、示例引用；
+- 删除只服务该脚本的 fixture、命令说明或 CI wiring；
+- 不保留 alias、deprecated wrapper 或 no-op command；
+- 确认被脚本部分覆盖的真实规则在 source/canonical tests 中有当前 owner；
+- Agent authoring route 继续以 snapshot、inputs、diagnostics、ownership 和显式 plan task 为入口。
 
 ### G-05 — Drawing-board recovery issue is substantially resolved
 
@@ -380,6 +389,7 @@ python scripts/validate-cap4k-generator-inputs.py
 1. 按已确认决策消除 Scheduled Reaction descriptor/docs 与实际 generator/runtime contract 的漂移。
 2. 修正 `plan.json` 当前公开 contract example。
 3. 按已确认决策修复 Strong ID MVC binding，并通过真实 HTTP adapter binding evidence。
-4. 将 G-04、G-05、G-06、G-07、G-08、G-09 记录为已接受的 partial/provider/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。
+4. 按已确认决策删除独立 Python input validator 及其公共 contract surface。
+5. 将 G-05、G-06、G-07、G-08、G-09 记录为已接受的 partial/provider/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。
 
 Generator 修复不得弱化 PR #152 已确认的 runtime reliable-event payload boundary。生成的 persisted Domain Event 必须继续满足 runtime 对历史事实 payload 的拒绝实体规则。

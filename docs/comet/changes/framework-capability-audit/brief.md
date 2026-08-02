@@ -49,10 +49,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Compatibility work requires future evidence of a real consumer and an explicit compatibility requirement.
 - Scheduled Reaction remains a handwritten application Job/reaction surface. Remove it from the Design JSON capability descriptor and generated-skeleton claims; do not add a first-class tag, canonical carrier, planner, template, or runtime execution contract in this audit cycle.
 - Strong ID Spring MVC path/query binding is part of the Generator gate. Every generated Strong ID must expose a JVM-static String factory that delegates to the existing semantic parser; Runtime must not add reflection-based conversion machinery. Verify the contract with real MVC path and query binding tests.
+- Retire the standalone Python generator-input validator and its public documentation surface. Authoritative validation belongs to the actual source providers, canonical assembler, `cap4kPlan` diagnostics, and Agent API evidence; do not preserve a second partial parser or compatibility command.
 
 # Open questions
 
-- Should the standalone Python input validator be retired in favor of authoritative source parsing, `cap4kPlan` diagnostics, and Agent API evidence? This is the recommended option because the thin Skill does not route through the script, the script duplicates only a partial subset of Design JSON/schema/manifest rules, and cap4k has no external compatibility requirement. The alternative is to keep it as a deliberately bounded preflight product and add a maintained conformance test suite for every promised subset.
+- Should read-model weak-reference projection remain an explicitly optional provider/extension boundary for this audit, with the built-in `aggregate-projection` documented as opt-in, adapter-owned, scalar-only, and without read-model runtime? This is the recommended option because typed identity, Aggregate relations, Query generation, and the existing scalar projection path are already sufficient for the accepted DDD core; implementing dedicated `weakReferences` metadata would be an advanced CQRS projection feature. The alternative is to make that advanced metadata and template contract part of the Generator gate before downstream validation.
 
 # Verification expectations
 

@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "521d2626-1d5e-4325-90de-0d9a8092a94c",
+  "id": "f06c3b50-08af-43be-9117-f73829fc681c",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 3,
-  "stateRevision": 4,
-  "summary": "User confirmed that Strong ID MVC binding is required in the Generator gate. Generator will emit a JVM-static String factory; Runtime remains free of reflection conversion machinery.",
-  "nextAction": "Decide whether to retire the standalone Python input validator or keep it as a separately tested bounded preflight product.",
-  "inputHash": "172a4d0ec2e0871bbbca8814b9b8f83969be3eb5e8679d382a07a33e2797371e",
-  "manifestHash": "a3cef67f6254692caffe314588811e30e38b7c4f2b613b1726c54e3fe5171c9a",
-  "manifestRef": "runtime/checkpoints/manifests/a3cef67f6254692caffe314588811e30e38b7c4f2b613b1726c54e3fe5171c9a.json",
+  "previousRevision": 4,
+  "stateRevision": 5,
+  "summary": "User confirmed retirement of the standalone Python generator-input validator. Authoritative validation is consolidated in source providers, canonical assembly, plan diagnostics, and Agent API evidence.",
+  "nextAction": "Decide whether read-model weak-reference projection stays an optional provider boundary or becomes part of the Generator gate.",
+  "inputHash": "b1aeed17fddc2ac6c7fb5b1827581c7c376f993918d2f1ddc115fc42fb4f4316",
+  "manifestHash": "c3673b367c4cafd41dd5a8578fe9f27871555bc8ab335d47f9e4f638bef7f936",
+  "manifestRef": "runtime/checkpoints/manifests/c3673b367c4cafd41dd5a8578fe9f27871555bc8ab335d47f9e4f638bef7f936.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T04:47:17.851Z"
+  "createdAt": "2026-08-02T04:48:33.873Z"
 }
