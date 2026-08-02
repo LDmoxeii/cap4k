@@ -1,0 +1,167 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "047b7b73a02771bf355fad4fc3d8b655121fff223b1bbdcb6fd28756a3248962",
+  "baselineProjectionRef": "runtime/evidence/snapshots/4764261f79f069bd70f5d8c1807fc8665a58ea2b9d2bb462c73d0a4c60fc4675.json",
+  "baselineProjectionHash": "4764261f79f069bd70f5d8c1807fc8665a58ea2b9d2bb462c73d0a4c60fc4675",
+  "currentProjectionRef": "runtime/evidence/snapshots/2462720f3ab5fec78f702966a675e6d5a5605d1baec052352e34a1d30a90490b.json",
+  "currentProjectionHash": "2462720f3ab5fec78f702966a675e6d5a5605d1baec052352e34a1d30a90490b",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "8f2810ada16f3e71862be88132e845d8c056fa6e9f2352edaf6181c425f47f1f",
+        "size": 10777
+      },
+      "after": {
+        "hash": "1cd134ef82645b7a2ace924574c1668d53bf7c3f0713fda29bd33ff1ea4330b4",
+        "size": 11059
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "23779dfb93669662339cf08df717e4ba04280c3b8fb2aa22f41ae0d8c7d8dcb8",
+        "size": 17274
+      },
+      "after": {
+        "hash": "39a3c29ce00917766f3be911625fe96f01f41c786f682ef907f998926db09b6d",
+        "size": 17915
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "9a31e60bfd4615507b1c65e8559771d42076c17ebab944b26cf95e8769ab5904",
+        "size": 9754
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "cf9e16152c1b94eb2d82391fda0a194b2ac238945835547d453cfdcdb78ad172",
+        "size": 3464
+      },
+      "after": {
+        "hash": "cabfb6614941f7b8336d92e2b6f7c46604b0f6239202aefa83a19cec1cab7744",
+        "size": 3534
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "78933ea911532461ccadbcc8cdd35a18bc64abfa6a1f49a9558c521bfdd1e42b",
+        "size": 446685
+      },
+      "after": {
+        "hash": "65f70685c358c019d74760e0c728f84889c18ce73130080efc5573f308eba491",
+        "size": 446778
+      },
+      "attributedTo": []
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "8f2810ada16f3e71862be88132e845d8c056fa6e9f2352edaf6181c425f47f1f",
+        "size": 10777
+      },
+      "after": {
+        "hash": "1cd134ef82645b7a2ace924574c1668d53bf7c3f0713fda29bd33ff1ea4330b4",
+        "size": 11059
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "23779dfb93669662339cf08df717e4ba04280c3b8fb2aa22f41ae0d8c7d8dcb8",
+        "size": 17274
+      },
+      "after": {
+        "hash": "39a3c29ce00917766f3be911625fe96f01f41c786f682ef907f998926db09b6d",
+        "size": 17915
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "9a31e60bfd4615507b1c65e8559771d42076c17ebab944b26cf95e8769ab5904",
+        "size": 9754
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "78933ea911532461ccadbcc8cdd35a18bc64abfa6a1f49a9558c521bfdd1e42b",
+        "size": 446685
+      },
+      "after": {
+        "hash": "65f70685c358c019d74760e0c728f84889c18ce73130080efc5573f308eba491",
+        "size": 446778
+      },
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:7e383614e1c709fc208cec95671710a0474c57f3ac9b090d18e6ac5bd694675a",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/StrongIdJacksonRuntimeTest.kt"
+    },
+    {
+      "id": "scope:066f1c04817af52277df3d5ce2dd729abc8b3bc18f9ea383777e084538e75b22",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdJpaRuntimeTest.kt"
+    },
+    {
+      "id": "scope:bc5bf206ba5ea4285bea44e75bd22ff88724ee182f8f32953b60982376627e87",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdSpringMvcRuntimeTest.kt"
+    },
+    {
+      "id": "scope:28aaa2435d29474877171a75ed4a066c0974b9f54133f614057fb977b77ea1b1",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "080a50ead33dd0f5f163fb64cdc31c07b437aabc3efd552678b8059a8c867b60"
+}

@@ -166,6 +166,9 @@ class UuidTextId protected constructor() : StrongId<String>, Serializable {
         fun parse(value: String): UuidTextId = of(value)
 
         @JvmStatic
+        fun from(value: String): UuidTextId = parse(value)
+
+        @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         fun fromJson(value: JsonNode): UuidTextId {
             require(value.isTextual) { "UuidTextId JSON value must be a string" }
@@ -201,6 +204,9 @@ class UuidNativeId protected constructor() : StrongId<UUID>, Serializable {
 
         fun parse(value: String): UuidNativeId =
             of(UUID.fromString(StrongIds.requireUuidV7(value, "UuidNativeId")))
+
+        @JvmStatic
+        fun from(value: String): UuidNativeId = parse(value)
 
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
@@ -239,6 +245,9 @@ class SnowflakeTextId protected constructor() : StrongId<String>, Serializable {
         fun parse(value: String): SnowflakeTextId = of(value)
 
         @JvmStatic
+        fun from(value: String): SnowflakeTextId = parse(value)
+
+        @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
         fun fromJson(value: JsonNode): SnowflakeTextId {
             require(value.isTextual) { "SnowflakeTextId JSON value must be a string" }
@@ -274,6 +283,9 @@ class SnowflakeLongId protected constructor() : StrongId<Long>, Serializable {
 
         fun parse(value: String): SnowflakeLongId =
             of(StrongIds.requireSnowflake(value, "SnowflakeLongId").toLong())
+
+        @JvmStatic
+        fun from(value: String): SnowflakeLongId = parse(value)
 
         @JvmStatic
         @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
