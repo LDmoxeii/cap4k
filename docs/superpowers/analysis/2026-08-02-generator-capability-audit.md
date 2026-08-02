@@ -284,6 +284,8 @@ Put(Get(generated skeleton))
    - `cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt:289-315`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:27-36`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/integration_event.kt.peb:29-42`
+
+   已确认修复边界：Domain/Integration Event fields 继续共享 Design JSON 的 `defaultValue` contract。Generator 必须在 event payload 与 nested DTO constructor 渲染现有 stable default-expression subset，Analyzer 必须恢复同一 normalized default semantics。默认值是否符合领域事实由作者决定，framework 不得静默丢弃已接受的 default。
 5. **Domain Service fields 被接受后静默丢弃。** Parser/canonical 接受并编译 `domain_service.fields`，Domain Service render model/template 和 Analyzer 却没有 field carrier。当前 schema 也没有 operation name、参数归属和返回值，不能诚实生成领域服务方法 contract：
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:727-784`
    - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainServiceRenderModels.kt:5-26`

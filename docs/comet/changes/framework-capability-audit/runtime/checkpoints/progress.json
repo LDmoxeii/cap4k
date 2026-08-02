@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "a65bb295-2127-4325-8a3e-aa4929c4e3ea",
+  "id": "91d43120-0e0c-4222-940a-1317672612e5",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 9,
-  "stateRevision": 10,
-  "summary": "User selected the strict artifact contract. Every accepted entry must have a non-empty tag-compatible artifact set with its primary carrier; secondary-only, cross-tag, empty, and invalid subscriber combinations fail fast without a new metadata carrier.",
-  "nextAction": "Decide whether Domain and Integration Event fields preserve defaultValue losslessly or reject event defaults.",
-  "inputHash": "671a87f7e0fa441deea13f1dd48ea617e1a16ff494811ee2ed6bc58d28de136b",
-  "manifestHash": "9b46465550d695e894ab3bd164423db3076f5a3a5593d626f0c54c8cf9777703",
-  "manifestRef": "runtime/checkpoints/manifests/9b46465550d695e894ab3bd164423db3076f5a3a5593d626f0c54c8cf9777703.json",
+  "previousRevision": 10,
+  "stateRevision": 11,
+  "summary": "User confirmed Domain and Integration Event fields retain the shared defaultValue contract. Generator and Analyzer must project supported stable defaults losslessly, including nested payload types.",
+  "nextAction": "Decide the explicit domain_event.eventName contract, especially for persisted reliable events whose runtime eventType currently comes from DomainEvent.value.",
+  "inputHash": "eddeab6c3bcacba2ae5df9b678bbfb52a3c95f1036720f002b32ee020a56cc6f",
+  "manifestHash": "dd1b9c907ea8e7a6d741011c4626f19a9a5f209295d74e758dc9aaea0a1d4d0a",
+  "manifestRef": "runtime/checkpoints/manifests/dd1b9c907ea8e7a6d741011c4626f19a9a5f209295d74e758dc9aaea0a1d4d0a.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:25:31.203Z"
+  "createdAt": "2026-08-02T05:28:37.961Z"
 }
