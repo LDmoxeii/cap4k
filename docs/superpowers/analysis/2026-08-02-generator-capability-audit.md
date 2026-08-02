@@ -100,7 +100,7 @@ Agent Snapshot 的 ownership section 有意只投影审查所需的稳定 owners
 
 - 分类：`drift`
 - 责任块：Generator contract；同时影响 Skill/Agent API 与公共文档
-- Gate 影响：blocking
+- Gate 影响：accepted repair required
 
 `DesignJsonSourceProvider.descriptor.tacticalCarriers` 声称支持 `Scheduled Reaction`：
 
@@ -129,7 +129,16 @@ Canonical assembler 的 supported tag/default artifact contract 也只有同样�
 
 由于 Agent API 会投影 provider descriptor，Agent 当前会收到错误的机器可读能力事实。现有 descriptor test 还把错误声明锁成了预期值，因此单纯“测试通过”不能证明 descriptor 与 parser/planner 一致。
 
-推荐方向：删除虚假的生成承诺，把 Scheduled Reaction 保持为手写 application reaction/Job surface；只有未来确认需要统一输入、代码形状和 runtime contract 时，才新增一等 carrier。修复时应加入跨 descriptor、tag、canonical artifact、planner registration 的一致性测试，而不是继续维护孤立字符串断言。
+已确认决策：删除虚假的生成承诺，把 Scheduled Reaction 保持为手写 application reaction/Job surface；本轮不新增 tag、canonical carrier、planner、template 或 runtime execution contract。未来只有在出现真实统一建模需求后，才单独设计一等 carrier。
+
+修复验收应包含：
+
+- 从 `DesignJsonSourceProvider.descriptor.tacticalCarriers` 删除 `Scheduled Reaction`；
+- 修正所有“generator 提供 Scheduled Reaction skeleton”的公共文档；
+- 保留 application layer 对手写 Job/reaction 这一概念位置的说明；
+- 修正当前锁定错误 descriptor 的测试；
+- 增加 descriptor、supported tag、canonical artifact 与 planner registration 的一致性证据，避免再次出现机器事实漂移；
+- 不增加兼容 alias、空 planner 或 no-op runtime carrier。
 
 ### G-02 — Strong ID Spring MVC binding gap
 
@@ -358,7 +367,7 @@ python scripts/validate-cap4k-generator-inputs.py
 
 解除条件：
 
-1. 决定并消除 Scheduled Reaction descriptor/docs 与实际 generator/runtime contract 的漂移。
+1. 按已确认决策消除 Scheduled Reaction descriptor/docs 与实际 generator/runtime contract 的漂移。
 2. 修正 `plan.json` 当前公开 contract example。
 3. 决定是否在 Generator gate 内修复 Strong ID MVC binding；若暂缓，必须明确 downstream validation 不覆盖 HTTP typed-id binding，否则下游 gate 仍会失败。
 4. 将 G-04、G-05、G-06、G-07、G-08、G-09 记录为已接受的 partial/provider/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。

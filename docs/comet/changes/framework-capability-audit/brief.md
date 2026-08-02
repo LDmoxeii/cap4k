@@ -47,10 +47,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Findings are discussed before implementation; implementation is forked into another session and branch by the user when accepted.
 - Perform one combined downstream validation only after all four blocks have a coherent current contract.
 - Compatibility work requires future evidence of a real consumer and an explicit compatibility requirement.
+- Scheduled Reaction remains a handwritten application Job/reaction surface. Remove it from the Design JSON capability descriptor and generated-skeleton claims; do not add a first-class tag, canonical carrier, planner, template, or runtime execution contract in this audit cycle.
 
 # Open questions
 
-- Should the current Generator contract remove `Scheduled Reaction` from the Design JSON capability descriptor and generated-skeleton documentation, while retaining it only as a handwritten application reaction/Job surface unless a future first-class carrier and runtime contract are explicitly designed? This is the recommended option because current tags, canonical assembly, planners, templates, runtime carriers, and the thin Skill already support that boundary; the alternative would be a materially new Generator/Runtime capability rather than a documentation correction.
+- Should Generator close the Strong ID Spring MVC binding gap now by emitting a JVM-static String factory for every generated Strong ID and verifying real path/query binding, while keeping Runtime free of reflection-based conversion machinery? This is the recommended option because typed identifiers are already cap4k's default generated identity contract and the combined downstream validation is expected to exercise an HTTP adapter. The alternative is to accept the capability as partial and explicitly exclude typed path/query parameters from downstream validation.
 
 # Verification expectations
 

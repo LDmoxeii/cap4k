@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "42b77b12-8588-4a64-8248-cd6a82557c13",
+  "id": "97c6e07e-0568-4b52-922c-e62cadaff738",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 1,
-  "stateRevision": 2,
-  "summary": "Generator audit evidence is complete. Core source-canonical-plan-render chain is verified; blocking drift remains around Scheduled Reaction and plan contract docs, and Strong ID MVC binding is a cross-surface partial.",
-  "nextAction": "Obtain the Scheduled Reaction contract decision, then record accepted Generator repair slices before auditing Runtime.",
-  "inputHash": "28d22f911f168b01f8cdb4d04a9dacf77364036b7076af7990594f0c39e2769f",
-  "manifestHash": "468769930421d9f2c6776a50ba8f8a2eeb886e3eb0df1b87807b88542044f9de",
-  "manifestRef": "runtime/checkpoints/manifests/468769930421d9f2c6776a50ba8f8a2eeb886e3eb0df1b87807b88542044f9de.json",
+  "previousRevision": 2,
+  "stateRevision": 3,
+  "summary": "User confirmed that Scheduled Reaction remains handwritten and must be removed from Generator capability claims without adding a first-class carrier.",
+  "nextAction": "Decide whether Strong ID Spring MVC binding is repaired in the Generator gate or excluded from downstream HTTP validation.",
+  "inputHash": "5199db69a255e1e037726fafc5ad26e07f823f7748decb60d30c801f231df23c",
+  "manifestHash": "30dd3e28210f1b70453c455c6977aa2ef3e7fafa9a1b14afb40d0878cd40da70",
+  "manifestRef": "runtime/checkpoints/manifests/30dd3e28210f1b70453c455c6977aa2ef3e7fafa9a1b14afb40d0878cd40da70.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T04:41:11.435Z"
+  "createdAt": "2026-08-02T04:45:32.917Z"
 }
