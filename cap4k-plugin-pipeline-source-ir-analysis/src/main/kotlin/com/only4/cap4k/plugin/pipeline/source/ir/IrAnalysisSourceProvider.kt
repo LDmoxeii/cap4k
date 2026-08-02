@@ -69,7 +69,19 @@ class IrAnalysisSourceProvider : SourceProvider {
             }
 
             parseNodes(nodesFile).forEach { node ->
-                nodesById.putIfAbsent(node.id, node)
+                val existing = nodesById[node.id]
+                nodesById[node.id] = if (existing == null) {
+                    node
+                } else {
+                    val metadataOwners = listOfNotNull(existing.metadataOwner, node.metadataOwner).distinct()
+                    require(metadataOwners.size <= 1) {
+                        "conflicting analysis metadata owner for ${node.id}: ${metadataOwners.joinToString(", ")}"
+                    }
+                    existing.copy(
+                        missingMetadata = (existing.missingMetadata + node.missingMetadata).distinct(),
+                        metadataOwner = metadataOwners.singleOrNull(),
+                    )
+                }
             }
             parseEdges(relsFile).forEach { edge ->
                 edgeKeys.add(EdgeKey(edge.fromId, edge.toId, edge.type, edge.label))
@@ -80,6 +92,12 @@ class IrAnalysisSourceProvider : SourceProvider {
                 designElements.addAll(parseDesignElements(designElementsFile))
             }
         }
+
+        requireRequestedAnalysisMetadata(
+            config = config,
+            nodes = nodesById.values,
+            designElements = designElements,
+        )
 
         return IrAnalysisSnapshot(
             inputDirs = inputDirs,
@@ -93,6 +111,64 @@ class IrAnalysisSourceProvider : SourceProvider {
                 )
             },
             designElements = designElements,
+        )
+    }
+
+    private fun requireRequestedAnalysisMetadata(
+        config: ProjectConfig,
+        nodes: Collection<IrNodeSnapshot>,
+        designElements: List<DesignElementSnapshot>,
+    ) {
+        val requestedCapabilities = linkedSetOf<String>()
+        val missing = linkedMapOf<Pair<String, String>, LinkedHashSet<String>>()
+
+        if ("drawing-board" in config.generators) {
+            requestedCapabilities += DRAWING_BOARD_CAPABILITY
+            nodes.forEach { node ->
+                if (DESIGN_BLOCK_METADATA_FQ in node.missingMetadata) {
+                    missing.getOrPut((node.metadataOwner ?: node.fullName) to DESIGN_BLOCK_METADATA_FQ) { linkedSetOf() }
+                        .add(DRAWING_BOARD_CAPABILITY)
+                }
+            }
+            if (designElements.isEmpty()) {
+                nodes.asSequence()
+                    .filter { node -> node.type.lowercase() in DRAWING_BOARD_CANDIDATE_NODE_TYPES }
+                    .forEach { node ->
+                        missing.getOrPut((node.metadataOwner ?: node.fullName) to DESIGN_BLOCK_METADATA_FQ) { linkedSetOf() }
+                            .add(DRAWING_BOARD_CAPABILITY)
+                    }
+            }
+        }
+        if ("flow" in config.generators) {
+            requestedCapabilities += FLOW_ANALYSIS_CAPABILITY
+            nodes.forEach { node ->
+                if (AGGREGATE_ELEMENT_METADATA_FQ in node.missingMetadata) {
+                    missing.getOrPut((node.metadataOwner ?: node.fullName) to AGGREGATE_ELEMENT_METADATA_FQ) { linkedSetOf() }
+                        .add(FLOW_ANALYSIS_CAPABILITY)
+                }
+            }
+        }
+
+        if (missing.isEmpty()) {
+            return
+        }
+
+        val details = missing.entries.joinToString(separator = System.lineSeparator()) { (key, capabilities) ->
+            val (symbol, metadataFq) = key
+            "- symbol: $symbol; missing metadata: $metadataFq; affected capability: ${capabilities.joinToString(", ")}"
+        }
+        throw IllegalArgumentException(
+            buildString {
+                appendLine("Cap4k analysis metadata contract violation.")
+                appendLine(details)
+                appendLine("Requested analysis capabilities: ${requestedCapabilities.joinToString(", ")}.")
+                append(
+                    "Recovery: restore the default ddd-default generator template for each symbol, or add the listed " +
+                        "metadata annotation and keep io.github.ldmoxeii:cap4k-analysis-metadata on the owning " +
+                        "business module compileOnly classpath. Custom templates that omit analysis metadata explicitly " +
+                        "opt out of the affected capability; Cap4k will not emit an apparently complete partial result."
+                )
+            }
         )
     }
 
@@ -111,6 +187,8 @@ class IrAnalysisSourceProvider : SourceProvider {
                 name = normalizedName,
                 fullName = normalizedFullName,
                 type = normalizedType,
+                missingMetadata = obj.stringList("missingMetadata", context),
+                metadataOwner = obj.stringValue("metadataOwner")?.trim()?.takeIf(String::isNotEmpty),
             )
         }
     }
@@ -218,6 +296,27 @@ class IrAnalysisSourceProvider : SourceProvider {
         val normalized = id.replace('$', '.')
         val byMethod = normalized.substringAfterLast("::", missingDelimiterValue = normalized)
         return byMethod.substringAfterLast('.')
+    }
+
+    private companion object {
+        const val DESIGN_BLOCK_METADATA_FQ = "com.only4.cap4k.analysis.metadata.DesignBlockMetadata"
+        const val AGGREGATE_ELEMENT_METADATA_FQ = "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
+        const val DRAWING_BOARD_CAPABILITY = "Drawing Board"
+        const val FLOW_ANALYSIS_CAPABILITY = "Flow Analysis"
+        val DRAWING_BOARD_CANDIDATE_NODE_TYPES = setOf(
+            "command",
+            "commandhandler",
+            "query",
+            "queryhandler",
+            "capability",
+            "capabilityhandler",
+            "apipayload",
+            "domainevent",
+            "domaineventhandler",
+            "integrationevent",
+            "integrationeventhandler",
+            "domainservice",
+        )
     }
 
     private fun JsonElement.asJsonObjectOrNull() = if (isJsonObject) asJsonObject else null

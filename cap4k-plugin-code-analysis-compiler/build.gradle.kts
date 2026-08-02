@@ -7,6 +7,11 @@ dependencies {
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.20")
 
     testImplementation(platform(libs.junit.bom))
+    testImplementation(project(":cap4k-analysis-metadata"))
+    testImplementation(project(":cap4k-plugin-pipeline-api"))
+    testImplementation(project(":cap4k-plugin-pipeline-renderer-api"))
+    testImplementation(project(":cap4k-plugin-pipeline-renderer-pebble"))
+    testImplementation(project(":cap4k-plugin-pipeline-source-ir-analysis"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

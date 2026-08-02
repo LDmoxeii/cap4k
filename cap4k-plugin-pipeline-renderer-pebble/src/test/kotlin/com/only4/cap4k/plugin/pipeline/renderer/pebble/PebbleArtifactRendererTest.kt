@@ -366,8 +366,8 @@ class PebbleArtifactRendererTest {
         variant: String = "",
         aggregates: List<String> = listOf("Order"),
     ) {
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("tag = \"$tag\""))
         assertTrue(content.contains("name = \"$name\""))
         assertTrue(content.contains("aggregates = [${aggregates.joinToString(", ") { "\"$it\"" }}]"))
@@ -441,10 +441,10 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("jakarta.persistence"))
         assertFalse(content.contains("ObjectMapper"))
         assertFalse(content.contains("AttributeConverter"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
         assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
         assertTrue(content.contains("import java.math.BigDecimal"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("tag = \"value_object\""))
         assertTrue(content.contains("name = \"Money\""))
         assertTrue(content.contains("packageName = \"com.acme.demo.domain.shared.values\""))
@@ -529,7 +529,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class MoneyJsonAttributeConverter : AttributeConverter<Money, String>"))
         assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
         assertTrue(content.contains("mapper.readValue<Money>(it)"))
-        assertFalse(content.contains("BuildingBlock"))
+        assertFalse(content.contains("DesignBlockMetadata"))
     }
 
     @Test
@@ -641,13 +641,13 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(entityContent.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
-        assertTrue(entityContent.contains("@AggregateElement("))
+        assertTrue(entityContent.contains("import com.only4.cap4k.analysis.metadata.AggregateElementMetadata"))
+        assertTrue(entityContent.contains("@AggregateElementMetadata("))
         assertTrue(entityContent.contains("""aggregate = "VideoPost""""))
         assertTrue(entityContent.contains("""packageName = "video_post""""))
         assertTrue(entityContent.contains("""type = "entity""""))
         assertTrue(entityContent.contains("root = true"))
-        assertTrue(factoryContent.contains("@AggregateElement("))
+        assertTrue(factoryContent.contains("@AggregateElementMetadata("))
         assertTrue(factoryContent.contains("""type = "factory""""))
         assertFalse(factoryContent.contains("""name = "VideoPostPayload""""))
         assertFalse(factoryContent.contains("factory-payload"))
@@ -2326,7 +2326,7 @@ class PebbleArtifactRendererTest {
         )
 
         assertTrue(content.contains("@Entity"))
-        assertFalse(content.contains("@AggregateElement("))
+        assertFalse(content.contains("@AggregateElementMetadata("))
         assertFalse(content.contains(legacyAggregateCall))
     }
 
@@ -8492,7 +8492,7 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@DomainEvent"))
-        assertFalse(content.contains("@BuildingBlock("))
+        assertFalse(content.contains("@DesignBlockMetadata("))
         assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("* order * / \"created\" event"))
         assertFalse(content.contains("* order */ \"created\" event"))
@@ -8658,8 +8658,8 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("tag = \"domain_event\""))
         assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
         assertTrue(content.contains("packageName = ${"or\"der\\pkg ${'$'}status".toTestKotlinStringLiteral()}"))
@@ -8837,8 +8837,8 @@ class PebbleArtifactRendererTest {
                 "items" to listOf(mapOf("value" to 0, "name" to "HIDDEN", "description" to "Hidden")),
             ),
         )
-        assertFalse(dbDerivedEnum.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertFalse(dbDerivedEnum.contains("@BuildingBlock("))
+        assertFalse(dbDerivedEnum.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertFalse(dbDerivedEnum.contains("@DesignBlockMetadata("))
     }
 
     @Test

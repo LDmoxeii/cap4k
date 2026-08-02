@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: analysis-metadata-contract
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 5cff612eed083d74a2233f9e8088e094411611c71b6d3f75d40c0f7e09cc905b
+spec_changes:
+  - capability: analysis-metadata-contract
+    operation: create
+    source: specs/analysis-metadata-contract/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/d85fbfb57ceb9077300150e46745aae16f820bb70cc604a84af55c7e96f15017.json
+verification_evidence: runtime/evidence/verifications/a7ef4ac0c93a5ca0b087600831153816a78262e1134577b79ac7bf2ecb5b2689.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-02
+run_id: 7f1d4557-5ee6-485f-93ab-b4e034e31561

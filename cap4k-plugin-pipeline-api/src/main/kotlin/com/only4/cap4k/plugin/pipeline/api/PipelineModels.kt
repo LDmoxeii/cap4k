@@ -142,6 +142,8 @@ data class IrNodeSnapshot(
     val name: String,
     val fullName: String,
     val type: String,
+    val missingMetadata: List<String> = emptyList(),
+    val metadataOwner: String? = null,
 )
 
 data class IrEdgeSnapshot(
@@ -386,6 +388,8 @@ data class AnalysisNodeModel(
     val name: String,
     val fullName: String,
     val type: String,
+    val missingMetadata: List<String> = emptyList(),
+    val metadataOwner: String? = null,
 )
 
 data class AnalysisEdgeModel(

@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-analysis-metadata-contract",
+  "role": "post",
+  "hash": "8bcb2b9ad3cff05e7bc67b7395b14181e5e3c473b798fc70c4db9319d264126c",
+  "identity": {
+    "dev": 950912656,
+    "ino": 3377699726165332,
+    "birthtimeMs": 1785663697284.319
+  }
+}

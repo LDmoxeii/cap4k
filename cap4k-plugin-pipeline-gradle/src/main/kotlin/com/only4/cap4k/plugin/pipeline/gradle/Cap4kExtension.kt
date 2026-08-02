@@ -300,10 +300,12 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     }
 
     fun drawingBoard(block: DrawingBoardGeneratorExtension.() -> Unit) {
+        drawingBoard.configured = true
         drawingBoard.block()
     }
 
     fun flow(block: FlowGeneratorExtension.() -> Unit) {
+        flow.configured = true
         flow.block()
     }
 }
@@ -325,9 +327,11 @@ open class AggregateProjectionGeneratorExtension @Inject constructor(objects: Ob
 }
 
 open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    internal var configured: Boolean = false
 }
 
 open class FlowGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    internal var configured: Boolean = false
 }
 
 open class Cap4kTemplatesExtension @Inject constructor(objects: ObjectFactory) {

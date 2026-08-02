@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-02T09:41:35.373Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-02T09:41:37.247Z","type":"operation-started","operationId":"spec-1-analysis-metadata-contract"}
+{"sequence":3,"timestamp":"2026-08-02T09:41:37.368Z","type":"operation-completed","operationId":"spec-1-analysis-metadata-contract"}
+{"sequence":4,"timestamp":"2026-08-02T09:41:37.389Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-02T09:41:37.687Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-02T09:41:37.872Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-02T09:41:37.951Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-02T09:41:38.003Z","type":"commit"}

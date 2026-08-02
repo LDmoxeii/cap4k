@@ -5,8 +5,10 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.nio.file.Files
 
 class Cap4kFlowExportPluginTest {
 
@@ -23,6 +25,72 @@ class Cap4kFlowExportPluginTest {
         assertNotNull(root.tasks.findByName("cap4kFlowClean"))
         assertNotNull(root.tasks.findByName("cap4kFlowCompile"))
         assertNotNull(root.tasks.findByName("cap4kFlow"))
+    }
+
+    @Test
+    fun `flow export rejects missing aggregate analysis metadata with actionable diagnostic`() {
+        val error = assertThrows(GradleException::class.java) {
+            requireFlowAnalysisMetadata(
+                mapOf(
+                    "demo.domain.aggregates.order.Order" to setOf(
+                        "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
+                    )
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("demo.domain.aggregates.order.Order"))
+        assertTrue(error.message!!.contains("AggregateElementMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
+        assertTrue(error.message!!.contains("restore the default ddd-default generator template"))
+        assertTrue(error.message!!.contains("compileOnly classpath"))
+        assertTrue(error.message!!.contains("apparently complete partial result"))
+    }
+
+    @Test
+    fun `legacy flow export task rejects missing metadata before touching output directory`() {
+        val projectDir = Files.createTempDirectory("cap4k-legacy-flow-metadata")
+        val root = ProjectBuilder.builder()
+            .withName("sample")
+            .withProjectDir(projectDir.toFile())
+            .build()
+        root.pluginManager.apply("io.github.ldmoxeii.cap4k.codeanalysis.flow-export")
+        val analysisDir = projectDir.resolve("analysis")
+        Files.createDirectories(analysisDir)
+        analysisDir.resolve("nodes.json").toFile().writeText(
+            """
+            [
+              {
+                "id":"demo.Order",
+                "name":"Order",
+                "fullName":"demo.Order",
+                "type":"aggregate",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],
+                "metadataOwner":"demo.domain.aggregates.order.Order"
+              }
+            ]
+            """.trimIndent()
+        )
+        analysisDir.resolve("rels.json").toFile().writeText("[]")
+        val outputDir = projectDir.resolve("flows")
+        Files.createDirectories(outputDir)
+        val sentinel = outputDir.resolve("sentinel.txt")
+        sentinel.toFile().writeText("unchanged")
+        val task = root.tasks.getByName("cap4kFlowExport") as Cap4kFlowExportTask
+        task.inputDirs.set(listOf(root.layout.projectDirectory.dir("analysis")))
+        task.outputDir.set(root.layout.projectDirectory.dir("flows"))
+        task.labelPrefixes.set(emptyList())
+        task.entryTypes.set(listOf("aggregate"))
+        task.entryTypeExcludes.set(emptyList())
+
+        val error = assertThrows(GradleException::class.java) {
+            task.export()
+        }
+
+        assertTrue(error.message!!.contains("demo.domain.aggregates.order.Order"))
+        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
+        assertEquals("unchanged", sentinel.toFile().readText())
+        assertTrue(!outputDir.resolve("index.json").toFile().exists())
     }
 
     @Test

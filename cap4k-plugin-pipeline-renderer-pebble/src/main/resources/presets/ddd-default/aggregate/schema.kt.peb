@@ -1,7 +1,7 @@
 package {{ packageName }}
 
 {% if aggregateElement is defined -%}
-{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{{ use("com.only4.cap4k.analysis.metadata.AggregateElementMetadata") -}}
 {% endif -%}
 {{ use("org.springframework.data.jpa.domain.Specification") -}}
 {{ use("jakarta.persistence.criteria.CriteriaBuilder") -}}
@@ -37,7 +37,7 @@ import {{ import }}
 {% endfor %}
 
 {% if aggregateElement is defined -%}
-@AggregateElement(
+@AggregateElementMetadata(
     aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
     name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
     packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},

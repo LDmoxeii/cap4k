@@ -45,7 +45,7 @@ class DesignElementCollector(
     private val blocks = LinkedHashMap<BlockKey, MutableDesignBlock>()
     private val typeFormatter = IrTypeFormatter()
 
-    private val buildingBlockAnnFq = FqName(options.buildingBlockAnnFq)
+    private val designBlockMetadataAnnFq = FqName(DESIGN_BLOCK_METADATA_ANNOTATION_FQ)
     private val domainEventAnnFq = FqName(options.domainEventAnnFq)
     private val integrationEventAnnFq = FqName(options.integrationEventAnnFq)
 
@@ -59,21 +59,21 @@ class DesignElementCollector(
     }
 
     override fun visitClass(declaration: IrClass) {
-        declaration.findAnnotation(buildingBlockAnnFq)?.let { ann ->
-            collectBuildingBlock(declaration, ann)
+        declaration.findAnnotation(designBlockMetadataAnnFq)?.let { ann ->
+            collectDesignBlockMetadata(declaration, ann)
         }
         super.visitClass(declaration)
     }
 
-    private fun collectBuildingBlock(declaration: IrClass, ann: IrConstructorCall) {
+    private fun collectDesignBlockMetadata(declaration: IrClass, ann: IrConstructorCall) {
         val className = declaration.fqNameWhenAvailable?.asString() ?: declaration.name.asString()
         val tag = ann.getStringArg("tag").orEmpty().trim()
         val name = ann.getStringArg("name").orEmpty().trim()
         val packageName = ann.getStringArg("packageName").orEmpty().trim()
         val family = ann.getStringArg("family").orEmpty().trim()
-        require(tag.isNotEmpty()) { "BuildingBlock annotation on $className must declare non-blank tag" }
-        require(name.isNotEmpty()) { "BuildingBlock annotation on $className must declare non-blank name" }
-        require(family.isNotEmpty()) { "BuildingBlock annotation on $className must declare non-blank family" }
+        require(tag.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank tag" }
+        require(name.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank name" }
+        require(family.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank family" }
 
         val nestedTypes = collectNestedTypes(declaration)
         val fields = primaryFieldCarrier(declaration, family)?.let { fieldsRoot ->
@@ -209,7 +209,7 @@ class DesignElementCollector(
     }
 
     private fun MutableDesignBlock.conflict(field: String): IllegalArgumentException =
-        IllegalArgumentException("conflicting BuildingBlock metadata for $tag $packageName $name: $field")
+        IllegalArgumentException("conflicting DesignBlockMetadata for $tag $packageName $name: $field")
 
     private fun MutableDesignBlock.mergeArtifacts(incoming: List<DesignArtifact>) {
         incoming.forEach { artifact ->
@@ -232,7 +232,7 @@ class DesignElementCollector(
             return if (existing.isEmpty()) incoming else existing
         }
         throw IllegalArgumentException(
-            "conflicting BuildingBlock metadata for ${key.tag} ${key.packageName} ${key.name}: $fieldName",
+            "conflicting DesignBlockMetadata for ${key.tag} ${key.packageName} ${key.name}: $fieldName",
         )
     }
 

@@ -4,7 +4,9 @@ data class Node(
     val id: String,
     val name: String,
     val fullName: String,
-    val type: NodeType
+    val type: NodeType,
+    val missingMetadata: List<String> = emptyList(),
+    val metadataOwner: String? = null,
 )
 
 enum class NodeType {
@@ -21,6 +23,8 @@ enum class NodeType {
     queryhandler,
     capability,
     capabilityhandler,
+    apipayload,
+    domainservice,
     aggregate,
     entitymethod,
     domainevent,

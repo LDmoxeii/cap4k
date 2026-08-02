@@ -111,6 +111,8 @@ generators {
 }
 ```
 
+`flow` 与 `drawingBoard` 都由对应 block 的存在显式启用；只配置 `sources.irAnalysis` 不会隐式生成任一类 analysis artifact。
+
 ## `managedFields { }`
 
 Managed-field defaults select exact policy keys. An explicit database column annotation takes precedence over an exact column-name default, which takes precedence over the identifier default.
@@ -151,6 +153,14 @@ templates {
 ```
 
 addon template override 与 built-in template override 共用 `templates.overrideDirs` 和 `templates.templateConflictPolicies`。
+
+默认 `ddd-default` Kotlin templates 会生成纯编译期分析 metadata：
+
+- `com.only4.cap4k.analysis.metadata.DesignBlockMetadata` 支持 Drawing Board 恢复；
+- `com.only4.cap4k.analysis.metadata.AggregateElementMetadata` 支持 metadata-dependent Flow Analysis。
+
+业务模块由 pipeline 以与插件版本一致的
+`compileOnly("io.github.ldmoxeii:cap4k-analysis-metadata:<cap4k-version>")` 引入该 contract；它不属于业务 runtime dependency。自定义 template 可以删除 annotation，但这表示显式放弃对应分析能力。随后配置 `generators { drawingBoard { } }` 或 `generators { flow { } }` 时会 fail fast，并列出缺失 symbol、受影响能力和恢复方法；不会生成看似完整的残缺结果。恢复方式是还原默认 template，或补回对应 annotation 并确保上述 `compileOnly` dependency 存在。
 
 ## `layout { }`
 

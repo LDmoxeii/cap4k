@@ -931,6 +931,109 @@ class PipelinePluginTest {
     }
 
     @Test
+    fun `analysis metadata is wired only as compileOnly into every generated business module`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-analysis-metadata-compile-only-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val modules = listOf("demo-domain", "demo-application", "demo-adapter").associateWith { name ->
+            ProjectBuilder.builder()
+                .withName(name)
+                .withParent(rootProject)
+                .withProjectDir(rootProjectDir.resolve(name))
+                .build()
+                .also { module ->
+                    module.pluginManager.apply("java")
+                }
+        }
+        val config = projectConfig(
+            modules = mapOf(
+                "domain" to "demo-domain",
+                "application" to "demo-application",
+                "adapter" to "demo-adapter",
+            ),
+            sources = mapOf("design-json" to SourceConfig()),
+            generators = emptyMap(),
+        )
+
+        ensureAnalysisMetadataCompileOnlyDependencies(rootProject, config)
+        ensureAnalysisMetadataCompileOnlyDependencies(rootProject, config)
+
+        modules.values.forEach { module ->
+            val metadataDependencies = module.configurations.getByName("compileOnly").dependencies
+                .filter { dependency ->
+                    dependency.group == "io.github.ldmoxeii" && dependency.name == "cap4k-analysis-metadata"
+                }
+            assertEquals(1, metadataDependencies.size)
+            assertEquals("development", metadataDependencies.single().version)
+            assertTrue(module.configurations.getByName("implementation").dependencies.isEmpty())
+            assertTrue(
+                module.configurations.getByName("runtimeClasspath").allDependencies.none { dependency ->
+                    dependency.group == "io.github.ldmoxeii" && dependency.name == "cap4k-analysis-metadata"
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `explicit analysis metadata compileOnly dependency is not duplicated`() {
+        val rootProjectDir = tempProjectDir("pipeline-plugin-explicit-analysis-metadata-root")
+        val rootProject = ProjectBuilder.builder()
+            .withProjectDir(rootProjectDir)
+            .build()
+        val application = ProjectBuilder.builder()
+            .withName("application")
+            .withParent(rootProject)
+            .withProjectDir(rootProjectDir.resolve("application"))
+            .build()
+            .also { module ->
+                module.pluginManager.apply("java")
+                module.dependencies.add(
+                    "compileOnly",
+                    "io.github.ldmoxeii:cap4k-analysis-metadata:999.0.0-explicit",
+                )
+            }
+        val config = projectConfig(
+            modules = mapOf("application" to "application"),
+            sources = mapOf("design-json" to SourceConfig()),
+            generators = emptyMap(),
+        )
+
+        ensureAnalysisMetadataCompileOnlyDependencies(rootProject, config)
+
+        val dependencies = application.configurations.getByName("compileOnly").dependencies
+            .filter { dependency ->
+                dependency.group == "io.github.ldmoxeii" && dependency.name == "cap4k-analysis-metadata"
+            }
+        assertEquals(1, dependencies.size)
+        assertEquals("999.0.0-explicit", dependencies.single().version)
+    }
+
+    @Test
+    fun `analysis metadata module roles follow metadata bearing generator surfaces`() {
+        assertEquals(
+            setOf("domain", "adapter"),
+            analysisMetadataModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "domain", "adapter" to "adapter", "application" to "application"),
+                    sources = mapOf("db" to SourceConfig()),
+                    generators = mapOf("aggregate" to GeneratorConfig()),
+                )
+            )
+        )
+        assertEquals(
+            setOf("domain"),
+            analysisMetadataModuleRoles(
+                projectConfig(
+                    modules = mapOf("domain" to "domain"),
+                    sources = mapOf("enum-manifest" to SourceConfig(), "value-object-manifest" to SourceConfig()),
+                    generators = emptyMap(),
+                )
+            )
+        )
+    }
+
+    @Test
     fun `aggregate generation wires jakarta persistence api into resolved domain module`() {
         val rootProjectDir = tempProjectDir("pipeline-plugin-aggregate-domain-dependency-root")
         val rootProject = ProjectBuilder.builder()

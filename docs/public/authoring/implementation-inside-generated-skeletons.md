@@ -12,7 +12,9 @@ cap4k 的生成骨架是作者实现业务逻辑的合同。它给出稳定命�
 - Command、Query、Capability、Subscriber、payload、factory、repository adapter 等入口位置稳定。
 - module placement 和 Clean Architecture 层级可审查。
 - `conflictPolicy` 说明 generator 与已有文件如何相处。
-- `@BuildingBlock` 或 output metadata 帮助区分结构来源。
+- `@DesignBlockMetadata` / `@AggregateElementMetadata` 是 `cap4k-analysis-metadata` 提供的纯编译期分析合同，业务模块只通过 `compileOnly` 使用；默认模板保留它们。
+
+自定义模板可以删除这些 metadata，但这表示显式放弃对应的 Drawing Board 或 Flow Analysis 能力。项目随后请求受影响的分析能力时会 fail fast，并列出缺失 symbol、受影响能力以及恢复默认模板或 annotation 的方法；cap4k 不会输出看似完整的残缺分析结果。
 
 这些合同让 code review 能先问“这个逻辑是否在正确 surface 中”，再问“这个逻辑是否正确”。没有这个分工，作者容易把发布规则写进 adapter，把协议转换写进 domain，或者把补偿逻辑塞进普通 command helper。
 
