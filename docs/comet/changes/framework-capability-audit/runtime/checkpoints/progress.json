@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "f06c3b50-08af-43be-9117-f73829fc681c",
+  "id": "c83ffddc-0794-4209-a944-7445d5d9db5e",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 4,
-  "stateRevision": 5,
-  "summary": "User confirmed retirement of the standalone Python generator-input validator. Authoritative validation is consolidated in source providers, canonical assembly, plan diagnostics, and Agent API evidence.",
-  "nextAction": "Decide whether read-model weak-reference projection stays an optional provider boundary or becomes part of the Generator gate.",
-  "inputHash": "b1aeed17fddc2ac6c7fb5b1827581c7c376f993918d2f1ddc115fc42fb4f4316",
-  "manifestHash": "c3673b367c4cafd41dd5a8578fe9f27871555bc8ab335d47f9e4f638bef7f936",
-  "manifestRef": "runtime/checkpoints/manifests/c3673b367c4cafd41dd5a8578fe9f27871555bc8ab335d47f9e4f638bef7f936.json",
+  "previousRevision": 5,
+  "stateRevision": 6,
+  "summary": "User confirmed that read-model weak-reference projection stays an optional provider boundary and does not enter the Generator gate.",
+  "nextAction": "Decide the explicit promotion boundary from analyzer drawing-board observation to registered Design JSON input.",
+  "inputHash": "2ec293dce4783b5744ad2638a02a80dd4f37a62ff8f26725316d02b4e82a12b7",
+  "manifestHash": "8c6f077ab448069e1031ced172c831f8d97236b524ae0eb648fbb9c84feeb3f4",
+  "manifestRef": "runtime/checkpoints/manifests/8c6f077ab448069e1031ced172c831f8d97236b524ae0eb648fbb9c84feeb3f4.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T04:48:33.873Z"
+  "createdAt": "2026-08-02T04:49:59.335Z"
 }

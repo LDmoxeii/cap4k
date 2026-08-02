@@ -266,7 +266,7 @@ cap4kPlan / cap4kGenerate
 
 ### G-06 — Read-model weak-reference projection is an optional extension
 
-- 分类：`provider/extension`，当前基础 projection 为 `partial`
+- 分类：`provider/extension`，accepted boundary
 - 责任块：optional Generator provider
 - Gate 影响：non-blocking
 
@@ -286,7 +286,15 @@ cap4kPlan / cap4kGenerate
 - `AggregateProjectionArtifactPlanner.kt:58-62`
 - `AggregateProjectionArtifactPlanner.kt:107-139`
 
-这不影响 Aggregate、Query、Strong ID 或 DDD core 的充分性。若保留 Issue #118，应把它重写为可选 projection provider enhancement，而不是 core blocker。公共文档应集中披露 scalar-only、无 read-model runtime、`@RefAggregate` 只保留标量 Strong ID 的当前边界。
+已确认决策：这不影响 Aggregate、Query、Strong ID 或 DDD core 的充分性，不进入本轮 Generator gate。`aggregate-projection` 保持 opt-in、adapter-owned、scalar-only、无 read-model runtime；`@RefAggregate` 继续只表达目标 Aggregate 的 Strong ID，不自动创建 projection object relation。
+
+边界验收应包含：
+
+- 公共文档集中披露 opt-in、adapter-owned、generated-source 与 scalar-only；
+- 明确 cap4k 不提供内置 read-model runtime；
+- 明确 `@RefAggregate` 不产生 write-side relation、cascade、Repository navigation 或 projection object graph；
+- template override 当前没有专用 weak-reference target metadata，不应靠短名猜测；
+- Issue #118 若保留，只能作为未来可选 provider enhancement，不得阻塞四块下游验证。
 
 ### G-07 — Strong ID conflict diagnostics lack column context
 
