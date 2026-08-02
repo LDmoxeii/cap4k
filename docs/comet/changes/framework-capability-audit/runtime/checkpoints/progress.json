@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "91d43120-0e0c-4222-940a-1317672612e5",
+  "id": "6fe352b0-88e2-45f6-a8f8-a21f1700787b",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 10,
-  "stateRevision": 11,
-  "summary": "User confirmed Domain and Integration Event fields retain the shared defaultValue contract. Generator and Analyzer must project supported stable defaults losslessly, including nested payload types.",
-  "nextAction": "Decide the explicit domain_event.eventName contract, especially for persisted reliable events whose runtime eventType currently comes from DomainEvent.value.",
-  "inputHash": "eddeab6c3bcacba2ae5df9b678bbfb52a3c95f1036720f002b32ee020a56cc6f",
-  "manifestHash": "dd1b9c907ea8e7a6d741011c4626f19a9a5f209295d74e758dc9aaea0a1d4d0a",
-  "manifestRef": "runtime/checkpoints/manifests/dd1b9c907ea8e7a6d741011c4626f19a9a5f209295d74e758dc9aaea0a1d4d0a.json",
+  "previousRevision": 11,
+  "stateRevision": 12,
+  "summary": "User confirmed persisted Domain Events require explicit eventName while transient events may omit it. Generator must project the name into DomainEvent.value and Analyzer must detect metadata/runtime conflicts. Audit also established that BuildingBlock and AggregateElement are BINARY analyzer metadata carriers with no runtime consumer, but currently carry information that cannot be inferred losslessly.",
+  "nextAction": "Choose whether to relocate the annotations to a dedicated compile-time metadata contract, replace them with a sidecar skeleton index, or retain them unchanged for now.",
+  "inputHash": "1a338b4a2dd823e7182eb922a81f08e5ab58a036b68687b122459ca20bb491b1",
+  "manifestHash": "5bef8b733fe031644f47be6ef5fd0b06219a2d757df4f2ce469e748c24e89cc5",
+  "manifestRef": "runtime/checkpoints/manifests/5bef8b733fe031644f47be6ef5fd0b06219a2d757df4f2ce469e748c24e89cc5.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:28:37.961Z"
+  "createdAt": "2026-08-02T05:35:31.416Z"
 }

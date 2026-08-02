@@ -305,10 +305,19 @@ Put(Get(generated skeleton))
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:11-25`
    - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/annotation/DomainEvent.kt:11-21`
    - `ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt:199-211`
+
+   已确认修复边界：`persist: true` 的 Domain Event 必须声明 non-blank `eventName`；transient Domain Event 可省略。Generator 对 present name 生成 `@DomainEvent(value = ..., persist = ...)`，Analyzer 同时读取 authoring metadata 与 runtime annotation 并在冲突时 fail fast。Persisted event 不得产生空 runtime `eventType`。
 9. **Domain Event field name 被错误当作类型边界。** Canonical 与 Analyzer 会按字段名过滤 `entity`，可能删除合法的 immutable payload field。可靠事件拒绝 Entity/Aggregate payload 的 runtime 历史事实边界仍应保留，但应由现有递归 semantic type validator 执行，不能用字段名替代类型检查：
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:733-738`
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:130-134`
    - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DomainEventPayloadModelValidator.kt:20-119`
+10. **Analyzer metadata annotations 污染了 DDD core 与生成源码表面。** `@BuildingBlock` 与 `@AggregateElement` 都是 BINARY-retained class annotations，当前没有 runtime consumer；前者携带无法从接口、class name 或 package 安全推断的 authoring identity/artifact metadata，后者为跨 module flow analysis 携带 aggregate/type/root identity：
+    - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/annotation/BuildingBlock.kt:1-15`
+    - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/annotation/AggregateElement.kt:1-12`
+    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:42-113`
+    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kIrGenerationExtension.kt:190-243`
+
+    仅靠 runtime interfaces/annotations、命名规则或 physical path 无法无损恢复 description、authoring-relative package、aggregate ownership、artifact family/variant，以及非 Entity aggregate artifact 的 type/root。完全移除显式 metadata carrier 会迫使 Analyzer 猜测，违反本次 round-trip contract。可行清理路径包括：把 annotation contract 移出 `ddd-core` 到专用 compile-time metadata module，或改用 generator sidecar skeleton index；后者会把真相边界改为 code + sidecar，并新增 freshness、ownership 与 drift validation 成本。
 
 现有测试名为 `issue 92 metadata contract supports generation analysis and drawing board round trip`，但它不是真实回环：
 
