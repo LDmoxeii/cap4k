@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "8c5f4c9d-89c7-4288-ae9d-da77a419365d",
+  "id": "ccf1558d-111d-40fa-9d27-2676958531f1",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 15,
-  "stateRevision": 16,
-  "summary": "User confirmed pageNum/pageSize are framework-owned PageRequest structure implied by page Query/API Payload variants. Generator derives them; Analyzer excludes them only after semantic page-carrier confirmation. Page variants reject explicit collisions, while non-page variants may use the names.",
-  "nextAction": "Decide whether Drawing Board uses canonical FQNs for all non-builtin, non-local-nested types or context-dependent shortest names.",
-  "inputHash": "2e8334cd4ccbef9bfcac6c109fa1db0c54207629082edde3290bf0ca977a1983",
-  "manifestHash": "34dcfbe6e775fbacd353719536a8a29dac45f843c0ded913ddc4e1cde18323ce",
-  "manifestRef": "runtime/checkpoints/manifests/34dcfbe6e775fbacd353719536a8a29dac45f843c0ded913ddc4e1cde18323ce.json",
+  "previousRevision": 16,
+  "stateRevision": 17,
+  "summary": "User confirmed Drawing Board must emit canonical FQNs for Strong IDs, Value Objects, enums, other project/context types, and external types. Only Design JSON builtins, standard containers, and current-block nested DTOs use normalized short names; container members follow the rule recursively.",
+  "nextAction": "Decide whether Array<T> remains supported and is added to Analyzer round-trip, or is removed from the authoring contract.",
+  "inputHash": "fdd38889a1cf8a95b46b58c23adaad0f10d0221f47e88e2dd577276686650627",
+  "manifestHash": "8d69ffa0d0751d29e4b88263531726b604edce9fbc4137dbe632c00d7909c292",
+  "manifestRef": "runtime/checkpoints/manifests/8d69ffa0d0751d29e4b88263531726b604edce9fbc4137dbe632c00d7909c292.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:46:43.958Z"
+  "createdAt": "2026-08-02T05:49:08.563Z"
 }

@@ -279,6 +279,8 @@ Put(Get(generated skeleton))
 2. **Type identity 丢失。** `IrTypeFormatter` 对普通 class-backed type 只输出 simple name，使 Strong ID、Value Object、enum、外部 FQN 变成 unknown 或 ambiguous short type。Analyzer 应恢复 resolved canonical FQN；只有 builtin 和当前 block nested type 可安全使用短名：
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt:24-53`
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/SemanticValueCompiler.kt:287-319`
+
+   已确认修复边界：Drawing Board 对 Design JSON builtin、标准 container 名称和当前 building block 自己声明的 nested DTO 使用规范短名；对 Strong ID、Value Object、enum、其他 project/context type 与 external type 输出 resolved canonical FQN。Container element/key/value type 递归应用同一规则。不得根据当前 type registry 或 classpath 恰好不存在歧义而输出 context-dependent short name。
 3. **受支持 type algebra 不对称。** Design JSON/canonical 支持 `Array<T>`，Analyzer 明确拒绝 `kotlin.Array`；合法输入无法完成分析回环：
    - `docs/public/reference/design-json.md:45-53`
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt:13-22`
