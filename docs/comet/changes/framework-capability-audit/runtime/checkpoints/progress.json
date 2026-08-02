@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "a64c9fe3-f30d-4092-80cf-43d5e0aa9c47",
+  "id": "a65bb295-2127-4325-8a3e-aa4929c4e3ea",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 8,
-  "stateRevision": 9,
-  "summary": "User confirmed domain_service remains a metadata-only anchor. Non-empty fields/resultFields must fail fast; generated annotation/class structure remains framework-owned while domain service methods and algorithms stay handwritten.",
-  "nextAction": "Decide whether all accepted Design JSON artifact selections must be non-empty, tag-compatible, and include a primary structural carrier.",
-  "inputHash": "1234071d5b5d212d6ab29f762e8237ac58fc0a74334f6d25879bc4fcb292cc54",
-  "manifestHash": "6e7834af8c0666a894645d23a479e8be2b6eda3071edb9806e6c351cca78c705",
-  "manifestRef": "runtime/checkpoints/manifests/6e7834af8c0666a894645d23a479e8be2b6eda3071edb9806e6c351cca78c705.json",
+  "previousRevision": 9,
+  "stateRevision": 10,
+  "summary": "User selected the strict artifact contract. Every accepted entry must have a non-empty tag-compatible artifact set with its primary carrier; secondary-only, cross-tag, empty, and invalid subscriber combinations fail fast without a new metadata carrier.",
+  "nextAction": "Decide whether Domain and Integration Event fields preserve defaultValue losslessly or reject event defaults.",
+  "inputHash": "671a87f7e0fa441deea13f1dd48ea617e1a16ff494811ee2ed6bc58d28de136b",
+  "manifestHash": "9b46465550d695e894ab3bd164423db3076f5a3a5593d626f0c54c8cf9777703",
+  "manifestRef": "runtime/checkpoints/manifests/9b46465550d695e894ab3bd164423db3076f5a3a5593d626f0c54c8cf9777703.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:22:48.222Z"
+  "createdAt": "2026-08-02T05:25:31.203Z"
 }

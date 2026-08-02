@@ -294,6 +294,8 @@ Put(Get(generated skeleton))
 6. **Artifact contract 允许不可逆输入。** 当前只有全局 family/variant 校验，没有 tag-family 矩阵；`artifacts: []`、secondary-only handler/subscriber、错误 tag-family 组合都可能被接受。没有 primary field carrier 的 design block 无法从代码真相恢复，有些组合本身也无法独立编译：
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:820-887`
    - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignBlockSelection.kt:11-15`
+
+   已确认修复边界：每个 accepted entry 必须选择非空、与 tag 匹配、包含 primary structural carrier 的 artifact set；query/capability handler、domain/integration subscriber 只能与对应 primary contract/event 同时存在，`integration-subscriber` 还必须配合 `integration-event:inbound`。显式 empty、cross-tag family 与 secondary-only selection 必须 fail fast；省略 `artifacts` 仍展开为当前默认集合，不新增 metadata-only generated carrier。
 7. **Field order 被改变。** Drawing Board 对 fields/resultFields 排序，重新生成会改变 Kotlin constructor 参数顺序。Artifact set 可以排序，field/resultField 及 nested DTO 内部顺序必须保留：
    - `cap4k-plugin-pipeline-generator-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/drawingboard/DrawingBoardArtifactPlanner.kt:93-105`
    - `DrawingBoardArtifactPlanner.kt:174-181`
