@@ -2,8 +2,7 @@
 
 cap4k public pipeline plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`。公开 Gradle tasks 包括：
 
-- `cap4kBootstrapPlan`
-- `cap4kBootstrap`
+- `cap4kAgentSnapshot`
 - `cap4kPlan`
 - `cap4kGenerate`
 - `cap4kGenerateSources`
@@ -14,10 +13,10 @@ cap4k public pipeline plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`。公开
 
 ## Public Task Sequence
 
-创建新项目结构时，任务概念顺序是：
+只读项目检查入口是：
 
 ```text
-cap4kBootstrapPlan -> cap4kBootstrap
+cap4kAgentSnapshot -> manifest.json -> task-specific sections
 ```
 
 source generation 的概念顺序是：
@@ -40,13 +39,11 @@ cap4kAnalysisPlan -> cap4kAnalysisGenerate
 
 这些序列服务于不同输出面。不要把 analysis tasks 当成 ordinary source generation，也不要把 `cap4kGenerateSources` 的输出当成 checked-in handwritten area。
 
-## cap4kBootstrapPlan And cap4kBootstrap
+## cap4kAgentSnapshot
 
-`cap4kBootstrapPlan` 写出本地 `build/cap4k/bootstrap-plan.json`。它用于审查项目 root、module、package 和 bootstrap template output。
+`cap4kAgentSnapshot` 写出 `build/cap4k/agent/` 下的 versioned JSON snapshot。一次执行生成 manifest、project、capabilities、inputs、ownership、runtime、analysis 和 diagnostics 分区；读取方先读小型 manifest，再按任务选择详情。
 
-`cap4kBootstrap` 应用项目结构 bootstrap。它适合新项目结构落位，不替代建模、schema、`design/design.json`、`types.valueObjectManifest` 或 `types.enumManifest`。
-
-bootstrap 相关审查见 [Bootstrap Project Structure](bootstrap-project-structure.md) 和 [Planning And Ownership Review](planning-and-ownership-review.md)。
+该任务只观察 Gradle 已解析配置、本地项目输入和既有机器证据，不依赖 plan/generate/analysis/compile tasks，也不连接数据库等 live source。配置无效但 task 已启动时，它尽量留下 invalid snapshot 和 diagnostics，再以非零退出。
 
 ## cap4kPlan
 

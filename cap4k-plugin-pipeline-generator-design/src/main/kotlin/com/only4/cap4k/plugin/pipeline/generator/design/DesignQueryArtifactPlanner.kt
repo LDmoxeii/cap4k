@@ -5,9 +5,16 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
 
 class DesignQueryArtifactPlanner : GeneratorProvider {
     override val id: String = "query"
+    override val descriptor: PipelineCapabilityDescriptor = designDescriptor(
+        providerId = id,
+        displayName = "Query Generator",
+        tacticalCarrier = "Query",
+        boundaries = runtimeDesignBoundaries(),
+    )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val blocks = model.designBlocks.filter { block -> block.selects(id) }

@@ -1,10 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
-import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
-import com.only4.cap4k.plugin.pipeline.api.BootstrapModulesConfig
-import com.only4.cap4k.plugin.pipeline.api.BootstrapTemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.PIPELINE_EXTENSION_SPI_VERSION
@@ -22,11 +18,9 @@ import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
-import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.Classpath
@@ -91,6 +85,7 @@ class PipelinePluginTest {
             "cap4kGenerateSources" to Cap4kGenerateSourcesTask::class.java,
             "cap4kAnalysisPlan" to Cap4kAnalysisPlanTask::class.java,
             "cap4kAnalysisGenerate" to Cap4kAnalysisGenerateTask::class.java,
+            "cap4kAgentSnapshot" to Cap4kAgentSnapshotTask::class.java,
         ).forEach { (taskName, taskType) ->
             val getter = taskType.methods.singleOrNull {
                 it.name == "getPipelineExtensionClasspath" && it.parameterCount == 0
@@ -258,7 +253,7 @@ class PipelinePluginTest {
             parent = ArtifactAddonProvider::class.java.classLoader,
         )
         val resolver = PresetTemplateResolver(
-            preset = "test-bootstrap",
+            preset = "test-preset",
             overrideDirs = emptyList(),
             addonTemplateClassLoaders = runtime.addonTemplateClassLoaders,
         )
@@ -331,12 +326,12 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `plugin registers bootstrap tasks`() {
+    fun `plugin does not register retired bootstrap tasks`() {
         val project = ProjectBuilder.builder().build()
         project.pluginManager.apply("io.github.ldmoxeii.cap4k.pipeline")
 
-        assertNotNull(project.tasks.findByName("cap4kBootstrapPlan"))
-        assertNotNull(project.tasks.findByName("cap4kBootstrap"))
+        assertNull(project.tasks.findByName("cap4kBootstrapPlan"))
+        assertNull(project.tasks.findByName("cap4kBootstrap"))
     }
 
     @Test
@@ -349,6 +344,7 @@ class PipelinePluginTest {
         assertNotNull(project.tasks.findByName("cap4kGenerateSources"))
         assertNotNull(project.tasks.findByName("cap4kAnalysisPlan"))
         assertNotNull(project.tasks.findByName("cap4kAnalysisGenerate"))
+        assertNotNull(project.tasks.findByName("cap4kAgentSnapshot"))
     }
 
     @Test
@@ -822,129 +818,6 @@ class PipelinePluginTest {
         )
 
         assertFalse(generatedSourceTaskHasUntrackedLiveDbInput(rootProject, config))
-    }
-
-    @Test
-    fun `build bootstrap runner uses template preset and override dirs from config`() {
-        val project = ProjectBuilder.builder().build()
-        val absoluteOverrideDir = project.projectDir.resolve("bootstrap-templates").absolutePath
-        val config = BootstrapConfig(
-            preset = "ddd-multi-module",
-            projectName = "demo",
-            basePackage = "com.acme.demo",
-            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
-            templates = BootstrapTemplateConfig(
-                preset = "custom-bootstrap-preset",
-                overrideDirs = listOf(absoluteOverrideDir),
-            ),
-            slots = emptyList(),
-            conflictPolicy = ConflictPolicy.FAIL,
-            mode = BootstrapMode.IN_PLACE,
-            previewDir = null,
-        )
-
-        val runner = buildBootstrapRunner(project, config, exportEnabled = false)
-        val renderer = readInternalProperty(runner, "renderer")
-        val resolver = readInternalProperty(renderer!!, "templateResolver")
-
-        assertInstanceOf(PebbleBootstrapRenderer::class.java, renderer)
-        assertInstanceOf(PresetTemplateResolver::class.java, resolver)
-        assertEquals("custom-bootstrap-preset", readInternalProperty(resolver!!, "preset"))
-        assertEquals(listOf(absoluteOverrideDir), readInternalProperty(resolver, "overrideDirs"))
-    }
-
-    @Test
-    fun `build bootstrap runner rebases relative override dirs against bootstrap project dir`() {
-        val projectDir = tempProjectDir("pipeline-bootstrap-relative-override")
-        val project = ProjectBuilder.builder()
-            .withProjectDir(projectDir)
-            .build()
-        val config = BootstrapConfig(
-            preset = "ddd-multi-module",
-            projectName = "demo",
-            basePackage = "com.acme.demo",
-            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
-            templates = BootstrapTemplateConfig(
-                preset = "custom-bootstrap-preset",
-                overrideDirs = listOf("templates/bootstrap", "codegen/overrides"),
-            ),
-            slots = emptyList(),
-            conflictPolicy = ConflictPolicy.FAIL,
-            mode = BootstrapMode.IN_PLACE,
-            previewDir = null,
-        )
-
-        val runner = buildBootstrapRunner(project, config, exportEnabled = false)
-        val renderer = readInternalProperty(runner, "renderer")
-        val resolver = readInternalProperty(renderer!!, "templateResolver")
-        val overrideDirs = readInternalProperty(resolver!!, "overrideDirs") as List<String>
-
-        assertEquals(
-            listOf(
-                projectDir.toPath().resolve("templates/bootstrap").normalize().toFile().canonicalPath,
-                projectDir.toPath().resolve("codegen/overrides").normalize().toFile().canonicalPath,
-            ),
-            overrideDirs.map { File(it).canonicalPath }
-        )
-    }
-
-    @Test
-    fun `build bootstrap runner uses bootstrap filesystem exporter when export is enabled`() {
-        val project = ProjectBuilder.builder().build()
-        val config = BootstrapConfig(
-            preset = "ddd-multi-module",
-            projectName = "demo",
-            basePackage = "com.acme.demo",
-            modules = BootstrapModulesConfig("demo-domain", "demo-application", "demo-adapter", "demo-start"),
-            templates = BootstrapTemplateConfig("test-bootstrap", emptyList()),
-            slots = emptyList(),
-            conflictPolicy = ConflictPolicy.FAIL,
-            mode = BootstrapMode.IN_PLACE,
-            previewDir = null,
-        )
-
-        val runner = buildBootstrapRunner(project, config, exportEnabled = true)
-        val exporter = readInternalProperty(runner, "exporter")
-
-        assertInstanceOf(BootstrapFilesystemArtifactExporter::class.java, exporter)
-    }
-
-    @Test
-    fun `bootstrap plan task writes bootstrap plan report for valid bootstrap config`() {
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempProjectDir("pipeline-bootstrap-plan-task"))
-            .build()
-        project.pluginManager.apply(PipelinePlugin::class.java)
-        configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
-        writeManagedRootHostFiles(project.projectDir)
-        val planTask = project.tasks.named("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java).get()
-
-        planTask.runPlan()
-
-        val planFile = project.layout.buildDirectory.file("cap4k/bootstrap-plan.json").get().asFile
-        assertTrue(planFile.exists())
-        assertTrue(planFile.readText().contains("\"templateId\": \"bootstrap/root/settings.gradle.kts.peb\""))
-    }
-
-    @Test
-    fun `bootstrap generate task writes bootstrap skeleton files for valid bootstrap config`() {
-        val project = ProjectBuilder.builder()
-            .withProjectDir(tempProjectDir("pipeline-bootstrap-generate-task"))
-            .build()
-        project.pluginManager.apply(PipelinePlugin::class.java)
-        configureValidBootstrap(project.extensions.getByType(Cap4kExtension::class.java))
-        writeManagedRootHostFiles(project.projectDir)
-        val generateTask = project.tasks.named("cap4kBootstrap", Cap4kBootstrapTask::class.java).get()
-
-        generateTask.generate()
-
-        assertTrue(project.projectDir.resolve("settings.gradle.kts").exists())
-        assertTrue(project.projectDir.resolve("build.gradle.kts").exists())
-        assertTrue(project.projectDir.resolve("only-danmuku-domain/build.gradle.kts").exists())
-        assertTrue(project.projectDir.resolve("only-danmuku-start/build.gradle.kts").exists())
-        assertTrue(
-            project.projectDir.resolve("only-danmuku-start/src/main/kotlin/edu/only4/danmuku/StartApplication.kt").exists()
-        )
     }
 
     @Test
@@ -1570,31 +1443,6 @@ class PipelinePluginTest {
             ),
         )
 
-    private fun configureValidBootstrap(extension: Cap4kExtension) {
-        extension.bootstrap {
-            enabled.set(true)
-            preset.set("ddd-multi-module")
-            projectName.set("only-danmuku")
-            basePackage.set("edu.only4.danmuku")
-            modules {
-                domainModuleName.set("only-danmuku-domain")
-                applicationModuleName.set("only-danmuku-application")
-                adapterModuleName.set("only-danmuku-adapter")
-                startModuleName.set("only-danmuku-start")
-            }
-            templates {
-                preset.set("test-bootstrap")
-                overrideDirs.from(
-                    Path.of(
-                        requireNotNull(PipelinePluginTest::class.java.getResource("/functional/bootstrap-template-bundle")) {
-                            "Missing shared bootstrap template bundle."
-                        }.toURI()
-                    ).toFile()
-                )
-            }
-        }
-    }
-
     private fun configureValidAggregateGeneration(extension: Cap4kExtension) {
         extension.project {
             basePackage.set("com.acme.demo")
@@ -1631,31 +1479,6 @@ class PipelinePluginTest {
         extension.generators {
             aggregateProjection { }
         }
-    }
-
-    private fun writeManagedRootHostFiles(projectDir: File) {
-        projectDir.resolve("build.gradle.kts").writeText(
-            """
-                plugins {
-                    id("io.github.ldmoxeii.cap4k.pipeline")
-                }
-
-                // [cap4k-bootstrap:managed-begin:root-host]
-                cap4k {
-                    bootstrap {
-                        enabled.set(true)
-                    }
-                }
-                // [cap4k-bootstrap:managed-end:root-host]
-            """.trimIndent()
-        )
-        projectDir.resolve("settings.gradle.kts").writeText(
-            """
-                // [cap4k-bootstrap:managed-begin:root-host]
-                rootProject.name = "demo"
-                // [cap4k-bootstrap:managed-end:root-host]
-            """.trimIndent()
-        )
     }
 
     private fun tempProjectDir(prefix: String): File =

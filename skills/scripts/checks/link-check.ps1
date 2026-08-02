@@ -1,7 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
-$markdownFiles = Get-ChildItem -LiteralPath 'skills' -Recurse -File -Filter '*.md' |
-  Sort-Object FullName
+$markdownFiles = @(
+  Get-ChildItem -LiteralPath 'skills' -Recurse -File -Filter '*.md'
+  Get-ChildItem -LiteralPath 'docs/public' -Recurse -File -Filter '*.md'
+  Get-Item README.md
+  Get-Item cap4k-plugin-pipeline-gradle/README.md
+) | Sort-Object FullName -Unique
 
 $brokenLinks = @()
 $linkPattern = '\[[^\]]+\]\((?<target>[^)\s]+?\.md)(?:[#?][^)\s]*)?(?:\s+"[^"]*")?\)'

@@ -2,15 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
 $checkDir = Join-Path $PSScriptRoot 'checks'
-$checks = @(
-  'structure.ps1',
-  'routing.ps1',
-  'progressive-loading.ps1',
-  'self-contained-runtime.ps1',
-  'skeleton-gate-refs.ps1',
-  'stale-terms.ps1',
-  'link-check.ps1'
-)
+$checks = @('structure-and-routing.ps1', 'thin-surface.ps1', 'active-term-scan.ps1', 'link-check.ps1')
 
 Push-Location -LiteralPath $repoRoot
 try {

@@ -8,6 +8,7 @@ import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
 import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyContributionContext
 import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
@@ -28,8 +29,6 @@ class DefaultPipelineRunner(
     private val artifactAddons: List<PipelineContributionBinding<ArtifactAddonProvider>> = emptyList(),
     private val managedFieldPolicies: List<PipelineContributionBinding<ManagedFieldPolicyProvider>> = emptyList(),
 ) : PipelineRunner {
-    private val configKeyRequiredGeneratorIds = setOf("aggregate", "aggregate-projection")
-
     override fun run(config: ProjectConfig): PipelineResult {
         validateAddonProviders(config)
 
@@ -59,7 +58,10 @@ class DefaultPipelineRunner(
         val model = assembly.model
 
         val builtInPlanItems = generators
-            .filter { it.id !in configKeyRequiredGeneratorIds || it.id in config.generators }
+            .filter { generator ->
+                generator.descriptor.activation != PipelineCapabilityActivation.EXPLICIT_CONFIGURATION ||
+                    generator.id in config.generators
+            }
             .flatMap { it.plan(config, model) }
             .map { ProvenancedPlanItem(it) }
 

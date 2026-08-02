@@ -12,7 +12,6 @@ cap4k {
     generators { }
     managedFields { }
     templates { }
-    bootstrap { }
     layout { }
     pipelineExtensions { }
 }
@@ -26,7 +25,6 @@ cap4k {
 | `generators` | aggregate、aggregate projection、flow、drawing-board generator block。 |
 | `managedFields` | 项目级 managed-field 精确策略默认值。 |
 | `templates` | source generation template preset、override dirs、conflict policies。 |
-| `bootstrap` | project structure bootstrap configuration。 |
 | `layout` | package layout 与 analysis output root。 |
 | `pipelineExtensions` | Pipeline Extension provider 与 contribution 级选项。 |
 
@@ -153,48 +151,6 @@ templates {
 ```
 
 addon template override 与 built-in template override 共用 `templates.overrideDirs` 和 `templates.templateConflictPolicies`。
-
-## `bootstrap { }`
-
-| Field | 说明 |
-| --- | --- |
-| `enabled` | 是否启用 bootstrap configuration。 |
-| `preset` | bootstrap structure planner；当前通用 planner 为 `ddd-multi-module`，它不携带官方项目文件。 |
-| `mode` | `BootstrapMode.IN_PLACE` 或 `BootstrapMode.PREVIEW_SUBTREE`。 |
-| `previewDir` | `PREVIEW_SUBTREE` 输出目录。 |
-| `projectName` | root project name。 |
-| `basePackage` | bootstrap 后项目 base package。 |
-| `modules.domainModuleName` | domain module name。 |
-| `modules.applicationModuleName` | application module name。 |
-| `modules.adapterModuleName` | adapter module name。 |
-| `modules.startModuleName` | start module name。 |
-| `templates.preset` | 用户自定义 bootstrap template namespace；没有内置默认值。 |
-| `templates.overrideDirs` | 用户自定义 bootstrap template override dirs；固定结构模板必须能够从这些目录解析。 |
-| `slots` | `root`, `buildLogic`, `moduleRoot(role)`, `modulePackage(role)`, `moduleResources(role)`。 |
-| `conflictPolicy` | bootstrap write conflict policy，默认 `FAIL`。 |
-
-```kotlin
-bootstrap {
-    enabled.set(true)
-    preset.set("ddd-multi-module")
-    mode.set(BootstrapMode.IN_PLACE)
-    projectName.set("demo")
-    basePackage.set("com.acme.demo")
-    modules {
-        domainModuleName.set("demo-domain")
-        applicationModuleName.set("demo-application")
-        adapterModuleName.set("demo-adapter")
-        startModuleName.set("demo-start")
-    }
-    templates {
-        preset.set("team-bootstrap")
-        overrideDirs.from("codegen/bootstrap-templates")
-    }
-    conflictPolicy.set("SKIP")
-}
-```
-
-官方默认项目使用独立 GitHub Template，不使用这个 block。`cap4kBootstrapPlan` 写出 `build/cap4k/bootstrap-plan.json`；`cap4kBootstrap` 按显式自定义模板写出 bootstrap project structure。
 
 ## `layout { }`
 

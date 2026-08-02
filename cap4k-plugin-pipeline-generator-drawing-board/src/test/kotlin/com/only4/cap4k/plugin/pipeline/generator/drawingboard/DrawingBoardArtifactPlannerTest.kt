@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity
@@ -11,6 +12,7 @@ import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
 import com.only4.cap4k.plugin.pipeline.api.DrawingBoardModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
@@ -67,6 +69,12 @@ class DrawingBoardArtifactPlannerTest {
         assertEquals("domain_event", plan[4].context["drawingBoardTag"])
         assertEquals("integration_event", plan[5].context["drawingBoardTag"])
         assertEquals("domain_service", plan[6].context["drawingBoardTag"])
+        assertTrue(plan.all { it.outputKind == ArtifactOutputKind.OUTPUT_ARTIFACT })
+        assertTrue(plan.all { it.resolvedOutputRoot == "design" })
+        assertEquals(
+            listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+            planner.descriptor.tasks,
+        )
     }
 
     @Test

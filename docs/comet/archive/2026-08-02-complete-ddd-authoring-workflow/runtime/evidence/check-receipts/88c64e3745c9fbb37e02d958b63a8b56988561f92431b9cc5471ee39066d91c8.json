@@ -1,0 +1,50 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "complete-ddd-authoring-workflow",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "e8fac6378b8a9480f3550f1d5fc7163bf2fbbe0eb5d65a26fdac68cde22d4e3f",
+  "status": "failed",
+  "startedAt": "2026-08-02T03:10:02.934Z",
+  "endedAt": "2026-08-02T03:10:04.664Z",
+  "contract": {
+    "expectedHash": "c6a64f206657eb58c0051e9d79a72cd843329494f88fb9663911eb00f3e62dd7",
+    "beforeHash": "c6a64f206657eb58c0051e9d79a72cd843329494f88fb9663911eb00f3e62dd7",
+    "afterHash": "c6a64f206657eb58c0051e9d79a72cd843329494f88fb9663911eb00f3e62dd7"
+  },
+  "implementation": {
+    "scopeHash": "4ce9d8b95219457f87868a9556412582ee61308e57250d6bfe6be40d05f1c015",
+    "expectedSnapshotHash": "b2868ab8e67842a565439b3367ad33a37afbf6f45fcbfcc90c88cb129c874b23",
+    "beforeSnapshotHash": "b2868ab8e67842a565439b3367ad33a37afbf6f45fcbfcc90c88cb129c874b23",
+    "afterSnapshotHash": "b2868ab8e67842a565439b3367ad33a37afbf6f45fcbfcc90c88cb129c874b23"
+  },
+  "counts": {
+    "filesSelected": 59,
+    "filesScanned": 0,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 0,
+    "issueCount": 1,
+    "recordedIssueCount": 1
+  },
+  "issues": [
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/resources/functional/bootstrap-template-bundle/bootstrap/root/build.gradle.kts.peb",
+      "line": 1,
+      "kind": "scan-limit"
+    }
+  ],
+  "issuesTruncated": false,
+  "stale": false,
+  "staleReasons": [],
+  "receiptHash": "88c64e3745c9fbb37e02d958b63a8b56988561f92431b9cc5471ee39066d91c8"
+}

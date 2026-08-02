@@ -25,7 +25,7 @@ cap4k authoring 是一个螺旋式循环：
 - [Business Intent And Modeling](business-intent-and-modeling.md)：先写业务意图、通用语言、边界、Aggregate、Value Object、Event、external capabilities 和 policies。
 - [Technical Design](technical-design.md)：把模型放进 Clean Architecture、module、Command/Query/Capability、events、Subscriber、Scheduled Reaction、adapter、persistence 和 testing 责任。
 - [Generator Input Projection](generator-input-projection.md)：把设计投影到 schema、`design/design.json`、`types.enumManifest`、`types.valueObjectManifest`、module layout 和 Gradle extension configuration。
-- [Plan Review And Generation](plan-review-and-generation.md)：阅读 `cap4kPlan`、`cap4kBootstrapPlan`、`cap4kGenerate`、`cap4kGenerateSources` 相关证据，判断何时暂停生成。
+- [Plan Review And Generation](plan-review-and-generation.md)：阅读 `cap4kAgentSnapshot`、`cap4kPlan`、`cap4kGenerate`、`cap4kGenerateSources` 相关证据，判断何时暂停生成。
 - [Implementation Inside Generated Skeletons](implementation-inside-generated-skeletons.md)：在生成骨架提供的合同内写复杂业务逻辑，不和 ownership 对抗。
 - [Verification And Feedback](verification-and-feedback.md)：把静态审查、focused tests、HTTP examples、generation evidence 和 analysis evidence 变成下一轮 authoring 的反馈。
 

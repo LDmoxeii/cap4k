@@ -24,13 +24,13 @@ Reading, searching, and review-only commands may run on `master`. Any repository
 
 ## Cap4k Skill Routing
 
-When a task involves cap4k business-project authoring, use the repo-local skill router as the only routing source:
+When a task involves cap4k business-project authoring, use the repo-local thin skill as the only cap4k-specific routing source:
 
 - [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md)
 - [skills/cap4k-authoring/routing.yaml](skills/cap4k-authoring/routing.yaml)
 
-Load the routed focused skill and every `required_reads` entry from `routing.yaml`.
-Do not duplicate per-task route rows in this shell.
+Select the smallest operation route, read its `required_reads`, and load only the listed Agent API sections after reading `build/cap4k/agent/manifest.json`.
+Do not recreate phase skills, mandatory DDD artifacts, approval gates, or duplicate route rows in this shell.
 
 Keep this file as a routing shell. Do not duplicate focused skill rules here.
 
@@ -53,7 +53,7 @@ The stable direction is:
 - Short-name auto resolution must stay conservative.
 - Symbol identity and explicit FQN remain the source of truth for imports.
 - `use()` is design-template-only and must remain a thin explicit-import helper.
-- Bootstrap or arch-template migration, when implemented, must remain a separate capability rather than widening design-template helper authority.
+- Bootstrap capability is retired. Do not restore its tasks, DSL, module, root guards, managed markers, slot/merge workflow, aliases, or migration bridge; use the official GitHub Template or manual project setup.
 - the old monolithic generator module `cap4k-plugin-codegen` has been removed from the active repository. Do not reintroduce it or add new compatibility work around that path; mainline generator work belongs to the pipeline plugin family.
 
 ## Work Classification
@@ -62,7 +62,6 @@ There are three kinds of work in this repo now:
 
 1. Mainline design-generator quality work
 2. Real-project integration boundary work
-3. Bootstrap or arch-template migration work
 
 ## Branch And Release Policy
 
@@ -123,7 +122,7 @@ Release safety rules:
 
 - If the user says "continue the original mainline", use the current GitHub issues plus the newest relevant spec/plan to identify the active slice.
 - If the user says "unblock real project integration", read the relevant integration specs first. Do not silently turn an integration workaround into a new global framework rule.
-- If the user says "work on bootstrap" or "work on arch-template migration", treat that as a separate slice. Do not silently mix it into design-template migration.
+- If a request refers to the retired bootstrap capability, do not restore it; redirect project initialization to the official GitHub Template or explicit manual structure work.
 
 ## Current Planning State
 

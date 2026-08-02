@@ -12,7 +12,7 @@ Alt text after insertion: cap4k 文档阅读路径图，展示首次学习、创
 ## 先选你的目标
 
 - 第一次学习 cap4k：先建立 DDD 战术概念和 Clean Architecture 心智模型，再看真实参考项目。
-- 创建新项目：先确认分层结构，再用 bootstrap 和生成器输入推进项目骨架与计划审阅。
+- 创建新项目：从官方 GitHub Template 建立四层项目，再用生成器输入推进计划审阅和业务实现。
 - 编写业务功能：从业务意图、建模、技术设计、生成输入、计划审阅、手写实现到验证反馈形成循环。
 - 查精确字段：直接进入 reference，按 Gradle task、DSL、JSON、manifest、plan、output、analysis 或 runtime SQL 查表。
 
@@ -29,10 +29,10 @@ README.md -> docs/public/index.md -> concepts -> architecture -> examples/refere
 ### 创建新项目
 
 ```text
-architecture -> generator/bootstrap-project-structure.md -> authoring -> generator/inputs-and-sources.md -> generator/planning-and-ownership-review.md -> generator/generation-tasks.md
+official GitHub Template -> architecture -> authoring -> generator/inputs-and-sources.md -> generator/planning-and-ownership-review.md -> generator/generation-tasks.md
 ```
 
-先从 [architecture](architecture/index.md) 确认目标项目的分层方式，再读 [bootstrap-project-structure](generator/bootstrap-project-structure.md)。随后用 [authoring](authoring/index.md) 组织业务意图和技术设计，把输入投影到 [inputs-and-sources](generator/inputs-and-sources.md)，先做 [planning-and-ownership-review](generator/planning-and-ownership-review.md)，最后按 [generation-tasks](generator/generation-tasks.md) 执行生成。
+先通过 [官方 GitHub Template](https://github.com/LDmoxeii/cap4k-template/generate) 建立项目，再从 [architecture](architecture/index.md) 确认目标项目的分层方式。随后用 [authoring](authoring/index.md) 组织业务意图和技术设计，把输入投影到 [inputs-and-sources](generator/inputs-and-sources.md)，先做 [planning-and-ownership-review](generator/planning-and-ownership-review.md)，最后按 [generation-tasks](generator/generation-tasks.md) 执行生成。
 
 ### 编写业务功能
 
@@ -56,7 +56,7 @@ reference/index.md -> gradle-plugin.md | generator-dsl.md | design-json.md | val
 - [architecture](architecture/index.md)：解释 Clean Architecture 分层、domain/application/adapter/start 的职责、依赖规则和按层测试。
 - [examples](examples/index.md)：用 `cap4k-reference-content-studio` 展示四层多模块结构、默认发布流、Value Object 类型输入、外部能力边界和分析证据。
 - [authoring](authoring/index.md)：组织从业务意图到验证反馈的 spiral authoring loop。
-- [generator](generator/index.md)：解释 generator-backed authoring、bootstrap、输入来源、计划审阅、生成任务和分析证据。
+- [generator](generator/index.md)：解释 generator-backed authoring、Agent snapshot、输入来源、计划审阅、生成任务和分析证据。
 - [reference](reference/index.md)：提供 Gradle plugin、generator DSL、design JSON、type manifests、plan/output、analysis output、runtime database schema 和 common mistakes 的精确查询。
 
 ## 参考项目

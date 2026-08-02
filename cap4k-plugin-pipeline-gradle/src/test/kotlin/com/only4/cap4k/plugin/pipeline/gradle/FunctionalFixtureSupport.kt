@@ -13,19 +13,6 @@ object FunctionalFixtureSupport {
 
     @OptIn(ExperimentalPathApi::class)
     fun copyFixture(targetDir: Path, fixtureName: String = "design-sample") {
-        if (fixtureName.startsWith("bootstrap-")) {
-            val templateBundle = Path.of(
-                requireNotNull(FunctionalFixtureSupport::class.java.getResource("/functional/bootstrap-template-bundle")) {
-                    "Missing shared bootstrap template bundle."
-                }.toURI()
-            )
-            val targetTemplateDir = targetDir.resolve("codegen/zz-bootstrap-defaults")
-            Files.createDirectories(targetTemplateDir)
-            templateBundle.copyToRecursively(
-                targetTemplateDir,
-                followLinks = false,
-            )
-        }
         val sourceDir = Path.of(
             requireNotNull(FunctionalFixtureSupport::class.java.getResource("/functional/$fixtureName")) {
                 "Missing functional fixture directory: $fixtureName"
@@ -60,76 +47,6 @@ object FunctionalFixtureSupport {
         val generateResult = runner(projectDir, "cap4kGenerate").build()
         val compileResult = runner(projectDir, *compileTasks).build()
         return generateResult to compileResult
-    }
-
-    fun bootstrapThenRunGeneratedProject(
-        fixtureDir: Path,
-        projectName: String,
-        generatedDirName: String = projectName,
-        vararg arguments: String,
-    ): Pair<BuildResult, BuildResult> {
-        require(arguments.isNotEmpty()) {
-            "generated project arguments must not be empty"
-        }
-        val bootstrapResult = runner(fixtureDir, "cap4kBootstrap").build()
-        val generatedResult = generatedProjectRunner(fixtureDir, projectName, generatedDirName, *arguments).build()
-        return bootstrapResult to generatedResult
-    }
-
-    fun bootstrapThenRunGeneratedProjectWithLocalCap4kBuild(
-        fixtureDir: Path,
-        projectName: String,
-        generatedDirName: String = projectName,
-        vararg arguments: String,
-    ): Pair<BuildResult, BuildResult> {
-        require(arguments.isNotEmpty()) {
-            "generated project arguments must not be empty"
-        }
-        val bootstrapResult = runner(fixtureDir, "cap4kBootstrap").build()
-        val generatedDir = generatedProjectDir(fixtureDir, projectName, generatedDirName)
-        wireSettingsToLocalCap4kBuild(generatedDir.resolve("settings.gradle.kts"))
-        val generatedResult = generatedProjectBuildRunner(generatedDir, *arguments).build()
-        return bootstrapResult to generatedResult
-    }
-
-    fun generatedProjectRunner(
-        fixtureDir: Path,
-        projectName: String,
-        generatedDirName: String = projectName,
-        vararg arguments: String,
-    ): GradleRunner {
-        val generatedDir = generatedProjectDir(fixtureDir, projectName, generatedDirName)
-        return generatedProjectBuildRunner(generatedDir, *arguments)
-    }
-
-    fun generatedProjectDir(fixtureDir: Path, projectName: String, generatedDirName: String = projectName): Path {
-        val generated = fixtureDir.resolve(generatedDirName)
-        require(Files.isDirectory(generated)) {
-            "Generated project directory not found: $generated"
-        }
-        return generated
-    }
-
-    private fun generatedProjectBuildRunner(projectDir: Path, vararg arguments: String): GradleRunner = GradleRunner.create()
-        .withProjectDir(projectDir.toFile())
-        .withPluginClasspath()
-        .withArguments(*arguments)
-
-    private fun wireSettingsToLocalCap4kBuild(settingsFile: Path) {
-        val repoRoot = discoverRepositoryRoot()
-        val repoPath = repoRoot.toString()
-            .replace("\\", "/")
-            .replace("$", "\\$")
-        val marker = "// [cap4k-test:local-build]"
-        val current = settingsFile.readText()
-        if (current.contains(marker)) {
-            return
-        }
-        settingsFile.writeText(
-            "$marker\n" +
-                "includeBuild(\"$repoPath\")\n\n" +
-                current
-        )
     }
 
     private fun discoverRepositoryRoot(): Path {

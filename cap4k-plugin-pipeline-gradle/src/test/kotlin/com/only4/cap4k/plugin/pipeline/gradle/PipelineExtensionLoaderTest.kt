@@ -68,7 +68,8 @@ class PipelineExtensionLoaderTest {
             }
 
             assertEquals(true, exception.message.orEmpty().contains("No PipelineExtensionProvider was found"))
-            assertEquals(true, exception.message.orEmpty().contains(serviceRoot.toUri().toURL().toExternalForm()))
+            assertEquals(true, exception.message.orEmpty().contains(serviceRoot.fileName.toString()))
+            assertEquals(false, exception.message.orEmpty().contains(serviceRoot.parent.toString()))
         }
     }
 
@@ -85,7 +86,8 @@ class PipelineExtensionLoaderTest {
                 PipelineExtensionLoader.load(classLoader)
             }
             assertEquals(true, failure.message.orEmpty().contains("missing.pipeline.ExtensionProvider"))
-            assertEquals(true, failure.message.orEmpty().contains(serviceRoot.toUri().toURL().toExternalForm()))
+            assertEquals(true, failure.message.orEmpty().contains(serviceRoot.fileName.toString()))
+            assertEquals(false, failure.message.orEmpty().contains(serviceRoot.parent.toString()))
         }
     }
 
@@ -106,7 +108,8 @@ class PipelineExtensionLoaderTest {
             }
             assertEquals(true, failure.message.orEmpty().contains("duplicate pipeline extension id"))
             assertEquals(true, failure.message.orEmpty().contains("service-loaded-extension"))
-            assertEquals(true, failure.message.orEmpty().contains(serviceRoot.toUri().toURL().toExternalForm()))
+            assertEquals(true, failure.message.orEmpty().contains(serviceRoot.fileName.toString()))
+            assertEquals(false, failure.message.orEmpty().contains(serviceRoot.parent.toString()))
         }
     }
 

@@ -9,9 +9,9 @@ generator 不是独立于 authoring 的学习入口。第一次学习 cap4k 时�
 ## Pages
 
 - [Generator Backed Authoring](generator-backed-authoring.md)：解释 generator 是 architecture control，不是业务判断替代品；它把已明确的设计输入转成稳定 code slots 和 evidence。
-- [Bootstrap Project Structure](bootstrap-project-structure.md)：说明 `cap4kBootstrapPlan` / `cap4kBootstrap` 如何作为新项目结构入口，和手工四层多模块布局等价。
+- 新项目结构由 [官方 GitHub Template](https://github.com/LDmoxeii/cap4k-template/generate) 或团队按官方四层合同建立；pipeline plugin 不提供项目初始化任务。
 - [Inputs And Sources](inputs-and-sources.md)：说明 Gradle extension、DB/schema、`design/design.json`、`types.valueObjectManifest`、`types.enumManifest`、source-analysis input 和 reference project examples。
-- [Planning And Ownership Review](planning-and-ownership-review.md)：说明 `cap4kPlan`、`bootstrap-plan.json`、`plan.json`、`conflictPolicy`、generated-vs-handwritten ownership 和 checked-in first-materialization boundary。
+- [Planning And Ownership Review](planning-and-ownership-review.md)：说明 `cap4kAgentSnapshot`、`cap4kPlan`、`plan.json`、`conflictPolicy`、generated-vs-handwritten ownership 和 checked-in first-materialization boundary。
 - [Generation Tasks](generation-tasks.md)：说明 `cap4kGenerate`、`cap4kGenerateSources`、checked-in source、generated source、analysis task boundary 和公开 Gradle task sequence。
 - [Analysis Evidence](analysis-evidence.md)：说明 `cap4kAnalysisPlan`、`cap4kAnalysisGenerate`、flows、drawing-board 和 verification 中如何使用 analysis evidence。
 

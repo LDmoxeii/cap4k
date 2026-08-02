@@ -6,6 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineContribution
 import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
 import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider
+import com.only4.cap4k.plugin.pipeline.agent.AgentHashing
 import java.io.File
 import java.net.URLClassLoader
 import java.util.ServiceLoader
@@ -56,7 +57,10 @@ internal object PipelineExtensionLoader {
     private fun resolvedClasspathEvidence(classLoader: ClassLoader): String =
         (classLoader as? URLClassLoader)
             ?.urLs
-            ?.map { it.toExternalForm() }
+            ?.map { url ->
+                val fileName = runCatching { File(url.toURI()).name }.getOrElse { "artifact" }
+                "$fileName#${AgentHashing.sha256(url.toExternalForm()).take(12)}"
+            }
             ?.sorted()
             ?.joinToString(prefix = "[", postfix = "]")
             ?: "[unavailable:${classLoader.javaClass.name}]"

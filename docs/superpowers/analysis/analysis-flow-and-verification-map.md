@@ -16,12 +16,14 @@
 - `cap4kAnalysisPlan` 与 `cap4kAnalysisGenerate` 都调用 `analysisTaskConfig(configFactory.build(project, extension))`。`analysisTaskConfig` 只保留 source id `ir-analysis`，generator id `flow` 与 `drawing-board`。
 - `cap4kAnalysisPlan` 输出 `build/cap4k/analysis-plan.json`。`Cap4kAnalysisPlanTask` 用 `buildAnalysisRunner(..., exportEnabled = false)` 生成 plan items 和 diagnostics，然后写 `PlanReport` 到该路径。
 - `cap4kAnalysisGenerate` 使用同一个 analysis config，但 `buildAnalysisRunner(..., exportEnabled = true)`，因此会实际写出 flow / drawing-board artifacts。
-- flow 与 drawing-board 是 analysis / observation generators，不是默认业务源码生成路径。`PipelinePlugin.buildSourceRunner` 的业务源码生成器列表包含 command/query/client/domain-event/domain-service/saga/integration-event/types/aggregate 等；`buildAnalysisRunner` 只注册 `IrAnalysisSourceProvider`、`DrawingBoardArtifactPlanner`、`FlowArtifactPlanner`。
+- flow 与 drawing-board 是 analysis / observation generators，不是默认业务源码生成路径。`PipelinePlugin.buildSourceRunner` 注册 command/query/capability/domain-event/domain-service/integration-event/types/aggregate 等 authoring generators；`buildAnalysisRunner` 只注册 `IrAnalysisSourceProvider`、`DrawingBoardArtifactPlanner`、`FlowArtifactPlanner`。
 - pipeline flow generator 的 id 是 `flow`。`FlowArtifactPlanner` 从 `model.analysisGraph` 规划每个 flow 的 JSON 与 Mermaid 文件，以及 `index.json`；输出根来自 `ArtifactLayoutResolver.flowOutputRoot()`。
-- pipeline drawing-board generator 的 id 是 `drawing-board`。`DrawingBoardArtifactPlanner` 从 `model.drawingBoard.elementsByTag` 规划 `drawing_board_<tag>.json`，支持 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga` tags；输出根来自 `ArtifactLayoutResolver.drawingBoardOutputRoot()`。
+- pipeline drawing-board generator 的 id 是 `drawing-board`。`DrawingBoardArtifactPlanner` 从 `model.drawingBoard.elementsByTag` 规划 `drawing_board_<tag>.json`，支持 `command`、`query`、`capability`、`api_payload`、`domain_event`、`integration_event`、`domain_service` tags；输出根来自 `ArtifactLayoutResolver.drawingBoardOutputRoot()`。
 - `ArtifactLayoutResolver` 当前默认测试显示 flow output root 是 `flows`，drawing-board output root 是 `design`；可通过 `layout.flow.outputRoot` 与 `layout.drawingBoard.outputRoot` 改变。
 - 另有独立 `cap4k-plugin-code-analysis-flow-export` Gradle plugin，plugin id 是 `io.github.ldmoxeii.cap4k.codeanalysis.flow-export`。它注册 `cap4kFlowExport`、`cap4kFlowClean`、`cap4kFlowCompile`、`cap4kFlow`，默认输出 root `flows`，直接读取 input dirs 中的 `nodes.json` / `rels.json` 并导出 flow。它与 pipeline generator `flow` 不是同一路径：前者是独立 flow-export plugin，后者是 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 的 analysis generator。
 - analysis task dependency inference 基于 `ir-analysis` input dirs。`inferAnalysisDependencies` 会把位于某 project build directory 下的 input dir 映射到该 project 的 `compileKotlin`，并让 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 依赖它。
+- `cap4kAgentSnapshot` 把 analysis 当前状态发布到 `build/cap4k/agent/analysis.json`，并由 `manifest.json` 引用。该分区区分计划中的 `plannedOutputPaths` 与磁盘上实际存在的 `availableOutputPaths`，记录 IR node/relation/design-element 计数，并把 plan evidence freshness 与建议的下一步一并暴露给 agent。
+- Agent API analysis 分区只是对 analyzer 输入、plan evidence 和输出可用性的安全快照；它不提升 analyzer observation 为业务真相，也不授权自动改写 generator input。
 
 ## Source Anchors
 
@@ -37,6 +39,9 @@
 - `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAnalysisPlanTask.kt`
 - `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAnalysisGenerateTask.kt`
 - `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/ArtifactLayoutResolver.kt`
+- `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/AgentContracts.kt`
+- `cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentFreshness.kt`
+- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt`
 - `cap4k-plugin-code-analysis-flow-export/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/flow/Cap4kFlowExportPlugin.kt`
 - `cap4k-plugin-pipeline-source-ir-analysis/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/ir/IrAnalysisSourceProviderTest.kt`
 - `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt`
@@ -49,6 +54,7 @@
 - `cap4kAnalysisPlan` 只计划 analysis artifacts，并写 `build/cap4k/analysis-plan.json`；`cap4kAnalysisGenerate` 才导出 analysis artifacts。
 - `flow` / `drawing-board` generator 输出是观察与审查材料，不代表默认业务 source generation，也不参与 `cap4kPlan` / `cap4kGenerate` 的 source generator 列表。
 - 独立 flow-export plugin 与 pipeline flow generator 必须分开说明：plugin task 是 `cap4kFlowExport` 等，pipeline generator id 是 `flow`。
+- Agent API 必须分别表达“plan 规划了什么”和“哪些 observation output 已实际存在”；只有 plan evidence fresh 不代表 `cap4kAnalysisGenerate` 已经导出文件。
 
 ## Change Impact
 
@@ -57,6 +63,7 @@
 - 修改 `sources.irAnalysis.inputDirs` DSL 会影响 `Cap4kProjectConfigFactory`、`inferAnalysisDependencies`、`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 和所有 analysis docs。
 - 修改 `ANALYSIS_TASK_SOURCE_IDS` 或 `ANALYSIS_TASK_GENERATOR_IDS` 会改变 analysis task 运行内容，必须同步 source/generator contract docs。
 - 修改 flow / drawing-board output layout 会影响 generated artifacts、functional tests、public docs 示例和 review automation 读取路径。
+- 修改 analysis plan evidence、output availability 或 IR count 语义会影响 `cap4k-plugin-pipeline-agent` freshness/identity、`Cap4kAgentSnapshotTask` 和 `docs/public/reference/agent-api.md`。
 - 修改 flow-export plugin 行为时，不要误改 pipeline flow generator 文档；两者只有输入文件格式相似，不是同一个 Gradle 入口。
 
 ## Verification

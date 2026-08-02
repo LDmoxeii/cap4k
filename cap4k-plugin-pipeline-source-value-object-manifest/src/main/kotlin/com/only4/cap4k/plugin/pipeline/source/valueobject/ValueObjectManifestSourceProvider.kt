@@ -4,6 +4,15 @@ import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirementMatch
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectDeclarationSnapshot
@@ -13,6 +22,26 @@ import java.nio.file.Path
 
 class ValueObjectManifestSourceProvider : SourceProvider {
     override val id: String = "value-object-manifest"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Value Object Manifest Source",
+        kind = PipelineCapabilityKind.SOURCE,
+        module = "cap4k-plugin-pipeline-source-value-object-manifest",
+        tacticalCarriers = listOf("Value Object"),
+        executionLanes = listOf(PipelineExecutionLane.AUTHORING, PipelineExecutionLane.GENERATED_SOURCE),
+        tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE, PipelinePublicTasks.GENERATE_SOURCES),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "value-object-manifest-files",
+                configurationPaths = listOf("sources.value-object-manifest.files", "types.valueObjectManifest.files"),
+                match = PipelineInputRequirementMatch.ANY,
+            ),
+        ),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.INPUT, PipelineBoundaryAuthorities.PROJECT_INPUT),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_SOURCE),
+        ),
+    )
 
     override fun collect(config: ProjectConfig): ValueObjectManifestSnapshot {
         val sourceFiles = config.sources[id]
@@ -21,6 +50,16 @@ class ValueObjectManifestSourceProvider : SourceProvider {
             .asPathList()
         val files = sourceFiles.ifEmpty { config.typeRegistry.valueObjectManifestFiles.map(Path::of) }
         return load(files)
+    }
+
+    override fun localInputPaths(config: ProjectConfig): List<String> {
+        val sourceFiles = config.sources[id]
+            ?.options
+            ?.get("files")
+            .asPathList()
+        return sourceFiles
+            .ifEmpty { config.typeRegistry.valueObjectManifestFiles.map(Path::of) }
+            .map(Path::toString)
     }
 
     fun load(files: List<Path>): ValueObjectManifestSnapshot {

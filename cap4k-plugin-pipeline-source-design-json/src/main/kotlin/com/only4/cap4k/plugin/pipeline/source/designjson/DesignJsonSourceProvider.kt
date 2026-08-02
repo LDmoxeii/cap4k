@@ -7,6 +7,15 @@ import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirementMatch
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
@@ -14,6 +23,36 @@ import java.io.File
 
 class DesignJsonSourceProvider : SourceProvider {
     override val id: String = "design-json"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Design JSON Source",
+        kind = PipelineCapabilityKind.SOURCE,
+        module = "cap4k-plugin-pipeline-source-design-json",
+        tacticalCarriers = listOf(
+            "Command",
+            "Query",
+            "Capability",
+            "API Payload",
+            "Domain Event",
+            "Integration Event",
+            "Domain Service",
+            "Subscriber",
+            "Scheduled Reaction",
+        ),
+        executionLanes = listOf(PipelineExecutionLane.AUTHORING),
+        tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "design-json-files",
+                configurationPaths = listOf("sources.design-json.files", "sources.design-json.manifestFile"),
+                match = PipelineInputRequirementMatch.ANY,
+            ),
+        ),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.INPUT, PipelineBoundaryAuthorities.PROJECT_INPUT),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_SOURCE),
+        ),
+    )
 
     private val supportedTags = setOf(
         "command",
@@ -34,6 +73,15 @@ class DesignJsonSourceProvider : SourceProvider {
         val entries = resolveFiles(options)
             .flatMap { parseFile(it) }
         return DesignSpecSnapshot(entries = entries)
+    }
+
+    override fun localInputPaths(config: ProjectConfig): List<String> {
+        val options = config.sources[id]?.options ?: return emptyList()
+        val manifestFile = options["manifestFile"]?.toString()?.takeIf { it.isNotBlank() }
+        return buildList {
+            manifestFile?.let(::add)
+            addAll(resolveFiles(options).map(File::getAbsolutePath))
+        }.distinct()
     }
 
     private fun resolveFiles(options: Map<String, Any?>): List<File> {

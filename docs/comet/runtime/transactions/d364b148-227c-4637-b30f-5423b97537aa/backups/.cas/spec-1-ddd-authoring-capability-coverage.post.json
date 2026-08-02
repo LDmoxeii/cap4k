@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-ddd-authoring-capability-coverage",
+  "role": "post",
+  "hash": "0a8f64766b6c9d7b32292eb8291573188f230582631082c751a989dc367be8a8",
+  "identity": {
+    "dev": 950912656,
+    "ino": 8725724278734005,
+    "birthtimeMs": 1785580061047.56
+  }
+}

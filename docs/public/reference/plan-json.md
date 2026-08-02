@@ -6,11 +6,12 @@
 
 | File | Producer | Scope |
 | --- | --- | --- |
-| `build/cap4k/bootstrap-plan.json` | `cap4kBootstrapPlan` | project structure bootstrap plan |
 | `build/cap4k/plan.json` | `cap4kPlan` | ordinary source generation plan |
 | `build/cap4k/analysis-plan.json` | `cap4kAnalysisPlan` | analysis output plan |
 
 这些文件都在 `build/` 下，是本地 generated evidence，不是 committed source truth。
+
+每个 plan report 顶层包含 `outcome`：成功计划为 `SUCCEEDED`；`PipelineDiagnosticsException` 产生的诊断计划为 `FAILED`。失败任务仍会写出 diagnostics/evidence 供排错，但 `FAILED` report 不能因为 configuration/local-input identity 匹配就被解释为可生成的 fresh/OK evidence；`cap4kAgentSnapshot` 会把它归一化为 `invalid` 并要求重新运行对应 plan task。
 
 ## Review Fields
 
@@ -45,7 +46,7 @@
 | --- | --- |
 | `CHECKED_IN_SOURCE` | first-materialized committed source skeleton or type source，通常位于 `<module>/src/main/kotlin`；existing file 固定 SKIP。 |
 | `GENERATED_SOURCE` | build-owned generated source，位于 `<module>/build/generated/cap4k/main/kotlin`。 |
-| `OUTPUT_ARTIFACT` | non-source artifact output kind；built-in planners 常见 source generation items 主要使用前两类，具体以 plan evidence 为准。 |
+| `OUTPUT_ARTIFACT` | non-source evidence output；内置 flow 与 drawing-board planner 使用此 ownership。 |
 
 ## Conflict Policy Reading
 
@@ -53,23 +54,11 @@
 | --- | --- |
 | `SKIP` | 所有 checked-in source；generator 不覆盖、合并或刷新已有文件。 |
 | `OVERWRITE` | build-owned generated source 或明确要重新生成的 artifacts。 |
-| `FAIL` | bootstrap 或 guarded output；已有文件应阻止 materialization。 |
+| `FAIL` | 明确要求已有文件阻止 materialization 的严格输出。 |
 
 `CHECKED_IN_SOURCE` 的 policy 不受 source-generation template override 改写：plan 必须呈现 `SKIP`。作者需要更新 skeleton 时，应通过版本控制自行删除旧文件、重新 materialize 并审查差异。
 
 `src/main/kotlin` 不自动等于 handwritten ownership。Plan fields 必须一起阅读。
-
-## Bootstrap Plan
-
-`bootstrap-plan.json` 属于 project structure bootstrap。审查重点：
-
-- root project name。
-- domain/application/adapter/start module names。
-- base package。
-- template output paths。
-- `conflictPolicy` 对已有 project files 的处理。
-
-bootstrap plan 不验证 business design、schema、design JSON、enum manifest 或 value-object manifest。
 
 ## Analysis Plan
 

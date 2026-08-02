@@ -32,7 +32,7 @@ cap4k 的生成器不替代业务判断。它把已建模的业务意图、设�
 - DDD 战术建模：围绕 Aggregate、Entity、Value Object、Command、Query、Capability、Domain Event、Integration Event 等概念组织业务代码。
 - Clean Architecture 分层：把 domain、application、adapter、start 的责任和依赖方向拆清楚。
 - 生成器支撑作者流程：用 `design.json`、`types.valueObjectManifest`、`types.enumManifest`、Gradle DSL 和源代码分析输入生成可审阅骨架。
-- 明确所有权边界：通过 `cap4kPlan` 和生成计划先审阅输出、冲突策略、模板和 managed sections，再执行生成。
+- 明确所有权边界：通过 `cap4kAgentSnapshot`、`cap4kPlan` 和生成计划先审阅输出类型、目标 root、冲突策略、模板与 author-owned surface，再执行生成。
 - 分析证据：通过 `cap4kAnalysisPlan` 与 `cap4kAnalysisGenerate` 输出流程、依赖和 drawing-board 证据，辅助实现后的复盘。
 - 参考项目锚点：`cap4k-reference-content-studio` 提供四层多模块项目、发布流程、Value Object 类型输入和外部能力边界示例。
 
@@ -49,10 +49,10 @@ mental model -> docs/public/index.md -> concepts -> architecture -> cap4k-refere
 Creating new project:
 
 ```text
-architecture -> docs/public/generator/bootstrap-project-structure.md -> authoring -> generator inputs/plan/generation
+official GitHub Template -> architecture -> authoring -> generator inputs/plan/generation
 ```
 
-先确认 [architecture](docs/public/architecture/index.md) 的分层边界，再看 [bootstrap-project-structure](docs/public/generator/bootstrap-project-structure.md) 建立新项目结构，随后进入 [authoring](docs/public/authoring/index.md)，按 generator inputs、plan review、generation 的顺序推进。
+先通过页面顶部的官方 GitHub Template 创建四层项目，再确认 [architecture](docs/public/architecture/index.md) 的分层边界，随后进入 [authoring](docs/public/authoring/index.md)，按 generator inputs、plan review、generation 的顺序推进。团队也可以按同一架构合同手工建立项目；cap4k plugin 不再提供项目初始化能力。
 
 ## 文档地图
 
@@ -61,7 +61,7 @@ architecture -> docs/public/generator/bootstrap-project-structure.md -> authorin
 - [architecture](docs/public/architecture/index.md)：Clean Architecture 分层、依赖规则和按层测试。
 - [examples](docs/public/examples/index.md)：以 `cap4k-reference-content-studio` 为主的阅读与运行锚点。
 - [authoring](docs/public/authoring/index.md)：从业务意图、技术设计、生成输入到实现和验证的作者循环。
-- [generator](docs/public/generator/index.md)：bootstrap、输入来源、计划审阅、生成任务和分析证据。
+- [generator](docs/public/generator/index.md)：项目检查、输入来源、计划审阅、生成任务和分析证据。
 - [reference](docs/public/reference/index.md)：Gradle 插件、DSL、JSON 输入、计划、输出、分析和运行时 SQL 的精确查表。
 
 ## 什么时候适合
@@ -90,8 +90,7 @@ plugins {
 
 常用任务：
 
-- `cap4kBootstrapPlan`：生成新项目结构的 bootstrap 计划，用于先审阅。
-- `cap4kBootstrap`：按 bootstrap 配置创建或更新项目结构。
+- `cap4kAgentSnapshot`：生成 `build/cap4k/agent/` 下的只读、分区化项目快照，供 agent 按需检查能力、输入、所有权、运行时、分析和诊断。
 - `cap4kPlan`：根据当前输入生成 `build/cap4k/plan.json`，用于审阅生成输出和所有权。
 - `cap4kGenerate`：按计划生成 checked-in source 或 output artifact。
 - `cap4kGenerateSources`：生成参与源码集的 generated source。

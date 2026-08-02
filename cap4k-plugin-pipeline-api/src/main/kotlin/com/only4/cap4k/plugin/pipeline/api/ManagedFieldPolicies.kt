@@ -87,6 +87,13 @@ data class ManagedFieldPolicyContributionContext(
 interface ManagedFieldPolicyProvider : PipelineContribution {
     val id: String
 
+    val descriptor: PipelineCapabilityDescriptor
+        get() = PipelineCapabilityDescriptor.identityOnly(
+            id,
+            PipelineCapabilityKind.MANAGED_FIELD_POLICY,
+            PipelineCapabilityActivation.INSTALLED,
+        )
+
     fun definitions(context: ManagedFieldPolicyContributionContext): List<ManagedFieldPolicyDefinition>
 }
 

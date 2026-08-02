@@ -1,26 +1,31 @@
 package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 
-import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
-import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
-import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
-import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.DrawingBoardElementModel
-import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
-import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
-import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticMapTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticSetTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticTypeRef
-import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
-import com.only4.cap4k.plugin.pipeline.api.SemanticValueEnvelope
+import com.only4.cap4k.plugin.pipeline.api.*
 import java.util.Locale
 
 class DrawingBoardArtifactPlanner : GeneratorProvider {
     override val id: String = "drawing-board"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Drawing Board Generator",
+        kind = PipelineCapabilityKind.GENERATOR,
+        module = "cap4k-plugin-pipeline-generator-drawing-board",
+        activation = PipelineCapabilityActivation.INPUT_DRIVEN,
+        tacticalCarriers = listOf("Drawing Board Evidence"),
+        executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
+        tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "drawing-board-analysis",
+                capabilityIds = listOf("pipeline.source.ir-analysis"),
+            ),
+        ),
+        outputKinds = listOf(ArtifactOutputKind.OUTPUT_ARTIFACT),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_GENERATOR),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.ANALYZER, PipelineBoundaryAuthorities.ANALYZER_OBSERVATION),
+        ),
+    )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val elementsByTag = model.drawingBoard?.elementsByTag ?: return emptyList()
@@ -44,6 +49,8 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
                             "elements" to elements.map(DrawingBoardElementModel::toRenderModel),
                         ),
                         conflictPolicy = ConflictPolicy.OVERWRITE,
+                        outputKind = ArtifactOutputKind.OUTPUT_ARTIFACT,
+                        resolvedOutputRoot = outputRoot,
                     ),
                 )
             }

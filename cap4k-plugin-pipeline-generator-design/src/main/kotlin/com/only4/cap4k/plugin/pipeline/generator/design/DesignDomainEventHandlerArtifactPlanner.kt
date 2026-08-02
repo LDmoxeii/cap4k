@@ -5,9 +5,16 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
 
 class DesignDomainEventHandlerArtifactPlanner : GeneratorProvider {
     override val id: String = "domain-subscriber"
+    override val descriptor: PipelineCapabilityDescriptor = designDescriptor(
+        providerId = id,
+        displayName = "Domain Event Subscriber Generator",
+        tacticalCarrier = "Domain Event Subscriber",
+        boundaries = runtimeDesignBoundaries(providerOwned = true),
+    )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         model.validateDomainEventPayloads()

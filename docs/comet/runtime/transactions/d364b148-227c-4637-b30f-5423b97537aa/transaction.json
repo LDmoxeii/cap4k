@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "d364b148-227c-4637-b30f-5423b97537aa",
+  "kind": "archive",
+  "status": "committed",
+  "change": "cap4k-ddd-capability-audit",
+  "createdAt": "2026-08-01T10:27:35.551Z",
+  "preflightHash": "d36b94e74f7b169159f8c698de454cdbafa4a54b33f81ea44747bcb422905ffc",
+  "operations": [
+    {
+      "id": "spec-1-ddd-authoring-capability-coverage",
+      "type": "write",
+      "target": "specs/ddd-authoring-capability-coverage/spec.md",
+      "staged": "runtime/transactions/d364b148-227c-4637-b30f-5423b97537aa/staged/specs/ddd-authoring-capability-coverage/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "0a8f64766b6c9d7b32292eb8291573188f230582631082c751a989dc367be8a8"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/cap4k-ddd-capability-audit",
+      "target": "archive/2026-08-01-cap4k-ddd-capability-audit",
+      "expectedSourceHash": "1bcf86c061f1c64df29937ecf0189c77203aa80675c33967b31ef326bf24138d",
+      "expectedTargetHash": null
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.time.Duration
 
@@ -11,7 +12,7 @@ dependencies {
     implementation(gradleApi())
     implementation(gradleKotlinDsl())
     implementation(project(":cap4k-plugin-pipeline-api"))
-    implementation(project(":cap4k-plugin-pipeline-bootstrap"))
+    implementation(project(":cap4k-plugin-pipeline-agent"))
     implementation(project(":cap4k-plugin-pipeline-core"))
     implementation(project(":cap4k-plugin-pipeline-generator-aggregate"))
     implementation(project(":cap4k-plugin-pipeline-generator-drawing-board"))
@@ -69,4 +70,8 @@ tasks.named<Test>("test") {
     )
     outputs.upToDateWhen { false }
     outputs.cacheIf { false }
+}
+
+tasks.named<Jar>("jar") {
+    manifest.attributes["Implementation-Version"] = project.version.toString()
 }

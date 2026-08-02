@@ -7,18 +7,19 @@
 ## Current Facts
 
 - 已确认的 `SourceProvider` / `SourceSnapshot` ID 包括 `db`、`design-json`、`enum-manifest`、`value-object-manifest`、`ir-analysis`。`db`、`design-json`、`enum-manifest`、`value-object-manifest` 属于 source generation 路径；`ir-analysis` 属于 analysis generation 路径。
-- source generation 和 analysis generation 是不同职责。`cap4kPlan` / `cap4kGenerate` 使用 `sourceTaskConfig`，筛选 `db`、`design-json`、`enum-manifest`、`value-object-manifest`。`cap4kGenerateSources` 使用 `generatedSourceTaskConfig`，只筛选 `db`、`enum-manifest`。`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 使用 `analysisTaskConfig`，只筛选 `ir-analysis`。`flow` 和 `drawing-board` 只属于 analysis task。
-- Gradle task 另行筛选 source-generation generator IDs；`cap4kGenerateSources` 只保留 `aggregate`、`aggregate-projection`。
-- 已从源码确认的 source-generation generator IDs 包括 `aggregate`、`aggregate-projection`、`enum`、`types-value-object`、`command`、`query`、`query-handler`、`client`、`client-handler`、`api-payload`、`domain-event`、`domain-subscriber`、`integration-event`、`integration-subscriber`、`domain-service`、`saga`。
+- source generation 和 analysis generation 是不同职责。`cap4kPlan` / `cap4kGenerate` 使用 `sourceTaskConfig`，筛选 `db`、`design-json`、`enum-manifest`、`value-object-manifest`。`cap4kGenerateSources` 使用 `generatedSourceTaskConfig`，只筛选 `db`、`enum-manifest`、`value-object-manifest`。`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 使用 `analysisTaskConfig`，只筛选 `ir-analysis`。`flow` 和 `drawing-board` 只属于 analysis task。
+- Gradle task 另行筛选 source-generation generator IDs；`cap4kGenerateSources` 只保留 `types-value-object`、`aggregate`、`aggregate-projection`，并由 output kind 再限制为 `GENERATED_SOURCE`。
+- 已从源码确认的 source-generation generator IDs 包括 `aggregate`、`aggregate-projection`、`enum`、`types-value-object`、`command`、`query`、`query-handler`、`capability`、`capability-handler`、`api-payload`、`domain-event`、`domain-subscriber`、`integration-event`、`integration-subscriber`、`domain-service`。
 - 已从源码确认的 analysis generator IDs 是 `flow` 和 `drawing-board`。
-- `DesignJsonSourceProvider` 当前支持的 normal design-json `tag` 是 `command`、`query`、`client`、`api_payload`、`domain_event`、`integration_event`、`domain_service`、`saga`。这些 tag 也被 `DefaultCanonicalAssembler` 的 `SupportedDesignBlockTags` 和 drawing-board 支持列表复用。
+- `DesignJsonSourceProvider` 当前支持的 normal design-json `tag` 是 `command`、`query`、`capability`、`api_payload`、`domain_event`、`integration_event`、`domain_service`。`DefaultCanonicalAssembler.SupportedDesignBlockTags`、`SupportedDrawingBoardTags` 与 `DrawingBoardArtifactPlanner.supportedTags` 使用同一组当前标签。
 - `validator` 不是当前 normal design-json tag；`DesignJsonSourceProviderTest` 明确验证 `validator` 会抛出 `Unsupported design tag: validator`。`value_object` 也不在当前 supported tag set；当前 value object 走 `value-object-manifest` source 和 `types-value-object` generator。
-- `client` 是 design tag 和 generator family；默认 artifact selection 会同时选择 `client` 与 `client-handler`。当前术语是 `client` / `client-handler`，不要把 handler 写成旧式混合术语。
+- `client`、`client-handler` 与 `saga` 都不是当前 normal design tag、内建 artifact family 或已注册 generator。当前跨上下文调用载体是 `capability`；其默认 artifact selection 同时选择 `capability` 与 `capability-handler`。
 - `integration_event` 是 design-json tag；`integration-event` 是 artifact/generator family，variant 只能是 `inbound` 或 `outbound`。`DesignJsonSourceProvider` 要求 `integration_event` 必须声明 `eventName`、至少在生成 event contract 时有 `fields`，并禁止 `resultFields`。
 - `integration_event` 的默认 artifact selection 是 `integration-event:outbound`。如果要生成 inbound event contract，design block 必须显式选择 `integration-event` 且 variant 为 `inbound`。如果要生成 subscriber，必须显式选择 `integration-subscriber`，且同一 block 必须选择 `integration-event:inbound`，否则 assembler / planner 会失败。
-- `domain_event` 可省略 `package`，它的包会从目标 aggregate root 包推导；`domain_event` 字段名 `entity` 是保留字段，由 `aggregates[0]` 派生。
-- `query`、`client`、`api_payload` 可以声明 `resultFields`；其他 tag 不能声明 `resultFields`，`integration_event` 有专门错误信息。
+- `domain_event` 可省略 `package`，它的包会从唯一目标 aggregate root 推导；当前公开 design-json 输入拒绝已移除字段 `entity`，并要求 `aggregates` 恰好包含一个 aggregate。
+- `command`、`query`、`capability`、`api_payload` 可以声明 `resultFields`；其他 tag 不能声明 `resultFields`，`integration_event` 有专门错误信息。
 - design-json 读取 UTF-8，支持 `files` 列表或 `manifestFile` + `projectDir`。manifest entry 会 canonicalize，禁止逃出 `projectDir`，禁止重复和空 entry。
+- 内建 source/generator 都通过 `PipelineCapabilityDescriptor` 声明 capability identity、module、activation、execution lane、task、input requirement、output kind 与 authority boundary；Agent API 的 supported catalog 应从 descriptor 获取，不应再由文档静态推断 provider 能力。
 
 ## Source Anchors
 
@@ -26,6 +27,7 @@
 - `cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt`
 - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt`
 - `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt`
+- `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineCapabilityDescriptors.kt`
 - `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/ProjectConfig.kt`
 - `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt`
 - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/`
@@ -55,11 +57,11 @@
 在 PowerShell 中，`cap4k-plugin-pipeline-*` 作为 `rg` 路径参数可能被原样传给 ripgrep 并触发 `os error 123`。使用显式目录列表更稳定：
 
 ```powershell
-rg -n "command|query|client|api_payload|domain_event|integration_event|domain_service|saga|validator|value_object" cap4k-plugin-pipeline-source-design-json cap4k-plugin-pipeline-generator-design
+rg -n "command|query|capability|api_payload|domain_event|integration_event|domain_service|client|saga|validator|value_object" cap4k-plugin-pipeline-source-design-json cap4k-plugin-pipeline-generator-design cap4k-plugin-pipeline-generator-drawing-board
 ```
 
 ```powershell
-rg -n "client-handler|client[/]cli|aggregate-projection|integration-subscriber" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-gradle cap4k-plugin-pipeline-source-design-json cap4k-plugin-pipeline-source-ir-analysis cap4k-plugin-pipeline-generator-design cap4k-plugin-pipeline-generator-flow cap4k-plugin-pipeline-generator-drawing-board
+rg -n "client-handler|saga|capability-handler|aggregate-projection|integration-subscriber" cap4k-plugin-pipeline-api cap4k-plugin-pipeline-core cap4k-plugin-pipeline-gradle cap4k-plugin-pipeline-source-design-json cap4k-plugin-pipeline-source-ir-analysis cap4k-plugin-pipeline-generator-design cap4k-plugin-pipeline-generator-flow cap4k-plugin-pipeline-generator-drawing-board
 ```
 
 ```powershell
@@ -69,6 +71,7 @@ rg -n 'override val id: String = "[^"]+"' cap4k-plugin-pipeline-generator-aggreg
 ## Drift Watch
 
 - 如果代码重新加入 `validator` normal design-json tag，必须同时更新 supported tag list、设计生成器、artifact families 和测试；在此之前，`validator` 只应作为 aggregate unique validator 或 addon/provider 相关事实出现。
+- 如果重新加入 `client`、`client-handler` 或 `saga`，必须先出现对应 provider descriptor、task wiring、canonical semantics 和测试；历史名称命中不能作为当前能力证据。
 - 如果 value object 入口从 `value-object-manifest` 改为 design-json tag，必须重写本 map 的 source ID、tag、generator 和 ownership 描述。
 - 如果 `integration_event` 默认从 outbound 改为 inbound，或者 subscriber 不再要求 inbound，必须同步修改 flow、drawing-board 和 design generator tests。
 - 如果 Gradle task filtering 改变，必须重新确认 `SOURCE_TASK_SOURCE_IDS`、`GENERATED_SOURCE_TASK_SOURCE_IDS`、`ANALYSIS_TASK_SOURCE_IDS` 以及对应 generator ID set。

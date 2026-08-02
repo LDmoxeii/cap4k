@@ -1,17 +1,47 @@
 package com.only4.cap4k.plugin.pipeline.generator.aggregate
 
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalEnumCatalog
 import com.only4.cap4k.plugin.pipeline.api.CanonicalEnumDescriptor
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 
 class EnumManifestArtifactPlanner : GeneratorProvider {
     override val id: String = "enum"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Enum Generator",
+        kind = PipelineCapabilityKind.GENERATOR,
+        module = "cap4k-plugin-pipeline-generator-aggregate",
+        activation = PipelineCapabilityActivation.INPUT_DRIVEN,
+        tacticalCarriers = listOf("Enum"),
+        executionLanes = listOf(PipelineExecutionLane.GENERATED_SOURCE),
+        tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE, PipelinePublicTasks.GENERATE_SOURCES),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "enum-definitions",
+                capabilityIds = listOf("pipeline.source.enum-manifest"),
+            ),
+        ),
+        outputKinds = listOf(ArtifactOutputKind.GENERATED_SOURCE),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_GENERATOR),
+        ),
+    )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         if (model.sharedEnums.isEmpty()) {

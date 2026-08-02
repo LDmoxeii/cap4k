@@ -65,7 +65,7 @@ module layout 要和 [Architecture](../architecture/index.md) 对齐。参考项
 - `cap4k-reference-content-studio-application`
 - `cap4k-reference-content-studio-adapter`
 
-start module 由 bootstrap configuration 记录为 `cap4k-reference-content-studio-start`。这些路径决定 generated output 和 checked-in skeleton 应该落在哪里，也帮助 plan review 判断 module placement 是否正确。
+start module 不属于 generator module mapping；它由项目结构本身保留为 `cap4k-reference-content-studio-start`，负责运行时装配。`domainModulePath`、`applicationModulePath` 和 `adapterModulePath` 决定 generated output 和 checked-in skeleton 应该落在哪里，也帮助 plan review 判断 module placement 是否正确。
 
 如果 plan output 显示 Query handler、capability-handler 或 persistence adapter 的物理位置和作者预期不同，先回到 module layout 和 generator input projection 检查，不要直接移动生成文件。
 

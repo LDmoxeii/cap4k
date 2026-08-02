@@ -13,28 +13,28 @@ class PresetTemplateResolverTest {
 
     @Test
     fun `resolver keeps two argument jvm constructor for existing callers`() {
-        val overrideDir = Files.createTempDirectory("bootstrap-constructor-override")
-        val templateDir = Files.createDirectories(overrideDir.resolve("bootstrap/root"))
+        val overrideDir = Files.createTempDirectory("preset-constructor-override")
+        val templateDir = Files.createDirectories(overrideDir.resolve("templates/root"))
         templateDir.resolve("settings.gradle.kts.peb").writeText("rootProject.name = \"{{ projectName }}\"")
         val constructor = PresetTemplateResolver::class.java.getConstructor(String::class.java, List::class.java)
-        val resolver = constructor.newInstance("test-bootstrap", listOf(overrideDir.toString()))
+        val resolver = constructor.newInstance("test-preset", listOf(overrideDir.toString()))
 
-        val resolved = resolver.resolve("bootstrap/root/settings.gradle.kts.peb")
+        val resolved = resolver.resolve("templates/root/settings.gradle.kts.peb")
 
         assertTrue(resolved.contains("rootProject.name"))
     }
 
     @Test
     fun `resolve prefers absolute direct file before override and resource templates`() {
-        val directFile = Files.createTempFile("bootstrap-direct-template", ".peb")
+        val directFile = Files.createTempFile("preset-direct-template", ".peb")
         directFile.writeText("direct={{ projectName }}")
 
-        val overrideDir = Files.createTempDirectory("bootstrap-override")
-        val overrideTemplateDir = Files.createDirectories(overrideDir.resolve("bootstrap/root"))
+        val overrideDir = Files.createTempDirectory("preset-override")
+        val overrideTemplateDir = Files.createDirectories(overrideDir.resolve("templates/root"))
         overrideTemplateDir.resolve("settings.gradle.kts.peb").writeText("override={{ projectName }}")
 
         val resolver = PresetTemplateResolver(
-            preset = "test-bootstrap",
+            preset = "test-preset",
             overrideDirs = listOf(overrideDir.toString())
         )
 
@@ -56,7 +56,7 @@ class PresetTemplateResolverTest {
 
         URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
             val resolver = PresetTemplateResolver(
-                preset = "test-bootstrap",
+                preset = "test-preset",
                 overrideDirs = listOf(overrideDir.toString()),
                 addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
@@ -76,7 +76,7 @@ class PresetTemplateResolverTest {
 
         URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
             val resolver = PresetTemplateResolver(
-                preset = "test-bootstrap",
+                preset = "test-preset",
                 overrideDirs = emptyList(),
                 addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
@@ -91,7 +91,7 @@ class PresetTemplateResolverTest {
     fun `resolve rejects addon template when addon id is not registered`() {
         val templateId = "addons/sample-addon/missing.kt.peb"
         val resolver = PresetTemplateResolver(
-            preset = "test-bootstrap",
+            preset = "test-preset",
             overrideDirs = emptyList()
         )
 
@@ -111,7 +111,7 @@ class PresetTemplateResolverTest {
 
         URLClassLoader(arrayOf(addonResourceDir.toUri().toURL()), null).use { addonClassLoader ->
             val resolver = PresetTemplateResolver(
-                preset = "test-bootstrap",
+                preset = "test-preset",
                 overrideDirs = emptyList(),
                 addonTemplateClassLoaders = mapOf("sample-addon" to addonClassLoader)
             )
@@ -131,7 +131,7 @@ class PresetTemplateResolverTest {
     fun `resolve fails fast for missing addon template without preset fallback`() {
         val templateId = "addons/sample-addon/missing.kt.peb"
         val resolver = PresetTemplateResolver(
-            preset = "test-bootstrap",
+            preset = "test-preset",
             overrideDirs = emptyList(),
             addonTemplateClassLoaders = mapOf("sample-addon" to javaClass.classLoader)
         )

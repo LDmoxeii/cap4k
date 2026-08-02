@@ -9,6 +9,9 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalAssemblyResult
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
 import com.only4.cap4k.plugin.pipeline.api.PipelineContributionConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionConfig
 import com.only4.cap4k.plugin.pipeline.api.OwnedManagedFieldPolicyDefinition
@@ -858,6 +861,11 @@ class DefaultPipelineRunnerTest {
         }
         val configKeyRequiredGeneratorProvider = object : GeneratorProvider {
             override val id: String = "aggregate"
+            override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.identityOnly(
+                id,
+                PipelineCapabilityKind.GENERATOR,
+                PipelineCapabilityActivation.EXPLICIT_CONFIGURATION,
+            )
 
             override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
                 callOrder += "plan-aggregate"

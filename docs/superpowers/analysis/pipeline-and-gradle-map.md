@@ -1,103 +1,69 @@
 # Pipeline And Gradle Map
 
-## Purpose
+本页记录 `cap4k-plugin-pipeline-gradle` 的当前维护事实。精确 capability/input/ownership 状态应优先读取 provider descriptor、源码/测试和 `cap4kAgentSnapshot`。
 
-本页是 `cap4k-plugin-pipeline-gradle` 当前 Gradle plugin、task、DSL、source/generator routing 和输出路径的维护地图。它帮助维护 agent 判断 pipeline 行为是否来自当前 Kotlin source，而不是旧文档或旧分析结论。
+## Public Surface
 
-## Current Facts
+Plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`。`PipelinePlugin.apply` 注册：
 
-- Gradle plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`，定义在 `cap4k-plugin-pipeline-gradle/build.gradle.kts` 的 `gradlePlugin { plugins { ... } }` block 中。
-- `PipelinePlugin.apply` 创建 extension `cap4k`，类型是 `Cap4kExtension`。
-- `PipelinePlugin.apply` 注册这些 Gradle tasks:
-  - `cap4kBootstrapPlan`
-  - `cap4kBootstrap`
-  - `cap4kPlan`
-  - `cap4kGenerate`
-  - `cap4kGenerateSources`
-  - `cap4kAnalysisPlan`
-  - `cap4kAnalysisGenerate`
-- 已从 task source 验证的 plan output paths:
-  - `Cap4kBootstrapPlanTask` 输出 `build/cap4k/bootstrap-plan.json`。
-  - `Cap4kPlanTask` 输出 `build/cap4k/plan.json`。
-  - `Cap4kAnalysisPlanTask` 输出 `build/cap4k/analysis-plan.json`。
-- `cap4kPlan` 通过 `sourceTaskConfig(configFactory.build(project, extension))` 和 `buildSourceRunner(..., exportEnabled = false)` 构建 source task 配置与 runner。
-- `cap4kGenerate` 使用启用 export 的 source pipeline 行为；修改文档前必须先在 `Cap4kGenerateTask.kt` 中核对精确行为。
-- `cap4kGenerateSources` 通过 `generatedSourceTaskConfig(...)`、`buildGeneratedSourceRunner(...)`，以及来自 `generatedSourceOutputDirectories(...)` 的输出目录运行。
-- `cap4kGenerateSources` 的已生成 Kotlin 根目录，是每个已解析 target module build directory 下的 `build/generated/cap4k/main/kotlin`。`registerGeneratedKotlinSourceSets` 通过 `srcDir` 把该目录加入 Kotlin `main` source set，`wireGeneratedSourceCompilation` 则让 `compileKotlin` 依赖 `cap4kGenerateSources`。
-- `PipelinePlugin.kt` 路由的 source IDs:
-  - regular source task: `db`, `design-json`, `enum-manifest`, `value-object-manifest`
-  - generated source task: `db`, `enum-manifest`
-  - analysis task: `ir-analysis`
-- `PipelinePlugin.kt` 路由的配置层 generator IDs:
-  - regular source task: `command`, `query`, `query-handler`, `client`, `client-handler`, `api-payload`, `domain-event`, `domain-subscriber`, `domain-service`, `saga`, `integration-event`, `integration-subscriber`, `types-value-object`, `aggregate`, `aggregate-projection`
-  - generated source task 配置层业务 generator IDs: `aggregate`, `aggregate-projection`
-  - analysis task: `flow`, `drawing-board`
-- 用于生成 source 的 runner，其实际 planner 安装范围大于配置层 generator ID 过滤范围。`buildSourceRunner(...)` 安装的 built-in planners 包括 `EnumManifestArtifactPlanner`（`id = "enum"`）、`AggregateArtifactPlanner` 和 `AggregateProjectionArtifactPlanner`；因此 `cap4kGenerateSources` 会把 `config.generators` 收窄到 `aggregate` / `aggregate-projection`，但已安装的 `enum` planner 仍可从 `enum-manifest` source input 产出 `GENERATED_SOURCE`。
-- `sources.irAnalysis.inputDirs` 驱动 analysis input selection。`Cap4kProjectConfigFactory.buildSources` 只在 `extension.sources.irAnalysis.inputDirs` 非空时创建 source id `ir-analysis`，并把绝对路径排序后存入 option `inputDirs`。
-- Analysis task 的依赖推断基于 `ir-analysis` 的 `inputDirs`：`inferAnalysisDependencies` 会把位于某个 project build directory 下的 input dirs 映射到该 project 的 `compileKotlin` task。
-- 当前 `Cap4kExtension` 暴露 DSL blocks `project`、`types`、`sources`、`generators`、`templates`、`bootstrap`、`layout` 和 `addons`。
-- 当前 generator configuration 为 regular/build source generation 配置了 `aggregate` 和 `aggregateProjection` 两个 generators。`drawingBoard` 和 `flow` 作为 DSL blocks 存在，但当前 analysis task routing 通过 `analysisTaskConfig` generator IDs 选择，而不是通过文档曾描述的 `enabled` 开关。
-- 不要为当前 `cap4kPlan` 或 `cap4kGenerate` 行为记录 KSP metadata source contract。当前 regular source tasks 的依赖推断在 `inferSourceDependencies` 中返回 `emptyList()`。
+- `cap4kAgentSnapshot`：只读 inspection，输出 `build/cap4k/agent/` 八文件 manifest-first snapshot；
+- `cap4kPlan`：ordinary source-generation plan，输出 `build/cap4k/plan.json`；
+- `cap4kGenerate`：物化 ordinary source-generation plan；
+- `cap4kGenerateSources`：只物化 build-owned `GENERATED_SOURCE` 并接入 Kotlin main compile；
+- `cap4kAnalysisPlan`：analysis plan，输出 `build/cap4k/analysis-plan.json`；
+- `cap4kAnalysisGenerate`：物化 flow/drawing-board `OUTPUT_ARTIFACT`。
+
+项目初始化 task/DSL/module 已删除；项目结构来自官方 GitHub Template、团队模板或人工建立。
+
+## Task Routing
+
+| Lane | Sources | Configured generator IDs |
+| --- | --- | --- |
+| ordinary source | `db`, `design-json`, `enum-manifest`, `value-object-manifest` | `command`, `query`, `query-handler`, `capability`, `capability-handler`, `api-payload`, `domain-event`, `domain-subscriber`, `domain-service`, `integration-event`, `integration-subscriber`, `types-value-object`, `aggregate`, `aggregate-projection` |
+| generated source | `db`, `enum-manifest`, `value-object-manifest` | `types-value-object`, `aggregate`, `aggregate-projection` |
+| analysis | `ir-analysis` | `flow`, `drawing-board` |
+
+Runner 实际安装的 planner catalog 来自 built-in provider 实例及已成功加载的 Pipeline Extension contribution；task config 负责输入/lane 收窄，不是第二套 capability truth。Activation 由 descriptor 的 `EXPLICIT_CONFIGURATION`、`INPUT_DRIVEN`、`INSTALLED` 元数据控制，runner 与 Agent effective view 使用同一规则。
+
+## DSL And Inputs
+
+`cap4k` 顶层 blocks 是：
+
+- `project`
+- `types`
+- `sources`
+- `generators`
+- `templates`
+- `layout`
+- `managedFields`
+- `pipelineExtensions`
+
+`sources.irAnalysis.inputDirs` 选择 analysis input；不存在旧 `.enabled` switch。DB source 是 live external input：Agent snapshot 只披露配置、安全类别和 plan next action，不调用 DB collect。Design/enum/value-object/IR local source 通过 provider `localInputPaths` 参与 validation 和 stable local-input identity。
+
+## Generated Source Wiring
+
+`cap4kGenerateSources` 只导出 `GENERATED_SOURCE`。Gradle 将每个受影响 module 的实际 `<buildDirectory>/generated/cap4k/main/kotlin` 注册为 Kotlin `main` source dir，并让 `compileKotlin` 依赖该 task。Root state 文件只记录 cap4k-owned generated roots，用于安全清理已记录 root；不会保护或 merge 项目 root source。
+
+## Agent API Contract
+
+`cap4kAgentSnapshot` 每次写出：`manifest.json`、`project.json`、`capabilities.json`、`inputs.json`、`ownership.json`、`runtime.json`、`analysis.json`、`diagnostics.json`。分区先原子替换、旧额外文件清理后，manifest 最后发布。Invalid required state 尽量留下 snapshot 后非零；optional unavailable 为 `partial` 成功。
+
+Snapshot 不刷新 plan。`PlanReport.outcome = FAILED` 即使 identity 匹配也必须归一化为 invalid。Analysis 分区区分 planned 与 available outputs，并只把存在且不早于当前 plan 的 project-owned files 报告为 available。
 
 ## Source Anchors
 
-- `cap4k-plugin-pipeline-gradle/build.gradle.kts`: plugin id 和 Gradle plugin 声明。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt`: task 注册、task config 分区、source/generator IDs、generated source-set 注册、compile task wiring、依赖推断。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt`: `cap4k { ... }` DSL 形状和可用 blocks/properties。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt`: extension-to-`ProjectConfig` 映射、`sources.irAnalysis.inputDirs`、source IDs、generator IDs、template 和 layout config。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kBootstrapPlanTask.kt`: `build/cap4k/bootstrap-plan.json`。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kPlanTask.kt`: `build/cap4k/plan.json`。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAnalysisPlanTask.kt`: `build/cap4k/analysis-plan.json`。
-- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kGenerateSourcesTask.kt`: generated source task inputs、outputs 和 runner 调用。
-
-## Contracts
-
-- 以 code 为准。修改 public docs、skills 或 downstream analysis assumptions 前，必须重新核对 Kotlin source。
-- `cap4kPlan` 规划 source-task artifacts 并输出 `build/cap4k/plan.json`；`cap4kGenerate` 物化 source-task artifacts。
-- `cap4kGenerateSources` 负责由 build 拥有的已生成 Kotlin source 生成。它在 module `build/generated/cap4k/main/kotlin` 下输出 generated source roots，把这些 roots 注册到 Kotlin `main`，并让 `compileKotlin` 依赖该 task。
-- `cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate` 消费由 `sources.irAnalysis.inputDirs` 构建的 `ir-analysis` source config，并路由到 `flow` / `drawing-board` planners。
-- Analysis source selection 必须记录为 `sources.irAnalysis.inputDirs`，不能记录为 `enabled` boolean。
-- Public docs 后续再解释用户 workflow；本地图应保持为维护用的简明事实索引。
-
-## Change Impact
-
-- 添加新的 source provider 时，需要更新 source module code、`PipelinePlugin` source ID sets、`Cap4kProjectConfigFactory.buildSources`、tests 和本地图。
-- 添加新的 generator 时，需要更新 generator module code、`PipelinePlugin` generator ID sets、config factory mapping（如果该 generator 有 DSL options）、tests 和本地图。
-- 修改 generated source output paths 会影响 source-set 注册、compile task wiring、generated output ownership、tests，以及任何提到 build-owned output 的 public docs。
-- 修改 analysis input semantics 会影响 `sources.irAnalysis.inputDirs`、`inferAnalysisDependencies`、`cap4kAnalysisPlan`、`cap4kAnalysisGenerate` 和 downstream flow/drawing-board docs。
-- 修改 plan report paths 会影响读取 `build/cap4k/*.json` 的 automation 和 review evidence。
+- `cap4k-plugin-pipeline-gradle/.../PipelinePlugin.kt`
+- `cap4k-plugin-pipeline-gradle/.../Cap4kExtension.kt`
+- `cap4k-plugin-pipeline-gradle/.../Cap4kProjectConfigFactory.kt`
+- `cap4k-plugin-pipeline-gradle/.../Cap4kAgentSnapshotTask.kt`
+- `cap4k-plugin-pipeline-gradle/.../Cap4kPlanTask.kt`
+- `cap4k-plugin-pipeline-gradle/.../Cap4kAnalysisPlanTask.kt`
+- `cap4k-plugin-pipeline-api/.../PipelineCapabilityDescriptors.kt`
 
 ## Verification
 
-在 cap4k worktree root 执行这些命令：
-
 ```powershell
-rg -n "cap4kBootstrapPlan|cap4kBootstrap|cap4kPlan|cap4kGenerate|cap4kGenerateSources|cap4kAnalysisPlan|cap4kAnalysisGenerate" cap4k-plugin-pipeline-gradle/src/main/kotlin
-rg -n "inputDirs|build/generated/cap4k/main/kotlin|analysis-plan.json|plan.json|bootstrap-plan.json" cap4k-plugin-pipeline-gradle/src/main/kotlin
+rg -n "cap4kAgentSnapshot|cap4kPlan|cap4kGenerate|cap4kGenerateSources|cap4kAnalysisPlan|cap4kAnalysisGenerate" cap4k-plugin-pipeline-gradle/src/main/kotlin
+rg -n "SOURCE_TASK_SOURCE_IDS|SOURCE_TASK_GENERATOR_IDS|GENERATED_SOURCE_TASK|ANALYSIS_TASK" cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt
+pwsh -NoLogo -NoProfile -File skills/scripts/validate-cap4k-skills.ps1
 ```
-
-其他有用检查：
-
-```powershell
-Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt -Raw
-Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt -Raw
-Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt -Raw
-Get-Content -Path cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kGenerateSourcesTask.kt -Raw
-```
-
-## Drift Watch
-
-- 旧说法曾描述 `cap4kPlan` / `cap4kGenerate` 依赖 KSP metadata；这对当前代码已过时。只有在 task source 重新接入这类 source contract 时，才能恢复该说法。
-- 旧说法曾描述 `cap4kGenerateSources` 接入 KSP，包括 `kspKotlin`；这对当前代码已过时。当前 wiring 是 Kotlin `main` source-set registration 加 `compileKotlin` dependency。
-- 旧的 `sources.irAnalysis.enabled` 说法已过时，除非代码重新引入该 property。当前 selection 是 `sources.irAnalysis.inputDirs`。
-- 旧的 `generators.flow.enabled` 和 `generators.drawingBoard.enabled` DSL switch 说法已过时，除非代码重新引入这些 properties。当前 `FlowGeneratorExtension` 和 `DrawingBoardGeneratorExtension` 是空 DSL classes。
-- 如果 `inferSourceDependencies` 不再返回 `emptyList()`，需要重新核对是否要为 `cap4kPlan`、`cap4kGenerate` 或 generated source tasks 记录新的 task dependencies。
-- 如果 generated source consumer task names 扩展到 `compileKotlin` 之外，需要更新 compile wiring contract 和 verification command。
-
-## Not Covered
-
-- 应用 Gradle plugin 的 public user tutorial。
-- 完整 template catalog、template IDs 或 rendered artifact examples。
-- 超出 task/output anchors 的完整 bootstrap preset slot semantics。
-- `ddd-*` modules 内部的 runtime DDD behavior。
-- `ir-analysis` pipeline boundary 之外的 code analysis compiler internals。

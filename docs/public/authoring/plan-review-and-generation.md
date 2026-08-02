@@ -1,6 +1,6 @@
 # Plan Review And Generation
 
-plan review 是进入 generation 前的 ownership 审查。作者已经有了业务意图、模型、技术设计和 generator inputs，但还不能直接假设输出会安全落位。`cap4kPlan`、`cap4kBootstrapPlan`、`cap4kGenerate` 和 `cap4kGenerateSources` 这些任务名背后，真正需要阅读的是 plan evidence、ownership、module placement、template choice 和 conflict behavior。
+plan review 是进入 generation 前的 ownership 审查。作者已经有了业务意图、模型、技术设计和 generator inputs，但还不能直接假设输出会安全落位。`cap4kAgentSnapshot`、`cap4kPlan`、`cap4kGenerate` 和 `cap4kGenerateSources` 这些任务名背后，真正需要阅读的是当前项目状态、plan evidence、ownership、module placement、template choice 和 conflict behavior。
 
 [Generation And Analysis Evidence](../examples/generation-and-analysis-evidence.md) 说明了参考项目中的 evidence surfaces。已提交的 inspection surfaces 是 design inputs、schema、source、tests、`.http`、`analysis/flows` 和 `analysis/drawing-board`；`build/cap4k/plan.json` 与 `build/cap4k/analysis-plan.json` 是运行 README 中 generation / analysis 入口后的本地 generated evidence。
 
@@ -20,11 +20,11 @@ plan review 是进入 generation 前的 ownership 审查。作者已经有了业
 
 这些字段回答的是“generator 计划写什么、写到哪里、用哪个模板、归属哪一层、遇到已有文件如何处理”。它们不回答“业务规则是否正确”。业务规则仍要回到 model、technical design、source 和 tests。
 
-## cap4kBootstrapPlan
+## cap4kAgentSnapshot
 
-`cap4kBootstrapPlan` 面向项目结构 bootstrap 的计划审查。它适合在项目初始结构或模块布局需要由 bootstrap 参与时使用，用来阅读 bootstrap 将如何创建或保护 root、module、package 和 template output。
+`cap4kAgentSnapshot` 是只读项目检查入口。它一次生成 `build/cap4k/agent/` 下的 manifest 与分区文件；agent 默认先读 `manifest.json`，再按任务加载 capabilities、inputs、ownership、runtime、analysis 或 diagnostics。它不会隐式运行 plan、generation、analysis、compile，也不会连接 live DB source。
 
-可以把 `cap4kBootstrap` 理解为 paired bootstrap action：plan 先展示 bootstrap 打算做什么，bootstrap action 再应用结构输出。但 authoring 章节不把 bootstrap 作为默认学习入口。对于已经存在的 reference project，读者通常先从 [Reference Content Studio](../examples/reference-content-studio.md)、design inputs、schema、source 和 `cap4kPlan` 进入。
+官方 GitHub Template 或团队按官方四层合同建立项目结构。Agent snapshot 只观察现状，不创建或修补项目骨架。
 
 ## cap4kGenerate
 
