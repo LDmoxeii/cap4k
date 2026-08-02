@@ -6,12 +6,16 @@ Generator 已经具备一条可工作的核心闭环：显式输入进入 Canoni
 
 这条闭环覆盖当前上下文内最常用的战术建模载体：Aggregate、Strong ID、Repository、Factory、Behavior scaffold、Value Object、Enum、Command、Query、Capability、API Payload、Domain Event、Integration Event、Subscriber、Handler 与 Domain Service。现有证据不支持“Generator 缺少 DDD 核心战术建模骨架”这一结论。
 
-Generator gate 当前仍不能通过，原因不是核心生成链不可用，而是存在当前契约漂移、一个会阻塞 HTTP adapter 下游验证的集成缺口，以及一个新确认的 Generator/Analyzer 共同闭环缺口：
+初次审计时 Generator gate 不能通过，原因不是核心生成链不可用，而是存在当前契约漂移、一个会阻塞 HTTP adapter 下游验证的集成缺口，以及一个新确认的 Generator/Analyzer 共同闭环缺口：
 
 1. Design JSON descriptor 与公共文档错误宣称 `Scheduled Reaction` 可由 generator 生成，实际没有对应 tag、canonical carrier、planner、template 或 runtime carrier。
 2. 公共 `plan.json` 示例仍使用旧 generator id，并错误描述 `outputPath` shape。
 3. Strong ID 本身可生成、编译、Jackson/JPA 可用，但 Spring MVC path/query 参数不能绑定为生成的 Strong ID。
 4. 当前尚不能保证 `Design JSON == generated skeleton == Drawing Board`。现有所谓 round-trip 测试绕过真实 Analyzer；多个合法输入会在生成或恢复时丢失、变形或无法再次编译。
+
+2026-08-02 mainline refresh：PR #154 已消除第 1、2 项 contract drift、删除 standalone validator 与 dead Specification helper；PR #155 已修复第 3 项 Strong ID MVC binding；PR #156 已完成第 4 项所依赖的 compile-time analysis metadata contract 与缺失 metadata fail-fast。三个 PR 均按 `#154 -> #155 -> #156` 顺序合并，每个后续分支都先更新到最新 `master` 并重新通过 required `check`；当前 `master` merge commit 为 `540fef09`。
+
+因此 Generator gate 只剩第 4 项的 semantic round-trip repair 与真实七 tag 二次 generate/compile gate，尚不能提前标记为 `READY`。
 
 其余开放事项主要属于诊断质量、可选 read-model provider、测试证据质量或陈旧 backlog，不应被误判为 DDD core 缺失。Drawing Board 闭环不再属于可接受的“人工 promotion 成本”，而是已确认的框架完整性 gate。
 
@@ -33,7 +37,7 @@ Generator 的责任是把已经确认的、显式的上下文内输入可靠投�
 | Source id | 输入责任 | 当前状态 |
 | --- | --- | --- |
 | `db` | DB/schema snapshot 与受支持 annotation | verified |
-| `design-json` | application/domain design entries | verified，存在 descriptor drift |
+| `design-json` | application/domain design entries | verified；descriptor drift 已由 PR #154 修复 |
 | `enum-manifest` | shared/local enum authoring input | verified |
 | `value-object-manifest` | value object authoring input | verified |
 | `ir-analysis` | analysis lane 的结构观察输入 | verified；不属于 ordinary source generation |
@@ -456,6 +460,15 @@ G-06 保持 optional provider boundary；G-07 继续作为独立 P2 diagnostics 
 
 每个 PR 合并后，审计线应刷新 `origin/master`、复核对应 finding 和验收证据，再改变 Generator gate 结论。只有第 4 个 PR 合并并通过共同 gate 后，Generator 才能从 `NOT READY` 改为 `READY`，随后进入 Runtime capability audit。
 
+Mainline merge evidence：
+
+- PR #154 `fix/generator-contract-surface` -> merge commit `d310f3fa`；required `check` passed。
+- PR #155 `fix/strong-id-mvc-binding` -> 先更新到 `d310f3fa`，required `check` passed，merge commit `9e0e0bcd`。
+- PR #156 `feature/analysis-metadata-contract` -> 先更新到 `9e0e0bcd`，组合 required `check` passed，merge commit `540fef09`。
+- 当前审计线已合入 `origin/master@540fef09`；本地主工作区的用户未提交改动未被触碰。
+- `fix/design-roundtrip-contract` 现在可以从 `origin/master@540fef09` 创建，不再依赖未合并前置。
+
+
 ## Backlog reconciliation
 
 | Issue | 当前判断 |
@@ -524,15 +537,15 @@ python scripts/validate-cap4k-generator-inputs.py
 
 ## Generator gate
 
-当前状态：`NOT READY`
+当前状态：`NOT READY`（仅剩 semantic round-trip blocking repair）
 
 解除条件：
 
-1. 按已确认决策消除 Scheduled Reaction descriptor/docs 与实际 generator/runtime contract 的漂移。
-2. 修正 `plan.json` 当前公开 contract example。
-3. 按已确认决策修复 Strong ID MVC binding，并通过真实 HTTP adapter binding evidence。
-4. 按已确认决策删除独立 Python input validator 及其公共 contract surface。
-5. 修复 G-05 的真实语义 round-trip 缺口，并以七 tag、真实 Analyzer、二次 generate/compile 的端到端证据通过共同 gate。
-6. 将 G-06、G-07、G-08、G-09 记录为已接受的 provider/partial/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。
+1. [x] 按已确认决策消除 Scheduled Reaction descriptor/docs 与实际 generator/runtime contract 的漂移：PR #154。
+2. [x] 修正 `plan.json` 当前公开 contract example：PR #154。
+3. [x] 按已确认决策修复 Strong ID MVC binding，并通过真实 HTTP adapter binding evidence：PR #155。
+4. [x] 按已确认决策删除独立 Python input validator 及其公共 contract surface：PR #154。
+5. [ ] 修复 G-05 的真实语义 round-trip 缺口，并以七 tag、真实 Analyzer、二次 generate/compile 的端到端证据通过共同 gate。
+6. [x] G-06/G-07 已记录为 accepted optional/P2 boundaries，G-08 已由 PR #154 清理；G-09 只在阻塞真实 gate 的 fixture 范围内归入第 5 项。
 
 Generator 修复不得弱化 PR #152 已确认的 runtime reliable-event payload boundary。生成的 persisted Domain Event 必须继续满足 runtime 对历史事实 payload 的拒绝实体规则。

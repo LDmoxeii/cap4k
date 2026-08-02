@@ -72,10 +72,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Retain `Array<T>` as a first-class Design JSON type and implement lossless Analyzer/Drawing Board recovery for recursive container nesting, element/container nullability, and normalized `emptyArray()` defaults. Keep recursive reliable-event payload validation. Primitive arrays such as `IntArray` and `ByteArray` remain outside the current contract.
 - Preserve declaration order for `fields`, `resultFields`, and every nested DTO. Drawing Board may normalize artifact, file, and entry order, but constructor position is tactical semantics and must not be sorted away.
 - Deliver Generator repairs through four focused branches/PRs: `fix/generator-contract-surface`, `fix/strong-id-mvc-binding`, `feature/analysis-metadata-contract`, then `fix/design-roundtrip-contract`. The first three may run in parallel from current `origin/master`; the round-trip branch starts only after the metadata-contract PR has merged and includes the real seven-tag gate plus required TestKit isolation. Refresh this audit line from merged `master` evidence after each PR. Keep G-06 optional and G-07 outside the blocking repair set.
+- PR #154 merged the Generator contract-surface repair as `d310f3fa`; PR #155 rebased on that result, passed required `check`, and merged the Strong ID MVC repair as `9e0e0bcd`; PR #156 rebased on both prior repairs, passed the combined required `check`, and merged the analysis-metadata contract as `540fef09`. The audit line now includes `origin/master@540fef09`. Only `fix/design-roundtrip-contract` remains before the Generator gate can become ready.
 
 # Open questions
 
-- No remaining Generator design decision. The audit is waiting for independently merged implementation evidence before changing the Generator gate or starting the Runtime slice.
+- No remaining Generator design decision. `fix/design-roundtrip-contract` may now start from `origin/master@540fef09`; Runtime audit remains deferred until that repair merges and the real round-trip gate passes.
 
 # Verification expectations
 
