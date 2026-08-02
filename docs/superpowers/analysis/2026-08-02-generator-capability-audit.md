@@ -284,6 +284,8 @@ Put(Get(generated skeleton))
 3. **受支持 type algebra 不对称。** Design JSON/canonical 支持 `Array<T>`，Analyzer 明确拒绝 `kotlin.Array`；合法输入无法完成分析回环：
    - `docs/public/reference/design-json.md:45-53`
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt:13-22`
+
+   已确认修复边界：`Array<T>` 保留为正式 Design JSON type algebra，Analyzer/Drawing Board 必须无损恢复并覆盖 recursive container nesting、element nullability、container nullability 与 `emptyArray()` normalized default。可靠事件 payload validator 继续递归检查 Array element type。本轮不顺带支持 `IntArray`、`ByteArray` 等 primitive array；它们需要未来独立证据和明确 contract。
 4. **Event field default 丢失。** Source/canonical 接受 field `defaultValue`，但 Domain/Integration Event templates 不渲染默认值，第一轮生成已经丢失语义：
    - `cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt:289-315`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:27-36`
@@ -305,6 +307,8 @@ Put(Get(generated skeleton))
 7. **Field order 被改变。** Drawing Board 对 fields/resultFields 排序，重新生成会改变 Kotlin constructor 参数顺序。Artifact set 可以排序，field/resultField 及 nested DTO 内部顺序必须保留：
    - `cap4k-plugin-pipeline-generator-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/drawingboard/DrawingBoardArtifactPlanner.kt:93-105`
    - `DrawingBoardArtifactPlanner.kt:174-181`
+
+   已确认修复边界：Drawing Board 可以规范化 artifact/file/entry order，但必须保留 `fields`、`resultFields` 和每个 nested DTO 内部的声明顺序。Constructor position 属于 normalized tactical semantics，不能为了输出稳定排序而改变。
 8. **Domain Event runtime event name 未投影。** 非空 `eventName` 只进入 recovery metadata，template 仍只生成 `@DomainEvent(persist = ...)`，没有写入真正 runtime 使用的 `DomainEvent.value`：
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:11-25`
    - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/annotation/DomainEvent.kt:11-21`

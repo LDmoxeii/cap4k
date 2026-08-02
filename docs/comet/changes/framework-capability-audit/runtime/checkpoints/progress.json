@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "ccf1558d-111d-40fa-9d27-2676958531f1",
+  "id": "201790d3-7e1a-4192-ad61-dd4661350bd3",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 16,
-  "stateRevision": 17,
-  "summary": "User confirmed Drawing Board must emit canonical FQNs for Strong IDs, Value Objects, enums, other project/context types, and external types. Only Design JSON builtins, standard containers, and current-block nested DTOs use normalized short names; container members follow the rule recursively.",
-  "nextAction": "Decide whether Array<T> remains supported and is added to Analyzer round-trip, or is removed from the authoring contract.",
-  "inputHash": "fdd38889a1cf8a95b46b58c23adaad0f10d0221f47e88e2dd577276686650627",
-  "manifestHash": "8d69ffa0d0751d29e4b88263531726b604edce9fbc4137dbe632c00d7909c292",
-  "manifestRef": "runtime/checkpoints/manifests/8d69ffa0d0751d29e4b88263531726b604edce9fbc4137dbe632c00d7909c292.json",
+  "previousRevision": 17,
+  "stateRevision": 18,
+  "summary": "User confirmed Array<T> remains a first-class Design JSON type. Analyzer and Drawing Board must recover recursive nesting, element/container nullability, and normalized emptyArray() defaults losslessly; primitive arrays remain unsupported. The audit also made the already-confirmed field-order preservation explicit.",
+  "nextAction": "Choose focused repair branches/PRs versus one combined Generator repair branch before implementation handoff.",
+  "inputHash": "2c92cfb6c9bde4a3f0528456dedf3d081b80f609eeefd31a5cb609d0cd5c512e",
+  "manifestHash": "2c7e51dbc41e56f16230ad6c50c2f316738b664fe8ca6de786add408b2cd66a5",
+  "manifestRef": "runtime/checkpoints/manifests/2c7e51dbc41e56f16230ad6c50c2f316738b664fe8ca6de786add408b2cd66a5.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:49:08.563Z"
+  "createdAt": "2026-08-02T05:52:52.486Z"
 }

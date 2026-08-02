@@ -69,10 +69,12 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Permit `entity` as an ordinary Domain Event payload field name. Remove name-based filtering from canonical assembly and Analyzer recovery, and rely exclusively on the resolved recursive semantic type validator to reject actual Entity/Aggregate payload types. Preserve PR #152's runtime refusal to persist reliable-event entity payloads.
 - Treat `pageNum/pageSize` on `page` Query and API Payload variants as framework-owned PageRequest structure implied by the variant, not ordinary Design JSON fields. Generator keeps deriving them; Analyzer excludes them only after confirming the page carrier and PageRequest semantics, never by global name filtering. Reject explicit same-name fields on a page variant, allow them on non-page variants, and keep `1/10` as the current variant default contract until a separate explicit page configuration is designed.
 - Emit stable type identities in Drawing Board: use normalized short names only for Design JSON builtins, standard containers, and nested DTOs declared by the current building block; emit resolved canonical FQNs for Strong IDs, Value Objects, enums, other project/context types, and external types. Apply the rule recursively inside containers, and never choose a short name merely because the current analysis classpath happens to make it unambiguous.
+- Retain `Array<T>` as a first-class Design JSON type and implement lossless Analyzer/Drawing Board recovery for recursive container nesting, element/container nullability, and normalized `emptyArray()` defaults. Keep recursive reliable-event payload validation. Primitive arrays such as `IntArray` and `ByteArray` remain outside the current contract.
+- Preserve declaration order for `fields`, `resultFields`, and every nested DTO. Drawing Board may normalize artifact, file, and entry order, but constructor position is tactical semantics and must not be sorted away.
 
 # Open questions
 
-- [blocking] Should `Array<T>` remain in the supported Design JSON type algebra and be implemented losslessly by Analyzer/Drawing Board, or be removed from the accepted authoring contract in favor of collection types?
+- [blocking] Should the accepted Generator repairs be delivered as four focused implementation branches/PRs—contract-surface cleanup, Strong ID MVC binding, analysis-metadata contract, then semantic round-trip plus its real gate—or as one combined Generator repair branch/PR?
 
 # Verification expectations
 
