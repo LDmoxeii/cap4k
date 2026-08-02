@@ -16,7 +16,7 @@ class DefaultKotlinTemplateImportContractTest {
     )
 
     @Test
-    fun `default non bootstrap kotlin templates follow unified import contract`() {
+    fun `default kotlin templates follow unified import contract`() {
         assertTrue(Files.isDirectory(presetRoot), "preset root does not exist: $presetRoot")
 
         val templatePaths = Files.walk(presetRoot).use { stream ->
@@ -28,7 +28,6 @@ class DefaultKotlinTemplateImportContractTest {
         }
 
         assertTrue(templatePaths.isNotEmpty(), "no default Kotlin templates found under $presetRoot")
-        assertTrue(templatePaths.none { path -> path.startsWith("bootstrap/") }, "bootstrap templates are out of scope")
 
         for (templatePath in templatePaths) {
             val templateContent = Files.readString(presetRoot.resolve(templatePath))

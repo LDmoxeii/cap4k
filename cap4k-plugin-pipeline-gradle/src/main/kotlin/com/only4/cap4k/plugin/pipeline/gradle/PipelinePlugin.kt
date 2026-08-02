@@ -7,24 +7,21 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
-import com.only4.cap4k.plugin.pipeline.api.BootstrapRunner
-import com.only4.cap4k.plugin.pipeline.api.BootstrapConfig
+import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
 import com.only4.cap4k.plugin.pipeline.api.PipelineContribution
 import com.only4.cap4k.plugin.pipeline.api.PipelineContributionBinding
+import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider
 import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
+import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
-import com.only4.cap4k.plugin.pipeline.core.DefaultBootstrapRunner
 import com.only4.cap4k.plugin.pipeline.core.DefaultPipelineRunner
-import com.only4.cap4k.plugin.pipeline.core.BootstrapFilesystemArtifactExporter
-import com.only4.cap4k.plugin.pipeline.core.BootstrapRootStateGuard
 import com.only4.cap4k.plugin.pipeline.core.FilteringArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
-import com.only4.cap4k.plugin.pipeline.bootstrap.DddMultiModuleBootstrapPresetProvider
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.EnumManifestArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
@@ -42,7 +39,6 @@ import com.only4.cap4k.plugin.pipeline.generator.drawingboard.DrawingBoardArtifa
 import com.only4.cap4k.plugin.pipeline.generator.flow.FlowArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
-import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleBootstrapRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import com.only4.cap4k.plugin.pipeline.source.db.DbSchemaSourceProvider
 import com.only4.cap4k.plugin.pipeline.source.designjson.DesignJsonSourceProvider
@@ -68,25 +64,11 @@ class PipelinePlugin : Plugin<Project> {
     override fun apply(project: Project) {
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
         val configFactory = Cap4kProjectConfigFactory()
-        val bootstrapConfigFactory = Cap4kBootstrapConfigFactory()
 
         project.configurations.create(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME) { configuration ->
             configuration.isCanBeConsumed = false
             configuration.isCanBeResolved = true
             configuration.description = "Build-time Cap4k Pipeline Extension dependencies."
-        }
-
-        project.tasks.register("cap4kBootstrapPlan", Cap4kBootstrapPlanTask::class.java) { task ->
-            task.group = "cap4k"
-            task.description = "Plans bootstrap skeleton files."
-            task.extension = extension
-            task.configFactory = bootstrapConfigFactory
-        }
-        project.tasks.register("cap4kBootstrap", Cap4kBootstrapTask::class.java) { task ->
-            task.group = "cap4k"
-            task.description = "Generates bootstrap skeleton files."
-            task.extension = extension
-            task.configFactory = bootstrapConfigFactory
         }
 
         val planTask = project.tasks.register("cap4kPlan", Cap4kPlanTask::class.java) { task ->
@@ -119,12 +101,26 @@ class PipelinePlugin : Plugin<Project> {
             task.extension = extension
             task.configFactory = configFactory
         }
+        project.tasks.register("cap4kAgentSnapshot", Cap4kAgentSnapshotTask::class.java) { task ->
+            task.group = "cap4k"
+            task.description = "Writes a read-only, manifest-first Cap4k project snapshot for agents."
+            task.extension = extension
+            task.configFactory = configFactory
+        }
 
         project.gradle.projectsEvaluated {
             if (!shouldInferPipelineDependencies(extension)) {
                 return@projectsEvaluated
             }
-            val config = configFactory.build(project, extension)
+            val config = try {
+                configFactory.build(project, extension)
+            } catch (failure: RuntimeException) {
+                project.logger.info(
+                    "Cap4k dependency inference was skipped because project configuration is invalid; " +
+                        "task execution will report the validation failure: ${failure.message}"
+                )
+                return@projectsEvaluated
+            }
             ensureAggregateDomainJpaDependency(project, config)
             ensureAggregateProjectionAdapterJpaDependency(project, config)
             ensureEnumManifestDomainDependencies(project, config)
@@ -438,9 +434,9 @@ internal fun recordManagedGeneratedSourceOutputDirectories(rootProject: Project,
 internal fun generatedSourceManagedRootsStateFile(rootProject: Project): File =
     rootProject.layout.buildDirectory.file(GENERATED_SOURCE_MANAGED_ROOTS_STATE_PATH).get().asFile
 
-private fun readManagedGeneratedSourceOutputDirectories(rootProject: Project): List<File> {
+internal fun readManagedGeneratedSourceOutputRoots(rootProject: Project): Map<String, String> {
     val stateFile = generatedSourceManagedRootsStateFile(rootProject)
-    if (!stateFile.isFile) return emptyList()
+    if (!stateFile.isFile) return emptyMap()
     val state = try {
         requireNotNull(
             GsonBuilder().create().fromJson(
@@ -459,7 +455,7 @@ private fun readManagedGeneratedSourceOutputDirectories(rootProject: Project): L
     val roots = requireNotNull(state.roots) {
         "Invalid Cap4k generated source managed-root state without roots: ${stateFile.absolutePath}"
     }
-    return roots.toSortedMap().map { (role, relativePath) ->
+    return roots.toSortedMap().mapValues { (role, relativePath) ->
         require(role in GENERATED_SOURCE_MANAGED_ROLES) {
             "Invalid Cap4k generated source managed role $role in ${stateFile.absolutePath}"
         }
@@ -470,9 +466,12 @@ private fun readManagedGeneratedSourceOutputDirectories(rootProject: Project): L
         }
         rootProject.projectDir.resolve(path.toString()).also { outputDirectory ->
             validateGeneratedSourceCleanupTarget(rootProject, outputDirectory)
-        }
+        }.toRootRelativeSlash(rootProject)
     }
 }
+
+private fun readManagedGeneratedSourceOutputDirectories(rootProject: Project): List<File> =
+    readManagedGeneratedSourceOutputRoots(rootProject).values.map { path -> rootProject.file(path) }
 
 private fun validateGeneratedSourceCleanupTarget(rootProject: Project, outputDirectory: File) {
     val rootPath = rootProject.projectDir.canonicalFile.toPath().normalize()
@@ -742,7 +741,7 @@ internal fun generatedSourceTaskHasUntrackedLiveDbInput(project: Project, config
     return dbRunScriptInputFiles(project, dbUrl).isEmpty()
 }
 
-private fun dbRunScriptInputFiles(project: Project, dbUrl: String): List<File> {
+internal fun dbRunScriptInputFiles(project: Project, dbUrl: String): List<File> {
     val runScriptPattern = Regex("""(?i)RUNSCRIPT\s+FROM\s+'([^']+)'""")
     return runScriptPattern.findAll(dbUrl)
         .map { match -> project.file(match.groupValues[1]) }
@@ -798,29 +797,8 @@ internal fun buildSourceRunner(
 ): PipelineRunner {
     val extensionRuntime = loadPipelineExtensionRuntime(project, config)
     val runner = DefaultPipelineRunner(
-        sources = listOf(
-            DbSchemaSourceProvider(),
-            EnumManifestSourceProvider(),
-            ValueObjectManifestSourceProvider(),
-            DesignJsonSourceProvider(),
-        ),
-        generators = listOf(
-            DesignCommandArtifactPlanner(),
-            DesignQueryArtifactPlanner(),
-            DesignQueryHandlerArtifactPlanner(),
-            DesignCapabilityArtifactPlanner(),
-            DesignCapabilityHandlerArtifactPlanner(),
-            DesignApiPayloadArtifactPlanner(),
-            DesignDomainEventArtifactPlanner(),
-            DesignDomainEventHandlerArtifactPlanner(),
-            DesignDomainServiceArtifactPlanner(),
-            DesignIntegrationEventArtifactPlanner(),
-            DesignIntegrationEventSubscriberArtifactPlanner(),
-            ValueObjectArtifactPlanner(),
-            EnumManifestArtifactPlanner(),
-            AggregateArtifactPlanner(),
-            AggregateProjectionArtifactPlanner(),
-        ),
+        sources = builtInAuthoringSourceProviders(),
+        generators = builtInAuthoringGeneratorProviders(),
         assembler = DefaultCanonicalAssembler(),
         renderer = PebbleArtifactRenderer(
             PresetTemplateResolver(
@@ -877,13 +855,8 @@ private fun ProjectConfig.withValueObjectManifestSourceConfig(project: Project):
 internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner {
     val extensionRuntime = loadPipelineExtensionRuntime(project, config)
     val runner = DefaultPipelineRunner(
-        sources = listOf(
-            IrAnalysisSourceProvider(),
-        ),
-        generators = listOf(
-            DrawingBoardArtifactPlanner(),
-            FlowArtifactPlanner(),
-        ),
+        sources = builtInAnalysisSourceProviders(),
+        generators = builtInAnalysisGeneratorProviders(),
         assembler = DefaultCanonicalAssembler(),
         renderer = PebbleArtifactRenderer(
             PresetTemplateResolver(
@@ -902,7 +875,46 @@ internal fun buildAnalysisRunner(project: Project, config: ProjectConfig, export
     return runner.closeAfterRun(extensionRuntime)
 }
 
+internal fun builtInAuthoringSourceProviders(): List<SourceProvider> = listOf(
+    DbSchemaSourceProvider(),
+    EnumManifestSourceProvider(),
+    ValueObjectManifestSourceProvider(),
+    DesignJsonSourceProvider(),
+)
+
+internal fun builtInAnalysisSourceProviders(): List<SourceProvider> = listOf(
+    IrAnalysisSourceProvider(),
+)
+
+internal fun builtInAuthoringGeneratorProviders(): List<GeneratorProvider> = listOf(
+    DesignCommandArtifactPlanner(),
+    DesignQueryArtifactPlanner(),
+    DesignQueryHandlerArtifactPlanner(),
+    DesignCapabilityArtifactPlanner(),
+    DesignCapabilityHandlerArtifactPlanner(),
+    DesignApiPayloadArtifactPlanner(),
+    DesignDomainEventArtifactPlanner(),
+    DesignDomainEventHandlerArtifactPlanner(),
+    DesignDomainServiceArtifactPlanner(),
+    DesignIntegrationEventArtifactPlanner(),
+    DesignIntegrationEventSubscriberArtifactPlanner(),
+    ValueObjectArtifactPlanner(),
+    EnumManifestArtifactPlanner(),
+    AggregateArtifactPlanner(),
+    AggregateProjectionArtifactPlanner(),
+)
+
+internal fun builtInAnalysisGeneratorProviders(): List<GeneratorProvider> = listOf(
+    DrawingBoardArtifactPlanner(),
+    FlowArtifactPlanner(),
+)
+
+internal fun builtInCapabilityDescriptors() =
+    (builtInAuthoringSourceProviders() + builtInAnalysisSourceProviders()).map(SourceProvider::descriptor) +
+        (builtInAuthoringGeneratorProviders() + builtInAnalysisGeneratorProviders()).map(GeneratorProvider::descriptor)
+
 internal data class PipelineExtensionRuntime(
+    val providers: List<PipelineExtensionProvider>,
     val contributions: List<PipelineContributionBinding<PipelineContribution>>,
     val artifactAddons: List<PipelineContributionBinding<ArtifactAddonProvider>>,
     val managedFieldPolicies: List<PipelineContributionBinding<ManagedFieldPolicyProvider>>,
@@ -910,7 +922,7 @@ internal data class PipelineExtensionRuntime(
     val closeables: List<AutoCloseable>,
 )
 
-private fun loadPipelineExtensionRuntime(project: Project, config: ProjectConfig): PipelineExtensionRuntime {
+internal fun loadPipelineExtensionRuntime(project: Project, config: ProjectConfig): PipelineExtensionRuntime {
     val configuration = project.configurations.findByName(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME)
         ?: return emptyPipelineExtensionRuntime()
     return loadPipelineExtensionRuntime(
@@ -957,6 +969,7 @@ internal fun loadPipelineExtensionRuntime(
         throw failure
     }
     return PipelineExtensionRuntime(
+        providers = loaded.providers,
         contributions = loaded.contributions,
         artifactAddons = loaded.artifactAddons,
         managedFieldPolicies = loaded.managedFieldPolicies,
@@ -967,6 +980,7 @@ internal fun loadPipelineExtensionRuntime(
 
 private fun emptyPipelineExtensionRuntime(): PipelineExtensionRuntime =
     PipelineExtensionRuntime(
+        providers = emptyList(),
         contributions = emptyList(),
         artifactAddons = emptyList(),
         managedFieldPolicies = emptyList(),
@@ -974,7 +988,7 @@ private fun emptyPipelineExtensionRuntime(): PipelineExtensionRuntime =
         closeables = emptyList(),
     )
 
-private fun validatePipelineExtensionConfiguration(
+internal fun validatePipelineExtensionConfiguration(
     config: ProjectConfig,
     loaded: LoadedPipelineExtensions,
 ) {
@@ -1001,6 +1015,22 @@ private fun validatePipelineExtensionConfiguration(
             }
         }
     }
+}
+
+internal fun PipelineExtensionRuntime.close() {
+    var firstFailure: Throwable? = null
+    closeables.asReversed().forEach { closeable ->
+        try {
+            closeable.close()
+        } catch (failure: Throwable) {
+            if (firstFailure == null) {
+                firstFailure = failure
+            } else {
+                firstFailure.addSuppressed(failure)
+            }
+        }
+    }
+    firstFailure?.let { throw it }
 }
 
 private fun closeAfterLoadFailure(closeable: AutoCloseable, failure: Throwable) {
@@ -1066,29 +1096,3 @@ internal fun buildGeneratedSourceRunner(project: Project, config: ProjectConfig)
 
 internal fun buildRunner(project: Project, config: ProjectConfig, exportEnabled: Boolean): PipelineRunner =
     buildSourceRunner(project, config, exportEnabled)
-
-internal fun buildBootstrapRunner(project: Project, config: BootstrapConfig, exportEnabled: Boolean): BootstrapRunner {
-    val rootStateGuard = BootstrapRootStateGuard(project.projectDir.toPath())
-    val rebasedOverrideDirs = config.templates.overrideDirs.map { overrideDir ->
-        if (File(overrideDir).isAbsolute) {
-            overrideDir
-        } else {
-            project.projectDir.toPath().resolve(overrideDir).normalize().toString()
-        }
-    }
-    return DefaultBootstrapRunner(
-        providers = listOf(DddMultiModuleBootstrapPresetProvider()),
-        renderer = PebbleBootstrapRenderer(
-            PresetTemplateResolver(
-                preset = config.templates.preset,
-                overrideDirs = rebasedOverrideDirs,
-            )
-        ),
-        exporter = if (exportEnabled) {
-            BootstrapFilesystemArtifactExporter(project.projectDir.toPath(), config)
-        } else {
-            NoopArtifactExporter()
-        },
-        preRunValidation = rootStateGuard::validate,
-    )
-}

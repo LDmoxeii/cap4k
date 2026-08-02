@@ -1,14 +1,30 @@
 package com.only4.cap4k.plugin.pipeline.generator.flow
 
-import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
-import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
-import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
-import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
-import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.*
 
 class FlowArtifactPlanner : GeneratorProvider {
     override val id: String = "flow"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Flow Generator",
+        kind = PipelineCapabilityKind.GENERATOR,
+        module = "cap4k-plugin-pipeline-generator-flow",
+        activation = PipelineCapabilityActivation.INPUT_DRIVEN,
+        tacticalCarriers = listOf("Causal Flow Evidence"),
+        executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
+        tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "flow-analysis",
+                capabilityIds = listOf("pipeline.source.ir-analysis"),
+            ),
+        ),
+        outputKinds = listOf(ArtifactOutputKind.OUTPUT_ARTIFACT),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_GENERATOR),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.ANALYZER, PipelineBoundaryAuthorities.ANALYZER_OBSERVATION),
+        ),
+    )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         val graph = model.analysisGraph ?: return emptyList()
@@ -25,6 +41,8 @@ class FlowArtifactPlanner : GeneratorProvider {
                     outputPath = artifactLayout.projectResourcePath(outputRoot, "${flow.slug}.json"),
                     context = mapOf("jsonContent" to flow.jsonContent),
                     conflictPolicy = ConflictPolicy.OVERWRITE,
+                    outputKind = ArtifactOutputKind.OUTPUT_ARTIFACT,
+                    resolvedOutputRoot = outputRoot,
                 ),
                 ArtifactPlanItem(
                     generatorId = id,
@@ -33,6 +51,8 @@ class FlowArtifactPlanner : GeneratorProvider {
                     outputPath = artifactLayout.projectResourcePath(outputRoot, "${flow.slug}.mmd"),
                     context = mapOf("mermaidText" to flow.mermaidText),
                     conflictPolicy = ConflictPolicy.OVERWRITE,
+                    outputKind = ArtifactOutputKind.OUTPUT_ARTIFACT,
+                    resolvedOutputRoot = outputRoot,
                 ),
             )
         }
@@ -44,6 +64,8 @@ class FlowArtifactPlanner : GeneratorProvider {
             outputPath = artifactLayout.projectResourcePath(outputRoot, "index.json"),
             context = mapOf("jsonContent" to plannedFlows.indexJsonContent),
             conflictPolicy = ConflictPolicy.OVERWRITE,
+            outputKind = ArtifactOutputKind.OUTPUT_ARTIFACT,
+            resolvedOutputRoot = outputRoot,
         )
     }
 }

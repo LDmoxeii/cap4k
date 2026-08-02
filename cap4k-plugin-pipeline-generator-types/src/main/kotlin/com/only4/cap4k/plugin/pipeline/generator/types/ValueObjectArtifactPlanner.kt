@@ -6,6 +6,15 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorProvider
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.JsonValuePersistenceProjection
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
@@ -22,6 +31,27 @@ import java.nio.file.Path
 
 class ValueObjectArtifactPlanner : GeneratorProvider {
     override val id: String = "types-value-object"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Value Object Generator",
+        kind = PipelineCapabilityKind.GENERATOR,
+        module = "cap4k-plugin-pipeline-generator-types",
+        activation = PipelineCapabilityActivation.INPUT_DRIVEN,
+        tacticalCarriers = listOf("Value Object"),
+        executionLanes = listOf(PipelineExecutionLane.AUTHORING, PipelineExecutionLane.GENERATED_SOURCE),
+        tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE, PipelinePublicTasks.GENERATE_SOURCES),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "value-object-definitions",
+                capabilityIds = listOf("pipeline.source.value-object-manifest"),
+            ),
+        ),
+        outputKinds = listOf(ArtifactOutputKind.CHECKED_IN_SOURCE, ArtifactOutputKind.GENERATED_SOURCE),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_GENERATOR),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.HANDWRITTEN, PipelineBoundaryAuthorities.PROJECT_HANDWRITTEN),
+        ),
+    )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         if (model.valueObjects.isEmpty()) {

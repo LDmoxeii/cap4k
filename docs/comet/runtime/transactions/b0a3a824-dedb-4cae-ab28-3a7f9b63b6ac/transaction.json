@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b0a3a824-dedb-4cae-ab28-3a7f9b63b6ac",
+  "kind": "archive",
+  "status": "committed",
+  "change": "complete-ddd-authoring-workflow",
+  "createdAt": "2026-08-02T03:13:39.959Z",
+  "preflightHash": "bf47401a4ca127e6ddfaacc5bd88699a04ba0a34637202f4a0ef4dd6ab2bdcad",
+  "operations": [
+    {
+      "id": "spec-1-complete-ddd-authoring-workflow",
+      "type": "write",
+      "target": "specs/complete-ddd-authoring-workflow/spec.md",
+      "staged": "runtime/transactions/b0a3a824-dedb-4cae-ab28-3a7f9b63b6ac/staged/specs/complete-ddd-authoring-workflow/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "e29c6915056338b9008f6aaacd687bf2a1c4b8dc9a98bca9bcc4b0ccdbd659a6"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/complete-ddd-authoring-workflow",
+      "target": "archive/2026-08-02-complete-ddd-authoring-workflow",
+      "expectedSourceHash": "6af4198434d0286d7dca7c43b1fc8b352c4f1cf46d3b788dc94f207df6965f72",
+      "expectedTargetHash": null
+    }
+  ]
+}

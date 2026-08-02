@@ -587,10 +587,17 @@ data class RenderedArtifact(
 
 data class PlanReport(
     val items: List<ArtifactPlanItem>,
+    val outcome: PlanOutcome = PlanOutcome.SUCCEEDED,
     val diagnostics: PipelineDiagnostics? = null,
     val managedFieldDefaults: ManagedFieldDefaultsConfig? = null,
     val managedFieldPolicies: List<ResolvedManagedEntityPolicy> = emptyList(),
+    val evidence: PlanEvidence? = null,
 )
+
+enum class PlanOutcome {
+    SUCCEEDED,
+    FAILED,
+}
 
 data class PipelineResult(
     val planItems: List<ArtifactPlanItem> = emptyList(),

@@ -1,38 +1,30 @@
 ---
 name: cap4k-authoring
-description: >
-  Route cap4k business-authoring work through the self-contained cap4k skill
-  system. Use when the user asks to discover a business slice, model DDD
-  boundaries, write cap4k technical design, author generator inputs, review
-  plan or generated output, implement handwritten business logic, design service
-  integration, or verify cap4k work.
+description: Use when an agent must inspect, model for, generate with, implement in, analyze, or verify a cap4k business project.
 ---
 
-# Cap4k Authoring Router
+# Cap4k Authoring
 
-This is the entry router for cap4k business-authoring agents. It is not the rulebook.
+This is a thin router and field guide, not a DDD process engine. Humans own domain research, language, boundaries, priorities, and final decisions.
 
-## Always Read
+## Start
 
-1. `routing.yaml`
-2. `../shared/workflows/forced-rollback.md`
+1. Read `routing.yaml` and select the smallest matching operation route.
+2. Generate or refresh the read-only Cap4k Agent API snapshot for the current project.
+3. Read `build/cap4k/agent/manifest.json` first, then only the route's `agent_sections` whose manifest status makes them useful.
+4. Load only the route's `required_reads`.
 
-## Session Discipline
+If Gradle fails before the Agent API task starts, use the ordinary Gradle failure as evidence and do not claim a snapshot exists. An `invalid` snapshot is diagnostic evidence and accompanies task failure; a `partial` snapshot may be a successful result with optional unavailable sections.
 
-- Re-read this file and `routing.yaml` for every new user task.
-- Do not use public docs, analysis maps, issues, Context7, or historical specs as runtime instructions.
-- Route to the current phase skill before acting.
-- For structural creation or modification, make sure the routed workflow loads `../shared/workflows/skeleton-generation-gate.md`.
-- For a spec-level end-to-end example, use the `content-studio-dry-run` route in `routing.yaml`.
+## Operating Contract
 
-## Routing Source
+- Inspect actual project shape and capability state before choosing inputs or tasks.
+- Use supported catalog to learn what the installed version can do and effective project state to learn what is ready here; never conflate them.
+- Prepare supported inputs, review plan and diagnostics, then run mutation tasks. Do not handwrite a generator-supported parallel skeleton.
+- Put durable business logic only in checked-in author-owned surfaces or explicit handwritten exceptions. Never edit build-owned generated source or generated evidence as source truth.
+- Treat analyzer output as observation, not business truth or generator input.
+- Keep Domain Events as explicit immutable historical facts; never relax the Aggregate/Entity payload boundary.
+- Do not assume a provider or tactical carrier exists. Read the machine catalog and report unsupported/provider-owned boundaries honestly.
+- Bootstrap is retired. Do not use or recreate bootstrap tasks, DSL, markers, guards, slots, aliases, or migration workflows.
 
-`routing.yaml` is the only routing source of truth. Do not maintain a second route table in Markdown.
-
-## Priority
-
-1. Current user instruction and explicit project scope.
-2. `routing.yaml` phase and specialist route.
-3. Routed skill rules and workflows.
-4. Existing business project conventions.
-5. Human audit remains required for domain decisions.
+`routing.yaml` is the only route table. Do not require strategic workspaces, fixed design dossiers, phase chains, rollback workflows, or cap4k-specific approval gates.

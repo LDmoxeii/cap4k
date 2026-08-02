@@ -1,0 +1,36 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "07b209af80ab1f0d4b3d9abfb6e348274eec6b429e6ac65e10d3e6dbd4f328c7",
+  "baselineProjectionRef": "runtime/evidence/snapshots/1e795f77f5018896bdc28678774011842110a04f40cb1c539546226f1d6a264b.json",
+  "baselineProjectionHash": "1e795f77f5018896bdc28678774011842110a04f40cb1c539546226f1d6a264b",
+  "currentProjectionRef": "runtime/evidence/snapshots/2130aaa8f459aa8297a75af0c71d2523b6d5dba8674e97d9ad7a36c096634e01.json",
+  "currentProjectionHash": "2130aaa8f459aa8297a75af0c71d2523b6d5dba8674e97d9ad7a36c096634e01",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "4858628f53cb39ac5f05f21c4257ec8dced8e2a28d3f19590b7c4da83c98daf2",
+        "size": 33726
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "eca3e6d6ab1d418b85379435cead54940e62f249c4fe3233068488f4d2ef2f98"
+}

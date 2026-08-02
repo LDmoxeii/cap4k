@@ -14,8 +14,7 @@ plugins {
 
 | Task | 主要输入 | 主要输出 |
 | --- | --- | --- |
-| `cap4kBootstrapPlan` | `cap4k { bootstrap { ... } }` | `build/cap4k/bootstrap-plan.json` |
-| `cap4kBootstrap` | 已审查的 bootstrap configuration | 写出 bootstrap project structure |
+| `cap4kAgentSnapshot` | 已解析 Gradle configuration、本地 inputs 与既有 evidence | `build/cap4k/agent/` manifest-first snapshot |
 | `cap4kPlan` | DB/schema、`design-json`、`enum-manifest`、`value-object-manifest`、Gradle extension | `build/cap4k/plan.json` |
 | `cap4kGenerate` | source-generation plan | 写出 source-generation plan 中的文件 |
 | `cap4kGenerateSources` | generated source task config | `<module>/build/generated/cap4k/main/kotlin` |
@@ -49,42 +48,13 @@ cap4k {
 }
 ```
 
-## 自定义 Bootstrap 入口
-
-官方默认项目来自独立 GitHub Template。下面的配置只适用于团队维护了自己的完整 Bootstrap template override 时；cap4k plugin 不再内置官方默认项目模板。
-
-```kotlin
-import com.only4.cap4k.plugin.pipeline.api.BootstrapMode
-
-cap4k {
-    bootstrap {
-        enabled.set(true)
-        preset.set("ddd-multi-module")
-        mode.set(BootstrapMode.IN_PLACE)
-        projectName.set("demo")
-        basePackage.set("com.acme.demo")
-        modules {
-            domainModuleName.set("demo-domain")
-            applicationModuleName.set("demo-application")
-            adapterModuleName.set("demo-adapter")
-            startModuleName.set("demo-start")
-        }
-        templates {
-            preset.set("team-bootstrap")
-            overrideDirs.from("codegen/bootstrap-templates")
-        }
-        conflictPolicy.set("SKIP")
-    }
-}
-```
-
-`templates.preset` 不再提供内置默认值。固定结构 template id 必须能够从显式 `overrideDirs`（或团队提供的其他自定义 template source）解析。Bootstrap 合同归入本页、[Generator DSL](generator-dsl.md)、[Plan JSON](plan-json.md) 和 [Common Mistakes](common-mistakes.md)。本章没有单独的 `reference/bootstrap.md`。
-
 ## 任务边界
 
 | Boundary | 说明 |
 | --- | --- |
+| `cap4kAgentSnapshot` | read-only project/capability inspection；默认不连接 live external source。 |
 | `cap4kPlan` / `cap4kGenerate` | ordinary source generation，读取 DB/schema、design JSON 和 type manifests。 |
 | `cap4kGenerateSources` | 只输出 `GENERATED_SOURCE`，root 在 `<module>/build/generated/cap4k/main/kotlin`。 |
 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` | analysis/observation path，使用 source id `ir-analysis` 和 generator ids `flow`、`drawing-board`。 |
-| `cap4kBootstrapPlan` / `cap4kBootstrap` | project structure bootstrap，不替代业务建模、schema、design JSON 或 type manifests。 |
+
+新项目结构由官方 GitHub Template 或团队自己的模板/人工流程建立；pipeline plugin 不提供项目初始化 task 或 DSL。

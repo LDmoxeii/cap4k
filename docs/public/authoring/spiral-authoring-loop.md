@@ -12,7 +12,7 @@ cap4k authoring 的核心不是“先建模、再生成、最后测试”的单�
 2. `model`：决定 Aggregate、Entity、Value Object、Domain Event、Integration Event、Domain Service、external capability 和持久化编排的边界。
 3. `technical design`：决定 module、Command、Query、Subscriber、Scheduled Reaction、adapter、persistence 和 testing responsibility。
 4. `generator inputs`：把设计投影到 schema、`design/design.json`、`design/value-objects.json`、`design/enums.json`、`types.enumManifest`、`types.valueObjectManifest` 和 Gradle extension configuration。
-5. `plan review`：阅读本地 `build/cap4k/plan.json` 或 bootstrap plan，确认 output path、`moduleRole`、`templateId`、`generatorId`、`outputKind` 和 `conflictPolicy`。
+5. `plan review`：阅读本地 `build/cap4k/plan.json`，确认 output path、`moduleRole`、`templateId`、`generatorId`、`outputKind` 和 `conflictPolicy`；需要项目现状时先读取 `build/cap4k/agent/manifest.json` 并按需加载分区。
 6. `generation`：让 generator 写出或更新稳定骨架，保持命名、目录、接口和 wiring 一致。
 7. `handwritten implementation`：在生成骨架暴露的 intended surface 中写业务判断、状态推进、幂等、补偿、协议转换和错误处理。
 8. `verification`：用静态审查、focused tests、HTTP examples、generation evidence 和 analysis evidence 检查设计与实现是否一致。

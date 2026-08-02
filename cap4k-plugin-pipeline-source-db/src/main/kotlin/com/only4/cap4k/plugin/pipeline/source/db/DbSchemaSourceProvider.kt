@@ -3,6 +3,15 @@ package com.only4.cap4k.plugin.pipeline.source.db
 import com.only4.cap4k.plugin.pipeline.api.DbColumnSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbSchemaSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputSafety
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
@@ -13,6 +22,26 @@ import java.util.Locale
 
 class DbSchemaSourceProvider : SourceProvider {
     override val id: String = "db"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Database Schema Source",
+        kind = PipelineCapabilityKind.SOURCE,
+        module = "cap4k-plugin-pipeline-source-db",
+        tacticalCarriers = listOf("Aggregate", "Entity", "Strong ID", "Factory", "Repository"),
+        executionLanes = listOf(PipelineExecutionLane.AUTHORING, PipelineExecutionLane.GENERATED_SOURCE),
+        tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE, PipelinePublicTasks.GENERATE_SOURCES),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "db-connection",
+                configurationPaths = listOf("sources.db.url"),
+                safety = PipelineInputSafety.LIVE_EXTERNAL,
+            ),
+        ),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.INPUT, PipelineBoundaryAuthorities.PROJECT_INPUT),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_SOURCE),
+        ),
+    )
     private val tableAnnotationParser = DbTableAnnotationParser
 
     override fun collect(config: ProjectConfig): DbSchemaSnapshot {

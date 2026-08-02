@@ -9,7 +9,7 @@ generator-backed authoring 是用 generator 固化 architecture control。作者
 architecture control 指的是：generator 把项目已经写明的结构事实变成可重复审查的输出合同。
 
 - 输入事实来自 schema、design JSON、type manifests、module layout 和 Gradle extension。
-- 计划证据来自 `build/cap4k/plan.json` 或 `build/cap4k/bootstrap-plan.json`。
+- 当前项目事实来自按需读取的 `build/cap4k/agent/` snapshot；生成计划证据来自 `build/cap4k/plan.json`。
 - checked-in skeleton 通常落在 `<module>/src/main/kotlin`，只由 generator 首次 materialize，之后作为仓库中的稳定入口维护。
 - generated source 通常落在 `<module>/build/generated/cap4k/main/kotlin`，由 build 维护。
 - analysis evidence 来自 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`，服务于 flow 和 drawing-board 观察。
@@ -34,7 +34,7 @@ generator 的作用是让这些 slot 在首次 materialization 时有一致名�
 generator-backed authoring 要求每次生成前后都有证据可读：
 
 - `cap4kPlan` 生成本地 `build/cap4k/plan.json`，用于审查 source generation ownership。
-- `cap4kBootstrapPlan` 生成本地 `build/cap4k/bootstrap-plan.json`，用于审查项目结构 bootstrap。
+- `cap4kAgentSnapshot` 生成本地 `build/cap4k/agent/` 分区快照，用于发现当前 project、capability、input、ownership、runtime、analysis 和 diagnostics。
 - `cap4kGenerate` 根据已审查计划和输入 materialize checked-in skeleton 与正常 source-generation artifacts。
 - `cap4kGenerateSources` 只输出 `GENERATED_SOURCE`，并把 build-owned generated Kotlin root 注册进 Kotlin `main` source set。
 - `cap4kAnalysisPlan` 与 `cap4kAnalysisGenerate` 使用 analysis input，产出 flow 与 drawing-board observation evidence。
@@ -51,7 +51,7 @@ public docs 中的 generator-backed authoring 只解释公开可用的输入、�
 Purpose: 帮助读者理解 generator-backed authoring 如何把明确设计输入变成 architecture control、stable code slots 和 evidence。
 Type: architecture diagram
 Prompt: Draw a cap4k generator-backed authoring architecture diagram. Show author decisions becoming schema, design/design.json, types.valueObjectManifest, types.enumManifest, and Gradle extension input. Then show generator producing plan evidence, checked-in skeletons, GENERATED_SOURCE, and analysis evidence. Use Chinese labels while preserving English identifiers.
-Must show: architecture control, explicit design inputs, stable code slots, checked-in skeletons, GENERATED_SOURCE, plan.json, bootstrap-plan.json, analysis/flows, analysis/drawing-board, handwritten logic
+Must show: architecture control, explicit design inputs, stable code slots, checked-in skeletons, GENERATED_SOURCE, agent manifest/sections, plan.json, analysis/flows, analysis/drawing-board, handwritten logic
 Must avoid: 不要暗示 generator 会替作者写业务决策；不要把 generator 画成会替代业务建模和 ownership review；不要把 analysis outputs 画成 source skeletons；不要画出违反 Clean Architecture 依赖方向的箭头
 Alt text after insertion: generator-backed authoring 架构图，展示明确设计输入如何进入 generator，并产出 stable code slots、plan evidence、generated source 和 analysis evidence。
 -->

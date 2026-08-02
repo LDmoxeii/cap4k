@@ -1,0 +1,141 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "complete-ddd-authoring-workflow",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "partial",
+  "contractHash": "c6a64f206657eb58c0051e9d79a72cd843329494f88fb9663911eb00f3e62dd7",
+  "acceptanceCriteriaHash": "23c8254c1c82408f476d75e14394fd3dcf5dea9a1d35caa6317c2d529faa114b",
+  "implementationScopeRef": "runtime/evidence/scopes/4ce9d8b95219457f87868a9556412582ee61308e57250d6bfe6be40d05f1c015.json",
+  "implementationScopeHash": "4ce9d8b95219457f87868a9556412582ee61308e57250d6bfe6be40d05f1c015",
+  "reportRef": "verification.md",
+  "reportHash": "10d82e1e9e08fb3a2ce25e7be26bf7673ddc091ff1ced5e172a76dd8ace86963",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "23c8254c1c82408f476d75e14394fd3dcf5dea9a1d35caa6317c2d529faa114b",
+    "total": 10,
+    "evidenced": 10,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-275f851b53ab166bb875e07c403d35c1b9358298e5544860217bb3f27103c72b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultPipelineRunnerTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt",
+          "skills/cap4k-authoring/references/ownership-boundaries.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2aceddaf0f18c59d3aa0320c10ce1deb5b021b35de89d4ad710e71217aee70a6",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/AgentContracts.kt",
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt",
+          "skills/cap4k-authoring/references/runtime-analysis-boundaries.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-470346ae1d696fb328a1b71bbeb585a7bc570f78a9377f0fcc65979e7539b0c9",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentCredentialRedactor.kt",
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentHashingIdentityTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-48cc6184e22ed8bec425939a52fdca80b951b07f9638eda856e179d037326269",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineCapabilityDescriptors.kt",
+          "skills/cap4k-authoring/references/runtime-analysis-boundaries.md",
+          "skills/cap4k-authoring/references/tactical-carriers.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-64cf0fa2d119d97edc79e7ba96d72ba6bec75c7f9ac8aa4df7f6fa06393d9eb9",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "skills/cap4k-authoring/SKILL.md",
+          "skills/cap4k-authoring/routing.yaml"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6d0a665f5ce89fac3f104261d9cf24144da99d16e2c2f684548af6387b460ac4",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/public/authoring/plan-review-and-generation.md",
+          "skills/cap4k-authoring/SKILL.md",
+          "skills/cap4k-authoring/references/ownership-boundaries.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-9c13ba9a73059b29ea64a55813e7e8b945e4251b84106a887410aadddb11ef42",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt",
+          "settings.gradle.kts",
+          "skills/scripts/checks/active-term-scan.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c9ca886e40faf915933991a555992b102738fb1bf834d485a6c0f9d9dd32aaa7",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "skills/cap4k-authoring/SKILL.md",
+          "skills/cap4k-authoring/routing.yaml"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e2de2ae54acfded335793c6486bf6adb5d9ca55df057427c4ce948e496b68601",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt",
+          "docs/public/reference/agent-api.md",
+          "skills/cap4k-authoring/routing.yaml"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-eaac588c77d6161ae1b266b80907812cc209809eb20febcb1d37bc41f26265fc",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineCapabilityDescriptors.kt",
+          "cap4k-plugin-pipeline-generator-design/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainEventArtifactPlannerTest.kt",
+          "skills/cap4k-authoring/references/tactical-carriers.md"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "96086eaef793551b52d25944d0600b537478ed823a78029fe035878090c1bf9f"
+  },
+  "partialAllowanceRef": "runtime/evidence/allowances/6408f0cc1a67f91284bd1f216bfbfe97527b3e8729cac7bd62365d57d6ff8f7c.json",
+  "partialAllowanceHash": "6408f0cc1a67f91284bd1f216bfbfe97527b3e8729cac7bd62365d57d6ff8f7c",
+  "receiptRef": null,
+  "createdAt": "2026-08-02T03:13:12.975Z",
+  "envelopeHash": "b66cb9dfaecaf2058b4634345971e040965f741bb2ee1c89c773b6b0b9564c81"
+}

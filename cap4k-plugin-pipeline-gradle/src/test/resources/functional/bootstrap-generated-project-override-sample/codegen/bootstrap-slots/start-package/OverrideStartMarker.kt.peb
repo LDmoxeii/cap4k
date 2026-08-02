@@ -1,3 +1,0 @@
-package {{ basePackage }}
-
-object OverrideStartMarker

@@ -1,0 +1,98 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "cap4k-ddd-capability-audit",
+  "sourceRevision": 5,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "07b209af80ab1f0d4b3d9abfb6e348274eec6b429e6ac65e10d3e6dbd4f328c7",
+  "acceptanceCriteriaHash": "329020be4b1b13181fca2681f8149411d3f285a17a54bb47a2546282a103b9c6",
+  "implementationScopeRef": "runtime/evidence/scopes/eca3e6d6ab1d418b85379435cead54940e62f249c4fe3233068488f4d2ef2f98.json",
+  "implementationScopeHash": "eca3e6d6ab1d418b85379435cead54940e62f249c4fe3233068488f4d2ef2f98",
+  "reportRef": "verification.md",
+  "reportHash": "b8cf7f9e80c2fd4ec85697139fa8351597fa7bbeb6034a2ac4ae19afecbce8f8",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "329020be4b1b13181fca2681f8149411d3f285a17a54bb47a2546282a103b9c6",
+    "total": 6,
+    "evidenced": 6,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-1bad127566ae1863f61765fbc242c7281e9be3e4798a76c434adf8a898661365",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/Node.kt",
+          "cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/Relationship.kt",
+          "cap4k-plugin-pipeline-generator-flow/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/flow/FlowGraphSupport.kt",
+          "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2c4f94d119c3619cbf7ba19d6f36f1a54886f19d6a384f6f7fe2821c3e1fd673",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md",
+          "skills/cap4k-authoring/routing.yaml",
+          "skills/cap4k-tactical-modeling/workflows/map-tactical-carriers.md",
+          "skills/cap4k-technical-design/references/technical-design-contract.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-45307c0e0d7180db6ea1349331220e6c3d352824b4ddfc49f7fcbb668876bd9a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-generator-aggregate/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/aggregate/AggregateArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-generator-types/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/types/ValueObjectArtifactPlanner.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/Mediator.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidator.kt",
+          "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-5f9744c8ae89fcb88a19f434926bb11fbee5d8c7874cb57b22fcb5f96a752499",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/capability/CapabilityCall.kt",
+          "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md",
+          "skills/cap4k-service-integration/rules/integration-event-boundaries.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ccb83ab81fcdfacc59239889d7595fca28880c456812deaafcd0cb4e26efb5a9",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md",
+          "skills/cap4k-service-integration/rules/integration-event-boundaries.md",
+          "skills/shared/references/tactical-affordance-map.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-faf14eebc9dc09beed130444eff656e7bbb45867e0ecda8adb8498e733b2205f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/analysis/2026-08-01-ddd-authoring-capability-coverage-audit.md"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "724270c1c0e72ef1e6eae1dd61cca0e2b0b315273d4e262ee9328900369653ec"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/285005398457fe1e0e94279d5766d46eaf5321d342bdbf07512f7c1e1b517f27.json",
+  "createdAt": "2026-08-01T10:27:08.143Z",
+  "envelopeHash": "f2c45560263395d5740f174e8f05f0f456ca60209a3c9ef187e0d6e63342d1c3"
+}

@@ -4,6 +4,15 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirementMatch
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
@@ -11,6 +20,26 @@ import java.io.File
 
 class EnumManifestSourceProvider : SourceProvider {
     override val id: String = "enum-manifest"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "Enum Manifest Source",
+        kind = PipelineCapabilityKind.SOURCE,
+        module = "cap4k-plugin-pipeline-source-enum-manifest",
+        tacticalCarriers = listOf("Enum"),
+        executionLanes = listOf(PipelineExecutionLane.GENERATED_SOURCE),
+        tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE, PipelinePublicTasks.GENERATE_SOURCES),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "enum-manifest-files",
+                configurationPaths = listOf("sources.enum-manifest.files", "types.enumManifest.files"),
+                match = PipelineInputRequirementMatch.ANY,
+            ),
+        ),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.INPUT, PipelineBoundaryAuthorities.PROJECT_INPUT),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_SOURCE),
+        ),
+    )
 
     override fun collect(config: ProjectConfig): EnumManifestSnapshot {
         val options = config.sources[id]?.options ?: emptyMap()
@@ -18,6 +47,9 @@ class EnumManifestSourceProvider : SourceProvider {
         validateDuplicateNames(definitions)
         return EnumManifestSnapshot(definitions = definitions)
     }
+
+    override fun localInputPaths(config: ProjectConfig): List<String> =
+        resolveFiles(config.sources[id]?.options.orEmpty()).map(File::getAbsolutePath)
 
     private fun validateDuplicateNames(definitions: List<SharedEnumDefinition>) {
         val duplicateShared = definitions

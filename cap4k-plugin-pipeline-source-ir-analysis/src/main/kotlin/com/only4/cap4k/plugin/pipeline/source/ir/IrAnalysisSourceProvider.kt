@@ -7,6 +7,14 @@ import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
+import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityKind
+import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
+import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
@@ -14,13 +22,36 @@ import java.io.File
 
 class IrAnalysisSourceProvider : SourceProvider {
     override val id: String = "ir-analysis"
+    override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
+        providerId = id,
+        displayName = "IR Analysis Source",
+        kind = PipelineCapabilityKind.SOURCE,
+        module = "cap4k-plugin-pipeline-source-ir-analysis",
+        tacticalCarriers = listOf("Analysis Graph", "Drawing Board Evidence"),
+        executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
+        tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+        inputRequirements = listOf(
+            PipelineInputRequirement(
+                id = "ir-analysis-input",
+                configurationPaths = listOf("sources.ir-analysis.inputDirs"),
+            ),
+        ),
+        boundaries = listOf(
+            PipelineCapabilityBoundary(PipelineBoundaryKind.INPUT, PipelineBoundaryAuthorities.PROJECT_INPUT),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.GENERATION, PipelineBoundaryAuthorities.PIPELINE_SOURCE),
+            PipelineCapabilityBoundary(PipelineBoundaryKind.ANALYZER, PipelineBoundaryAuthorities.ANALYZER_OBSERVATION),
+        ),
+    )
 
     private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity")
 
-    override fun collect(config: ProjectConfig): IrAnalysisSnapshot {
-        val inputDirs = (config.sources[id]?.options?.get("inputDirs") as? List<*> ?: emptyList<Any>())
+    override fun localInputPaths(config: ProjectConfig): List<String> =
+        (config.sources[id]?.options?.get("inputDirs") as? List<*> ?: emptyList<Any>())
             .map { it.toString().trim() }
             .filter { it.isNotEmpty() }
+
+    override fun collect(config: ProjectConfig): IrAnalysisSnapshot {
+        val inputDirs = localInputPaths(config)
         require(inputDirs.isNotEmpty()) { "ir-analysis source requires at least one inputDirs entry." }
 
         val nodesById = linkedMapOf<String, IrNodeSnapshot>()

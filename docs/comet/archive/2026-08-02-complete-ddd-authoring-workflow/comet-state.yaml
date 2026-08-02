@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: complete-ddd-authoring-workflow
+language: zh-CN
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: c6a64f206657eb58c0051e9d79a72cd843329494f88fb9663911eb00f3e62dd7
+spec_changes:
+  - capability: complete-ddd-authoring-workflow
+    operation: create
+    source: specs/complete-ddd-authoring-workflow/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/4ce9d8b95219457f87868a9556412582ee61308e57250d6bfe6be40d05f1c015.json
+verification_evidence: runtime/evidence/verifications/b66cb9dfaecaf2058b4634345971e040965f741bb2ee1c89c773b6b0b9564c81.json
+partial_allowance: runtime/evidence/allowances/6408f0cc1a67f91284bd1f216bfbfe97527b3e8729cac7bd62365d57d6ff8f7c.json
+archived: true
+created_at: 2026-08-01
+run_id: 7b1c80fd-7529-46f4-9ea6-41c5380aeca7

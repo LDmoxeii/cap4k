@@ -1,6 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
 import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.api.PlanOutcome
 import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import org.gradle.api.DefaultTask
@@ -31,9 +32,11 @@ abstract class Cap4kPlanTask : DefaultTask() {
                 outputFile = outputFile,
                 report = PlanReport(
                     items = result.planItems,
+                    outcome = PlanOutcome.SUCCEEDED,
                     diagnostics = result.diagnostics,
                     managedFieldDefaults = config.managedFields,
                     managedFieldPolicies = result.managedFieldPolicies,
+                    evidence = planEvidence(project, config),
                 )
             )
         } catch (error: PipelineDiagnosticsException) {
@@ -41,9 +44,11 @@ abstract class Cap4kPlanTask : DefaultTask() {
                 outputFile = outputFile,
                 report = PlanReport(
                     items = emptyList(),
+                    outcome = PlanOutcome.FAILED,
                     diagnostics = error.diagnostics,
                     managedFieldDefaults = config.managedFields,
                     managedFieldPolicies = emptyList(),
+                    evidence = planEvidence(project, config),
                 )
             )
             throw error

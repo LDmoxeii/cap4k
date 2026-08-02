@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: cap4k-ddd-capability-audit
+language: zh-CN
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 07b209af80ab1f0d4b3d9abfb6e348274eec6b429e6ac65e10d3e6dbd4f328c7
+spec_changes:
+  - capability: ddd-authoring-capability-coverage
+    operation: create
+    source: specs/ddd-authoring-capability-coverage/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/eca3e6d6ab1d418b85379435cead54940e62f249c4fe3233068488f4d2ef2f98.json
+verification_evidence: runtime/evidence/verifications/f2c45560263395d5740f174e8f05f0f456ca60209a3c9ef187e0d6e63342d1c3.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-01
+run_id: 6e8a5831-f44d-47fb-a641-4f634118318b

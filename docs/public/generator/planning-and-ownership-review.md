@@ -1,8 +1,8 @@
 # Planning And Ownership Review
 
-planning and ownership review 是 generation 前必须完成的人工审查。`cap4kPlan`、`cap4kBootstrapPlan` 和它们写出的 plan evidence 说明 generator 准备写什么、写到哪里、谁拥有、遇到已有文件如何处理。它们不说明业务规则已经正确。
+planning and ownership review 是 generation 前必须完成的人工审查。`cap4kPlan` 与 `cap4kAnalysisPlan` 写出的 plan evidence 说明 generator 准备写什么、写到哪里、谁拥有、遇到已有文件如何处理。它们不说明业务规则已经正确。
 
-source generation plan 的本地产物是 `build/cap4k/plan.json`。bootstrap plan 的本地产物是 `build/cap4k/bootstrap-plan.json`。analysis plan 的本地产物是 `build/cap4k/analysis-plan.json`，它属于 [Analysis Evidence](analysis-evidence.md) 范围。所有这些 `build/` 下的 plan files 都是本地 generated outputs，不是 committed source truth。
+source generation plan 的本地产物是 `build/cap4k/plan.json`。analysis plan 的本地产物是 `build/cap4k/analysis-plan.json`，它属于 [Analysis Evidence](analysis-evidence.md) 范围。这些 `build/` 下的 plan files 都是本地 generated outputs，不是 committed source truth。
 
 ## cap4kPlan
 
@@ -20,20 +20,6 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。bootstrap pl
 
 这些字段共同回答 ownership 问题。比如 Command skeleton 如果是 `CHECKED_IN_SOURCE`，通常会落到 `<module>/src/main/kotlin`；build-owned generated Kotlin source 如果是 `GENERATED_SOURCE`，通常会落到 `<module>/build/generated/cap4k/main/kotlin`。
 
-## cap4kBootstrapPlan
-
-`cap4kBootstrapPlan` 写出 `build/cap4k/bootstrap-plan.json`。它服务于项目结构 bootstrap，不服务于业务 source generation。
-
-审查 bootstrap plan 时，重点看：
-
-- root project 和 module path。
-- domain/application/adapter/start 是否形成四层多模块结构。
-- package 是否符合 base package。
-- bootstrap 输出是否会碰到已有文件。
-- 后续 `cap4kPlan` 能否在这些 module 中正确落位。
-
-如果 bootstrap plan 暴露结构错位，先修正 bootstrap configuration 或手工结构，再进入 source generation。不要用后续生成任务修补错误项目结构。
-
 ## Ownership Fields
 
 `generatorId` 表示哪个 generator 计划产出这个 item。它帮助作者区分 aggregate family、design JSON building block、type manifest、analysis flow 或 drawing-board 等来源。
@@ -44,7 +30,7 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。bootstrap pl
 
 - `CHECKED_IN_SOURCE`：仓库内的稳定 skeleton 或 type source，通常在 `<module>/src/main/kotlin`。
 - `GENERATED_SOURCE`：build-owned generated source，通常在 `<module>/build/generated/cap4k/main/kotlin`。
-- `OUTPUT_ARTIFACT`：非源码 artifact 的输出类型；内置计划常见项主要使用前两类，具体仍以 plan evidence 为准。
+- `OUTPUT_ARTIFACT`：非源码 evidence output；内置 flow 与 drawing-board planner 使用该类型。
 
 `resolvedOutputRoot` 表示实际输出根。它可以帮助作者检查 source root 是否落在预期 module，而不是只看文件名。
 
@@ -87,8 +73,8 @@ checked-in source 不是 generator 与作者长期共享维护的文件。作者
 <!-- IMAGE_PROMPT:
 Purpose: 帮助读者理解 cap4k plan review 如何在 generation 前审查 output ownership、conflictPolicy 和 checked-in first-materialization boundary。
 Type: workflow diagram
-Prompt: Draw a cap4k planning and ownership review workflow. Start from explicit inputs, then cap4kBootstrapPlan and cap4kPlan, then bootstrap-plan.json and plan.json, then human review of generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, and the checked-in first-materialization boundary before generation. Use Chinese labels while preserving English identifiers.
-Must show: cap4kBootstrapPlan, cap4kPlan, bootstrap-plan.json, plan.json, generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, CHECKED_IN_SOURCE fixed SKIP, GENERATED_SOURCE, handwritten logic, review before generation
+Prompt: Draw a cap4k planning and ownership review workflow. Start from explicit inputs, then cap4kPlan, then plan.json, then human review of generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, and the checked-in first-materialization boundary before generation. Use Chinese labels while preserving English identifiers.
+Must show: cap4kPlan, plan.json, generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, CHECKED_IN_SOURCE fixed SKIP, GENERATED_SOURCE, OUTPUT_ARTIFACT, handwritten logic, review before generation
 Must avoid: 不要暗示 plan.json 是业务规则来源；不要把 GENERATED_SOURCE 画成手写业务区；不要把 analysis-plan.json 放进 ordinary source generation；不要画出未审查就生成的路径
-Alt text after insertion: cap4k plan ownership 审查流程图，展示 bootstrap-plan.json、plan.json、ownership 字段、checked-in first-materialization boundary 和 generation 前人工审查。
+Alt text after insertion: cap4k plan ownership 审查流程图，展示 plan.json、ownership 字段、checked-in first-materialization boundary 和 generation 前人工审查。
 -->

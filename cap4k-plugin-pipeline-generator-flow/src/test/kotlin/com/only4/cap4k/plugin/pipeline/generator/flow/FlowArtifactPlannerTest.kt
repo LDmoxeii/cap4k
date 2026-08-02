@@ -4,10 +4,12 @@ import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
@@ -52,6 +54,12 @@ class FlowArtifactPlannerTest {
         assertEquals("flows/OrderController_submit.mmd", plan[1].outputPath)
         assertEquals("flow/index.json.peb", plan[2].templateId)
         assertEquals("flows/index.json", plan[2].outputPath)
+        assertTrue(plan.all { it.outputKind == ArtifactOutputKind.OUTPUT_ARTIFACT })
+        assertTrue(plan.all { it.resolvedOutputRoot == "flows" })
+        assertEquals(
+            listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+            planner.descriptor.tasks,
+        )
         assertTrue(jsonContent.contains("Order::submit"))
         assertTrue(jsonContent.contains("\"edgeCount\": 2"))
         assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))

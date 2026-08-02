@@ -1,0 +1,13 @@
+{
+  "schema": "comet.native.partial-allowance.v1",
+  "change": "complete-ddd-authoring-workflow",
+  "scopeHash": "4ce9d8b95219457f87868a9556412582ee61308e57250d6bfe6be40d05f1c015",
+  "scopeIds": [
+    "scope:054d60fa2662354bb0ab9da414d1431bc61635ecdf7e2729e85069a1b8d5fe8a"
+  ],
+  "reason": "Runtime display budget summarized 107 attributed change details; enumeration found zero unattributed items and bound the overflow by hash.",
+  "confirmedSummary": "Implemented thin repo-local authoring guidance, a Gradle-first manifest-based read-only Agent API, provider-derived capability descriptors, credential-safe diagnostics and freshness evidence, complete Bootstrap retirement, current documentation alignment, and bounded regression coverage.",
+  "sourceRevision": 2,
+  "confirmedAt": "2026-08-02T03:09:24.582Z",
+  "allowanceHash": "6408f0cc1a67f91284bd1f216bfbfe97527b3e8729cac7bd62365d57d6ff8f7c"
+}

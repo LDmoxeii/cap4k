@@ -10,7 +10,7 @@
 | 等 generated files 出现后才写 `design.json`。 | 先写 schema、`design/design.json`、`types.enumManifest`、`types.valueObjectManifest`，再 review `plan.json`。 |
 | generation 前跳过 `plan.json` review。 | materialization 前检查 `generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`outputPath` 和 `conflictPolicy`。 |
 | 手改 `build/generated/cap4k/main/kotlin`。 | `GENERATED_SOURCE` 由 build 拥有；改 inputs、templates 或 checked-in skeletons。 |
-| 把 `build/cap4k/*` 当作 committed source truth。 | `build/cap4k/plan.json`、`bootstrap-plan.json`、`analysis-plan.json` 是 `build/` 下的本地 generated evidence。 |
+| 把 `build/cap4k/*` 当作 committed source truth。 | `build/cap4k/agent/`、`plan.json`、`analysis-plan.json` 是 `build/` 下的本地 generated evidence。 |
 
 ## Design JSON Boundaries
 
@@ -35,14 +35,6 @@
 | 把 `cap4kAnalysisGenerate` 当作 source generation。 | 它导出 analysis/observation artifacts，尤其是 flow 和 drawing-board。 |
 | 期待 `flow` 和 `drawing-board` 创建 source skeletons。 | 它们通过 IR analysis input 观察 existing code structure。 |
 | `build/cap4k-code-analysis` 下缺少 `nodes.json` 或 `rels.json`。 | IR analysis input 不完整。 |
-
-## Bootstrap Mistakes
-
-| 错误 | 正确合同 |
-| --- | --- |
-| bootstrap 时没有匹配 module/base package expectations。 | Review `build/cap4k/bootstrap-plan.json` 中的 root project、module names、base package、template output 和 conflict policy。 |
-| 把 bootstrap 当作 business modeling。 | Bootstrap creates structure；schema、design JSON、enum manifest、value-object manifest 仍需要 author input。 |
-| 用 source generation 修补错误 bootstrap layout。 | source generation 前先修正 bootstrap configuration 或 module layout。 |
 
 ## Orchestration And Event Mistakes
 

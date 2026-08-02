@@ -11,7 +11,8 @@
 - Gradle root project name 是 `cap4k`，当前 `settings.gradle.kts` 显式 include 了运行时、pipeline、code analysis、starter/console 等子项目。
 - 运行时 tactical framework 行为主要在 `ddd-*` 模块中维护，包括 `ddd-core`、`ddd-domain-*`、`ddd-application-*`、`ddd-distributed-*`、`ddd-integration-*`。这些模块承载运行期 DDD tactical behavior、repository、Command、Query、Capability、event、locker、snowflake、execution context 和 integration adapter 等能力；仓库不再提供 generic Request 或内建 Saga runtime。
 - `cap4k-ddd-*-starter` 是按 capability 拆分的运行时装配模块，`cap4k-ddd-console` 是控制台模块。每个 starter 通过自己的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 暴露且只暴露其所有能力；仓库不保留聚合 starter。
-- `cap4k-plugin-pipeline-*` 是 compile-time generation pipeline 相关模块。它们覆盖 API、core runner、bootstrap、renderer、source providers、generators 和 Gradle plugin，不属于运行时 tactical framework。
+- `cap4k-plugin-pipeline-*` 是 compile-time generation pipeline 相关模块。它们覆盖 API、Agent API snapshot service、core runner、renderer、source providers、generators 和 Gradle plugin，不属于运行时 tactical framework。
+- `cap4k-plugin-pipeline-agent` 负责稳定 JSON、凭据安全脱敏、identity/freshness、snapshot 状态聚合与 manifest/section 编码；`cap4k-plugin-pipeline-gradle` 的 `cap4kAgentSnapshot` task 负责从 Gradle project/config、provider descriptors、plan evidence 和本地 analysis files 适配出 `build/cap4k/agent/` 下的八个文件。
 - `cap4k-plugin-code-analysis-*` 是 code analysis 相关模块。当前目录包括 `cap4k-plugin-code-analysis-core`、`cap4k-plugin-code-analysis-compiler`、`cap4k-plugin-code-analysis-flow-export`，用于分析/导出代码结构事实，不是业务运行时模块。
 - generated output 是 pipeline 运行后的产物，不等同于 pipeline 源码，也不等同于 handwritten runtime framework。判断文件所有权时要回到 `plan.json`、`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy` 等生成计划字段。
 - 文档和技能维护位于 `docs/` 与 `skills/`。本目录 `docs/superpowers/analysis/` 是 analysis/fact index，不是 public docs；`skills/` 是 agent routing/working rules，不是用户手册。
@@ -24,6 +25,9 @@
 - `cap4k-ddd-core-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`: Core starter autoconfiguration import list。
 - `cap4k-ddd-jpa-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`: JPA starter autoconfiguration import list。
 - `cap4k-plugin-pipeline-gradle/build.gradle.kts`: Gradle plugin module，包含 `java-gradle-plugin` 和 plugin id `io.github.ldmoxeii.cap4k.pipeline`。
+- `cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/AgentContracts.kt`: versioned Agent API section contract。
+- `cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/`: snapshot service、codec、identity、freshness、status 与 credential redaction。
+- `cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt`: Gradle-side Agent API adapter 与输出 task。
 - Representative module roots from `Get-ChildItem -Directory -Filter 'cap4k-*'`:
   - `cap4k-ddd-console`
   - `cap4k-ddd-core-starter`
@@ -39,8 +43,8 @@
   - `cap4k-plugin-code-analysis-compiler`
   - `cap4k-plugin-code-analysis-core`
   - `cap4k-plugin-code-analysis-flow-export`
+  - `cap4k-plugin-pipeline-agent`
   - `cap4k-plugin-pipeline-api`
-  - `cap4k-plugin-pipeline-bootstrap`
   - `cap4k-plugin-pipeline-core`
   - `cap4k-plugin-pipeline-generator-aggregate`
   - `cap4k-plugin-pipeline-generator-design`
@@ -71,6 +75,7 @@
 
 - Code wins over this map. If this page disagrees with Kotlin source, Gradle files, Spring resource files, or tests, update this page after verifying the code.
 - Runtime tactical framework behavior belongs to `ddd-*`, capability-specific `cap4k-ddd-*-starter`, and `cap4k-ddd-console`; compile-time generation behavior belongs to `cap4k-plugin-pipeline-*`; analysis extraction/export behavior belongs to `cap4k-plugin-code-analysis-*`.
+- Agent API 的 machine contract 属于 `cap4k-plugin-pipeline-api`，通用 snapshot 逻辑属于 `cap4k-plugin-pipeline-agent`，Gradle project inspection 与 task lifecycle 属于 `cap4k-plugin-pipeline-gradle`；不要把三者合并成 skill 中的静态框架事实副本。
 - starter autoconfiguration must be verified from each module's `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`, not inferred from package names or a removed aggregate entry point.
 - Generated output ownership must be verified from pipeline plan/output contracts, not from physical location alone.
 - Analysis maps should stay 70% AI-friendly and 30% human-maintainer-friendly: compact facts, stable anchors, explicit drift checks, and minimal narrative.
@@ -78,7 +83,7 @@
 ## Change Impact
 
 - Runtime behavior changes should update the relevant `ddd-*` module tests and any starter autoconfiguration evidence if wiring changes.
-- New pipeline source/generator/renderer/bootstrap behavior should update `cap4k-plugin-pipeline-*` maps and generation verification notes before public docs are changed.
+- New pipeline source/generator/renderer/Agent API behavior should update `cap4k-plugin-pipeline-*` maps and generation verification notes before public docs are changed。
 - New code analysis output or compiler extraction behavior should update `cap4k-plugin-code-analysis-*` facts and any downstream pipeline analysis source assumptions.
 - Moving a module between responsibility groups requires updating `settings.gradle.kts`, this map, and any routing skills that mention the old ownership boundary.
 - Public docs should not copy this page verbatim; public docs need user-facing explanation, while this page should remain a maintenance fact index.

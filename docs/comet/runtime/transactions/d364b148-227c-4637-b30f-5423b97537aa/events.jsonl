@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-01T10:27:38.606Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-01T10:27:40.997Z","type":"operation-started","operationId":"spec-1-ddd-authoring-capability-coverage"}
+{"sequence":3,"timestamp":"2026-08-01T10:27:41.164Z","type":"operation-completed","operationId":"spec-1-ddd-authoring-capability-coverage"}
+{"sequence":4,"timestamp":"2026-08-01T10:27:41.188Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-01T10:27:41.636Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-01T10:27:41.887Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-01T10:27:41.961Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-01T10:27:42.015Z","type":"commit"}
