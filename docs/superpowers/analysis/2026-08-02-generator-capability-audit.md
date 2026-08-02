@@ -6,13 +6,14 @@ Generator 已经具备一条可工作的核心闭环：显式输入进入 Canoni
 
 这条闭环覆盖当前上下文内最常用的战术建模载体：Aggregate、Strong ID、Repository、Factory、Behavior scaffold、Value Object、Enum、Command、Query、Capability、API Payload、Domain Event、Integration Event、Subscriber、Handler 与 Domain Service。现有证据不支持“Generator 缺少 DDD 核心战术建模骨架”这一结论。
 
-Generator gate 当前仍不能通过，原因不是核心生成链不可用，而是存在两个当前契约漂移，以及一个会阻塞 HTTP adapter 下游验证的集成缺口：
+Generator gate 当前仍不能通过，原因不是核心生成链不可用，而是存在当前契约漂移、一个会阻塞 HTTP adapter 下游验证的集成缺口，以及一个新确认的 Generator/Analyzer 共同闭环缺口：
 
 1. Design JSON descriptor 与公共文档错误宣称 `Scheduled Reaction` 可由 generator 生成，实际没有对应 tag、canonical carrier、planner、template 或 runtime carrier。
 2. 公共 `plan.json` 示例仍使用旧 generator id，并错误描述 `outputPath` shape。
 3. Strong ID 本身可生成、编译、Jackson/JPA 可用，但 Spring MVC path/query 参数不能绑定为生成的 Strong ID。
+4. 当前尚不能保证 `Design JSON == generated skeleton == Drawing Board`。现有所谓 round-trip 测试绕过真实 Analyzer；多个合法输入会在生成或恢复时丢失、变形或无法再次编译。
 
-其余开放事项主要属于诊断质量、可选 read-model provider、显式 analysis promotion 或陈旧 backlog，不应被误判为 DDD core 缺失。
+其余开放事项主要属于诊断质量、可选 read-model provider、测试证据质量或陈旧 backlog，不应被误判为 DDD core 缺失。Drawing Board 闭环不再属于可接受的“人工 promotion 成本”，而是已确认的框架完整性 gate。
 
 ## 审计边界
 
@@ -234,35 +235,102 @@ Spring 默认 String conversion 无法识别这些生成类型。仓库也没有
 - 确认被脚本部分覆盖的真实规则在 source/canonical tests 中有当前 owner；
 - Agent authoring route 继续以 snapshot、inputs、diagnostics、ownership 和显式 plan task 为入口。
 
-### G-05 — Drawing-board recovery issue is substantially resolved
+### G-05 — Design JSON / generated skeleton / Drawing Board semantic round-trip is incomplete
 
-- 分类：`verified` explicit promotion path；旧诉求为 `stale`
-- 责任块：Generator/Analyzer boundary
-- Gate 影响：non-blocking
+- 分类：`missing-core` / cross-block drift
+- 责任块：Generator faithful projection + Analyzer faithful recovery
+- Gate 影响：blocking repair required
 
-Issue #102 报告的 `command.resultFields` 不兼容已被当前 parser 修复：
-
-- `DesignJsonSourceProvider.kt:57-68`
-- `DesignJsonSourceProvider.kt:216-233`
-- `cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt:93-138`
-
-当前已有真实回环功能测试：analysis 生成 drawing-board fragment；测试将 query、inbound integration event、domain event fragment 显式注册为 `sources.designJson.files`；再次执行 `cap4kPlan` 后出现对应 ordinary generation items：
-
-- `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt:2481-2590`
-
-正确责任边界是：
+已确认的目标不是自动 Analyzer-to-Generator 回灌，而是三个表面表达同一个战术设计：
 
 ```text
-raw analyzer observation
-        -> human/Agent review and normalization
-promoted Design JSON
-        -> explicit sources.designJson.files registration
-cap4kPlan / cap4kGenerate
+Get(Put(design)) = Normalize(design)
+
+Put(Get(generated skeleton))
+    = same framework-owned structural/runtime contract
+    + preserved handwritten behavior boundary
 ```
 
-不应新增自动 analyzer-to-generator 回灌。尤其 producer outbound Integration Event 转成 consumer inbound event/subscriber 是新的上下文决策，不能由 framework 自动推断。
+其中：
 
-剩余 partial 只有：outbound-to-inbound promotion 示例不足，recovery fixture 只证明到 plan 而非重新 generate/compile，以及 Skill 的绝对措辞需要区分 raw observation 与 reviewed/promoted input。
+- `Put` 是 Design JSON 经 canonical model 与 Generator 产生可编译、可被 runtime 发现的骨架；
+- `Get` 是 Analyzer 从该骨架恢复 Drawing Board；
+- `Normalize` 只能处理无语义差异，例如文件分组、JSON formatting、默认 artifact 的省略与明确 type-expression canonicalization；
+- Drawing Board 不会自动注册到 `sources.designJson.files`，采用它仍是显式的人/Agent 动作；
+- 一旦某项设计已进入 Design JSON，框架不能再要求人补字段、类型、artifact、事件方向、runtime annotation 或其他框架所有的结构。
+
+当前方向正确的部分包括：
+
+- Generator 通过 `@BuildingBlock` 携带 `tag/package/name/description/aggregates/eventName/family/variant`；
+- Analyzer 以 `tag + package + name` 合并多 artifact，并从主 contract/event carrier 恢复 fields/resultFields；
+- Drawing Board 输出使用正式 Design JSON 字段集；
+- handler/subscriber 的依赖和方法体不被当作 design fields，业务行为仍可手写。
+
+但当前不是语义闭环，已确认以下阻塞项：
+
+1. **Page 基础设施字段泄漏。** Query/API Payload 的 `page` template 自动加入 `pageNum/pageSize`，Analyzer 却把它们当作用户 fields。回灌后 template 再次加入同名参数，可能直接生成不可编译代码：
+   - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query.kt.peb:27-55`
+   - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/api_payload.kt.peb:26-54`
+   - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:239-299`
+2. **Type identity 丢失。** `IrTypeFormatter` 对普通 class-backed type 只输出 simple name，使 Strong ID、Value Object、enum、外部 FQN 变成 unknown 或 ambiguous short type。Analyzer 应恢复 resolved canonical FQN；只有 builtin 和当前 block nested type 可安全使用短名：
+   - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt:24-53`
+   - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/SemanticValueCompiler.kt:287-319`
+3. **受支持 type algebra 不对称。** Design JSON/canonical 支持 `Array<T>`，Analyzer 明确拒绝 `kotlin.Array`；合法输入无法完成分析回环：
+   - `docs/public/reference/design-json.md:45-53`
+   - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/IrTypeFormatter.kt:13-22`
+4. **Event field default 丢失。** Source/canonical 接受 field `defaultValue`，但 Domain/Integration Event templates 不渲染默认值，第一轮生成已经丢失语义：
+   - `cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt:289-315`
+   - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:27-36`
+   - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/integration_event.kt.peb:29-42`
+5. **Domain Service fields 被接受后静默丢弃。** Parser/canonical 接受并编译 `domain_service.fields`，Domain Service render model/template 和 Analyzer 却没有 field carrier。当前 schema 也没有 operation name、参数归属和返回值，不能诚实生成领域服务方法 contract。必须在本轮决定是拒绝这些 fields，还是扩展一等 operation schema；不能继续接受后丢弃：
+   - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:727-784`
+   - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainServiceRenderModels.kt:5-26`
+   - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_service.kt.peb:11-24`
+   - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:116-125`
+6. **Artifact contract 允许不可逆输入。** 当前只有全局 family/variant 校验，没有 tag-family 矩阵；`artifacts: []`、secondary-only handler/subscriber、错误 tag-family 组合都可能被接受。没有 primary field carrier 的 design block 无法从代码真相恢复，有些组合本身也无法独立编译：
+   - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:820-887`
+   - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignBlockSelection.kt:11-15`
+7. **Field order 被改变。** Drawing Board 对 fields/resultFields 排序，重新生成会改变 Kotlin constructor 参数顺序。Artifact set 可以排序，field/resultField 及 nested DTO 内部顺序必须保留：
+   - `cap4k-plugin-pipeline-generator-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/drawingboard/DrawingBoardArtifactPlanner.kt:93-105`
+   - `DrawingBoardArtifactPlanner.kt:174-181`
+8. **Domain Event runtime event name 未投影。** 非空 `eventName` 只进入 recovery metadata，template 仍只生成 `@DomainEvent(persist = ...)`，没有写入真正 runtime 使用的 `DomainEvent.value`：
+   - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:11-25`
+   - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/annotation/DomainEvent.kt:11-21`
+   - `ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt:199-211`
+9. **Domain Event field name 被错误当作类型边界。** Canonical 与 Analyzer 会按字段名过滤 `entity`，可能删除合法的 immutable payload field。可靠事件拒绝 Entity/Aggregate payload 的 runtime 历史事实边界仍应保留，但应由现有递归 semantic type validator 执行，不能用字段名替代类型检查：
+   - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:733-738`
+   - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:130-134`
+   - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DomainEventPayloadModelValidator.kt:20-119`
+
+现有测试名为 `issue 92 metadata contract supports generation analysis and drawing board round trip`，但它不是真实回环：
+
+- 生成骨架后调用 `writeIssue92AnalysisFixture(...)` 手工写 `design-elements.json`；
+- 只覆盖 query、integration_event、domain_event；
+- 回灌后只运行 `cap4kPlan`，没有再次 generate/compile；
+- 不比较原始 Design JSON 与 Drawing Board 语义。
+
+证据：
+
+- `cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt:2481-2590`
+- `PipelinePluginFunctionalTest.kt:3374-3428`
+
+当前 fixture 的手写 analysis data 本身已相对原 Design JSON 丢失 query `status` 和 Domain Event `snapshot` subtree；测试仍通过，因为断言只检查几个文件名。因此它只能证明“手写 analysis fixture 能被 Drawing Board 与 parser 消费”，不能证明 Generator/Analyzer 等价。
+
+修复验收必须使用真实链路：
+
+1. 对七个 supported tags 和全部 artifact variants 读取原始 Design JSON，得到 canonical `C0`；
+2. 运行真实 Generator 并编译所有生成 module，不允许人工补结构；
+3. 在这些生成骨架上运行真实 compiler Analyzer，不能手写 `design-elements.json`；
+4. 生成 Drawing Board，不编辑其内容，只显式注册为 ordinary Design JSON；
+5. 得到 canonical `C1`，断言 `RoundTripProjection(C0) == RoundTripProjection(C1)`；
+6. 从 `C1` 再次 plan/generate/compile，并比较两轮 artifact family、variant、结构和 runtime annotation 语义；
+7. 覆盖 Strong ID、enum、Value Object、external FQN、List/Set/Map/Array、recursive nullability、default、nested DTO、page、event direction、persist/eventName、marker event 与跨 module artifact merge；
+8. 增加负向证据：tag-family mismatch、empty artifacts、secondary-only artifact、metadata/runtime annotation 冲突和 incomplete analysis input 必须 fail fast；
+9. 只修改 handler/subscriber/Domain Service 方法体、Repository call 或 injected dependency 时，Drawing Board 必须不变。
+
+Generator 必须完整生成的是 framework-owned 结构与 runtime contract；Command/Query/Capability handler body、subscriber translation、Domain Service 算法、Repository strategy、事务/补偿等业务行为仍由人和 Agent 实现。`TODO` 或空 hook 不是缺陷，要求人补字段、类型、annotation、接口或 wiring 才能编译/运行才是缺陷。
+
+不自动回灌仍是硬边界。尤其 producer outbound Integration Event 转成 consumer inbound event/subscriber 是新的上下文决策，不能由 framework 自动推断；但已经确认并生成的 direction 必须被 Analyzer 机械恢复，不能要求人再次判断。
 
 ### G-06 — Read-model weak-reference projection is an optional extension
 
@@ -388,6 +456,26 @@ python scripts/validate-cap4k-generator-inputs.py
 
 结果：四项在组合运行中通过；integrated design-family compile 首次因并行 TestKit 的 file-backed H2 lock 失败。执行 `gradlew --stop` 后单独重跑同一测试，结果为 `BUILD SUCCESSFUL in 1m`。因此五项功能证据最终均通过，同时记录 G-09 的 fixture 并发脆弱性，不把首次失败隐藏为普通噪音。
 
+针对 G-05 另行执行：
+
+```text
+:cap4k-plugin-pipeline-gradle:test
+  --tests "com.only4.cap4k.plugin.pipeline.gradle.PipelinePluginFunctionalTest.issue 92 metadata contract supports generation analysis and drawing board round trip"
+
+:cap4k-plugin-code-analysis-compiler:test
+  --tests "com.only4.cap4k.plugin.codeanalysis.compiler.DesignElementExtractionTest"
+  --tests "com.only4.cap4k.plugin.codeanalysis.compiler.AnalysisOutputCorrectnessTest"
+
+:cap4k-plugin-pipeline-gradle:test
+  --tests "com.only4.cap4k.plugin.pipeline.gradle.PipelinePluginCompileFunctionalTest.integrated compile sample keeps migrated design families compile-safe together"
+
+:cap4k-plugin-pipeline-core:test
+  --tests "com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssemblerTest"
+:cap4k-plugin-pipeline-generator-drawing-board:test
+```
+
+结果均为 `BUILD SUCCESSFUL`。这些结果分别证明当前七类 integrated skeleton 可编译、Analyzer component extraction 可工作、Drawing Board component tests 可工作，以及现有名义 round-trip 测试按其当前断言通过；它们不构成真实端到端语义等价证据。对该测试使用的原 Design JSON 与手写 `design-elements.json` 做 normalized comparison 后，query 的 `status` 和 Domain Event 的 `snapshot`/`snapshot.traceId` 已在手写中间数据丢失，而测试仍通过，进一步证明当前断言存在假阳性。
+
 ## Generator gate
 
 当前状态：`NOT READY`
@@ -398,6 +486,7 @@ python scripts/validate-cap4k-generator-inputs.py
 2. 修正 `plan.json` 当前公开 contract example。
 3. 按已确认决策修复 Strong ID MVC binding，并通过真实 HTTP adapter binding evidence。
 4. 按已确认决策删除独立 Python input validator 及其公共 contract surface。
-5. 将 G-05、G-06、G-07、G-08、G-09 记录为已接受的 partial/provider/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。
+5. 修复 G-05 的真实语义 round-trip 缺口，并以七 tag、真实 Analyzer、二次 generate/compile 的端到端证据通过共同 gate。
+6. 将 G-06、G-07、G-08、G-09 记录为已接受的 provider/partial/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。
 
 Generator 修复不得弱化 PR #152 已确认的 runtime reliable-event payload boundary。生成的 persisted Domain Event 必须继续满足 runtime 对历史事实 payload 的拒绝实体规则。

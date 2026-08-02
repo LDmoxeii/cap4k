@@ -6,6 +6,7 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 
 - Treat the merged thin Skill and machine-readable Agent API direction as the accepted Skill baseline.
 - Audit Generator first, then Runtime, then Analyzer against current mainline contracts, implementation, tests, public documentation, Agent API facts, and relevant open issues.
+- Audit the semantic round trip `Design JSON -> generated skeleton -> Analyzer -> Drawing Board`, including whether every accepted design field is materially represented and recoverable without manual structural repair.
 - Classify findings as verified, partial, drift, missing-core, provider/extension, or downstream-evidence.
 - Discuss findings before any implementation is authorized.
 - Re-evaluate an affected block after an independently implemented fix has merged to `master` and has been brought back to the audit line.
@@ -25,6 +26,8 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Given a Generator contract advertised by descriptors, documentation, or Agent API facts, the audit identifies the actual source, canonical model, planner/template, output ownership, conflict policy, and proportionate tests, or records a specific discrepancy.
 - Given a Runtime boundary such as reliable event payload persistence, the audit treats the current runtime semantic boundary as authoritative and identifies generator or documentation drift without weakening that runtime boundary.
 - Given an Analyzer observation, the audit distinguishes structural evidence from business truth and identifies freshness, coverage, and transport limitations.
+- Given a supported Design JSON entry, generation produces a structurally complete skeleton, Analyzer recovers the same tactical design, and the resulting Drawing Board can regenerate an equivalent skeleton without silently losing or inventing design semantics.
+- Given a generated handler, subscriber, domain service, or other behavior surface, business policy may remain handwritten, but compilation shape, declared types, annotations, artifact selection, wiring contracts, and other framework-owned structure do not require manual completion caused by a generator omission.
 - Given a finding that requires implementation, the audit records the decision and expected acceptance evidence while leaving the code unchanged on this branch.
 - Given a fix merged independently to `master`, the audit refreshes from that mainline fact and re-runs the affected gate before changing its conclusion.
 - Downstream validation is not opened while any unresolved missing-core or cross-block drift finding remains.
@@ -36,6 +39,9 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Cap4k currently has no external users; breaking iteration is allowed and a single clean current contract is preferred.
 - Humans own strategic/domain decisions and acceptance. Agents assist investigation, translation, implementation, and verification without claiming business authority.
 - Skill routes; Generator projects explicit inputs and canonical models; Runtime owns real execution semantics; Analyzer supplies structural observation and engineering evidence.
+- Analyzer output never feeds Generator automatically. Any use of a Drawing Board as authoring input remains an explicit human/Agent action.
+- `Design JSON`, its generated skeleton, and the Analyzer Drawing Board must represent the same normalized tactical design. File names, file counts, and physical partitioning may differ; semantic content may not.
+- Framework-owned skeleton structure must be complete. Handwritten business behavior is outside this equality contract and remains a human/Agent implementation responsibility.
 - Current repository facts outrank historical chat, stale issue text, and old plans.
 - PR #152's runtime refusal to persist reliable-event entity payloads is an accepted boundary and must not be reversed as a generator fix.
 
@@ -51,15 +57,18 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Strong ID Spring MVC path/query binding is part of the Generator gate. Every generated Strong ID must expose a JVM-static String factory that delegates to the existing semantic parser; Runtime must not add reflection-based conversion machinery. Verify the contract with real MVC path and query binding tests.
 - Retire the standalone Python generator-input validator and its public documentation surface. Authoritative validation belongs to the actual source providers, canonical assembler, `cap4kPlan` diagnostics, and Agent API evidence; do not preserve a second partial parser or compatibility command.
 - Read-model weak-reference projection remains an optional provider/extension boundary. The built-in `aggregate-projection` stays opt-in, adapter-owned, scalar-only, and without read-model runtime; `@RefAggregate` remains a typed scalar identity reference and does not create an automatic projection object relation.
+- Do not create automatic Analyzer-to-Generator feedback. Instead, require a semantic round-trip contract: `Design JSON == generated skeleton == Drawing Board`, modulo physical file representation and explicitly accepted non-semantic normalization.
+- A generator defect may not force humans to repair framework-owned skeleton structure. All accepted design declarations must be generated into a compile-valid, runtime-contract-complete structural surface and remain recoverable by Analyzer; only domain behavior and business decisions remain handwritten.
 
 # Open questions
 
-- May an analyzer-produced drawing-board fragment become ordinary Design JSON only after an explicit human/Agent review, any required normalization, and deliberate registration in `sources.designJson.files`, while raw analysis remains observation rather than business truth? This is the recommended boundary because it preserves the existing tested promotion path without creating automatic analyzer-to-generator feedback. The alternative is to prohibit analyzer-produced artifacts from ever being registered directly, even after explicit review, and require a separately authored copy.
+- [blocking] Should the equality gate compare normalized tactical semantics, or require literal Design JSON content equality except for file name/count partitioning? The recommended normalized contract may ignore JSON formatting, file/entry order, artifact order, omitted optional empty arrays, omitted defaults versus the same effective defaults, and type-expression spelling that resolves to the same canonical FQN; it must preserve field/result-field order, resolved type identity, nullability, default semantics, artifact set/variant, event direction, persist/eventName, and runtime annotation semantics. Literal equality would also preserve key/order/presence/default spelling, increasing framework and test coupling without changing generated structure.
 
 # Verification expectations
 
 - Cite current source files, descriptors, generated plans/templates, tests, public documentation, Agent API outputs, and relevant GitHub issues for each finding.
 - Run focused module checks and compile/functional fixtures in proportion to the audited risk; never report an unrun check as passing.
 - Record accepted unsupported boundaries and their cross-block impact explicitly.
+- Add real end-to-end round-trip evidence that invokes the Analyzer compiler on generated skeletons, compares normalized Design JSON with Drawing Board across every supported tag and artifact variant, regenerates from Drawing Board, and compiles the regenerated result.
 - Maintain recoverable Comet checkpoints that reference the current audit artifact and next action.
 - Before opening downstream validation, verify that no unresolved missing-core or cross-block drift finding remains and that the thin Skill can route an agent to machine-readable facts for all relevant blocks.
