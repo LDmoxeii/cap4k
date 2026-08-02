@@ -284,11 +284,13 @@ Put(Get(generated skeleton))
    - `cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt:289-315`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb:27-36`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/integration_event.kt.peb:29-42`
-5. **Domain Service fields 被接受后静默丢弃。** Parser/canonical 接受并编译 `domain_service.fields`，Domain Service render model/template 和 Analyzer 却没有 field carrier。当前 schema 也没有 operation name、参数归属和返回值，不能诚实生成领域服务方法 contract。必须在本轮决定是拒绝这些 fields，还是扩展一等 operation schema；不能继续接受后丢弃：
+5. **Domain Service fields 被接受后静默丢弃。** Parser/canonical 接受并编译 `domain_service.fields`，Domain Service render model/template 和 Analyzer 却没有 field carrier。当前 schema 也没有 operation name、参数归属和返回值，不能诚实生成领域服务方法 contract：
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:727-784`
    - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignDomainServiceRenderModels.kt:5-26`
    - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_service.kt.peb:11-24`
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:116-125`
+
+   已确认修复边界：`domain_service` 保持 metadata-only anchor，只允许 identity、package、description、aggregate ownership 与 `domain-service` artifact；非空 `fields/resultFields` 必须 fail fast。Generator 生成带 `@DomainService`/`@BuildingBlock` 的 class anchor，领域服务方法与算法继续手写，Analyzer 不从方法体推断 operation contract。未来若需要一等 operation model，必须另行设计包含方法 identity、参数、返回值和 multiplicity 的明确 schema，不能复用含义不清晰的 `fields`。
 6. **Artifact contract 允许不可逆输入。** 当前只有全局 family/variant 校验，没有 tag-family 矩阵；`artifacts: []`、secondary-only handler/subscriber、错误 tag-family 组合都可能被接受。没有 primary field carrier 的 design block 无法从代码真相恢复，有些组合本身也无法独立编译：
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:820-887`
    - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DesignBlockSelection.kt:11-15`
