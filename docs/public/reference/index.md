@@ -13,7 +13,6 @@
 | DB/schema comment annotations、relation metadata、type markers | [DB Schema Annotations](db-schema-annotations.md) |
 | `types.valueObjectManifest`、shared 与 aggregate-owned Value Object、JSON-backed value | [Value Object Manifest](value-object-manifest.md) |
 | `types.enumManifest`、enum `items` shape、enum generation notes | [Enum Manifest](enum-manifest.md) |
-| design JSON、schema comments、enum manifests 和 value-object manifests 的离线预检查 | [Generator Input Validation](generator-input-validation.md) |
 | `plan.json`、`analysis-plan.json`、ownership review fields | [Plan JSON](plan-json.md) |
 | `CHECKED_IN_SOURCE`、`GENERATED_SOURCE`、`OUTPUT_ARTIFACT` 和输出根 | [Outputs](outputs.md) |
 | `build/cap4k-code-analysis`、`nodes.json`、`rels.json`、flows、drawing-board | [Analysis Outputs](analysis-outputs.md) |
@@ -26,7 +25,7 @@
 | --- | --- |
 | 接入 pipeline plugin | [Gradle Plugin](gradle-plugin.md), [Generator DSL](generator-dsl.md) |
 | 让 agent 检查项目与 framework capability | [Agent API](agent-api.md), [Gradle Plugin](gradle-plugin.md) |
-| 写 source generation 输入 | [Generator DSL](generator-dsl.md), [Design JSON](design-json.md), [DB Schema Annotations](db-schema-annotations.md), [Value Object Manifest](value-object-manifest.md), [Enum Manifest](enum-manifest.md), [Generator Input Validation](generator-input-validation.md) |
+| 写 source generation 输入 | [Generator DSL](generator-dsl.md), [Design JSON](design-json.md), [DB Schema Annotations](db-schema-annotations.md), [Value Object Manifest](value-object-manifest.md), [Enum Manifest](enum-manifest.md), [Agent API](agent-api.md), [Plan JSON](plan-json.md) |
 | 审查 generation plan | [Plan JSON](plan-json.md), [Outputs](outputs.md), [Common Mistakes](common-mistakes.md) |
 | 区分 checked-in skeleton 与 build-owned source | [Outputs](outputs.md), [Plan JSON](plan-json.md) |
 | 生成或提交 analysis evidence | [Analysis Outputs](analysis-outputs.md), [Generator DSL](generator-dsl.md) |

@@ -6,7 +6,9 @@
 
 ## Design Input
 
-`design/design.json` 是主要 building-block 输入。它描述 command、query、capability、domain event、integration event、domain service、subscriber、job 等设计事实。它回答的问题是：“项目要求 generator 识别哪些业务入口和结构锚点？”
+`design/design.json` 是主要 building-block 输入。它描述 command、query、capability、domain event、integration event 和 domain service 等设计事实。它回答的问题是：“项目要求 generator 识别哪些业务入口和结构锚点？”
+
+subscriber 和 job 会作为 downstream application surfaces 出现在 source 与 analysis evidence 中，但它们不是当前 `design/design.json` normal tag。
 
 `design/value-objects.json` 和 `design/enums.json` 是相邻 type input manifest：
 

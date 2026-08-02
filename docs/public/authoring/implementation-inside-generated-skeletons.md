@@ -2,7 +2,7 @@
 
 cap4k 的生成骨架是作者实现业务逻辑的合同。它给出稳定命名、目录、接口、wiring 和 ownership，让复杂业务逻辑落到预期 surface 中，而不是散落在 controller、repository adapter、build-owned generated source 或临时 helper 里。
 
-本页延续 [Generated Skeleton And Handwritten Logic](../concepts/execution-and-ownership/generated-skeleton-and-handwritten-logic.md) 的边界：generator 负责结构，handwritten logic 负责业务含义。复杂逻辑属于 intended generated skeleton surfaces；如果作者发现自己必须绕过 skeleton，通常说明前面的设计或输入需要回看。
+本页延续 [Generated Skeleton And Handwritten Logic](../concepts/execution-and-ownership/generated-skeleton-and-handwritten-logic.md) 的边界：generator 负责结构，handwritten logic 负责业务含义。复杂逻辑应落在当前 generator 实际提供的 intended skeleton surfaces；Scheduled Reaction / Job 是明确的项目手写 application surface，不属于 generated skeleton。除这个明确边界外，如果作者发现自己必须绕过 skeleton，通常说明前面的设计或输入需要回看。
 
 ## Skeletons As Contracts
 
@@ -26,7 +26,7 @@ cap4k 的生成骨架是作者实现业务逻辑的合同。它给出稳定命�
 - Command handler：加载 Aggregate、zero-trust validation、调用行为并处理 no-op；外层 Command 自动稳定化与完成 Unit of Work。
 - Query handler：读取和投影，不改变业务事实。
 - Subscriber：响应 Domain Event 或 Integration Event，路由后续 Command。
-- Scheduled Reaction：定时或 polling fallback 的 application reaction。
+- Scheduled Reaction / Job：定时或 polling fallback 的手写 application implementation surface；当前 cap4k 不为它生成 Design JSON skeleton。
 - Capability Handler：外部能力协议转换和错误转换。
 - Provider-owned orchestration：项目显式选择的持久化跨步骤协调、retry、recovery 和 compensation 边界，不属于 cap4k 内置 generator。
 - Controller / Payload：HTTP request 和 response shape 的转换。
@@ -55,7 +55,7 @@ ownership 冲突通常有几个表现：
 - generation ownership 如何避免覆盖或重复。
 - 后续 evidence 如何证明这个 fallback surface 仍然正确。
 
-如果这些问题无法回答，就不应该继续绕过。缺 skeleton 是 generator input 或 template coverage 问题；缺业务理由是 modeling 或 technical design 问题；ownership 冲突是 plan review 问题。
+如果这些问题无法回答，就不应该继续绕过。对 Command、Query、Capability、Subscriber 等有明确 generator owner 的 surface，缺 skeleton 是 generator input 或 template coverage 问题；Scheduled Reaction / Job 没有内建 skeleton 是当前契约，而不是 generator 缺陷。缺业务理由是 modeling 或 technical design 问题；ownership 冲突是 plan review 问题。
 
 ## Reference Project Anchors
 
@@ -67,7 +67,7 @@ ownership 冲突通常有几个表现：
 - `PublishContentCmd`、`StartMediaProcessingCmd`、`MarkMediaProcessingSucceededCmd`：Command contract 与 handler surface。
 - `ContentPublicationReadyDomainEventSubscriber`：领域事实后的 application reaction。
 - `MediaProcessingCallbackIntegrationEventSubscriber`：外部 callback 事实进入内部命令。
-- `MediaProcessingPollingFallbackJob`：Scheduled Reaction fallback。
+- `MediaProcessingPollingFallbackJob`：手写 Scheduled Reaction fallback；它不是 cap4k generator output。
 - `TriggerMediaProcessingHandler`、`GetMediaProcessingStatusHandler`：external capability adapter。
 
 这些文件不要求每个项目复制同名类。它们展示的是作者应该如何让复杂逻辑在可审查 surface 中出现。

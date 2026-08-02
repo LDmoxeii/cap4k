@@ -8,7 +8,7 @@ Scheduled Reaction 是由时间触发的应用层反应，用来处理轮询、�
 
 Scheduled Reaction 与其他边界的协作要保持应用层意图清楚。需要改变业务状态时，Job 应委托给 Command；需要读取外部状态时，可以通过 external capability anti-corruption layer 调用 `capability` / `capability-handler`。如果流程需要持久化进度或补偿，应在技术设计中选择显式 provider-owned orchestration，而不是伪造框架内置骨架。
 
-generator 可以提供 Job 或 handler 的稳定结构，但不会自动决定轮询频率、恢复条件、幂等策略、失败重试或状态推进含义。这些判断来自手写逻辑。尤其在 recovery 路径中，代码应能解释为什么某条记录可以再次尝试、为什么某个外部结果可以推进内部状态，以及重复执行时如何保持安全。
+cap4k 当前不生成 Scheduled Reaction 或 Job。Job 是项目手写的 application implementation surface；generator 只为当前支持的 Command、Query、Capability、Subscriber 及相关 handler wiring 提供骨架。轮询频率、恢复条件、幂等策略、失败重试和状态推进含义都来自手写逻辑。尤其在 recovery 路径中，代码应能解释为什么某条记录可以再次尝试、为什么某个外部结果可以推进内部状态，以及重复执行时如何保持安全。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。`MediaProcessingPollingFallbackJob` 是时间触发 reaction 的直接锚点；它可以和 `StartMediaProcessingCmd`、`GetMediaProcessingStatus` 及媒体处理 callback 相关入口一起阅读，理解 callback 不可靠时如何用 polling fallback 补足恢复能力。
 

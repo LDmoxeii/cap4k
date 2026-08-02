@@ -39,19 +39,52 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
+        val planText = planFile.readText()
+        val planJson = JsonParser.parseString(planText).asJsonObject
+        val planItems = planJson.getAsJsonArray("items").map { it.asJsonObject }
+        val designItems = planItems.filter { item -> item.get("templateId").asString.startsWith("design/") }
+        val commandItem = designItems.first { it.get("templateId").asString == "design/command.kt.peb" }
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
-        assertTrue(planFile.readText().contains("\n  \"items\""))
-        assertTrue(planFile.readText().contains("\"diagnostics\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/command.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/query.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"design/domain_service.kt.peb\""))
-        assertTrue(planFile.readText().contains("\"templateId\": \"types/value-object\""))
-        assertFalse(planFile.readText().contains("\"generatorId\": \"design-validator\""))
-        assertFalse(planFile.readText().contains("\"templateId\": \"design/validator.kt.peb\""))
-        assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
-        assertFalse(planFile.readText().contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
+        assertTrue(planText.contains("\n  \"items\""))
+        assertTrue(planText.contains("\"diagnostics\""))
+        assertTrue(planText.contains("\"templateId\": \"design/command.kt.peb\""))
+        assertTrue(planText.contains("\"templateId\": \"design/query.kt.peb\""))
+        assertTrue(planText.contains("\"templateId\": \"design/domain_service.kt.peb\""))
+        assertTrue(planText.contains("\"templateId\": \"types/value-object\""))
+        assertFalse(planText.contains("\"generatorId\": \"design-validator\""))
+        assertFalse(planText.contains("\"templateId\": \"design/validator.kt.peb\""))
+        assertFalse(planText.contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
+        assertFalse(planText.contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
+        assertEquals(
+            setOf(
+                "command",
+                "query",
+                "query-handler",
+                "capability",
+                "capability-handler",
+                "api-payload",
+                "domain-event",
+                "domain-subscriber",
+                "integration-event",
+                "integration-subscriber",
+                "domain-service",
+            ),
+            designItems.map { item -> item.get("generatorId").asString }.toSet(),
+        )
+        assertFalse(
+            designItems.any { item ->
+                val contractText = item.toString().lowercase()
+                contractText.contains("scheduled") || contractText.contains("job") || contractText.contains("validator")
+            },
+        )
+        assertEquals("command", commandItem.get("generatorId").asString)
+        assertEquals("", commandItem.get("resolvedOutputRoot").asString)
+        assertEquals(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
+            commandItem.get("outputPath").asString,
+        )
     }
 
     @OptIn(ExperimentalPathApi::class)

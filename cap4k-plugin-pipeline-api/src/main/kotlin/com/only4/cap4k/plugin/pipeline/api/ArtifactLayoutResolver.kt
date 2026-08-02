@@ -31,9 +31,6 @@ class ArtifactLayoutResolver(
     fun aggregateFactoryPackage(entityPackage: String): String =
         joinPackage(entityPackage, "factory")
 
-    fun aggregateSpecificationPackage(entityPackage: String): String =
-        joinPackage(entityPackage, "specification")
-
     fun aggregateLocalEnumPackage(entityPackage: String): String =
         joinPackage(entityPackage, "enums")
 
