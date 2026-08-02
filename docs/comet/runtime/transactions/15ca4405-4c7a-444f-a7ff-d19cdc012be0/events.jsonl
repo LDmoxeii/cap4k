@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-02T08:25:22.502Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-02T08:25:26.037Z","type":"operation-started","operationId":"spec-1-generator-contract-surface"}
+{"sequence":3,"timestamp":"2026-08-02T08:25:26.248Z","type":"operation-completed","operationId":"spec-1-generator-contract-surface"}
+{"sequence":4,"timestamp":"2026-08-02T08:25:26.288Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-02T08:25:26.761Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-02T08:25:27.075Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-02T08:25:27.199Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-02T08:25:27.293Z","type":"commit"}

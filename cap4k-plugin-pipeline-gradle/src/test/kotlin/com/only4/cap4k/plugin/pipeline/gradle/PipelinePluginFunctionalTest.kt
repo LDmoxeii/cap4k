@@ -41,9 +41,9 @@ class PipelinePluginFunctionalTest {
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
         val planText = planFile.readText()
         val planJson = JsonParser.parseString(planText).asJsonObject
-        val commandItem = planJson.getAsJsonArray("items")
-            .map { it.asJsonObject }
-            .first { it.get("templateId").asString == "design/command.kt.peb" }
+        val planItems = planJson.getAsJsonArray("items").map { it.asJsonObject }
+        val designItems = planItems.filter { item -> item.get("templateId").asString.startsWith("design/") }
+        val commandItem = designItems.first { it.get("templateId").asString == "design/command.kt.peb" }
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
@@ -57,6 +57,28 @@ class PipelinePluginFunctionalTest {
         assertFalse(planText.contains("\"templateId\": \"design/validator.kt.peb\""))
         assertFalse(planText.contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
         assertFalse(planText.contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
+        assertEquals(
+            setOf(
+                "command",
+                "query",
+                "query-handler",
+                "capability",
+                "capability-handler",
+                "api-payload",
+                "domain-event",
+                "domain-subscriber",
+                "integration-event",
+                "integration-subscriber",
+                "domain-service",
+            ),
+            designItems.map { item -> item.get("generatorId").asString }.toSet(),
+        )
+        assertFalse(
+            designItems.any { item ->
+                val contractText = item.toString().lowercase()
+                contractText.contains("scheduled") || contractText.contains("job") || contractText.contains("validator")
+            },
+        )
         assertEquals("command", commandItem.get("generatorId").asString)
         assertEquals("", commandItem.get("resolvedOutputRoot").asString)
         assertEquals(

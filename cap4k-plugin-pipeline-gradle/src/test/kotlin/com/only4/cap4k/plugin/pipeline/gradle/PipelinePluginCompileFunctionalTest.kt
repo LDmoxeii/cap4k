@@ -727,11 +727,26 @@ class PipelinePluginCompileFunctionalTest {
         val planResult = FunctionalFixtureSupport
             .runner(planProjectDir, "cap4kPlan")
             .build()
-        val planJson = planProjectDir.resolve("build/cap4k/plan.json").readText()
+        val planJson = JsonParser.parseString(
+            planProjectDir.resolve("build/cap4k/plan.json").readText(),
+        ).asJsonObject
+        val generatedEntityItem = planJson.getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .first { item ->
+                item.get("templateId").asString == "aggregate/entity.kt.peb" &&
+                    item.get("outputPath").asString.endsWith("/VideoPost.kt")
+            }
         assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planJson.contains("demo-domain/out/build/generated/cap4k/main/kotlin"))
-        assertFalse(planJson.contains("demo-domain/build/generated/cap4k/main/kotlin"))
-
+        assertEquals("aggregate", generatedEntityItem.get("generatorId").asString)
+        assertEquals("GENERATED_SOURCE", generatedEntityItem.get("outputKind").asString)
+        assertEquals(
+            "demo-domain/out/build/generated/cap4k/main/kotlin",
+            generatedEntityItem.get("resolvedOutputRoot").asString,
+        )
+        assertEquals(
+            "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
+            generatedEntityItem.get("outputPath").asString,
+        )
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-custom-build-dir-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
         val domainBuildFile = projectDir.resolve("demo-domain/build.gradle.kts")

@@ -49,3 +49,7 @@ Pipeline Extension discovery 只读取本地 resolved classpath metadata。Exten
 ## Credential Boundary
 
 Snapshot 不序列化 password、token、private key、原始 connection string、内嵌 credential 或 extension option value。Options 只披露 configured/sensitive key；stable identity 对敏感 value 只编码存在性，密码变化不会产生可用于猜测密码的 value hash。
+
+## Ownership Projection
+
+`ownership.json` 中的 `items` 使用与 `build/cap4k/plan.json` item 相同的 `generatorId`、`templateId`、`outputPath`、`outputKind`、`conflictPolicy` 和 `resolvedOutputRoot` 语义。`outputPath` 始终是完整的 repo-relative target path，不应与 `resolvedOutputRoot` 再次拼接；`resolvedOutputRoot` 是可选的 root metadata，checked-in source 可以为空，也可以由 planner 提供 source root。

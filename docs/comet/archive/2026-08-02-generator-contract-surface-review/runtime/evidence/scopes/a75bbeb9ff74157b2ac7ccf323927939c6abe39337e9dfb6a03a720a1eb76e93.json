@@ -1,0 +1,207 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "f17e54c09839008d4c75155b3dc253b314a100b340a19d84eaf1627635c484e6",
+  "baselineProjectionRef": "runtime/evidence/snapshots/3699d84ae324d6b72bf443de8d5937c78365991e649a0d2c74c8405602e18c81.json",
+  "baselineProjectionHash": "3699d84ae324d6b72bf443de8d5937c78365991e649a0d2c74c8405602e18c81",
+  "currentProjectionRef": "runtime/evidence/snapshots/fa427a9780a37e36eee812dc79cc4f815832417370123799e450fe46fd5bdd2b.json",
+  "currentProjectionHash": "fa427a9780a37e36eee812dc79cc4f815832417370123799e450fe46fd5bdd2b",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-plugin-pipeline-agent",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-api",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-source-design-json",
+      "kind": "directory"
+    },
+    {
+      "path": "docs/public",
+      "kind": "directory"
+    },
+    {
+      "path": "scripts",
+      "kind": "directory"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "45e847d3400719c6245accd218e81b8499d55e50d5759904633ad82193db1030",
+        "size": 12516
+      },
+      "after": {
+        "hash": "36b32a2bdbae142bf6c85a1d0215671c094ad704e78da31885c74525f2d9f43b",
+        "size": 12512
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-agent",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "db611378d53193ef68f54195a8b2f5bdbbc978cf69fa99973fba7b8291df811a",
+        "size": 93045
+      },
+      "after": {
+        "hash": "d4f0f0a0a4ba6d70c8c2252484d473c894e5f40e72871cffd4c12e64d4fcac89",
+        "size": 93774
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "19c532d6b1740593c150bf715663b3f68bdc20159c8db2fb14d98ed1c7e28220",
+        "size": 171457
+      },
+      "after": {
+        "hash": "6a9bd611509f695a12707e87e2de50c5bb55ac9de9d0ce6e773e58b3bcb5eed4",
+        "size": 172357
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "78933ea911532461ccadbcc8cdd35a18bc64abfa6a1f49a9558c521bfdd1e42b",
+        "size": 446685
+      },
+      "after": {
+        "hash": "9e6ed016b77ff3c15b44430d22873dd4e6a5d9f8ce09e5871ab9e66c68375cf5",
+        "size": 446586
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/authoring/implementation-inside-generated-skeletons.md",
+      "kind": "modified",
+      "before": {
+        "hash": "5d41a645f94def0c03b8da1aec8134c54c650e6f25ff65ee135e43331b793281",
+        "size": 6349
+      },
+      "after": {
+        "hash": "6e180703de0203965a997d9c96e47d86a14fd68230e8d075b43392aab4466177",
+        "size": 6806
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/concepts/execution-and-ownership/scheduled-reaction.md",
+      "kind": "modified",
+      "before": {
+        "hash": "5d746894262c8fb5eacc4835e2b94d061eec25a1cdb7ccd1f3952feecbc13b77",
+        "size": 3494
+      },
+      "after": {
+        "hash": "0ebf99419b31b8d22bcbdedac1168ce8943577ab625fc1f9227bce0585d51090",
+        "size": 3628
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/generator/inputs-and-sources.md",
+      "kind": "modified",
+      "before": {
+        "hash": "a600e1dc815525136627f53583763f75f67f30fa8940dbe2d018c3244f4e5cdf",
+        "size": 6505
+      },
+      "after": {
+        "hash": "b3552ffc3644c40e4a6fb0d7872015e9d7409b8ce09b6abcafa0289277a7b0d0",
+        "size": 6447
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/reference/agent-api.md",
+      "kind": "modified",
+      "before": {
+        "hash": "a38dad7a4c40bb7b27adf8c27ac652cba19ac7696519c16a33147ce6012f6ab3",
+        "size": 4918
+      },
+      "after": {
+        "hash": "02db0caacab818ae8142ff18a06d4c61a56ba3abe7788ef300eb32122f91d4c5",
+        "size": 5369
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/reference/plan-json.md",
+      "kind": "modified",
+      "before": {
+        "hash": "fd2d25c1c6db3a05d8e266c96b13f26d13913d994548604d6ed96c6af405afb0",
+        "size": 4017
+      },
+      "after": {
+        "hash": "3adc5335b01c63f83c7c04ce3faa5cc485f4777a094e9322f33a2b695571d9d1",
+        "size": 4076
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "a75bbeb9ff74157b2ac7ccf323927939c6abe39337e9dfb6a03a720a1eb76e93"
+}
