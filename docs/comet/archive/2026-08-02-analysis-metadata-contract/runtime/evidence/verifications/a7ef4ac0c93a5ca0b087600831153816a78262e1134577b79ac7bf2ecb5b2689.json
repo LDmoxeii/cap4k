@@ -1,0 +1,83 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "analysis-metadata-contract",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "5cff612eed083d74a2233f9e8088e094411611c71b6d3f75d40c0f7e09cc905b",
+  "acceptanceCriteriaHash": "257d26d80f582f11582fc144b82ba6967443db2b41e3ce2c02e7d3e78e214f3d",
+  "implementationScopeRef": "runtime/evidence/scopes/d85fbfb57ceb9077300150e46745aae16f820bb70cc604a84af55c7e96f15017.json",
+  "implementationScopeHash": "d85fbfb57ceb9077300150e46745aae16f820bb70cc604a84af55c7e96f15017",
+  "reportRef": "verification.md",
+  "reportHash": "e89e5b07d6440db84f672cdede5cf324e13d738a8062ef214993b3c4eeae3c00",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "257d26d80f582f11582fc144b82ba6967443db2b41e3ce2c02e7d3e78e214f3d",
+    "total": 5,
+    "evidenced": 5,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-1b70985297113ef701555fae6014ddc84ed1c33e3f71be05e064f1601f2524b4",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/AnalysisOutputCorrectnessTest.kt",
+          "cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementExtractionTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4648a379d494835391f387ff1c053afb876c32b0ced925a0c22ce37517ade6a0",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/AnalysisMetadataContractIntegrationTest.kt",
+          "cap4k-plugin-pipeline-generator-drawing-board/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/drawingboard/DrawingBoardArtifactPlannerTest.kt",
+          "cap4k-plugin-pipeline-generator-flow/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/flow/FlowArtifactPlannerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6d38c5cb065bb99bb2207d5d31b61987b88d63edeb3e873be50d549aca0d65e5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-98436e35e709da279c429856d024670afb417a9bb849d854a6cb8e7f32cc13a0",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-code-analysis-flow-export/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/flow/Cap4kFlowExportPluginTest.kt",
+          "cap4k-plugin-pipeline-source-ir-analysis/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/ir/IrAnalysisSourceProviderTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d89d14ba5df96512cfe1b2c2a076595f28ad2f18443a7c6ecd443b4b25163993",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-analysis-metadata/src/main/kotlin/com/only4/cap4k/analysis/metadata/AggregateElementMetadata.kt",
+          "cap4k-analysis-metadata/src/main/kotlin/com/only4/cap4k/analysis/metadata/DesignBlockMetadata.kt",
+          "cap4k-analysis-metadata/src/test/kotlin/com/only4/cap4k/analysis/metadata/AnalysisMetadataAnnotationTest.kt",
+          "settings.gradle.kts"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "4b1af4f20274029796895365ca2900df41df7a7b5f7b89ea90dc1dc624d731b1"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/e165b5f4b3a5daad138186cf39ec6038c4a4fb7d493a076c3ed09344581e9c1b.json",
+  "createdAt": "2026-08-02T09:41:12.816Z",
+  "envelopeHash": "a7ef4ac0c93a5ca0b087600831153816a78262e1134577b79ac7bf2ecb5b2689"
+}

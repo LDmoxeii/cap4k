@@ -1,0 +1,1075 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "5cff612eed083d74a2233f9e8088e094411611c71b6d3f75d40c0f7e09cc905b",
+  "baselineProjectionRef": "runtime/evidence/snapshots/4764261f79f069bd70f5d8c1807fc8665a58ea2b9d2bb462c73d0a4c60fc4675.json",
+  "baselineProjectionHash": "4764261f79f069bd70f5d8c1807fc8665a58ea2b9d2bb462c73d0a4c60fc4675",
+  "currentProjectionRef": "runtime/evidence/snapshots/3b346c8a5ff1f4b98d3c1415be99b85eb7c5b728d16eab574b82344a4cac144e.json",
+  "currentProjectionHash": "3b346c8a5ff1f4b98d3c1415be99b85eb7c5b728d16eab574b82344a4cac144e",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-analysis-metadata",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-core",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-flow-export",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-api",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-core",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-generator-drawing-board",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-generator-flow",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-source-ir-analysis",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-core",
+      "kind": "directory"
+    },
+    {
+      "path": "docs/public",
+      "kind": "directory"
+    },
+    {
+      "path": "settings.gradle.kts",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-analysis-metadata/build.gradle.kts",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "8641b3e080dac7601d0bf38741b6c5e6ccf720ca51519c59f8f77f7ff2097059",
+        "size": 310
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-analysis-metadata",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-analysis-metadata/src/main/kotlin/com/only4/cap4k/analysis/metadata/AggregateElementMetadata.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "8ca35409ca9378cacdc464891c10b39a5449f6afa1fa269f2d7bb211d3e372d0",
+        "size": 346
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-analysis-metadata",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-analysis-metadata/src/main/kotlin/com/only4/cap4k/analysis/metadata/DesignBlockMetadata.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "47aac1b051842e5af648b2f61997f5bd903ea23e93653a9c84b078adb128bcd2",
+        "size": 405
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-analysis-metadata",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-analysis-metadata/src/test/kotlin/com/only4/cap4k/analysis/metadata/AnalysisMetadataAnnotationTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c4c7fa520909f8c00ae8f5579d246a61e2265df65a21efcbceb0f403a36c1f86",
+        "size": 1774
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-analysis-metadata",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/build.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "4b8859408f5ce35b002d8a19312dac2214b741a5b12094cb8013351ac9653dd8",
+        "size": 692
+      },
+      "after": {
+        "hash": "915905d541b4154895545f990c0952ff10ea464c0c1a741e8ddcdce68f95da45",
+        "size": 1041
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kIrGenerationExtension.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "a040b2de9eaa407809db63f5fa7ea11cb9dc91c57933af37baf506078409e5a2",
+        "size": 52608
+      },
+      "after": {
+        "hash": "4cb19a9b0aebe2b7dcbf0be2f69e4084bf7296b4ac778a0671a70f2bc5e7aa0a",
+        "size": 58730
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kOptions.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "80cbf41828964cdac97204a3890be053055b0997c994dfd071525e4055ce9b5f",
+        "size": 3520
+      },
+      "after": {
+        "hash": "870bfcc6851cba5a8fdc63f173853e65b2984035272e2ce415fc7a03897bfa79",
+        "size": 3237
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "73a5250bbb6b0bb9623b5826a8045a4be30bfe281f564badd943bd5771ff6b64",
+        "size": 26625
+      },
+      "after": {
+        "hash": "3f0d036325703bd86eb851406ff28123b0d7b45e2ef4a454125b7f290bda7da1",
+        "size": 26670
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/AnalysisMetadataContractIntegrationTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "7092d59354f08cb29697aa92fe6145b9db1ad995a922a8e9d0e590dde789f027",
+        "size": 6764
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/AnalysisOutputCorrectnessTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "0ec5ec1fcf93b5ef516d2d7f10f6d129e500efa3f54f837e2fc0853eb3ad2d05",
+        "size": 49500
+      },
+      "after": {
+        "hash": "c36ab3018d11b1d42152987eb2bbd488aa00f7ddc102d647fdd04b74e2c3aa01",
+        "size": 56297
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-compiler/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementExtractionTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "9052f444996dc48c652edb6c0ac4fce9b665719e60aedec9c09873b3560a0c93",
+        "size": 43942
+      },
+      "after": {
+        "hash": "fbc9959229fcb5841f085f7143d113e531a73b51bb675707eca13d50e0228c34",
+        "size": 45870
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-compiler",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/config/OptionsKeys.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "573af9642e5702ea1670a9c556265ad4e992e205abedd603c70d2823d5623ee0",
+        "size": 1155
+      },
+      "after": {
+        "hash": "8a6f83524acc2fed23b552d65ceaa701779abc4834b85624eb54eba9380ab5bf",
+        "size": 963
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-core/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/core/model/Node.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "659763c3388c5cedf142b793192c05e94bb845b6cdf20b2f010e790b5b088eb8",
+        "size": 626
+      },
+      "after": {
+        "hash": "13648f58876ad49da754dda45972fd419a4d38131edf4db5b94e324680bd39e1",
+        "size": 758
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-flow-export/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/flow/Cap4kFlowExportPlugin.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "eb1c3d0a63d45372c4b225381e5e9773b433faeb3cc668f0d531b5b9a5debd8b",
+        "size": 25307
+      },
+      "after": {
+        "hash": "be06a81c49e308bc36fab1c41d8b4372ba8d9ae499c5263b7bc8444748bd2b3e",
+        "size": 27183
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-flow-export",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-code-analysis-flow-export/src/test/kotlin/com/only4/cap4k/plugin/codeanalysis/flow/Cap4kFlowExportPluginTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "19a308d1983d990d8717bd511e51541daa0e0e2ee1a5618c3f1474e76d65832e",
+        "size": 8183
+      },
+      "after": {
+        "hash": "185f901dc647b603bfe66aeac9230bc36e179e9a34663c4c7e64a2d5fbe58b16",
+        "size": 11339
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-code-analysis-flow-export",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "a8f2ec650ce2ae44c18b6cf56a42880ac79277de8318e04083873c41e242be02",
+        "size": 18554
+      },
+      "after": {
+        "hash": "06e3fd00edf8745f9dfec4d5e6fb9cc43ab0b21f79fc0e720d6249f9c36a6b0d",
+        "size": 18742
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-api",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "c56f9c604d7128d8b8772449a903ece464ab3f0da817677362df70e03b9b90d7",
+        "size": 93910
+      },
+      "after": {
+        "hash": "5f8a5a0d9bb311e0c1f0b6143d8f6b1a6182fd5430d677aafe780f9555f4f48b",
+        "size": 94036
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-generator-drawing-board/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/drawingboard/DrawingBoardArtifactPlanner.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "4d097d499c9c9652c58216a55ebbc97608790e5b8d8069b2aeebbe5e8be1615a",
+        "size": 7814
+      },
+      "after": {
+        "hash": "eee8718bdbccc4b64ea494348805401c957a4579293156238cca0f1ecbf2400e",
+        "size": 9213
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-generator-drawing-board",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-generator-drawing-board/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/drawingboard/DrawingBoardArtifactPlannerTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "62c5b1c4981c8ca6ba98f690c9fce0de531718aec490333669e0324fa626bdf6",
+        "size": 20782
+      },
+      "after": {
+        "hash": "ab498b57f6f444b1a59cced6d7b95c0430f19c48bd80df95b117971e30ab57e8",
+        "size": 22522
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-generator-drawing-board",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-generator-flow/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/flow/FlowArtifactPlanner.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "542934adbb670206957bb077084afe89491a287ca0bcc57460612958f2814a50",
+        "size": 3456
+      },
+      "after": {
+        "hash": "a59167615f57502e95798bf4a09e6f4a74753ebd6fd26fdafb5c68c7f67a02ec",
+        "size": 4859
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-generator-flow",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-generator-flow/src/test/kotlin/com/only4/cap4k/plugin/pipeline/generator/flow/FlowArtifactPlannerTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "2d689dac607871480591b4ed2aa47bb7e15239c0f8131f1b320c7cc10b4fa7e9",
+        "size": 25568
+      },
+      "after": {
+        "hash": "e2fa0b591d89bb32f27cba98e3883350401597692f83232bb62532963db49dc6",
+        "size": 27087
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-generator-flow",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kExtension.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "baaba9543085a62d9c77a349ac6fa73cd2213c1c3e642f3e9386bdad703d3b5e",
+        "size": 16089
+      },
+      "after": {
+        "hash": "2674b56d72826897217bd63d699ba0328bbaabaadf11b878cf40c2fd8e2215d5",
+        "size": 15870
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "24b9108b272e2822394d330b9bdaf58b2ba742d091c6727fea3d05b13131aa7f",
+        "size": 24532
+      },
+      "after": {
+        "hash": "7fd4c00092c5b482c1e13918b6831b064acae21068b9b367b7845193212ba518",
+        "size": 24420
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5746f92ac07faa3de2d547abfd982a69598818860fe777847c9c83680d150fef",
+        "size": 48897
+      },
+      "after": {
+        "hash": "e2695d0c440cf78e7b1db4522fb972208fab8d28aef9fd756e00482a0819fe61",
+        "size": 51439
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1de6cf8211ce418576eb7e2f54ff5ea21a7e3eee855bb92e856617cd651d27be",
+        "size": 51316
+      },
+      "after": {
+        "hash": "31fe8dc2b76dd5046b897531caa6976bf0958a2edae2c31a2b5a88306e4cf27e",
+        "size": 50689
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "9f2413a29df465042c6f2086b0cc18235c71fbd4a782e4a1a44bb5722e7775a1",
+        "size": 170955
+      },
+      "after": {
+        "hash": "e672bd29b6fe118a5e17063df2064f53165954a4b87d8d9dbd0a217400d9b3e9",
+        "size": 174225
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "28084b56db2bc2fa0e2e045877d7a37a8f1d419f4fa86200a5be4198c59b2be4",
+        "size": 64841
+      },
+      "after": {
+        "hash": "a34a4e86f253376995fa1dfd459f7a3d27883d2c1b8f2f86afd433ddf6030c29",
+        "size": 69349
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-gradle",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/build.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "f18aef51aecdfc556dd8ffde135d5ea310ec3d2ec9bdfc55ed1d5f3d108f6cf3",
+        "size": 832
+      },
+      "after": {
+        "hash": "0a83d828b2103b17397b0f5c9468e88d1145f26ade716af93c1148ed2431d0c0",
+        "size": 806
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/entity.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "712a17c4d254c7c64c5b678b1dab45d59d520631f0713af8c226fdcd58d4bb96",
+        "size": 9452
+      },
+      "after": {
+        "hash": "2a939f938588a4e9dd7c13a3d40af742e14b6fe3d7e0eb4c5ee3d232c82520fc",
+        "size": 9465
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/enum.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "9b34d853049759913ada848683840311af40c1cd36380f1c3e8ed0e0cd4bb32b",
+        "size": 1924
+      },
+      "after": {
+        "hash": "6169b12b0ce9efecdd3c41b6c1cb6a2b1846c05f0391934e16beca1195a4b7b7",
+        "size": 1933
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/factory.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "67c34c1c0581350a3f08996b3e1b6d81b5f22d7e348082838609e81574ea3e9e",
+        "size": 3582
+      },
+      "after": {
+        "hash": "7a78532075cb45b34bdc6f2645d64f13394b907ffd8e7c63fb4ef91a9d5e9d08",
+        "size": 3595
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/repository.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "6229b90d1d53834f275e3cfa550870d4f7a6879be998ac5b15205957eaf4af62",
+        "size": 1646
+      },
+      "after": {
+        "hash": "885643bd30421ee7f359ecc6f01892a567c7c4a5a6b072c1607646bcd5f3da3d",
+        "size": 1659
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/schema.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "b600ac682ca6766f2b6c15625f318285a51a482dbaf801d8a3e0ca5f1201f98d",
+        "size": 11959
+      },
+      "after": {
+        "hash": "4d622e001bc740948e18d1146a04fc43ef28a37c1e0e555bbc76bb50e6cf9c16",
+        "size": 11972
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "cf9e16152c1b94eb2d82391fda0a194b2ac238945835547d453cfdcdb78ad172",
+        "size": 3464
+      },
+      "after": {
+        "hash": "c566f7c866cd1deb1f42499532d71deca7f1991f9351704b264fe36c3a3e1bd6",
+        "size": 3477
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate_projection/entity.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "766f354e787770aa7cdbaf0136ce78522344f6d703045cecdb14bee965ebc53b",
+        "size": 2494
+      },
+      "after": {
+        "hash": "dae481b0a1ef6718e9c7c857ff517d0dfe94f83c528aa8dd1188f533615959ca",
+        "size": 2507
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/api_payload.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "a36850fd3e95c8c5aeab1ecf70521b00a625ff5553f3431a9a18bfe1c917c4c6",
+        "size": 3483
+      },
+      "after": {
+        "hash": "8d730ec0cd47a1b40ac7e8efe95b391753c2abc0eb4594a42547de3c70b7f2b4",
+        "size": 3492
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/capability.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "fcb35ba4a3636d4093b6460cf5c5a624ee46d7916788b284f4197fbea24ba857",
+        "size": 3130
+      },
+      "after": {
+        "hash": "3b7e7e68c9e644a9e4ef6c4d636ccba7041c138335aed33ead76042d5926afa4",
+        "size": 3139
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/capability_handler.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "a31414c49367c04b7353a8e85a09de9157a8fa1090910014eb7aa4edc32c118c",
+        "size": 1733
+      },
+      "after": {
+        "hash": "62fc14839d0c0cc7a2144cba65690f47d2ab923c2d6381d821bddddd0a2f498f",
+        "size": 1742
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/command.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "9a5dbe4269dfe9e7edfe30fa936d56e05cf40793934111eb8f9881a3cb0ac50c",
+        "size": 3666
+      },
+      "after": {
+        "hash": "0d1344619fc558419ae73e3afc67c2afb3bb7b267662230089930cba7cbcaf3d",
+        "size": 3675
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "198fa5ec5ff27573910006e31753d09410988b23e62ef48164d6b7011513c434",
+        "size": 1642
+      },
+      "after": {
+        "hash": "6cc121544c8e6e0748b68922dbdddac68b4d139d90d54d405099d8f71cabfd04",
+        "size": 1651
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_event_handler.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "e08a1235373e86a5caef2294ffa460642973430a38ed434ab48829bee2d229ea",
+        "size": 1356
+      },
+      "after": {
+        "hash": "21279f2a92161087d1eb66122f6f855047fc1c2459744a0b1f0ced3eb02a3878",
+        "size": 1365
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/domain_service.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "4e24b40172a7736ae8d7a1de5db80f4c779208725c63308a13898a42b7a71e22",
+        "size": 1156
+      },
+      "after": {
+        "hash": "4938892c03ec3581e254b8bf2770e968eca204e069743cb148afd5d5c43bca03",
+        "size": 1165
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/integration_event.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "609a706b13e555063469446ebc750e163e9847ff1c3c622fe38af8fc6fbf1183",
+        "size": 1756
+      },
+      "after": {
+        "hash": "10b73438c3f3b4e19429c63e008bc88b5d86cd1b4cb44517af819172ff3c5c0c",
+        "size": 1765
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/integration_event_subscriber.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "b0a966ace75e32c544c00cff4682195bf4b89ec13471f3120ac8f1a8804a02ca",
+        "size": 1215
+      },
+      "after": {
+        "hash": "dd73a6f5091d5a1f000246481fcaee0badd3d9994ffa05db7c94c1072ba9dcec",
+        "size": 1224
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "2cae2dc65c72025fdd55443bdce253f60426b77ba0c3db68cf921af26385e0fe",
+        "size": 3605
+      },
+      "after": {
+        "hash": "049ba3e77d24565b9d26f09208222626061b9148a019d20528c72136b5972674",
+        "size": 3614
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/query_handler.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "5a7ba805ec7bd0212207ab778344bf3770ae4ff785e2edb215acaa48da631acb",
+        "size": 1763
+      },
+      "after": {
+        "hash": "bb02079934f86a4c3753aff2fbfbc73bed91f55e82984b94c02f59da07a8ce0a",
+        "size": 1772
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/types/value_object.kt.peb",
+      "kind": "modified",
+      "before": {
+        "hash": "78087cb928c7ee1dbe784890f56d49ad77e161bf086df0282f2381f5d498da8c",
+        "size": 1632
+      },
+      "after": {
+        "hash": "cd1ff18928821dd144a2625594b3df3f742faa87fd062e64fadae01b26fa6a60",
+        "size": 1641
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "78933ea911532461ccadbcc8cdd35a18bc64abfa6a1f49a9558c521bfdd1e42b",
+        "size": 446685
+      },
+      "after": {
+        "hash": "0ce9c1cfbd78ccb9300dd4abef8b67017f2840a8cacc5137c0eb5024cc6f650d",
+        "size": 446766
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-renderer-pebble",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-source-ir-analysis/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/ir/IrAnalysisSourceProvider.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "22c24bb4c7cdbf1872488272a73facf9e6320e5a05799e47cc3589134429b88b",
+        "size": 13534
+      },
+      "after": {
+        "hash": "e6b23506891baba02dd580f13af3c2910698c452e85e9b86d0a0c39830138b72",
+        "size": 18259
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-source-ir-analysis",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-source-ir-analysis/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/ir/IrAnalysisSourceProviderTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "154ec80ff08dfa91cd983ee835441c02dc1b257be7972a687cd8a72c6c957c2d",
+        "size": 17087
+      },
+      "after": {
+        "hash": "89c79c8c38721955cbea75422d16135fcfd1298b92e0a04f7968a6500f09f869",
+        "size": 23076
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-source-ir-analysis",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/annotation/AggregateElement.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "63b3fbe1456f60fbd63a77e08a35930f9e5739bd121cf845d4acea064591da3e",
+        "size": 345
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "ddd-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/annotation/BuildingBlock.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "c238d35364cd285541497d92d34fd37dbf4ed4aa90f507da541cfc8efa81e055",
+        "size": 406
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "ddd-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/annotation/ConceptAnnotationTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "9a5ee1738967943eb69e8dd4ae1c67ef8034b41c2f99343de5405414da78591b",
+        "size": 1083
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "ddd-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/authoring/implementation-inside-generated-skeletons.md",
+      "kind": "modified",
+      "before": {
+        "hash": "5d41a645f94def0c03b8da1aec8134c54c650e6f25ff65ee135e43331b793281",
+        "size": 6349
+      },
+      "after": {
+        "hash": "fd23397b33a9097d17240ae350618d2963b0fdfde7d26e6fb49125ef2a6ce518",
+        "size": 6716
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/reference/analysis-outputs.md",
+      "kind": "modified",
+      "before": {
+        "hash": "f53f85ade3b00af8e381c700d58f9851d1e6c7827da7bca25e4151a32bca60e7",
+        "size": 3671
+      },
+      "after": {
+        "hash": "3258652f71d13999a720970f96785fe4b34e018b791275473f2d117de7b371be",
+        "size": 4949
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/reference/generator-dsl.md",
+      "kind": "modified",
+      "before": {
+        "hash": "158d2a38d474689874b40901cf7ca15712b6d67a412f7eadb6ee50f5da003178",
+        "size": 8134
+      },
+      "after": {
+        "hash": "7426cacc0ccf403d55755db93d4c70f55ad934ed97e60787122095a3a1875e7f",
+        "size": 9163
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "settings.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "bcdc344579e4a47158493b05d7481a6a53ec647ddd98f8fe726424a8f56fbc7e",
+        "size": 2496
+      },
+      "after": {
+        "hash": "08efc022f527fec8682091cf5cae59b1e977596194b6b7933bc59d0f4289c81f",
+        "size": 2466
+      },
+      "attributedTo": [
+        {
+          "path": "settings.gradle.kts",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "d85fbfb57ceb9077300150e46745aae16f820bb70cc604a84af55c7e96f15017"
+}

@@ -366,8 +366,8 @@ class PebbleArtifactRendererTest {
         variant: String = "",
         aggregates: List<String> = listOf("Order"),
     ) {
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("tag = \"$tag\""))
         assertTrue(content.contains("name = \"$name\""))
         assertTrue(content.contains("aggregates = [${aggregates.joinToString(", ") { "\"$it\"" }}]"))
@@ -441,10 +441,10 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("jakarta.persistence"))
         assertFalse(content.contains("ObjectMapper"))
         assertFalse(content.contains("AttributeConverter"))
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
         assertTrue(content.contains("import com.acme.demo.domain.shared.types.CurrencyCode"))
         assertTrue(content.contains("import java.math.BigDecimal"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("tag = \"value_object\""))
         assertTrue(content.contains("name = \"Money\""))
         assertTrue(content.contains("packageName = \"com.acme.demo.domain.shared.values\""))
@@ -529,7 +529,7 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("class MoneyJsonAttributeConverter : AttributeConverter<Money, String>"))
         assertTrue(content.contains("mapper.writeValueAsString(attribute)"))
         assertTrue(content.contains("mapper.readValue<Money>(it)"))
-        assertFalse(content.contains("BuildingBlock"))
+        assertFalse(content.contains("DesignBlockMetadata"))
     }
 
     @Test
@@ -641,13 +641,13 @@ class PebbleArtifactRendererTest {
             ),
         )
 
-        assertTrue(entityContent.contains("import com.only4.cap4k.ddd.core.annotation.AggregateElement"))
-        assertTrue(entityContent.contains("@AggregateElement("))
+        assertTrue(entityContent.contains("import com.only4.cap4k.analysis.metadata.AggregateElementMetadata"))
+        assertTrue(entityContent.contains("@AggregateElementMetadata("))
         assertTrue(entityContent.contains("""aggregate = "VideoPost""""))
         assertTrue(entityContent.contains("""packageName = "video_post""""))
         assertTrue(entityContent.contains("""type = "entity""""))
         assertTrue(entityContent.contains("root = true"))
-        assertTrue(factoryContent.contains("@AggregateElement("))
+        assertTrue(factoryContent.contains("@AggregateElementMetadata("))
         assertTrue(factoryContent.contains("""type = "factory""""))
         assertFalse(factoryContent.contains("""name = "VideoPostPayload""""))
         assertFalse(factoryContent.contains("factory-payload"))
@@ -1742,6 +1742,7 @@ class PebbleArtifactRendererTest {
             assertFalse(source.contains("AttributeConverter"))
             assertFalse(source.contains("length ="))
             assertTrue(source.contains("value.isTextual"))
+            assertTrue(source.contains("@JvmStatic\n        fun from(value: String): OrderId = parse(value)"))
             assertTrue(
                 source.contains(
                     "@JsonCreator(mode = JsonCreator.Mode.DISABLED)\n    private constructor(value:"
@@ -2326,7 +2327,7 @@ class PebbleArtifactRendererTest {
         )
 
         assertTrue(content.contains("@Entity"))
-        assertFalse(content.contains("@AggregateElement("))
+        assertFalse(content.contains("@AggregateElementMetadata("))
         assertFalse(content.contains(legacyAggregateCall))
     }
 
@@ -4001,7 +4002,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-capability",
+                    generatorId = "capability",
                     moduleRole = "application",
                     templateId = "design/capability.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/capabilities/message/delivery/PublishUserMessage.kt",
@@ -4012,7 +4013,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/edu/only4/danmaku/adapter/portal/api/payload/message/CreateUserMessagePayload.kt",
@@ -4412,7 +4413,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/payload/FindOrderPage.kt",
@@ -8041,7 +8042,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-capability",
+                    generatorId = "capability",
                     moduleRole = "application",
                     templateId = "design/capability.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
@@ -8137,7 +8138,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-capability-handler",
+                    generatorId = "capability-handler",
                     moduleRole = "adapter",
                     templateId = "design/capability_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
@@ -8204,7 +8205,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-capability",
+                    generatorId = "capability",
                     moduleRole = "application",
                     templateId = "design/capability.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
@@ -8222,7 +8223,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-capability-handler",
+                    generatorId = "capability-handler",
                     moduleRole = "adapter",
                     templateId = "design/capability_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
@@ -8273,7 +8274,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
@@ -8398,7 +8399,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
@@ -8446,7 +8447,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event",
+                    generatorId = "domain-event",
                     moduleRole = "domain",
                     templateId = "design/domain_event.kt.peb",
                     outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
@@ -8492,7 +8493,7 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@DomainEvent"))
-        assertFalse(content.contains("@BuildingBlock("))
+        assertFalse(content.contains("@DesignBlockMetadata("))
         assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("* order * / \"created\" event"))
         assertFalse(content.contains("* order */ \"created\" event"))
@@ -8613,7 +8614,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event",
+                    generatorId = "domain-event",
                     moduleRole = "domain",
                     templateId = "design/domain_event.kt.peb",
                     outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
@@ -8658,8 +8659,8 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        assertTrue(content.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertTrue(content.contains("@BuildingBlock("))
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(content.contains("@DesignBlockMetadata("))
         assertTrue(content.contains("tag = \"domain_event\""))
         assertTrue(content.contains("name = \"OrderCreatedDomainEvent\""))
         assertTrue(content.contains("packageName = ${"or\"der\\pkg ${'$'}status".toTestKotlinStringLiteral()}"))
@@ -8837,8 +8838,8 @@ class PebbleArtifactRendererTest {
                 "items" to listOf(mapOf("value" to 0, "name" to "HIDDEN", "description" to "Hidden")),
             ),
         )
-        assertFalse(dbDerivedEnum.contains("import com.only4.cap4k.ddd.core.annotation.BuildingBlock"))
-        assertFalse(dbDerivedEnum.contains("@BuildingBlock("))
+        assertFalse(dbDerivedEnum.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertFalse(dbDerivedEnum.contains("@DesignBlockMetadata("))
     }
 
     @Test
@@ -8854,7 +8855,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-integration-event",
+                    generatorId = "integration-event",
                     moduleRole = "application",
                     templateId = "design/integration_event.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/inbound/order/OrderCreatedIntegrationEvent.kt",
@@ -8879,7 +8880,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-integration-event",
+                    generatorId = "integration-event",
                     moduleRole = "application",
                     templateId = "design/integration_event.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/outbound/billing/InvoicePaidIntegrationEvent.kt",
@@ -9025,7 +9026,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event",
+                    generatorId = "domain-event",
                     moduleRole = "domain",
                     templateId = "design/domain_event.kt.peb",
                     outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",

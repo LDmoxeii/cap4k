@@ -4,7 +4,7 @@ package {{ packageName }}
 {{ use("org.springframework.data.jpa.repository.JpaSpecificationExecutor") -}}
 {{ use("org.springframework.stereotype.Repository") -}}
 {% if aggregateElement is defined -%}
-{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{{ use("com.only4.cap4k.analysis.metadata.AggregateElementMetadata") -}}
 {% endif -%}
 {{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") -}}
 {{ use("org.springframework.stereotype.Component") -}}
@@ -20,7 +20,7 @@ import {{ import }}
 
 @Repository
 {% if aggregateElement is defined -%}
-@AggregateElement(
+@AggregateElementMetadata(
     aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
     name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
     packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},

@@ -23,10 +23,6 @@ class ArtifactLayoutResolverTest {
         val entityPackage = "com.acme.demo.domain.aggregates.user_message"
 
         assertEquals("com.acme.demo.domain.aggregates.user_message.factory", resolver.aggregateFactoryPackage(entityPackage))
-        assertEquals(
-            "com.acme.demo.domain.aggregates.user_message.specification",
-            resolver.aggregateSpecificationPackage(entityPackage),
-        )
         assertEquals("com.acme.demo.domain.aggregates.user_message.enums", resolver.aggregateLocalEnumPackage(entityPackage))
     }
 

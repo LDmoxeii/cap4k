@@ -37,7 +37,6 @@ class DesignJsonSourceProvider : SourceProvider {
             "Integration Event",
             "Domain Service",
             "Subscriber",
-            "Scheduled Reaction",
         ),
         executionLanes = listOf(PipelineExecutionLane.AUTHORING),
         tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE),

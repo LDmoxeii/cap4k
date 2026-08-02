@@ -16,6 +16,7 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
 
+include("cap4k-analysis-metadata")
 include("ddd-core")
 include("ddd-application-command-jpa")
 include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")

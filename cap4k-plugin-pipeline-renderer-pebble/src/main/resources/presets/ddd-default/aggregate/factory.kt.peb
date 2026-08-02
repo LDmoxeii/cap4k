@@ -3,7 +3,7 @@ package {{ packageName }}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory") -}}
 {{ use("com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload") -}}
 {% if aggregateElement is defined -%}
-{{ use("com.only4.cap4k.ddd.core.annotation.AggregateElement") -}}
+{{ use("com.only4.cap4k.analysis.metadata.AggregateElementMetadata") -}}
 {% endif -%}
 {{ use("org.springframework.stereotype.Service") -}}
 {% for import in imports(imports) -%}
@@ -12,7 +12,7 @@ import {{ import }}
 
 @Service
 {% if aggregateElement is defined -%}
-@AggregateElement(
+@AggregateElementMetadata(
     aggregate = {{ aggregateElement.aggregateKotlinStringLiteral | raw }},
     name = {{ aggregateElement.nameKotlinStringLiteral | raw }},
     packageName = {{ aggregateElement.packageNameKotlinStringLiteral | raw }},

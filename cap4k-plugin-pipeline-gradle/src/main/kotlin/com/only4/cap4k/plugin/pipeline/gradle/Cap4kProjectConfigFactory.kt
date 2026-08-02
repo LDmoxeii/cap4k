@@ -42,6 +42,8 @@ class Cap4kProjectConfigFactory {
         val generatorStates = GeneratorStates(
             aggregateConfigured = extension.generators.aggregate.configured,
             aggregateProjectionConfigured = extension.generators.aggregateProjection.configured,
+            drawingBoardConfigured = extension.generators.drawingBoard.configured,
+            flowConfigured = extension.generators.flow.configured,
         )
 
         validateProjectRules(extension, generatorStates)
@@ -193,6 +195,12 @@ class Cap4kProjectConfigFactory {
         }
         if (states.aggregateProjectionConfigured) {
             put("aggregate-projection", GeneratorConfig())
+        }
+        if (states.drawingBoardConfigured) {
+            put("drawing-board", GeneratorConfig())
+        }
+        if (states.flowConfigured) {
+            put("flow", GeneratorConfig())
         }
     }
 
@@ -360,6 +368,8 @@ private data class SourceStates(
 private data class GeneratorStates(
     val aggregateConfigured: Boolean,
     val aggregateProjectionConfigured: Boolean,
+    val drawingBoardConfigured: Boolean,
+    val flowConfigured: Boolean,
 )
 
 private fun Property<String>.required(path: String): String =

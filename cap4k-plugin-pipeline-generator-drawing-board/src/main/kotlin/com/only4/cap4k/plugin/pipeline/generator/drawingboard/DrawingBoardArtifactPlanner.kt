@@ -10,7 +10,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
         displayName = "Drawing Board Generator",
         kind = PipelineCapabilityKind.GENERATOR,
         module = "cap4k-plugin-pipeline-generator-drawing-board",
-        activation = PipelineCapabilityActivation.INPUT_DRIVEN,
+        activation = PipelineCapabilityActivation.EXPLICIT_CONFIGURATION,
         tacticalCarriers = listOf("Drawing Board Evidence"),
         executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
         tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
@@ -28,6 +28,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
     )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
+        requireDrawingBoardAnalysisMetadata(model)
         val elementsByTag = model.drawingBoard?.elementsByTag ?: return emptyList()
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
@@ -179,3 +180,30 @@ private val DrawingBoardFieldComparator =
     compareBy<DrawingBoardRenderField> { it.name }
         .thenBy { it.type }
         .thenBy { it.defaultValue.orEmpty() }
+
+private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
+    val missing = model.analysisGraph?.nodes.orEmpty()
+        .filter { node -> DESIGN_BLOCK_METADATA_FQ in node.missingMetadata }
+        .groupBy { node -> node.metadataOwner ?: node.fullName }
+    if (missing.isEmpty()) {
+        return
+    }
+    val details = missing.keys.sorted().joinToString(separator = System.lineSeparator()) { symbol ->
+        "- symbol: $symbol; missing metadata: $DESIGN_BLOCK_METADATA_FQ; affected capability: Drawing Board"
+    }
+    throw IllegalArgumentException(
+        buildString {
+            appendLine("Cap4k analysis metadata contract violation.")
+            appendLine(details)
+            append(
+                "Recovery: restore the default ddd-default generator template for each symbol, or add the listed " +
+                    "metadata annotation and keep io.github.ldmoxeii:cap4k-analysis-metadata on the owning business " +
+                    "module compileOnly classpath. Custom templates that omit analysis metadata explicitly opt out " +
+                    "of Drawing Board; Cap4k will not emit an apparently complete partial result."
+            )
+        }
+    )
+}
+
+private const val DESIGN_BLOCK_METADATA_FQ =
+    "com.only4.cap4k.analysis.metadata.DesignBlockMetadata"

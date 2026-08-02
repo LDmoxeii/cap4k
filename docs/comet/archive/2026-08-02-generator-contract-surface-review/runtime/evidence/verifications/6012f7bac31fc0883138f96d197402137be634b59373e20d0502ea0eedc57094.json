@@ -1,0 +1,107 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "generator-contract-surface-review",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "f17e54c09839008d4c75155b3dc253b314a100b340a19d84eaf1627635c484e6",
+  "acceptanceCriteriaHash": "4b303bf1cced633ee419147e3262c491226edf4c173b7829315a388142474ab1",
+  "implementationScopeRef": "runtime/evidence/scopes/a75bbeb9ff74157b2ac7ccf323927939c6abe39337e9dfb6a03a720a1eb76e93.json",
+  "implementationScopeHash": "a75bbeb9ff74157b2ac7ccf323927939c6abe39337e9dfb6a03a720a1eb76e93",
+  "reportRef": "verification.md",
+  "reportHash": "1e6383fa71adec86d72466a4dd79a5576088ec27869cad712491b94068e9e63a",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "4b303bf1cced633ee419147e3262c491226edf4c173b7829315a388142474ab1",
+    "total": 7,
+    "evidenced": 7,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-46e017f853ec4bdb3502b27aebbe95664bc7b04bee03dedbb0fcfa819718fa50",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt",
+          "docs/public/generator/inputs-and-sources.md",
+          "docs/public/reference/index.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-623e340d6d7c599807e93ef8471e453aa1f4182fc0c278d106d4526089967ff3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6c92a8f242e0446abb82a6c86df039b861d4d51854a1f822fe389319c1f2893d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePlugin.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/resources/functional/design-integrated-compile-sample/design/design.json"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-710806a08e5ac08ef270b76fe36c34d0eee554c146f4852c88ae899ba9e0e633",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/ArtifactLayoutResolver.kt",
+          "cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/ArtifactLayoutResolverTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7c92219cd23a0514b33b087b8623a7ff768fa6bc045099253b8fb925475c5c78",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonProviderDescriptorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-87559019599210e0cb150ed7711d69e0f92cb541a6e63b77530c1c018a69c9a4",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginCompileFunctionalTest.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/PipelinePluginFunctionalTest.kt",
+          "docs/public/reference/agent-api.md",
+          "docs/public/reference/plan-json.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e37d63f2ca145d8b42a730161a9a5f4d9e62ba618eff8cd7e83659a80028e906",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "677ff95d8d577175b45ac0699606df65f8d83cded2350166d9d493e4be20abd3"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/69c962287233297eacf52f1b4cc13f1e2c12eeb3b23a486bb52145fd5a28d1e4.json",
+  "createdAt": "2026-08-02T08:24:42.149Z",
+  "envelopeHash": "6012f7bac31fc0883138f96d197402137be634b59373e20d0502ea0eedc57094"
+}

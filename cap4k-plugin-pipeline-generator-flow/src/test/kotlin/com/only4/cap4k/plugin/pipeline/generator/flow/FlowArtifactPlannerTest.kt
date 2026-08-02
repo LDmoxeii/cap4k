@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OutputRootLayout
+import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -48,6 +49,7 @@ class FlowArtifactPlannerTest {
         val jsonContent = plan[0].context["jsonContent"] as String
 
         assertEquals(3, plan.size)
+        assertEquals(PipelineCapabilityActivation.EXPLICIT_CONFIGURATION, planner.descriptor.activation)
         assertEquals("flow/entry.json.peb", plan[0].templateId)
         assertEquals("flows/OrderController_submit.json", plan[0].outputPath)
         assertEquals("flow/entry.mmd.peb", plan[1].templateId)
@@ -67,6 +69,36 @@ class FlowArtifactPlannerTest {
         assertFalse(jsonContent.contains("IgnoredAggregate"))
         assertTrue((plan[1].context["mermaidText"] as String).contains("flowchart TD"))
         assertTrue((plan[2].context["jsonContent"] as String).contains("\"flowCount\": 1"))
+    }
+
+    @Test
+    fun `rejects missing aggregate metadata before flow planning`() {
+        val planner = FlowArtifactPlanner()
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config(),
+                CanonicalModel(
+                    analysisGraph = AnalysisGraphModel(
+                        inputDirs = listOf("domain/build/cap4k-code-analysis"),
+                        nodes = listOf(
+                            AnalysisNodeModel(
+                                id = "demo.domain.Order",
+                                name = "Order",
+                                fullName = "demo.domain.Order",
+                                type = "aggregate",
+                                missingMetadata = listOf("com.only4.cap4k.analysis.metadata.AggregateElementMetadata"),
+                                metadataOwner = "demo.domain.Order",
+                            )
+                        ),
+                        edges = emptyList(),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("demo.domain.Order"))
+        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
+        assertTrue(error.message!!.contains("compileOnly classpath"))
     }
 
     @Test

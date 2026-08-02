@@ -16,7 +16,9 @@ Application layer 也不应该把领域不变量挪到 handler 里。Command han
 
 ## 生成骨架
 
-cap4k generation 可以为 Command、Query、Capability、Subscriber、Scheduled Reaction 和 Handler wiring 提供稳定骨架。骨架让 `PublishContentCmd`、`StartMediaProcessingCmd`、`GetContentDetailQry`、`ContentPublicationReadyDomainEventSubscriber`、`MediaProcessingPollingFallbackJob`、`TriggerMediaProcessing` 和 `GetMediaProcessingStatus` 这类入口可被一致定位。
+cap4k generation 可以为 Command、Query、Capability、Subscriber 和相关 handler wiring 提供稳定骨架。Scheduled Reaction 仍保持为 application/job implementation surface；项目需要按技术设计显式放置 `MediaProcessingPollingFallbackJob` 这类入口，而不是假定存在 design-json generator 提供的内置 Job skeleton。
+
+这些骨架与手写 Job surface 让 `PublishContentCmd`、`StartMediaProcessingCmd`、`GetContentDetailQry`、`ContentPublicationReadyDomainEventSubscriber`、`MediaProcessingPollingFallbackJob`、`TriggerMediaProcessing` 和 `GetMediaProcessingStatus` 这类入口可被一致定位。
 
 生成骨架负责组织位置和命名，不负责决定用例语义。一个 Command 是否需要 no-op，Subscriber 是否需要幂等，Capability 代表什么业务能力，都属于 handwritten logic。需要持久化编排时，项目必须明确选择外部 provider。
 

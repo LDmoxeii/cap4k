@@ -7,7 +7,7 @@
 如果只是理解项目，不需要先启动应用。推荐先按这个顺序看文件：
 
 1. `README.md`：确认模块、前置条件、启动入口、`.http` 顺序和 v1 范围。
-2. `design/design.json`：查看 command、query、capability、event、subscriber、job 等设计输入。
+2. `design/design.json`：查看 command、query、capability、domain event、integration event 和 domain service 等设计输入。
 3. `design/value-objects.json` 和 `design/enums.json`：查看 type input manifest。
 4. `cap4k-reference-content-studio-start/src/main/resources/db/schema/content-studio-schema.sql`：查看 schema 和字段类型标记。
 5. 运行 README 中的 generation 命令后，本地 `build/cap4k/plan.json` 可用于查看 generator 输出计划和 ownership。

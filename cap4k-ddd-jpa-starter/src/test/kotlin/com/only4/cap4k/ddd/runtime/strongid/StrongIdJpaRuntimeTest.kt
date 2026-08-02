@@ -187,6 +187,9 @@ class UuidTextId protected constructor() : StrongId<String>, Serializable {
             UuidTextId(StrongIds.requireUuidV7(value, "UuidTextId"))
 
         fun parse(value: String): UuidTextId = of(value)
+
+        @JvmStatic
+        fun from(value: String): UuidTextId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -213,6 +216,9 @@ class UuidNativeId protected constructor() : StrongId<UUID>, Serializable {
 
         fun parse(value: String): UuidNativeId =
             of(UUID.fromString(StrongIds.requireUuidV7(value, "UuidNativeId")))
+
+        @JvmStatic
+        fun from(value: String): UuidNativeId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -238,6 +244,9 @@ class SnowflakeTextId protected constructor() : StrongId<String>, Serializable {
             SnowflakeTextId(StrongIds.requireSnowflake(value, "SnowflakeTextId"))
 
         fun parse(value: String): SnowflakeTextId = of(value)
+
+        @JvmStatic
+        fun from(value: String): SnowflakeTextId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -264,6 +273,9 @@ class SnowflakeLongId protected constructor() : StrongId<Long>, Serializable {
 
         fun parse(value: String): SnowflakeLongId =
             of(StrongIds.requireSnowflake(value, "SnowflakeLongId").toLong())
+
+        @JvmStatic
+        fun from(value: String): SnowflakeLongId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -322,6 +334,9 @@ class StrongContentId protected constructor() : StrongId<String>, Serializable {
 
     companion object {
         fun parse(value: String): StrongContentId = StrongContentId(value)
+
+        @JvmStatic
+        fun from(value: String): StrongContentId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -344,6 +359,9 @@ class StrongAuthorId protected constructor() : StrongId<String>, Serializable {
 
     companion object {
         fun parse(value: String): StrongAuthorId = StrongAuthorId(value)
+
+        @JvmStatic
+        fun from(value: String): StrongAuthorId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -366,6 +384,9 @@ class StrongMediaProcessingTaskId protected constructor() : StrongId<String>, Se
 
     companion object {
         fun parse(value: String): StrongMediaProcessingTaskId = StrongMediaProcessingTaskId(value)
+
+        @JvmStatic
+        fun from(value: String): StrongMediaProcessingTaskId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =
@@ -388,6 +409,9 @@ class StrongContentItemId protected constructor() : StrongId<String>, Serializab
 
     companion object {
         fun parse(value: String): StrongContentItemId = StrongContentItemId(value)
+
+        @JvmStatic
+        fun from(value: String): StrongContentItemId = parse(value)
     }
 
     override fun equals(other: Any?): Boolean =

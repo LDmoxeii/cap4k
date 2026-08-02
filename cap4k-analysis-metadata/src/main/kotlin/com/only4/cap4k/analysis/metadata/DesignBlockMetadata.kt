@@ -1,10 +1,10 @@
-package com.only4.cap4k.ddd.core.annotation
+package com.only4.cap4k.analysis.metadata
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-annotation class BuildingBlock(
+annotation class DesignBlockMetadata(
     val tag: String,
-    val name: String = "",
+    val name: String,
     val packageName: String = "",
     val description: String = "",
     val aggregates: Array<String> = [],
