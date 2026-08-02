@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-generator-contract-surface",
+  "role": "post",
+  "hash": "aa2aa7c568d813df57ce7c4eab71433bbbed991d54e1b438a4c7fc2e17e81117",
+  "identity": {
+    "dev": 950912656,
+    "ino": 562949959032897,
+    "birthtimeMs": 1785659126094.0242
+  }
+}

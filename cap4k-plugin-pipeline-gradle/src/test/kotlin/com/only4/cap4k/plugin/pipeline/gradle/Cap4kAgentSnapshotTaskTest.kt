@@ -52,6 +52,23 @@ class Cap4kAgentSnapshotTaskTest {
             val sectionJson = output.resolve(section.path).readText(Charsets.UTF_8)
             assertEquals(section.sha256, AgentHashing.sha256(sectionJson), section.path)
         }
+        val capabilities = AgentSnapshotCodec().fromJson(
+            output.resolve("capabilities.json").readText(Charsets.UTF_8),
+            AgentCapabilitiesSection::class.java,
+        )
+        assertEquals(
+            listOf(
+                "API Payload",
+                "Capability",
+                "Command",
+                "Domain Event",
+                "Domain Service",
+                "Integration Event",
+                "Query",
+                "Subscriber",
+            ),
+            capabilities.supported.single { it.providerId == "design-json" }.tacticalCarriers,
+        )
     }
 
     @Test

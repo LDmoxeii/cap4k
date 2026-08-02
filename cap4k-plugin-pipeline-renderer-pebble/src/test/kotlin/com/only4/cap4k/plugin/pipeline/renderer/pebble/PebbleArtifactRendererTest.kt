@@ -4002,7 +4002,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-capability",
+                    generatorId = "capability",
                     moduleRole = "application",
                     templateId = "design/capability.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/edu/only4/danmaku/application/capabilities/message/delivery/PublishUserMessage.kt",
@@ -4013,7 +4013,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.OVERWRITE
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/edu/only4/danmaku/adapter/portal/api/payload/message/CreateUserMessagePayload.kt",
@@ -4413,7 +4413,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/payload/FindOrderPage.kt",
@@ -8042,7 +8042,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-capability",
+                    generatorId = "capability",
                     moduleRole = "application",
                     templateId = "design/capability.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
@@ -8138,7 +8138,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-capability-handler",
+                    generatorId = "capability-handler",
                     moduleRole = "adapter",
                     templateId = "design/capability_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
@@ -8205,7 +8205,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-capability",
+                    generatorId = "capability",
                     moduleRole = "application",
                     templateId = "design/capability.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
@@ -8223,7 +8223,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-capability-handler",
+                    generatorId = "capability-handler",
                     moduleRole = "adapter",
                     templateId = "design/capability_handler.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
@@ -8274,7 +8274,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
@@ -8399,7 +8399,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-api-payload",
+                    generatorId = "api-payload",
                     moduleRole = "adapter",
                     templateId = "design/api_payload.kt.peb",
                     outputPath = "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt",
@@ -8447,7 +8447,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event",
+                    generatorId = "domain-event",
                     moduleRole = "domain",
                     templateId = "design/domain_event.kt.peb",
                     outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
@@ -8614,7 +8614,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event",
+                    generatorId = "domain-event",
                     moduleRole = "domain",
                     templateId = "design/domain_event.kt.peb",
                     outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
@@ -8855,7 +8855,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-integration-event",
+                    generatorId = "integration-event",
                     moduleRole = "application",
                     templateId = "design/integration_event.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/inbound/order/OrderCreatedIntegrationEvent.kt",
@@ -8880,7 +8880,7 @@ class PebbleArtifactRendererTest {
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
                 ArtifactPlanItem(
-                    generatorId = "design-integration-event",
+                    generatorId = "integration-event",
                     moduleRole = "application",
                     templateId = "design/integration_event.kt.peb",
                     outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/events/integration/outbound/billing/InvoicePaidIntegrationEvent.kt",
@@ -9026,7 +9026,7 @@ class PebbleArtifactRendererTest {
         val rendered = renderer.render(
             planItems = listOf(
                 ArtifactPlanItem(
-                    generatorId = "design-domain-event",
+                    generatorId = "domain-event",
                     moduleRole = "domain",
                     templateId = "design/domain_event.kt.peb",
                     outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/order/events/OrderCreatedDomainEvent.kt",
