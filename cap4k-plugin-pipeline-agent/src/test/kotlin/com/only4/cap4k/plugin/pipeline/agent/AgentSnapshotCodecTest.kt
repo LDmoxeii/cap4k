@@ -112,8 +112,8 @@ class AgentSnapshotCodecTest {
                 id = "input.live-unverified",
                 level = AgentDiagnosticLevel.WARNING,
                 stage = "collect",
-                capabilityId = "pipeline.generator.design",
-                inputPath = "design\\design.json",
+                capabilityId = "pipeline.generator.query",
+                inputPath = "design/design.json",
                 message = "failed jdbc:postgresql://admin:hunter2@localhost/demo?password=hunter2 token=api-token",
                 hint = "run cap4kPlan; password=hunter2",
                 proves = "current live schema freshness remains unknown",
@@ -140,18 +140,18 @@ class AgentSnapshotCodecTest {
                 status = AgentSnapshotStatus.OK,
                 supported = listOf(
                     AgentSupportedCapability(
-                        capabilityId = "pipeline.generator.design",
-                        providerId = "design",
-                        displayName = "Design Generator",
+                        capabilityId = "pipeline.generator.query",
+                        providerId = "query",
+                        displayName = "Query Generator",
                         kind = PipelineCapabilityKind.GENERATOR,
-                        provenance = PipelineCapabilityProvenance.builtIn("pipeline-generator-design"),
-                        tacticalCarriers = listOf("Query", "Command").ordered(reversed),
+                        provenance = PipelineCapabilityProvenance.builtIn("cap4k-plugin-pipeline-generator-design"),
+                        tacticalCarriers = listOf("Query"),
                         executionLanes = listOf(PipelineExecutionLane.AUTHORING),
                         tasks = listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE),
                         inputRequirements = listOf(
                             PipelineInputRequirement(
-                                id = "design-json",
-                                configurationPaths = listOf("sources.designJson.path"),
+                                id = "design-json-input",
+                                capabilityIds = listOf("pipeline.source.design-json"),
                             )
                         ),
                         outputKinds = listOf(ArtifactOutputKind.CHECKED_IN_SOURCE),
@@ -161,8 +161,8 @@ class AgentSnapshotCodecTest {
                 ),
                 effective = listOf(
                     AgentEffectiveCapability(
-                        capabilityId = "pipeline.generator.design",
-                        providerId = "design",
+                        capabilityId = "pipeline.generator.query",
+                        providerId = "query",
                         status = AgentCapabilityStatus.READY,
                     )
                 ),
@@ -171,7 +171,7 @@ class AgentSnapshotCodecTest {
                 status = AgentSnapshotStatus.OK,
                 inputs = listOf(
                     AgentInput(
-                        id = "design-json",
+                        id = "design-json-files",
                         providerId = "design-json",
                         safety = PipelineInputSafety.LOCAL_PROJECT,
                         configured = true,
@@ -180,10 +180,10 @@ class AgentSnapshotCodecTest {
                         readable = true,
                         identity = "input-identity",
                         options = AgentOptionSummary(
-                            configuredKeys = listOf("path", "password").ordered(reversed),
+                            configuredKeys = listOf("files", "password").ordered(reversed),
                             sensitiveKeys = listOf("password"),
                         ),
-                        requiredBy = listOf("pipeline.generator.design"),
+                        requiredBy = listOf("pipeline.generator.query"),
                         planTask = PipelinePublicTasks.PLAN,
                     )
                 ),
@@ -192,13 +192,13 @@ class AgentSnapshotCodecTest {
                 status = AgentSnapshotStatus.OK,
                 items = listOf(
                     AgentOwnershipItem(
-                        generatorId = "design",
+                        generatorId = "query",
                         moduleRole = "application",
                         templateId = "design/query.kt.peb",
-                        outputPath = "src\\main\\kotlin\\Query.kt",
+                        outputPath = "demo-application/src/main/kotlin/com/acme/demo/application/queries/Query.kt",
                         outputKind = ArtifactOutputKind.CHECKED_IN_SOURCE,
                         conflictPolicy = ConflictPolicy.SKIP,
-                        resolvedOutputRoot = "demo-application\\src\\main\\kotlin",
+                        resolvedOutputRoot = "",
                     )
                 ),
                 managedRoots = linkedMapOf(
@@ -211,7 +211,7 @@ class AgentSnapshotCodecTest {
                 evidence = listOf(
                     AgentEvidence(
                         kind = "plan",
-                        path = "build\\cap4k\\plan.json",
+                        path = "build/cap4k/plan.json",
                         freshness = AgentEvidenceFreshness.UNKNOWN,
                         reason = "live source freshness cannot be proven",
                         nextAction = PipelinePublicTasks.PLAN,
@@ -230,7 +230,7 @@ class AgentSnapshotCodecTest {
                         sensitiveOptionKeys = listOf("password"),
                     )
                 ),
-                boundaries = linkedMapOf("design" to listOf(boundary)),
+                boundaries = linkedMapOf("query" to listOf(boundary)),
             ),
             analysis = AgentAnalysisSection(
                 status = AgentSnapshotStatus.UNAVAILABLE,

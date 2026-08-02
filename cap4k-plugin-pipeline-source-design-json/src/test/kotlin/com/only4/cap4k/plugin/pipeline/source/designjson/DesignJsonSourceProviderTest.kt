@@ -545,21 +545,29 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `validator tag is unsupported as a normal design tag`() {
-        val tempFile = tempDir.resolve("design.json")
-        Files.writeString(
-            tempFile,
-            """[{ "tag": "validator", "package": "content.validation", "name": "ValidAuthor" }]""",
-            StandardCharsets.UTF_8,
+    fun `validator scheduled reaction and job tags are unsupported as normal design tags`() {
+        val unsupportedTags = listOf(
+            "validator" to "ValidAuthor",
+            "scheduled_reaction" to "MediaProcessingPollingFallback",
+            "job" to "MediaProcessingPollingFallbackJob",
         )
 
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
+        unsupportedTags.forEach { (tag, name) ->
+            val tempFile = tempDir.resolve("$tag.json")
+            Files.writeString(
+                tempFile,
+                """[{ "tag": "$tag", "package": "content.validation", "name": "$name" }]""",
+                StandardCharsets.UTF_8,
+            )
 
-        assertTrue(error.message!!.contains("Unsupported design tag: validator"))
-        assertFalse(error.message!!.contains("migration"))
-        assertFalse(error.message!!.contains("deprecated"))
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals("Unsupported design tag: $tag", error.message)
+            assertFalse(error.message!!.contains("migration"))
+            assertFalse(error.message!!.contains("deprecated"))
+        }
     }
 
     @Test
