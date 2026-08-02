@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "6fe352b0-88e2-45f6-a8f8-a21f1700787b",
+  "id": "695985ae-05f9-4902-a7c0-a53063ac3bd1",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 11,
-  "stateRevision": 12,
-  "summary": "User confirmed persisted Domain Events require explicit eventName while transient events may omit it. Generator must project the name into DomainEvent.value and Analyzer must detect metadata/runtime conflicts. Audit also established that BuildingBlock and AggregateElement are BINARY analyzer metadata carriers with no runtime consumer, but currently carry information that cannot be inferred losslessly.",
-  "nextAction": "Choose whether to relocate the annotations to a dedicated compile-time metadata contract, replace them with a sidecar skeleton index, or retain them unchanged for now.",
-  "inputHash": "1a338b4a2dd823e7182eb922a81f08e5ab58a036b68687b122459ca20bb491b1",
-  "manifestHash": "5bef8b733fe031644f47be6ef5fd0b06219a2d757df4f2ce469e748c24e89cc5",
-  "manifestRef": "runtime/checkpoints/manifests/5bef8b733fe031644f47be6ef5fd0b06219a2d757df4f2ce469e748c24e89cc5.json",
+  "previousRevision": 12,
+  "stateRevision": 13,
+  "summary": "User chose explicit BINARY-retained analysis metadata annotations as the lossless code carrier, relocated and renamed from ddd-core into a dedicated compile-time contract/module. Default templates keep them; custom templates may remove them to opt out of Drawing Board. Sidecar metadata is deferred.",
+  "nextAction": "Decide how Drawing Board and flow analysis respond when required analysis metadata was intentionally removed.",
+  "inputHash": "a2d2df3f413e6b18c1e442007dfc9edf5b38ea03a7966eed45db1741cf346c4f",
+  "manifestHash": "d9e4aee354010dd1754f40467f3e4aa33d86f5385bae4729c15aff599c4d47ba",
+  "manifestRef": "runtime/checkpoints/manifests/d9e4aee354010dd1754f40467f3e4aa33d86f5385bae4729c15aff599c4d47ba.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:35:31.416Z"
+  "createdAt": "2026-08-02T05:40:37.689Z"
 }

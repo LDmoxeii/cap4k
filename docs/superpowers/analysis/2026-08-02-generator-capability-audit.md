@@ -317,7 +317,9 @@ Put(Get(generated skeleton))
     - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:42-113`
     - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/Cap4kIrGenerationExtension.kt:190-243`
 
-    仅靠 runtime interfaces/annotations、命名规则或 physical path 无法无损恢复 description、authoring-relative package、aggregate ownership、artifact family/variant，以及非 Entity aggregate artifact 的 type/root。完全移除显式 metadata carrier 会迫使 Analyzer 猜测，违反本次 round-trip contract。可行清理路径包括：把 annotation contract 移出 `ddd-core` 到专用 compile-time metadata module，或改用 generator sidecar skeleton index；后者会把真相边界改为 code + sidecar，并新增 freshness、ownership 与 drift validation 成本。
+    仅靠 runtime interfaces/annotations、命名规则或 physical path 无法无损恢复 description、authoring-relative package、aggregate ownership、artifact family/variant，以及非 Entity aggregate artifact 的 type/root。完全移除显式 metadata carrier 会迫使 Analyzer 猜测，违反本次 round-trip contract。
+
+    已确认修复边界：保留显式、BINARY-retained 的 lossless annotation metadata carrier，但将其从 `ddd-core` 迁出并重命名到专用 compile-time analysis-metadata contract/module；它没有 runtime 语义，业务项目只通过 compile-only dependency 引入。默认 generator templates 继续生成这些 metadata annotations，以支持 Drawing Board 与 flow recovery；不需要 Drawing Board 的项目可在自定义 templates 中删除它们，明确放弃相应分析能力。本轮不采用 sidecar skeleton index，不把 Analyzer 真相边界扩展为 code + sidecar。
 
 现有测试名为 `issue 92 metadata contract supports generation analysis and drawing board round trip`，但它不是真实回环：
 
