@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "46684038-0801-4856-95ec-9477c988cbc1",
+  "id": "1f8e949b-0e4b-49fd-8a89-4e0bffd8345c",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 13,
-  "stateRevision": 14,
-  "summary": "User chose fail-fast behavior when Drawing Board or flow analysis is requested without the required analysis metadata. Diagnostics must identify missing symbols, affected capabilities, and restoration steps; silent omission and complete-looking partial output are forbidden.",
-  "nextAction": "Decide whether Domain Event payload field name entity is legal when its resolved type passes semantic payload validation, or remains reserved.",
-  "inputHash": "ebd24caf41e9fd86efe85865a7507e9ab65e290ab94d84aa54fd32ba14f6715b",
-  "manifestHash": "d72b4ba30e66ce7814d9caf96247f6537dc594ed66ae4cbd84875ca3b1d7be81",
-  "manifestRef": "runtime/checkpoints/manifests/d72b4ba30e66ce7814d9caf96247f6537dc594ed66ae4cbd84875ca3b1d7be81.json",
+  "previousRevision": 14,
+  "stateRevision": 15,
+  "summary": "User confirmed that entity is an ordinary Domain Event payload field name. Generator canonical assembly and Analyzer recovery must remove name-based filtering and rely only on resolved recursive semantic type validation; PR #152 runtime persistence rejection remains authoritative.",
+  "nextAction": "Decide whether pageNum/pageSize remain framework-derived fields implied by page variants or become explicit Design JSON fields.",
+  "inputHash": "a9f5d6e018547b9f0e2c79e148b9be14be40a103ac6c65614e098dbc97d642f1",
+  "manifestHash": "e1be15ab15ee083f4d3989f5102c46b454178ad435a9710d9508cac73b087ccb",
+  "manifestRef": "runtime/checkpoints/manifests/e1be15ab15ee083f4d3989f5102c46b454178ad435a9710d9508cac73b087ccb.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:42:26.226Z"
+  "createdAt": "2026-08-02T05:44:33.750Z"
 }

@@ -66,10 +66,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Require non-blank `domain_event.eventName` when `persist: true`; keep it optional for transient Domain Events. Generator must project a present name into `@DomainEvent(value = ..., persist = ...)`, and Analyzer must compare the authoring metadata name with the runtime annotation value and fail on conflict. A persisted event may not have an empty runtime `eventType`.
 - Keep explicit BINARY-retained annotation metadata as the lossless carrier for Drawing Board and flow recovery, but move and rename `BuildingBlock` and `AggregateElement` out of `ddd-core` into a dedicated compile-time analysis-metadata contract/module with no runtime meaning and a compile-only project dependency. Default generator templates emit this metadata. Projects may remove it in custom templates when they intentionally opt out of Drawing Board and the corresponding analysis recovery. Do not introduce a sidecar skeleton index in this cycle.
 - Fail fast when a requested Drawing Board or flow-analysis task lacks metadata required for complete recovery. Diagnostics must identify the missing symbols, affected capability, and how to restore the default metadata-emitting templates or annotations. Never silently omit unannotated elements or emit a complete-looking partial Drawing Board.
+- Permit `entity` as an ordinary Domain Event payload field name. Remove name-based filtering from canonical assembly and Analyzer recovery, and rely exclusively on the resolved recursive semantic type validator to reject actual Entity/Aggregate payload types. Preserve PR #152's runtime refusal to persist reliable-event entity payloads.
 
 # Open questions
 
-- [blocking] May a Domain Event payload field be named `entity` when its resolved semantic type is a permitted immutable payload type, removing the current name-based filter and relying exclusively on recursive semantic type validation, or should `entity` remain a reserved field name?
+- [blocking] For `page` Query and API Payload variants, should `pageNum/pageSize` remain framework-derived infrastructure fields implied by the variant and excluded from recovered Design JSON fields, or become explicit authoring fields with Generator auto-insertion removed?
 
 # Verification expectations
 

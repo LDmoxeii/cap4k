@@ -311,6 +311,8 @@ Put(Get(generated skeleton))
    - `cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssembler.kt:733-738`
    - `cap4k-plugin-code-analysis-compiler/src/main/kotlin/com/only4/cap4k/plugin/codeanalysis/compiler/DesignElementCollector.kt:130-134`
    - `cap4k-plugin-pipeline-generator-design/src/main/kotlin/com/only4/cap4k/plugin/pipeline/generator/design/DomainEventPayloadModelValidator.kt:20-119`
+
+   已确认修复边界：`entity` 不是保留字段名。Canonical 与 Analyzer 必须保留名为 `entity` 的合法 payload field，并只依据 resolved semantic type graph 判断载荷是否合法。真正的 Entity/Aggregate 类型及其递归容器位置继续由 payload validator 拒绝；不得削弱 PR #152 的 runtime reliable-event persistence boundary。
 10. **Analyzer metadata annotations 污染了 DDD core 与生成源码表面。** `@BuildingBlock` 与 `@AggregateElement` 都是 BINARY-retained class annotations，当前没有 runtime consumer；前者携带无法从接口、class name 或 package 安全推断的 authoring identity/artifact metadata，后者为跨 module flow analysis 携带 aggregate/type/root identity：
     - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/annotation/BuildingBlock.kt:1-15`
     - `ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/annotation/AggregateElement.kt:1-12`
