@@ -349,6 +349,30 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
+    fun `generated ref id binds through real spring mvc path and query parameters`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-strong-id-mvc")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
+
+        val result = FunctionalFixtureSupport.runner(
+            projectDir,
+            "cap4kGenerate",
+            ":demo-adapter:test",
+            "--tests",
+            "com.acme.demo.adapter.mvc.GeneratedStrongIdSpringMvcBindingTest",
+            "--no-parallel",
+        ).build()
+        val generatedAuthorId = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/ids/AuthorId.kt")
+        ).readText()
+
+        assertTrue(generatedAuthorId.contains("@JvmStatic\n        fun from(value: String): AuthorId = parse(value)"))
+        assertTrue(generatedAuthorId.contains("name = \"AuthorId\""))
+        assertTrue(generatedAuthorId.contains("root = false"))
+        assertEquals(TaskOutcome.SUCCESS, result.task(":demo-adapter:test")?.outcome)
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+    }
+
+    @Test
     fun `aggregate factory generation participates in domain compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-compile-sample")
