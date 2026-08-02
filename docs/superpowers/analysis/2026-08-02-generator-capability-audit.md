@@ -145,7 +145,7 @@ Canonical assembler 的 supported tag/default artifact contract 也只有同样�
 - 分类：`partial` / cross-surface integration gap
 - 主责：Generator type shape
 - 验收责任：MVC adapter/starter
-- Gate 影响：不否定 Strong ID core；阻塞 HTTP adapter 下游验证
+- Gate 影响：accepted repair required；不否定 Strong ID core
 
 Strong ID 当前已支持：
 
@@ -163,7 +163,17 @@ Strong ID 当前已支持：
 
 Spring 默认 String conversion 无法识别这些生成类型。仓库也没有 Strong ID `ConverterFactory`、`WebMvcConfigurer` 或 formatter registration。实际 `DefaultConversionService.canConvert(String, StrongId)` 对四种 backing 都为 false。
 
-推荐方向：由 generator 为所有 Strong ID 生成一个 Spring 默认 conversion 可识别、但不依赖 Spring API 的 JVM static String factory，例如 `@JvmStatic fun from(value: String) = parse(value)`。Runtime 继续只拥有 `StrongIds` 校验，不增加反射型通用 converter。验收应包含真实 `@PathVariable`、`@RequestParam` 和异常输入测试。
+已确认决策：由 generator 为所有 Strong ID 生成一个 Spring 默认 conversion 可识别、但不依赖 Spring API 的 JVM static String factory，例如 `@JvmStatic fun from(value: String) = parse(value)`。Runtime 继续只拥有 `StrongIds` 校验，不增加反射型通用 converter。
+
+修复验收应包含：
+
+- UUIDv7 String/UUID 与 Snowflake String/Long 四种 backing 都暴露同一个 JVM static String conversion surface；
+- factory 委托现有 `parse`/`StrongIds` 校验，不复制或放宽合法性规则；
+- `DefaultConversionService.canConvert(String, StrongId)` 对四种形状均为 true；
+- 真实 `@PathVariable` 与 `@RequestParam` 能绑定 Aggregate Root ID；
+- 至少一个 `@RefId`/owned ID 生成类型共享相同 conversion contract；
+- 非法输入仍被拒绝，并有可诊断的 MVC failure；
+- Runtime/starter 不增加 classpath scanning、reflection converter 或 Strong ID type registry 的第二条转换路径。
 
 对应 backlog：Issue #76。
 
@@ -369,7 +379,7 @@ python scripts/validate-cap4k-generator-inputs.py
 
 1. 按已确认决策消除 Scheduled Reaction descriptor/docs 与实际 generator/runtime contract 的漂移。
 2. 修正 `plan.json` 当前公开 contract example。
-3. 决定是否在 Generator gate 内修复 Strong ID MVC binding；若暂缓，必须明确 downstream validation 不覆盖 HTTP typed-id binding，否则下游 gate 仍会失败。
+3. 按已确认决策修复 Strong ID MVC binding，并通过真实 HTTP adapter binding evidence。
 4. 将 G-04、G-05、G-06、G-07、G-08、G-09 记录为已接受的 partial/provider/cleanup 边界，或分别创建后续实现决策；它们本身不要求恢复旧 generator surface。
 
 Generator 修复不得弱化 PR #152 已确认的 runtime reliable-event payload boundary。生成的 persisted Domain Event 必须继续满足 runtime 对历史事实 payload 的拒绝实体规则。

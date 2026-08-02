@@ -48,10 +48,11 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 - Perform one combined downstream validation only after all four blocks have a coherent current contract.
 - Compatibility work requires future evidence of a real consumer and an explicit compatibility requirement.
 - Scheduled Reaction remains a handwritten application Job/reaction surface. Remove it from the Design JSON capability descriptor and generated-skeleton claims; do not add a first-class tag, canonical carrier, planner, template, or runtime execution contract in this audit cycle.
+- Strong ID Spring MVC path/query binding is part of the Generator gate. Every generated Strong ID must expose a JVM-static String factory that delegates to the existing semantic parser; Runtime must not add reflection-based conversion machinery. Verify the contract with real MVC path and query binding tests.
 
 # Open questions
 
-- Should Generator close the Strong ID Spring MVC binding gap now by emitting a JVM-static String factory for every generated Strong ID and verifying real path/query binding, while keeping Runtime free of reflection-based conversion machinery? This is the recommended option because typed identifiers are already cap4k's default generated identity contract and the combined downstream validation is expected to exercise an HTTP adapter. The alternative is to accept the capability as partial and explicitly exclude typed path/query parameters from downstream validation.
+- Should the standalone Python input validator be retired in favor of authoritative source parsing, `cap4kPlan` diagnostics, and Agent API evidence? This is the recommended option because the thin Skill does not route through the script, the script duplicates only a partial subset of Design JSON/schema/manifest rules, and cap4k has no external compatibility requirement. The alternative is to keep it as a deliberately bounded preflight product and add a maintained conformance test suite for every promised subset.
 
 # Verification expectations
 

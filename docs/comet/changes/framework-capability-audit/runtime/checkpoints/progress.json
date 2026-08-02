@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "97c6e07e-0568-4b52-922c-e62cadaff738",
+  "id": "521d2626-1d5e-4325-90de-0d9a8092a94c",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 2,
-  "stateRevision": 3,
-  "summary": "User confirmed that Scheduled Reaction remains handwritten and must be removed from Generator capability claims without adding a first-class carrier.",
-  "nextAction": "Decide whether Strong ID Spring MVC binding is repaired in the Generator gate or excluded from downstream HTTP validation.",
-  "inputHash": "5199db69a255e1e037726fafc5ad26e07f823f7748decb60d30c801f231df23c",
-  "manifestHash": "30dd3e28210f1b70453c455c6977aa2ef3e7fafa9a1b14afb40d0878cd40da70",
-  "manifestRef": "runtime/checkpoints/manifests/30dd3e28210f1b70453c455c6977aa2ef3e7fafa9a1b14afb40d0878cd40da70.json",
+  "previousRevision": 3,
+  "stateRevision": 4,
+  "summary": "User confirmed that Strong ID MVC binding is required in the Generator gate. Generator will emit a JVM-static String factory; Runtime remains free of reflection conversion machinery.",
+  "nextAction": "Decide whether to retire the standalone Python input validator or keep it as a separately tested bounded preflight product.",
+  "inputHash": "172a4d0ec2e0871bbbca8814b9b8f83969be3eb5e8679d382a07a33e2797371e",
+  "manifestHash": "a3cef67f6254692caffe314588811e30e38b7c4f2b613b1726c54e3fe5171c9a",
+  "manifestRef": "runtime/checkpoints/manifests/a3cef67f6254692caffe314588811e30e38b7c4f2b613b1726c54e3fe5171c9a.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T04:45:32.917Z"
+  "createdAt": "2026-08-02T04:47:17.851Z"
 }
