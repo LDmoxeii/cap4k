@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "695985ae-05f9-4902-a7c0-a53063ac3bd1",
+  "id": "46684038-0801-4856-95ec-9477c988cbc1",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 12,
-  "stateRevision": 13,
-  "summary": "User chose explicit BINARY-retained analysis metadata annotations as the lossless code carrier, relocated and renamed from ddd-core into a dedicated compile-time contract/module. Default templates keep them; custom templates may remove them to opt out of Drawing Board. Sidecar metadata is deferred.",
-  "nextAction": "Decide how Drawing Board and flow analysis respond when required analysis metadata was intentionally removed.",
-  "inputHash": "a2d2df3f413e6b18c1e442007dfc9edf5b38ea03a7966eed45db1741cf346c4f",
-  "manifestHash": "d9e4aee354010dd1754f40467f3e4aa33d86f5385bae4729c15aff599c4d47ba",
-  "manifestRef": "runtime/checkpoints/manifests/d9e4aee354010dd1754f40467f3e4aa33d86f5385bae4729c15aff599c4d47ba.json",
+  "previousRevision": 13,
+  "stateRevision": 14,
+  "summary": "User chose fail-fast behavior when Drawing Board or flow analysis is requested without the required analysis metadata. Diagnostics must identify missing symbols, affected capabilities, and restoration steps; silent omission and complete-looking partial output are forbidden.",
+  "nextAction": "Decide whether Domain Event payload field name entity is legal when its resolved type passes semantic payload validation, or remains reserved.",
+  "inputHash": "ebd24caf41e9fd86efe85865a7507e9ab65e290ab94d84aa54fd32ba14f6715b",
+  "manifestHash": "d72b4ba30e66ce7814d9caf96247f6537dc594ed66ae4cbd84875ca3b1d7be81",
+  "manifestRef": "runtime/checkpoints/manifests/d72b4ba30e66ce7814d9caf96247f6537dc594ed66ae4cbd84875ca3b1d7be81.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T05:40:37.689Z"
+  "createdAt": "2026-08-02T05:42:26.226Z"
 }

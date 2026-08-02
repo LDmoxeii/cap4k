@@ -321,6 +321,8 @@ Put(Get(generated skeleton))
 
     已确认修复边界：保留显式、BINARY-retained 的 lossless annotation metadata carrier，但将其从 `ddd-core` 迁出并重命名到专用 compile-time analysis-metadata contract/module；它没有 runtime 语义，业务项目只通过 compile-only dependency 引入。默认 generator templates 继续生成这些 metadata annotations，以支持 Drawing Board 与 flow recovery；不需要 Drawing Board 的项目可在自定义 templates 中删除它们，明确放弃相应分析能力。本轮不采用 sidecar skeleton index，不把 Analyzer 真相边界扩展为 code + sidecar。
 
+    如果项目删除了当前任务所需的 analysis metadata，却仍调用 Drawing Board 或依赖该 metadata 的 flow analysis，请求必须 fail fast：diagnostic 应列出缺失 metadata 的 symbol、受影响的 analysis capability，以及通过恢复默认 template/annotation 重新启用能力的方法。不得静默忽略 unannotated element，也不得输出没有显式 completeness 标记、看起来可用于 round trip 的残缺 Drawing Board。
+
 现有测试名为 `issue 92 metadata contract supports generation analysis and drawing board round trip`，但它不是真实回环：
 
 - 生成骨架后调用 `writeIssue92AnalysisFixture(...)` 手工写 `design-elements.json`；
