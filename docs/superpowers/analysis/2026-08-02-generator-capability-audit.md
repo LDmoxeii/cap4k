@@ -6,7 +6,7 @@ Generator 已经具备一条可工作的核心闭环：显式输入进入 Canoni
 
 这条闭环覆盖当前上下文内最常用的战术建模载体：Aggregate、Strong ID、Repository、Factory、Behavior scaffold、Value Object、Enum、Command、Query、Capability、API Payload、Domain Event、Integration Event、Subscriber、Handler 与 Domain Service。现有证据不支持“Generator 缺少 DDD 核心战术建模骨架”这一结论。
 
-初次审计时 Generator gate 不能通过，原因不是核心生成链不可用，而是存在当前契约漂移、一个会阻塞 HTTP adapter 下游验证的集成缺口，以及一个新确认的 Generator/Analyzer 共同闭环缺口：
+初次审计时 Generator gate 不能通过，原因不是核心生成链不可用，而是存在当前契约漂移、一个会阻塞 HTTP adapter 下游验证的集成缺口，以及一个 Generator/Analyzer 共同闭环缺口：
 
 1. Design JSON descriptor 与公共文档错误宣称 `Scheduled Reaction` 可由 generator 生成，实际没有对应 tag、canonical carrier、planner、template 或 runtime carrier。
 2. 公共 `plan.json` 示例仍使用旧 generator id，并错误描述 `outputPath` shape。
@@ -15,9 +15,9 @@ Generator 已经具备一条可工作的核心闭环：显式输入进入 Canoni
 
 2026-08-02 mainline refresh：PR #154 已消除第 1、2 项 contract drift、删除 standalone validator 与 dead Specification helper；PR #155 已修复第 3 项 Strong ID MVC binding；PR #156 已完成第 4 项所依赖的 compile-time analysis metadata contract 与缺失 metadata fail-fast。三个 PR 均按 `#154 -> #155 -> #156` 顺序合并，每个后续分支都先更新到最新 `master` 并重新通过 required `check`；当前 `master` merge commit 为 `540fef09`。
 
-因此 Generator gate 只剩第 4 项的 semantic round-trip repair 与真实七 tag 二次 generate/compile gate，尚不能提前标记为 `READY`。
+2026-08-03 final mainline refresh：PR #157 已完成第 4 项 semantic round-trip repair，并作为 merge commit `ba948c29` 进入 `master`。修复 head `5fabd06f` 的 required `check` 通过；审计线合入 `origin/master@ba948c29` 后，以 `--rerun-tasks` 重新执行真实双项目 `DesignRoundTripFunctionalTest`，结果为 `BUILD SUCCESSFUL in 5m 6s`，72 个 task 全部实际执行。
 
-其余开放事项主要属于诊断质量、可选 read-model provider、测试证据质量或陈旧 backlog，不应被误判为 DDD core 缺失。Drawing Board 闭环不再属于可接受的“人工 promotion 成本”，而是已确认的框架完整性 gate。
+因此 Generator gate 当前为 `READY`。其余开放事项属于诊断质量、可选 read-model provider 或非阻断测试债务，不应被误判为 DDD core 缺失。Drawing Board 闭环已从历史缺口变为受真实 gate 保护的当前合同；下游真实项目验证仍按四块顺序延后到 Runtime 与 Analyzer 审计完成之后。
 
 ## 审计边界
 
@@ -458,7 +458,7 @@ JdbcSQLNonTransientConnectionException: Database may be already in use
 
 G-06 保持 optional provider boundary；G-07 继续作为独立 P2 diagnostics backlog，不进入以上 blocking repair；G-09 仅在它影响真实 round-trip gate 的 fixture 范围内由第 4 个分支处理。
 
-每个 PR 合并后，审计线应刷新 `origin/master`、复核对应 finding 和验收证据，再改变 Generator gate 结论。只有第 4 个 PR 合并并通过共同 gate 后，Generator 才能从 `NOT READY` 改为 `READY`，随后进入 Runtime capability audit。
+每个 PR 合并后，审计线都刷新 `origin/master`、复核对应 finding 和验收证据，再改变 Generator gate 结论。第 4 个 PR 已合并并通过共同 gate，Generator 已从 `NOT READY` 改为 `READY`，下一步进入 Runtime capability audit。
 
 ### 第四分支可执行合同
 
@@ -480,15 +480,16 @@ Issue #102 在本分支中的完成含义是：Drawing Board 结构与 Design JS
 
 明确非目标：不恢复 sidecar，不推断手写业务方法体，不恢复缺失 metadata 的静默降级，不支持 primitive arrays，不弱化 PR #152 的 reliable-event Entity payload 边界，不修改生产 JDBC lifecycle，也不提前安装或自动接线 Analyzer 产品能力。
 
-2026-08-03 用户已确认以上第四分支可执行合同。实现会话可从 `origin/master@540fef09` 创建 `fix/design-roundtrip-contract`；连续审计 change 不进入 Build，等待该分支通过 PR 合并到 `master` 后再刷新、验收 Generator gate 并继续 Runtime audit。
+2026-08-03 用户确认以上第四分支可执行合同。实现会话从 `origin/master@540fef09` 创建 `fix/design-roundtrip-contract`；连续审计 change 未进入 Build，生产修复始终保留在独立实现分支。
 
 Mainline merge evidence：
 
 - PR #154 `fix/generator-contract-surface` -> merge commit `d310f3fa`；required `check` passed。
 - PR #155 `fix/strong-id-mvc-binding` -> 先更新到 `d310f3fa`，required `check` passed，merge commit `9e0e0bcd`。
 - PR #156 `feature/analysis-metadata-contract` -> 先更新到 `9e0e0bcd`，组合 required `check` passed，merge commit `540fef09`。
-- 当前审计线已合入 `origin/master@540fef09`；本地主工作区的用户未提交改动未被触碰。
-- `fix/design-roundtrip-contract` 现在可以从 `origin/master@540fef09` 创建，不再依赖未合并前置。
+- PR #157 `fix/design-roundtrip-contract` -> 从 `540fef09` 实现完整 G-05 合同，review-fix head `5fabd06f` required `check` passed，merge commit `ba948c29`。
+- 当前审计线已合入 `origin/master@ba948c29`；本地主工作区的用户未提交改动未被触碰。
+- Issue #102 已由 PR #157 关闭。Drawing Board 采用显式 import，不自动回灌或翻转 Integration Event direction。
 
 
 ## Backlog reconciliation
@@ -497,7 +498,7 @@ Mainline merge evidence：
 | --- | --- |
 | #75 | 有效的 P2 diagnostics partial，不阻塞核心 gate |
 | #76 | 有效的 P1 HTTP adapter integration gap；应修 |
-| #102 | 纳入第四分支：以 Drawing Board 直接 Design-JSON-compatible + 显式 import 完成；不建立自动 recovery subsystem，不自动翻转 inbound/outbound |
+| #102 | 已由 PR #157 完成并关闭：Drawing Board 直接 Design-JSON-compatible + 显式 import；不建立自动 recovery subsystem，不自动翻转 inbound/outbound |
 | #113 | 方案已被 PR #153 的 thin Skill + Agent API 责任重置取代；仅少量底层事实需要重新归属 |
 | #118 | optional projection provider investigation；不属于 missing-core |
 
@@ -555,11 +556,23 @@ python scripts/validate-cap4k-generator-inputs.py
 :cap4k-plugin-pipeline-generator-drawing-board:test
 ```
 
-结果均为 `BUILD SUCCESSFUL`。这些结果分别证明当前七类 integrated skeleton 可编译、Analyzer component extraction 可工作、Drawing Board component tests 可工作，以及现有名义 round-trip 测试按其当前断言通过；它们不构成真实端到端语义等价证据。对该测试使用的原 Design JSON 与手写 `design-elements.json` 做 normalized comparison 后，query 的 `status` 和 Domain Event 的 `snapshot`/`snapshot.traceId` 已在手写中间数据丢失，而测试仍通过，进一步证明当前断言存在假阳性。
+结果均为 `BUILD SUCCESSFUL`。这些是初次审计用于证明历史缺口的基线：七类 integrated skeleton 可编译、Analyzer component extraction 可工作、Drawing Board component tests 可工作，但旧名义 round-trip 测试不构成真实端到端语义等价证据。对旧测试的原 Design JSON 与手写 `design-elements.json` 做 normalized comparison 后，query 的 `status` 和 Domain Event 的 `snapshot`/`snapshot.traceId` 已在手写中间数据丢失，而测试仍通过，证明其断言存在假阳性；PR #157 已删除这条验收捷径。
+
+PR #157 合并后，审计线从 `origin/master@ba948c29` 独立执行：
+
+```text
+.\gradlew.bat :cap4k-plugin-pipeline-gradle:test \
+  --tests "com.only4.cap4k.plugin.pipeline.gradle.DesignRoundTripFunctionalTest" \
+  --rerun-tasks --no-daemon --console=plain
+```
+
+结果：`DesignRoundTripFunctionalTest ... PASSED`，`BUILD SUCCESSFUL in 5m 6s`，72 actionable tasks 全部执行。该 gate 使用两个干净工程、真实 `Cap4kCodeAnalysisCompilerRegistrar`、显式 Drawing Board import、二次 generate/compile，并比较 C0/C1 normalized tactical semantics、两代 framework-owned skeleton 与 runtime annotation semantics。Project A 的原始 Design JSON bytes/hash 在任何生成和分析前冻结，自动回灌或输入改写会使 gate 失败。
+
+二轮代码审查还分别以 focused tests 验证 page root collision、最终 canonical identity 上的 primitive-array 拒绝、runtime event literal、U+000C、业务体不变性与 rich fixture coverage；未发现 P0/P1/P2。剩余非阻断测试债务是等价 Kotlin Unicode escape 大小写（例如 `\u000C` 与 `\u000c`）尚未在测试辅助投影中统一，但生产 Design JSON -> skeleton -> Drawing Board -> 二次编译语义可逆，且当前合同输出固定为小写 `\u000c`。
 
 ## Generator gate
 
-当前状态：`NOT READY`（仅剩 semantic round-trip blocking repair）
+当前状态：`READY`（PR #154、#155、#156、#157 均已合并，真实 semantic round-trip gate 通过）
 
 解除条件：
 
@@ -567,7 +580,9 @@ python scripts/validate-cap4k-generator-inputs.py
 2. [x] 修正 `plan.json` 当前公开 contract example：PR #154。
 3. [x] 按已确认决策修复 Strong ID MVC binding，并通过真实 HTTP adapter binding evidence：PR #155。
 4. [x] 按已确认决策删除独立 Python input validator 及其公共 contract surface：PR #154。
-5. [ ] 修复 G-05 的真实语义 round-trip 缺口，并以七 tag、真实 Analyzer、二次 generate/compile 的端到端证据通过共同 gate。
+5. [x] 修复 G-05 的真实语义 round-trip 缺口，并以七 tag、真实 Analyzer、二次 generate/compile 的端到端证据通过共同 gate：PR #157；审计线合并后独立复跑通过。
 6. [x] G-06/G-07 已记录为 accepted optional/P2 boundaries，G-08 已由 PR #154 清理；G-09 只在阻塞真实 gate 的 fixture 范围内归入第 5 项。
 
 Generator 修复不得弱化 PR #152 已确认的 runtime reliable-event payload boundary。生成的 persisted Domain Event 必须继续满足 runtime 对历史事实 payload 的拒绝实体规则。
+
+Generator 审计至此收口；不提前开启下游验证，下一步按顺序审计 Runtime。
