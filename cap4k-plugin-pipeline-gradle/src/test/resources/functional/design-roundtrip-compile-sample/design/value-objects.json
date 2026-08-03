@@ -1,0 +1,20 @@
+[
+  {
+    "name": "OrderAddress",
+    "package": "com.acme.demo.domain.shared.values",
+    "aggregates": [
+      "Order"
+    ],
+    "fields": [
+      {
+        "name": "city",
+        "type": "String"
+      },
+      {
+        "name": "street",
+        "type": "String?",
+        "defaultValue": "null"
+      }
+    ]
+  }
+]

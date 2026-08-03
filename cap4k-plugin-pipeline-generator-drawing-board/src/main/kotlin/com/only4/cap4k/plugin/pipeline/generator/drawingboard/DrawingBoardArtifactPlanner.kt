@@ -101,8 +101,8 @@ private fun DrawingBoardElementModel.toRenderModel(): DrawingBoardRenderElement 
         designJsonArtifacts = designJsonArtifacts.sortedWith(ArtifactComparator),
         includeDesignJsonArtifacts = includeDesignJsonArtifacts,
         persist = persist,
-        fields = request.toSourceFields().sortedWith(DrawingBoardFieldComparator),
-        resultFields = response?.toSourceFields().orEmpty().sortedWith(DrawingBoardFieldComparator),
+        fields = request.toSourceFields(),
+        resultFields = response?.toSourceFields().orEmpty(),
         eventName = eventName,
     )
 
@@ -175,11 +175,6 @@ private data class NestedReference(
 private val ArtifactComparator =
     compareBy<ArtifactSelectionModel> { it.family }
         .thenBy { it.variant }
-
-private val DrawingBoardFieldComparator =
-    compareBy<DrawingBoardRenderField> { it.name }
-        .thenBy { it.type }
-        .thenBy { it.defaultValue.orEmpty() }
 
 private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
     val missing = model.analysisGraph?.nodes.orEmpty()

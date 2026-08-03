@@ -113,11 +113,11 @@ Drawing Board 与 metadata-dependent Flow Analysis 依赖专用的 BINARY-retain
 
 `cap4kAnalysisGenerate` 不是 source generation。flow 和 drawing-board output 默认是 observation evidence，用来观察已有代码结构。
 
-drawing-board 文件只有在内容满足 [Design JSON](design-json.md) 规则时，才可以整理并注册为 design JSON input。
+drawing-board 文件由当前 generator 输出为直接兼容 [Design JSON](design-json.md) 的普通 JSON array。需要恢复或传递当前 tactical contract 时，由人或 Agent 选择文件并显式注册到 `sources.designJson.files`；不需要额外 converter。
 
-analysis fragment 必须符合 design JSON 的字段集合、tag 约束、field shape 和 artifact selection 后，才能通过 `sources.designJson.files` 使用。
+显式注册保留原有 artifact direction。跨上下文把 outbound Integration Event 改成 inbound 是新的设计决策，必须在输入中明确修改；cap4k 不会自动转换。
 
-任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。
+任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。只有 Drawing Board 的当前 Design JSON contract 支持上述显式输入路径，flow、nodes、rels 和其他 observation output 不支持。
 
 ## 边界检查
 

@@ -139,7 +139,7 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `parses explicit empty artifact selections as authoritative empty list`() {
+    fun `rejects explicit empty artifact selections`() {
         val tempFile = tempDir.resolve("empty-artifacts.json")
         Files.writeString(
             tempFile,
@@ -158,9 +158,11 @@ class DesignJsonSourceProviderTest {
             StandardCharsets.UTF_8,
         )
 
-        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
 
-        assertEquals(emptyList<ArtifactSelectionModel>(), snapshot.entries.single().artifacts)
+        assertEquals("design entry FindOrder artifacts must not be empty.", error.message)
     }
 
     @Test
@@ -353,6 +355,7 @@ class DesignJsonSourceProviderTest {
                     "description": "order created event",
                     "aggregates": ["Order"],
                     "persist": true,
+                    "eventName": "order.created",
                     "fields": []
                   },
                   {
@@ -372,6 +375,115 @@ class DesignJsonSourceProviderTest {
         val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
 
         assertEquals(listOf(true, false), snapshot.entries.map { it.persist })
+    }
+
+    @Test
+    fun `rejects persisted domain event without an event name`() {
+        val tempFile = tempDir.resolve("persisted-domain-event-without-name.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "domain_event",
+                    "name": "OrderCreated",
+                    "description": "order created event",
+                    "aggregates": ["Order"],
+                    "persist": true,
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertEquals("persisted domain_event OrderCreated must declare eventName.", error.message)
+    }
+
+    @Test
+    fun `rejects fields and result fields on metadata only domain services`() {
+        listOf("fields", "resultFields").forEach { fieldGroup ->
+            val tempFile = tempDir.resolve("domain-service-$fieldGroup.json")
+            Files.writeString(
+                tempFile,
+                """
+                    [
+                      {
+                        "tag": "domain_service",
+                        "name": "OrderPolicyService",
+                        "$fieldGroup": [
+                          { "name": "value", "type": "String" }
+                        ]
+                      }
+                    ]
+                """.trimIndent(),
+                StandardCharsets.UTF_8,
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+            }
+
+            assertEquals(
+                "domain_service OrderPolicyService is metadata-only and must not declare fields or resultFields.",
+                error.message,
+            )
+        }
+    }
+
+    @Test
+    fun `page variants reject derived page fields while non page variants allow them`() {
+        val pageFile = tempDir.resolve("page-derived-field.json")
+        Files.writeString(
+            pageFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrderPage",
+                    "artifacts": [{ "family": "query", "variant": "page" }],
+                    "fields": [{ "name": "pageNum", "type": "Int" }]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val pageError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(pageFile.toString()))
+        }
+        assertEquals(
+            "design entry FindOrderPage page variant derives pageNum; remove the explicit field.",
+            pageError.message,
+        )
+
+        val nonPageFile = tempDir.resolve("non-page-business-fields.json")
+        Files.writeString(
+            nonPageFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrder",
+                    "artifacts": [{ "family": "query" }],
+                    "fields": [
+                      { "name": "pageNum", "type": "Int" },
+                      { "name": "pageSize", "type": "Int" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val snapshot = DesignJsonSourceProvider().collect(configFor(nonPageFile.toString())) as DesignSpecSnapshot
+        assertEquals(listOf("pageNum", "pageSize"), snapshot.entries.single().fields.map { it.name })
     }
 
     @Test

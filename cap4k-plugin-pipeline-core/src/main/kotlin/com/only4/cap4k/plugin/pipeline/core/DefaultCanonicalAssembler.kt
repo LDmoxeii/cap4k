@@ -469,6 +469,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 acc
             }
             .values
+            .onEach { element ->
+                validateArtifactSelections(
+                    entryName = element.name,
+                    tag = element.tag,
+                    artifacts = element.artifacts,
+                )
+            }
             .toList()
             .takeIf { it.isNotEmpty() }
             ?.let { elements ->
@@ -685,9 +692,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         config: ProjectConfig,
         aggregateEntityMetadata: Map<String, AggregateMetadataRecord>,
         allowRecoveredDomainEventWithoutAggregateMetadata: Boolean = false,
+        requireCompleteArtifactSet: Boolean = true,
     ): DesignBlockModel {
         validateDesignBlockSharedFields()
-        val artifactSelections = resolveDesignBlockArtifacts()
+        val artifactSelections = resolveDesignBlockArtifacts(requireCompleteArtifactSet)
         val typeName = when (tag) {
             "command" -> "${name}Cmd"
             "query" -> "${name}Qry"
@@ -733,15 +741,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             ownerAggregateName = aggregates.singleOrNull(),
         )
         val requestRole = requestRoleFor(tag)
-        val requestFields = if (tag == "domain_event") {
-            fields.filterNot { it.name.equals("entity", ignoreCase = true) }
-        } else {
-            fields
-        }
         val request = compiler.compile(
             identity = requestIdentity,
             role = requestRole,
-            fields = requestFields,
+            fields = fields,
             aggregateContext = aggregates,
         )
         val response = if (tag in ResultFieldTags) {
@@ -801,8 +804,25 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         require(persist == null || tag == "domain_event") {
             "design entry $name cannot declare persist on tag: $tag"
         }
+        if (tag == "domain_service") {
+            require(fields.isEmpty() && resultFields.isEmpty()) {
+                "domain_service $name is metadata-only and must not declare fields or resultFields."
+            }
+        }
         require(resultFields.isEmpty() || tag in ResultFieldTags) {
             "design entry $name cannot declare resultFields on tag: $tag"
+        }
+        if (persist == true) {
+            require(!eventName.isNullOrBlank()) {
+                "persisted domain_event $name must declare eventName."
+            }
+        }
+        val pageFamily = PageArtifactFamilyByTag[tag]
+        if (pageFamily != null && effectiveArtifacts().any { it.family == pageFamily && it.variant == "page" }) {
+            val collision = fields.firstOrNull { it.name in PageFieldNames }
+            require(collision == null) {
+                "design entry $name page variant derives ${collision?.name}; remove the explicit field."
+            }
         }
         if (tag == "domain_event") {
             val aggregateCount = aggregates.size
@@ -823,17 +843,23 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     private fun DesignSpecEntry.effectiveArtifacts(): List<ArtifactSelectionModel> =
         artifacts ?: defaultArtifactsFor(tag)
 
-    private fun DesignSpecEntry.resolveDesignBlockArtifacts(): List<ArtifactSelectionModel> {
+    private fun DesignSpecEntry.resolveDesignBlockArtifacts(
+        requireCompleteArtifactSet: Boolean,
+    ): List<ArtifactSelectionModel> {
         val artifactSelections = effectiveArtifacts()
-        validateArtifactSelections(artifactSelections)
+        validateArtifactSelections(artifactSelections, requireCompleteArtifactSet)
         return artifactSelections
     }
 
-    private fun DesignSpecEntry.validateArtifactSelections(artifacts: List<ArtifactSelectionModel>) {
+    private fun DesignSpecEntry.validateArtifactSelections(
+        artifacts: List<ArtifactSelectionModel>,
+        requireCompleteArtifactSet: Boolean,
+    ) {
         validateArtifactSelections(
             entryName = name,
             tag = tag,
             artifacts = artifacts,
+            requireCompleteArtifactSet = requireCompleteArtifactSet,
         )
     }
 
@@ -841,7 +867,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         entryName: String,
         tag: String,
         artifacts: List<ArtifactSelectionModel>,
+        requireCompleteArtifactSet: Boolean = true,
     ) {
+        require(artifacts.isNotEmpty()) {
+            "design entry $entryName artifacts must not be empty."
+        }
         artifacts.forEach { artifact ->
             val allowedVariants = SupportedArtifactFamilies[artifact.family]
                 ?: throw IllegalArgumentException("unsupported design artifact family on $entryName: ${artifact.family}")
@@ -877,8 +907,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
         }
 
+        val allowedFamilies = ArtifactFamiliesByTag[tag]
+            ?: throw IllegalArgumentException("Unsupported design tag: $tag")
+        artifacts.firstOrNull { it.family !in allowedFamilies }?.let { artifact ->
+            throw IllegalArgumentException(
+                "design entry $entryName artifact ${artifact.family} is not supported on tag: $tag",
+            )
+        }
+        if (requireCompleteArtifactSet) {
+            val primaryFamily = PrimaryArtifactFamilyByTag.getValue(tag)
+            require(artifacts.any { it.family == primaryFamily }) {
+                "design entry $entryName must select primary artifact $primaryFamily for tag: $tag"
+            }
+        }
+
         val hasSubscriber = artifacts.any { it.family == "integration-subscriber" }
-        if (hasSubscriber) {
+        if (hasSubscriber && requireCompleteArtifactSet) {
             require(tag == "integration_event") {
                 "design entry $entryName integration-subscriber is only supported on integration_event"
             }
@@ -932,6 +976,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             config = config,
             aggregateEntityMetadata = aggregateEntityMetadata,
             allowRecoveredDomainEventWithoutAggregateMetadata = true,
+            requireCompleteArtifactSet = false,
         )
 
         return DrawingBoardElementModel(
@@ -940,7 +985,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             name = name,
             description = description,
             aggregates = aggregates,
-            artifacts = artifacts,
+            artifacts = compiled.artifacts,
             artifactsDeclared = artifactsDeclared,
             persist = recoveredPersist,
             request = compiled.request,
@@ -1048,6 +1093,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         existing: SemanticValueDefinition,
         incoming: SemanticValueDefinition,
     ): SemanticValueDefinition {
+        if (existing.isEmptyRecoveredFragment()) return incoming
+        if (incoming.isEmptyRecoveredFragment()) return existing
         require(existing.identity == incoming.identity && existing.role == incoming.role) {
             "conflicting design block semantic identity for $context: $field"
         }
@@ -1071,6 +1118,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
     }
 
+    private fun SemanticValueDefinition.isEmptyRecoveredFragment(): Boolean =
+        fields.isEmpty() && nestedDefinitions.isEmpty() && envelope == null
+
     private fun mergeDrawingBoardElements(
         existing: DrawingBoardElementModel,
         incoming: DrawingBoardElementModel,
@@ -1086,6 +1136,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             entryName = existing.name,
             tag = existing.tag,
             artifacts = artifacts,
+            requireCompleteArtifactSet = false,
         )
 
         return existing.copy(
@@ -1904,6 +1955,29 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "integration-subscriber" to setOf(""),
             "domain-service" to setOf(""),
         )
+        val ArtifactFamiliesByTag = mapOf(
+            "command" to setOf("command"),
+            "query" to setOf("query", "query-handler"),
+            "capability" to setOf("capability", "capability-handler"),
+            "api_payload" to setOf("api-payload"),
+            "domain_event" to setOf("domain-event", "domain-subscriber"),
+            "integration_event" to setOf("integration-event", "integration-subscriber"),
+            "domain_service" to setOf("domain-service"),
+        )
+        val PrimaryArtifactFamilyByTag = mapOf(
+            "command" to "command",
+            "query" to "query",
+            "capability" to "capability",
+            "api_payload" to "api-payload",
+            "domain_event" to "domain-event",
+            "integration_event" to "integration-event",
+            "domain_service" to "domain-service",
+        )
+        val PageArtifactFamilyByTag = mapOf(
+            "query" to "query",
+            "api_payload" to "api-payload",
+        )
+        val PageFieldNames = setOf("pageNum", "pageSize")
         val VariantFamilies = setOf("query", "api-payload", "integration-event")
 
         val SupportedDrawingBoardTags = setOf(

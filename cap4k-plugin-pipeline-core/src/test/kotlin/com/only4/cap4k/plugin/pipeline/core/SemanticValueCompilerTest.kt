@@ -160,6 +160,41 @@ class SemanticValueCompilerTest {
     }
 
     @Test
+    fun `refines provisional external source evidence with a canonical declaration`() {
+        val criteria = identity(
+            "com.acme.adapter",
+            "OrderSearchPayload.Request.Criteria",
+            CanonicalTypeKind.NESTED_VALUE,
+        )
+        val catalog = CanonicalTypeCatalog(
+            sourceTypeExpressions = listOf("com.acme.adapter.OrderSearchPayload.Request.Criteria?"),
+        ).plus(listOf(criteria))
+
+        val resolved = catalog.resolveExpression(
+            "com.acme.adapter.OrderSearchPayload.Request.Criteria",
+            "OrderSearchPayload.criteria",
+        ) as SemanticNamedTypeRef
+
+        assertEquals(criteria, resolved.symbol)
+    }
+
+    @Test
+    fun `does not refine an existing canonical declaration with a conflicting kind`() {
+        val nested = identity(
+            "com.acme.adapter",
+            "OrderSearchPayload.Request.Criteria",
+            CanonicalTypeKind.NESTED_VALUE,
+        )
+        val valueObject = nested.copy(kind = CanonicalTypeKind.VALUE_OBJECT)
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            CanonicalTypeCatalog(listOf(nested)).plus(listOf(valueObject))
+        }
+
+        assertTrue(error.message.orEmpty().contains(nested.fqn))
+    }
+
+    @Test
     fun `keeps short-name source evidence ambiguous when multiple fqns are explicit`() {
         val catalog = CanonicalTypeCatalog(
             sourceTypeExpressions = listOf(
@@ -333,6 +368,23 @@ class SemanticValueCompilerTest {
         assertEquals("com.acme.api.Payload.Request.FileItem", fileItem.identity.fqn)
         assertEquals("com.acme.api.Payload.Request.VariantItem", variantItem.identity.fqn)
         assertEquals("\"\"", variantItem.fields.single().defaultValue?.kotlinExpression)
+    }
+
+    @Test
+    fun `compiles Array nested paths without changing their container shape`() {
+        val definition = SemanticValueCompiler(CanonicalTypeCatalog()).compile(
+            identity = identity("com.acme.api", "Payload.Request", CanonicalTypeKind.NESTED_VALUE),
+            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            fields = listOf(
+                SemanticFieldSnapshot("items", "Array<Item>"),
+                SemanticFieldSnapshot("items[].name", "String"),
+            ),
+        )
+
+        val item = definition.nestedDefinitions.single()
+        assertEquals("com.acme.api.Payload.Request.Item", item.identity.fqn)
+        val items = definition.fields.single().type as SemanticArrayTypeRef
+        assertEquals(item.identity, (items.elementType as SemanticNamedTypeRef).symbol)
     }
 
     @Test

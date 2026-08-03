@@ -68,7 +68,21 @@ class IrAnalysisSourceProvider : SourceProvider {
                 "ir-analysis inputDir is missing nodes.json or rels.json: $inputDir"
             }
 
-            parseNodes(nodesFile).forEach { node ->
+            val inputNodes = parseNodes(nodesFile)
+            val designElementsFile = File(dir, "design-elements.json")
+            val inputDesignElements = if (designElementsFile.exists()) {
+                parseDesignElements(designElementsFile)
+            } else {
+                emptyList()
+            }
+            requireRequestedAnalysisMetadata(
+                config = config,
+                nodes = inputNodes,
+                designElements = inputDesignElements,
+                inputDir = inputDir,
+            )
+
+            inputNodes.forEach { node ->
                 val existing = nodesById[node.id]
                 nodesById[node.id] = if (existing == null) {
                     node
@@ -87,17 +101,8 @@ class IrAnalysisSourceProvider : SourceProvider {
                 edgeKeys.add(EdgeKey(edge.fromId, edge.toId, edge.type, edge.label))
             }
 
-            val designElementsFile = File(dir, "design-elements.json")
-            if (designElementsFile.exists()) {
-                designElements.addAll(parseDesignElements(designElementsFile))
-            }
+            designElements.addAll(inputDesignElements)
         }
-
-        requireRequestedAnalysisMetadata(
-            config = config,
-            nodes = nodesById.values,
-            designElements = designElements,
-        )
 
         return IrAnalysisSnapshot(
             inputDirs = inputDirs,
@@ -118,6 +123,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         config: ProjectConfig,
         nodes: Collection<IrNodeSnapshot>,
         designElements: List<DesignElementSnapshot>,
+        inputDir: String,
     ) {
         val requestedCapabilities = linkedSetOf<String>()
         val missing = linkedMapOf<Pair<String, String>, LinkedHashSet<String>>()
@@ -160,6 +166,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         throw IllegalArgumentException(
             buildString {
                 appendLine("Cap4k analysis metadata contract violation.")
+                appendLine("Analysis input: $inputDir.")
                 appendLine(details)
                 appendLine("Requested analysis capabilities: ${requestedCapabilities.joinToString(", ")}.")
                 append(

@@ -447,13 +447,17 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(issueCaptcha.contains(""""name":"attempt","type":"Int","defaultValue":"1""""))
         assertTrue(issueCaptcha.contains(""""name":"enabled","type":"Boolean","defaultValue":"true""""))
         assertTrue(issueCaptcha.contains(""""name":"tags","type":"List<String>","defaultValue":"emptyList()""""))
-        assertTrue(issueCaptcha.contains(""""name":"channels","type":"Set<CaptchaChannel>","defaultValue":"emptySet()""""))
+        assertTrue(
+            issueCaptcha.contains(
+                """"name":"channels","type":"Set<demo.application.commands.auth.CaptchaChannel>","defaultValue":"emptySet()"""",
+            ),
+        )
         assertTrue(issueCaptcha.contains(""""name":"metadata","type":"Map<String,String>","defaultValue":"emptyMap()""""))
-        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","defaultValue":"demo.application.commands.auth.CaptchaChannel.INLINE""""))
-        assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","defaultValue":"demo.application.commands.auth.CaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"demo.application.commands.auth.CaptchaChannel","defaultValue":"demo.application.commands.auth.CaptchaChannel.INLINE""""))
+        assertTrue(issueCaptcha.contains(""""name":"policy","type":"demo.application.commands.auth.CaptchaPolicy","defaultValue":"demo.application.commands.auth.CaptchaPolicy""""))
         assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE""""))
-        assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"SharedCaptchaChannel","defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
-        assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"SharedCaptchaPolicy","defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"demo.application.shared.defaults.SharedCaptchaChannel","defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
+        assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"demo.application.shared.defaults.SharedCaptchaPolicy","defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
         assertTrue(issueCaptcha.contains(""""name":"topLevelReferenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE""""))
         assertTrue(issueCaptcha.contains(""""name":"topLevelGetterReferenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.TOP_LEVEL_GETTER_DEFAULT_TITLE""""))
         assertTrue(issueCaptcha.contains(""""name":"objectGetterReferenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.SharedGetterDefaults.OBJECT_DEFAULT_TITLE""""))

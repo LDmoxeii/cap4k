@@ -139,28 +139,30 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `explicit empty integration event artifacts keep design block empty and skip typed integration events`() {
-        val model = DefaultCanonicalAssembler().assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "integration_event",
-                            packageName = "order.events",
-                            name = "OrderCreated",
-                            description = "order created",
-                            aggregates = emptyList(),
-                            artifacts = emptyList(),
-                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
-                            eventName = "order.created",
+    fun `explicit empty integration event artifacts are rejected`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "integration_event",
+                                packageName = "order.events",
+                                name = "OrderCreated",
+                                description = "order created",
+                                aggregates = emptyList(),
+                                artifacts = emptyList(),
+                                fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
+                                eventName = "order.created",
+                            ),
                         ),
                     ),
                 ),
-            ),
-        ).model
+            )
+        }
 
-        assertEquals(emptyList<ArtifactSelectionModel>(), model.designBlocks.single().artifacts)
+        assertEquals("design entry OrderCreated artifacts must not be empty.", error.message)
     }
 
     @Test
@@ -285,8 +287,39 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `explicit empty artifact selections do not use default expansion`() {
-        val model = DefaultCanonicalAssembler().assemble(
+    fun `page artifacts reject framework derived page fields`() {
+        listOf("pageNum", "pageSize").forEach { fieldName ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DefaultCanonicalAssembler().assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = "query",
+                                    packageName = "order.read",
+                                    name = "FindOrderPage",
+                                    description = "find order page",
+                                    aggregates = emptyList(),
+                                    artifacts = listOf(ArtifactSelectionModel("query", "page")),
+                                    fields = listOf(SemanticFieldSnapshot(fieldName, "Int")),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            }
+
+            assertEquals(
+                "design entry FindOrderPage page variant derives $fieldName; remove the explicit field.",
+                error.message,
+            )
+        }
+    }
+
+    @Test
+    fun `non page artifacts allow business fields named pageNum and pageSize`() {
+        val block = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),
             snapshots = listOf(
                 DesignSpecSnapshot(
@@ -297,14 +330,69 @@ class DefaultCanonicalAssemblerTest {
                             name = "FindOrder",
                             description = "find order",
                             aggregates = emptyList(),
-                            artifacts = emptyList(),
+                            artifacts = listOf(ArtifactSelectionModel("query")),
+                            fields = listOf(
+                                SemanticFieldSnapshot("pageNum", "Int"),
+                                SemanticFieldSnapshot("pageSize", "Int"),
+                            ),
                         ),
                     ),
                 ),
             ),
-        ).model
+        ).model.designBlocks.single()
 
-        assertEquals(emptyList<ArtifactSelectionModel>(), model.designBlocks.single().artifacts)
+        assertEquals(listOf("pageNum", "pageSize"), block.fields.map { it.name })
+    }
+
+    @Test
+    fun `persisted domain event requires an event name`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "domain_event",
+                                packageName = "order",
+                                name = "OrderCreated",
+                                description = "order created",
+                                aggregates = listOf("Order"),
+                                persist = true,
+                            ),
+                        ),
+                    ),
+                    aggregateSnapshot("order"),
+                ),
+            )
+        }
+
+        assertEquals("persisted domain_event OrderCreated must declare eventName.", error.message)
+    }
+
+    @Test
+    fun `explicit empty artifact selections are rejected`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "query",
+                                packageName = "order.read",
+                                name = "FindOrder",
+                                description = "find order",
+                                aggregates = emptyList(),
+                                artifacts = emptyList(),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertEquals("design entry FindOrder artifacts must not be empty.", error.message)
     }
 
     @Test
@@ -329,6 +417,16 @@ class DefaultCanonicalAssemblerTest {
                 listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query", "page")),
                 "design entry FindOrder has conflicting query variants",
                 "conflicting-query-variant",
+            ),
+            Triple(
+                listOf(ArtifactSelectionModel("command")),
+                "design entry FindOrder artifact command is not supported on tag: query",
+                "cross-tag-family",
+            ),
+            Triple(
+                listOf(ArtifactSelectionModel("query-handler")),
+                "design entry FindOrder must select primary artifact query for tag: query",
+                "secondary-without-primary",
             ),
         )
 
@@ -358,31 +456,38 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `design block validation rejects result fields on tags without result payloads`() {
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DefaultCanonicalAssembler().assemble(
-                config = baseConfig(),
-                snapshots = listOf(
-                    DesignSpecSnapshot(
-                        entries = listOf(
-                            DesignSpecEntry(
-                                tag = "domain_service",
-                                packageName = "order",
-                                name = "OrderDomainService",
-                                description = "order domain service",
-                                aggregates = emptyList(),
-                                resultFields = listOf(SemanticFieldSnapshot(name = "accepted", typeExpression = "Boolean")),
+    fun `domain services reject request and result fields because they are metadata only`() {
+        listOf(
+            listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")) to emptyList(),
+            emptyList<SemanticFieldSnapshot>() to
+                listOf(SemanticFieldSnapshot(name = "accepted", typeExpression = "Boolean")),
+        ).forEach { (fields, resultFields) ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DefaultCanonicalAssembler().assemble(
+                    config = baseConfig(),
+                    snapshots = listOf(
+                        DesignSpecSnapshot(
+                            entries = listOf(
+                                DesignSpecEntry(
+                                    tag = "domain_service",
+                                    packageName = "order",
+                                    name = "OrderDomainService",
+                                    description = "order domain service",
+                                    aggregates = emptyList(),
+                                    fields = fields,
+                                    resultFields = resultFields,
+                                ),
                             ),
                         ),
                     ),
-                ),
+                )
+            }
+
+            assertEquals(
+                "domain_service OrderDomainService is metadata-only and must not declare fields or resultFields.",
+                error.message,
             )
         }
-
-        assertEquals(
-            "design entry OrderDomainService cannot declare resultFields on tag: domain_service",
-            error.message,
-        )
     }
 
     @Test
@@ -1038,7 +1143,9 @@ class DefaultCanonicalAssemblerTest {
                             description = "order created event",
                             aggregates = listOf("Order"),
                             persist = true,
+                            eventName = "order.created",
                             fields = listOf(
+                                SemanticFieldSnapshot(name = "entity", typeExpression = "String"),
                                 SemanticFieldSnapshot(name = "reason", typeExpression = "String"),
                                 SemanticFieldSnapshot(name = "snapshot", typeExpression = "Snapshot?"),
                                 SemanticFieldSnapshot(name = "snapshot.traceId", typeExpression = "java.util.UUID"),
@@ -1120,10 +1227,9 @@ class DefaultCanonicalAssemblerTest {
         )
         assertEquals(listOf(true, false, false, false, false, false, false), model.domainEvents.map { it.persist })
         assertEquals(
-            listOf("reason", "snapshot"),
+            listOf("entity", "reason", "snapshot"),
             model.domainEvents.first().fields.map { it.name },
         )
-        assertEquals(false, model.domainEvents.first().fields.any { it.name == "entity" })
     }
 
     @Test
@@ -1483,7 +1589,7 @@ class DefaultCanonicalAssemblerTest {
         val supportedField = DesignFieldSnapshot(name = "orderId", type = "Long", defaultValue = "0")
         val responseField = DesignFieldSnapshot(name = "accepted", type = "Boolean")
         val duplicateField = DesignFieldSnapshot(name = "ignored", type = "String")
-        val entityField = DesignFieldSnapshot(name = "entity", type = "Order")
+        val entityField = DesignFieldSnapshot(name = "entity", type = "String")
         val reasonField = DesignFieldSnapshot(name = "reason", type = "String")
 
         val model = assembler.assemble(
@@ -1567,7 +1673,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(listOf(ArtifactSelectionModel("api-payload", "page")), apiPayload.designJsonArtifacts)
 
         val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
-        assertEquals(listOf("reason"), domainEvent.fields.map { it.name })
+        assertEquals(listOf("entity", "reason"), domainEvent.fields.map { it.name })
     }
 
     @Test
@@ -1705,8 +1811,9 @@ class DefaultCanonicalAssemblerTest {
                             description = "order created",
                             aggregates = listOf("Order"),
                             persist = true,
+                            eventName = "order.created",
                             fields = listOf(
-                                DesignFieldSnapshot(name = "entity", type = "Order"),
+                                DesignFieldSnapshot(name = "entity", type = "String"),
                                 DesignFieldSnapshot(name = "reason", type = "String"),
                             ),
                         ),
@@ -1719,54 +1826,58 @@ class DefaultCanonicalAssemblerTest {
         val board = requireNotNull(result.model.drawingBoard)
         assertEquals(listOf("query", "domain_event"), board.elementsByTag.keys.toList())
         assertEquals(listOf(ArtifactSelectionModel("query", "page")), board.elementsByTag.getValue("query").single().designJsonArtifacts)
-        assertEquals(listOf("reason"), board.elementsByTag.getValue("domain_event").single().fields.map { it.name })
+        assertEquals(
+            listOf("entity", "reason"),
+            board.elementsByTag.getValue("domain_event").single().fields.map { it.name },
+        )
     }
 
     @Test
-    fun `recovered artifacts do not merge into matching design source block`() {
+    fun `recovered secondary artifact cannot borrow primary from design source block`() {
         val assembler = DefaultCanonicalAssembler()
 
-        val result = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "query",
-                            packageName = "order.read",
-                            name = "FindOrder",
-                            description = "find order",
-                            aggregates = listOf("Order"),
-                            artifacts = listOf(ArtifactSelectionModel("query")),
-                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
-                            resultFields = listOf(SemanticFieldSnapshot(name = "status", typeExpression = "String")),
-                        )
-                    )
-                ),
-                IrAnalysisSnapshot(
-                    inputDirs = emptyList(),
-                    nodes = emptyList(),
-                    edges = emptyList(),
-                    designElements = listOf(
-                        DesignElementSnapshot(
-                            tag = "query",
-                            packageName = "order.read",
-                            name = "FindOrder",
-                            description = "find order",
-                            aggregates = listOf("Order"),
-                            artifacts = listOf(ArtifactSelectionModel("query-handler")),
-                            fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
-                            resultFields = listOf(DesignFieldSnapshot(name = "status", type = "String")),
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembler.assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "query",
+                                packageName = "order.read",
+                                name = "FindOrder",
+                                description = "find order",
+                                aggregates = listOf("Order"),
+                                artifacts = listOf(ArtifactSelectionModel("query")),
+                                fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
+                                resultFields = listOf(SemanticFieldSnapshot(name = "status", typeExpression = "String")),
+                            ),
                         )
                     ),
+                    IrAnalysisSnapshot(
+                        inputDirs = emptyList(),
+                        nodes = emptyList(),
+                        edges = emptyList(),
+                        designElements = listOf(
+                            DesignElementSnapshot(
+                                tag = "query",
+                                packageName = "order.read",
+                                name = "FindOrder",
+                                description = "find order",
+                                aggregates = listOf("Order"),
+                                artifacts = listOf(ArtifactSelectionModel("query-handler")),
+                                fields = listOf(DesignFieldSnapshot(name = "orderId", type = "Long")),
+                                resultFields = listOf(DesignFieldSnapshot(name = "status", type = "String")),
+                            )
+                        ),
+                    ),
                 ),
-            ),
-        )
+            )
+        }
 
-        assertEquals(listOf(ArtifactSelectionModel("query")), result.model.designBlocks.single().artifacts)
         assertEquals(
-            listOf(ArtifactSelectionModel("query-handler")),
-            requireNotNull(result.model.drawingBoard).elements.single().designJsonArtifacts,
+            "design entry FindOrder must select primary artifact query for tag: query",
+            error.message,
         )
     }
 
@@ -1808,6 +1919,49 @@ class DefaultCanonicalAssemblerTest {
             listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler")),
             query.designJsonArtifacts,
         )
+    }
+
+    @Test
+    fun `drawing board merges inbound integration subscriber fragment before its primary carrier`() {
+        val result = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = emptyList(),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    designElements = listOf(
+                        DesignElementSnapshot(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderImported",
+                            description = "order imported",
+                            artifacts = listOf(ArtifactSelectionModel("integration-subscriber")),
+                        ),
+                        DesignElementSnapshot(
+                            tag = "integration_event",
+                            packageName = "order.events",
+                            name = "OrderImported",
+                            description = "order imported",
+                            artifacts = listOf(ArtifactSelectionModel("integration-event", "inbound")),
+                            eventName = "order.imported",
+                            fields = listOf(DesignFieldSnapshot("orderId", "Long")),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val event = requireNotNull(result.model.drawingBoard).elements.single()
+        assertEquals(
+            setOf(
+                ArtifactSelectionModel("integration-subscriber"),
+                ArtifactSelectionModel("integration-event", "inbound"),
+            ),
+            event.designJsonArtifacts.toSet(),
+        )
+        assertEquals("order.imported", event.eventName)
+        assertEquals(listOf("orderId"), event.fields.map { it.name })
     }
 
     @Test

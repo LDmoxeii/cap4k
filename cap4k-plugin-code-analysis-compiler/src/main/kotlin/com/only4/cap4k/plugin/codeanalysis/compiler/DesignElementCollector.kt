@@ -48,6 +48,7 @@ class DesignElementCollector(
     private val designBlockMetadataAnnFq = FqName(DESIGN_BLOCK_METADATA_ANNOTATION_FQ)
     private val domainEventAnnFq = FqName(options.domainEventAnnFq)
     private val integrationEventAnnFq = FqName(options.integrationEventAnnFq)
+    private val pageRequestFq = FqName(options.pageRequestFq)
 
     fun collect(moduleFragment: IrModuleFragment): List<DesignElement> {
         moduleFragment.files.forEach { it.acceptVoid(this) }
@@ -71,17 +72,26 @@ class DesignElementCollector(
         val name = ann.getStringArg("name").orEmpty().trim()
         val packageName = ann.getStringArg("packageName").orEmpty().trim()
         val family = ann.getStringArg("family").orEmpty().trim()
+        val variant = ann.getStringArg("variant").orEmpty().trim()
         require(tag.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank tag" }
         require(name.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank name" }
         require(family.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank family" }
 
         val nestedTypes = collectNestedTypes(declaration)
         val fields = primaryFieldCarrier(declaration, family)?.let { fieldsRoot ->
-            collectFields(
+            val recoveredFields = collectFields(
                 fieldsRoot,
                 nestedTypes,
                 DefaultValueContext("$tag $name field"),
-            ).filterRecoveredFields(family)
+            )
+            validateAndFilterPageFields(
+                carrier = fieldsRoot,
+                family = family,
+                variant = variant,
+                tag = tag,
+                name = name,
+                fields = recoveredFields,
+            )
         }.orEmpty()
         val resultFields = if (family.hasResultFields()) {
             findNestedClass(declaration, "Response")?.let {
@@ -91,11 +101,14 @@ class DesignElementCollector(
             emptyList()
         }
         val artifact = family.takeIf { it.isNotEmpty() }?.let {
-            DesignArtifact(family = it, variant = ann.getStringArg("variant").orEmpty().trim())
+            DesignArtifact(family = it, variant = variant)
         }
-        val eventName = ann.getStringArg("eventName").orEmpty().trim()
-            .ifBlank { declaration.readIntegrationEventName(integrationEventAnnFq).orEmpty() }
-        val persist = declaration.readDomainEventPersist(domainEventAnnFq)
+        val eventContract = declaration.resolveEventContract(
+            className = className,
+            family = family,
+            variant = variant,
+            metadataEventName = ann.getStringArg("eventName").orEmpty().trim(),
+        )
 
         mergeBlock(
             DesignElement(
@@ -104,8 +117,8 @@ class DesignElementCollector(
                 name = name,
                 description = ann.getStringArg("description").orEmpty(),
                 aggregates = ann.getStringListArg("aggregates"),
-                eventName = eventName,
-                persist = persist,
+                eventName = eventContract.eventName,
+                persist = eventContract.persist,
                 artifacts = listOfNotNull(artifact),
                 fields = fields,
                 resultFields = resultFields,
@@ -127,11 +140,46 @@ class DesignElementCollector(
     private fun String.hasResultFields(): Boolean =
         this == "command" || this == "query" || this == "capability" || this == "api-payload"
 
-    private fun List<DesignField>.filterRecoveredFields(family: String): List<DesignField> =
-        when (family) {
-            "domain-event" -> filterNot { field -> field.name == "entity" || field.name.startsWith("entity.") }
-            else -> this
+    private fun validateAndFilterPageFields(
+        carrier: IrClass,
+        family: String,
+        variant: String,
+        tag: String,
+        name: String,
+        fields: List<DesignField>,
+    ): List<DesignField> {
+        if (variant != "page") {
+            return fields
         }
+        require(family == "query" || family == "api-payload") {
+            "DesignBlockMetadata for $tag $name declares page variant on unsupported artifact family: $family"
+        }
+        require(carrier.isOrImplements(pageRequestFq)) {
+            "page design block $tag $name carrier must implement ${options.pageRequestFq}"
+        }
+
+        val constructor = carrier.primaryConstructor
+            ?: throw IllegalArgumentException("page design block $tag $name carrier must declare a primary constructor")
+        PAGE_FIELD_DEFAULTS.forEach { (fieldName, expectedDefault) ->
+            val parameters = constructor.valueParameters.filter { parameter -> parameter.name.asString() == fieldName }
+            require(parameters.size == 1) {
+                "page design block $tag $name carrier must declare exactly one $fieldName parameter"
+            }
+            val parameter = parameters.single()
+            require(typeFormatter.format(parameter.type) == "Int") {
+                "page design block $tag $name $fieldName must be non-null Int"
+            }
+            val actualDefault = resolveDefaultValue(
+                parameter,
+                "$tag $name framework page field $fieldName",
+                DefaultValueRenderStyle.KOTLIN_READY,
+            )
+            require(actualDefault == expectedDefault) {
+                "page design block $tag $name $fieldName must default to $expectedDefault"
+            }
+        }
+        return fields.filterNot { field -> field.name in PAGE_FIELD_DEFAULTS }
+    }
 
     private fun mergeBlock(element: DesignElement) {
         val key = BlockKey(element.tag, element.`package`, element.name)
@@ -356,6 +404,7 @@ class DesignElementCollector(
             return null
         }
         return when (expression.symbol.owner.fqNameWhenAvailable?.asString()) {
+            "kotlin.emptyArray" -> "emptyArray()"
             "kotlin.collections.emptyList" -> "emptyList()"
             "kotlin.collections.emptySet" -> "emptySet()"
             "kotlin.collections.emptyMap" -> "emptyMap()"
@@ -566,16 +615,83 @@ class DesignElementCollector(
         return nestedTypes
     }
 
-    private fun IrClass.readDomainEventPersist(domainEventAnn: FqName): Boolean? {
-        val ann = findAnnotation(domainEventAnn)
-            ?: return null
-        return ann.getBooleanArg("persist") ?: false
+    private fun IrClass.resolveEventContract(
+        className: String,
+        family: String,
+        variant: String,
+        metadataEventName: String,
+    ): RecoveredEventContract = when (family) {
+        "domain-event" -> resolveDomainEventContract(className, metadataEventName)
+        "integration-event" -> resolveIntegrationEventContract(className, variant, metadataEventName)
+        else -> RecoveredEventContract(eventName = metadataEventName)
     }
 
-    private fun IrClass.readIntegrationEventName(integrationEventAnn: FqName): String? {
-        val ann = findAnnotation(integrationEventAnn)
-            ?: return null
-        return ann.getStringArg("value")?.takeIf { it.isNotBlank() }
+    private fun IrClass.resolveDomainEventContract(
+        className: String,
+        metadataEventName: String,
+    ): RecoveredEventContract {
+        val annotation = findAnnotation(domainEventAnnFq)
+            ?: throw IllegalArgumentException(
+                "domain-event metadata carrier $className must declare runtime annotation ${domainEventAnnFq.asString()}",
+            )
+        val runtimeEventName = annotation.getStringArg("value").orEmpty().trim()
+        val persist = annotation.getBooleanArg("persist") ?: false
+        val eventName = reconcileRuntimeEventName(
+            className = className,
+            family = "domain-event",
+            metadataEventName = metadataEventName,
+            runtimeEventName = runtimeEventName,
+            runtimeNameRequired = persist,
+        )
+        return RecoveredEventContract(eventName = eventName, persist = persist)
+    }
+
+    private fun IrClass.resolveIntegrationEventContract(
+        className: String,
+        variant: String,
+        metadataEventName: String,
+    ): RecoveredEventContract {
+        val annotation = findAnnotation(integrationEventAnnFq)
+            ?: throw IllegalArgumentException(
+                "integration-event metadata carrier $className must declare runtime annotation ${integrationEventAnnFq.asString()}",
+            )
+        val runtimeEventName = annotation.getStringArg("value").orEmpty().trim()
+        val subscriber = annotation.getStringArg("subscriber")?.trim().orEmpty().ifBlank { NONE_SUBSCRIBER }
+        val runtimeVariant = if (subscriber.equals(NONE_SUBSCRIBER, ignoreCase = true)) "outbound" else "inbound"
+        require(variant == runtimeVariant) {
+            "integration-event metadata/runtime direction conflict on $className: metadata variant=$variant, runtime variant=$runtimeVariant"
+        }
+        return RecoveredEventContract(
+            eventName = reconcileRuntimeEventName(
+                className = className,
+                family = "integration-event",
+                metadataEventName = metadataEventName,
+                runtimeEventName = runtimeEventName,
+                runtimeNameRequired = true,
+            ),
+        )
+    }
+
+    private fun reconcileRuntimeEventName(
+        className: String,
+        family: String,
+        metadataEventName: String,
+        runtimeEventName: String,
+        runtimeNameRequired: Boolean,
+    ): String {
+        require(!runtimeNameRequired || runtimeEventName.isNotBlank()) {
+            "$family runtime annotation on $className must declare a non-blank event name"
+        }
+        if (metadataEventName.isBlank()) {
+            return runtimeEventName
+        }
+        require(runtimeEventName.isNotBlank()) {
+            "$family metadata/runtime eventName conflict on $className: metadata declares $metadataEventName but runtime is blank"
+        }
+        require(metadataEventName == runtimeEventName) {
+            "$family metadata/runtime eventName conflict on $className: metadata=$metadataEventName, runtime=$runtimeEventName"
+        }
+        return metadataEventName
     }
 
     private fun IrClass.findAnnotation(fqName: FqName): IrConstructorCall? {
@@ -621,6 +737,11 @@ class DesignElementCollector(
     private data class NestedType(
         val nestedClass: IrClass,
         val pathSuffix: String,
+    )
+
+    private data class RecoveredEventContract(
+        val eventName: String,
+        val persist: Boolean? = null,
     )
 
     private data class DefaultValueContext(
@@ -686,4 +807,22 @@ class DesignElementCollector(
 
     private val org.jetbrains.kotlin.ir.types.IrTypeArgument.typeOrNull: IrType?
         get() = (this as? IrTypeProjection)?.type
+
+    private fun IrClass.isOrImplements(fqName: FqName, visited: MutableSet<IrClass> = mutableSetOf()): Boolean {
+        if (fqNameWhenAvailable == fqName) return true
+        if (!visited.add(this)) return false
+        return superTypes.any { type ->
+            val simpleType = type as? IrSimpleType ?: return@any false
+            val owner = simpleType.classifier?.owner as? IrClass ?: return@any false
+            owner.isOrImplements(fqName, visited)
+        }
+    }
+
+    private companion object {
+        const val NONE_SUBSCRIBER = "[none]"
+        val PAGE_FIELD_DEFAULTS = linkedMapOf(
+            "pageNum" to "1",
+            "pageSize" to "10",
+        )
+    }
 }
