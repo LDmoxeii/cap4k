@@ -401,6 +401,134 @@ class DesignElementExtractionTest {
     }
 
     @Test
+    fun `handwritten business bodies do not change recovered design block semantics`() {
+        val metadata = SourceFile.kotlin(
+            "DesignBlockMetadata.kt",
+            """
+                package com.only4.cap4k.analysis.metadata
+
+                annotation class DesignBlockMetadata(
+                    val tag: String,
+                    val name: String,
+                    val packageName: String,
+                    val description: String = "",
+                    val aggregates: Array<String> = [],
+                    val eventName: String = "",
+                    val family: String = "",
+                    val variant: String = "",
+                )
+            """.trimIndent(),
+        )
+        val primary = SourceFile.kotlin(
+            "FindCustomer.kt",
+            """
+                package demo.application.queries.customer
+
+                import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+
+                @DesignBlockMetadata(
+                    tag = "query",
+                    packageName = "customer.read",
+                    name = "FindCustomer",
+                    description = "Find one customer",
+                    aggregates = ["Customer"],
+                    family = "query",
+                )
+                object FindCustomer {
+                    data class Request(val customerId: Long)
+                    data class Response(val displayName: String)
+                }
+            """.trimIndent(),
+        )
+
+        fun recoveredBlock(handlerSource: SourceFile): String {
+            val outputDir = compileWithCap4kPlugin(listOf(metadata, primary, handlerSource))
+            val json = outputDir.resolve("design-elements.json").toFile().readText()
+            return findObject(extractTopLevelObjects(json), "query", "FindCustomer")
+        }
+
+        val repositoryImplementation = recoveredBlock(
+            SourceFile.kotlin(
+                "FindCustomerQueryHandler.kt",
+                """
+                    package demo.adapter.queries.customer
+
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                    import demo.application.queries.customer.FindCustomer
+
+                    interface CustomerReadRepository {
+                        fun findDisplayName(customerId: Long): String
+                    }
+
+                    @DesignBlockMetadata(
+                        tag = "query",
+                        packageName = "customer.read",
+                        name = "FindCustomer",
+                        description = "Find one customer",
+                        aggregates = ["Customer"],
+                        family = "query-handler",
+                    )
+                    class FindCustomerQueryHandler(
+                        private val repository: CustomerReadRepository,
+                    ) {
+                        fun execute(request: FindCustomer.Request): FindCustomer.Response {
+                            val displayName = repository.findDisplayName(request.customerId)
+                            return FindCustomer.Response(displayName)
+                        }
+                    }
+                """.trimIndent(),
+            ),
+        )
+        val alternateBusinessImplementation = recoveredBlock(
+            SourceFile.kotlin(
+                "FindCustomerQueryHandler.kt",
+                """
+                    package demo.adapter.queries.customer
+
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                    import demo.application.queries.customer.FindCustomer
+
+                    interface CustomerSnapshotRepository {
+                        fun lookupName(customerId: Long): String
+                    }
+                    interface QueryAudit {
+                        fun record(customerId: Long, displayName: String)
+                    }
+
+                    @DesignBlockMetadata(
+                        tag = "query",
+                        packageName = "customer.read",
+                        name = "FindCustomer",
+                        description = "Find one customer",
+                        aggregates = ["Customer"],
+                        family = "query-handler",
+                    )
+                    class FindCustomerQueryHandler(
+                        private val snapshots: CustomerSnapshotRepository,
+                        private val audit: QueryAudit,
+                    ) {
+                        fun execute(request: FindCustomer.Request): FindCustomer.Response {
+                            val displayName = snapshots.lookupName(request.customerId).uppercase()
+                            audit.record(request.customerId, displayName)
+                            return FindCustomer.Response(displayName)
+                        }
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        assertEquals(repositoryImplementation, alternateBusinessImplementation)
+        assertTrue(
+            repositoryImplementation.contains(
+                "\"artifacts\":[{\"family\":\"query\"},{\"family\":\"query-handler\"}]",
+            ),
+        )
+        assertFalse(repositoryImplementation.contains("repository"))
+        assertFalse(repositoryImplementation.contains("snapshots"))
+        assertFalse(repositoryImplementation.contains("audit"))
+    }
+
+    @Test
     fun `domain event recovery preserves ordinary entity field and runtime event contract`() {
         val sources = listOf(
             SourceFile.kotlin(
@@ -514,6 +642,7 @@ class DesignElementExtractionTest {
                         tag = "integration_event",
                         packageName = "payment.integration",
                         name = "PaymentReceived",
+                        eventName = "demo.payment.received",
                         family = "integration-event",
                         variant = "inbound",
                     )

@@ -258,9 +258,12 @@ class DesignJsonSourceProvider : SourceProvider {
             else -> return
         }
         if (artifacts.orEmpty().none { it.family == pageFamily && it.variant == "page" }) return
-        val collision = fields.firstOrNull { it.name in PageFieldNames } ?: return
+        val collision = fields.firstOrNull { field ->
+            field.name.substringBefore('.').removeSuffix("[]") in PageFieldNames
+        } ?: return
+        val pageFieldName = collision.name.substringBefore('.').removeSuffix("[]")
         throw IllegalArgumentException(
-            "design entry $name page variant derives ${collision.name}; remove the explicit field.",
+            "design entry $name page variant derives $pageFieldName; remove the explicit field.",
         )
     }
 

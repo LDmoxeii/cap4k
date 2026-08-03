@@ -254,12 +254,16 @@ class CanonicalTypeCatalog(
     ): SemanticTypeRef = when (parsed) {
         is ParsedSemanticType.Named -> builtin(parsed.token, parsed.nullable)
             ?: SemanticNamedTypeRef(
-                symbol = resolveNamed(
-                    token = parsed.token,
+                symbol = validateSupportedNamedIdentity(
+                    identity = resolveNamed(
+                        token = parsed.token,
+                        fieldPath = fieldPath,
+                        originalExpression = originalExpression,
+                        ownerPackageName = ownerPackageName,
+                        aggregateContext = aggregateContext,
+                    ),
                     fieldPath = fieldPath,
                     originalExpression = originalExpression,
-                    ownerPackageName = ownerPackageName,
-                    aggregateContext = aggregateContext,
                 ),
                 nullable = parsed.nullable,
             )
@@ -333,6 +337,17 @@ class CanonicalTypeCatalog(
     private fun selectUnique(candidates: List<CanonicalTypeIdentity>): CanonicalTypeIdentity? =
         candidates.distinctBy { it.fqn }.singleOrNull()
 
+    private fun validateSupportedNamedIdentity(
+        identity: CanonicalTypeIdentity,
+        fieldPath: String,
+        originalExpression: String,
+    ): CanonicalTypeIdentity {
+        require(identity.fqn !in KotlinPrimitiveArrayFqns) {
+            "primitive array semantic type is unsupported for field $fieldPath ($originalExpression): ${identity.fqn}; use Array<T>"
+        }
+        return identity
+    }
+
     private fun externalIdentity(fqn: String): CanonicalTypeIdentity {
         val normalized = fqn.trim('.')
         require('.' in normalized) { "external type must use an FQN: $fqn" }
@@ -364,6 +379,23 @@ class CanonicalTypeCatalog(
         is ParsedSemanticType.SetType -> elementType.namedTokens()
         is ParsedSemanticType.ArrayType -> elementType.namedTokens()
         is ParsedSemanticType.MapType -> keyType.namedTokens() + valueType.namedTokens()
+    }
+
+    private companion object {
+        val KotlinPrimitiveArrayFqns = setOf(
+            "kotlin.BooleanArray",
+            "kotlin.ByteArray",
+            "kotlin.CharArray",
+            "kotlin.DoubleArray",
+            "kotlin.FloatArray",
+            "kotlin.IntArray",
+            "kotlin.LongArray",
+            "kotlin.ShortArray",
+            "kotlin.UByteArray",
+            "kotlin.UIntArray",
+            "kotlin.ULongArray",
+            "kotlin.UShortArray",
+        )
     }
 }
 

@@ -35,6 +35,11 @@ import org.junit.jupiter.api.Test
 class DesignDomainEventArtifactPlannerTest {
 
     @Test
+    fun `Kotlin string literals render form feed with a supported unicode escape`() {
+        assertEquals("\"\\u000c\"", "\u000c".toKotlinStringLiteral())
+    }
+
+    @Test
     fun `plans domain event artifacts into domain events path with one-level nested type contract`() {
         val planner = DesignDomainEventArtifactPlanner()
         assertEquals("domain-event", planner.id)

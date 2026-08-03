@@ -572,7 +572,7 @@ class DesignElementCollector(
                 '\r' -> append("\\r")
                 '\t' -> append("\\t")
                 '\b' -> append("\\b")
-                '\u000C' -> append("\\f")
+                '\u000C' -> append("\\u000c")
                 '$' -> append("\\$")
                 else -> {
                     if (ch.code < 0x20) {
@@ -634,7 +634,7 @@ class DesignElementCollector(
             ?: throw IllegalArgumentException(
                 "domain-event metadata carrier $className must declare runtime annotation ${domainEventAnnFq.asString()}",
             )
-        val runtimeEventName = annotation.getStringArg("value").orEmpty().trim()
+        val runtimeEventName = annotation.getStringArg("value").orEmpty()
         val persist = annotation.getBooleanArg("persist") ?: false
         val eventName = reconcileRuntimeEventName(
             className = className,
@@ -655,8 +655,8 @@ class DesignElementCollector(
             ?: throw IllegalArgumentException(
                 "integration-event metadata carrier $className must declare runtime annotation ${integrationEventAnnFq.asString()}",
             )
-        val runtimeEventName = annotation.getStringArg("value").orEmpty().trim()
-        val subscriber = annotation.getStringArg("subscriber")?.trim().orEmpty().ifBlank { NONE_SUBSCRIBER }
+        val runtimeEventName = annotation.getStringArg("value").orEmpty()
+        val subscriber = annotation.getStringArg("subscriber") ?: NONE_SUBSCRIBER
         val runtimeVariant = if (subscriber.equals(NONE_SUBSCRIBER, ignoreCase = true)) "outbound" else "inbound"
         require(variant == runtimeVariant) {
             "integration-event metadata/runtime direction conflict on $className: metadata variant=$variant, runtime variant=$runtimeVariant"
@@ -681,12 +681,6 @@ class DesignElementCollector(
     ): String {
         require(!runtimeNameRequired || runtimeEventName.isNotBlank()) {
             "$family runtime annotation on $className must declare a non-blank event name"
-        }
-        if (metadataEventName.isBlank()) {
-            return runtimeEventName
-        }
-        require(runtimeEventName.isNotBlank()) {
-            "$family metadata/runtime eventName conflict on $className: metadata declares $metadataEventName but runtime is blank"
         }
         require(metadataEventName == runtimeEventName) {
             "$family metadata/runtime eventName conflict on $className: metadata=$metadataEventName, runtime=$runtimeEventName"

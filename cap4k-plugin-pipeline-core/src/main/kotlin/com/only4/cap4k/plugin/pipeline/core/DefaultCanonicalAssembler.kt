@@ -819,9 +819,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
         val pageFamily = PageArtifactFamilyByTag[tag]
         if (pageFamily != null && effectiveArtifacts().any { it.family == pageFamily && it.variant == "page" }) {
-            val collision = fields.firstOrNull { it.name in PageFieldNames }
+            val collision = fields.firstOrNull { field ->
+                field.name.substringBefore('.').removeSuffix("[]") in PageFieldNames
+            }
+            val pageFieldName = collision?.name?.substringBefore('.')?.removeSuffix("[]")
             require(collision == null) {
-                "design entry $name page variant derives ${collision?.name}; remove the explicit field."
+                "design entry $name page variant derives $pageFieldName; remove the explicit field."
             }
         }
         if (tag == "domain_event") {

@@ -19,6 +19,11 @@
         "defaultValue": "order"
       },
       {
+        "name": "formFeedNote",
+        "type": "String",
+        "defaultValue": "\"before\\u000cafter\""
+      },
+      {
         "name": "orderId",
         "type": "com.acme.demo.domain.aggregates.order.OrderId"
       },
@@ -155,6 +160,32 @@
     ]
   },
   {
+    "tag": "query",
+    "package": "order.read",
+    "name": "FindOrderSummary",
+    "description": "find one order summary without a generated handler",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "query"
+      }
+    ],
+    "fields": [
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "summary",
+        "type": "String"
+      }
+    ]
+  },
+  {
     "tag": "capability",
     "package": "authorization",
     "name": "IssueToken",
@@ -251,6 +282,33 @@
     ]
   },
   {
+    "tag": "api_payload",
+    "package": "order",
+    "name": "OrderPagePayload",
+    "description": "page payload with framework-derived paging fields",
+    "aggregates": [],
+    "artifacts": [
+      {
+        "family": "api-payload",
+        "variant": "page"
+      }
+    ],
+    "fields": [
+      {
+        "name": "filter",
+        "type": "String?",
+        "defaultValue": "null"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "items",
+        "type": "List<String>",
+        "defaultValue": "emptyList()"
+      }
+    ]
+  },
+  {
     "tag": "domain_event",
     "package": "order",
     "name": "OrderConfirmed",
@@ -299,6 +357,37 @@
         "defaultValue": "emptyMap()"
       }
     ]
+  },
+  {
+    "tag": "domain_event",
+    "package": "order",
+    "name": "OrderObserved",
+    "description": "a transient order observation with a payload",
+    "aggregates": [
+      "Order"
+    ],
+    "persist": false,
+    "artifacts": [
+      {
+        "family": "domain-event"
+      }
+    ],
+    "fields": [
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      }
+    ]
+  },
+  {
+    "tag": "domain_event",
+    "package": "order",
+    "name": "OrderHeartbeat",
+    "description": "a transient marker event without payload fields",
+    "aggregates": [
+      "Order"
+    ],
+    "persist": false
   },
   {
     "tag": "integration_event",

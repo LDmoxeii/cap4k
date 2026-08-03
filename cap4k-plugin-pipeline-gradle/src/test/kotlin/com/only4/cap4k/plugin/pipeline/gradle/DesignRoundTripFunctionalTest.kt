@@ -33,6 +33,7 @@ import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -43,6 +44,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 import java.util.TreeMap
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.extension
@@ -60,6 +62,15 @@ class DesignRoundTripFunctionalTest {
         val projectB = Files.createTempDirectory("cap4k-roundtrip-project-b")
         copyCompileFixture(projectA, FixtureName)
         copyCompileFixture(projectB, FixtureName)
+
+        val originalDesignFile = projectA.resolve("design/design.json")
+        val originalDesignBytes = Files.readAllBytes(originalDesignFile)
+        val originalDesignHash = sha256(originalDesignBytes)
+        val originalCanonical = canonicalTacticalProjection(
+            projectDir = projectA,
+            designFiles = listOf(originalDesignFile),
+        )
+        assertRichFixtureCoverage(originalCanonical)
 
         generateAndCompile(projectA)
         val firstGenerationSkeleton = frameworkOwnedSkeleton(projectA)
@@ -85,11 +96,19 @@ class DesignRoundTripFunctionalTest {
             }
         }
 
-        val recoveredDesignFiles = registerDrawingBoardAsDesignJson(projectB, drawingBoardFiles)
-        val originalCanonical = canonicalTacticalProjection(
-            projectDir = projectA,
-            designFiles = listOf(projectA.resolve("design/design.json")),
+        val projectABytesAfterRoundTrip = Files.readAllBytes(originalDesignFile)
+        assertArrayEquals(
+            originalDesignBytes,
+            projectABytesAfterRoundTrip,
+            "Project A operations must not mutate the original Design JSON bytes",
         )
+        assertEquals(
+            originalDesignHash,
+            sha256(projectABytesAfterRoundTrip),
+            "Project A operations must not mutate the original Design JSON hash",
+        )
+
+        val recoveredDesignFiles = registerDrawingBoardAsDesignJson(projectB, drawingBoardFiles)
         val recoveredCanonical = canonicalTacticalProjection(
             projectDir = projectB,
             designFiles = recoveredDesignFiles,
@@ -107,6 +126,75 @@ class DesignRoundTripFunctionalTest {
         assertEquals(firstRuntimeAnnotations, secondRuntimeAnnotations)
         assertExpectedRuntimeAnnotations(firstRuntimeAnnotations)
     }
+
+    private fun assertRichFixtureCoverage(projection: TacticalProjection) {
+        val blocks = projection.blocks
+        assertEquals(DrawingBoardTags.toSet(), blocks.map { it.tag }.toSet())
+
+        val ordinaryQuery = blocks.single { it.tag == "query" && it.name == "FindOrderSummary" }
+        assertEquals(listOf(ArtifactProjection("query", "")), ordinaryQuery.artifacts)
+        assertTrue(ordinaryQuery.request.fields.isNotEmpty())
+        assertTrue(ordinaryQuery.response?.fields?.isNotEmpty() == true)
+
+        val pageQuery = blocks.single { it.tag == "query" && it.name == "FindOrders" }
+        assertTrue(pageQuery.artifacts.contains(ArtifactProjection("query", "page")))
+        assertTrue(pageQuery.artifacts.contains(ArtifactProjection("query-handler", "")))
+
+        val ordinaryApiPayload = blocks.single { it.tag == "api_payload" && it.name == "OrderSearchPayload" }
+        assertEquals(listOf(ArtifactProjection("api-payload", "")), ordinaryApiPayload.artifacts)
+        val pageApiPayload = blocks.single { it.tag == "api_payload" && it.name == "OrderPagePayload" }
+        assertEquals(listOf(ArtifactProjection("api-payload", "page")), pageApiPayload.artifacts)
+
+        assertTrue(
+            blocks.any { block -> block.artifacts.any { it.family in SecondaryArtifactFamilies } },
+            "Rich fixture must select optional secondary artifacts",
+        )
+
+        val persisted = blocks.single { it.tag == "domain_event" && it.name == "OrderConfirmed" }
+        assertEquals(true, persisted.persist)
+        assertEquals("order.confirmed", persisted.eventName)
+        assertTrue(persisted.request.fields.isNotEmpty())
+        assertTrue(persisted.artifacts.contains(ArtifactProjection("domain-subscriber", "")))
+
+        val transientPayload = blocks.single { it.tag == "domain_event" && it.name == "OrderObserved" }
+        assertEquals(false, transientPayload.persist)
+        assertTrue(transientPayload.eventName.isEmpty())
+        assertTrue(transientPayload.request.fields.isNotEmpty())
+        assertEquals(listOf(ArtifactProjection("domain-event", "")), transientPayload.artifacts)
+
+        val marker = blocks.single { it.tag == "domain_event" && it.name == "OrderHeartbeat" }
+        assertEquals(false, marker.persist)
+        assertTrue(marker.eventName.isEmpty())
+        assertTrue(marker.request.fields.isEmpty())
+        assertTrue(marker.artifacts.contains(ArtifactProjection("domain-subscriber", "")))
+
+        val integrationEvents = blocks.filter { it.tag == "integration_event" }
+        assertTrue(
+            integrationEvents.any { it.artifacts.contains(ArtifactProjection("integration-event", "inbound")) },
+            "Rich fixture must cover inbound Integration Events",
+        )
+        assertTrue(
+            integrationEvents.any { it.artifacts.contains(ArtifactProjection("integration-event", "outbound")) },
+            "Rich fixture must cover outbound Integration Events",
+        )
+
+        val defaults = blocks.flatMap { block ->
+            block.request.defaultExpressions() + block.response?.defaultExpressions().orEmpty()
+        }
+        assertTrue(
+            defaults.any { it.contains("\\u000c") },
+            "Rich fixture must carry a U+000C string default as a Kotlin Unicode escape",
+        )
+    }
+
+    private fun ValueProjection.defaultExpressions(): List<String> =
+        fields.mapNotNull(FieldProjection::defaultValue) +
+            nestedDefinitions.flatMap { it.defaultExpressions() } +
+            pageItem?.defaultExpressions().orEmpty()
+
+    private fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256")
+        .digest(bytes)
+        .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun generateAndCompile(projectDir: Path) {
         val generateResult = runner(
@@ -526,10 +614,21 @@ $registeredPaths
     }
 
     private fun assertExpectedRuntimeAnnotations(annotations: RuntimeAnnotationProjection) {
-        assertEquals(1, annotations.domainEvents.size)
-        val domainEvent = annotations.domainEvents.values.single()
-        assertTrue(domainEvent.contains("value=\"order.confirmed\""), domainEvent)
-        assertTrue(domainEvent.contains("persist=true"), domainEvent)
+        assertEquals(3, annotations.domainEvents.size)
+        val persisted = annotations.domainEvents.entries.single { (path, _) ->
+            path.contains("OrderConfirmed")
+        }.value
+        assertTrue(persisted.contains("value=\"order.confirmed\""), persisted)
+        assertTrue(persisted.contains("persist=true"), persisted)
+
+        val transientPayload = annotations.domainEvents.entries.single { (path, _) ->
+            path.contains("OrderObserved")
+        }.value
+        assertEquals("persist=false", transientPayload)
+        val marker = annotations.domainEvents.entries.single { (path, _) ->
+            path.contains("OrderHeartbeat")
+        }.value
+        assertEquals("persist=false", marker)
 
         assertEquals(2, annotations.integrationEvents.size)
         val inbound = annotations.integrationEvents.values.single { value ->
@@ -616,6 +715,12 @@ $registeredPaths
             "domain_event",
             "integration_event",
             "domain_service",
+        )
+        val SecondaryArtifactFamilies = setOf(
+            "query-handler",
+            "capability-handler",
+            "domain-subscriber",
+            "integration-subscriber",
         )
         val DesignGeneratorIds = linkedSetOf(
             "command",

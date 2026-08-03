@@ -49,6 +49,52 @@ class SemanticValueCompilerTest {
     }
 
     @Test
+    fun `rejects Kotlin primitive arrays after final canonical identity resolution`() {
+        val primitiveArrayFqns = listOf(
+            "kotlin.BooleanArray",
+            "kotlin.ByteArray",
+            "kotlin.CharArray",
+            "kotlin.DoubleArray",
+            "kotlin.FloatArray",
+            "kotlin.IntArray",
+            "kotlin.LongArray",
+            "kotlin.ShortArray",
+            "kotlin.UByteArray",
+            "kotlin.UIntArray",
+            "kotlin.ULongArray",
+            "kotlin.UShortArray",
+        )
+        primitiveArrayFqns.forEach { fqn ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                CanonicalTypeCatalog().resolveExpression(fqn, "Payload.values")
+            }
+            assertTrue(error.message.orEmpty().contains(fqn))
+            assertTrue(error.message.orEmpty().contains("Payload.values"))
+        }
+
+        val primitiveArray = identity("kotlin", "IntArray", CanonicalTypeKind.EXTERNAL)
+        val aliasError = assertThrows(IllegalArgumentException::class.java) {
+            CanonicalTypeCatalog(aliases = mapOf("Numbers" to primitiveArray))
+                .resolveExpression("Numbers", "Payload.aliasValues")
+        }
+        assertTrue(aliasError.message.orEmpty().contains("kotlin.IntArray"))
+
+        val evidenceCatalog = CanonicalTypeCatalog(sourceTypeExpressions = listOf("kotlin.IntArray"))
+        val recursiveError = assertThrows(IllegalArgumentException::class.java) {
+            evidenceCatalog.resolveExpression(
+                "Map<String, List<IntArray?>>",
+                "Payload.nestedValues",
+            )
+        }
+        assertTrue(recursiveError.message.orEmpty().contains("kotlin.IntArray"))
+        assertTrue(recursiveError.message.orEmpty().contains("Payload.nestedValues"))
+
+        val custom = CanonicalTypeCatalog(sourceTypeExpressions = listOf("com.acme.IntArray"))
+            .resolveExpression("IntArray", "Payload.businessValues") as SemanticNamedTypeRef
+        assertEquals("com.acme.IntArray", custom.symbol.fqn)
+    }
+
+    @Test
     fun `rejects unsupported generic constructors with field evidence`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             SemanticTypeExpressionParser.parse("MutableList<String>", "Order.items")
@@ -250,6 +296,10 @@ class SemanticValueCompilerTest {
 
         assertEquals("\"\"", SemanticDefaultCompiler.compile("", stringType, "Payload.empty")?.kotlinExpression)
         assertEquals("\"  \"", SemanticDefaultCompiler.compile("  ", stringType, "Payload.spaces")?.kotlinExpression)
+        assertEquals(
+            "\"\\u000c\"",
+            SemanticDefaultCompiler.compile("\"\\u000c\"", stringType, "Payload.formFeed")?.kotlinExpression,
+        )
     }
 
     @Test

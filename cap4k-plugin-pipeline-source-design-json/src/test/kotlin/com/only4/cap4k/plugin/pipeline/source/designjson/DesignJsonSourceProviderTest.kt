@@ -487,6 +487,67 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `page variants validate the root segment of nested field paths`() {
+        listOf(
+            "pageNum.value" to "pageNum",
+            "pageSize[].value" to "pageSize",
+        ).forEachIndexed { index, (fieldPath, pageFieldName) ->
+            val invalidFile = tempDir.resolve("page-derived-nested-field-$index.json")
+            Files.writeString(
+                invalidFile,
+                """
+                    [
+                      {
+                        "tag": "query",
+                        "package": "order.read",
+                        "name": "FindOrderPage",
+                        "artifacts": [{ "family": "query", "variant": "page" }],
+                        "fields": [{ "name": "$fieldPath", "type": "Int" }]
+                      }
+                    ]
+                """.trimIndent(),
+                StandardCharsets.UTF_8,
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DesignJsonSourceProvider().collect(configFor(invalidFile.toString()))
+            }
+            assertEquals(
+                "design entry FindOrderPage page variant derives $pageFieldName; remove the explicit field.",
+                error.message,
+            )
+        }
+
+        val nestedBusinessFile = tempDir.resolve("page-nested-business-fields.json")
+        Files.writeString(
+            nestedBusinessFile,
+            """
+                [
+                  {
+                    "tag": "query",
+                    "package": "order.read",
+                    "name": "FindOrderPage",
+                    "artifacts": [{ "family": "query", "variant": "page" }],
+                    "fields": [
+                      { "name": "filter.pageNum", "type": "Int" },
+                      { "name": "filters[].pageSize", "type": "Int" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val nestedSnapshot = DesignJsonSourceProvider().collect(
+            configFor(nestedBusinessFile.toString()),
+        ) as DesignSpecSnapshot
+        assertEquals(
+            listOf("filter.pageNum", "filters[].pageSize"),
+            nestedSnapshot.entries.single().fields.map { it.name },
+        )
+    }
+
+    @Test
     fun `allows domain event entry without package`() {
         val tempFile = tempDir.resolve("domain-event-without-package.json")
         Files.writeString(

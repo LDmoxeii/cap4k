@@ -48,9 +48,9 @@ field item 常见 shape：
 { "name": "snapshots", "type": "List<ContentSnapshot?>?" }
 ```
 
-`type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>`、`Array<T>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、`IntArray` / `LongArray` 等 primitive array alias、tuple 或任意 generic type。Domain Event 的递归 Entity 检查同样遍历 `Array<T>` element。旧 `nullable` 字段已移除。
+`type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>`、`Array<T>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、primitive array、tuple 或任意 generic type。Primitive array 会在最终 canonical identity 解析后拒绝，因此 `kotlin.IntArray`、指向它的 alias、short-name evidence 及递归容器位置都不能绕过校验；`Array<Int>` 仍受支持，业务类型 `com.acme.IntArray` 不会仅因 simple name 被拒绝。Domain Event 的递归 Entity 检查同样遍历 `Array<T>` element。旧 `nullable` 字段已移除。
 
-`PageData<Item>` 是 query / API result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。`query` 或 `api-payload` 的 `page` variant 会派生 `pageNum: Int = 1` 和 `pageSize: Int = 10`；作者不能在 page block 中重复声明这两个字段，非 page block 则可以把它们当作普通字段。
+`PageData<Item>` 是 query / API result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。`query` 或 `api-payload` 的 `page` variant 会派生 `pageNum: Int = 1` 和 `pageSize: Int = 10`；作者不能声明根路径为 `pageNum` / `pageSize` 的 field，因此 `pageNum.value`、`pageSize[].value` 同样非法，`filter.pageNum`、`filters[].pageSize` 不冲突。非 page block 可以把这些根字段当作普通业务字段。
 
 ## Artifact Selection
 

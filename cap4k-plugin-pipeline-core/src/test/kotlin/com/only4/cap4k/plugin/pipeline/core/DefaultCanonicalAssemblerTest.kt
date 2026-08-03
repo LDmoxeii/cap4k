@@ -288,7 +288,12 @@ class DefaultCanonicalAssemblerTest {
 
     @Test
     fun `page artifacts reject framework derived page fields`() {
-        listOf("pageNum", "pageSize").forEach { fieldName ->
+        listOf(
+            "pageNum" to "pageNum",
+            "pageSize" to "pageSize",
+            "pageNum.value" to "pageNum",
+            "pageSize[].value" to "pageSize",
+        ).forEach { (fieldPath, pageFieldName) ->
             val error = assertThrows(IllegalArgumentException::class.java) {
                 DefaultCanonicalAssembler().assemble(
                     config = baseConfig(),
@@ -302,7 +307,7 @@ class DefaultCanonicalAssemblerTest {
                                     description = "find order page",
                                     aggregates = emptyList(),
                                     artifacts = listOf(ArtifactSelectionModel("query", "page")),
-                                    fields = listOf(SemanticFieldSnapshot(fieldName, "Int")),
+                                    fields = listOf(SemanticFieldSnapshot(fieldPath, "Int")),
                                 ),
                             ),
                         ),
@@ -311,10 +316,37 @@ class DefaultCanonicalAssemblerTest {
             }
 
             assertEquals(
-                "design entry FindOrderPage page variant derives $fieldName; remove the explicit field.",
+                "design entry FindOrderPage page variant derives $pageFieldName; remove the explicit field.",
                 error.message,
             )
         }
+    }
+
+    @Test
+    fun `page artifacts allow page names below non page roots`() {
+        val block = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "query",
+                            packageName = "order.read",
+                            name = "FindOrderPage",
+                            description = "find order page",
+                            aggregates = emptyList(),
+                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
+                            fields = listOf(
+                                SemanticFieldSnapshot("filter.pageNum", "Int"),
+                                SemanticFieldSnapshot("filters[].pageSize", "Int"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ).model.designBlocks.single()
+
+        assertEquals(listOf("filter", "filters"), block.request.fields.map { it.name })
     }
 
     @Test

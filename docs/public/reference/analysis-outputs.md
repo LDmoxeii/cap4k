@@ -109,6 +109,8 @@ Drawing Board 与 metadata-dependent Flow Analysis 依赖专用的 BINARY-retain
 
 当已显式请求的 analysis capability 发现必要 metadata 缺失时，`cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate` 会在 planning/rendering 前失败。Diagnostic 会列出 metadata owner symbol、缺失 annotation、受影响的 `Drawing Board` / `Flow Analysis`，并提示恢复默认 template，或补回 annotation 与 compile-only dependency。cap4k 不会通过命名、路径或 sidecar skeleton index 猜测 authoring metadata，也不会把残缺结果伪装为完整 evidence。
 
+事件 metadata 必须与 runtime annotation 的字面语义一致。Analyzer 不会 trim runtime `eventName`、用 runtime 值补齐缺失 metadata，或把空白 subscriber / 带空格的 `[none]` 归一化为 outbound；这些差异会作为 metadata/runtime conflict 失败。只有 metadata 与 runtime 都没有名称的 transient Domain Event 可以保持空名称。
+
 ## Source Generation 边界
 
 `cap4kAnalysisGenerate` 不是 source generation。flow 和 drawing-board output 默认是 observation evidence，用来观察已有代码结构。

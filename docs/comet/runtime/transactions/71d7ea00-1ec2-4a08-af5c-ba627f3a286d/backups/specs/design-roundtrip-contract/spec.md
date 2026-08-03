@@ -4,7 +4,7 @@
 
 Cap4k MUST preserve one normalized tactical design across explicit Design JSON authoring, framework-owned generated Kotlin skeletons, real compiler Analyzer recovery, Drawing Board export, and explicit regeneration from Drawing Board files.
 
-The contract is semantic rather than byte-for-byte. Physical JSON organization may normalize, but framework-owned tactical declarations and runtime semantics may not be lost, invented, normalized differently from runtime, or require manual structural repair.
+The contract is semantic rather than byte-for-byte. Physical JSON organization may normalize, but framework-owned tactical declarations and runtime semantics may not be lost, invented, or require manual structural repair.
 
 ## Supported design blocks
 
@@ -54,7 +54,7 @@ The `page` variant implies runtime `PageRequest` structure:
 - `pageNum: Int = 1`
 - `pageSize: Int = 10`
 
-These are framework-owned derived properties, not authoring `fields`. A page block declaring a flat field path whose root segment is `pageNum` or `pageSize` MUST fail. Root comparison removes a trailing `[]` from the first segment before the first `.`; therefore `pageNum.value` and `pageSize[].value` collide, while `filter.pageNum` and `filters[].pageSize` do not. Non-page blocks may use either root name as an ordinary field.
+These are framework-owned derived properties, not authoring `fields`. A page block explicitly declaring either name MUST fail. Non-page blocks may use either name as an ordinary field.
 
 Analyzer may exclude these properties only after proving that the analyzed primary carrier is the page variant, implements the PageRequest contract, and has the required types/defaults. A mismatch MUST fail instead of silently dropping fields.
 
@@ -64,9 +64,9 @@ Domain Event and Integration Event fields and nested DTOs use the same supported
 
 An Integration Event MUST have a non-blank `eventName`. A Domain Event with `persist: true` MUST have a non-blank `eventName`; transient Domain Events may omit it.
 
-When a Domain Event name is present, Generator MUST emit it in runtime `@DomainEvent(value = ..., persist = ...)` as well as compile-time analysis metadata. Analyzer MUST compare the canonical metadata name with the unmodified runtime annotation literal and fail unless both are exactly equal. It MUST NOT trim a runtime literal or fill missing metadata from runtime. Only a transient Domain Event with both names absent may use an empty name. Persisted Domain Events MUST NOT produce an empty runtime event type.
+When a Domain Event name is present, Generator MUST emit it in runtime `@DomainEvent(value = ..., persist = ...)` as well as compile-time analysis metadata. Analyzer MUST compare metadata and runtime views and fail on a conflict. Persisted Domain Events MUST NOT produce an empty runtime event type.
 
-Integration Event direction, event name, and subscriber semantics MUST likewise agree between metadata and runtime annotations. Runtime subscriber direction follows the runtime contract exactly: only the unmodified subscriber literal equal to `IntegrationEvent.NONE_SUBSCRIBER` under runtime case-insensitive comparison is outbound. Explicit blank or whitespace-wrapped subscriber values are not normalized to outbound. Analyzer MUST fail on contradictory views rather than choosing one.
+Integration Event direction, event name, and subscriber semantics MUST likewise agree between metadata and runtime annotations. Analyzer MUST fail on contradictory views rather than choosing one.
 
 The identifier `entity` is not a reserved payload field name. Canonical assembly and Analyzer MUST retain it. Reliable-event payload rejection MUST depend only on the resolved recursive semantic type graph: actual Entity/Aggregate types remain invalid at any nested container position, preserving PR #152's runtime history boundary.
 
@@ -79,13 +79,9 @@ Drawing Board type expressions MUST be stable and recursively canonical:
 - Strong IDs, Value Objects, enums, other project/context types, and external types use resolved canonical FQNs.
 - Container element/key/value identities apply the same rule recursively.
 
-`List<T>`, `Set<T>`, `Map<K,V>`, and `Array<T>` are supported with container and element nullability. `emptyList()`, `emptySet()`, `emptyMap()`, and `emptyArray()` are normalized supported defaults.
-
-Kotlin primitive arrays are outside this contract and MUST fail after the final canonical identity is resolved, regardless of whether the input used a direct FQN, alias, short-name evidence, or recursive container position. The rejected FQNs are `kotlin.BooleanArray`, `kotlin.ByteArray`, `kotlin.CharArray`, `kotlin.DoubleArray`, `kotlin.FloatArray`, `kotlin.IntArray`, `kotlin.LongArray`, `kotlin.ShortArray`, `kotlin.UByteArray`, `kotlin.UIntArray`, `kotlin.ULongArray`, and `kotlin.UShortArray`. A different business type whose simple name resembles a primitive array is not rejected.
+`List<T>`, `Set<T>`, `Map<K,V>`, and `Array<T>` are supported with container and element nullability. `emptyList()`, `emptySet()`, `emptyMap()`, and `emptyArray()` are normalized supported defaults. Primitive arrays such as `IntArray` and `ByteArray` are outside this contract and MUST fail rather than degrade.
 
 Analyzer MUST recover stable supported defaults for null, strings, primitive values, enum/object constants, and supported empty containers. Unsupported or unstable initializer expressions MUST fail with context rather than be silently omitted when they belong to framework-owned payload structure.
-
-Kotlin string literal recovery MUST use Kotlin-supported escapes. U+000C form-feed is recovered as `\\u000c`, not `\\f`, and the recovered Drawing Board value MUST compile through the Design JSON default compiler and second-generation Kotlin compiler.
 
 ## Ordering and normalization
 
@@ -121,7 +117,7 @@ Analyzer output is observation evidence. It MUST NOT become an automatically reg
 
 Every emitted Drawing Board block MUST be directly accepted by the Design JSON source without an additional normalization exporter or dedicated recovery input API.
 
-Drawing Board MUST omit fields that are not legal for the emitted tag, while preserving all legal tactical semantics. It may omit `artifacts` only when the recovered set equals the tag's effective defaults; variants, explicit primary-only selections that differ from defaults, and non-default secondary selections require an explicit complete artifact list.
+Drawing Board MUST omit fields that are not legal for the emitted tag, while preserving all legal tactical semantics. It may omit `artifacts` only when the recovered set equals the tag's effective defaults; variants, primary-only selections, and non-default secondary selections require an explicit complete artifact list.
 
 Cross-context reuse may explicitly copy an outbound published-language event and change its variant to inbound. That edit is a new bounded-context decision and MUST NOT occur automatically.
 
@@ -129,22 +125,21 @@ Cross-context reuse may explicitly copy an outbound published-language event and
 
 Every accepted design declaration MUST generate a compile-valid, runtime-contract-complete framework-owned skeleton. Required fields, nested types, annotations, interfaces, artifact carriers, and structural wiring MUST be generated. A human or Agent remains responsible only for business policy and bodies such as handlers, subscribers, Domain Service algorithms, repositories, transactions, and compensation.
 
-Changing handwritten method bodies, injected dependencies, or repository calls without changing framework-owned structure MUST NOT change recovered Drawing Board semantics. Focused evidence MUST compare recovered design blocks from structurally equal carriers with different business implementations.
+Changing handwritten method bodies, injected dependencies, or repository calls without changing framework-owned structure MUST NOT change recovered Drawing Board semantics.
 
 ## Verification gate
 
 One dedicated real functional gate MUST use two clean temporary project copies:
 
-1. Immediately after fixture copy and before any Gradle, Generator, compiler, or Analyzer operation, Project A freezes the original Design JSON bytes/hash and builds canonical projection `C0`.
-2. Project A generates all selected artifacts, compiles every generated module, and runs the real `Cap4kCodeAnalysisCompilerRegistrar` on generated sources in domain/application/adapter dependency order.
-3. Project A merges the real per-module analysis outputs, generates Drawing Board files without any hand-written `design-elements.json` fixture, and proves that the original Design JSON bytes/hash are unchanged.
-4. Project B disables/removes its original Design JSON and registers only Project A's Drawing Board files as ordinary explicit Design JSON inputs.
-5. Project B builds canonical projection `C1`, asserts normalized `C0 == C1`, regenerates all artifacts, and compiles every generated module.
-6. The gate compares both generations' framework-owned skeleton structure and runtime annotation/interface semantics so projection comparison omissions cannot create a false positive.
+1. Project A reads the original rich seven-tag Design JSON, builds canonical projection `C0`, generates all selected artifacts, compiles every generated module, and runs the real `Cap4kCodeAnalysisCompilerRegistrar` on generated sources in domain/application/adapter dependency order.
+2. Project A merges the real per-module analysis outputs and generates Drawing Board files without any hand-written `design-elements.json` fixture.
+3. Project B disables/removes its original Design JSON and registers only Project A's Drawing Board files as ordinary explicit Design JSON inputs.
+4. Project B builds canonical projection `C1`, asserts normalized `C0 == C1`, regenerates all artifacts, and compiles every generated module.
+5. The gate compares both generations' framework-owned skeleton structure and runtime annotation/interface semantics so projection comparison omissions cannot create a false positive.
 
-The rich fixture MUST cover all seven tags and explicitly assert meaningful shape coverage: ordinary and page Query; ordinary and page API payload; optional-secondary selected and explicit non-default primary-only forms; inbound and outbound Integration Events; persisted, transient-payload, and marker-without-fields Domain Events; Strong IDs; enums; Value Objects; external canonical FQNs; nested List/Set/Map/Array/nullability/defaults including U+000C; nested DTO order; and a legal `entity` field.
+The rich fixture MUST cover all seven tags, meaningful primary/secondary and page/event variants, Strong IDs, enums, Value Objects, external canonical FQNs, nested List/Set/Map/Array/nullability/defaults, nested DTO order, a legal `entity` field, and persisted/transient/marker event forms.
 
-Focused module tests MUST cover invalid artifacts, Domain Service payloads, page root collisions and non-root counterexamples, page mismatches, missing event names, exact runtime/metadata conflicts, subscriber direction literals, recursive semantic Entity payloads, final-identity primitive arrays, order preservation, incomplete per-directory analysis, U+000C recovery, and business-body invariance.
+Focused module tests MUST cover invalid artifacts, Domain Service payloads, page collisions/mismatches, missing event names, runtime/metadata conflicts, recursive semantic Entity payloads, primitive arrays, order preservation, incomplete per-directory analysis, and business-body invariance.
 
 The functional fixture may use a temporary-project-unique H2 in-memory URL without `DB_CLOSE_DELAY=-1`. Production database source connection lifecycle MUST NOT change as part of test isolation.
 
