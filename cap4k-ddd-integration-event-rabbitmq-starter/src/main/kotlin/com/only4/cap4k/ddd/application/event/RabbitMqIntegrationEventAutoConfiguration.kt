@@ -14,7 +14,7 @@ import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
@@ -76,7 +76,7 @@ class RabbitMqIntegrationEventAutoConfiguration {
 
     @Bean(destroyMethod = "shutdown")
     fun rabbitMqIntegrationEventSubscriberAdapter(
-        eventSubscriberManager: EventSubscriberManager,
+        eventHandlerDispatcher: EventHandlerDispatcher,
         eventMessageInterceptors: List<EventMessageInterceptor>,
         configureProvider: ObjectProvider<RabbitMqIntegrationEventConfigure>,
         listenerContainerFactory: SimpleRabbitListenerContainerFactory,
@@ -89,7 +89,7 @@ class RabbitMqIntegrationEventAutoConfiguration {
         @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET) messageCharset: String,
         properties: RabbitMqIntegrationEventAdapterProperties,
     ): RabbitMqIntegrationEventSubscriberAdapter = RabbitMqIntegrationEventSubscriberAdapter(
-        eventSubscriberManager,
+        eventHandlerDispatcher,
         eventMessageInterceptors,
         configureProvider.getIfAvailable(),
         listenerContainerFactory,

@@ -3,8 +3,7 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriber
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -62,7 +61,7 @@ class GeneratedDomainEventRuntimeContractTest {
             .newInstance()
         val supervisor = DefaultDomainEventSupervisor(
             domainEventInterceptorManager = emptyInterceptorManager,
-            eventSubscriberManager = noOpSubscriberManager,
+            eventHandlerDispatcher = noOpEventHandlerDispatcher,
         )
 
         assertDoesNotThrow {
@@ -109,11 +108,5 @@ class GeneratedDomainEventRuntimeContractTest {
         override val orderedEventInterceptors4DomainEvent = emptySet<com.only4.cap4k.ddd.core.domain.event.EventInterceptor>()
     }
 
-    private val noOpSubscriberManager = object : EventSubscriberManager {
-        override fun subscribe(eventPayloadClass: Class<*>, subscriber: EventSubscriber<*>): Boolean = true
-
-        override fun unsubscribe(eventPayloadClass: Class<*>, subscriber: EventSubscriber<*>): Boolean = true
-
-        override fun dispatch(eventPayload: Any) = Unit
-    }
+    private val noOpEventHandlerDispatcher = EventHandlerDispatcher { }
 }

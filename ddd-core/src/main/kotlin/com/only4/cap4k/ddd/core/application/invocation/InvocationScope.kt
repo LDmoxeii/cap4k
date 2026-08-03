@@ -1,6 +1,10 @@
 package com.only4.cap4k.ddd.core.application.invocation
 
 import java.util.ArrayDeque
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.ExecutionException
 
 enum class InvocationKind {
     COMMAND,
@@ -13,8 +17,14 @@ fun interface InvocationScopeAccessor {
     fun current(): InvocationKind?
 }
 
-fun interface InvocationScopeManager {
-    fun enter(kind: InvocationKind): AutoCloseable
+interface InvocationScope : AutoCloseable {
+    fun <RESULT> complete(block: () -> RESULT): RESULT
+}
+
+interface InvocationScopeManager {
+    fun enter(kind: InvocationKind): InvocationScope
+
+    fun <RESULT : Any> track(stage: CompletionStage<RESULT>): CompletionStage<RESULT>
 }
 
 class DefaultInvocationScopeManager : InvocationScopeAccessor, InvocationScopeManager {
@@ -22,11 +32,16 @@ class DefaultInvocationScopeManager : InvocationScopeAccessor, InvocationScopeMa
 
     override fun current(): InvocationKind? = scopes.get()?.peekLast()?.kind
 
-    override fun enter(kind: InvocationKind): AutoCloseable {
+    override fun enter(kind: InvocationKind): InvocationScope {
         val stack = scopes.get() ?: ArrayDeque<Scope>().also(scopes::set)
-        val scope = Scope(kind)
+        val scope = Scope(kind, closeAction = { close(it) })
         stack.addLast(scope)
-        return AutoCloseable { close(scope) }
+        return scope
+    }
+
+    override fun <RESULT : Any> track(stage: CompletionStage<RESULT>): CompletionStage<RESULT> {
+        scopes.get()?.peekLast()?.track(stage)
+        return stage
     }
 
     private fun close(scope: Scope) {
@@ -40,8 +55,72 @@ class DefaultInvocationScopeManager : InvocationScopeAccessor, InvocationScopeMa
 
     private class Scope(
         val kind: InvocationKind,
+        private val closeAction: (Scope) -> Unit,
         var closed: Boolean = false,
-    )
+    ) : InvocationScope {
+        private val tasks = mutableListOf<CompletableFuture<Unit>>()
+        private var completed = false
+
+        fun track(stage: CompletionStage<*>) {
+            check(!completed) { "Cannot register an async task after InvocationScope completion" }
+            val normalized = CompletableFuture<Unit>()
+            try {
+                stage.whenComplete { _, error ->
+                    if (error == null) {
+                        normalized.complete(Unit)
+                    } else {
+                        normalized.completeExceptionally(unwrap(error))
+                    }
+                }
+            } catch (error: Throwable) {
+                normalized.completeExceptionally(unwrap(error))
+            }
+            tasks += normalized
+        }
+
+        override fun <RESULT> complete(block: () -> RESULT): RESULT {
+            check(!completed) { "InvocationScope can only complete once" }
+            var result: Any? = null
+            var bodyFailure: Throwable? = null
+            try {
+                result = block()
+            } catch (error: Throwable) {
+                bodyFailure = unwrap(error)
+            }
+
+            completed = true
+            val taskFailures = tasks.mapNotNull { task ->
+                try {
+                    task.join()
+                    null
+                } catch (error: Throwable) {
+                    unwrap(error)
+                }
+            }
+            val primaryFailure = bodyFailure ?: taskFailures.firstOrNull()
+            if (primaryFailure != null) {
+                taskFailures
+                    .asSequence()
+                    .filter { failure -> failure !== primaryFailure }
+                    .distinctBy { failure -> System.identityHashCode(failure) }
+                    .forEach(primaryFailure::addSuppressed)
+                throw primaryFailure
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            return result as RESULT
+        }
+
+        override fun close() = closeAction(this)
+    }
+
+    companion object {
+        private fun unwrap(error: Throwable): Throwable = when (error) {
+            is CompletionException -> error.cause?.let(::unwrap) ?: error
+            is ExecutionException -> error.cause?.let(::unwrap) ?: error
+            else -> error
+        }
+    }
 }
 
 class InvocationNotAllowedException(
@@ -64,6 +143,7 @@ class InvocationPolicy(
                 (requestedKind == InvocationKind.QUERY && !asynchronous)
             InvocationKind.CAPABILITY -> requestedKind == InvocationKind.CAPABILITY
             InvocationKind.DOMAIN_EVENT_HANDLER -> requestedKind == InvocationKind.COMMAND ||
+                requestedKind == InvocationKind.QUERY ||
                 requestedKind == InvocationKind.CAPABILITY
         }
         if (!allowed) throw InvocationNotAllowedException(current, requestedKind, asynchronous)

@@ -10,7 +10,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventPublisher
 import com.only4.cap4k.ddd.domain.event.configure.EventProperties
@@ -64,7 +64,7 @@ class DomainEventJpaAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(EventPublisher::class)
     fun eventPublisher(
-        eventSubscriberManager: EventSubscriberManager,
+        eventHandlerDispatcher: EventHandlerDispatcher,
         integrationEventPublishers: List<IntegrationEventPublisher>,
         eventRecordRepository: EventRecordRepository,
         infrastructure: ReliableEventInfrastructure,
@@ -74,7 +74,7 @@ class DomainEventJpaAutoConfiguration {
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         properties: EventProperties,
     ): DefaultEventPublisher = DefaultEventPublisher(
-        eventSubscriberManager,
+        eventHandlerDispatcher,
         integrationEventPublishers,
         eventRecordRepository,
         infrastructure,

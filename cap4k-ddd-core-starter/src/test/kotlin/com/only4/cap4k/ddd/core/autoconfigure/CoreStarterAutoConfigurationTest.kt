@@ -8,8 +8,11 @@ import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
+import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
+import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.query.QueryHandler
 import com.only4.cap4k.ddd.core.application.query.QueryExecution
@@ -45,7 +48,11 @@ class CoreStarterAutoConfigurationTest {
         contextRunner.run { context ->
             assertTrue(context.startupFailure == null)
             assertTrue(context.getBeansOfType(CommandRecordRepository::class.java).isEmpty())
-            assertEquals(1, context.getBeansOfType(EventSubscriberManager::class.java).size)
+            assertEquals(1, context.getBeansOfType(EventHandlerDispatcher::class.java).size)
+            assertEquals(
+                setOf(TestIntegrationEvent::class.java),
+                context.getBean(EventTypeCatalog::class.java).integrationEventTypes(),
+            )
             assertEquals("command:ok", Mediator.commands.send(TestCommand("ok")))
             assertEquals("query:ok", Mediator.queries.ask(TestQuery("ok")))
             assertEquals("query:async", Mediator.queries.askAsync(TestQuery("async")).toCompletableFuture().get())
@@ -142,7 +149,11 @@ class CoreStarterAutoConfigurationTest {
             error("not invoked")
     }
 
+    @DomainEvent
     data class TestEvent(val value: String)
+
+    @IntegrationEvent("test.integration")
+    data class TestIntegrationEvent(val value: String)
 
     class TestEventListener {
         val events = mutableListOf<TestEvent>()
@@ -151,5 +162,8 @@ class CoreStarterAutoConfigurationTest {
         fun on(event: TestEvent) {
             events += event
         }
+
+        @EventListener
+        fun onIntegration(event: TestIntegrationEvent) = Unit
     }
 }

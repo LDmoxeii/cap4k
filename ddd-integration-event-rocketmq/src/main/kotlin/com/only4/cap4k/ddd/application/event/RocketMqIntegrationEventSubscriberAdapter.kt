@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
@@ -30,7 +30,7 @@ import org.springframework.messaging.support.GenericMessage
  * @date 2023-02-28
  */
 class RocketMqIntegrationEventSubscriberAdapter(
-    private val eventSubscriberManager: EventSubscriberManager,
+    private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
     private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure?,
     private val environment: Environment,
@@ -150,7 +150,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
             )
             executionContextScopeManager.install(executionContext).use {
                 if (orderedEventMessageInterceptors.isEmpty()) {
-                    eventSubscriberManager.dispatch(eventPayload)
+                    eventHandlerDispatcher.dispatch(eventPayload)
                 } else {
                     processWithInterceptors(msg, eventPayload)
                 }
@@ -174,7 +174,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
         )
 
         orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
-        eventSubscriberManager.dispatch(message.payload)
+        eventHandlerDispatcher.dispatch(message.payload)
         orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
     }
 

@@ -60,7 +60,7 @@ open class DefaultCapabilitySupervisor(
     }
 
     override fun <CALL : CapabilityCall<RESULT>, RESULT : Any> callAsync(request: CALL): CompletionStage<RESULT> {
-        return try {
+        val stage: CompletionStage<RESULT> = try {
             val snapshot = executionContextAccessor.current()
             invocationPolicy.check(InvocationKind.CAPABILITY, asynchronous = true)
             asyncExecutor.submit {
@@ -73,13 +73,14 @@ open class DefaultCapabilitySupervisor(
         } catch (ex: Throwable) {
             failedStage(ex)
         }
+        return invocationScopeManager.track(stage)
     }
 
     private fun <CALL : CapabilityCall<RESULT>, RESULT : Any> invoke(request: CALL): RESULT {
         val scope = invocationScopeManager.enter(InvocationKind.CAPABILITY)
         return try {
             EventRuntimeContext.withCausalFrame("Capability:${request.javaClass.name}") {
-                dispatcher.dispatch(request)
+                scope.complete { dispatcher.dispatch(request) }
             }
         } finally {
             scope.close()

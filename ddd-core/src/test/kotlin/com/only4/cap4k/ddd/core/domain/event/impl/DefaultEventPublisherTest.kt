@@ -31,7 +31,7 @@ class DefaultEventPublisherTest {
     private val fixedNow = LocalDateTime.of(1970, 1, 1, 0, 0, 0, 500_000_000)
     private val fixedNextSecond = LocalDateTime.of(1970, 1, 1, 0, 0, 1, 0)
 
-    private lateinit var eventSubscriberManager: EventSubscriberManager
+    private lateinit var eventHandlerDispatcher: EventHandlerDispatcher
     private lateinit var integrationEventPublishers: List<IntegrationEventPublisher>
     private lateinit var eventRecordRepository: EventRecordRepository
     private lateinit var eventMessageInterceptorManager: EventMessageInterceptorManager
@@ -45,7 +45,7 @@ class DefaultEventPublisherTest {
 
     @BeforeEach
     fun setUp() {
-        eventSubscriberManager = mockk()
+        eventHandlerDispatcher = mockk()
         integrationEventPublishers = listOf(mockk(), mockk())
         eventRecordRepository = mockk()
         eventMessageInterceptorManager = mockk()
@@ -55,7 +55,7 @@ class DefaultEventPublisherTest {
         integrationEventPublisherCallback = mockk(relaxed = true)
 
         // Mock 默认行为
-        every { eventSubscriberManager.dispatch(any()) } just Runs
+        every { eventHandlerDispatcher.dispatch(any()) } just Runs
         every { eventRecordRepository.save(any()) } returnsArgument 0
         every { eventMessageInterceptorManager.orderedEventMessageInterceptors } returns emptySet()
         every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns emptySet()
@@ -66,7 +66,7 @@ class DefaultEventPublisherTest {
         every { integrationEventPublishers[1].publish(any(), any()) } just Runs
 
         publisher = DefaultEventPublisher(
-            eventSubscriberManager,
+            eventHandlerDispatcher,
             integrationEventPublishers,
             eventRecordRepository,
             eventMessageInterceptorManager,
@@ -97,7 +97,7 @@ class DefaultEventPublisherTest {
             publisher.publish(eventRecord)
 
             // then - 初始化应该成功，不抛出异常
-            verify { eventSubscriberManager.dispatch(any()) }
+            verify { eventHandlerDispatcher.dispatch(any()) }
         }
 
         @Test
@@ -112,7 +112,7 @@ class DefaultEventPublisherTest {
             publisher.publish(eventRecord2)
 
             // then
-            verify(exactly = 2) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 2) { eventHandlerDispatcher.dispatch(any()) }
         }
 
         @Test
@@ -120,7 +120,7 @@ class DefaultEventPublisherTest {
         fun `should create only one executor instance when init called multiple times`() {
             // given
             val publisher = DefaultEventPublisher(
-                eventSubscriberManager,
+                eventHandlerDispatcher,
                 integrationEventPublishers,
                 eventRecordRepository,
                 eventMessageInterceptorManager,
@@ -176,7 +176,7 @@ class DefaultEventPublisherTest {
             publisher.publish(eventRecord)
 
             // then
-            verify { eventSubscriberManager.dispatch(any()) }
+            verify { eventHandlerDispatcher.dispatch(any()) }
             verify { eventMessageInterceptorManager.orderedEventMessageInterceptors }
             verify { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent }
         }
@@ -194,7 +194,7 @@ class DefaultEventPublisherTest {
             publisher.publish(eventRecord)
 
             // then
-            verify(timeout = 5_000) { eventSubscriberManager.dispatch(any()) }
+            verify(timeout = 5_000) { eventHandlerDispatcher.dispatch(any()) }
             verify(timeout = 5_000) { eventRecordRepository.save(any()) }
         }
 
@@ -205,7 +205,7 @@ class DefaultEventPublisherTest {
             val eventRecord = createTestEventRecord(
                 eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
             )
-            every { eventSubscriberManager.dispatch(any()) } throws RuntimeException("Dispatch failed")
+            every { eventHandlerDispatcher.dispatch(any()) } throws RuntimeException("Dispatch failed")
 
             // when & then
             assertThrows<DomainException> {
@@ -226,7 +226,7 @@ class DefaultEventPublisherTest {
             )
             val testPublisher = createSynchronousPublisher()
 
-            every { eventSubscriberManager.dispatch(any()) } answers {
+            every { eventHandlerDispatcher.dispatch(any()) } answers {
                 assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
                 EventRuntimeContext.current()
                     .attachIntegration(EventAttachment.eager(TestIntegrationEvent("derived")))
@@ -274,7 +274,7 @@ class DefaultEventPublisherTest {
                 },
             )
             val testPublisher = TestableDefaultEventPublisher(
-                eventSubscriberManager,
+                eventHandlerDispatcher,
                 integrationEventPublishers,
                 eventRecordRepository,
                 eventMessageInterceptorManager,
@@ -307,7 +307,7 @@ class DefaultEventPublisherTest {
                 calls.add("saveSource")
                 eventRecord
             }
-            every { eventSubscriberManager.dispatch(any()) } answers {
+            every { eventHandlerDispatcher.dispatch(any()) } answers {
                 realIntegrationManager.attach(TestIntegrationEvent("derived"))
                 calls.add("dispatch")
             }
@@ -333,7 +333,7 @@ class DefaultEventPublisherTest {
             )
             val testPublisher = createSynchronousPublisher()
 
-            every { eventSubscriberManager.dispatch(any()) } answers {
+            every { eventHandlerDispatcher.dispatch(any()) } answers {
                 EventRuntimeContext.current()
                     .attachIntegration(EventAttachment.eager(TestIntegrationEvent("derived")))
                 throw RuntimeException("Dispatch failed")
@@ -368,7 +368,7 @@ class DefaultEventPublisherTest {
                 },
             )
             val delayedPublisher = CapturingDefaultEventPublisher(
-                eventSubscriberManager,
+                eventHandlerDispatcher,
                 integrationEventPublishers,
                 eventRecordRepository,
                 eventMessageInterceptorManager,
@@ -395,7 +395,7 @@ class DefaultEventPublisherTest {
                 calls.add("saveIntegration")
                 derivedEventRecord
             }
-            every { eventSubscriberManager.dispatch(any()) } answers {
+            every { eventHandlerDispatcher.dispatch(any()) } answers {
                 assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
                 realIntegrationManager.attach(TestIntegrationEvent("derived"))
                 calls.add("dispatch")
@@ -419,7 +419,7 @@ class DefaultEventPublisherTest {
 
             // then - delayed dispatch is scheduled, not executed early
             assertScheduledWithPositiveMillis(scheduled)
-            verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 0) { eventHandlerDispatcher.dispatch(any()) }
             verify(exactly = 0) { eventRecordRepository.create() }
             verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
             verify(exactly = 0) { eventRecord.endDelivery(any()) }
@@ -450,7 +450,7 @@ class DefaultEventPublisherTest {
                 },
             )
             val delayedPublisher = CapturingDefaultEventPublisher(
-                eventSubscriberManager,
+                eventHandlerDispatcher,
                 integrationEventPublishers,
                 eventRecordRepository,
                 eventMessageInterceptorManager,
@@ -461,7 +461,7 @@ class DefaultEventPublisherTest {
                 threadPoolSize
             )
 
-            every { eventSubscriberManager.dispatch(any()) } answers {
+            every { eventHandlerDispatcher.dispatch(any()) } answers {
                 assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
                 realIntegrationManager.attach(TestIntegrationEvent("derived"))
                 throw RuntimeException("Dispatch failed")
@@ -478,7 +478,7 @@ class DefaultEventPublisherTest {
 
             // then - delayed dispatch is scheduled, not executed early
             assertScheduledWithPositiveMillis(scheduled)
-            verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 0) { eventHandlerDispatcher.dispatch(any()) }
             verify(exactly = 0) { eventRecordRepository.create() }
             verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
             verify(exactly = 0) { eventRecord.endDelivery(any()) }
@@ -488,7 +488,7 @@ class DefaultEventPublisherTest {
                 scheduled.command.run()
             }
 
-            verify(exactly = 1) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 1) { eventHandlerDispatcher.dispatch(any()) }
             verify(exactly = 0) { eventRecordRepository.create() }
             verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
             verify(exactly = 0) { eventRecord.endDelivery(any()) }
@@ -540,7 +540,7 @@ class DefaultEventPublisherTest {
         fun `should handle delayed integration events`() {
             // given
             val delayedPublisher = CapturingDefaultEventPublisher(
-                eventSubscriberManager,
+                eventHandlerDispatcher,
                 integrationEventPublishers,
                 eventRecordRepository,
                 eventMessageInterceptorManager,
@@ -700,7 +700,7 @@ class DefaultEventPublisherTest {
             threads.forEach { it.join() }
 
             // then
-            verify(exactly = 10) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 10) { eventHandlerDispatcher.dispatch(any()) }
         }
 
         @Test
@@ -717,7 +717,7 @@ class DefaultEventPublisherTest {
             }
 
             // then
-            verify(exactly = 100) { eventSubscriberManager.dispatch(any()) }
+            verify(exactly = 100) { eventHandlerDispatcher.dispatch(any()) }
         }
     }
 
@@ -759,7 +759,7 @@ class DefaultEventPublisherTest {
 
     private fun createSynchronousPublisher(): TestableDefaultEventPublisher =
         TestableDefaultEventPublisher(
-            eventSubscriberManager,
+            eventHandlerDispatcher,
             integrationEventPublishers,
             eventRecordRepository,
             eventMessageInterceptorManager,
@@ -782,7 +782,7 @@ class DefaultEventPublisherTest {
     )
 
     private class TestableDefaultEventPublisher(
-        eventSubscriberManager: EventSubscriberManager,
+        eventHandlerDispatcher: EventHandlerDispatcher,
         integrationEventPublishers: List<IntegrationEventPublisher>,
         eventRecordRepository: EventRecordRepository,
         eventMessageInterceptorManager: EventMessageInterceptorManager,
@@ -792,7 +792,7 @@ class DefaultEventPublisherTest {
         integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
         threadPoolSize: Int,
     ) : DefaultEventPublisher(
-        eventSubscriberManager,
+        eventHandlerDispatcher,
         integrationEventPublishers,
         eventRecordRepository,
         eventMessageInterceptorManager,
@@ -808,7 +808,7 @@ class DefaultEventPublisherTest {
     }
 
     private class CapturingDefaultEventPublisher(
-        eventSubscriberManager: EventSubscriberManager,
+        eventHandlerDispatcher: EventHandlerDispatcher,
         integrationEventPublishers: List<IntegrationEventPublisher>,
         eventRecordRepository: EventRecordRepository,
         eventMessageInterceptorManager: EventMessageInterceptorManager,
@@ -818,7 +818,7 @@ class DefaultEventPublisherTest {
         integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
         threadPoolSize: Int,
     ) : DefaultEventPublisher(
-        eventSubscriberManager,
+        eventHandlerDispatcher,
         integrationEventPublishers,
         eventRecordRepository,
         eventMessageInterceptorManager,

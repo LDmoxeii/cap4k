@@ -57,7 +57,7 @@ open class DefaultQuerySupervisor(
     }
 
     override fun <QUERY : Query<RESULT>, RESULT : Any> askAsync(query: QUERY): CompletionStage<RESULT> {
-        return try {
+        val stage: CompletionStage<RESULT> = try {
             val snapshot = executionContextAccessor.current()
             invocationPolicy.check(InvocationKind.QUERY, asynchronous = true)
             asyncExecutor.submit {
@@ -70,13 +70,16 @@ open class DefaultQuerySupervisor(
         } catch (ex: Throwable) {
             failedStage(ex)
         }
+        return invocationScopeManager.track(stage)
     }
 
     private fun <QUERY : Query<RESULT>, RESULT : Any> invoke(query: QUERY): RESULT {
         val scope = invocationScopeManager.enter(InvocationKind.QUERY)
         return try {
             EventRuntimeContext.withCausalFrame("Query:${query.javaClass.name}") {
-                queryExecutionProvider().execute { dispatcher.dispatch(query) }
+                queryExecutionProvider().execute {
+                    scope.complete { dispatcher.dispatch(query) }
+                }
             }
         } finally {
             scope.close()
