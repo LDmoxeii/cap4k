@@ -81,7 +81,7 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 
 # Open questions
 
-- [blocking] CONFIRM: `fix/design-roundtrip-contract` may start from `origin/master@540fef09` under the complete G-05 contract and real two-project round-trip gate recorded here; the audit remains in Shape and Runtime audit remains deferred until that PR merges and is re-evaluated.
+- Confirmed on 2026-08-03: `fix/design-roundtrip-contract` may start from `origin/master@540fef09` under the complete G-05 contract and real two-project round-trip gate recorded here. This continuous audit remains in Shape, and Runtime audit remains deferred until that PR merges and is re-evaluated.
 
 # Verification expectations
 

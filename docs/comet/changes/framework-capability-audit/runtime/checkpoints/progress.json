@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "1177e67e-17bf-4ee9-a615-8994167fbe14",
+  "id": "141a3ea0-ea66-4a9c-87cc-7aa000bc4262",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 20,
-  "stateRevision": 21,
-  "summary": "The fourth repair is fully shaped from current origin/master@540fef09. Its single-branch contract now covers canonical validation, complete generation, Analyzer recovery, directly compatible Drawing Board output, per-input completeness, Issue #102 explicit import, and a real two-project second-generation gate; no Generator design decision remains.",
-  "nextAction": "Await explicit confirmation of the recorded fix/design-roundtrip-contract handoff. After confirmation, create/fork the implementation session from origin/master@540fef09; do not advance the continuous audit change or begin Runtime audit until the PR merges and is re-evaluated.",
-  "inputHash": "0a307e720a6bdccf5241313c9381b94e619328a13b7f2ffd6207c923596ef20f",
-  "manifestHash": "48fbe572fada53264d880d84cbe37158368af624d92931fda13bb8b40b4f0470",
-  "manifestRef": "runtime/checkpoints/manifests/48fbe572fada53264d880d84cbe37158368af624d92931fda13bb8b40b4f0470.json",
+  "previousRevision": 21,
+  "stateRevision": 22,
+  "summary": "The user explicitly confirmed the complete fix/design-roundtrip-contract handoff on 2026-08-03. The implementation session may start from origin/master@540fef09; the continuous audit remains in Shape by design until the repair PR merges and Generator is re-evaluated.",
+  "nextAction": "Fork the implementation session with the recorded opener, create fix/design-roundtrip-contract from origin/master@540fef09, implement and verify the complete G-05 contract, then merge through PR and return the merged master evidence to this audit.",
+  "inputHash": "32ceb63c9f92008f8b4feedb14a219f57f6108c634e4b587e88b707a2b87c7f7",
+  "manifestHash": "2d053cf4b81c2a0dfabfc72f441168f8d31d80b8551d4bcc2ac1505e6f5e570f",
+  "manifestRef": "runtime/checkpoints/manifests/2d053cf4b81c2a0dfabfc72f441168f8d31d80b8551d4bcc2ac1505e6f5e570f.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-03T01:54:49.393Z"
+  "createdAt": "2026-08-03T02:00:07.596Z"
 }

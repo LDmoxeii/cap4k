@@ -480,6 +480,8 @@ Issue #102 在本分支中的完成含义是：Drawing Board 结构与 Design JS
 
 明确非目标：不恢复 sidecar，不推断手写业务方法体，不恢复缺失 metadata 的静默降级，不支持 primitive arrays，不弱化 PR #152 的 reliable-event Entity payload 边界，不修改生产 JDBC lifecycle，也不提前安装或自动接线 Analyzer 产品能力。
 
+2026-08-03 用户已确认以上第四分支可执行合同。实现会话可从 `origin/master@540fef09` 创建 `fix/design-roundtrip-contract`；连续审计 change 不进入 Build，等待该分支通过 PR 合并到 `master` 后再刷新、验收 Generator gate 并继续 Runtime audit。
+
 Mainline merge evidence：
 
 - PR #154 `fix/generator-contract-surface` -> merge commit `d310f3fa`；required `check` passed。
