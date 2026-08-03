@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-design-roundtrip-contract",
+  "role": "post",
+  "hash": "1316a80829f72a7f407214f262004b60c2c04af797d0a14d9b0262a2217ce13b",
+  "identity": {
+    "dev": 950912656,
+    "ino": 21110623254655250,
+    "birthtimeMs": 1785737643889.1155
+  }
+}

@@ -13,7 +13,7 @@
 - `domain_event.fields` 是生成事件的完整 payload；省略或留空时生成无 payload 的 marker event。
 - `domain_event.aggregates` 只表达归属和放置，不会隐式生成 Aggregate、Entity、Strong ID 或 snapshot 字段。
 - Domain Event field 的 resolved semantic type graph 不得直接或嵌套包含 cap4k 已知的 Aggregate/Entity；应显式使用标量、Strong ID、Value Object、enum 或专用不可变 snapshot。
-- flow 或 drawing-board 片段只有满足这些规则后，才能通过 `sources.designJson.files` 作为普通 design JSON 输入。
+- 当前 Drawing Board generator 输出满足这些规则，可以由人或 Agent 通过 `sources.designJson.files` 显式注册为普通 design JSON 输入；cap4k 不会自动注册或回灌 analysis output。
 
 ## 支持的 Normal Tags
 
@@ -38,7 +38,7 @@
 | `aggregates` | string array | 关联的 aggregate names；普通 tag 可用空数组表示不绑定具体 aggregate。`domain_event` 必须且只能声明一个 owner aggregate；该值只表达归属，不贡献 payload。 |
 | `fields` | field array | input fields。 |
 | `resultFields` | field array | 允许用于 `command`、`query`、`capability` 和 `api_payload` 的 result shape；在 `command` 上表达 command outcome。 |
-| `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 必填。 |
+| `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 以及 `persist: true` 的 `domain_event` 必填。 |
 | `persist` | boolean | 只允许用于 `domain_event`。 |
 | `artifacts` | artifact array | 部分 tag 用来表达 output family / variant metadata。 |
 
@@ -48,9 +48,25 @@ field item 常见 shape：
 { "name": "snapshots", "type": "List<ContentSnapshot?>?" }
 ```
 
-`type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>`、`Array<T>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、`IntArray` / `LongArray` 等 primitive array alias、tuple 或任意 generic type。Domain Event 的递归 Entity 检查同样遍历 `Array<T>` element。旧 `nullable` 字段已移除。
+`type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>`、`Array<T>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、primitive array、tuple 或任意 generic type。Primitive array 会在最终 canonical identity 解析后拒绝，因此 `kotlin.IntArray`、指向它的 alias、short-name evidence 及递归容器位置都不能绕过校验；`Array<Int>` 仍受支持，业务类型 `com.acme.IntArray` 不会仅因 simple name 被拒绝。Domain Event 的递归 Entity 检查同样遍历 `Array<T>` element。旧 `nullable` 字段已移除。
 
-`PageData<Item>` 是 query / API result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。
+`PageData<Item>` 是 query / API result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。`query` 或 `api-payload` 的 `page` variant 会派生 `pageNum: Int = 1` 和 `pageSize: Int = 10`；作者不能声明根路径为 `pageNum` / `pageSize` 的 field，因此 `pageNum.value`、`pageSize[].value` 同样非法，`filter.pageNum`、`filters[].pageSize` 不冲突。非 page block 可以把这些根字段当作普通业务字段。
+
+## Artifact Selection
+
+省略 `artifacts` 会展开为当前 tag 的默认集合。显式声明时，列表必须非空、包含 primary carrier，并且只能使用当前 tag 支持的 family/variant；secondary artifact 不能脱离 primary：
+
+| Tag | Primary | Optional secondary |
+| --- | --- | --- |
+| `command` | `command` | none |
+| `query` | `query`（可用 `page` variant） | `query-handler` |
+| `capability` | `capability` | `capability-handler` |
+| `api_payload` | `api-payload`（可用 `page` variant） | none |
+| `domain_event` | `domain-event` | `domain-subscriber` |
+| `integration_event` | `integration-event`（`inbound` / `outbound`） | `integration-subscriber`，仅 inbound |
+| `domain_service` | `domain-service` | none |
+
+`domain_service` 是 metadata-only anchor，非空 `fields` 或 `resultFields` 都会失败。Domain Service 的业务操作由作者实现，Analyzer 不从方法体推断设计输入。
 
 ## 最小 Command
 
@@ -106,6 +122,7 @@ field item 常见 shape：
     "description": "content review was approved",
     "aggregates": ["Content"],
     "persist": true,
+    "eventName": "content.approved",
     "fields": [
       { "name": "contentId", "type": "ContentId" },
       { "name": "approvedAt", "type": "Instant" }
@@ -148,12 +165,14 @@ field item 常见 shape：
 | `query` | 不应 mutate aggregate 或修复状态。 |
 | `capability` | 表达 application-facing external capability，不放 adapter protocol details。 |
 | `api_payload` | 表达 payload shape，不替代 command/query 边界。 |
-| `domain_event` | 表达业务事实，不表达技术 continuation step；`eventName` 可用于 published name，`persist` 只允许在这里使用；`fields` 是完整 payload，`aggregates` 仅表达归属，resolved field graph 不得包含 Aggregate/Entity。 |
+| `domain_event` | 表达业务事实，不表达技术 continuation step；`persist: true` 时必须声明非空 `eventName`，`persist` 只允许在这里使用；`fields` 是完整 payload，`aggregates` 仅表达归属，resolved field graph 不得包含 Aggregate/Entity。 |
 | `integration_event` | 表达 service boundary published language；必须声明 `eventName`。 |
 | `domain_service` | 用于跨对象领域判断，不放 HTTP、message、database protocol。 |
 
 ## Analysis 片段边界
 
-drawing-board JSON 是 analysis evidence。只有内容满足本页字段集合、tag 约束、field shape 和 artifact selection 规则时，才可以通过 `sources.designJson.files` 作为普通 design JSON 输入。
+drawing-board JSON 是 analysis evidence。当前 Drawing Board generator 会输出满足本页字段集合、tag 约束、field shape 和 artifact selection 的普通 Design JSON；人或 Agent 可以把选定文件显式加入 `sources.designJson.files`。这不会自动发生，也不代表任意 analysis JSON 都是合法输入。
+
+跨上下文复用 Integration Event 时，可以复制 outbound published-language contract，并显式把 artifact variant 改为 inbound。这个修改是消费上下文的新设计决策；Analyzer 和 Generator 都不会自动改变 event direction。
 
 Value Object 和 enum 使用 type manifests 输入。数据库唯一约束保留为 schema/canonical metadata，用于存储完整性和已支持的 owned relation 基数推断；aggregate generator 不生成唯一性 Query、Handler 或 Validator。

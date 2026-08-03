@@ -365,6 +365,7 @@ class PebbleArtifactRendererTest {
         family: String,
         variant: String = "",
         aggregates: List<String> = listOf("Order"),
+        eventName: String = "",
     ) {
         assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
         assertTrue(content.contains("@DesignBlockMetadata("))
@@ -372,7 +373,11 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("name = \"$name\""))
         assertTrue(content.contains("aggregates = [${aggregates.joinToString(", ") { "\"$it\"" }}]"))
         assertTrue(content.contains("family = \"$family\""))
-        assertFalse(content.contains("eventName = "))
+        if (eventName.isBlank()) {
+            assertFalse(content.contains("eventName = "))
+        } else {
+            assertTrue(content.contains("eventName = ${eventName.toTestKotlinStringLiteral()}"))
+        }
         if (variant.isBlank()) {
             assertFalse(content.contains("variant = \"\""))
         } else {
@@ -390,7 +395,7 @@ class PebbleArtifactRendererTest {
                     '\r' -> append("\\r")
                     '\t' -> append("\\t")
                     '\b' -> append("\\b")
-                    '\u000C' -> append("\\f")
+                    '\u000C' -> append("\\u000c")
                     '$' -> append("\\$")
                     else -> {
                         if (char.code in 0x00..0x1F) {
@@ -8458,17 +8463,34 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" event",
                         "descriptionCommentText" to "order * / \"created\" event",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
+                        "eventName" to "order.\"created\"\\${'$'}event",
+                        "eventNameKotlinStringLiteral" to "order.\"created\"\\${'$'}event".toTestKotlinStringLiteral(),
                         "persist" to true,
                         "imports" to listOf("java.util.UUID"),
                         "fields" to listOf(
-                            mapOf("name" to "reason", "renderedType" to "String", "nullable" to false),
-                            mapOf("name" to "snapshot", "renderedType" to "Snapshot?", "nullable" to true),
+                            mapOf(
+                                "name" to "reason",
+                                "renderedType" to "String",
+                                "nullable" to false,
+                                "defaultValue" to "\"manual\"",
+                            ),
+                            mapOf(
+                                "name" to "snapshot",
+                                "renderedType" to "Snapshot?",
+                                "nullable" to true,
+                                "defaultValue" to "null",
+                            ),
                         ),
                         "nestedTypes" to listOf(
                             mapOf(
                                 "name" to "Snapshot",
                                 "fields" to listOf(
-                                    mapOf("name" to "traceId", "renderedType" to "UUID", "nullable" to false),
+                                    mapOf(
+                                        "name" to "traceId",
+                                        "renderedType" to "UUID",
+                                        "nullable" to false,
+                                        "defaultValue" to "UUID(0L, 0L)",
+                                    ),
                                 ),
                             ),
                         ),
@@ -8493,6 +8515,11 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         val normalizedContent = content.replace("\r\n", "\n")
         assertTrue(content.contains("@DomainEvent"))
+        assertTrue(
+            content.contains(
+                "@DomainEvent(value = ${"order.\"created\"\\${'$'}event".toTestKotlinStringLiteral()}, persist = true)",
+            ),
+        )
         assertFalse(content.contains("@DesignBlockMetadata("))
         assertFalse(content.contains(legacyAggregateCall))
         assertTrue(content.contains("* order * / \"created\" event"))
@@ -8500,11 +8527,12 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("description = "))
         assertFalse(content.contains("&quot;"))
         assertTrue(content.contains("class OrderCreatedDomainEvent("))
-        assertTrue(content.contains("val reason: String"))
+        assertTrue(content.contains("val reason: String = \"manual\""))
+        assertTrue(content.contains("val snapshot: Snapshot? = null"))
         assertFalse(content.contains("val entity:"))
         assertFalse(content.contains("import com.acme.demo.domain.order.Order"))
         assertTrue(content.contains("data class Snapshot("))
-        assertTrue(content.contains("val traceId: UUID"))
+        assertTrue(content.contains("val traceId: UUID = UUID(0L, 0L)"))
         assertTrue(
             normalizedContent.contains("package com.acme.demo.domain.order.events\n\nimport"),
             "domain event should keep one blank line between package and imports"
@@ -8634,6 +8662,8 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" \\event ${'$'}status",
                         "descriptionCommentText" to "order * / \"created\" \\event ${'$'}status",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" \\\\event \\${'$'}status\"",
+                        "eventName" to "order.\"created\"\\${'$'}event",
+                        "eventNameKotlinStringLiteral" to "order.\"created\"\\${'$'}event".toTestKotlinStringLiteral(),
                         "persist" to true,
                         "imports" to listOf("java.util.UUID"),
                         "fields" to listOf(
@@ -8667,6 +8697,11 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("description = \"order */ \\\"created\\\" \\\\event \\${'$'}status\""))
         assertTrue(content.contains("aggregates = [${"Or\"der\\${'$'}status".toTestKotlinStringLiteral()}]"))
         assertTrue(content.contains("eventName = ${"order.\"created\"\\${'$'}event".toTestKotlinStringLiteral()}"))
+        assertTrue(
+            content.contains(
+                "@DomainEvent(value = ${"order.\"created\"\\${'$'}event".toTestKotlinStringLiteral()}, persist = true)",
+            ),
+        )
         assertTrue(content.contains("family = \"domain-event\""))
         assertFalse(content.contains("variant = \"\""))
         assertFalse(content.contains("&quot;"))
@@ -8755,6 +8790,7 @@ class PebbleArtifactRendererTest {
             name = "OrderAcceptedIntegrationEvent",
             family = "integration-event",
             variant = "inbound",
+            eventName = "order.accepted",
         )
 
         val integrationSubscriber = renderTemplate(
@@ -8866,6 +8902,15 @@ class PebbleArtifactRendererTest {
                         "descriptionText" to "order */ \"created\" event",
                         "descriptionCommentText" to "order * / \"created\" event",
                         "descriptionKotlinStringLiteral" to "\"order */ \\\"created\\\" event\"",
+                        "buildingBlock" to buildingBlockContext(
+                            tag = "integration_event",
+                            name = "OrderCreated",
+                            family = "integration-event",
+                            packageName = "order",
+                            description = "order */ \"created\" event",
+                            eventName = "order.created",
+                            variant = "inbound",
+                        ),
                         "variant" to "inbound",
                         "eventName" to "order.created",
                         "eventNameKotlinStringLiteral" to "\"order.created\"",
@@ -8873,9 +8918,26 @@ class PebbleArtifactRendererTest {
                         "outbound" to false,
                         "imports" to listOf("java.util.UUID"),
                         "fields" to listOf(
-                            mapOf("name" to "orderId", "renderedType" to "UUID", "nullable" to false),
+                            mapOf(
+                                "name" to "orderId",
+                                "renderedType" to "UUID",
+                                "nullable" to false,
+                                "defaultValue" to "UUID(0L, 0L)",
+                            ),
                         ),
-                        "nestedTypes" to emptyList<Map<String, Any?>>(),
+                        "nestedTypes" to listOf(
+                            mapOf(
+                                "name" to "Details",
+                                "fields" to listOf(
+                                    mapOf(
+                                        "name" to "source",
+                                        "renderedType" to "String",
+                                        "nullable" to false,
+                                        "defaultValue" to "\"api\"",
+                                    ),
+                                ),
+                            ),
+                        ),
                     ),
                     conflictPolicy = ConflictPolicy.SKIP
                 ),
@@ -8921,6 +8983,7 @@ class PebbleArtifactRendererTest {
 
         val inboundContent = rendered[0].content
         assertTrue(inboundContent.contains("import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent"))
+        assertTrue(inboundContent.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
         assertTrue(inboundContent.contains("import java.util.UUID"))
         assertTrue(inboundContent.contains("@IntegrationEvent("))
         assertTrue(inboundContent.contains("value = \"order.created\""))
@@ -8928,7 +8991,9 @@ class PebbleArtifactRendererTest {
         assertTrue(inboundContent.contains("subscriber = \"\\\${spring.application.name:}\""))
         assertTrue(inboundContent.contains("const val EVENT_NAME = \"order.created\""))
         assertTrue(inboundContent.contains("data class OrderCreatedIntegrationEvent("))
-        assertTrue(inboundContent.contains("val orderId: UUID"))
+        assertTrue(inboundContent.contains("val orderId: UUID = UUID(0L, 0L)"))
+        assertTrue(inboundContent.contains("val source: String = \"api\""))
+        assertTrue(inboundContent.contains("eventName = \"order.created\""))
 
         val outboundContent = rendered[1].content
         assertTrue(outboundContent.contains("import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent"))

@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: design-roundtrip-review-fixes
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: b0d6047e6c27b3c97e14dc361db9175cc9d872b8435c43ab75c85211bf083934
+spec_changes:
+  - capability: design-roundtrip-contract
+    operation: replace
+    source: specs/design-roundtrip-contract/spec.md
+    base_hash: 736b699e243e7d8d9363232f14068d18ca20cdaf0110b9299a9a076ac2a3d695
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/1ab453fff11607207953bebc1821463ead1d13c08d6ce35dbe256c47e15212b6.json
+verification_evidence: runtime/evidence/verifications/14bf907c33b395e01f6c45d640321982f1cca06d64b1e1e5a65382e4762a140f.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-03
+run_id: b1c44151-ba7f-475e-a58f-7476269bf279

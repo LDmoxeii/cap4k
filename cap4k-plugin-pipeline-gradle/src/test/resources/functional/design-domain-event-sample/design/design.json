@@ -8,6 +8,7 @@
       "Order"
     ],
     "persist": true,
+    "eventName": "order.created",
     "fields": [
       {
         "name": "reason",

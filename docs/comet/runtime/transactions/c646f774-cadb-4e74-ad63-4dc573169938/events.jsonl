@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-03T03:56:24.103Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-03T03:56:30.148Z","type":"operation-started","operationId":"spec-1-design-roundtrip-contract"}
+{"sequence":3,"timestamp":"2026-08-03T03:56:30.673Z","type":"operation-completed","operationId":"spec-1-design-roundtrip-contract"}
+{"sequence":4,"timestamp":"2026-08-03T03:56:30.736Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-03T03:56:32.076Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-03T03:56:32.874Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-03T03:56:33.115Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-03T03:56:33.324Z","type":"commit"}

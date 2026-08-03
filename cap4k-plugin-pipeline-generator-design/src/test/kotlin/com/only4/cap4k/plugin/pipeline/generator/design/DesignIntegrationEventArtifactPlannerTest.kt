@@ -26,7 +26,11 @@ class DesignIntegrationEventArtifactPlannerTest {
             config = projectConfig(modules = mapOf("application" to "demo-application")),
             model = CanonicalModel(
                 designBlocks = listOf(
-                    integrationEvent(variant = "inbound"),
+                    integrationEvent(
+                        variant = "inbound",
+                        fields = listOf(FieldModel("orderId", "UUID", defaultValue = "UUID(0L, 0L)")),
+                        includeNestedPayload = true,
+                    ),
                     integrationEvent(
                         variant = "outbound",
                         packageName = "billing",
@@ -58,10 +62,23 @@ class DesignIntegrationEventArtifactPlannerTest {
         assertEquals(false, inbound.context["outbound"])
         assertEquals("order * / \"created\" event", inbound.context["descriptionCommentText"])
         assertEquals(
-            listOf(DesignRenderFieldModel(name = "orderId", renderedType = "UUID")),
+            listOf(
+                DesignRenderFieldModel(name = "orderId", renderedType = "UUID", defaultValue = "UUID(0L, 0L)"),
+                DesignRenderFieldModel(name = "details", renderedType = "Details"),
+            ),
             inbound.context["fields"],
         )
-        assertEquals(emptyList<DesignRenderNestedTypeModel>(), inbound.context["nestedTypes"])
+        assertEquals(
+            listOf(
+                DesignRenderNestedTypeModel(
+                    name = "Details",
+                    fields = listOf(
+                        DesignRenderFieldModel(name = "source", renderedType = "String", defaultValue = "\"api\""),
+                    ),
+                ),
+            ),
+            inbound.context["nestedTypes"],
+        )
         assertEquals(listOf("java.util.UUID"), inbound.context["imports"])
 
         val outbound = items[1]
@@ -87,6 +104,7 @@ class DesignIntegrationEventArtifactPlannerTest {
         name: String = "OrderCreated",
         eventName: String = "order.created",
         fields: List<FieldModel> = listOf(FieldModel("orderId", "UUID")),
+        includeNestedPayload: Boolean = false,
     ) = designBlock(
         tag = "integration_event",
         family = "integration-event",
@@ -102,7 +120,41 @@ class DesignIntegrationEventArtifactPlannerTest {
             fields = fields.map { field ->
                 if (field.type == "UUID") field.copy(type = "java.util.UUID") else field
             },
-        ),
+        ).let { definition ->
+            if (!includeNestedPayload) {
+                definition
+            } else {
+                val nestedIdentity = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
+                    packageName = packageName,
+                    typePath = listOf(name, "Details"),
+                    kind = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.NESTED_VALUE,
+                )
+                definition.copy(
+                    fields = definition.fields + com.only4.cap4k.plugin.pipeline.api.SemanticValueField(
+                        name = "details",
+                        type = com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef(nestedIdentity),
+                    ),
+                    nestedDefinitions = listOf(
+                        com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition(
+                            identity = nestedIdentity,
+                            role = com.only4.cap4k.plugin.pipeline.api.SemanticValueRole.INTEGRATION_EVENT,
+                            fields = listOf(
+                                com.only4.cap4k.plugin.pipeline.api.SemanticValueField(
+                                    name = "source",
+                                    type = com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef(
+                                        com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType.STRING,
+                                    ),
+                                    defaultValue = com.only4.cap4k.plugin.pipeline.api.SemanticDefaultExpression(
+                                        kotlinExpression = "\"api\"",
+                                        sourceExpression = "api",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            }
+        },
     )
 
     private fun projectConfig(modules: Map<String, String>) = ProjectConfig(

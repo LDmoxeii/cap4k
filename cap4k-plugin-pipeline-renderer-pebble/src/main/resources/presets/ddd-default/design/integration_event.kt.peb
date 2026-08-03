@@ -21,14 +21,15 @@ import {{ import }}
     name = {{ buildingBlock.nameKotlinStringLiteral | raw }},
     packageName = {{ buildingBlock.packageNameKotlinStringLiteral | raw }},
     description = {{ buildingBlock.descriptionKotlinStringLiteral | raw }},
-    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}],
+    aggregates = [{% for aggregate in buildingBlock.aggregateKotlinStringLiterals %}{{ aggregate | raw }}{% if not loop.last %}, {% endif %}{% endfor %}]{% if buildingBlock.eventName is not empty %},
+    eventName = {{ buildingBlock.eventNameKotlinStringLiteral | raw }}{% endif %},
     family = {{ buildingBlock.familyKotlinStringLiteral | raw }}{% if buildingBlock.variant is not empty %},
     variant = {{ buildingBlock.variantKotlinStringLiteral | raw }}{% endif %}
 )
 {% endif -%}
 data class {{ typeName }}(
 {%- for field in fields %}
-    val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+    val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
 ) {
     companion object {
@@ -38,7 +39,7 @@ data class {{ typeName }}(
 
     data class {{ nestedType.name }}(
 {%- for field in nestedType.fields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if not loop.last %},{% endif %}
+        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     )
 {%- endfor %}

@@ -20,6 +20,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
 import com.only4.cap4k.plugin.pipeline.api.SemanticValueField
 import com.only4.cap4k.plugin.pipeline.api.SemanticValueRole
@@ -133,13 +134,19 @@ class DrawingBoardArtifactPlannerTest {
                                 "orders.queries",
                                 "ReadOrder.Request",
                                 SemanticValueRole.QUERY_REQUEST,
-                                fields = listOf(semanticField("orderId", SemanticBuiltinType.LONG)),
+                                fields = listOf(
+                                    semanticField("zeta", SemanticBuiltinType.LONG),
+                                    semanticField("alpha", SemanticBuiltinType.STRING),
+                                ),
                             ),
                             response = semanticValue(
                                 "orders.queries",
                                 "ReadOrder.Response",
                                 SemanticValueRole.QUERY_RESPONSE,
-                                fields = listOf(semanticField("status", SemanticBuiltinType.STRING)),
+                                fields = listOf(
+                                    semanticField("omega", SemanticBuiltinType.STRING),
+                                    semanticField("beta", SemanticBuiltinType.BOOLEAN),
+                                ),
                             ),
                         ),
                         DrawingBoardElementModel(
@@ -148,8 +155,8 @@ class DrawingBoardArtifactPlannerTest {
                             name = "OrderCreated",
                             description = "order created",
                             artifacts = listOf(
-                                ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                                 ArtifactSelectionModel(family = "integration-subscriber"),
+                                ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                             ),
                             request = semanticValue(
                                 "orders.events",
@@ -178,14 +185,72 @@ class DrawingBoardArtifactPlannerTest {
             listOf(ArtifactSelectionModel(family = "query", variant = "page")),
             queryElement.designJsonArtifacts,
         )
-        assertEquals(1, queryElement.fields.size)
-        assertEquals(1, queryElement.resultFields.size)
+        assertEquals(listOf("zeta", "alpha"), queryElement.fields.map { it.name })
+        assertEquals(listOf("omega", "beta"), queryElement.resultFields.map { it.name })
         assertEquals(
             listOf(
                 ArtifactSelectionModel(family = "integration-event", variant = "inbound"),
                 ArtifactSelectionModel(family = "integration-subscriber"),
             ),
             integrationElement.designJsonArtifacts,
+        )
+    }
+
+    @Test
+    fun `preserves nested field declaration order while flattening drawing board fields`() {
+        val nested = semanticValue(
+            packageName = "orders.commands",
+            typePath = "SubmitOrder.Request.Details",
+            role = SemanticValueRole.VALUE_OBJECT,
+            fields = listOf(
+                semanticField("second", SemanticBuiltinType.STRING),
+                semanticField("first", SemanticBuiltinType.LONG),
+            ),
+        )
+        val request = semanticValue(
+            packageName = "orders.commands",
+            typePath = "SubmitOrder.Request",
+            role = SemanticValueRole.COMMAND_REQUEST,
+            fields = listOf(
+                semanticField("top", SemanticBuiltinType.STRING),
+                SemanticValueField(
+                    name = "details",
+                    type = SemanticNamedTypeRef(
+                        symbol = CanonicalTypeIdentity(
+                            packageName = "orders.commands",
+                            typePath = listOf("SubmitOrder", "Request", "Details"),
+                            kind = CanonicalTypeKind.NESTED_VALUE,
+                        ),
+                    ),
+                ),
+                semanticField("last", SemanticBuiltinType.BOOLEAN),
+            ),
+            nestedDefinitions = listOf(nested),
+        )
+
+        val plan = DrawingBoardArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                drawingBoard = DrawingBoardModel(
+                    elements = listOf(
+                        DrawingBoardElementModel(
+                            tag = "command",
+                            packageName = "orders.commands",
+                            name = "SubmitOrder",
+                            description = "submit order",
+                            request = request,
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val element = (plan.single().context["elements"] as List<*>)
+            .filterIsInstance<DrawingBoardRenderElement>()
+            .single()
+        assertEquals(
+            listOf("top", "details", "details.second", "details.first", "last"),
+            element.fields.map { it.name },
         )
     }
 
@@ -395,6 +460,7 @@ class DrawingBoardArtifactPlannerTest {
         typePath: String,
         role: SemanticValueRole,
         fields: List<SemanticValueField> = emptyList(),
+        nestedDefinitions: List<SemanticValueDefinition> = emptyList(),
     ): SemanticValueDefinition = SemanticValueDefinition(
         identity = CanonicalTypeIdentity(
             packageName = packageName,
@@ -403,6 +469,7 @@ class DrawingBoardArtifactPlannerTest {
         ),
         role = role,
         fields = fields,
+        nestedDefinitions = nestedDefinitions,
     )
 
     private fun semanticField(name: String, kind: SemanticBuiltinType): SemanticValueField =

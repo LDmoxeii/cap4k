@@ -28,6 +28,161 @@ import java.nio.file.Path
 
 class AnalysisOutputCorrectnessTest {
     @Test
+    fun `event names preserve runtime literals and never fall back across metadata`() {
+        val runtimeWhitespaceMessages = compileWithCap4kPluginExpectingFailure(
+            eventContractSources(
+                fileName = "WhitespaceDomainEvent.kt",
+                declaration = """
+                    package demo.domain.events
+
+                    @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                        tag = "domain_event",
+                        packageName = "orders.events",
+                        name = "WhitespaceDomainEvent",
+                        eventName = " order.created ",
+                        family = "domain-event",
+                    )
+                    @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent(
+                        value = " order.created ",
+                        persist = true,
+                    )
+                    data class WhitespaceDomainEvent(val orderId: Long)
+                """.trimIndent(),
+            ),
+        )
+        val metadataMissingMessages = compileWithCap4kPluginExpectingFailure(
+            eventContractSources(
+                fileName = "RuntimeOnlyDomainEvent.kt",
+                declaration = """
+                    package demo.domain.events
+
+                    @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                        tag = "domain_event",
+                        packageName = "orders.events",
+                        name = "RuntimeOnlyDomainEvent",
+                        family = "domain-event",
+                    )
+                    @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent(
+                        value = "order.runtime-only",
+                        persist = true,
+                    )
+                    data class RuntimeOnlyDomainEvent(val orderId: Long)
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(runtimeWhitespaceMessages.contains("domain-event metadata/runtime eventName conflict"))
+        assertTrue(metadataMissingMessages.contains("domain-event metadata/runtime eventName conflict"))
+    }
+
+    @Test
+    fun `integration event direction only defaults a missing subscriber argument to none`() {
+        listOf(
+            "subscriber = \"\"" to "BlankSubscriberIntegrationEvent",
+            "subscriber = \" [none] \"" to "WhitespaceNoneSubscriberIntegrationEvent",
+        ).forEach { (subscriberArgument, className) ->
+            val messages = compileWithCap4kPluginExpectingFailure(
+                eventContractSources(
+                    fileName = "$className.kt",
+                    declaration = """
+                        package demo.application.events
+
+                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                            tag = "integration_event",
+                            packageName = "orders.events",
+                            name = "$className",
+                            eventName = "order.exported",
+                            family = "integration-event",
+                            variant = "outbound",
+                        )
+                        @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                            value = "order.exported",
+                            $subscriberArgument,
+                        )
+                        data class $className(val orderId: Long)
+                    """.trimIndent(),
+                ),
+            )
+
+            assertTrue(
+                messages.contains("integration-event metadata/runtime direction conflict"),
+                messages,
+            )
+        }
+
+        val omittedSubscriberJson = compileDesignElements(
+            eventContractSources(
+                fileName = "OmittedSubscriberIntegrationEvent.kt",
+                declaration = """
+                    package demo.application.events
+
+                    @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                        tag = "integration_event",
+                        packageName = "orders.events",
+                        name = "OmittedSubscriberIntegrationEvent",
+                        eventName = "order.exported",
+                        family = "integration-event",
+                        variant = "outbound",
+                    )
+                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                        value = "order.exported",
+                    )
+                    data class OmittedSubscriberIntegrationEvent(val orderId: Long)
+                """.trimIndent(),
+            ),
+        )
+        assertTrue(omittedSubscriberJson.contains("\"variant\":\"outbound\""), omittedSubscriberJson)
+    }
+
+    @Test
+    fun `transient domain event accepts two empty names without synthesizing metadata`() {
+        val json = compileDesignElements(
+            eventContractSources(
+                fileName = "TransientDomainEvent.kt",
+                declaration = """
+                    package demo.domain.events
+
+                    @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                        tag = "domain_event",
+                        packageName = "orders.events",
+                        name = "TransientDomainEvent",
+                        family = "domain-event",
+                    )
+                    @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+                    data class TransientDomainEvent(val orderId: Long)
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(json.contains("\"name\":\"TransientDomainEvent\""), json)
+        assertTrue(json.contains("\"persist\":false"), json)
+        assertTrue(!json.contains("\"eventName\""), json)
+    }
+
+    @Test
+    fun `form feed default is recovered as a Kotlin supported unicode literal`() {
+        val json = compileDesignElements(
+            eventContractSources(
+                fileName = "FormFeedPayload.kt",
+                declaration = """
+                    package demo.application.api
+
+                    @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                        tag = "api",
+                        packageName = "orders.api",
+                        name = "FormFeedPayload",
+                        family = "api-payload",
+                        variant = "request",
+                    )
+                    data class FormFeedPayload(val marker: String = "\u000c")
+                """.trimIndent(),
+            ),
+        )
+
+        assertTrue(json.contains("\"defaultValue\":\"\\\"\\\\u000c\\\"\""), json)
+    }
+
+    @Test
     fun `command handler calling top level aggregate behavior extension emits exact entity method edges`() {
         val rels = compileRelationships(
             categorySources(
@@ -447,13 +602,17 @@ class AnalysisOutputCorrectnessTest {
         assertTrue(issueCaptcha.contains(""""name":"attempt","type":"Int","defaultValue":"1""""))
         assertTrue(issueCaptcha.contains(""""name":"enabled","type":"Boolean","defaultValue":"true""""))
         assertTrue(issueCaptcha.contains(""""name":"tags","type":"List<String>","defaultValue":"emptyList()""""))
-        assertTrue(issueCaptcha.contains(""""name":"channels","type":"Set<CaptchaChannel>","defaultValue":"emptySet()""""))
+        assertTrue(
+            issueCaptcha.contains(
+                """"name":"channels","type":"Set<demo.application.commands.auth.CaptchaChannel>","defaultValue":"emptySet()"""",
+            ),
+        )
         assertTrue(issueCaptcha.contains(""""name":"metadata","type":"Map<String,String>","defaultValue":"emptyMap()""""))
-        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"CaptchaChannel","defaultValue":"demo.application.commands.auth.CaptchaChannel.INLINE""""))
-        assertTrue(issueCaptcha.contains(""""name":"policy","type":"CaptchaPolicy","defaultValue":"demo.application.commands.auth.CaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"preferredChannel","type":"demo.application.commands.auth.CaptchaChannel","defaultValue":"demo.application.commands.auth.CaptchaChannel.INLINE""""))
+        assertTrue(issueCaptcha.contains(""""name":"policy","type":"demo.application.commands.auth.CaptchaPolicy","defaultValue":"demo.application.commands.auth.CaptchaPolicy""""))
         assertTrue(issueCaptcha.contains(""""name":"referenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE""""))
-        assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"SharedCaptchaChannel","defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
-        assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"SharedCaptchaPolicy","defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
+        assertTrue(issueCaptcha.contains(""""name":"externalPreferredChannel","type":"demo.application.shared.defaults.SharedCaptchaChannel","defaultValue":"demo.application.shared.defaults.SharedCaptchaChannel.IMAGE""""))
+        assertTrue(issueCaptcha.contains(""""name":"externalPolicy","type":"demo.application.shared.defaults.SharedCaptchaPolicy","defaultValue":"demo.application.shared.defaults.SharedCaptchaPolicy""""))
         assertTrue(issueCaptcha.contains(""""name":"topLevelReferenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.TOP_LEVEL_DEFAULT_TITLE""""))
         assertTrue(issueCaptcha.contains(""""name":"topLevelGetterReferenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.TOP_LEVEL_GETTER_DEFAULT_TITLE""""))
         assertTrue(issueCaptcha.contains(""""name":"objectGetterReferenceTitle","type":"String","defaultValue":"demo.application.shared.defaults.SharedGetterDefaults.OBJECT_DEFAULT_TITLE""""))
@@ -648,6 +807,52 @@ class AnalysisOutputCorrectnessTest {
             messages.contains("unsupported defaultValue expression for command IssueCaptcha field dynamicJavaFieldTitle"),
         )
     }
+
+    private fun eventContractSources(
+        fileName: String,
+        declaration: String,
+    ): List<SourceFile> = listOf(
+        SourceFile.kotlin(
+            "DesignBlockMetadata.kt",
+            """
+                package com.only4.cap4k.analysis.metadata
+
+                annotation class DesignBlockMetadata(
+                    val tag: String,
+                    val name: String,
+                    val packageName: String,
+                    val description: String = "",
+                    val aggregates: Array<String> = [],
+                    val eventName: String = "",
+                    val family: String = "",
+                    val variant: String = "",
+                )
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "DomainEvent.kt",
+            """
+                package com.only4.cap4k.ddd.core.domain.event.annotation
+
+                annotation class DomainEvent(
+                    val value: String = "",
+                    val persist: Boolean = false,
+                )
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(
+            "IntegrationEvent.kt",
+            """
+                package com.only4.cap4k.ddd.core.application.event.annotation
+
+                annotation class IntegrationEvent(
+                    val value: String = "",
+                    val subscriber: String = "[none]",
+                )
+            """.trimIndent(),
+        ),
+        SourceFile.kotlin(fileName, declaration),
+    )
 
     private fun compileRelationships(
         sources: List<SourceFile>,
