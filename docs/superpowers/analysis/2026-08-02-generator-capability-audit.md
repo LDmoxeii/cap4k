@@ -460,6 +460,26 @@ G-06 保持 optional provider boundary；G-07 继续作为独立 P2 diagnostics 
 
 每个 PR 合并后，审计线应刷新 `origin/master`、复核对应 finding 和验收证据，再改变 Generator gate 结论。只有第 4 个 PR 合并并通过共同 gate 后，Generator 才能从 `NOT READY` 改为 `READY`，随后进入 Runtime capability audit。
 
+### 第四分支可执行合同
+
+`fix/design-roundtrip-contract` 是一个语义合同修复，不再拆成互相漂移的 Generator 与 Analyzer PR。建议按依赖顺序实现，但最终必须作为同一个当前合同验收：
+
+1. **输入与 canonical。** 补齐 tag-artifact matrix、primary carrier、Domain Service、page collision、persisted Domain Event name 与 `entity` semantic-type validation；accepted Design JSON 必须先形成唯一、可逆的 canonical 语义。
+2. **Generator projection。** 补齐 event defaults、Domain Event runtime name、recursive type/default projection 与所有 framework-owned compile/runtime structure；不得要求人工补字段、annotation、interface 或 wiring 才能编译。
+3. **Analyzer recovery。** 恢复 canonical FQN、`Array<T>`、recursive nullability/default、field/nested order、page-derived structure、event direction/name/persist，并校验 authoring metadata 与 runtime annotations 冲突。
+4. **Drawing Board。** 输出可直接作为普通 Design JSON 显式注册的兼容结构；保持 semantic order，允许 artifact/file/entry 物理排序。Completeness 必须逐 configured analysis input directory 判断，不能让一个完整 module 掩盖另一个缺失 metadata 的 module 后输出残缺 board。
+5. **真实 gate。** 新增独立 `DesignRoundTripFunctionalTest` 与一套丰富 fixture，使用两个干净临时工程。Project A 执行 generate -> compile -> real compiler Analyzer -> Drawing Board；Project B 禁用原始 Design JSON，只显式输入 Project A 的 Drawing Board，再执行 canonicalize -> generate -> compile。断言 `RoundTripProjection(C0) == RoundTripProjection(C1)`，并比较两代 framework-owned skeleton 与 runtime annotation semantics。
+
+当前 Issue #92 测试中的 `writeIssue92AnalysisFixture(...)` 不能改造成验收捷径，应删除这条手写 analysis JSON 的假 round-trip 路径。普通 fixture 的 `compileKotlin` 也不等于 Analyzer 已安装；真实 gate 必须显式运行 `Cap4kCodeAnalysisCompilerRegistrar`，并按 domain -> application -> adapter 的实际 classpath 顺序收集各 module analysis output 后再合并。
+
+快速契约测试分别归属 source/core、design generator、compiler Analyzer、IR analysis source 与 Drawing Board generator；昂贵的跨模块链路只保留一个真实 gate。正向 fixture 覆盖七个 tag、page 与 primary/secondary variants、Strong ID/enum/Value Object/external FQN、List/Set/Map/Array、recursive nullability/default、nested DTO、合法 `entity` 字段、persisted/transient/marker events。负向测试覆盖 empty/cross-tag/secondary-only artifacts、page 显式保留字段、Domain Service payload、persisted event 缺 name、metadata/runtime conflict、真实 Entity payload与 incomplete analysis input。
+
+G-09 只为该 gate 做 TestKit isolation：使用临时工程名唯一的 H2 in-memory URL，移除 `DB_CLOSE_DELAY=-1`，必要时同步修正已被相同 gate 复用且已观察到锁问题的 integrated fixture；不修改 `DbSchemaSourceProvider` 的生产 connection lifecycle，也不把所有历史 H2 fixture 的机械清理扩进本分支。
+
+Issue #102 在本分支中的完成含义是：Drawing Board 结构与 Design JSON input 直接兼容，并有显式 import 的真实证据。把 producer 的 outbound contract 复制到 consumer 并改成 inbound 仍是人/Agent 的上下文决策；不新增自动回灌、自动注册、自动 event direction 翻转或专用 recovery subsystem。
+
+明确非目标：不恢复 sidecar，不推断手写业务方法体，不恢复缺失 metadata 的静默降级，不支持 primitive arrays，不弱化 PR #152 的 reliable-event Entity payload 边界，不修改生产 JDBC lifecycle，也不提前安装或自动接线 Analyzer 产品能力。
+
 Mainline merge evidence：
 
 - PR #154 `fix/generator-contract-surface` -> merge commit `d310f3fa`；required `check` passed。
@@ -475,7 +495,7 @@ Mainline merge evidence：
 | --- | --- |
 | #75 | 有效的 P2 diagnostics partial，不阻塞核心 gate |
 | #76 | 有效的 P1 HTTP adapter integration gap；应修 |
-| #102 | substantially resolved/stale；不应建立自动 recovery subsystem |
+| #102 | 纳入第四分支：以 Drawing Board 直接 Design-JSON-compatible + 显式 import 完成；不建立自动 recovery subsystem，不自动翻转 inbound/outbound |
 | #113 | 方案已被 PR #153 的 thin Skill + Agent API 责任重置取代；仅少量底层事实需要重新归属 |
 | #118 | optional projection provider investigation；不属于 missing-core |
 

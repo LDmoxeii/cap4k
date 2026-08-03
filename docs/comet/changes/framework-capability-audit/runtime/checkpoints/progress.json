@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "786b4d18-b0eb-4d60-b7d9-fe66c5fef722",
+  "id": "1177e67e-17bf-4ee9-a615-8994167fbe14",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 19,
-  "stateRevision": 20,
-  "summary": "PRs #154, #155, and #156 were merged sequentially into master after each downstream branch absorbed the latest base and passed the required check. The audit line now contains origin/master@540fef09. Generator contract drift, Strong ID MVC binding, and analysis metadata contract findings are accepted as repaired; only the semantic round-trip repair remains.",
-  "nextAction": "Start fix/design-roundtrip-contract from origin/master@540fef09, implement the confirmed G-05 semantic contract and real seven-tag second-generation gate, then merge it and refresh this audit before Runtime audit.",
-  "inputHash": "91a82e63d825782c775a433d3e86c7859f483e23f86304d6746c90559369b443",
-  "manifestHash": "d188a0868993146c79892d77cfe8cabe0e717afade0e6c6042a2dc1fec3d24f1",
-  "manifestRef": "runtime/checkpoints/manifests/d188a0868993146c79892d77cfe8cabe0e717afade0e6c6042a2dc1fec3d24f1.json",
+  "previousRevision": 20,
+  "stateRevision": 21,
+  "summary": "The fourth repair is fully shaped from current origin/master@540fef09. Its single-branch contract now covers canonical validation, complete generation, Analyzer recovery, directly compatible Drawing Board output, per-input completeness, Issue #102 explicit import, and a real two-project second-generation gate; no Generator design decision remains.",
+  "nextAction": "Await explicit confirmation of the recorded fix/design-roundtrip-contract handoff. After confirmation, create/fork the implementation session from origin/master@540fef09; do not advance the continuous audit change or begin Runtime audit until the PR merges and is re-evaluated.",
+  "inputHash": "0a307e720a6bdccf5241313c9381b94e619328a13b7f2ffd6207c923596ef20f",
+  "manifestHash": "48fbe572fada53264d880d84cbe37158368af624d92931fda13bb8b40b4f0470",
+  "manifestRef": "runtime/checkpoints/manifests/48fbe572fada53264d880d84cbe37158368af624d92931fda13bb8b40b4f0470.json",
   "artifactCount": 1,
-  "createdAt": "2026-08-02T11:11:30.042Z"
+  "createdAt": "2026-08-03T01:54:49.393Z"
 }
