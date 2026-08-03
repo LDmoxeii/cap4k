@@ -10,7 +10,7 @@ internal fun String.toKotlinStringLiteral(): String {
                 '\r' -> append("\\r")
                 '\t' -> append("\\t")
                 '\b' -> append("\\b")
-                '\u000C' -> append("\\f")
+                '\u000C' -> append("\\u000c")
                 '$' -> append("\\$")
                 else -> {
                     if (char.code in 0x00..0x1F) {

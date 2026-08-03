@@ -42,6 +42,8 @@ class DesignDomainEventArtifactPlanner : GeneratorProvider {
                     "descriptionText" to renderModel.descriptionText,
                     "descriptionCommentText" to renderModel.descriptionCommentText,
                     "descriptionKotlinStringLiteral" to renderModel.descriptionKotlinStringLiteral,
+                    "eventName" to block.eventName,
+                    "eventNameKotlinStringLiteral" to block.eventName.toKotlinStringLiteral(),
                     "persist" to (block.persist ?: false),
                     "imports" to renderModel.imports,
                     "fields" to renderModel.fields,

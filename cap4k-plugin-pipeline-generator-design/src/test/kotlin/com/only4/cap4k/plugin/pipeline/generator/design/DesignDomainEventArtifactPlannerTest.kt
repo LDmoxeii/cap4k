@@ -14,6 +14,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticDefaultExpression
 import com.only4.cap4k.plugin.pipeline.api.SemanticListTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticMapTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
@@ -34,6 +35,11 @@ import org.junit.jupiter.api.Test
 class DesignDomainEventArtifactPlannerTest {
 
     @Test
+    fun `Kotlin string literals render form feed with a supported unicode escape`() {
+        assertEquals("\"\\u000c\"", "\u000c".toKotlinStringLiteral())
+    }
+
+    @Test
     fun `plans domain event artifacts into domain events path with one-level nested type contract`() {
         val planner = DesignDomainEventArtifactPlanner()
         assertEquals("domain-event", planner.id)
@@ -41,7 +47,7 @@ class DesignDomainEventArtifactPlannerTest {
         val items = planner.plan(
             config = projectConfig(modules = mapOf("domain" to "demo-domain")),
             model = CanonicalModel(
-                designBlocks = listOf(domainEventBlock()),
+                designBlocks = listOf(domainEventBlock(eventName = "order.created")),
                 entities = listOf(entityModel()),
             ),
         )
@@ -61,6 +67,8 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals("order */ \"created\" \\event ${'$'}status", event.context["descriptionText"])
         assertEquals("order * / \"created\" \\event ${'$'}status", event.context["descriptionCommentText"])
         assertEquals("\"order */ \\\"created\\\" \\\\event \\${'$'}status\"", event.context["descriptionKotlinStringLiteral"])
+        assertEquals("order.created", event.context["eventName"])
+        assertEquals("\"order.created\"", event.context["eventNameKotlinStringLiteral"])
         assertFalse(event.context.containsKey("aggregateName"))
         assertFalse(event.context.containsKey("aggregateType"))
         assertEquals(false, event.context["persist"])
@@ -72,15 +80,15 @@ class DesignDomainEventArtifactPlannerTest {
         assertEquals("order */ \"created\" \\event ${'$'}status", buildingBlock?.get("description"))
         assertEquals("\"order */ \\\"created\\\" \\\\event \\${'$'}status\"", buildingBlock?.get("descriptionKotlinStringLiteral"))
         assertEquals(listOf("Order"), buildingBlock?.get("aggregates"))
-        assertEquals("", buildingBlock?.get("eventName"))
+        assertEquals("order.created", buildingBlock?.get("eventName"))
         assertEquals("domain-event", buildingBlock?.get("family"))
         assertEquals("", buildingBlock?.get("variant"))
         assertTrue(event.context.containsKey("fields"))
         assertTrue(event.context.containsKey("nestedTypes"))
         assertEquals(
             listOf(
-                DesignRenderFieldModel(name = "reason", renderedType = "String"),
-                DesignRenderFieldModel(name = "snapshot", renderedType = "Snapshot?", nullable = true),
+                DesignRenderFieldModel(name = "reason", renderedType = "String", defaultValue = "\"manual\""),
+                DesignRenderFieldModel(name = "snapshot", renderedType = "Snapshot?", nullable = true, defaultValue = "null"),
             ),
             event.context["fields"],
         )
@@ -88,7 +96,13 @@ class DesignDomainEventArtifactPlannerTest {
             listOf(
                 DesignRenderNestedTypeModel(
                     name = "Snapshot",
-                    fields = listOf(DesignRenderFieldModel(name = "traceId", renderedType = "UUID")),
+                    fields = listOf(
+                        DesignRenderFieldModel(
+                            name = "traceId",
+                            renderedType = "UUID",
+                            defaultValue = "UUID(0L, 0L)",
+                        ),
+                    ),
                 ),
             ),
             event.context["nestedTypes"],
@@ -383,6 +397,7 @@ class DesignDomainEventArtifactPlannerTest {
         packageName: String = "order",
         name: String = "OrderCreated",
         aggregates: List<String> = listOf("Order"),
+        eventName: String = "",
     ) = designBlock(
         tag = "domain_event",
         family = "domain-event",
@@ -390,6 +405,7 @@ class DesignDomainEventArtifactPlannerTest {
         name = name,
         description = "order */ \"created\" \\event ${'$'}status",
         aggregates = aggregates,
+        eventName = eventName,
         persist = false,
         requestDefinition = com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition(
             identity = com.only4.cap4k.plugin.pipeline.api.CanonicalTypeIdentity(
@@ -404,6 +420,7 @@ class DesignDomainEventArtifactPlannerTest {
                     com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef(
                         com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType.STRING,
                     ),
+                    defaultValue = SemanticDefaultExpression("\"manual\"", "manual"),
                 ),
                 com.only4.cap4k.plugin.pipeline.api.SemanticValueField(
                     "snapshot",
@@ -415,6 +432,7 @@ class DesignDomainEventArtifactPlannerTest {
                         ),
                         nullable = true,
                     ),
+                    defaultValue = SemanticDefaultExpression("null", "null"),
                 ),
             ),
             nestedDefinitions = listOf(
@@ -435,6 +453,7 @@ class DesignDomainEventArtifactPlannerTest {
                                     com.only4.cap4k.plugin.pipeline.api.CanonicalTypeKind.EXTERNAL,
                                 ),
                             ),
+                            defaultValue = SemanticDefaultExpression("UUID(0L, 0L)", "UUID(0L, 0L)"),
                         ),
                     ),
                 ),

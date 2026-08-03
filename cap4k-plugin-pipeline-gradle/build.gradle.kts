@@ -31,7 +31,18 @@ dependencies {
 
     testImplementation(gradleTestKit())
     testImplementation(platform(libs.junit.bom))
+    testImplementation(project(":cap4k-analysis-metadata"))
+    testImplementation(project(":cap4k-plugin-code-analysis-compiler"))
+    testImplementation(project(":cap4k-plugin-code-analysis-core"))
+    testImplementation(project(":ddd-core"))
+    testImplementation(project(":ddd-domain-repo-jpa"))
     testImplementation("org.junit.jupiter:junit-jupiter-api")
+    testImplementation(libs.kotlin.compile.testing)
+    testImplementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.2.20")
+    testImplementation("org.jetbrains.kotlin:kotlin-annotation-processing-embeddable:2.2.20")
+    testImplementation(libs.spring.context)
+    testImplementation(libs.jpa)
+    testImplementation(libs.jackson.module.kotlin)
     testImplementation(libs.postgresql)
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -67,6 +78,8 @@ tasks.named<Test>("test") {
         ":ddd-domain-repo-jpa:jar",
         ":cap4k-ddd-core-starter:jar",
         ":cap4k-ddd-jpa-starter:jar",
+        ":cap4k-plugin-code-analysis-compiler:jar",
+        ":cap4k-plugin-code-analysis-core:jar",
     )
     outputs.upToDateWhen { false }
     outputs.cacheIf { false }

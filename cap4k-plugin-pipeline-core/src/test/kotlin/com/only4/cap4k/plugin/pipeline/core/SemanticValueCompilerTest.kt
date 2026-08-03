@@ -49,6 +49,52 @@ class SemanticValueCompilerTest {
     }
 
     @Test
+    fun `rejects Kotlin primitive arrays after final canonical identity resolution`() {
+        val primitiveArrayFqns = listOf(
+            "kotlin.BooleanArray",
+            "kotlin.ByteArray",
+            "kotlin.CharArray",
+            "kotlin.DoubleArray",
+            "kotlin.FloatArray",
+            "kotlin.IntArray",
+            "kotlin.LongArray",
+            "kotlin.ShortArray",
+            "kotlin.UByteArray",
+            "kotlin.UIntArray",
+            "kotlin.ULongArray",
+            "kotlin.UShortArray",
+        )
+        primitiveArrayFqns.forEach { fqn ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                CanonicalTypeCatalog().resolveExpression(fqn, "Payload.values")
+            }
+            assertTrue(error.message.orEmpty().contains(fqn))
+            assertTrue(error.message.orEmpty().contains("Payload.values"))
+        }
+
+        val primitiveArray = identity("kotlin", "IntArray", CanonicalTypeKind.EXTERNAL)
+        val aliasError = assertThrows(IllegalArgumentException::class.java) {
+            CanonicalTypeCatalog(aliases = mapOf("Numbers" to primitiveArray))
+                .resolveExpression("Numbers", "Payload.aliasValues")
+        }
+        assertTrue(aliasError.message.orEmpty().contains("kotlin.IntArray"))
+
+        val evidenceCatalog = CanonicalTypeCatalog(sourceTypeExpressions = listOf("kotlin.IntArray"))
+        val recursiveError = assertThrows(IllegalArgumentException::class.java) {
+            evidenceCatalog.resolveExpression(
+                "Map<String, List<IntArray?>>",
+                "Payload.nestedValues",
+            )
+        }
+        assertTrue(recursiveError.message.orEmpty().contains("kotlin.IntArray"))
+        assertTrue(recursiveError.message.orEmpty().contains("Payload.nestedValues"))
+
+        val custom = CanonicalTypeCatalog(sourceTypeExpressions = listOf("com.acme.IntArray"))
+            .resolveExpression("IntArray", "Payload.businessValues") as SemanticNamedTypeRef
+        assertEquals("com.acme.IntArray", custom.symbol.fqn)
+    }
+
+    @Test
     fun `rejects unsupported generic constructors with field evidence`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             SemanticTypeExpressionParser.parse("MutableList<String>", "Order.items")
@@ -160,6 +206,41 @@ class SemanticValueCompilerTest {
     }
 
     @Test
+    fun `refines provisional external source evidence with a canonical declaration`() {
+        val criteria = identity(
+            "com.acme.adapter",
+            "OrderSearchPayload.Request.Criteria",
+            CanonicalTypeKind.NESTED_VALUE,
+        )
+        val catalog = CanonicalTypeCatalog(
+            sourceTypeExpressions = listOf("com.acme.adapter.OrderSearchPayload.Request.Criteria?"),
+        ).plus(listOf(criteria))
+
+        val resolved = catalog.resolveExpression(
+            "com.acme.adapter.OrderSearchPayload.Request.Criteria",
+            "OrderSearchPayload.criteria",
+        ) as SemanticNamedTypeRef
+
+        assertEquals(criteria, resolved.symbol)
+    }
+
+    @Test
+    fun `does not refine an existing canonical declaration with a conflicting kind`() {
+        val nested = identity(
+            "com.acme.adapter",
+            "OrderSearchPayload.Request.Criteria",
+            CanonicalTypeKind.NESTED_VALUE,
+        )
+        val valueObject = nested.copy(kind = CanonicalTypeKind.VALUE_OBJECT)
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            CanonicalTypeCatalog(listOf(nested)).plus(listOf(valueObject))
+        }
+
+        assertTrue(error.message.orEmpty().contains(nested.fqn))
+    }
+
+    @Test
     fun `keeps short-name source evidence ambiguous when multiple fqns are explicit`() {
         val catalog = CanonicalTypeCatalog(
             sourceTypeExpressions = listOf(
@@ -215,6 +296,10 @@ class SemanticValueCompilerTest {
 
         assertEquals("\"\"", SemanticDefaultCompiler.compile("", stringType, "Payload.empty")?.kotlinExpression)
         assertEquals("\"  \"", SemanticDefaultCompiler.compile("  ", stringType, "Payload.spaces")?.kotlinExpression)
+        assertEquals(
+            "\"\\u000c\"",
+            SemanticDefaultCompiler.compile("\"\\u000c\"", stringType, "Payload.formFeed")?.kotlinExpression,
+        )
     }
 
     @Test
@@ -333,6 +418,23 @@ class SemanticValueCompilerTest {
         assertEquals("com.acme.api.Payload.Request.FileItem", fileItem.identity.fqn)
         assertEquals("com.acme.api.Payload.Request.VariantItem", variantItem.identity.fqn)
         assertEquals("\"\"", variantItem.fields.single().defaultValue?.kotlinExpression)
+    }
+
+    @Test
+    fun `compiles Array nested paths without changing their container shape`() {
+        val definition = SemanticValueCompiler(CanonicalTypeCatalog()).compile(
+            identity = identity("com.acme.api", "Payload.Request", CanonicalTypeKind.NESTED_VALUE),
+            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            fields = listOf(
+                SemanticFieldSnapshot("items", "Array<Item>"),
+                SemanticFieldSnapshot("items[].name", "String"),
+            ),
+        )
+
+        val item = definition.nestedDefinitions.single()
+        assertEquals("com.acme.api.Payload.Request.Item", item.identity.fqn)
+        val items = definition.fields.single().type as SemanticArrayTypeRef
+        assertEquals(item.identity, (items.elementType as SemanticNamedTypeRef).symbol)
     }
 
     @Test

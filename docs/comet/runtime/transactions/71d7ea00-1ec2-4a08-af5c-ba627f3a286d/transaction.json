@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "71d7ea00-1ec2-4a08-af5c-ba627f3a286d",
+  "kind": "archive",
+  "status": "committed",
+  "change": "design-roundtrip-review-fixes",
+  "createdAt": "2026-08-03T06:13:54.724Z",
+  "preflightHash": "cf37ef7a87a76d699935d10d6ae4dec926b0d6c7afb39eee3f6a66db3e2a12e9",
+  "operations": [
+    {
+      "id": "spec-1-design-roundtrip-contract",
+      "type": "write",
+      "target": "specs/design-roundtrip-contract/spec.md",
+      "staged": "runtime/transactions/71d7ea00-1ec2-4a08-af5c-ba627f3a286d/staged/specs/design-roundtrip-contract/spec.md",
+      "backup": "runtime/transactions/71d7ea00-1ec2-4a08-af5c-ba627f3a286d/backups/specs/design-roundtrip-contract/spec.md",
+      "expectedTargetHash": "736b699e243e7d8d9363232f14068d18ca20cdaf0110b9299a9a076ac2a3d695",
+      "stagedHash": "1316a80829f72a7f407214f262004b60c2c04af797d0a14d9b0262a2217ce13b"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/design-roundtrip-review-fixes",
+      "target": "archive/2026-08-03-design-roundtrip-review-fixes",
+      "expectedSourceHash": "4291b9a80e0aacfeff51476221709449fe53c30f02c2ce69c6cf609cf1794da6",
+      "expectedTargetHash": null
+    }
+  ]
+}

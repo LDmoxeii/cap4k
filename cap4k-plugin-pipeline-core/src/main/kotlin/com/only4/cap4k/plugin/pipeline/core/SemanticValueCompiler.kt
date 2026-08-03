@@ -209,6 +209,7 @@ class CanonicalTypeCatalog(
     private val identitiesByFqn: Map<String, CanonicalTypeIdentity>
     private val identitiesBySimpleName: Map<String, List<CanonicalTypeIdentity>>
     private val identitiesByAlias: Map<String, CanonicalTypeIdentity>
+    private val provisionalExternalFqns: Set<String>
 
     init {
         val canonicalDeclarations = identities.toList()
@@ -217,9 +218,12 @@ class CanonicalTypeCatalog(
             "duplicate canonical type identity: ${duplicates.keys.first()}"
         }
         val canonicalFqns = canonicalDeclarations.mapTo(mutableSetOf()) { it.fqn }
-        val declarations = canonicalDeclarations + sourceTypeExpressions
+        val provisionalExternals = sourceTypeExpressions
             .flatMap(::explicitExternalIdentities)
             .filterNot { it.fqn in canonicalFqns }
+            .distinct()
+        provisionalExternalFqns = provisionalExternals.mapTo(mutableSetOf()) { it.fqn }
+        val declarations = canonicalDeclarations + provisionalExternals
         val normalized = declarations.distinct()
         identitiesByFqn = normalized.associateBy { it.fqn }
         identitiesBySimpleName = normalized.groupBy { it.simpleName }
@@ -229,10 +233,17 @@ class CanonicalTypeCatalog(
     fun plus(
         identities: Iterable<CanonicalTypeIdentity>,
         aliases: Map<String, CanonicalTypeIdentity> = emptyMap(),
-    ): CanonicalTypeCatalog = CanonicalTypeCatalog(
-        identities = identitiesByFqn.values + identities,
-        aliases = identitiesByAlias + aliases,
-    )
+    ): CanonicalTypeCatalog {
+        val additions = identities.toList()
+        val refinedFqns = additions
+            .filterNot { it.kind == CanonicalTypeKind.EXTERNAL }
+            .mapTo(mutableSetOf()) { it.fqn }
+        return CanonicalTypeCatalog(
+            identities = identitiesByFqn.values.filterNot { it.fqn in provisionalExternalFqns } + additions,
+            aliases = identitiesByAlias + aliases,
+            sourceTypeExpressions = provisionalExternalFqns.filterNot { it in refinedFqns },
+        )
+    }
 
     fun compile(
         parsed: ParsedSemanticType,
@@ -243,12 +254,16 @@ class CanonicalTypeCatalog(
     ): SemanticTypeRef = when (parsed) {
         is ParsedSemanticType.Named -> builtin(parsed.token, parsed.nullable)
             ?: SemanticNamedTypeRef(
-                symbol = resolveNamed(
-                    token = parsed.token,
+                symbol = validateSupportedNamedIdentity(
+                    identity = resolveNamed(
+                        token = parsed.token,
+                        fieldPath = fieldPath,
+                        originalExpression = originalExpression,
+                        ownerPackageName = ownerPackageName,
+                        aggregateContext = aggregateContext,
+                    ),
                     fieldPath = fieldPath,
                     originalExpression = originalExpression,
-                    ownerPackageName = ownerPackageName,
-                    aggregateContext = aggregateContext,
                 ),
                 nullable = parsed.nullable,
             )
@@ -322,6 +337,17 @@ class CanonicalTypeCatalog(
     private fun selectUnique(candidates: List<CanonicalTypeIdentity>): CanonicalTypeIdentity? =
         candidates.distinctBy { it.fqn }.singleOrNull()
 
+    private fun validateSupportedNamedIdentity(
+        identity: CanonicalTypeIdentity,
+        fieldPath: String,
+        originalExpression: String,
+    ): CanonicalTypeIdentity {
+        require(identity.fqn !in KotlinPrimitiveArrayFqns) {
+            "primitive array semantic type is unsupported for field $fieldPath ($originalExpression): ${identity.fqn}; use Array<T>"
+        }
+        return identity
+    }
+
     private fun externalIdentity(fqn: String): CanonicalTypeIdentity {
         val normalized = fqn.trim('.')
         require('.' in normalized) { "external type must use an FQN: $fqn" }
@@ -353,6 +379,23 @@ class CanonicalTypeCatalog(
         is ParsedSemanticType.SetType -> elementType.namedTokens()
         is ParsedSemanticType.ArrayType -> elementType.namedTokens()
         is ParsedSemanticType.MapType -> keyType.namedTokens() + valueType.namedTokens()
+    }
+
+    private companion object {
+        val KotlinPrimitiveArrayFqns = setOf(
+            "kotlin.BooleanArray",
+            "kotlin.ByteArray",
+            "kotlin.CharArray",
+            "kotlin.DoubleArray",
+            "kotlin.FloatArray",
+            "kotlin.IntArray",
+            "kotlin.LongArray",
+            "kotlin.ShortArray",
+            "kotlin.UByteArray",
+            "kotlin.UIntArray",
+            "kotlin.ULongArray",
+            "kotlin.UShortArray",
+        )
     }
 }
 
@@ -673,12 +716,13 @@ class SemanticValueCompiler(
         val referencedIdentity = when (type) {
             is SemanticNamedTypeRef -> type.symbol
             is SemanticListTypeRef -> (type.elementType as? SemanticNamedTypeRef)?.symbol
+            is SemanticArrayTypeRef -> (type.elementType as? SemanticNamedTypeRef)?.symbol
             else -> null
         }
         require(referencedIdentity?.fqn == nestedIdentity.fqn) {
             "semantic field $fieldPath declares ${declaration.typeExpression}, but nested path requires ${nestedIdentity.fqn}"
         }
-        require(node.collectionHint == (type is SemanticListTypeRef)) {
+        require(node.collectionHint == (type is SemanticListTypeRef || type is SemanticArrayTypeRef)) {
             "semantic field $fieldPath collection shape conflicts with nested [] path"
         }
         return type
@@ -702,10 +746,11 @@ class SemanticValueCompiler(
             val named = when (parsed) {
                 is ParsedSemanticType.Named -> parsed
                 is ParsedSemanticType.ListType -> parsed.elementType as? ParsedSemanticType.Named
+                is ParsedSemanticType.ArrayType -> parsed.elementType as? ParsedSemanticType.Named
                 else -> null
             }
             require(named != null) {
-                "semantic field ${declaration.sourcePath} nested paths require a named value type or List of a named value type"
+                "semantic field ${declaration.sourcePath} nested paths require a named value type, List of a named value type, or Array of a named value type"
             }
             return named.token.substringAfterLast('.')
         }

@@ -401,7 +401,135 @@ class DesignElementExtractionTest {
     }
 
     @Test
-    fun `generated domain event recovery excludes synthetic entity constructor parameter`() {
+    fun `handwritten business bodies do not change recovered design block semantics`() {
+        val metadata = SourceFile.kotlin(
+            "DesignBlockMetadata.kt",
+            """
+                package com.only4.cap4k.analysis.metadata
+
+                annotation class DesignBlockMetadata(
+                    val tag: String,
+                    val name: String,
+                    val packageName: String,
+                    val description: String = "",
+                    val aggregates: Array<String> = [],
+                    val eventName: String = "",
+                    val family: String = "",
+                    val variant: String = "",
+                )
+            """.trimIndent(),
+        )
+        val primary = SourceFile.kotlin(
+            "FindCustomer.kt",
+            """
+                package demo.application.queries.customer
+
+                import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+
+                @DesignBlockMetadata(
+                    tag = "query",
+                    packageName = "customer.read",
+                    name = "FindCustomer",
+                    description = "Find one customer",
+                    aggregates = ["Customer"],
+                    family = "query",
+                )
+                object FindCustomer {
+                    data class Request(val customerId: Long)
+                    data class Response(val displayName: String)
+                }
+            """.trimIndent(),
+        )
+
+        fun recoveredBlock(handlerSource: SourceFile): String {
+            val outputDir = compileWithCap4kPlugin(listOf(metadata, primary, handlerSource))
+            val json = outputDir.resolve("design-elements.json").toFile().readText()
+            return findObject(extractTopLevelObjects(json), "query", "FindCustomer")
+        }
+
+        val repositoryImplementation = recoveredBlock(
+            SourceFile.kotlin(
+                "FindCustomerQueryHandler.kt",
+                """
+                    package demo.adapter.queries.customer
+
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                    import demo.application.queries.customer.FindCustomer
+
+                    interface CustomerReadRepository {
+                        fun findDisplayName(customerId: Long): String
+                    }
+
+                    @DesignBlockMetadata(
+                        tag = "query",
+                        packageName = "customer.read",
+                        name = "FindCustomer",
+                        description = "Find one customer",
+                        aggregates = ["Customer"],
+                        family = "query-handler",
+                    )
+                    class FindCustomerQueryHandler(
+                        private val repository: CustomerReadRepository,
+                    ) {
+                        fun execute(request: FindCustomer.Request): FindCustomer.Response {
+                            val displayName = repository.findDisplayName(request.customerId)
+                            return FindCustomer.Response(displayName)
+                        }
+                    }
+                """.trimIndent(),
+            ),
+        )
+        val alternateBusinessImplementation = recoveredBlock(
+            SourceFile.kotlin(
+                "FindCustomerQueryHandler.kt",
+                """
+                    package demo.adapter.queries.customer
+
+                    import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                    import demo.application.queries.customer.FindCustomer
+
+                    interface CustomerSnapshotRepository {
+                        fun lookupName(customerId: Long): String
+                    }
+                    interface QueryAudit {
+                        fun record(customerId: Long, displayName: String)
+                    }
+
+                    @DesignBlockMetadata(
+                        tag = "query",
+                        packageName = "customer.read",
+                        name = "FindCustomer",
+                        description = "Find one customer",
+                        aggregates = ["Customer"],
+                        family = "query-handler",
+                    )
+                    class FindCustomerQueryHandler(
+                        private val snapshots: CustomerSnapshotRepository,
+                        private val audit: QueryAudit,
+                    ) {
+                        fun execute(request: FindCustomer.Request): FindCustomer.Response {
+                            val displayName = snapshots.lookupName(request.customerId).uppercase()
+                            audit.record(request.customerId, displayName)
+                            return FindCustomer.Response(displayName)
+                        }
+                    }
+                """.trimIndent(),
+            ),
+        )
+
+        assertEquals(repositoryImplementation, alternateBusinessImplementation)
+        assertTrue(
+            repositoryImplementation.contains(
+                "\"artifacts\":[{\"family\":\"query\"},{\"family\":\"query-handler\"}]",
+            ),
+        )
+        assertFalse(repositoryImplementation.contains("repository"))
+        assertFalse(repositoryImplementation.contains("snapshots"))
+        assertFalse(repositoryImplementation.contains("audit"))
+    }
+
+    @Test
+    fun `domain event recovery preserves ordinary entity field and runtime event contract`() {
         val sources = listOf(
             SourceFile.kotlin(
                 "DesignBlockMetadata.kt",
@@ -443,9 +571,10 @@ class DesignElementExtractionTest {
                         name = "OrderCreated",
                         description = "order created",
                         aggregates = ["Order"],
+                        eventName = "order.created",
                         family = "domain-event",
                     )
-                    @DomainEvent(persist = true)
+                    @DomainEvent(value = "order.created", persist = true)
                     data class OrderCreated(
                         val entity: Order,
                         val orderId: Long,
@@ -460,9 +589,15 @@ class DesignElementExtractionTest {
         val orderCreated = findObject(extractTopLevelObjects(json), "domain_event", "OrderCreated")
 
         assertTrue(orderCreated.contains("\"artifacts\":[{\"family\":\"domain-event\"}]"))
-        assertTrue(orderCreated.contains("\"fields\":[{\"name\":\"orderId\",\"type\":\"Long\"}"))
+        assertTrue(orderCreated.contains("\"eventName\":\"order.created\""))
+        assertTrue(orderCreated.contains("\"persist\":true"))
+        assertTrue(
+            orderCreated.contains(
+                "\"fields\":[{\"name\":\"entity\",\"type\":\"demo.domain.aggregates.order.events.Order\"}",
+            ),
+        )
+        assertTrue(orderCreated.contains("{\"name\":\"orderId\",\"type\":\"Long\"}"))
         assertTrue(orderCreated.contains("\"name\":\"reason\",\"type\":\"String?\",\"defaultValue\":\"null\""))
-        assertFalse(orderCreated.contains("\"name\":\"entity\""))
         assertFalse(json.contains("\"requestFields\""))
         assertFalse(json.contains("\"responseFields\""))
     }
@@ -502,11 +637,12 @@ class DesignElementExtractionTest {
                     import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
                     import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 
-                    @IntegrationEvent("demo.payment.received")
+                    @IntegrationEvent(value = "demo.payment.received", subscriber = "payment-service")
                     @DesignBlockMetadata(
                         tag = "integration_event",
                         packageName = "payment.integration",
                         name = "PaymentReceived",
+                        eventName = "demo.payment.received",
                         family = "integration-event",
                         variant = "inbound",
                     )
@@ -978,6 +1114,391 @@ class DesignElementExtractionTest {
     }
 
     @Test
+    fun `recovers stable fqns recursive containers array defaults and declaration order`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "DesignBlockMetadata.kt",
+                    """
+                        package com.only4.cap4k.analysis.metadata
+
+                        annotation class DesignBlockMetadata(
+                            val tag: String,
+                            val name: String,
+                            val packageName: String,
+                            val description: String = "",
+                            val aggregates: Array<String> = [],
+                            val eventName: String = "",
+                            val family: String = "",
+                            val variant: String = "",
+                        )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "ComplexTypes.kt",
+                    """
+                        package demo.types
+
+                        data class OrderId(val value: String)
+                        enum class Status { READY, CLOSED }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "ComplexCmd.kt",
+                    """
+                        package demo.application.commands
+
+                        import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                        import demo.types.OrderId
+                        import demo.types.Status
+
+                        @DesignBlockMetadata(
+                            tag = "command",
+                            packageName = "orders.commands",
+                            name = "Complex",
+                            family = "command",
+                        )
+                        object ComplexCmd {
+                            data class Request(
+                                val zeta: OrderId,
+                                val aliases: Array<String?>? = emptyArray(),
+                                val mapping: Map<String, List<Status?>>,
+                                val details: Details,
+                                val alpha: Int,
+                            )
+
+                            data class Details(
+                                val second: String,
+                                val first: Long,
+                            )
+
+                            data class Response(
+                                val later: Boolean,
+                                val earlier: String,
+                            )
+                        }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        val complex = findObject(extractTopLevelObjects(json), "command", "Complex")
+
+        assertTrue(complex.contains("\"name\":\"zeta\",\"type\":\"demo.types.OrderId\""))
+        assertTrue(complex.contains("\"name\":\"aliases\",\"type\":\"Array<String?>?\",\"defaultValue\":\"emptyArray()\""))
+        assertTrue(complex.contains("\"name\":\"mapping\",\"type\":\"Map<String,List<demo.types.Status?>>\""))
+        assertTrue(complex.contains("\"name\":\"details\",\"type\":\"demo.application.commands.ComplexCmd.Details\""))
+        assertOrdered(
+            complex,
+            "\"name\":\"zeta\"",
+            "\"name\":\"aliases\"",
+            "\"name\":\"mapping\"",
+            "\"name\":\"details\"",
+            "\"name\":\"details.second\"",
+            "\"name\":\"details.first\"",
+            "\"name\":\"alpha\"",
+            "\"name\":\"later\"",
+            "\"name\":\"earlier\"",
+        )
+    }
+
+    @Test
+    fun `rejects primitive arrays from recovered tactical fields`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                SourceFile.kotlin(
+                    "DesignBlockMetadata.kt",
+                    """
+                        package com.only4.cap4k.analysis.metadata
+
+                        annotation class DesignBlockMetadata(
+                            val tag: String,
+                            val name: String,
+                            val packageName: String,
+                            val family: String = "",
+                        )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "PrimitiveArrayCmd.kt",
+                    """
+                        package demo.application.commands
+
+                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                            tag = "command",
+                            packageName = "orders.commands",
+                            name = "PrimitiveArray",
+                            family = "command",
+                        )
+                        object PrimitiveArrayCmd {
+                            data class Request(val values: IntArray)
+                            data class Response(val accepted: Boolean)
+                        }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertTrue(messages.contains("unsupported IR design field type kotlin.IntArray"))
+    }
+
+    @Test
+    fun `recovers page derived fields only from the exact framework page contract`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "DesignBlockMetadata.kt",
+                    """
+                        package com.only4.cap4k.analysis.metadata
+
+                        annotation class DesignBlockMetadata(
+                            val tag: String,
+                            val name: String,
+                            val packageName: String,
+                            val description: String = "",
+                            val aggregates: Array<String> = [],
+                            val eventName: String = "",
+                            val family: String = "",
+                            val variant: String = "",
+                        )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "PageRequest.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.query
+
+                        interface PageRequest {
+                            val pageNum: Int
+                            val pageSize: Int
+                        }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "PageQueries.kt",
+                    """
+                        package demo.application.queries
+
+                        import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                        import com.only4.cap4k.ddd.core.application.query.PageRequest
+
+                        @DesignBlockMetadata(
+                            tag = "query",
+                            packageName = "orders.queries",
+                            name = "PagedOrders",
+                            family = "query",
+                            variant = "page",
+                        )
+                        object PagedOrdersQry {
+                            data class Request(
+                                override val pageNum: Int = 1,
+                                override val pageSize: Int = 10,
+                                val keyword: String? = null,
+                            ) : PageRequest
+                            data class Response(val orderId: Long)
+                        }
+
+                        @DesignBlockMetadata(
+                            tag = "query",
+                            packageName = "orders.queries",
+                            name = "NamedLikePage",
+                            family = "query",
+                        )
+                        object NamedLikePageQry {
+                            data class Request(
+                                val pageNum: Int,
+                                val pageSize: Int,
+                                val keyword: String,
+                            )
+                            data class Response(val orderId: Long)
+                        }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val objects = extractTopLevelObjects(outputDir.resolve("design-elements.json").toFile().readText())
+        val paged = findObject(objects, "query", "PagedOrders")
+        val namedLikePage = findObject(objects, "query", "NamedLikePage")
+
+        assertTrue(paged.contains("\"fields\":[{\"name\":\"keyword\",\"type\":\"String?\",\"defaultValue\":\"null\"}]"))
+        assertFalse(paged.contains("\"name\":\"pageNum\""))
+        assertFalse(paged.contains("\"name\":\"pageSize\""))
+        assertTrue(namedLikePage.contains("\"fields\":[{\"name\":\"pageNum\",\"type\":\"Int\"}"))
+        assertTrue(namedLikePage.contains("{\"name\":\"pageSize\",\"type\":\"Int\"}"))
+    }
+
+    @Test
+    fun `rejects page metadata when framework page defaults do not match`() {
+        val messages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                SourceFile.kotlin(
+                    "DesignBlockMetadata.kt",
+                    """
+                        package com.only4.cap4k.analysis.metadata
+
+                        annotation class DesignBlockMetadata(
+                            val tag: String,
+                            val name: String,
+                            val packageName: String,
+                            val family: String = "",
+                            val variant: String = "",
+                        )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "PageRequest.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.query
+                        interface PageRequest {
+                            val pageNum: Int
+                            val pageSize: Int
+                        }
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "InvalidPageQry.kt",
+                    """
+                        package demo.application.queries
+
+                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                            tag = "query",
+                            packageName = "orders.queries",
+                            name = "InvalidPage",
+                            family = "query",
+                            variant = "page",
+                        )
+                        object InvalidPageQry {
+                            data class Request(
+                                override val pageNum: Int = 1,
+                                override val pageSize: Int = 20,
+                            ) : com.only4.cap4k.ddd.core.application.query.PageRequest
+                            data class Response(val orderId: Long)
+                        }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertTrue(messages.contains("page design block query InvalidPage pageSize must default to 10"))
+    }
+
+    @Test
+    fun `fails fast when event metadata conflicts with runtime annotations`() {
+        val annotationSource = SourceFile.kotlin(
+            "DesignBlockMetadata.kt",
+            """
+                package com.only4.cap4k.analysis.metadata
+
+                annotation class DesignBlockMetadata(
+                    val tag: String,
+                    val name: String,
+                    val packageName: String,
+                    val description: String = "",
+                    val aggregates: Array<String> = [],
+                    val eventName: String = "",
+                    val family: String = "",
+                    val variant: String = "",
+                )
+            """.trimIndent(),
+        )
+        val domainMessages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                annotationSource,
+                SourceFile.kotlin(
+                    "DomainEvent.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.domain.event.annotation
+                        annotation class DomainEvent(val value: String = "", val persist: Boolean = false)
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "ConflictingDomainEvent.kt",
+                    """
+                        package demo.domain.events
+
+                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                            tag = "domain_event",
+                            packageName = "orders.events",
+                            name = "OrderChanged",
+                            eventName = "order.changed.v1",
+                            family = "domain-event",
+                        )
+                        @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent(
+                            value = "order.changed.v2",
+                            persist = true,
+                        )
+                        data class OrderChanged(val orderId: Long)
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        val directionMessages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                annotationSource,
+                SourceFile.kotlin(
+                    "IntegrationEvent.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.application.event.annotation
+                        annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "ConflictingIntegrationEvent.kt",
+                    """
+                        package demo.application.integration
+
+                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                            tag = "integration_event",
+                            packageName = "orders.events",
+                            name = "OrderExported",
+                            eventName = "order.exported",
+                            family = "integration-event",
+                            variant = "inbound",
+                        )
+                        @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent("order.exported")
+                        data class OrderExported(val orderId: Long)
+                    """.trimIndent(),
+                ),
+            ),
+        )
+        val missingPersistedNameMessages = compileWithCap4kPluginExpectingFailure(
+            listOf(
+                annotationSource,
+                SourceFile.kotlin(
+                    "DomainEvent.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.domain.event.annotation
+                        annotation class DomainEvent(val value: String = "", val persist: Boolean = false)
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "UnnamedPersistedEvent.kt",
+                    """
+                        package demo.domain.events
+
+                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
+                            tag = "domain_event",
+                            packageName = "orders.events",
+                            name = "UnnamedPersisted",
+                            family = "domain-event",
+                        )
+                        @com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent(persist = true)
+                        data class UnnamedPersisted(val orderId: Long)
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertTrue(domainMessages.contains("domain-event metadata/runtime eventName conflict"))
+        assertTrue(directionMessages.contains("integration-event metadata/runtime direction conflict"))
+        assertTrue(
+            missingPersistedNameMessages.contains("domain-event runtime annotation on demo.domain.events.UnnamedPersisted must declare a non-blank event name"),
+        )
+    }
+
+    @Test
     fun `rejects integration event without event name in role package`() {
         val sources = listOf(
             SourceFile.kotlin(
@@ -1044,5 +1565,14 @@ class DesignElementExtractionTest {
     private fun findObject(objects: List<String>, tag: String, name: String): String {
         return objects.firstOrNull { it.contains("\"tag\":\"$tag\"") && it.contains("\"name\":\"$name\"") }
             ?: error("Missing element tag=$tag name=$name")
+    }
+
+    private fun assertOrdered(haystack: String, vararg needles: String) {
+        val positions = needles.map { needle ->
+            haystack.indexOf(needle).also { position ->
+                assertTrue(position >= 0, "Missing '$needle' in $haystack")
+            }
+        }
+        assertEquals(positions.sorted(), positions)
     }
 }

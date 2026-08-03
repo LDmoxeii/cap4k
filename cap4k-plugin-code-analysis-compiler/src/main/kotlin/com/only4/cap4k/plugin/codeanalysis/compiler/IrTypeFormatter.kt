@@ -11,7 +11,18 @@ import org.jetbrains.kotlin.ir.util.isNullable
 
 class IrTypeFormatter {
     private val unsupportedContainerTypes = setOf(
-        "kotlin.Array",
+        "kotlin.BooleanArray",
+        "kotlin.ByteArray",
+        "kotlin.CharArray",
+        "kotlin.DoubleArray",
+        "kotlin.FloatArray",
+        "kotlin.IntArray",
+        "kotlin.LongArray",
+        "kotlin.ShortArray",
+        "kotlin.UByteArray",
+        "kotlin.UIntArray",
+        "kotlin.ULongArray",
+        "kotlin.UShortArray",
         "kotlin.collections.Collection",
         "kotlin.collections.Iterable",
         "kotlin.collections.MutableCollection",
@@ -29,13 +40,14 @@ class IrTypeFormatter {
         val fq = klass.fqNameWhenAvailable?.asString()
             ?: unsupported(type, "anonymous and local classifiers are unsupported")
         require(fq !in unsupportedContainerTypes) {
-            "unsupported IR design field type $fq: use canonical List, Set, or Map instead"
+            "unsupported IR design field type $fq: use canonical Array, List, Set, or Map instead"
         }
         require(!fq.startsWith("kotlin.Function") && !fq.startsWith("kotlin.coroutines.SuspendFunction")) {
             "unsupported IR design field type $fq: function types are unsupported"
         }
 
         val rendered = when (fq) {
+            ARRAY_FQN -> "Array<${format(requireTypeArgument(simple, 0, fq, 1))}>"
             LIST_FQN -> "List<${format(requireTypeArgument(simple, 0, fq, 1))}>"
             SET_FQN -> "Set<${format(requireTypeArgument(simple, 0, fq, 1))}>"
             MAP_FQN -> {
@@ -47,7 +59,7 @@ class IrTypeFormatter {
                 require(simple.arguments.isEmpty()) {
                     "unsupported IR design field type $fq: arbitrary generic constructors are unsupported"
                 }
-                klass.name.asString()
+                BUILTIN_FQNS[fq] ?: fq
             }
         }
         return if (type.isNullable()) "$rendered?" else rendered
@@ -57,7 +69,7 @@ class IrTypeFormatter {
         val simple = type as? IrSimpleType ?: return null
         val klass = simple.classifier?.owner as? IrClass ?: return null
         val fq = klass.fqNameWhenAvailable?.asString()
-        return if (fq == LIST_FQN) requireTypeArgument(simple, 0, fq, 1) else null
+        return if (fq == LIST_FQN || fq == ARRAY_FQN) requireTypeArgument(simple, 0, fq, 1) else null
     }
 
     fun pageDataElementType(type: IrType): IrType? {
@@ -91,9 +103,25 @@ class IrTypeFormatter {
         throw IllegalArgumentException("unsupported IR design field type $type: $reason")
 
     private companion object {
+        const val ARRAY_FQN = "kotlin.Array"
         const val LIST_FQN = "kotlin.collections.List"
         const val SET_FQN = "kotlin.collections.Set"
         const val MAP_FQN = "kotlin.collections.Map"
         const val PAGE_DATA_FQN = "com.only4.cap4k.ddd.core.share.PageData"
+        val BUILTIN_FQNS = setOf(
+            "kotlin.Any",
+            "kotlin.Boolean",
+            "kotlin.Byte",
+            "kotlin.Char",
+            "kotlin.Double",
+            "kotlin.Float",
+            "kotlin.Int",
+            "kotlin.Long",
+            "kotlin.Nothing",
+            "kotlin.Number",
+            "kotlin.Short",
+            "kotlin.String",
+            "kotlin.Unit",
+        ).associateWith { fqn -> fqn.substringAfterLast('.') }
     }
 }

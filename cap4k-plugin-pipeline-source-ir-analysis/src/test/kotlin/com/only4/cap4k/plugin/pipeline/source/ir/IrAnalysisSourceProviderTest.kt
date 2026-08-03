@@ -449,6 +449,70 @@ class IrAnalysisSourceProviderTest {
     }
 
     @Test
+    fun `drawing board validates metadata completeness independently for every input directory`() {
+        val completeDir = Files.createTempDirectory("cap4k-ir-complete-module")
+        completeDir.resolve("nodes.json").writeText(
+            """[{"id":"CompleteQry.Request","name":"Request","fullName":"demo.CompleteQry.Request","type":"query"}]"""
+        )
+        completeDir.resolve("rels.json").writeText("[]")
+        completeDir.resolve("design-elements.json").writeText(
+            """
+            [
+              {
+                "tag":"query",
+                "package":"complete",
+                "name":"Complete",
+                "artifacts":[{"family":"query"}],
+                "fields":[],
+                "resultFields":[]
+              }
+            ]
+            """.trimIndent()
+        )
+
+        val incompleteDir = Files.createTempDirectory("cap4k-ir-incomplete-module")
+        incompleteDir.resolve("nodes.json").writeText(
+            """[{"id":"MissingQry.Request","name":"Request","fullName":"demo.MissingQry.Request","type":"query"}]"""
+        )
+        incompleteDir.resolve("rels.json").writeText("[]")
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(
+                config(
+                    completeDir.toString(),
+                    incompleteDir.toString(),
+                    generators = setOf("drawing-board"),
+                )
+            )
+        }
+
+        assertTrue(error.message!!.contains("Analysis input: $incompleteDir"))
+        assertTrue(error.message!!.contains("demo.MissingQry.Request"))
+        assertTrue(!error.message!!.contains("demo.CompleteQry.Request; missing metadata"))
+    }
+
+    @Test
+    fun `drawing board accepts an empty input directory alongside a complete module`() {
+        val completeDir = Files.createTempDirectory("cap4k-ir-complete-module")
+        completeDir.resolve("nodes.json").writeText(
+            """[{"id":"CompleteQry.Request","name":"Request","fullName":"demo.CompleteQry.Request","type":"query"}]"""
+        )
+        completeDir.resolve("rels.json").writeText("[]")
+        completeDir.resolve("design-elements.json").writeText(
+            """[{"tag":"query","package":"complete","name":"Complete","artifacts":[{"family":"query"}]}]"""
+        )
+        val emptyDir = Files.createTempDirectory("cap4k-ir-empty-module")
+        emptyDir.resolve("nodes.json").writeText("[]")
+        emptyDir.resolve("rels.json").writeText("[]")
+
+        val snapshot = IrAnalysisSourceProvider().collect(
+            config(completeDir.toString(), emptyDir.toString(), generators = setOf("drawing-board"))
+        ) as IrAnalysisSnapshot
+
+        assertEquals(listOf("Complete"), snapshot.designElements.map { it.name })
+    }
+
+    @Test
     fun `collect returns empty design elements when file is absent`() {
         val dir = Files.createTempDirectory("cap4k-ir-no-design")
         dir.resolve("nodes.json").writeText("""[]""")

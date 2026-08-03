@@ -109,15 +109,17 @@ Drawing Board 与 metadata-dependent Flow Analysis 依赖专用的 BINARY-retain
 
 当已显式请求的 analysis capability 发现必要 metadata 缺失时，`cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate` 会在 planning/rendering 前失败。Diagnostic 会列出 metadata owner symbol、缺失 annotation、受影响的 `Drawing Board` / `Flow Analysis`，并提示恢复默认 template，或补回 annotation 与 compile-only dependency。cap4k 不会通过命名、路径或 sidecar skeleton index 猜测 authoring metadata，也不会把残缺结果伪装为完整 evidence。
 
+事件 metadata 必须与 runtime annotation 的字面语义一致。Analyzer 不会 trim runtime `eventName`、用 runtime 值补齐缺失 metadata，或把空白 subscriber / 带空格的 `[none]` 归一化为 outbound；这些差异会作为 metadata/runtime conflict 失败。只有 metadata 与 runtime 都没有名称的 transient Domain Event 可以保持空名称。
+
 ## Source Generation 边界
 
 `cap4kAnalysisGenerate` 不是 source generation。flow 和 drawing-board output 默认是 observation evidence，用来观察已有代码结构。
 
-drawing-board 文件只有在内容满足 [Design JSON](design-json.md) 规则时，才可以整理并注册为 design JSON input。
+drawing-board 文件由当前 generator 输出为直接兼容 [Design JSON](design-json.md) 的普通 JSON array。需要恢复或传递当前 tactical contract 时，由人或 Agent 选择文件并显式注册到 `sources.designJson.files`；不需要额外 converter。
 
-analysis fragment 必须符合 design JSON 的字段集合、tag 约束、field shape 和 artifact selection 后，才能通过 `sources.designJson.files` 使用。
+显式注册保留原有 artifact direction。跨上下文把 outbound Integration Event 改成 inbound 是新的设计决策，必须在输入中明确修改；cap4k 不会自动转换。
 
-任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。
+任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。只有 Drawing Board 的当前 Design JSON contract 支持上述显式输入路径，flow、nodes、rels 和其他 observation output 不支持。
 
 ## 边界检查
 

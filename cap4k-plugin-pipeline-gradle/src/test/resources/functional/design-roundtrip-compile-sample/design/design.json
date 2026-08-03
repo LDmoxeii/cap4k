@@ -1,0 +1,473 @@
+[
+  {
+    "tag": "command",
+    "package": "order.submit",
+    "name": "SubmitOrder",
+    "description": "submit an order",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "command"
+      }
+    ],
+    "fields": [
+      {
+        "name": "entity",
+        "type": "String",
+        "defaultValue": "order"
+      },
+      {
+        "name": "formFeedNote",
+        "type": "String",
+        "defaultValue": "\"before\\u000cafter\""
+      },
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      },
+      {
+        "name": "stage",
+        "type": "com.acme.demo.domain.shared.enums.OrderStage",
+        "defaultValue": "com.acme.demo.domain.shared.enums.OrderStage.NEW"
+      },
+      {
+        "name": "address",
+        "type": "com.acme.demo.domain.shared.values.OrderAddress?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "labels",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      },
+      {
+        "name": "lookup",
+        "type": "Map<String, List<java.util.UUID?>>",
+        "defaultValue": "emptyMap()"
+      },
+      {
+        "name": "checkpoints",
+        "type": "Array<java.time.Instant?>",
+        "defaultValue": "emptyArray()"
+      },
+      {
+        "name": "history",
+        "type": "Array<HistoryItem>",
+        "defaultValue": "emptyArray()"
+      },
+      {
+        "name": "history[].changedAt",
+        "type": "java.time.Instant"
+      },
+      {
+        "name": "history[].labels",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      },
+      {
+        "name": "detail",
+        "type": "Detail?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "detail.traceId",
+        "type": "java.util.UUID?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "detail.codes",
+        "type": "Array<String>",
+        "defaultValue": "emptyArray()"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "accepted",
+        "type": "Boolean",
+        "defaultValue": "true"
+      },
+      {
+        "name": "receipt",
+        "type": "Receipt?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "receipt.sequence",
+        "type": "Long",
+        "defaultValue": "0"
+      },
+      {
+        "name": "receipt.tags",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      }
+    ]
+  },
+  {
+    "tag": "query",
+    "package": "order.read",
+    "name": "FindOrders",
+    "description": "find orders by filters",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "query",
+        "variant": "page"
+      },
+      {
+        "family": "query-handler"
+      }
+    ],
+    "fields": [
+      {
+        "name": "filter",
+        "type": "String?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "stages",
+        "type": "Set<com.acme.demo.domain.shared.enums.OrderStage>",
+        "defaultValue": "emptySet()"
+      },
+      {
+        "name": "windows",
+        "type": "Array<String>",
+        "defaultValue": "emptyArray()"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "items",
+        "type": "List<Item>"
+      },
+      {
+        "name": "items[].orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      },
+      {
+        "name": "items[].stage",
+        "type": "com.acme.demo.domain.shared.enums.OrderStage"
+      },
+      {
+        "name": "items[].labels",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      }
+    ]
+  },
+  {
+    "tag": "query",
+    "package": "order.read",
+    "name": "FindOrderSummary",
+    "description": "find one order summary without a generated handler",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "query"
+      }
+    ],
+    "fields": [
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "summary",
+        "type": "String"
+      }
+    ]
+  },
+  {
+    "tag": "capability",
+    "package": "authorization",
+    "name": "IssueToken",
+    "description": "issue an access token",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "capability"
+      },
+      {
+        "family": "capability-handler"
+      }
+    ],
+    "fields": [
+      {
+        "name": "scopes",
+        "type": "List<String>",
+        "defaultValue": "emptyList()"
+      },
+      {
+        "name": "account",
+        "type": "String"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "expiresAt",
+        "type": "java.time.Instant?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "token",
+        "type": "String",
+        "defaultValue": ""
+      }
+    ]
+  },
+  {
+    "tag": "api_payload",
+    "package": "order",
+    "name": "OrderSearchPayload",
+    "description": "search payload with ordinary page-named fields",
+    "aggregates": [],
+    "artifacts": [
+      {
+        "family": "api-payload"
+      }
+    ],
+    "fields": [
+      {
+        "name": "pageSize",
+        "type": "Int",
+        "defaultValue": "25"
+      },
+      {
+        "name": "pageNum",
+        "type": "Int",
+        "defaultValue": "1"
+      },
+      {
+        "name": "criteria",
+        "type": "Criteria?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "criteria.attributes",
+        "type": "Map<String, Set<String>>",
+        "defaultValue": "emptyMap()"
+      },
+      {
+        "name": "criteria.samples",
+        "type": "Array<String?>",
+        "defaultValue": "emptyArray()"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "matches",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      },
+      {
+        "name": "summary",
+        "type": "Summary?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "summary.counts",
+        "type": "Map<String, Long>",
+        "defaultValue": "emptyMap()"
+      }
+    ]
+  },
+  {
+    "tag": "api_payload",
+    "package": "order",
+    "name": "OrderPagePayload",
+    "description": "page payload with framework-derived paging fields",
+    "aggregates": [],
+    "artifacts": [
+      {
+        "family": "api-payload",
+        "variant": "page"
+      }
+    ],
+    "fields": [
+      {
+        "name": "filter",
+        "type": "String?",
+        "defaultValue": "null"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "items",
+        "type": "List<String>",
+        "defaultValue": "emptyList()"
+      }
+    ]
+  },
+  {
+    "tag": "domain_event",
+    "package": "order",
+    "name": "OrderConfirmed",
+    "description": "an order was confirmed",
+    "aggregates": [
+      "Order"
+    ],
+    "persist": true,
+    "eventName": "order.confirmed",
+    "artifacts": [
+      {
+        "family": "domain-event"
+      },
+      {
+        "family": "domain-subscriber"
+      }
+    ],
+    "fields": [
+      {
+        "name": "entity",
+        "type": "String",
+        "defaultValue": "order"
+      },
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      },
+      {
+        "name": "tags",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      },
+      {
+        "name": "snapshot",
+        "type": "Snapshot?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "snapshot.codes",
+        "type": "Array<String>",
+        "defaultValue": "emptyArray()"
+      },
+      {
+        "name": "snapshot.attributes",
+        "type": "Map<String, List<String>>",
+        "defaultValue": "emptyMap()"
+      }
+    ]
+  },
+  {
+    "tag": "domain_event",
+    "package": "order",
+    "name": "OrderObserved",
+    "description": "a transient order observation with a payload",
+    "aggregates": [
+      "Order"
+    ],
+    "persist": false,
+    "artifacts": [
+      {
+        "family": "domain-event"
+      }
+    ],
+    "fields": [
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      }
+    ]
+  },
+  {
+    "tag": "domain_event",
+    "package": "order",
+    "name": "OrderHeartbeat",
+    "description": "a transient marker event without payload fields",
+    "aggregates": [
+      "Order"
+    ],
+    "persist": false
+  },
+  {
+    "tag": "integration_event",
+    "package": "payment.integration",
+    "name": "PaymentReceived",
+    "description": "a payment was received",
+    "eventName": "payment.received",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "integration-event",
+        "variant": "inbound"
+      },
+      {
+        "family": "integration-subscriber"
+      }
+    ],
+    "fields": [
+      {
+        "name": "paymentId",
+        "type": "java.util.UUID"
+      },
+      {
+        "name": "attempts",
+        "type": "Array<String>",
+        "defaultValue": "emptyArray()"
+      },
+      {
+        "name": "metadata",
+        "type": "Metadata?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "metadata.labels",
+        "type": "Map<String, Set<String>>",
+        "defaultValue": "emptyMap()"
+      }
+    ]
+  },
+  {
+    "tag": "integration_event",
+    "package": "order.integration",
+    "name": "OrderExported",
+    "description": "an order was exported",
+    "eventName": "order.exported",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "integration-event",
+        "variant": "outbound"
+      }
+    ],
+    "fields": [
+      {
+        "name": "orderId",
+        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+      },
+      {
+        "name": "destinations",
+        "type": "List<String>",
+        "defaultValue": "emptyList()"
+      }
+    ]
+  },
+  {
+    "tag": "domain_service",
+    "package": "order.pricing",
+    "name": "CalculateOrderTotal",
+    "description": "calculate an order total",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "domain-service"
+      }
+    ]
+  }
+]

@@ -22,7 +22,7 @@ If Gradle fails before the Agent API task starts, use the ordinary Gradle failur
 - Use supported catalog to learn what the installed version can do and effective project state to learn what is ready here; never conflate them.
 - Prepare supported inputs, review plan and diagnostics, then run mutation tasks. Do not handwrite a generator-supported parallel skeleton.
 - Put durable business logic only in checked-in author-owned surfaces or explicit handwritten exceptions. Never edit build-owned generated source or generated evidence as source truth.
-- Treat analyzer output as observation, not business truth or generator input.
+- Treat analyzer output as observation, not business truth or automatic generator input. A current-contract Drawing Board file may be explicitly registered as Design JSON after reviewing context ownership and any event-direction decision.
 - Keep Domain Events as explicit immutable historical facts; never relax the Aggregate/Entity payload boundary.
 - Do not assume a provider or tactical carrier exists. Read the machine catalog and report unsupported/provider-owned boundaries honestly.
 - Bootstrap is retired. Do not use or recreate bootstrap tasks, DSL, markers, guards, slots, aliases, or migration workflows.

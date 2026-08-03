@@ -162,7 +162,10 @@ class DesignJsonSourceProvider : SourceProvider {
             val artifacts = parseArtifacts(obj["artifacts"], name)
             val eventName = parseIntegrationEventName(obj, tag, name)
             val persist = parsePersist(obj, tag, name)
+            validateDomainServiceFields(tag, name, fields, resultFields)
             validateResultFields(tag, name, resultFields)
+            validatePageFields(tag, name, fields, artifacts)
+            validatePersistedDomainEventName(tag, name, persist, eventName)
             validateEventName(tag, name, obj)
             validateNoSelfTypes(name, fields + resultFields)
             DesignSpecEntry(
@@ -231,6 +234,50 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
+    private fun validateDomainServiceFields(
+        tag: String,
+        name: String,
+        fields: List<SemanticFieldSnapshot>,
+        resultFields: List<SemanticFieldSnapshot>,
+    ) {
+        if (tag != "domain_service") return
+        require(fields.isEmpty() && resultFields.isEmpty()) {
+            "domain_service $name is metadata-only and must not declare fields or resultFields."
+        }
+    }
+
+    private fun validatePageFields(
+        tag: String,
+        name: String,
+        fields: List<SemanticFieldSnapshot>,
+        artifacts: List<ArtifactSelectionModel>?,
+    ) {
+        val pageFamily = when (tag) {
+            "query" -> "query"
+            "api_payload" -> "api-payload"
+            else -> return
+        }
+        if (artifacts.orEmpty().none { it.family == pageFamily && it.variant == "page" }) return
+        val collision = fields.firstOrNull { field ->
+            field.name.substringBefore('.').removeSuffix("[]") in PageFieldNames
+        } ?: return
+        val pageFieldName = collision.name.substringBefore('.').removeSuffix("[]")
+        throw IllegalArgumentException(
+            "design entry $name page variant derives $pageFieldName; remove the explicit field.",
+        )
+    }
+
+    private fun validatePersistedDomainEventName(
+        tag: String,
+        name: String,
+        persist: Boolean?,
+        eventName: String?,
+    ) {
+        require(tag != "domain_event" || persist != true || !eventName.isNullOrBlank()) {
+            "persisted domain_event $name must declare eventName."
+        }
+    }
+
     private fun validateEventName(tag: String, name: String, obj: JsonObject) {
         require(tag in eventNameTags || !obj.has("eventName")) {
             "design entry $name cannot declare eventName on tag: $tag"
@@ -263,6 +310,9 @@ class DesignJsonSourceProvider : SourceProvider {
             "design entry $name artifacts must be an array."
         }
         val array = element.asJsonArray
+        require(array.size() > 0) {
+            "design entry $name artifacts must not be empty."
+        }
         return array.mapIndexed { index, artifactElement ->
             require(artifactElement.isJsonObject) {
                 "design entry $name artifacts[$index] must be an object."
@@ -366,5 +416,9 @@ class DesignJsonSourceProvider : SourceProvider {
 
     private fun JsonElement.isStringPrimitive(): Boolean =
         isJsonPrimitive && asJsonPrimitive.isString
+
+    private companion object {
+        val PageFieldNames = setOf("pageNum", "pageSize")
+    }
 
 }

@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "c646f774-cadb-4e74-ad63-4dc573169938",
+  "kind": "archive",
+  "status": "committed",
+  "change": "design-roundtrip-contract",
+  "createdAt": "2026-08-03T03:56:21.178Z",
+  "preflightHash": "a2ca6488899f36bcac36b0b071264cd74e44cdbba49013c49d38e75ff320748a",
+  "operations": [
+    {
+      "id": "spec-1-design-roundtrip-contract",
+      "type": "write",
+      "target": "specs/design-roundtrip-contract/spec.md",
+      "staged": "runtime/transactions/c646f774-cadb-4e74-ad63-4dc573169938/staged/specs/design-roundtrip-contract/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "736b699e243e7d8d9363232f14068d18ca20cdaf0110b9299a9a076ac2a3d695"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/design-roundtrip-contract",
+      "target": "archive/2026-08-03-design-roundtrip-contract",
+      "expectedSourceHash": "f4a27c2c5f40823826bdfde8411f6d9b46e7311a7853f7e088d1fe1d0fe1a822",
+      "expectedTargetHash": null
+    }
+  ]
+}
