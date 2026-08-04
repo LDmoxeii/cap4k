@@ -155,26 +155,25 @@ Canonical assembler 的 supported tag/default artifact contract 也只有同样�
 Strong ID 当前已支持：
 
 - UUIDv7 String/UUID backing；
-- Snowflake String/Long backing；
 - runtime 统一语义校验；
 - Jackson scalar string serialization/deserialization；
 - JPA mapping；
 - Aggregate Root、owned child 与 `@RefId` 共用同一 artifact planner；
-- 四种生成形状编译通过。
+- 两种 UUIDv7 生成形状编译通过。
 
 但 template 中 backing constructor 为 private，`of(...)` 与 `parse(String)` 只是未加 `@JvmStatic` 的 companion function，唯一 JVM static factory 是 `fromJson(JsonNode)`：
 
 - `cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/strong_id.kt.peb:42-77`
 
-Spring 默认 String conversion 无法识别这些生成类型。仓库也没有 Strong ID `ConverterFactory`、`WebMvcConfigurer` 或 formatter registration。实际 `DefaultConversionService.canConvert(String, StrongId)` 对四种 backing 都为 false。
+Spring 默认 String conversion 无法识别这些生成类型。仓库也没有 Strong ID `ConverterFactory`、`WebMvcConfigurer` 或 formatter registration。在当时审计基线上，实际 `DefaultConversionService.canConvert(String, StrongId)` 对两种 UUIDv7 backing 都为 false。
 
 已确认决策：由 generator 为所有 Strong ID 生成一个 Spring 默认 conversion 可识别、但不依赖 Spring API 的 JVM static String factory，例如 `@JvmStatic fun from(value: String) = parse(value)`。Runtime 继续只拥有 `StrongIds` 校验，不增加反射型通用 converter。
 
 修复验收应包含：
 
-- UUIDv7 String/UUID 与 Snowflake String/Long 四种 backing 都暴露同一个 JVM static String conversion surface；
+- UUIDv7 String/UUID 两种 backing 都暴露同一个 JVM static String conversion surface；
 - factory 委托现有 `parse`/`StrongIds` 校验，不复制或放宽合法性规则；
-- `DefaultConversionService.canConvert(String, StrongId)` 对四种形状均为 true；
+- `DefaultConversionService.canConvert(String, StrongId)` 对两种 UUIDv7 形状均为 true；
 - 真实 `@PathVariable` 与 `@RequestParam` 能绑定 Aggregate Root ID；
 - 至少一个 `@RefId`/owned ID 生成类型共享相同 conversion contract；
 - 非法输入仍被拒绝，并有可诊断的 MVC failure；
