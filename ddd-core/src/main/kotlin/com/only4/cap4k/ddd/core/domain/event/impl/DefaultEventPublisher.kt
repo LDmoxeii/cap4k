@@ -42,6 +42,7 @@ open class DefaultEventPublisher(
         AutoCloseable { }
     },
     private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
+    private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
 ) : EventPublisher {
 
     companion object {
@@ -185,7 +186,21 @@ open class DefaultEventPublisher(
             val now = LocalDateTime.now()
             val dispatchScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
             scope = dispatchScope
-            eventHandlerDispatcher.dispatch(event.payload)
+            val attempt = event.deliveryAttempt
+            val deliveryContext = ReliableEventDeliveryContext(
+                eventId = event.id,
+                eventName = event.type,
+                publishedAt = event.publishedAt,
+                attempt = attempt,
+                redeliveryHint = when (attempt) {
+                    null -> ReliableEventRedeliveryHint.UNKNOWN
+                    1 -> ReliableEventRedeliveryHint.FIRST
+                    else -> ReliableEventRedeliveryHint.REDELIVERED
+                },
+            )
+            reliableEventDeliveryContextScopeManager.install(deliveryContext).use {
+                eventHandlerDispatcher.dispatch(event.payload)
+            }
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
                 (integrationEventManager
                     ?: throw ProviderUnavailableException(

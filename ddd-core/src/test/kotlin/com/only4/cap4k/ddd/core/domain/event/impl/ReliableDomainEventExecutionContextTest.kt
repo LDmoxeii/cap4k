@@ -11,35 +11,47 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorMan
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.share.Constants
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.messaging.support.GenericMessage
+import java.time.Instant
 
 class ReliableDomainEventExecutionContextTest {
     @Test
-    fun `reliable event handler observes producer context and worker scope is cleared`() {
+    fun `reliable event handler observes producer and delivery contexts and worker scope is cleared`() {
         val contextManager = DefaultExecutionContextManager()
         val codecRegistry = ExecutionContextCodecRegistry(listOf(TestContextCodec))
+        val deliveryContextManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager)
         val eventHandlerDispatcher = mockk<EventHandlerDispatcher>()
         var observedContext: TestContext? = null
+        var observedDeliveryContext: ReliableEventDeliveryContext? = null
         every { eventHandlerDispatcher.dispatch(any()) } answers {
             observedContext = contextManager.current()[TestContextKey]
+            observedDeliveryContext = deliveryContextManager.currentOrNull()
         }
         val event = mockk<EventRecord>()
         every { event.executionContext } returns listOf(
             EncodedExecutionContextElement("test-context", 1, "origin-actor"),
         )
         every { event.payload } returns "event"
+        every { event.id } returns "event-1"
+        every { event.type } returns "test.event"
+        every { event.publishedAt } returns Instant.parse("2026-08-04T00:00:00Z")
+        every { event.deliveryAttempt } returns 2
         every { event.message } returns GenericMessage(
             "event",
             mapOf(
@@ -63,12 +75,24 @@ class ReliableDomainEventExecutionContextTest {
             integrationEventPublisherCallback = mockk(relaxed = true),
             contextManager = contextManager,
             codecRegistry = codecRegistry,
+            deliveryContextManager = deliveryContextManager,
         )
 
         publisher.publishDomain(event)
 
         assertEquals(TestContext("origin-actor"), observedContext)
+        assertEquals(
+            ReliableEventDeliveryContext(
+                eventId = "event-1",
+                eventName = "test.event",
+                publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+                attempt = 2,
+                redeliveryHint = ReliableEventRedeliveryHint.REDELIVERED,
+            ),
+            observedDeliveryContext,
+        )
         assertTrue(contextManager.current().isEmpty)
+        assertNull(deliveryContextManager.currentOrNull())
     }
 
     private class TestEventPublisher(
@@ -81,6 +105,7 @@ class ReliableDomainEventExecutionContextTest {
         integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
         contextManager: DefaultExecutionContextManager,
         codecRegistry: ExecutionContextCodecRegistry,
+        deliveryContextManager: ReliableEventDeliveryContextScopeManager,
     ) : DefaultEventPublisher(
         eventHandlerDispatcher = eventHandlerDispatcher,
         integrationEventPublishers = emptyList(),
@@ -93,6 +118,7 @@ class ReliableDomainEventExecutionContextTest {
         threadPoolSize = 1,
         executionContextScopeManager = contextManager,
         executionContextCodecRegistry = codecRegistry,
+        reliableEventDeliveryContextScopeManager = deliveryContextManager,
     ) {
         fun publishDomain(event: EventRecord) = internalPublish4DomainEvent(event)
     }

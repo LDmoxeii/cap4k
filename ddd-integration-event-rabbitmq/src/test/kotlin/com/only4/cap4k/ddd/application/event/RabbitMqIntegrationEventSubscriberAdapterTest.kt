@@ -5,6 +5,8 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.rabbitmq.client.Channel
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
@@ -26,6 +28,11 @@ import org.springframework.core.env.Environment
 
 @DisplayName("RabbitMQ集成事件订阅适配器测试")
 class RabbitMqIntegrationEventSubscriberAdapterTest {
+
+    private val noOpReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
+        override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
+        override fun suppress(): AutoCloseable = AutoCloseable { }
+    }
 
     private lateinit var eventHandlerDispatcher: EventHandlerDispatcher
     private lateinit var rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure
@@ -55,7 +62,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app",
             msgCharset = "UTF-8",
-            autoDeclareQueue = false
+            autoDeclareQueue = false,
+            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
         )
     }
 
@@ -135,7 +143,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app",
             msgCharset = "UTF-8",
-            autoDeclareQueue = true
+            autoDeclareQueue = true,
+            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
         )
 
         val mockContainer = mockk<SimpleMessageListenerContainer>()
@@ -178,6 +187,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.deliveryTag } returns deliveryTag
         every { messageProperties.messageId } returns messageId
         every { messageProperties.headers } returns mutableMapOf()
+        every { messageProperties.timestamp } returns java.util.Date(1000L)
+        every { messageProperties.redelivered } returns false
         every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(deliveryTag, false) } just runs
 
@@ -265,7 +276,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             connectionFactory = connectionFactory,
             environment = environment,
             eventTypeCatalog = eventTypeCatalog,
-            applicationName = "test-app"
+            applicationName = "test-app",
+            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
         )
 
         val message = mockk<Message>()
@@ -278,6 +290,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
+        every { messageProperties.timestamp } returns java.util.Date(1000L)
+        every { messageProperties.redelivered } returns false
         every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(any(), any()) } just runs
 
@@ -337,7 +351,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             connectionFactory = connectionFactory,
             environment = environment,
             eventTypeCatalog = eventTypeCatalog,
-            applicationName = "test-app"
+            applicationName = "test-app",
+            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
         )
 
         // 测试通过业务逻辑验证排序功能，而不是直接访问字段
@@ -351,6 +366,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
+        every { messageProperties.timestamp } returns java.util.Date(1000L)
+        every { messageProperties.redelivered } returns false
         every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(any(), any()) } just runs
 

@@ -9,8 +9,13 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_ID
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -22,6 +27,7 @@ import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
 import org.springframework.core.env.Environment
 import org.springframework.messaging.support.GenericMessage
+import java.time.Instant
 
 /**
  * 自动监听集成事件对应的RocketMQ
@@ -42,6 +48,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
     },
+    private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
 ) {
 
     companion object {
@@ -142,6 +149,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
         msgs.forEach { msg ->
             log.info("集成事件消费，msgId=${msg.msgId}")
             val eventPayload = msg.parseEventPayload(integrationEventClass)
+            val deliveryContext = msg.reliableDeliveryContext(eventPayload)
             val executionContext = executionContextCodecRegistry.decodeExternal(
                 IntegrationEventExecutionContextEnvelope.decode(
                     msg.properties[HEADER_KEY_CAP4K_EXECUTION_CONTEXT],
@@ -150,9 +158,9 @@ class RocketMqIntegrationEventSubscriberAdapter(
             )
             executionContextScopeManager.install(executionContext).use {
                 if (orderedEventMessageInterceptors.isEmpty()) {
-                    eventHandlerDispatcher.dispatch(eventPayload)
+                    dispatch(eventPayload, deliveryContext)
                 } else {
-                    processWithInterceptors(msg, eventPayload)
+                    processWithInterceptors(msg, eventPayload, deliveryContext)
                 }
             }
         }
@@ -167,15 +175,54 @@ class RocketMqIntegrationEventSubscriberAdapter(
         return JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
     }
 
-    private fun processWithInterceptors(msg: MessageExt, eventPayload: Any) {
+    private fun processWithInterceptors(
+        msg: MessageExt,
+        eventPayload: Any,
+        deliveryContext: ReliableEventDeliveryContext,
+    ) {
         val message = GenericMessage(
             eventPayload,
             EventMessageInterceptor.ModifiableMessageHeaders(msg.properties.toMutableMap())
         )
 
-        orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
-        eventHandlerDispatcher.dispatch(message.payload)
-        orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+        reliableEventDeliveryContextScopeManager.suppress().use {
+            orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
+        }
+        dispatch(message.payload, deliveryContext)
+        reliableEventDeliveryContextScopeManager.suppress().use {
+            orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+        }
+    }
+
+    private fun dispatch(eventPayload: Any, deliveryContext: ReliableEventDeliveryContext) {
+        reliableEventDeliveryContextScopeManager.install(deliveryContext).use {
+            eventHandlerDispatcher.dispatch(eventPayload)
+        }
+    }
+
+    private fun MessageExt.reliableDeliveryContext(eventPayload: Any): ReliableEventDeliveryContext {
+        val eventId = properties[HEADER_KEY_CAP4K_EVENT_ID]?.takeIf { it.isNotBlank() }
+            ?: error("RocketMQ integration event cap4k-event-id must be nonblank")
+        val rawTimestamp = properties[HEADER_KEY_CAP4K_TIMESTAMP]
+            ?: error("RocketMQ integration event cap4k-timestamp is required")
+        val epochMillis = rawTimestamp.toLongOrNull()
+            ?: error("RocketMQ integration event cap4k-timestamp must be epoch millis")
+        require(rawTimestamp == epochMillis.toString()) {
+            "RocketMQ integration event cap4k-timestamp must use canonical epoch millis"
+        }
+        require(reconsumeTimes >= 0) { "RocketMQ integration event reconsumeTimes must not be negative" }
+        val attempt = Math.addExact(reconsumeTimes, 1)
+        return ReliableEventDeliveryContext(
+            eventId = eventId,
+            eventName = eventPayload.javaClass.simpleName,
+            publishedAt = Instant.ofEpochMilli(epochMillis),
+            attempt = attempt,
+            redeliveryHint = if (reconsumeTimes == 0) {
+                ReliableEventRedeliveryHint.FIRST
+            } else {
+                ReliableEventRedeliveryHint.REDELIVERED
+            },
+        )
     }
 
     private fun getTopicConsumerGroup(topic: String, defaultVal: String): String =
