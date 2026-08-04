@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
@@ -483,10 +483,9 @@ internal fun recordManagedGeneratedSourceOutputDirectories(rootProject: Project,
     require(stateFile.parentFile.mkdirs() || stateFile.parentFile.isDirectory) {
         "Failed to create Cap4k generated source state directory: ${stateFile.parentFile.absolutePath}"
     }
-    val content = GsonBuilder()
-        .setPrettyPrinting()
-        .create()
-        .toJson(GeneratedSourceManagedRootsState(roots = roots)) + System.lineSeparator()
+    val mapper = PipelineJson.newMapper()
+    val content = PipelineJson.prettyWriter(mapper)
+        .writeValueAsString(GeneratedSourceManagedRootsState(roots = roots)) + "\n"
     val temporaryFile = File(stateFile.parentFile, ".${stateFile.name}.tmp")
     temporaryFile.writeText(content, Charsets.UTF_8)
     try {
@@ -509,7 +508,7 @@ internal fun readManagedGeneratedSourceOutputRoots(rootProject: Project): Map<St
     if (!stateFile.isFile) return emptyMap()
     val state = try {
         requireNotNull(
-            GsonBuilder().create().fromJson(
+            PipelineJson.newMapper().readValue(
                 stateFile.readText(Charsets.UTF_8),
                 GeneratedSourceManagedRootsState::class.java,
             )
@@ -701,10 +700,8 @@ internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: Proj
     val generatedRoots = generatedSourceModuleRoles(config)
         .sorted()
         .associateWith { role -> resolvedGeneratedKotlinSourceRoot(rootProject, config, role).orEmpty() }
-    return GsonBuilder()
-        .serializeNulls()
-        .create()
-        .toJson(
+    return PipelineJson.newMapper(includeNulls = true)
+        .writeValueAsString(
             linkedMapOf(
                 "basePackage" to config.basePackage,
                 "modules" to config.modules.toSortedMap(),

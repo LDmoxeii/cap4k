@@ -45,6 +45,7 @@ include("cap4k-plugin-code-analysis-compiler")
 include("cap4k-plugin-code-analysis-flow-export")
 include(
     "cap4k-plugin-pipeline-api",
+    "cap4k-plugin-pipeline-json",
     "cap4k-plugin-pipeline-agent",
     "cap4k-plugin-pipeline-core",
     "cap4k-plugin-pipeline-renderer-api",

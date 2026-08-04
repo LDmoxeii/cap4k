@@ -2,7 +2,7 @@
 
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.codeanalysis.compiler.Cap4kCodeAnalysisCompilerRegistrar
 import com.only4.cap4k.plugin.codeanalysis.core.config.OptionsKeys
 import com.only4.cap4k.plugin.pipeline.api.CanonicalModel
@@ -54,6 +54,8 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class DesignRoundTripFunctionalTest {
+    private val jsonMapper = PipelineJson.newMapper(includeNulls = true)
+
 
     @OptIn(ExperimentalPathApi::class)
     @Test
@@ -91,7 +93,7 @@ class DesignRoundTripFunctionalTest {
         val drawingBoardFiles = DrawingBoardTags.map { tag ->
             projectA.resolve("analysis-design/drawing_board_$tag.json").also { output ->
                 assertTrue(Files.isRegularFile(output), "Missing Drawing Board output: $output")
-                val entries = JsonParser.parseString(output.readText()).asJsonArray
+                val entries = jsonMapper.readTree(output.readText()).requireArrayNode()
                 assertTrue(entries.size() > 0, "Drawing Board output must not be partial or empty: $output")
             }
         }
@@ -316,9 +318,9 @@ class DesignRoundTripFunctionalTest {
                 "Real Analyzer did not write $fileName for ${module.role}: ${module.analysisDir}",
             )
         }
-        val designElements = JsonParser.parseString(
+        val designElements = jsonMapper.readTree(
             module.analysisDir.resolve("design-elements.json").readText(),
-        ).asJsonArray
+        ).requireArrayNode()
         assertTrue(
             designElements.size() > 0,
             "Real Analyzer produced no design elements for ${module.role}",
@@ -543,13 +545,13 @@ $registeredPaths
     )
 
     private fun frameworkOwnedSkeleton(projectDir: Path): Map<String, String> {
-        val plan = JsonParser.parseString(projectDir.resolve("build/cap4k/plan.json").readText()).asJsonObject
+        val plan = jsonMapper.readTree(projectDir.resolve("build/cap4k/plan.json").readText()).requireObjectNode()
         val skeleton = TreeMap<String, String>()
-        plan.getAsJsonArray("items")
-            .map { it.asJsonObject }
-            .filter { item -> item.get("generatorId").asString in DesignGeneratorIds }
+        plan.requireArrayNode("items")
+            .map { it.requireObjectNode() }
+            .filter { item -> item.get("generatorId").asText() in DesignGeneratorIds }
             .forEach { item ->
-                val outputPath = item.get("outputPath").asString.replace('\\', '/')
+                val outputPath = item.get("outputPath").asText().replace('\\', '/')
                 val output = Path.of(outputPath).let { path ->
                     if (path.isAbsolute) path else projectDir.resolve(outputPath)
                 }.normalize()
@@ -563,8 +565,8 @@ $registeredPaths
                 require(previous == null) { "Duplicate framework-owned skeleton output: $key" }
             }
         assertTrue(skeleton.isNotEmpty(), "No framework-owned design skeleton found in plan")
-        assertEquals(DesignGeneratorIds, plan.getAsJsonArray("items")
-            .map { it.asJsonObject.get("generatorId").asString }
+        assertEquals(DesignGeneratorIds, plan.requireArrayNode("items")
+            .map { it.requireObjectNode().get("generatorId").asText() }
             .filterTo(linkedSetOf()) { it in DesignGeneratorIds })
         return skeleton
     }

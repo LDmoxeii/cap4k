@@ -1,6 +1,5 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
-import com.google.gson.GsonBuilder
 import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilitiesSection
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticsSection
@@ -12,8 +11,10 @@ import com.only4.cap4k.plugin.pipeline.api.AgentProjectSummary
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeSection
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotSections
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException
 import com.only4.cap4k.plugin.pipeline.api.PlanEvidence
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class AgentFreshnessStatusTest {
@@ -48,19 +49,16 @@ class AgentFreshnessStatusTest {
             AgentEvidenceFreshness.FRESH,
             AgentFreshnessEvaluator.evaluate(evidence, "config-a", "input-a", false).freshness,
         )
-        val unsupportedSchemaEvidence = GsonBuilder().create().fromJson(
-            """{"schema":"cap4k.plan-evidence.v999","configurationIdentity":"config-a","localInputIdentity":"input-a","containsLiveExternalInput":false}""",
-            PlanEvidence::class.java,
-        )
-        assertEquals(
-            AgentEvidenceFreshness.UNKNOWN,
-            AgentFreshnessEvaluator.evaluate(
-                unsupportedSchemaEvidence,
-                "config-a",
-                "input-a",
-                false,
-            ).freshness,
-        )
+    }
+
+    @Test
+    fun `decoder rejects unsupported plan evidence schema`() {
+        assertThrows(ValueInstantiationException::class.java) {
+            AgentSnapshotCodec().fromJson(
+                """{"schema":"cap4k.plan-evidence.v999","configurationIdentity":"config-a","localInputIdentity":"input-a","containsLiveExternalInput":false}""",
+                PlanEvidence::class.java,
+            )
+        }
     }
 
     @Test

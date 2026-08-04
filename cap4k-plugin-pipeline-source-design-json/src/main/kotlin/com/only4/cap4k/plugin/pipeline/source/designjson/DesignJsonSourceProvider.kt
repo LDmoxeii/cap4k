@@ -1,9 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.source.designjson
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecEntry
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
@@ -19,9 +18,11 @@ import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import java.io.File
 
 class DesignJsonSourceProvider : SourceProvider {
+    private val objectMapper = PipelineJson.newMapper()
     override val id: String = "design-json"
     override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
         providerId = id,
@@ -100,7 +101,7 @@ class DesignJsonSourceProvider : SourceProvider {
             }
 
             val manifestEntries = manifestFile.reader(Charsets.UTF_8).use { reader ->
-                JsonParser.parseReader(reader).asJsonArray.map { it.asString }
+                (objectMapper.readTree(reader) as ArrayNode).map { it.primitiveString() }
             }
             require(manifestEntries.isNotEmpty()) {
                 "design manifest file must not be empty"
@@ -143,16 +144,16 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun parseFile(file: File): List<DesignSpecEntry> {
-        val root = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it) }
-        require(root.isJsonArray) {
+        val root = file.reader(Charsets.UTF_8).use { objectMapper.readTree(it) }
+        require(root.isArray) {
             "design-json file ${file.path} root must be an array."
         }
-        val array = root.asJsonArray
+        val array = root.asArrayNode()
         return array.mapIndexed { index, element ->
-            require(element.isJsonObject) {
+            require(element.isObject) {
                 "design-json file ${file.path} design entry[$index] must be an object."
             }
-            val obj = element.asJsonObject
+            val obj = element.asObjectNode()
             val rawTag = readRequiredString(obj, "tag", "design entry", trim = false)
             val name = readRequiredString(obj, "name", "design entry")
             val tag = parseTag(rawTag)
@@ -190,14 +191,14 @@ class DesignJsonSourceProvider : SourceProvider {
         return rawTag
     }
 
-    private fun rejectRemovedFields(obj: JsonObject, name: String) {
+    private fun rejectRemovedFields(obj: ObjectNode, name: String) {
         val removed = removedPublicFields.filter { obj.has(it) }
         require(removed.isEmpty()) {
             "design entry $name uses removed fields: ${removed.joinToString(", ")}"
         }
     }
 
-    private fun parseIntegrationEventName(obj: JsonObject, tag: String, name: String): String? {
+    private fun parseIntegrationEventName(obj: ObjectNode, tag: String, name: String): String? {
         if (tag !in eventNameTags) {
             return null
         }
@@ -208,7 +209,7 @@ class DesignJsonSourceProvider : SourceProvider {
         return eventName
     }
 
-    private fun parsePersist(obj: JsonObject, tag: String, name: String): Boolean? {
+    private fun parsePersist(obj: ObjectNode, tag: String, name: String): Boolean? {
         require(tag == "domain_event" || !obj.has("persist")) {
             "design entry $name cannot declare persist on tag: $tag"
         }
@@ -278,7 +279,7 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun validateEventName(tag: String, name: String, obj: JsonObject) {
+    private fun validateEventName(tag: String, name: String, obj: ObjectNode) {
         require(tag in eventNameTags || !obj.has("eventName")) {
             "design entry $name cannot declare eventName on tag: $tag"
         }
@@ -302,52 +303,52 @@ class DesignJsonSourceProvider : SourceProvider {
         error("design entry package is required for tag: $tag")
     }
 
-    private fun parseArtifacts(element: JsonElement?, name: String): List<ArtifactSelectionModel>? {
+    private fun parseArtifacts(element: JsonNode?, name: String): List<ArtifactSelectionModel>? {
         if (element == null) {
             return null
         }
-        require(element.isJsonArray) {
+        require(element.isArray) {
             "design entry $name artifacts must be an array."
         }
-        val array = element.asJsonArray
+        val array = element.asArrayNode()
         require(array.size() > 0) {
             "design entry $name artifacts must not be empty."
         }
         return array.mapIndexed { index, artifactElement ->
-            require(artifactElement.isJsonObject) {
+            require(artifactElement.isObject) {
                 "design entry $name artifacts[$index] must be an object."
             }
-            val artifact = artifactElement.asJsonObject
+            val artifact = artifactElement.asObjectNode()
             val familyElement = artifact["family"]
-            require(familyElement != null && familyElement.isJsonPrimitive && familyElement.asJsonPrimitive.isString) {
+            require(familyElement != null && familyElement.isTextual) {
                 "design entry $name artifacts[$index] artifact family must be a nonblank string."
             }
-            val family = familyElement.asString.trim()
+            val family = familyElement.asText().trim()
             require(family.isNotEmpty()) {
                 "design entry $name artifacts[$index] artifact family must be a nonblank string."
             }
             val variantElement = artifact["variant"]
-            require(variantElement == null || variantElement.isJsonPrimitive && variantElement.asJsonPrimitive.isString) {
+            require(variantElement == null || variantElement.isTextual) {
                 "design entry $name artifacts[$index] artifact variant must be a string."
             }
-            val variant = variantElement?.asString?.trim().orEmpty()
+            val variant = variantElement?.asText()?.trim().orEmpty()
             ArtifactSelectionModel(family = family, variant = variant)
         }
     }
 
-    private fun parseFields(element: JsonElement?, entryName: String, fieldName: String): List<SemanticFieldSnapshot> {
+    private fun parseFields(element: JsonNode?, entryName: String, fieldName: String): List<SemanticFieldSnapshot> {
         if (element == null) {
             return emptyList()
         }
-        require(element.isJsonArray) {
+        require(element.isArray) {
             "design entry $entryName $fieldName must be an array."
         }
-        val array = element.asJsonArray
+        val array = element.asArrayNode()
         return array.mapIndexed { index, element ->
-            require(element.isJsonObject) {
+            require(element.isObject) {
                 "design entry $entryName $fieldName[$index] must be an object."
             }
-            val field = element.asJsonObject
+            val field = element.asObjectNode()
             require(!field.has("nullable")) {
                 "design entry $entryName $fieldName[$index] field nullable is removed; encode nullability in type"
             }
@@ -365,19 +366,19 @@ class DesignJsonSourceProvider : SourceProvider {
         }
     }
 
-    private fun parseStringArray(element: JsonElement?, entryName: String, fieldName: String): List<String> {
+    private fun parseStringArray(element: JsonNode?, entryName: String, fieldName: String): List<String> {
         if (element == null) {
             return emptyList()
         }
-        require(element.isJsonArray) {
+        require(element.isArray) {
             "design entry $entryName $fieldName must be an array."
         }
-        val array = element.asJsonArray
+        val array = element.asArrayNode()
         return array.mapIndexed { index, item ->
-            require(item.isStringPrimitive()) {
+            require(item.isTextual) {
                 "design entry $entryName $fieldName[$index] must be a nonblank string."
             }
-            item.asString.trim().also { value ->
+            item.asText().trim().also { value ->
                 require(value.isNotEmpty()) {
                     "design entry $entryName $fieldName[$index] must be a nonblank string."
                 }
@@ -386,7 +387,7 @@ class DesignJsonSourceProvider : SourceProvider {
     }
 
     private fun readRequiredString(
-        obj: JsonObject,
+        obj: ObjectNode,
         fieldName: String,
         context: String,
         trim: Boolean = true,
@@ -398,24 +399,30 @@ class DesignJsonSourceProvider : SourceProvider {
         return if (trim) value.trim() else value
     }
 
-    private fun readOptionalString(obj: JsonObject, fieldName: String, context: String): String? {
+    private fun readOptionalString(obj: ObjectNode, fieldName: String, context: String): String? {
         val element = obj[fieldName] ?: return null
-        require(element.isStringPrimitive()) {
+        require(element.isTextual) {
             "$context $fieldName must be a nonblank string."
         }
-        return element.asString
+        return element.asText()
     }
 
-    private fun readOptionalBoolean(obj: JsonObject, fieldName: String, context: String): Boolean? {
+    private fun readOptionalBoolean(obj: ObjectNode, fieldName: String, context: String): Boolean? {
         val element = obj[fieldName] ?: return null
-        require(element.isJsonPrimitive && element.asJsonPrimitive.isBoolean) {
+        require(element.isBoolean) {
             "$context $fieldName must be a boolean."
         }
-        return element.asBoolean
+        return element.booleanValue()
     }
 
-    private fun JsonElement.isStringPrimitive(): Boolean =
-        isJsonPrimitive && asJsonPrimitive.isString
+    private fun JsonNode.primitiveString(): String {
+        check(isValueNode && !isNull) { "Expected a JSON primitive" }
+        return asText()
+    }
+
+    private fun JsonNode.asArrayNode(): ArrayNode = this as ArrayNode
+
+    private fun JsonNode.asObjectNode(): ObjectNode = this as ObjectNode
 
     private companion object {
         val PageFieldNames = setOf("pageNum", "pageSize")

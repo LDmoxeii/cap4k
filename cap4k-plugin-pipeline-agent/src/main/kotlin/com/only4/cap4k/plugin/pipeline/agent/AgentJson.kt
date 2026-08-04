@@ -1,84 +1,46 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonArray
-import com.google.gson.JsonElement
-import com.google.gson.JsonNull
-import com.google.gson.JsonObject
-import com.google.gson.TypeAdapter
-import com.google.gson.TypeAdapterFactory
-import com.google.gson.reflect.TypeToken
-import com.google.gson.stream.JsonReader
-import com.google.gson.stream.JsonToken
-import com.google.gson.stream.JsonWriter
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.JsonNodeFactory
+import com.fasterxml.jackson.databind.node.ObjectNode
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import java.lang.reflect.Type
 
 internal class AgentStableJson(
     private val redactor: AgentCredentialRedactor,
 ) {
-    private val gson: Gson = GsonBuilder()
-        .disableHtmlEscaping()
-        .serializeNulls()
-        .setPrettyPrinting()
-        .registerTypeAdapterFactory(LowercaseEnumTypeAdapterFactory)
-        .create()
+    private val mapper = PipelineJson.newMapper(
+        includeNulls = true,
+        lowercaseEnums = true,
+    )
+    private val writer = PipelineJson.prettyWriter(mapper)
 
-    fun toJson(value: Any): String = encodeTree(redactor.redactJson(gson.toJsonTree(value)))
+    fun toJson(value: Any): String = encodeTree(redactor.redactJson(mapper.valueToTree(value)))
 
     fun identityJson(value: Any): String = encodeTree(
-        redactor.identityProjection(gson.toJsonTree(value))
+        redactor.identityProjection(mapper.valueToTree(value))
     )
 
-    fun <T> fromJson(json: String, type: Class<T>): T = gson.fromJson(json, type)
+    fun <T> fromJson(json: String, type: Class<T>): T = mapper.readValue(json, type)
 
-    fun <T> fromJson(json: String, type: Type): T = gson.fromJson(json, type)
+    fun <T> fromJson(json: String, type: Type): T =
+        mapper.readValue(json, mapper.typeFactory.constructType(type))
 
-    private fun encodeTree(element: JsonElement): String = gson.toJson(canonicalize(element))
+    fun parseTree(json: String): JsonNode = mapper.readTree(json)
 
-    private fun canonicalize(element: JsonElement): JsonElement = when {
-        element.isJsonNull -> JsonNull.INSTANCE
-        element.isJsonArray -> JsonArray().also { result ->
-            element.asJsonArray.forEach { value -> result.add(canonicalize(value)) }
+    private fun encodeTree(element: JsonNode): String = writer.writeValueAsString(canonicalize(element))
+
+    private fun canonicalize(element: JsonNode): JsonNode = when {
+        element.isNull -> JsonNodeFactory.instance.nullNode()
+        element.isArray -> JsonNodeFactory.instance.arrayNode().also { result ->
+            (element as ArrayNode).forEach { value -> result.add(canonicalize(value)) }
         }
-        element.isJsonObject -> JsonObject().also { result ->
-            element.asJsonObject.entrySet()
-                .sortedBy(Map.Entry<String, JsonElement>::key)
-                .forEach { (key, value) -> result.add(key, canonicalize(value)) }
+        element.isObject -> JsonNodeFactory.instance.objectNode().also { result ->
+            (element as ObjectNode).fields().asSequence()
+                .sortedBy(Map.Entry<String, JsonNode>::key)
+                .forEach { (key, value) -> result.set<JsonNode>(key, canonicalize(value)) }
         }
-        else -> element.deepCopy()
-    }
-}
-
-private object LowercaseEnumTypeAdapterFactory : TypeAdapterFactory {
-    override fun <T : Any?> create(gson: Gson, type: TypeToken<T>): TypeAdapter<T>? {
-        val rawType = type.rawType
-        if (!rawType.isEnum) {
-            return null
-        }
-        @Suppress("UNCHECKED_CAST")
-        val constants = rawType.enumConstants as Array<Enum<*>>
-        val byWireName = constants.associateBy { it.name.lowercase() }
-        return object : TypeAdapter<T>() {
-            override fun write(writer: JsonWriter, value: T?) {
-                if (value == null) {
-                    writer.nullValue()
-                } else {
-                    writer.value((value as Enum<*>).name.lowercase())
-                }
-            }
-
-            override fun read(reader: JsonReader): T? {
-                if (reader.peek() == JsonToken.NULL) {
-                    reader.nextNull()
-                    return null
-                }
-                val wireName = reader.nextString().lowercase()
-                @Suppress("UNCHECKED_CAST")
-                return requireNotNull(byWireName[wireName]) {
-                    "unsupported ${rawType.simpleName} value: $wireName"
-                } as T
-            }
-        }.nullSafe()
+        else -> element.deepCopy<JsonNode>()
     }
 }

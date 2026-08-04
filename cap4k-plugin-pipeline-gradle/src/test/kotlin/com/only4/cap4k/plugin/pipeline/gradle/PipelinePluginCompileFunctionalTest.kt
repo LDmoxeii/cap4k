@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -26,6 +26,8 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class PipelinePluginCompileFunctionalTest {
+    private val jsonMapper = PipelineJson.newMapper(includeNulls = true)
+
 
     @Test
     fun `empty configured project keeps generation in the compile lifecycle as a no-op`() {
@@ -751,25 +753,25 @@ class PipelinePluginCompileFunctionalTest {
         val planResult = FunctionalFixtureSupport
             .runner(planProjectDir, "cap4kPlan")
             .build()
-        val planJson = JsonParser.parseString(
+        val planJson = jsonMapper.readTree(
             planProjectDir.resolve("build/cap4k/plan.json").readText(),
-        ).asJsonObject
-        val generatedEntityItem = planJson.getAsJsonArray("items")
-            .map { it.asJsonObject }
+        ).requireObjectNode()
+        val generatedEntityItem = planJson.requireArrayNode("items")
+            .map { it.requireObjectNode() }
             .first { item ->
-                item.get("templateId").asString == "aggregate/entity.kt.peb" &&
-                    item.get("outputPath").asString.endsWith("/VideoPost.kt")
+                item.get("templateId").asText() == "aggregate/entity.kt.peb" &&
+                    item.get("outputPath").asText().endsWith("/VideoPost.kt")
             }
         assertTrue(planResult.output.contains("BUILD SUCCESSFUL"))
-        assertEquals("aggregate", generatedEntityItem.get("generatorId").asString)
-        assertEquals("GENERATED_SOURCE", generatedEntityItem.get("outputKind").asString)
+        assertEquals("aggregate", generatedEntityItem.get("generatorId").asText())
+        assertEquals("GENERATED_SOURCE", generatedEntityItem.get("outputKind").asText())
         assertEquals(
             "demo-domain/out/build/generated/cap4k/main/kotlin",
-            generatedEntityItem.get("resolvedOutputRoot").asString,
+            generatedEntityItem.get("resolvedOutputRoot").asText(),
         )
         assertEquals(
             "demo-domain/out/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt",
-            generatedEntityItem.get("outputPath").asString,
+            generatedEntityItem.get("outputPath").asText(),
         )
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-custom-build-dir-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-relation-compile-sample")
