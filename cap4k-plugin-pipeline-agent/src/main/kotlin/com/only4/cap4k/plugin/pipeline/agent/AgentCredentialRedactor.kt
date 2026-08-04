@@ -1,10 +1,9 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
-import com.google.gson.JsonArray
-import com.google.gson.JsonElement
-import com.google.gson.JsonNull
-import com.google.gson.JsonObject
-import com.google.gson.JsonPrimitive
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.JsonNodeFactory
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.api.AgentOptionSummary
 
 class AgentCredentialRedactor(
@@ -53,49 +52,48 @@ class AgentCredentialRedactor(
         return redacted
     }
 
-    internal fun redactJson(element: JsonElement): JsonElement = when {
-        element.isJsonNull -> JsonNull.INSTANCE
-        element.isJsonArray -> JsonArray().also { result ->
-            element.asJsonArray.forEach { value -> result.add(redactJson(value)) }
+    internal fun redactJson(element: JsonNode): JsonNode = when {
+        element.isNull -> JsonNodeFactory.instance.nullNode()
+        element.isArray -> JsonNodeFactory.instance.arrayNode().also { result ->
+            (element as ArrayNode).forEach { value -> result.add(redactJson(value)) }
         }
-        element.isJsonObject -> JsonObject().also { result ->
-            element.asJsonObject.entrySet().forEach { (key, value) ->
-                result.add(
+        element.isObject -> JsonNodeFactory.instance.objectNode().also { result ->
+            (element as ObjectNode).fields().asSequence().forEach { (key, value) ->
+                result.set<JsonNode>(
                     key,
                     when {
-                        isSensitiveKey(key) -> JsonPrimitive(CONFIGURED_MARKER)
-                        value.isJsonPrimitive && value.asJsonPrimitive.isString ->
-                            JsonPrimitive(redact(value.asString))
+                        isSensitiveKey(key) -> JsonNodeFactory.instance.textNode(CONFIGURED_MARKER)
+                        value.isTextual -> JsonNodeFactory.instance.textNode(redact(value.textValue()))
                         else -> redactJson(value)
                     }
                 )
             }
         }
-        element.asJsonPrimitive.isString -> JsonPrimitive(redact(element.asString))
-        else -> element.deepCopy()
+        element.isTextual -> JsonNodeFactory.instance.textNode(redact(element.textValue()))
+        else -> element.deepCopy<JsonNode>()
     }
 
-    internal fun identityProjection(element: JsonElement, key: String? = null): JsonElement = when {
-        key != null && isSensitiveKey(key) -> JsonPrimitive(CONFIGURED_MARKER)
-        element.isJsonNull -> JsonNull.INSTANCE
-        element.isJsonArray -> JsonArray().also { result ->
-            element.asJsonArray.forEach { value -> result.add(identityProjection(value)) }
+    internal fun identityProjection(element: JsonNode, key: String? = null): JsonNode = when {
+        key != null && isSensitiveKey(key) -> JsonNodeFactory.instance.textNode(CONFIGURED_MARKER)
+        element.isNull -> JsonNodeFactory.instance.nullNode()
+        element.isArray -> JsonNodeFactory.instance.arrayNode().also { result ->
+            (element as ArrayNode).forEach { value -> result.add(identityProjection(value)) }
         }
-        element.isJsonObject -> JsonObject().also { result ->
-            element.asJsonObject.entrySet()
-                .sortedBy(Map.Entry<String, JsonElement>::key)
+        element.isObject -> JsonNodeFactory.instance.objectNode().also { result ->
+            (element as ObjectNode).fields().asSequence()
+                .sortedBy(Map.Entry<String, JsonNode>::key)
                 .forEach { (childKey, childValue) ->
-                    result.add(childKey, identityProjection(childValue, childKey))
+                    result.set<JsonNode>(childKey, identityProjection(childValue, childKey))
                 }
         }
-        element.asJsonPrimitive.isString -> {
-            val value = element.asString
+        element.isTextual -> {
+            val value = element.textValue()
             when {
-                containsRawConnection(value) -> JsonPrimitive(CONFIGURED_MARKER)
-                else -> JsonPrimitive(redact(value))
+                containsRawConnection(value) -> JsonNodeFactory.instance.textNode(CONFIGURED_MARKER)
+                else -> JsonNodeFactory.instance.textNode(redact(value))
             }
         }
-        else -> element.deepCopy()
+        else -> element.deepCopy<JsonNode>()
     }
 
     private fun collectOptionPaths(

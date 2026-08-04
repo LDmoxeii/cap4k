@@ -24,6 +24,5 @@ dependencies {
     testImplementation(libs.spring.tomcat)
     testImplementation(libs.h2)
     testImplementation(libs.jackson.module.kotlin)
-    testImplementation(project(":ddd-distributed-snowflake"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

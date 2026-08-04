@@ -4,6 +4,8 @@ package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -62,6 +64,7 @@ class GeneratedDomainEventRuntimeContractTest {
         val supervisor = DefaultDomainEventSupervisor(
             domainEventInterceptorManager = emptyInterceptorManager,
             eventHandlerDispatcher = noOpEventHandlerDispatcher,
+            reliableEventDeliveryContextScopeManager = noOpReliableDeliveryContextScopeManager,
         )
 
         assertDoesNotThrow {
@@ -109,4 +112,10 @@ class GeneratedDomainEventRuntimeContractTest {
     }
 
     private val noOpEventHandlerDispatcher = EventHandlerDispatcher { }
+
+    private val noOpReliableDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
+        override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
+
+        override fun suppress(): AutoCloseable = AutoCloseable { }
+    }
 }

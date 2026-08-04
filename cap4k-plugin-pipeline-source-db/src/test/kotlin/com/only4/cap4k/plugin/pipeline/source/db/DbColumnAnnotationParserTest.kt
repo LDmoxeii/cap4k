@@ -22,7 +22,6 @@ class DbColumnAnnotationParserTest {
     @TestFactory
     fun `accepts standard and custom syntactically valid policy keys`() = listOf(
         "identifier.uuid7",
-        "identifier.snowflake",
         "identifier.assigned",
         "identifier.database-identity",
         "version",
@@ -33,6 +32,18 @@ class DbColumnAnnotationParserTest {
     ).map { key ->
         DynamicTest.dynamicTest(key) {
             assertEquals(key, DbColumnAnnotationParser.parse("@Managed=$key;").managedPolicyKey)
+        }
+    }
+
+    @Test
+    fun `rejects retired snowflake policy with UUID7-only diagnostic`() {
+        listOf("snowflake", "identifier.snowflake").forEach { policy ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DbColumnAnnotationParser.parse("@Managed=$policy;")
+            }
+
+            assertTrue(error.message!!.contains("rejected value '$policy'"), error.message)
+            assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
         }
     }
 

@@ -15,6 +15,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -43,6 +44,10 @@ class HttpIntegrationEventAutoConfigurationTest {
                 Supplier { ExecutionContextScopeManager { AutoCloseable { } } },
             )
             .withBean(ExecutionContextCodecRegistry::class.java, Supplier { ExecutionContextCodecRegistry(emptyList()) })
+            .withBean(
+                ReliableEventDeliveryContextScopeManager::class.java,
+                Supplier { mock(ReliableEventDeliveryContextScopeManager::class.java) },
+            )
             .withBean(InvocationScopeAccessor::class.java, Supplier { InvocationScopeAccessor { null } })
             .withBean(
                 EventTypeCatalog::class.java,

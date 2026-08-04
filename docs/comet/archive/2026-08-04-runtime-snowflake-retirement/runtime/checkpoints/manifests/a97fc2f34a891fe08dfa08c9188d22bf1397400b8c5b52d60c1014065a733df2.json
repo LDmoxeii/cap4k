@@ -1,0 +1,17 @@
+{
+  "schema": "comet.native.checkpoint-manifest.v1",
+  "change": "runtime-snowflake-retirement",
+  "artifacts": [
+    {
+      "path": "AGENTS.md",
+      "hash": "a74d379179ccc0bcaa9e532f54e81cc763fa6b80fcac46549f00c9cd06401014",
+      "size": 11723
+    },
+    {
+      "path": "settings.gradle.kts",
+      "hash": "cc4944fed0df05cd8d093e0483845609897d93e7d6c9eca20fa5396d16f9ba7f",
+      "size": 2467
+    }
+  ],
+  "totalBytes": 14190
+}

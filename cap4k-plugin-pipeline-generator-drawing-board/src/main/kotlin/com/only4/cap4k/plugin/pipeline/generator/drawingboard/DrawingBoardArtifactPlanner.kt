@@ -194,13 +194,18 @@ private val ArtifactComparator =
 
 private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
     val missing = model.analysisGraph?.nodes.orEmpty()
-        .filter { node -> DESIGN_BLOCK_METADATA_FQ in node.missingMetadata }
-        .groupBy { node -> node.metadataOwner ?: node.fullName }
+        .flatMap { node ->
+            listOf(DESIGN_BLOCK_METADATA_FQ, AGGREGATE_ELEMENT_METADATA_FQ)
+                .filter { metadataFq -> metadataFq in node.missingMetadata }
+                .map { metadataFq -> (node.metadataOwner ?: node.fullName) to metadataFq }
+        }
+        .distinct()
+        .sortedWith(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
     if (missing.isEmpty()) {
         return
     }
-    val details = missing.keys.sorted().joinToString(separator = System.lineSeparator()) { symbol ->
-        "- symbol: $symbol; missing metadata: $DESIGN_BLOCK_METADATA_FQ; affected capability: Drawing Board"
+    val details = missing.joinToString(separator = System.lineSeparator()) { (symbol, metadataFq) ->
+        "- symbol: $symbol; missing metadata: $metadataFq; affected capability: Drawing Board"
     }
     throw IllegalArgumentException(
         buildString {
@@ -218,3 +223,5 @@ private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
 
 private const val DESIGN_BLOCK_METADATA_FQ =
     "com.only4.cap4k.analysis.metadata.DesignBlockMetadata"
+private const val AGGREGATE_ELEMENT_METADATA_FQ =
+    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"

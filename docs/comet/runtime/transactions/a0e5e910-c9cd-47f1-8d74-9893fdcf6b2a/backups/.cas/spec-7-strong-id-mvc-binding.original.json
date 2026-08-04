@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-7-strong-id-mvc-binding",
+  "role": "original",
+  "hash": "4ddc98fdfc3629ea34ff3c564d225b68297bd1eda37b89346278a4b0e5d2a9e4",
+  "identity": {
+    "dev": 950912656,
+    "ino": 281474982578755,
+    "birthtimeMs": 1785820094975.175
+  }
+}

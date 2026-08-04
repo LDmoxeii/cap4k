@@ -21,6 +21,11 @@ $retiredTerms = [ordered]@{
     'Console auto-configuration' = '\bDDDConsoleAutoConfiguration\b'
     'Console runtime package' = '\bcom\.only4\.cap4k\.ddd\.console\b'
     'Console HTTP endpoint' = '/cap4k/console(?:/|\b)'
+    'Snowflake capability' = '\bSnowflake\b'
+    'Snowflake Runtime module' = '\bddd-distributed-snowflake\b'
+    'Snowflake starter' = '\bcap4k-ddd-snowflake-starter\b'
+    'Snowflake policy' = '\bidentifier\.snowflake\b'
+    'Worker-ID capability' = '\bWorker-?ID\b|\b__worker_id\b|\bworker_id\.sql\b'
 }
 
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
@@ -46,6 +51,18 @@ foreach ($file in $files) {
     foreach ($entry in $retiredTerms.GetEnumerator()) {
         if ($text -match $entry.Value) {
             if ($entry.Key -eq 'Console module' -and $relativePath -eq 'docs/comet/specs/runtime-console-retirement/spec.md') {
+                continue
+            }
+            if (
+                $relativePath -eq 'docs/comet/specs/runtime-snowflake-retirement/spec.md' -and
+                $entry.Key -in @(
+                    'Snowflake capability',
+                    'Snowflake Runtime module',
+                    'Snowflake starter',
+                    'Snowflake policy',
+                    'Worker-ID capability'
+                )
+            ) {
                 continue
             }
             $violations.Add("${relativePath}: retired runtime term '$($entry.Key)'")

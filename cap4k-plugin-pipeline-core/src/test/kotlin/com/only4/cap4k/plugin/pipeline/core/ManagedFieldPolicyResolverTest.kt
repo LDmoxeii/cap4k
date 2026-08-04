@@ -37,7 +37,7 @@ class ManagedFieldPolicyResolverTest {
         val policy = ManagedFieldPolicyResolver.resolve(
             config = config(
                 identifierDefault = "identifier.uuid7",
-                columnDefaults = mapOf("id" to "identifier.snowflake", "revision" to "version"),
+                columnDefaults = mapOf("id" to "identifier.database-identity", "revision" to "version"),
             ),
             entities = listOf(entity),
             tables = listOf(table),
@@ -52,6 +52,25 @@ class ManagedFieldPolicyResolverTest {
         assertInstanceOf(ManagedPolicySelectionProvenance.ExactColumnDefault::class.java, version.selection)
         assertEquals(listOf("id"), policy.writeSurface.createAllowedFields)
         assertEquals(emptyList<String>(), policy.writeSurface.updateAllowedFields)
+    }
+
+    @Test
+    fun `rejects retired identifier strategy in managed field configuration`() {
+        val (entity, table) = fixture(
+            columns = listOf(column("id", "String", primaryKey = true)),
+        )
+
+        listOf(
+            config(identifierDefault = "identifier.snowflake"),
+            config(columnDefaults = mapOf("id" to "identifier.snowflake")),
+        ).forEach { config ->
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                ManagedFieldPolicyResolver.resolve(config, listOf(entity), listOf(table), emptyList())
+            }
+
+            assertTrue(error.message!!.contains("rejected value 'identifier.snowflake'"), error.message)
+            assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
+        }
     }
 
     @Test

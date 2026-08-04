@@ -79,6 +79,18 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `built in catalog exposes UUID7 as the only framework allocated identifier`() {
+        val frameworkAllocatedIdentifiers = BuiltInManagedFieldPolicies.definitions
+            .filter { definition ->
+                definition.role == ManagedFieldRole.IDENTIFIER &&
+                    definition.persistence.insert == ManagedValueAuthority.FRAMEWORK
+            }
+            .map { it.key }
+
+        assertEquals(listOf("identifier.uuid7"), frameworkAllocatedIdentifiers)
+    }
+
+    @Test
     fun `design block stores artifact selections`() {
         val block = DesignBlockModel(
             tag = "query",

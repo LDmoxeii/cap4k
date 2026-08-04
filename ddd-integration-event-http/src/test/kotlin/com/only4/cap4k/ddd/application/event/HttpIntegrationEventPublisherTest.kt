@@ -11,6 +11,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.core.env.Environment
+import java.time.Instant
 
 @ExtendWith(MockKExtension::class)
 @DisplayName("HTTP集成事件发布器测试")
@@ -101,6 +102,7 @@ class HttpIntegrationEventPublisherTest {
             every { this@mockk.id } returns id
             every { this@mockk.type } returns type
             every { payload } returns mapOf("userId" to "123", "action" to "created")
+            every { publishedAt } returns Instant.parse("2026-08-04T00:00:00Z")
         }
     }
 }

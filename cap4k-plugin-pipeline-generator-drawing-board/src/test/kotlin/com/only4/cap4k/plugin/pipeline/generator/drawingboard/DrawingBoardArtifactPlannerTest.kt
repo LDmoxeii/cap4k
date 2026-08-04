@@ -115,6 +115,39 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
+    fun `rejects missing aggregate metadata before drawing board planning`() {
+        val planner = DrawingBoardArtifactPlanner()
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            planner.plan(
+                config(),
+                CanonicalModel(
+                    analysisGraph = AnalysisGraphModel(
+                        inputDirs = listOf("adapter/build/cap4k-code-analysis"),
+                        nodes = listOf(
+                            AnalysisNodeModel(
+                                id = "demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                                name = "OrderJpaRepositoryAdapter",
+                                fullName = "demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                                type = "repository",
+                                missingMetadata = listOf(
+                                    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
+                                ),
+                                metadataOwner = "demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                            )
+                        ),
+                        edges = emptyList(),
+                    ),
+                    drawingBoard = DrawingBoardModel(emptyList()),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"))
+        assertTrue(error.message!!.contains("AggregateElementMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
+    }
+
+    @Test
     fun `plan item context exposes formal drawing block keys and explicit artifact selections`() {
         val planner = DrawingBoardArtifactPlanner()
 

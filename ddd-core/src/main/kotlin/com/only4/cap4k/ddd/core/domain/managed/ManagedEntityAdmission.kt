@@ -181,7 +181,6 @@ object ManagedEntityAdmissionCoordinatorSupport {
 class StandardManagedEntityInitializer : ManagedEntityInitializer {
     override val qualifiers: Set<String> = setOf(
         "identifier.uuid7",
-        "identifier.snowflake",
         "identifier.assigned",
         "soft-delete",
     )

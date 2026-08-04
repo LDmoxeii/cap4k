@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     implementation(project(":cap4k-plugin-pipeline-api"))
-    implementation(libs.gson)
+    implementation(project(":cap4k-plugin-pipeline-json"))
 
     testImplementation(platform(libs.junit.bom))
     testImplementation("org.junit.jupiter:junit-jupiter-api")

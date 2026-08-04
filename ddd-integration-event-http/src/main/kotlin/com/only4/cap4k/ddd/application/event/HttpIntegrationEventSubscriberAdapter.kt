@@ -8,6 +8,9 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
@@ -18,6 +21,7 @@ import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
 import org.springframework.core.env.Environment
 import org.springframework.messaging.support.GenericMessage
+import java.time.Instant
 
 /**
  * 自动处理集成事件回调
@@ -39,6 +43,7 @@ class HttpIntegrationEventSubscriberAdapter(
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
     },
+    private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
 ) {
     private val log = LoggerFactory.getLogger(HttpIntegrationEventSubscriberAdapter::class.java)
     private val eventPayloadClassMap = mutableMapOf<String, Class<*>>()
@@ -108,31 +113,48 @@ class HttpIntegrationEventSubscriberAdapter(
         eventPayloadClassMap[registration.target] = registration.eventClass
     }
 
-    fun consume(event: String, payloadJsonStr: String, headers: Map<String, Any> = emptyMap()): Boolean =
-        runCatching {
-            val integrationEventClass = eventPayloadClassMap[event]
-                ?: return logAndReturnFailure("未找到事件类型映射", event, payloadJsonStr)
+    fun consume(
+        eventId: String,
+        eventName: String,
+        publishedAt: Instant,
+        payloadJsonStr: String,
+        headers: Map<String, Any> = emptyMap(),
+    ): Boolean = runCatching {
+        require(eventId.isNotBlank()) { "eventId must not be blank" }
+        require(eventName.isNotBlank()) { "eventName must not be blank" }
 
-            val eventPayload = parseEventPayload(payloadJsonStr, integrationEventClass)
-                ?: return logAndReturnFailure("事件载荷解析失败", event, payloadJsonStr)
+        val integrationEventClass = eventPayloadClassMap[eventName]
+            ?: return logAndReturnFailure("未找到事件类型映射", eventName, payloadJsonStr)
 
-            val encodedExecutionContext = headers.entries
-                .firstOrNull { (name, _) -> name.equals(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, ignoreCase = true) }
-                ?.value
-            val executionContext = executionContextCodecRegistry.decodeExternal(
-                IntegrationEventExecutionContextEnvelope.decode(encodedExecutionContext),
-                ExecutionContextBoundary.INTEGRATION_EVENT,
-            )
-            executionContextScopeManager.install(executionContext).use {
-                processEventWithInterceptors(eventPayload, headers)
-            }
-            true
-        }.onFailure { ex ->
-            log.error("集成事件消费失败, event: $event, payload: $payloadJsonStr", ex)
-        }.getOrDefault(false)
+        val eventPayload = parseEventPayload(payloadJsonStr, integrationEventClass)
+            ?: return logAndReturnFailure("事件载荷解析失败", eventName, payloadJsonStr)
 
-    private fun logAndReturnFailure(reason: String, event: String, payloadJsonStr: String): Boolean {
-        log.error("集成事件消费失败 - $reason, event: $event, payload: $payloadJsonStr")
+        val deliveryContext = ReliableEventDeliveryContext(
+            eventId = eventId,
+            eventName = integrationEventClass.simpleName
+                .takeIf(String::isNotBlank)
+                ?: error("Integration event payload class must have a simple name"),
+            publishedAt = publishedAt,
+            attempt = null,
+            redeliveryHint = ReliableEventRedeliveryHint.UNKNOWN,
+        )
+        val encodedExecutionContext = headers.entries
+            .firstOrNull { (name, _) -> name.equals(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, ignoreCase = true) }
+            ?.value
+        val executionContext = executionContextCodecRegistry.decodeExternal(
+            IntegrationEventExecutionContextEnvelope.decode(encodedExecutionContext),
+            ExecutionContextBoundary.INTEGRATION_EVENT,
+        )
+        executionContextScopeManager.install(executionContext).use {
+            processEventWithInterceptors(eventPayload, headers, deliveryContext)
+        }
+        true
+    }.onFailure { ex ->
+        log.error("集成事件消费失败, event: $eventName, payload: $payloadJsonStr", ex)
+    }.getOrDefault(false)
+
+    private fun logAndReturnFailure(reason: String, eventName: String, payloadJsonStr: String): Boolean {
+        log.error("集成事件消费失败 - $reason, event: $eventName, payload: $payloadJsonStr")
         return false
     }
 
@@ -145,9 +167,13 @@ class HttpIntegrationEventSubscriberAdapter(
         }
     }
 
-    private fun processEventWithInterceptors(eventPayload: Any, headers: Map<String, Any>) {
+    private fun processEventWithInterceptors(
+        eventPayload: Any,
+        headers: Map<String, Any>,
+        deliveryContext: ReliableEventDeliveryContext,
+    ) {
         if (orderedEventMessageInterceptors.isEmpty()) {
-            eventHandlerDispatcher.dispatch(eventPayload)
+            dispatchWithDeliveryContext(deliveryContext, eventPayload)
             return
         }
 
@@ -156,13 +182,26 @@ class HttpIntegrationEventSubscriberAdapter(
             EventMessageInterceptor.ModifiableMessageHeaders(headers)
         )
 
-        orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
+        reliableEventDeliveryContextScopeManager.suppress().use {
+            orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
+        }
 
         // 拦截器可能修改消息，重新获取载荷
         val modifiedPayload = message.payload
-        eventHandlerDispatcher.dispatch(modifiedPayload)
+        dispatchWithDeliveryContext(deliveryContext, modifiedPayload)
 
-        orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+        reliableEventDeliveryContextScopeManager.suppress().use {
+            orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+        }
+    }
+
+    private fun dispatchWithDeliveryContext(
+        deliveryContext: ReliableEventDeliveryContext,
+        eventPayload: Any,
+    ) {
+        reliableEventDeliveryContextScopeManager.install(deliveryContext).use {
+            eventHandlerDispatcher.dispatch(eventPayload)
+        }
     }
 
     private data class EventRegistration(

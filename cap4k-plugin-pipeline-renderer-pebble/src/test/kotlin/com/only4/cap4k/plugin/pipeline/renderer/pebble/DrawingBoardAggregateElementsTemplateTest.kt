@@ -1,7 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
-import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.pipeline.api.AggregateElementModel
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -40,14 +40,14 @@ class DrawingBoardAggregateElementsTemplateTest {
             config = ProjectConfig(),
         ).single()
 
-        val element = JsonParser.parseString(rendered.content).asJsonArray.single().asJsonObject
-        assertEquals(repository.carrierQualifiedName, element.get("carrierQualifiedName").asString)
-        assertEquals(repository.aggregate, element.get("aggregate").asString)
-        assertEquals(repository.name, element.get("name").asString)
-        assertEquals(repository.packageName, element.get("packageName").asString)
-        assertEquals(repository.description, element.get("description").asString)
-        assertEquals(repository.type, element.get("type").asString)
-        assertEquals(repository.root, element.get("root").asBoolean)
+        val element = PipelineJson.newMapper().readTree(rendered.content).single()
+        assertEquals(repository.carrierQualifiedName, element.get("carrierQualifiedName").asText())
+        assertEquals(repository.aggregate, element.get("aggregate").asText())
+        assertEquals(repository.name, element.get("name").asText())
+        assertEquals(repository.packageName, element.get("packageName").asText())
+        assertEquals(repository.description, element.get("description").asText())
+        assertEquals(repository.type, element.get("type").asText())
+        assertEquals(repository.root, element.get("root").asBoolean())
         assertFalse(element.has("tag"))
     }
 }

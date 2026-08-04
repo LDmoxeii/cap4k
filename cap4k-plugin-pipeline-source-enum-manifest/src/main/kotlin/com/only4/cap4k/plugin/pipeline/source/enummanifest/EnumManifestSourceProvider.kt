@@ -1,7 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.source.enummanifest
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
@@ -16,9 +17,11 @@ import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import java.io.File
 
 class EnumManifestSourceProvider : SourceProvider {
+    private val objectMapper = PipelineJson.newMapper()
     override val id: String = "enum-manifest"
     override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
         providerId = id,
@@ -84,10 +87,10 @@ class EnumManifestSourceProvider : SourceProvider {
 
     private fun parseFile(file: File): List<SharedEnumDefinition> {
         val definitions = file.reader(Charsets.UTF_8).use { reader ->
-            JsonParser.parseReader(reader).asJsonArray
+            objectMapper.readTree(reader) as ArrayNode
         }
         return definitions.map { element ->
-            val json = element.asJsonObject
+            val json = element as ObjectNode
             require(!json.has(REMOVED_TRANSLATION_FLAG)) {
                 "enum manifest field $REMOVED_TRANSLATION_FLAG is removed; install an enum translation addon instead."
             }
@@ -100,7 +103,7 @@ class EnumManifestSourceProvider : SourceProvider {
                     }
                 },
                 items = json.requiredArray("items").map { item ->
-                    val itemJson = item.asJsonObject
+                    val itemJson = item as ObjectNode
                     EnumItemModel(
                         value = itemJson.requiredInt("value"),
                         name = itemJson.requiredString("name"),
@@ -112,17 +115,29 @@ class EnumManifestSourceProvider : SourceProvider {
     }
 }
 
-private fun JsonObject.requiredString(field: String): String = get(field).asString
+private fun ObjectNode.requiredString(field: String): String = get(field).primitiveString()
 
 private val REMOVED_TRANSLATION_FLAG = "generate" + "Translation"
 
-private fun JsonObject.requiredInt(field: String): Int = get(field).asInt
+private fun ObjectNode.requiredInt(field: String): Int = get(field).primitiveInt()
 
-private fun JsonObject.requiredArray(field: String) = getAsJsonArray(field)
+private fun ObjectNode.requiredArray(field: String): ArrayNode = get(field) as ArrayNode
 
-private fun JsonObject.optionalStringArray(field: String): List<String> =
-    if (has(field) && !get(field).isJsonNull) {
-        getAsJsonArray(field).map { it.asString }
+private fun ObjectNode.optionalStringArray(field: String): List<String> =
+    if (has(field) && !get(field).isNull) {
+        (get(field) as ArrayNode).map { it.primitiveString() }
     } else {
         emptyList()
     }
+
+private fun JsonNode.primitiveString(): String {
+    check(isValueNode && !isNull) { "Expected a JSON primitive" }
+    return asText()
+}
+
+private fun JsonNode.primitiveInt(): Int = when {
+    isIntegralNumber -> intValue()
+    isFloatingPointNumber -> decimalValue().toInt()
+    isTextual -> textValue().toInt()
+    else -> asText().toInt()
+}

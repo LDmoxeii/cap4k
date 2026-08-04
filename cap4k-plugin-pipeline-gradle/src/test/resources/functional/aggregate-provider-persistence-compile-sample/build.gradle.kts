@@ -24,8 +24,6 @@ cap4k {
             includeTables.set(
                 listOf(
                     "video_post",
-                    "snowflake_long_record",
-                    "snowflake_string_record",
                     "uuid_string_record",
                     "uuid_native_record",
                 )

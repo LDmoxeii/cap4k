@@ -1,0 +1,95 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-snowflake-retirement",
+  "sourceRevision": 4,
+  "result": "pass",
+  "freshness": "partial",
+  "contractHash": "d061bcd23eccdec91d0b86c5f3008ebc1bf20a2dae23ad2a49e0914a125859ce",
+  "acceptanceCriteriaHash": "d9cdf37c2d89a1c5c9b709bf1e84e214992d7783be8d20a839ca7be0b8bbbc2e",
+  "implementationScopeRef": "runtime/evidence/scopes/707884aa0942e91fbecc5db8727bb0fc6d55e6467ae89a14a390f7690a500683.json",
+  "implementationScopeHash": "707884aa0942e91fbecc5db8727bb0fc6d55e6467ae89a14a390f7690a500683",
+  "reportRef": "verification.md",
+  "reportHash": "d7831e470d1b29f5ee5457460938da7c31938ce05227c172795c1583d5b2ca7f",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "d9cdf37c2d89a1c5c9b709bf1e84e214992d7783be8d20a839ca7be0b8bbbc2e",
+    "total": 6,
+    "evidenced": 6,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-01e7cc456e289677ba7d1719ef40598fa5d7a94d35a4f8f3b82541fd9e388556",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateIdPolicyResolver.kt",
+          "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-082f7300d9eb20b87cff6e6c316150cce6579025616c969f9016a52afc4973f8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/ManagedFieldPolicies.kt",
+          "cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/BuiltInIdentifierStrategies.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6138936cbc1dc45abbcf01bdd7f2b60035aae86fce53eb11ab1cdb94a882cc18",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "AGENTS.md",
+          "docs/public/concepts/modeling-building-blocks/strong-id.md",
+          "docs/public/reference/runtime-database-schema.md",
+          "scripts/validate-current-runtime-facts.ps1",
+          "settings.gradle.kts"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-73b728cf2e75c4528cf17f76189b3d9da89a8c7f7b30f82c6a9c3703c481280a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
+          "cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-b0e5e2203d858007472d69799a49bad9b534076505b611bc97d5e434a126dfae",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt",
+          "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt",
+          "cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParser.kt",
+          "cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParserTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e51f4c9f464b297665a75e74aa8ab9cdb4b77a63a13b627c4fca34605f52757f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "scripts/validate-current-runtime-facts.ps1",
+          "settings.gradle.kts"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "f9a53bcbc7f58faa50d775d18d15066db4c3edceb132cf2d7d0029b748dbbe60"
+  },
+  "partialAllowanceRef": "runtime/evidence/allowances/f34be30cf6aaefbd6b2185d54b0ae0d7bbc48c1d559ce7df4aa063fb0e11074b.json",
+  "partialAllowanceHash": "f34be30cf6aaefbd6b2185d54b0ae0d7bbc48c1d559ce7df4aa063fb0e11074b",
+  "receiptRef": "runtime/evidence/check-receipts/b85231fc4ddd7f90d102c68c0edfd39cb70945e2646a6abaacb954a0534c765c.json",
+  "createdAt": "2026-08-04T11:35:25.468Z",
+  "envelopeHash": "5fc2ac2f26d3de7040df46d6a3fb89af7592aca08eeff4989f43c68e4939a71e"
+}

@@ -1,0 +1,46 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 6
+name: runtime-snowflake-retirement
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: d061bcd23eccdec91d0b86c5f3008ebc1bf20a2dae23ad2a49e0914a125859ce
+spec_changes:
+  - capability: managed-field-policy-and-pipeline-extension
+    operation: replace
+    source: specs/managed-field-policy-and-pipeline-extension/spec.md
+    base_hash: 2405358a8a4b5ab38c7d4018a66c2983b639abd941006b5beb94425b74ae4749
+  - capability: official-default-project-contract
+    operation: replace
+    source: specs/official-default-project-contract/spec.md
+    base_hash: 4982258cc593ea85a4b70c8094cfce3e7901a9c2bef0360ab56f6a35dbf71018
+  - capability: official-default-project-contract-reconciliation
+    operation: replace
+    source: specs/official-default-project-contract-reconciliation/spec.md
+    base_hash: 5c2c4b8342f2c441092b691a7302cbe69d362fa490e88c97e70586c624601c31
+  - capability: owned-child-factory-creation
+    operation: replace
+    source: specs/owned-child-factory-creation/spec.md
+    base_hash: 3a54ee43fb38f2e71be46d4752aba6cb7b3a334bbf29b990819fa50142fff496
+  - capability: runtime-console-retirement
+    operation: replace
+    source: specs/runtime-console-retirement/spec.md
+    base_hash: 45bc8890b4b8c01456367df28570ef8aae5d5ed83df62a2c53af974fc5540845
+  - capability: runtime-snowflake-retirement
+    operation: create
+    source: specs/runtime-snowflake-retirement/spec.md
+    base_hash: null
+  - capability: strong-id-mvc-binding
+    operation: replace
+    source: specs/strong-id-mvc-binding/spec.md
+    base_hash: 4ddc98fdfc3629ea34ff3c564d225b68297bd1eda37b89346278a4b0e5d2a9e4
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/707884aa0942e91fbecc5db8727bb0fc6d55e6467ae89a14a390f7690a500683.json
+verification_evidence: runtime/evidence/verifications/5fc2ac2f26d3de7040df46d6a3fb89af7592aca08eeff4989f43c68e4939a71e.json
+partial_allowance: runtime/evidence/allowances/f34be30cf6aaefbd6b2185d54b0ae0d7bbc48c1d559ce7df4aa063fb0e11074b.json
+archived: true
+created_at: 2026-08-04
+run_id: cfd3892c-e761-4861-baf2-0351ea7823ab

@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.PlanOutcome
 import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
@@ -56,10 +56,7 @@ abstract class Cap4kAnalysisPlanTask : DefaultTask() {
     }
 
     private fun writePlanReport(outputFile: java.io.File, report: PlanReport) {
-        val gson = GsonBuilder()
-            .setPrettyPrinting()
-            .serializeNulls()
-            .create()
-        outputFile.writeText(gson.toJson(report))
+        val mapper = PipelineJson.newMapper(includeNulls = true)
+        outputFile.writeText(PipelineJson.prettyWriter(mapper).writeValueAsString(report))
     }
 }

@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-5-runtime-console-retirement",
+  "role": "post",
+  "hash": "c4829cd0a34d1fc67b6a83c5bcbc509cdb7572d3032480a0f382bc3317274d92",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1407374884240225,
+    "birthtimeMs": 1785843401756.5215
+  }
+}

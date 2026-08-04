@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
 import org.springframework.messaging.support.GenericMessage
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
@@ -67,6 +68,13 @@ class EventRecordImpl : EventRecord {
     override val executionContext: List<EncodedExecutionContextElement>
         get() = JpaExecutionContextEnvelope.decode(event.executionContext)
 
+    override val publishedAt: Instant
+        get() = event.publishedAt.toInstant(ZoneOffset.UTC)
+
+    override val deliveryAttempt: Int?
+        get() = event.triedTimes.takeIf { it > 0 }
+            ?: error("Reliable event delivery attempt must be positive")
+
     override val scheduleTime: LocalDateTime
         get() = event.createAt
 
@@ -116,7 +124,7 @@ class EventRecordImpl : EventRecord {
                         )
 
                         val now = LocalDateTime.now()
-                        put(HEADER_KEY_CAP4K_TIMESTAMP, now.toEpochSecond(ZoneOffset.UTC))
+                        put(HEADER_KEY_CAP4K_TIMESTAMP, publishedAt.toEpochMilli())
 
                         if (this@EventRecordImpl.scheduleTime.isAfter(now)) {
                             put(

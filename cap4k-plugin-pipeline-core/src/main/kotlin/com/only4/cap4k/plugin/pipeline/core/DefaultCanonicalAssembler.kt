@@ -578,7 +578,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             ?: return null
         val strategy = when (identifierPolicyKey(config, idColumn)) {
             "identifier.uuid7" -> "uuid7"
-            "identifier.snowflake" -> "snowflake"
             else -> return null
         }
         require(idColumn.refAggregate.isNullOrBlank() && idColumn.refId.isNullOrBlank()) {
@@ -606,7 +605,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun identifierStrategy(policyKey: String): String = when (policyKey) {
         "identifier.uuid7" -> "uuid7"
-        "identifier.snowflake" -> "snowflake"
         "identifier.assigned" -> "assigned"
         "identifier.database-identity" -> "identity"
         else -> policyKey.removePrefix("identifier.")

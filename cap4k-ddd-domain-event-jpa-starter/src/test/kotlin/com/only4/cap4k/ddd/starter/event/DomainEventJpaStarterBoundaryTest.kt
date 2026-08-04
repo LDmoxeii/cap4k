@@ -31,12 +31,9 @@ class DomainEventJpaStarterBoundaryTest {
     }
 
     @Test
-    fun `domain event starter does not select command persistence or Snowflake`() {
+    fun `domain event starter does not select command persistence`() {
         assertThrows(ClassNotFoundException::class.java) {
             Class.forName("com.only4.cap4k.ddd.application.command.JpaCommandRecordRepository")
-        }
-        assertThrows(ClassNotFoundException::class.java) {
-            Class.forName("com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator")
         }
     }
 

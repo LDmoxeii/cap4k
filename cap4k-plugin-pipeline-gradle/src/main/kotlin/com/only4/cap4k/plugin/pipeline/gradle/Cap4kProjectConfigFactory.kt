@@ -1,7 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.stream.JsonReader
-import com.google.gson.stream.JsonToken
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.core.JsonToken
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutResolver
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
@@ -18,6 +18,7 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConverter
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.provider.ListProperty
@@ -238,16 +239,37 @@ class Cap4kProjectConfigFactory {
             val column = rawColumn.trim()
             val policy = rawPolicy.trim()
             require(column.isNotEmpty()) { "managedFields.columnPolicyDefaults contains a blank column name" }
+            rejectRetiredApplicationIdentifierPolicy(
+                policy,
+                "managedFields.columnPolicyDefaults[$column]",
+            )
             require(columnPolicyDefaults.keys.none { it.equals(column, ignoreCase = true) }) {
                 "managedFields.columnPolicyDefaults contains duplicate normalized column $column"
             }
             columnPolicyDefaults[column] = policy
         }
+        val identifierDefaultPolicy = managedFields.identifierDefaultPolicy.normalized()
+            .ifEmpty { "identifier.uuid7" }
+        rejectRetiredApplicationIdentifierPolicy(
+            identifierDefaultPolicy,
+            "managedFields.identifierDefaultPolicy",
+        )
         return ManagedFieldDefaultsConfig(
-            identifierDefaultPolicy = managedFields.identifierDefaultPolicy.normalized()
-                .ifEmpty { "identifier.uuid7" },
+            identifierDefaultPolicy = identifierDefaultPolicy,
             columnPolicyDefaults = columnPolicyDefaults,
         )
+    }
+
+    private fun rejectRetiredApplicationIdentifierPolicy(value: String, location: String) {
+        if (
+            value.equals("identifier.snowflake", ignoreCase = true) ||
+            value.equals("snowflake", ignoreCase = true)
+        ) {
+            throw IllegalArgumentException(
+                "unsupported application-side Strong ID strategy: rejected value '$value' at $location; " +
+                    "supported application-side strategy: uuid7",
+            )
+        }
     }
 
     private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): TypeRegistryConfig {
@@ -272,40 +294,41 @@ class Cap4kProjectConfigFactory {
         }
         val registry = linkedMapOf<String, TypeRegistryEntry>()
         file.reader(Charsets.UTF_8).use { reader ->
-            val jsonReader = JsonReader(reader)
-            require(jsonReader.peek() == JsonToken.BEGIN_OBJECT) {
-                "types.registryFile must contain a JSON object."
+            PipelineJson.newMapper().factory.createParser(reader).use { jsonParser ->
+                require(jsonParser.nextToken() == JsonToken.START_OBJECT) {
+                    "types.registryFile must contain a JSON object."
+                }
+
+                val rawKeys = linkedSetOf<String>()
+                while (jsonParser.nextToken() != JsonToken.END_OBJECT) {
+                    require(jsonParser.currentToken == JsonToken.FIELD_NAME) {
+                        "types.registryFile must contain a JSON object."
+                    }
+                    val rawKey = jsonParser.currentName
+                    require(rawKeys.add(rawKey)) {
+                        "types.registryFile contains duplicate type name: $rawKey"
+                    }
+
+                    val normalizedKey = rawKey.trim()
+                    require(normalizedKey.isNotEmpty()) {
+                        "types.registryFile contains a blank type name."
+                    }
+                    require(!normalizedKey.contains('.')) {
+                        "types.registryFile type name must be a simple name: $normalizedKey"
+                    }
+                    require(normalizedKey !in reservedTypeNames) {
+                        "types.registryFile cannot override built-in type: $normalizedKey"
+                    }
+                    require(normalizedKey !in registry) {
+                        "types.registryFile contains duplicate type name after normalization: $normalizedKey"
+                    }
+
+                    require(jsonParser.nextToken() == JsonToken.START_OBJECT) {
+                        "types.registryFile value for $normalizedKey must be an object."
+                    }
+                    registry[normalizedKey] = jsonParser.nextTypeRegistryEntry(normalizedKey)
+                }
             }
-            jsonReader.beginObject()
-
-            val rawKeys = linkedSetOf<String>()
-            while (jsonReader.hasNext()) {
-                val rawKey = jsonReader.nextName()
-                require(rawKeys.add(rawKey)) {
-                    "types.registryFile contains duplicate type name: $rawKey"
-                }
-
-                val normalizedKey = rawKey.trim()
-                require(normalizedKey.isNotEmpty()) {
-                    "types.registryFile contains a blank type name."
-                }
-                require(!normalizedKey.contains('.')) {
-                    "types.registryFile type name must be a simple name: $normalizedKey"
-                }
-                require(normalizedKey !in reservedTypeNames) {
-                    "types.registryFile cannot override built-in type: $normalizedKey"
-                }
-                require(normalizedKey !in registry) {
-                    "types.registryFile contains duplicate type name after normalization: $normalizedKey"
-                }
-
-                require(jsonReader.peek() == JsonToken.BEGIN_OBJECT) {
-                    "types.registryFile value for $normalizedKey must be an object."
-                }
-                registry[normalizedKey] = jsonReader.nextTypeRegistryEntry(normalizedKey)
-            }
-
-            jsonReader.endObject()
         }
 
         return registry
@@ -427,23 +450,29 @@ private fun ConfigurableFileCollection.projectRelativePaths(project: Project): L
         .sorted()
 }
 
-private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
-    beginObject()
+private fun JsonParser.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
+    require(currentToken == JsonToken.START_OBJECT) {
+        "types.registryFile value for $key must be an object."
+    }
     val rawFields = linkedSetOf<String>()
     var fqn: String? = null
     var converter = TypeRegistryConverter.nested()
 
-    while (hasNext()) {
-        val rawField = nextName()
+    while (nextToken() != JsonToken.END_OBJECT) {
+        require(currentToken == JsonToken.FIELD_NAME) {
+            "types.registryFile value for $key must be an object."
+        }
+        val rawField = currentName
         require(rawFields.add(rawField)) {
             "types.registryFile value for $key contains duplicate field: $rawField"
         }
+        val valueToken = nextToken()
         when (val field = rawField.trim()) {
             "fqn" -> {
-                require(peek() == JsonToken.STRING) {
+                require(valueToken == JsonToken.VALUE_STRING) {
                     "types.registryFile value for $key.fqn must be a fully qualified name."
                 }
-                fqn = nextString().asRegistryValue("$key.fqn")
+                fqn = text.asRegistryValue("$key.fqn")
             }
             "converter" -> {
                 converter = nextTypeRegistryConverter("$key.converter")
@@ -454,7 +483,6 @@ private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
         }
     }
 
-    endObject()
     return TypeRegistryEntry(
         fqn = requireNotNull(fqn) {
             "types.registryFile value for $key.fqn is required."
@@ -463,17 +491,14 @@ private fun JsonReader.nextTypeRegistryEntry(key: String): TypeRegistryEntry {
     )
 }
 
-private fun JsonReader.nextTypeRegistryConverter(path: String): TypeRegistryConverter =
-    when (peek()) {
-        JsonToken.BOOLEAN -> {
-            val enabled = nextBoolean()
-            require(!enabled) {
-                "types.registryFile value for $path must be false, \"nested\", or a converter FQN."
-            }
-            TypeRegistryConverter.none()
-        }
-        JsonToken.STRING -> {
-            val value = nextString()
+private fun JsonParser.nextTypeRegistryConverter(path: String): TypeRegistryConverter =
+    when (currentToken) {
+        JsonToken.VALUE_FALSE -> TypeRegistryConverter.none()
+        JsonToken.VALUE_TRUE -> throw IllegalArgumentException(
+            "types.registryFile value for $path must be false, \"nested\", or a converter FQN."
+        )
+        JsonToken.VALUE_STRING -> {
+            val value = text
             when (value) {
                 "nested" -> TypeRegistryConverter.nested()
                 else -> TypeRegistryConverter.explicit(value.asRegistryValue(path))

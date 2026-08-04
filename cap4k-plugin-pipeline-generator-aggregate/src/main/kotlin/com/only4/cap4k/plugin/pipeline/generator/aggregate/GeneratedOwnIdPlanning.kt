@@ -19,10 +19,24 @@ internal object GeneratedOwnIdPlanning {
     fun from(model: CanonicalModel): List<GeneratedOwnIdDescriptor> =
         model.strongIds.asSequence()
             .filter { it.kind == StrongIdKind.OWN_ID }
-            .filter { it.idStrategy in setOf("uuid7", "snowflake") }
+            .onEach { strongId ->
+                strongId.idStrategy?.let { strategy ->
+                    ApplicationIdentifierStrategyContract.rejectRetiredPolicy(
+                        strategy,
+                        "${strongId.packageName}.${strongId.typeName}",
+                    )
+                }
+            }
+            .filter { it.idStrategy == "uuid7" }
             .filter { it.isEmbeddedId }
             .map { strongId ->
-                require(strongId.valueType in setOf("String", "UUID", "Long")) {
+                val strategy = ApplicationIdentifierStrategyContract.requireUuid7(
+                    requireNotNull(strongId.idStrategy) {
+                        "missing application-side Strong ID strategy for ${strongId.packageName}.${strongId.typeName}"
+                    },
+                    "${strongId.packageName}.${strongId.typeName}",
+                )
+                require(strongId.valueType in setOf("String", "UUID")) {
                     "unsupported generated own ID backing for ${strongId.packageName}.${strongId.typeName}: ${strongId.valueType}"
                 }
                 val entityName = requireNotNull(strongId.ownerEntityName) {
@@ -52,7 +66,7 @@ internal object GeneratedOwnIdPlanning {
                     idFieldName = entity.idField.name,
                     idTypeName = strongId.typeName,
                     idTypeFqn = "${strongId.packageName}.${strongId.typeName}",
-                    strategy = requireNotNull(strongId.idStrategy),
+                    strategy = strategy,
                     backingType = strongId.valueType,
                 )
             }

@@ -258,6 +258,33 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `rejects retired snowflake strategy from design input with UUID7-only diagnostic`() {
+        val tempFile = tempDir.resolve("retired-identifier-strategy.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "command",
+                    "package": "order.submit",
+                    "name": "SubmitOrder",
+                    "idStrategy": "snowflake",
+                    "fields": []
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
+        }
+
+        assertTrue(error.message!!.contains("rejected value 'snowflake'"), error.message)
+        assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
+    }
+
+    @Test
     fun `rejects malformed top level design json shape with stable message`() {
         val rootObject = tempDir.resolve("root-object.json")
         Files.writeString(rootObject, """{"tag":"query"}""", StandardCharsets.UTF_8)

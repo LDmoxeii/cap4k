@@ -309,11 +309,13 @@ private class GraphCollector(
     private val querySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.query.QuerySupervisor")
     private val capabilitySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor")
     private val repositorySupervisorFq = FqName(options.repositorySupervisorFq)
+    private val repositoryFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Repository")
     private val aggregateFactorySupervisorFq = FqName(options.aggregateFactorySupervisorFq)
     private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
     private val constraintValidatorJavaxFq = FqName("javax.validation.ConstraintValidator")
     private val predicateFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Predicate")
     private val domainServiceAnn = FqName("com.only4.cap4k.ddd.core.domain.service.annotation.DomainService")
+    private val springRepositoryAnn = FqName("org.springframework.stereotype.Repository")
     private val jakartaEntityAnn = FqName("jakarta.persistence.Entity")
     private val javaxEntityAnn = FqName("javax.persistence.Entity")
 
@@ -337,6 +339,13 @@ private class GraphCollector(
             }
         } else if (declaration.hasAnnotation(jakartaEntityAnn) || declaration.hasAnnotation(javaxEntityAnn)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.aggregate))
+            requireAggregateElementMetadata(fqcn, declaration)
+        }
+
+        val isRepositoryMetadataCarrier = declaration.hasAnnotation(springRepositoryAnn) &&
+            declaration.isOrImplements(repositoryFq)
+        if (isRepositoryMetadataCarrier && !declaration.hasAnnotation(aggregateElementMetadataAnn)) {
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.repository))
             requireAggregateElementMetadata(fqcn, declaration)
         }
 

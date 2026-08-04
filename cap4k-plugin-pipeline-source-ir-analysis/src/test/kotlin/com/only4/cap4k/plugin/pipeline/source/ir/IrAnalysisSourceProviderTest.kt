@@ -405,6 +405,36 @@ class IrAnalysisSourceProviderTest {
     }
 
     @Test
+    fun `drawing board fails fast when repository aggregate metadata is missing`() {
+        val dir = Files.createTempDirectory("cap4k-ir-missing-repository-metadata")
+        dir.resolve("nodes.json").writeText(
+            """
+            [
+              {
+                "id":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                "name":"OrderJpaRepositoryAdapter",
+                "fullName":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                "type":"repository",
+                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],
+                "metadataOwner":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"
+              }
+            ]
+            """.trimIndent()
+        )
+        dir.resolve("rels.json").writeText("[]")
+        dir.writeEmptyAggregateElements()
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
+        }
+
+        assertTrue(error.message!!.contains("demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"))
+        assertTrue(error.message!!.contains("AggregateElementMetadata"))
+        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
+        assertTrue(!error.message!!.contains("Flow Analysis"))
+    }
+
+    @Test
     fun `flow analysis fails fast only for aggregate metadata loss`() {
         val dir = Files.createTempDirectory("cap4k-ir-missing-aggregate-metadata")
         dir.resolve("nodes.json").writeText(
@@ -477,9 +507,13 @@ class IrAnalysisSourceProviderTest {
         assertTrue(error.message!!.contains("demo.FindOrderQry"))
         assertTrue(error.message!!.contains("DesignBlockMetadata"))
         assertTrue(error.message!!.contains("affected capability: Drawing Board"))
-        assertTrue(error.message!!.contains("demo.domain.Order"))
-        assertTrue(error.message!!.contains("AggregateElementMetadata"))
-        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
+        assertTrue(
+            error.message!!.contains(
+                "- symbol: demo.domain.Order; missing metadata: " +
+                    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata; " +
+                    "affected capability: Drawing Board, Flow Analysis"
+            )
+        )
         assertTrue(error.message!!.contains("Requested analysis capabilities: Drawing Board, Flow Analysis"))
     }
 
