@@ -17,6 +17,8 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.*
 
 @Entity
@@ -92,6 +94,10 @@ class Event(
     @Column(name = "`create_at`")
     var createAt: LocalDateTime = LocalDateTime.now(),
 
+    /** Immutable time at which the reliable event was first registered for publication. */
+    @Column(name = "`published_at`", nullable = false)
+    var publishedAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
+
     /**
      * 分发状态@E=0:INIT:init|-1:DELIVERING:delivering|-2:CANCEL:cancel|-3:EXPIRED:expired|-4:EXHAUSTED:exhausted|-9:EXCEPTION:exception|1:DELIVERED:delivered;@T=EventState;
      * int          NOT NULL DEFAULT '0'
@@ -147,6 +153,7 @@ class Event(
         const val F_EXECUTION_CONTEXT = "executionContext"
         const val F_EXCEPTION = "exception"
         const val F_CREATE_AT = "createAt"
+        const val F_PUBLISHED_AT = "publishedAt"
         const val F_EXPIRE_AT = "expireAt"
         const val F_EVENT_STATE = "eventState"
         const val F_TRY_TIMES = "tryTimes"
@@ -164,6 +171,7 @@ class Event(
     ): Event = apply {
         this.eventUuid = UUID.randomUUID().toString()
         this.svcName = svcName
+        this.publishedAt = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
         this.createAt = scheduleAt
         this.expireAt = scheduleAt.plusSeconds(expireAfter.seconds)
         this.eventState = EventState.INIT

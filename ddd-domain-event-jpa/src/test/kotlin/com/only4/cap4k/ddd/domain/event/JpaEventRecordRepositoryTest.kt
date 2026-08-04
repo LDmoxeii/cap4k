@@ -587,6 +587,7 @@ class JpaEventRecordRepositoryTest {
             every { eventState } returns state
             every { svcName } returns "test-service"
             every { createAt } returns testTime
+            every { publishedAt } returns testTime.minusDays(2)
             every { nextTryTime } returns testTime.plusMinutes(1)
             every { eventType } returns "test.event"
             every { payload } returns TestEvent("test", 12345)

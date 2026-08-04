@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: reliable-event-delivery-context
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 0672d35393179f29118d9bef0903d81f6b5dc2dc0384e8801c2a5bd5089caed4
+spec_changes:
+  - capability: reliable-event-delivery-context
+    operation: create
+    source: specs/reliable-event-delivery-context/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/3b91a78d90cfb258ebef10718be8949ff81a00340b13b4aec3fa81d8b9191381.json
+verification_evidence: runtime/evidence/verifications/b0e4fd21a0399da5fa3a7360a87286deec850ff11b18950844cbca37bf875e6c.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-04
+run_id: ea8ed4be-a1e8-4959-bc20-91200e00abdd

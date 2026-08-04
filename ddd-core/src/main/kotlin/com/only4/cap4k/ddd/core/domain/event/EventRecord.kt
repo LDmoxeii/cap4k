@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.core.domain.event
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import org.springframework.messaging.Message
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
 
 /**
@@ -49,6 +50,12 @@ interface EventRecord {
 
     /** Encoded origin attribution retained unchanged by the durable record. */
     val executionContext: List<EncodedExecutionContextElement>
+
+    /** Immutable instant at which this reliable event was first registered for publication. */
+    val publishedAt: Instant
+
+    /** Exact positive delivery attempt owned by this reliable record, when available. */
+    val deliveryAttempt: Int?
 
     /**
      * 获取计划发送时间

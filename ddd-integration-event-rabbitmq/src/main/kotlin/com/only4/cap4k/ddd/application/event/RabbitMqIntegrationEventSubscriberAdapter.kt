@@ -9,6 +9,9 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.rabbitmq.client.Channel
@@ -46,6 +49,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
     },
+    private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
 ) {
 
     companion object {
@@ -139,15 +143,51 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         return JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
     }
 
-    private fun processWithInterceptors(msg: org.springframework.amqp.core.Message, eventPayload: Any) {
+    private fun processWithInterceptors(
+        msg: org.springframework.amqp.core.Message,
+        eventPayload: Any,
+        deliveryContext: ReliableEventDeliveryContext,
+    ) {
         val message: Message<Any> = GenericMessage(
             eventPayload,
             EventMessageInterceptor.ModifiableMessageHeaders(msg.messageProperties.headers)
         )
 
-        orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
-        eventHandlerDispatcher.dispatch(message.payload)
-        orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+        reliableEventDeliveryContextScopeManager.suppress().use {
+            orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
+        }
+        dispatch(message.payload, deliveryContext)
+        reliableEventDeliveryContextScopeManager.suppress().use {
+            orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
+        }
+    }
+
+    private fun dispatch(eventPayload: Any, deliveryContext: ReliableEventDeliveryContext) {
+        reliableEventDeliveryContextScopeManager.install(deliveryContext).use {
+            eventHandlerDispatcher.dispatch(eventPayload)
+        }
+    }
+
+    private fun org.springframework.amqp.core.Message.reliableDeliveryContext(
+        eventPayload: Any,
+    ): ReliableEventDeliveryContext {
+        val eventId = messageProperties.messageId?.takeIf { it.isNotBlank() }
+            ?: error("RabbitMQ integration event messageId must be nonblank")
+        val publishedAt = requireNotNull(messageProperties.timestamp) {
+            "RabbitMQ integration event timestamp is required"
+        }.toInstant()
+        val redeliveryHint = when (messageProperties.redelivered) {
+            true -> ReliableEventRedeliveryHint.REDELIVERED
+            false -> ReliableEventRedeliveryHint.FIRST
+            null -> ReliableEventRedeliveryHint.UNKNOWN
+        }
+        return ReliableEventDeliveryContext(
+            eventId = eventId,
+            eventName = eventPayload.javaClass.simpleName,
+            publishedAt = publishedAt,
+            attempt = null,
+            redeliveryHint = redeliveryHint,
+        )
     }
 
     private fun onMessage(
@@ -157,6 +197,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     ) = runCatching {
         log.info("集成事件消费，messageId=${msg.messageProperties.messageId}")
         val eventPayload = msg.parseEventPayload(integrationEventClass)
+        val deliveryContext = msg.reliableDeliveryContext(eventPayload)
         val executionContext = executionContextCodecRegistry.decodeExternal(
             IntegrationEventExecutionContextEnvelope.decode(
                 msg.messageProperties.headers[HEADER_KEY_CAP4K_EXECUTION_CONTEXT],
@@ -165,9 +206,9 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         )
         executionContextScopeManager.install(executionContext).use {
             if (orderedEventMessageInterceptors.isEmpty()) {
-                eventHandlerDispatcher.dispatch(eventPayload)
+                dispatch(eventPayload, deliveryContext)
             } else {
-                processWithInterceptors(msg, eventPayload)
+                processWithInterceptors(msg, eventPayload, deliveryContext)
             }
         }
 

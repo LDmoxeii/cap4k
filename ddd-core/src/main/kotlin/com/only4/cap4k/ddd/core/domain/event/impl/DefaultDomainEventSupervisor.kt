@@ -11,6 +11,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.findMethod
@@ -27,6 +28,7 @@ open class DefaultDomainEventSupervisor(
     private val executionContextAccessor: ExecutionContextAccessor = ExecutionContextAccessor {
         ExecutionContextSnapshot.EMPTY
     },
+    private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
 ) : DomainEventSupervisor, DomainEventManager {
 
     companion object {
@@ -126,8 +128,10 @@ open class DefaultDomainEventSupervisor(
         outerScope?.captureListenerMetadata()?.let(dispatchScope::restoreListenerMetadata)
         var completed = false
         try {
-            EventRuntimeContext.withCausalFrame("Event:${eventPayload.javaClass.name}") {
-                eventHandlerDispatcher.dispatch(eventPayload)
+            reliableEventDeliveryContextScopeManager.suppress().use {
+                EventRuntimeContext.withCausalFrame("Event:${eventPayload.javaClass.name}") {
+                    eventHandlerDispatcher.dispatch(eventPayload)
+                }
             }
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
                 (integrationEventManager
