@@ -1,6 +1,5 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
-import com.google.gson.JsonParser
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
@@ -65,7 +64,7 @@ class AgentIdentity(
                 .decode(ByteBuffer.wrap(content))
                 .toString()
         }.getOrNull() ?: return CONFIGURED_MARKER_BYTES
-        val jsonElement = runCatching { JsonParser.parseString(text) }.getOrNull()
+        val jsonElement = runCatching { json.parseTree(text) }.getOrNull()
         val redactedText = if (jsonElement != null) {
             json.identityJson(jsonElement)
         } else {

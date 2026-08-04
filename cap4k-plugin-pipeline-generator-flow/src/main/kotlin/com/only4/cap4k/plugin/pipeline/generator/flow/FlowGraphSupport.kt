@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.generator.flow
 
-import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
@@ -73,10 +73,8 @@ private data class EdgeKey(
     val label: String?,
 )
 
-private val gson = GsonBuilder()
-    .setPrettyPrinting()
-    .disableHtmlEscaping()
-    .create()
+private val flowJsonMapper = PipelineJson.newMapper()
+private val flowJsonWriter = PipelineJson.prettyWriter(flowJsonMapper)
 
 private const val ControllerMethodToCommand = "ControllerMethodToCommand"
 private const val CommandSenderMethodToCommand = "CommandSenderMethodToCommand"
@@ -138,7 +136,7 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
 
         PlannedFlowEntry(
             slug = slug,
-            jsonContent = gson.toJson(payload),
+            jsonContent = flowJsonWriter.writeValueAsString(payload),
             mermaidText = renderMermaid(flowGraph.nodes, flowGraph.edges),
             indexEntry = FlowIndexEntryPayload(
                 entryId = payload.entryId,
@@ -158,7 +156,7 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
 
     return PlannedFlowSet(
         entries = plannedEntries,
-        indexJsonContent = gson.toJson(
+        indexJsonContent = flowJsonWriter.writeValueAsString(
             FlowIndexPayload(
                 inputDirs = graph.inputDirs,
                 entryTypes = entryTypeCounts.keys.sorted(),

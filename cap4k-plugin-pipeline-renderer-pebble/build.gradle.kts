@@ -7,7 +7,7 @@ plugins {
 dependencies {
     implementation(project(":cap4k-plugin-pipeline-api"))
     implementation(project(":cap4k-plugin-pipeline-renderer-api"))
-    implementation(libs.gson)
+    implementation(project(":cap4k-plugin-pipeline-json"))
     implementation(libs.pebble)
 
     testImplementation(platform(libs.junit.bom))

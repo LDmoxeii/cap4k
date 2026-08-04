@@ -1,8 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.source.valueobject
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
 import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
@@ -18,9 +18,11 @@ import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectDeclarationSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectPersistenceSnapshot
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import java.nio.file.Path
 
 class ValueObjectManifestSourceProvider : SourceProvider {
+    private val objectMapper = PipelineJson.newMapper()
     override val id: String = "value-object-manifest"
     override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
         providerId = id,
@@ -73,12 +75,12 @@ class ValueObjectManifestSourceProvider : SourceProvider {
 
     private fun parseFile(file: Path): List<ValueObjectDeclarationSnapshot> {
         val definitions = file.toFile().reader(Charsets.UTF_8).use { reader ->
-            JsonParser.parseReader(reader).asJsonArray
+            objectMapper.readTree(reader) as ArrayNode
         }
-        return definitions.map { element -> element.asJsonObject.toValueObject() }
+        return definitions.map { element -> (element as ObjectNode).toValueObject() }
     }
 
-    private fun JsonObject.toValueObject(): ValueObjectDeclarationSnapshot {
+    private fun ObjectNode.toValueObject(): ValueObjectDeclarationSnapshot {
         val name = requiredString("name")
         val removedFields = listOf("scope", "aggregate").filter(::has)
         require(removedFields.isEmpty()) {
@@ -97,7 +99,7 @@ class ValueObjectManifestSourceProvider : SourceProvider {
             aggregates = aggregates,
             persistence = parsePersistence(name),
             fields = optionalArray("fields").map { fieldElement ->
-                val fieldJson = fieldElement.asJsonObject
+                val fieldJson = fieldElement as ObjectNode
                 val fieldName = fieldJson.requiredString("name")
                 require(!fieldJson.has("nullable")) {
                     "value object $name field $fieldName property nullable is removed; express nullability in type"
@@ -113,20 +115,20 @@ class ValueObjectManifestSourceProvider : SourceProvider {
         )
     }
 
-    private fun JsonObject.parsePersistence(name: String): ValueObjectPersistenceSnapshot? {
+    private fun ObjectNode.parsePersistence(name: String): ValueObjectPersistenceSnapshot? {
         if (!has("persistence")) {
             return null
         }
         val element = get("persistence")
-        require(!element.isJsonNull && element.isJsonObject) {
+        require(!element.isNull && element.isObject) {
             "value object $name persistence must be an object"
         }
-        val persistence = element.asJsonObject
+        val persistence = element as ObjectNode
         val kind = persistence.requiredString("kind")
         require(kind == "json") {
             "value object $name persistence.kind is unsupported: $kind"
         }
-        val unsupportedOptions = persistence.keySet().filter { it != "kind" }.sorted()
+        val unsupportedOptions = persistence.fieldNames().asSequence().filter { it != "kind" }.sorted().toList()
         require(unsupportedOptions.isEmpty()) {
             "value object $name persistence has unsupported options: ${unsupportedOptions.joinToString(", ")}"
         }
@@ -161,21 +163,21 @@ class ValueObjectManifestSourceProvider : SourceProvider {
 
 }
 
-private fun JsonObject.requiredString(field: String): String {
-    require(has(field) && !get(field).isJsonNull) {
+private fun ObjectNode.requiredString(field: String): String {
+    require(has(field) && !get(field).isNull) {
         "value object manifest field $field is required"
     }
-    return get(field).asString
+    return get(field).primitiveString()
 }
 
-private fun JsonObject.optionalString(field: String): String? =
-    if (has(field) && !get(field).isJsonNull) get(field).asString else null
+private fun ObjectNode.optionalString(field: String): String? =
+    if (has(field) && !get(field).isNull) get(field).primitiveString() else null
 
-private fun JsonObject.optionalArray(field: String): List<JsonElement> =
-    if (has(field) && !get(field).isJsonNull) getAsJsonArray(field).toList() else emptyList()
+private fun ObjectNode.optionalArray(field: String): List<JsonNode> =
+    if (has(field) && !get(field).isNull) (get(field) as ArrayNode).toList() else emptyList()
 
-private fun JsonObject.optionalStringArray(field: String): List<String> =
-    if (has(field) && !get(field).isJsonNull) getAsJsonArray(field).map { it.asString } else emptyList()
+private fun ObjectNode.optionalStringArray(field: String): List<String> =
+    if (has(field) && !get(field).isNull) (get(field) as ArrayNode).map { it.primitiveString() } else emptyList()
 
 private fun Any?.asPathList(): List<Path> =
     when (this) {
@@ -184,3 +186,8 @@ private fun Any?.asPathList(): List<Path> =
         is Array<*> -> mapNotNull { it?.toString()?.let(Path::of) }
         else -> listOf(Path.of(toString()))
     }
+
+private fun JsonNode.primitiveString(): String {
+    check(isValueNode && !isNull) { "Expected a JSON primitive" }
+    return asText()
+}

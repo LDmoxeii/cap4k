@@ -1,7 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.JsonParser
-import com.google.gson.JsonObject
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyCompileFixture
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
 import org.gradle.testkit.runner.GradleRunner
@@ -20,6 +19,8 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class PipelinePluginFunctionalTest {
+    private val jsonMapper = PipelineJson.newMapper(includeNulls = true)
+
     private val legacyAggregateAnnotationFq =
         listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
     private val legacyAggregateCall = "@" + "Aggregate("
@@ -40,23 +41,24 @@ class PipelinePluginFunctionalTest {
 
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
         val planText = planFile.readText()
-        val planJson = JsonParser.parseString(planText).asJsonObject
-        val planItems = planJson.getAsJsonArray("items").map { it.asJsonObject }
-        val designItems = planItems.filter { item -> item.get("templateId").asString.startsWith("design/") }
-        val commandItem = designItems.first { it.get("templateId").asString == "design/command.kt.peb" }
+        val planJson = jsonMapper.readTree(planText).requireObjectNode()
+        val planItems = planJson.requireArrayNode("items").map { it.requireObjectNode() }
+        val designItems = planItems.filter { item -> item.get("templateId").asText().startsWith("design/") }
+        val commandItem = designItems.first { it.get("templateId").asText() == "design/command.kt.peb" }
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
         assertTrue(planText.contains("\n  \"items\""))
-        assertTrue(planText.contains("\"diagnostics\""))
-        assertTrue(planText.contains("\"templateId\": \"design/command.kt.peb\""))
-        assertTrue(planText.contains("\"templateId\": \"design/query.kt.peb\""))
-        assertTrue(planText.contains("\"templateId\": \"design/domain_service.kt.peb\""))
-        assertTrue(planText.contains("\"templateId\": \"types/value-object\""))
-        assertFalse(planText.contains("\"generatorId\": \"design-validator\""))
-        assertFalse(planText.contains("\"templateId\": \"design/validator.kt.peb\""))
-        assertFalse(planText.contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
-        assertFalse(planText.contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
+        assertTrue(planJson.has("diagnostics"))
+        val templateIds = planItems.map { item -> item.get("templateId").asText() }.toSet()
+        assertTrue("design/command.kt.peb" in templateIds)
+        assertTrue("design/query.kt.peb" in templateIds)
+        assertTrue("design/domain_service.kt.peb" in templateIds)
+        assertTrue("types/value-object" in templateIds)
+        assertFalse(planItems.any { item -> item.get("generatorId").asText() == "design-validator" })
+        assertFalse("design/validator.kt.peb" in templateIds)
+        assertFalse("design/query_list.kt.peb" in templateIds)
+        assertFalse("design/query_page.kt.peb" in templateIds)
         assertEquals(
             setOf(
                 "command",
@@ -71,7 +73,7 @@ class PipelinePluginFunctionalTest {
                 "integration-subscriber",
                 "domain-service",
             ),
-            designItems.map { item -> item.get("generatorId").asString }.toSet(),
+            designItems.map { item -> item.get("generatorId").asText() }.toSet(),
         )
         assertFalse(
             designItems.any { item ->
@@ -79,11 +81,11 @@ class PipelinePluginFunctionalTest {
                 contractText.contains("scheduled") || contractText.contains("job") || contractText.contains("validator")
             },
         )
-        assertEquals("command", commandItem.get("generatorId").asString)
-        assertEquals("", commandItem.get("resolvedOutputRoot").asString)
+        assertEquals("command", commandItem.get("generatorId").asText())
+        assertEquals("", commandItem.get("resolvedOutputRoot").asText())
         assertEquals(
             "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
-            commandItem.get("outputPath").asString,
+            commandItem.get("outputPath").asText(),
         )
     }
 
@@ -765,14 +767,14 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-sample")
 
         val designFile = projectDir.resolve("design/design.json")
-        val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
+        val designEntries = jsonMapper.readTree(designFile.readText()).requireArrayNode()
         val findOrder = designEntries
-            .map { it.asJsonObject }
-            .single { it["name"].asString == "FindOrder" }
-        findOrder["fields"].asJsonArray.add(
-            JsonObject().apply {
-                addProperty("name", "ambiguousStatus")
-                addProperty("type", "Status")
+            .map { it.requireObjectNode() }
+            .single { it["name"].asText() == "FindOrder" }
+        findOrder["fields"].requireArrayNode().add(
+            jsonMapper.createObjectNode().apply {
+                put("name", "ambiguousStatus")
+                put("type", "Status")
             }
         )
         designFile.writeText(designEntries.toString())
@@ -2163,22 +2165,22 @@ class PipelinePluginFunctionalTest {
             .build()
 
         val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
-        val planObject = JsonParser.parseString(planJson).asJsonObject
-        val defaults = planObject.getAsJsonObject("managedFieldDefaults")
-        val resolvedPoliciesArray = planObject.getAsJsonArray("managedFieldPolicies")
-        val firstResolvedPolicy = resolvedPoliciesArray.first().asJsonObject
+        val planObject = jsonMapper.readTree(planJson).requireObjectNode()
+        val defaults = planObject.requireObjectNode("managedFieldDefaults")
+        val resolvedPoliciesArray = planObject.requireArrayNode("managedFieldPolicies")
+        val firstResolvedPolicy = resolvedPoliciesArray.first().requireObjectNode()
         val resolvedPolicies = resolvedPoliciesArray
-            .map { it.asJsonObject }
-            .associateBy { it.get("tableName").asString }
+            .map { it.requireObjectNode() }
+            .associateBy { it.get("tableName").asText() }
         val videoPostPolicy = resolvedPolicies.getValue("video_post")
         val snowflakeLongPolicy = resolvedPolicies.getValue("snowflake_long_record")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
-        assertEquals("identifier.uuid7", defaults.get("identifierDefaultPolicy").asString)
+        assertEquals("identifier.uuid7", defaults.get("identifierDefaultPolicy").asText())
         assertEquals(
             "database.generated-always",
-            defaults.getAsJsonObject("columnPolicyDefaults").get("created_by").asString,
+            defaults.requireObjectNode("columnPolicyDefaults").get("created_by").asText(),
         )
         assertEquals(6, resolvedPolicies.size)
         assertEquals(
@@ -2193,48 +2195,48 @@ class PipelinePluginFunctionalTest {
             resolvedPolicies.keys,
         )
         assertTrue(firstResolvedPolicy.has("fields"))
-        assertTrue(firstResolvedPolicy.getAsJsonArray("fields").size() > 0)
+        assertTrue(firstResolvedPolicy.requireArrayNode("fields").size() > 0)
         assertTrue(firstResolvedPolicy.has("writeSurface"))
-        assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
-        assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
-        assertEquals("identifier.database-identity", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertEquals("soft-delete", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "deleted"
-        }.asJsonObject.get("policyKey").asString)
-        assertEquals("version", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "version"
-        }.asJsonObject.get("policyKey").asString)
+        assertTrue(firstResolvedPolicy.requireObjectNode("writeSurface").has("createAllowedFields"))
+        assertTrue(firstResolvedPolicy.requireObjectNode("writeSurface").has("updateAllowedFields"))
+        assertEquals("identifier.database-identity", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "id"
+        }.requireObjectNode().get("policyKey").asText())
+        assertEquals("soft-delete", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "deleted"
+        }.requireObjectNode().get("policyKey").asText())
+        assertEquals("version", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "version"
+        }.requireObjectNode().get("policyKey").asText())
         assertEquals(
             setOf("id", "deleted", "version", "db_updated_at", "created_by"),
-            videoPostPolicy.getAsJsonArray("fields").map {
-                it.asJsonObject.get("columnName").asString
+            videoPostPolicy.requireArrayNode("fields").map {
+                it.requireObjectNode().get("columnName").asText()
             }.toSet(),
         )
         assertEquals(
             listOf("title"),
-            videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("createAllowedFields").map { it.asString }
+            videoPostPolicy.requireObjectNode("writeSurface").requireArrayNode("createAllowedFields").map { it.asText() }
         )
         assertEquals(
             listOf("title"),
-            videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("updateAllowedFields").map { it.asString }
+            videoPostPolicy.requireObjectNode("writeSurface").requireArrayNode("updateAllowedFields").map { it.asText() }
         )
-        assertEquals("database.generated-always", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "created_by"
-        }.asJsonObject.get("policyKey").asString)
-        assertEquals("identifier.snowflake", snowflakeLongPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertTrue(snowflakeLongPolicy.getAsJsonArray("fields").none {
-            it.asJsonObject.get("role").asString == "VERSION"
+        assertEquals("database.generated-always", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "created_by"
+        }.requireObjectNode().get("policyKey").asText())
+        assertEquals("identifier.snowflake", snowflakeLongPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "id"
+        }.requireObjectNode().get("policyKey").asText())
+        assertTrue(snowflakeLongPolicy.requireArrayNode("fields").none {
+            it.requireObjectNode().get("role").asText() == "VERSION"
         })
         val auditLogPolicy = resolvedPolicies.getValue("audit_log")
-        assertEquals("identifier.database-identity", auditLogPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertTrue(auditLogPolicy.getAsJsonArray("fields").none {
-            it.asJsonObject.get("role").asString == "VERSION"
+        assertEquals("identifier.database-identity", auditLogPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "id"
+        }.requireObjectNode().get("policyKey").asText())
+        assertTrue(auditLogPolicy.requireArrayNode("fields").none {
+            it.requireObjectNode().get("role").asText() == "VERSION"
         })
     }
 
@@ -2784,8 +2786,8 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-generate")
         copyFixture(projectDir, "design-domain-event-sample")
         val designFile = projectDir.resolve("design/design.json")
-        val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
-        designEntries.single().asJsonObject.addProperty("description", "order */ \"created\" \\event ${'$'}status")
+        val designEntries = jsonMapper.readTree(designFile.readText()).requireArrayNode()
+        designEntries.single().requireObjectNode().put("description", "order */ \"created\" \\event ${'$'}status")
         designFile.writeText(designEntries.toString())
 
         val result = GradleRunner.create()
@@ -3218,18 +3220,18 @@ class PipelinePluginFunctionalTest {
         resolvedOutputRoot: String,
         conflictPolicy: String,
     ) {
-        val item = JsonParser.parseString(planContent)
-            .asJsonObject
-            .getAsJsonArray("items")
-            .map { it.asJsonObject }
+        val item = jsonMapper.readTree(planContent)
+            .requireObjectNode()
+            .requireArrayNode("items")
+            .map { it.requireObjectNode() }
             .single {
-                it.get("templateId").asString == templateId &&
-                    it.get("outputPath").asString.endsWith(outputPathSuffix)
+                it.get("templateId").asText() == templateId &&
+                    it.get("outputPath").asText().endsWith(outputPathSuffix)
             }
 
-        assertEquals(outputKind, item.get("outputKind").asString)
-        assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asString)
-        assertEquals(conflictPolicy, item.get("conflictPolicy").asString)
+        assertEquals(outputKind, item.get("outputKind").asText())
+        assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asText())
+        assertEquals(conflictPolicy, item.get("conflictPolicy").asText())
     }
 
     private fun functionalAddonJar(projectDir: Path): Path {

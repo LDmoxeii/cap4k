@@ -26,7 +26,7 @@ dependencies {
     implementation(project(":cap4k-plugin-pipeline-source-ir-analysis"))
     implementation(project(":cap4k-plugin-pipeline-generator-design"))
     implementation(project(":cap4k-plugin-pipeline-generator-types"))
-    implementation(libs.gson)
+    implementation(project(":cap4k-plugin-pipeline-json"))
     implementation(libs.h2)
 
     testImplementation(gradleTestKit())

@@ -1,7 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.source.ir
 
-import com.google.gson.JsonElement
-import com.google.gson.JsonParser
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
@@ -18,9 +19,11 @@ import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import java.io.File
 
 class IrAnalysisSourceProvider : SourceProvider {
+    private val objectMapper = PipelineJson.newMapper()
     override val id: String = "ir-analysis"
     override val descriptor: PipelineCapabilityDescriptor = PipelineCapabilityDescriptor.builtIn(
         providerId = id,
@@ -183,7 +186,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         val array = parseRequiredArray(file, "nodes")
         return array.mapIndexed { index, element ->
             val context = "ir-analysis nodes[${index}]"
-            val obj = element.asJsonObjectOrNull()
+            val obj = element.objectNodeOrNull()
                 ?: throw IllegalArgumentException("$context must be an object")
             val id = obj.requiredString("id", context)
             val normalizedName = obj.stringValue("name").orEmpty().trim().ifBlank { shortNameForId(id) }
@@ -203,7 +206,7 @@ class IrAnalysisSourceProvider : SourceProvider {
     private fun parseDesignElements(file: File): List<DesignElementSnapshot> {
         val array = parseRequiredArray(file, "design-elements")
         return array.mapIndexed { index, element ->
-            val obj = element.asJsonObjectOrNull()
+            val obj = element.objectNodeOrNull()
                 ?: throw IllegalArgumentException("design element at index $index must be an object")
             val tag = obj.requiredString("tag", "design element at index $index")
             val packageName = obj.optionalString("package", "design element $tag").orEmpty().trim()
@@ -226,7 +229,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         }
     }
 
-    private fun rejectRemovedFields(obj: com.google.gson.JsonObject, name: String) {
+    private fun rejectRemovedFields(obj: ObjectNode, name: String) {
         val removed = removedPublicFields.filter { obj.has(it) }
         require(removed.isEmpty()) {
             "design element $name uses removed fields: ${removed.joinToString(", ")}"
@@ -234,14 +237,14 @@ class IrAnalysisSourceProvider : SourceProvider {
     }
 
     private fun parseArtifacts(
-        array: com.google.gson.JsonArray?,
+        array: ArrayNode?,
         context: String,
     ): List<ArtifactSelectionModel> {
         if (array == null) {
             return emptyList()
         }
         return array.mapIndexed { index, element ->
-            val obj = element.asJsonObjectOrNull()
+            val obj = element.objectNodeOrNull()
                 ?: throw IllegalArgumentException("$context artifacts[$index] must be an object")
             ArtifactSelectionModel(
                 family = obj.requiredString("family", "$context artifacts[$index]"),
@@ -251,7 +254,7 @@ class IrAnalysisSourceProvider : SourceProvider {
     }
 
     private fun parseDesignFields(
-        array: com.google.gson.JsonArray?,
+        array: ArrayNode?,
         context: String,
         fieldName: String,
     ): List<SemanticFieldSnapshot> {
@@ -259,7 +262,7 @@ class IrAnalysisSourceProvider : SourceProvider {
             return emptyList()
         }
         return array.mapIndexed { index, element ->
-            val obj = element.asJsonObjectOrNull()
+            val obj = element.objectNodeOrNull()
                 ?: throw IllegalArgumentException("$context $fieldName[$index] must be an object")
             require(!obj.has("nullable")) {
                 "$context $fieldName[$index] field nullable is removed; encode nullability in type"
@@ -277,7 +280,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         val array = parseRequiredArray(file, "rels")
         return array.mapIndexed { index, element ->
             val context = "ir-analysis rels[${index}]"
-            val obj = element.asJsonObjectOrNull()
+            val obj = element.objectNodeOrNull()
                 ?: throw IllegalArgumentException("$context must be an object")
             val fromId = obj.requiredString("fromId", context)
             val toId = obj.requiredString("toId", context)
@@ -291,12 +294,12 @@ class IrAnalysisSourceProvider : SourceProvider {
         }
     }
 
-    private fun parseRequiredArray(file: File, label: String): com.google.gson.JsonArray {
-        val root = file.reader(Charsets.UTF_8).use { JsonParser.parseReader(it) }
-        require(root.isJsonArray) {
+    private fun parseRequiredArray(file: File, label: String): ArrayNode {
+        val root = file.reader(Charsets.UTF_8).use { objectMapper.readTree(it) }
+        require(root.isArray) {
             "ir-analysis $label file ${file.path} root must be an array"
         }
-        return root.asJsonArray
+        return root as ArrayNode
     }
 
     private fun shortNameForId(id: String): String {
@@ -326,19 +329,19 @@ class IrAnalysisSourceProvider : SourceProvider {
         )
     }
 
-    private fun JsonElement.asJsonObjectOrNull() = if (isJsonObject) asJsonObject else null
+    private fun JsonNode.objectNodeOrNull(): ObjectNode? = if (isObject) this as ObjectNode else null
 
-    private fun com.google.gson.JsonObject.stringValue(name: String): String? {
+    private fun ObjectNode.stringValue(name: String): String? {
         val element = get(name) ?: return null
-        return if (element.isJsonPrimitive) element.asString else null
+        return if (element.isValueNode && !element.isNull) element.asText() else null
     }
 
-    private fun com.google.gson.JsonObject.booleanValue(name: String): Boolean? {
+    private fun ObjectNode.booleanValue(name: String): Boolean? {
         val element = get(name) ?: return null
-        return if (element.isJsonPrimitive && element.asJsonPrimitive.isBoolean) element.asBoolean else null
+        return if (element.isBoolean) element.booleanValue() else null
     }
 
-    private fun com.google.gson.JsonObject.requiredString(
+    private fun ObjectNode.requiredString(
         name: String,
         context: String,
     ): String {
@@ -349,49 +352,49 @@ class IrAnalysisSourceProvider : SourceProvider {
         return value.trim()
     }
 
-    private fun com.google.gson.JsonObject.optionalString(
+    private fun ObjectNode.optionalString(
         name: String,
         context: String,
     ): String? {
         val element = get(name) ?: return null
-        if (!element.isJsonPrimitive || !element.asJsonPrimitive.isString) {
+        if (!element.isTextual) {
             throw IllegalArgumentException("$context field '$name' must be a string")
         }
-        return element.asString
+        return element.textValue()
     }
 
-    private fun com.google.gson.JsonObject.optionalBoolean(
+    private fun ObjectNode.optionalBoolean(
         name: String,
         context: String,
     ): Boolean? {
         val element = get(name) ?: return null
-        if (!element.isJsonPrimitive || !element.asJsonPrimitive.isBoolean) {
+        if (!element.isBoolean) {
             throw IllegalArgumentException("$context field '$name' must be a boolean")
         }
-        return element.asBoolean
+        return element.booleanValue()
     }
 
-    private fun com.google.gson.JsonObject.jsonArrayOrNull(
+    private fun ObjectNode.jsonArrayOrNull(
         name: String,
         context: String,
-    ): com.google.gson.JsonArray? {
+    ): ArrayNode? {
         val element = get(name) ?: return null
-        if (!element.isJsonArray) {
+        if (!element.isArray) {
             throw IllegalArgumentException("$context field '$name' must be an array")
         }
-        return element.asJsonArray
+        return element as ArrayNode
     }
 
-    private fun com.google.gson.JsonObject.stringList(name: String, context: String): List<String> {
+    private fun ObjectNode.stringList(name: String, context: String): List<String> {
         val element = get(name) ?: return emptyList()
-        if (!element.isJsonArray) {
+        if (!element.isArray) {
             throw IllegalArgumentException("$context field '$name' must be an array")
         }
-        return element.asJsonArray.mapIndexed { index, item ->
-            if (!item.isJsonPrimitive || !item.asJsonPrimitive.isString) {
+        return (element as ArrayNode).mapIndexed { index, item ->
+            if (!item.isTextual) {
                 throw IllegalArgumentException("$context $name[$index] must be a non-blank string")
             }
-            item.asString.trim().also { value ->
+            item.textValue().trim().also { value ->
                 if (value.isEmpty()) {
                     throw IllegalArgumentException("$context $name[$index] must be a non-blank string")
                 }
