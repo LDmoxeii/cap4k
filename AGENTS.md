@@ -146,7 +146,7 @@ Recent durable decisions to preserve:
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - frontend TypeScript generation is currently not planned as a cap4k core slice unless a first-class endpoint tactical model or stable API-contract projection exists
 - public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
-- Application-side entity IDs are generated Strong IDs. Supported strategies are `uuid7` and `snowflake`. The backing type follows JDBC storage; generated typed accessors allocate IDs, and generated catalogs feed the runtime registry.
+- Application-side entity IDs are generated Strong IDs. `uuid7` is the only built-in application-side allocation strategy. The backing type follows JDBC storage; generated typed accessors allocate IDs, and generated catalogs feed the runtime registry. Database-assigned identity remains a persistence policy, not an application-side generator.
 
 ## Known Test Fixture Debt
 
@@ -156,7 +156,7 @@ Current ownership evidence:
 
 - Core starter tests cover UUID7, ID registries, static Mediator binding, synchronous Request, local Domain Event, missing reliable capability, and provider conflict failure.
 - JPA starter owns the migrated Strong ID, soft-delete, OwnedEntityList, aggregate graph, provider-assigned field, and UoW runtime fixtures.
-- Request/Event/Saga/Locker/Snowflake and each Integration Event transport starter own focused auto-configuration tests.
+- Request/Event/Saga/Locker and each Integration Event transport starter own focused auto-configuration tests.
 - event package scanning and capability enable properties are removed; a new failure involving them is a stale reference, not expected fixture debt.
 
 Do not dismiss a fresh failure as known debt. Reproduce it in the capability owner and distinguish framework behavior from test-context isolation with current evidence.

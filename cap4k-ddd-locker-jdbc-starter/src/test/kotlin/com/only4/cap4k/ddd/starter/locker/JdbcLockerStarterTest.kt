@@ -43,9 +43,6 @@ class JdbcLockerStarterTest {
             ownAutoConfigurationImports("JdbcLockerAutoConfiguration"),
         )
         assertThrows(ClassNotFoundException::class.java) {
-            Class.forName("com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator")
-        }
-        assertThrows(ClassNotFoundException::class.java) {
             Class.forName("com.only4.cap4k.ddd.application.JpaUnitOfWork")
         }
     }

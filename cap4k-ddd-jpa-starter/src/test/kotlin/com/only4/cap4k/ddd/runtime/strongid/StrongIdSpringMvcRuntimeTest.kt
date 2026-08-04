@@ -26,7 +26,6 @@ import java.io.Serializable
 
 private const val MVC_UUID7_TEXT = "019c0000-0000-7000-8000-000000000001"
 private const val MVC_UUID4_TEXT = "550e8400-e29b-41d4-a716-446655440000"
-private const val MVC_SNOWFLAKE_TEXT = "7288198123456789012"
 
 @WebMvcTest(controllers = [StrongIdSpringMvcRuntimeTest.StrongIdController::class])
 @ContextConfiguration(
@@ -40,30 +39,16 @@ class StrongIdSpringMvcRuntimeTest {
     private lateinit var mockMvc: MockMvc
 
     @Test
-    fun `default conversion service recognizes generated strong id string factories`() {
+    fun `default conversion service recognizes generated UUID7 strong id string factories`() {
         val conversionService = DefaultConversionService()
 
         assertAll(
             { assertTrue(conversionService.canConvert(String::class.java, UuidTextId::class.java)) },
             { assertTrue(conversionService.canConvert(String::class.java, UuidNativeId::class.java)) },
-            { assertTrue(conversionService.canConvert(String::class.java, SnowflakeTextId::class.java)) },
-            { assertTrue(conversionService.canConvert(String::class.java, SnowflakeLongId::class.java)) },
             { assertTrue(conversionService.canConvert(String::class.java, MvcAuthorId::class.java)) },
             { assertTrue(conversionService.canConvert(String::class.java, MvcContentItemId::class.java)) },
             { assertEquals(UuidTextId.parse(MVC_UUID7_TEXT), conversionService.convert(MVC_UUID7_TEXT, UuidTextId::class.java)) },
             { assertEquals(UuidNativeId.parse(MVC_UUID7_TEXT), conversionService.convert(MVC_UUID7_TEXT, UuidNativeId::class.java)) },
-            {
-                assertEquals(
-                    SnowflakeTextId.parse(MVC_SNOWFLAKE_TEXT),
-                    conversionService.convert(MVC_SNOWFLAKE_TEXT, SnowflakeTextId::class.java),
-                )
-            },
-            {
-                assertEquals(
-                    SnowflakeLongId.parse(MVC_SNOWFLAKE_TEXT),
-                    conversionService.convert(MVC_SNOWFLAKE_TEXT, SnowflakeLongId::class.java),
-                )
-            },
             { assertEquals(MvcAuthorId.parse(MVC_UUID7_TEXT), conversionService.convert(MVC_UUID7_TEXT, MvcAuthorId::class.java)) },
             {
                 assertEquals(
@@ -75,7 +60,7 @@ class StrongIdSpringMvcRuntimeTest {
     }
 
     @Test
-    fun `mvc binds path variables for four strong id backings`() {
+    fun `mvc binds path variables for UUID7 strong id backings`() {
         mockMvc.perform(get("/strong-id/path/uuid-text/$MVC_UUID7_TEXT"))
             .andExpect(status().isOk)
             .andExpect(content().string(MVC_UUID7_TEXT))
@@ -83,14 +68,6 @@ class StrongIdSpringMvcRuntimeTest {
         mockMvc.perform(get("/strong-id/path/uuid-native/$MVC_UUID7_TEXT"))
             .andExpect(status().isOk)
             .andExpect(content().string(MVC_UUID7_TEXT))
-
-        mockMvc.perform(get("/strong-id/path/snowflake-text/$MVC_SNOWFLAKE_TEXT"))
-            .andExpect(status().isOk)
-            .andExpect(content().string(MVC_SNOWFLAKE_TEXT))
-
-        mockMvc.perform(get("/strong-id/path/snowflake-long/$MVC_SNOWFLAKE_TEXT"))
-            .andExpect(status().isOk)
-            .andExpect(content().string(MVC_SNOWFLAKE_TEXT))
     }
 
     @Test
@@ -98,12 +75,10 @@ class StrongIdSpringMvcRuntimeTest {
         mockMvc.perform(
             get("/strong-id/query/matrix")
                 .param("uuidText", MVC_UUID7_TEXT)
-                .param("uuidNative", MVC_UUID7_TEXT)
-                .param("snowflakeText", MVC_SNOWFLAKE_TEXT)
-                .param("snowflakeLong", MVC_SNOWFLAKE_TEXT),
+                .param("uuidNative", MVC_UUID7_TEXT),
         )
             .andExpect(status().isOk)
-            .andExpect(content().string("$MVC_UUID7_TEXT|$MVC_UUID7_TEXT|$MVC_SNOWFLAKE_TEXT|$MVC_SNOWFLAKE_TEXT"))
+            .andExpect(content().string("$MVC_UUID7_TEXT|$MVC_UUID7_TEXT"))
 
         mockMvc.perform(
             get("/strong-id/query/non-root")
@@ -128,9 +103,7 @@ class StrongIdSpringMvcRuntimeTest {
         val invalidQuery = mockMvc.perform(
             get("/strong-id/query/matrix")
                 .param("uuidText", MVC_UUID7_TEXT)
-                .param("uuidNative", MVC_UUID7_TEXT)
-                .param("snowflakeText", "01")
-                .param("snowflakeLong", MVC_SNOWFLAKE_TEXT),
+                .param("uuidNative", MVC_UUID4_TEXT),
         )
             .andExpect(status().isBadRequest)
             .andReturn()
@@ -138,7 +111,7 @@ class StrongIdSpringMvcRuntimeTest {
         assertNotNull(invalidQuery.resolvedException)
         assertTrue(
             invalidQuery.resolvedException.causeMessages()
-                .any { it.contains("SnowflakeTextId must be a positive canonical Snowflake value") },
+                .any { it.contains("UuidNativeId must be a UUIDv7 value") },
         )
     }
 
@@ -156,19 +129,11 @@ class StrongIdSpringMvcRuntimeTest {
         @GetMapping("/strong-id/path/uuid-native/{id}")
         fun uuidNative(@PathVariable id: UuidNativeId): String = id.value.toString()
 
-        @GetMapping("/strong-id/path/snowflake-text/{id}")
-        fun snowflakeText(@PathVariable id: SnowflakeTextId): String = id.value
-
-        @GetMapping("/strong-id/path/snowflake-long/{id}")
-        fun snowflakeLong(@PathVariable id: SnowflakeLongId): String = id.value.toString()
-
         @GetMapping("/strong-id/query/matrix")
         fun matrix(
             @RequestParam uuidText: UuidTextId,
             @RequestParam uuidNative: UuidNativeId,
-            @RequestParam snowflakeText: SnowflakeTextId,
-            @RequestParam snowflakeLong: SnowflakeLongId,
-        ): String = listOf(uuidText, uuidNative, snowflakeText, snowflakeLong).joinToString("|") { it.toString() }
+        ): String = listOf(uuidText, uuidNative).joinToString("|") { it.toString() }
 
         @GetMapping("/strong-id/query/non-root")
         fun nonRoot(

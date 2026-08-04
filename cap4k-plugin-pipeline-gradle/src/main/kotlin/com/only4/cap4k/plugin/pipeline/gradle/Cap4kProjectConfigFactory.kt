@@ -239,16 +239,37 @@ class Cap4kProjectConfigFactory {
             val column = rawColumn.trim()
             val policy = rawPolicy.trim()
             require(column.isNotEmpty()) { "managedFields.columnPolicyDefaults contains a blank column name" }
+            rejectRetiredApplicationIdentifierPolicy(
+                policy,
+                "managedFields.columnPolicyDefaults[$column]",
+            )
             require(columnPolicyDefaults.keys.none { it.equals(column, ignoreCase = true) }) {
                 "managedFields.columnPolicyDefaults contains duplicate normalized column $column"
             }
             columnPolicyDefaults[column] = policy
         }
+        val identifierDefaultPolicy = managedFields.identifierDefaultPolicy.normalized()
+            .ifEmpty { "identifier.uuid7" }
+        rejectRetiredApplicationIdentifierPolicy(
+            identifierDefaultPolicy,
+            "managedFields.identifierDefaultPolicy",
+        )
         return ManagedFieldDefaultsConfig(
-            identifierDefaultPolicy = managedFields.identifierDefaultPolicy.normalized()
-                .ifEmpty { "identifier.uuid7" },
+            identifierDefaultPolicy = identifierDefaultPolicy,
             columnPolicyDefaults = columnPolicyDefaults,
         )
+    }
+
+    private fun rejectRetiredApplicationIdentifierPolicy(value: String, location: String) {
+        if (
+            value.equals("identifier.snowflake", ignoreCase = true) ||
+            value.equals("snowflake", ignoreCase = true)
+        ) {
+            throw IllegalArgumentException(
+                "unsupported application-side Strong ID strategy: rejected value '$value' at $location; " +
+                    "supported application-side strategy: uuid7",
+            )
+        }
     }
 
     private fun buildTypeRegistry(project: Project, extension: Cap4kExtension): TypeRegistryConfig {

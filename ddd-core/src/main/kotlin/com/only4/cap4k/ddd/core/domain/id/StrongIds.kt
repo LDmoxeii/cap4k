@@ -3,8 +3,6 @@ package com.only4.cap4k.ddd.core.domain.id
 import java.util.UUID
 
 object StrongIds {
-    private val canonicalSnowflake = Regex("^[1-9][0-9]{0,18}$")
-
     fun requireUuidV7(value: String, typeName: String): String {
         val uuid = runCatching { UUID.fromString(value) }.getOrNull()
         require(
@@ -24,17 +22,4 @@ object StrongIds {
         return value
     }
 
-    fun requireSnowflake(value: String, typeName: String): String {
-        require(canonicalSnowflake.matches(value) && value.toLongOrNull()?.let { it > 0L } == true) {
-            "$typeName must be a positive canonical Snowflake value: $value"
-        }
-        return value
-    }
-
-    fun requireSnowflake(value: Long, typeName: String): Long {
-        require(value > 0L) {
-            "$typeName must be a positive canonical Snowflake value: $value"
-        }
-        return value
-    }
 }

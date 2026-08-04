@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-4-owned-child-factory-creation",
+  "role": "post",
+  "hash": "7764247c243abd48e2ab22e6f818cf51f120840ae45a7a2081f55550d6d0fa7a",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1407374884240218,
+    "birthtimeMs": 1785843400690.4968
+  }
+}

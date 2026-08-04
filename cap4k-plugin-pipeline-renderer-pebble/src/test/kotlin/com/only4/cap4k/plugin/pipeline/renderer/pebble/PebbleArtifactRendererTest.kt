@@ -1052,26 +1052,6 @@ class PebbleArtifactRendererTest {
                 applicationSideId = false,
             ),
             MatrixCell(
-                typeName = "SnowflakeLongRecord",
-                backingType = "Long",
-                deletedType = "Long",
-                propertyInitializer = "0L",
-                storageKind = "INTEGRAL",
-                activeSentinel = "ZERO",
-                sqlActiveLiteral = "0",
-                applicationSideId = true,
-            ),
-            MatrixCell(
-                typeName = "SnowflakeStringRecord",
-                backingType = "String",
-                deletedType = "String",
-                propertyInitializer = "\"0\"",
-                storageKind = "CHARACTER",
-                activeSentinel = "ZERO",
-                sqlActiveLiteral = "'0'",
-                applicationSideId = true,
-            ),
-            MatrixCell(
                 typeName = "Uuid7StringRecord",
                 backingType = "String",
                 deletedType = "String",
@@ -1705,14 +1685,13 @@ class PebbleArtifactRendererTest {
 
     @Test
     @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
-    fun `aggregate strong id template renders four storage nearest variants with scalar string json`() {
+    fun `aggregate strong id template renders UUID7 storage variants with scalar string json`() {
         fun renderStrongId(
             packageName: String,
             valueType: String,
             validationKind: String,
             stringBacked: Boolean,
             uuidBacked: Boolean,
-            longBacked: Boolean,
         ): String =
             renderTemplate(
                 templateId = "aggregate/strong_id.kt.peb",
@@ -1724,24 +1703,18 @@ class PebbleArtifactRendererTest {
                     "validationKind" to validationKind,
                     "stringBacked" to stringBacked,
                     "uuidBacked" to uuidBacked,
-                    "longBacked" to longBacked,
                     "imports" to emptyList<String>(),
                 ),
             )
 
-        val uuidText = renderStrongId("com.acme.demo.ids.uuidtext", "String", "UUID7", true, false, false)
-        val uuidNative = renderStrongId("com.acme.demo.ids.uuidnative", "UUID", "UUID7", false, true, false)
-        val snowflakeText = renderStrongId("com.acme.demo.ids.snowflaketext", "String", "SNOWFLAKE", true, false, false)
-        val snowflakeLong = renderStrongId("com.acme.demo.ids.snowflakelong", "Long", "SNOWFLAKE", false, false, true)
+        val uuidText = renderStrongId("com.acme.demo.ids.uuidtext", "String", "UUID7", true, false)
+        val uuidNative = renderStrongId("com.acme.demo.ids.uuidnative", "UUID", "UUID7", false, true)
 
         assertTrue(uuidText.contains("StrongId<String>"))
         assertTrue(uuidText.contains("fun of(value: String): OrderId"))
         assertTrue(uuidNative.contains("StrongId<UUID>"))
         assertTrue(uuidNative.contains("fun of(value: UUID): OrderId"))
-        assertTrue(snowflakeText.contains("StrongIds.requireSnowflake(value, \"OrderId\")"))
-        assertTrue(snowflakeLong.contains("override var value: Long = 0L"))
-        assertTrue(snowflakeLong.contains("fun jsonValue(): String = value.toString()"))
-        listOf(uuidText, uuidNative, snowflakeText, snowflakeLong).forEach { source ->
+        listOf(uuidText, uuidNative).forEach { source ->
             assertReadableKotlin(source)
             assertFalse(source.contains("fun new("))
             assertFalse(source.contains("AttributeConverter"))
@@ -1759,8 +1732,6 @@ class PebbleArtifactRendererTest {
         val generatedSources = listOf(
             SourceFile.kotlin("UuidTextOrderId.kt", uuidText),
             SourceFile.kotlin("UuidNativeOrderId.kt", uuidNative),
-            SourceFile.kotlin("SnowflakeTextOrderId.kt", snowflakeText),
-            SourceFile.kotlin("SnowflakeLongOrderId.kt", snowflakeLong),
         )
         val result = KotlinCompilation().apply {
             sources = generatedSources + strongIdCompileStubs
@@ -1792,8 +1763,6 @@ class PebbleArtifactRendererTest {
             object StrongIds {
                 fun requireUuidV7(value: String, typeName: String): String = value
                 fun requireUuidV7(value: UUID, typeName: String): UUID = value
-                fun requireSnowflake(value: String, typeName: String): String = value
-                fun requireSnowflake(value: Long, typeName: String): Long = value
             }
             """.trimIndent(),
         ),
@@ -2576,13 +2545,9 @@ class PebbleArtifactRendererTest {
 
         val uuidTextEntity = renderStrongIdEntity("UuidTextId", "uuid_text", 40, embeddedId = true)
         val uuidNativeEntity = renderStrongIdEntity("UuidNativeId", "uuid_native", null, embeddedId = false)
-        val snowflakeTextEntity = renderStrongIdEntity("SnowflakeTextId", "snowflake_text", 24, embeddedId = false)
-        val snowflakeLongEntity = renderStrongIdEntity("SnowflakeLongId", "snowflake_long", null, embeddedId = false)
 
         assertTrue(uuidTextEntity.contains("updatable = false, length = 40"))
         assertFalse(uuidNativeEntity.contains("length ="))
-        assertFalse(snowflakeLongEntity.contains("length ="))
-        assertTrue(snowflakeTextEntity.contains("length = 24"))
     }
 
     @Test

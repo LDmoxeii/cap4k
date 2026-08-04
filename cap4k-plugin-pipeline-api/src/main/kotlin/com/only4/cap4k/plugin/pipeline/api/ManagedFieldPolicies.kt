@@ -170,15 +170,6 @@ object BuiltInManagedFieldPolicies {
             insert = ManagedValueAuthority.FRAMEWORK,
         ),
         definition(
-            key = "identifier.snowflake",
-            role = ManagedFieldRole.IDENTIFIER,
-            creationInput = ManagedCreationInputPolicy.OMIT,
-            explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
-            lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
-            handlerQualifier = "identifier.snowflake",
-            insert = ManagedValueAuthority.FRAMEWORK,
-        ),
-        definition(
             key = "identifier.assigned",
             role = ManagedFieldRole.IDENTIFIER,
             creationInput = ManagedCreationInputPolicy.REQUIRED,

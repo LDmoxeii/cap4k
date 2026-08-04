@@ -102,6 +102,23 @@ class Cap4kProjectConfigFactoryTest {
     }
 
     @Test
+    fun `factory rejects retired application identifier policy with UUID7-only diagnostic`() {
+        listOf("snowflake", "identifier.snowflake").forEach { policy ->
+            val project = ProjectBuilder.builder().build()
+            val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+            extension.project.basePackage.set("com.acme.demo")
+            extension.managedFields.identifierDefaultPolicy.set(policy)
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                Cap4kProjectConfigFactory().build(project, extension)
+            }
+
+            assertTrue(error.message!!.contains("rejected value '$policy'"), error.message)
+            assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
+        }
+    }
+
+    @Test
     fun `types block owns enum and value object manifests`() {
         val project = ProjectBuilder.builder().build()
         val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)

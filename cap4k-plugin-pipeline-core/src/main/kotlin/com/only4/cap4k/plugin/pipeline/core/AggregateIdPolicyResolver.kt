@@ -8,11 +8,11 @@ import java.util.Locale
 
 internal object AggregateIdPolicyResolver {
     private const val UUID7 = "uuid7"
-    private const val SNOWFLAKE = "snowflake"
     private const val IDENTITY = "identity"
     private const val DATABASE_IDENTITY = "database-identity"
 
     fun normalizeStrategy(raw: String): String {
+        ApplicationIdentifierPolicyContract.rejectRetired(raw, "aggregate ID strategy")
         val normalized = raw.trim().lowercase(Locale.ROOT)
         return when (normalized) {
             DATABASE_IDENTITY -> IDENTITY
@@ -23,7 +23,7 @@ internal object AggregateIdPolicyResolver {
     fun resolveKind(strategy: String): AggregateIdPolicyKind {
         return when (normalizeStrategy(strategy)) {
             IDENTITY -> AggregateIdPolicyKind.DATABASE_SIDE
-            UUID7, SNOWFLAKE -> AggregateIdPolicyKind.APPLICATION_SIDE
+            UUID7 -> AggregateIdPolicyKind.APPLICATION_SIDE
             else -> throw IllegalArgumentException("unknown ID strategy: ${normalizeStrategy(strategy)}")
         }
     }

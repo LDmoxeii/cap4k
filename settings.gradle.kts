@@ -19,7 +19,7 @@ plugins {
 include("cap4k-analysis-metadata")
 include("ddd-core")
 include("ddd-application-command-jpa")
-include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")
+include("ddd-distributed-locker-jdbc")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")
 include(
     "ddd-integration-event-http",
@@ -31,7 +31,6 @@ include(
     "cap4k-ddd-core-starter",
     "cap4k-ddd-jpa-starter",
     "cap4k-ddd-locker-jdbc-starter",
-    "cap4k-ddd-snowflake-starter",
     "cap4k-ddd-command-jpa-starter",
     "cap4k-ddd-domain-event-jpa-starter",
     "cap4k-ddd-integration-event-http-starter",

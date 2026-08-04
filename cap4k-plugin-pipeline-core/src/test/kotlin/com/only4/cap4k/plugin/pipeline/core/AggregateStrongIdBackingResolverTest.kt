@@ -9,7 +9,7 @@ import java.sql.Types
 
 class AggregateStrongIdBackingResolverTest {
     @Test
-    fun `resolves the four supported storage nearest combinations`() {
+    fun `resolves the two UUID7 storage nearest combinations`() {
         assertEquals(
             ResolvedStrongIdBacking("String", 36),
             resolve("uuid7", Types.VARCHAR, "VARCHAR", "String", 36),
@@ -17,18 +17,6 @@ class AggregateStrongIdBackingResolverTest {
         assertEquals(
             ResolvedStrongIdBacking("UUID", null),
             resolve("uuid7", Types.OTHER, "UUID", "java.util.UUID", 16),
-        )
-        assertEquals(
-            ResolvedStrongIdBacking("String", 19),
-            resolve("snowflake", Types.VARCHAR, "VARCHAR", "String", 19),
-        )
-        assertEquals(
-            ResolvedStrongIdBacking("Long", null),
-            resolve("snowflake", Types.BIGINT, "BIGINT", "Long", 64),
-        )
-        assertEquals(
-            ResolvedStrongIdBacking("Long", null),
-            resolve("snowflake", Types.BIGINT, "BIGINT", "kotlin.Long", 64),
         )
     }
 
@@ -47,10 +35,6 @@ class AggregateStrongIdBackingResolverTest {
         }
         assertDiagnostic(uuid7Error, "uuid7")
 
-        val snowflakeError = assertThrows(IllegalArgumentException::class.java) {
-            resolve("snowflake", Types.VARCHAR, "VARCHAR", "String", 18)
-        }
-        assertDiagnostic(snowflakeError, "snowflake")
     }
 
     @Test
@@ -58,9 +42,6 @@ class AggregateStrongIdBackingResolverTest {
         val unsupported = listOf(
             UnsupportedCase("uuid7", Types.BIGINT, "BIGINT", "Long", 64),
             UnsupportedCase("uuid7", Types.OTHER, "jsonb", "String", 36),
-            UnsupportedCase("snowflake", Types.INTEGER, "INTEGER", "Int", 32),
-            UnsupportedCase("snowflake", Types.NUMERIC, "NUMERIC", "java.math.BigDecimal", 19),
-            UnsupportedCase("snowflake", Types.OTHER, "UUID", "java.util.UUID", 16),
         )
 
         unsupported.forEach { case ->
@@ -78,24 +59,14 @@ class AggregateStrongIdBackingResolverTest {
     }
 
     @Test
-    fun `rejects Snowflake storage that is unsigned or not signed 64 bit Long`() {
-        val unsupported = listOf(
-            UnsupportedCase("snowflake", Types.BIGINT, "BIGINT UNSIGNED", "Long", 64),
-            UnsupportedCase("snowflake", Types.INTEGER, "INTEGER", "Int", 32),
-        )
-
-        unsupported.forEach { case ->
-            val error = assertThrows(IllegalArgumentException::class.java) {
-                resolve(
-                    strategy = case.strategy,
-                    jdbcType = case.jdbcType,
-                    dbType = case.dbType,
-                    kotlinType = case.kotlinType,
-                    columnSize = case.columnSize,
-                )
-            }
-            assertDiagnostic(error, "snowflake")
+    fun `rejects retired snowflake before considering storage`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            resolve("snowflake", Types.BIGINT, "BIGINT", "Long", 64)
         }
+
+        assertTrue(error.message!!.contains("rejected value 'snowflake'"), error.message)
+        assertTrue(error.message!!.contains("orders.id"), error.message)
+        assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
     }
 
     @Test

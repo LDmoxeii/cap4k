@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-6-runtime-snowflake-retirement",
+  "role": "post",
+  "hash": "a51427287fb9a8a9771c59769269754fd26d9f1ffc5d662767830d7735a63047",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1970324837661539,
+    "birthtimeMs": 1785843402466.4878
+  }
+}
