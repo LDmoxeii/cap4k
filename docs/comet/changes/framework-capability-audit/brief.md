@@ -148,6 +148,10 @@ Audit Generator, Runtime, and Analyzer after the Skill responsibility reset from
 
 - The user confirmed the complete Runtime target contract on 2026-08-03 as the shared understanding for closing the Runtime audit slice and preparing independent implementation/fix branches. This confirmation does not authorize production-code changes on the audit branch, advance the overall Comet change out of Shape, start Analyzer audit before merged Runtime fixes are refreshed and reverified, or begin downstream real-project validation.
 
+- PR #158 merged the synchronous Handler completion and method-level Event Handler contract as `e5dbf38d`; after refreshing the audit line, the stale-runtime-facts guard and focused Handler, InvocationScope, Agent snapshot, and Gradle Agent task tests passed across 77 actionable tasks.
+- Execute the remaining Runtime repair as dependency-aware short-lived branches rather than one aggregate PR. The first independent wave is Console retirement, Snowflake retirement, generated Repository adapter ownership, and Pipeline/build-tooling Jackson migration. Reliable record/state-machine work follows the structural removals and stable codec boundary; transport rewrites build on the shared provider/registration contract and PR #158 dispatcher; Runtime provider descriptors, startup composition diagnostics, provider state, and Actuator projection close the slice after the active starter topology stabilizes.
+- Keep FastJSON/Gson migration split by ownership: Pipeline/build tooling may migrate immediately, while surviving Runtime persistence/transports migrate after modules and paths already approved for deletion are removed. The final gate rejects both codec families repository-wide.
+
 # Verification expectations
 
 - Cite current source files, descriptors, generated plans/templates, tests, public documentation, Agent API outputs, and relevant GitHub issues for each finding.

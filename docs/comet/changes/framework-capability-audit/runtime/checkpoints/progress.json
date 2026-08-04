@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "05cde302-f9fa-441e-bc91-cd3f674ad19c",
+  "id": "0cda7b33-0ae8-4c9d-892b-360ecf0c5dc2",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 25,
-  "stateRevision": 26,
-  "summary": "The user confirmed the complete Runtime target contract. Runtime Shape decisions now cover provider composition, repository ownership, handler completion and local ordering, reliable delivery context, transport acknowledgement, retry/claim/lease/redrive, safe failure facts, retention, retired capabilities, and verification expectations.",
-  "nextAction": "Prepare a dependency-aware set of independent Runtime implementation/fix branches and fork-session opening statements. Keep production code unchanged on the audit branch; after fixes merge to master, refresh and reverify Runtime before Analyzer.",
-  "inputHash": "7eaa2fa0302c53e94cb67227f7ff5bdec6756f03493cde78d17dbafd85c85751",
+  "previousRevision": 26,
+  "stateRevision": 27,
+  "summary": "PR #158 was merged into the audit line and focused revalidation passed. Remaining Runtime work was decomposed into independent first-wave retirements/foundations and dependency-ordered reliable, transport, codec, provider-descriptor, startup-validation, and health slices.",
+  "nextAction": "Start feature/runtime-console-retirement from current origin/master; repository-adapter and pipeline-Jackson may run in parallel, while Snowflake should rebase after Console to minimize settings/docs conflicts. After each PR merges, refresh and reverify the affected Runtime gate on this audit branch.",
+  "inputHash": "4cdedf91b2a4525406559804b85ea33c782d4a16d288df6877df660b10360700",
   "manifestHash": "22827256971576238d8503869326fbd9e55ff4072bb333a7724521f4e23ed0a1",
   "manifestRef": "runtime/checkpoints/manifests/22827256971576238d8503869326fbd9e55ff4072bb333a7724521f4e23ed0a1.json",
   "artifactCount": 0,
-  "createdAt": "2026-08-03T13:56:02.235Z"
+  "createdAt": "2026-08-04T04:31:53.927Z"
 }
