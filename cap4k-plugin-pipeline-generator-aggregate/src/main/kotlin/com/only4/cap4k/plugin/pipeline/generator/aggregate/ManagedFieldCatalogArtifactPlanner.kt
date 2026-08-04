@@ -127,46 +127,51 @@ internal class ManagedFieldCatalogArtifactPlanner : AggregateArtifactFamilyPlann
         fieldPolicy: ResolvedManagedFieldPolicy,
         generatedId: GeneratedOwnIdDescriptor?,
         targetType: String,
-    ): Map<String, Any?>? = when (fieldPolicy.policyKey) {
-        "identifier.uuid7", "identifier.snowflake" -> {
-            if (generatedId != null) {
-                mapOf(
-                    "kind" to "APPLICATION_IDENTIFIER",
-                    "allocateExpression" to applicationIdentifierAllocation(generatedId),
-                    "validateExpression" to "${generatedId.idTypeFqn}.of(value.value)",
-                )
-            } else {
-                val backingType = when (fieldPolicy.fieldType.removeSuffix("?").substringAfterLast('.')) {
-                    "UUID" -> "java.util.UUID"
-                    "String" -> "String"
-                    "Long" -> "Long"
-                    else -> error(
-                        "unsupported generated identifier backing for ${fieldPolicy.fieldName}[${fieldPolicy.policyKey}]: " +
-                            fieldPolicy.fieldType
+    ): Map<String, Any?>? {
+        ApplicationIdentifierStrategyContract.rejectRetiredPolicy(
+            fieldPolicy.policyKey,
+            "managed field catalog ${fieldPolicy.fieldName}",
+        )
+        return when (fieldPolicy.policyKey) {
+            "identifier.uuid7" -> {
+                if (generatedId != null) {
+                    mapOf(
+                        "kind" to "APPLICATION_IDENTIFIER",
+                        "allocateExpression" to applicationIdentifierAllocation(generatedId),
+                        "validateExpression" to "${generatedId.idTypeFqn}.of(value.value)",
+                    )
+                } else {
+                    val backingType = when (fieldPolicy.fieldType.removeSuffix("?").substringAfterLast('.')) {
+                        "UUID" -> "java.util.UUID"
+                        "String" -> "String"
+                        else -> error(
+                            "unsupported generated identifier backing for ${fieldPolicy.fieldName}[${fieldPolicy.policyKey}]: " +
+                                fieldPolicy.fieldType
+                        )
+                    }
+                    mapOf(
+                        "kind" to "APPLICATION_IDENTIFIER",
+                        "allocateExpression" to "com.only4.cap4k.ddd.core.Mediator.identifiers.next(" +
+                            "${fieldPolicy.policyKey.substringAfter('.').toKotlinStringLiteral()}, $backingType::class)",
+                        "validateExpression" to null,
                     )
                 }
-                mapOf(
-                    "kind" to "APPLICATION_IDENTIFIER",
-                    "allocateExpression" to "com.only4.cap4k.ddd.core.Mediator.identifiers.next(" +
-                        "${fieldPolicy.policyKey.substringAfter('.').toKotlinStringLiteral()}, $backingType::class)",
-                    "validateExpression" to null,
-                )
             }
-        }
-        "identifier.assigned" -> mapOf(
-            "kind" to "APPLICATION_IDENTIFIER",
-            "allocateExpression" to null,
-            "validateExpression" to null,
-        )
-        "identifier.database-identity" -> forbiddenExplicitValueSupport(fieldPolicy, targetType)
-        else -> if (fieldPolicy.lifecycles.any { it.name == "ENTITY_ADMISSION" }) {
-            mapOf(
+            "identifier.assigned" -> mapOf(
                 "kind" to "APPLICATION_IDENTIFIER",
                 "allocateExpression" to null,
                 "validateExpression" to null,
             )
-        } else {
-            null
+            "identifier.database-identity" -> forbiddenExplicitValueSupport(fieldPolicy, targetType)
+            else -> if (fieldPolicy.lifecycles.any { it.name == "ENTITY_ADMISSION" }) {
+                mapOf(
+                    "kind" to "APPLICATION_IDENTIFIER",
+                    "allocateExpression" to null,
+                    "validateExpression" to null,
+                )
+            } else {
+                null
+            }
         }
     }
 
@@ -190,7 +195,7 @@ internal class ManagedFieldCatalogArtifactPlanner : AggregateArtifactFamilyPlann
     private fun applicationIdentifierAllocation(descriptor: GeneratedOwnIdDescriptor): String {
         val backingType = when (descriptor.backingType) {
             "UUID" -> "java.util.UUID"
-            "String", "Long" -> descriptor.backingType
+            "String" -> descriptor.backingType
             else -> error(
                 "unsupported generated identifier backing for ${descriptor.entityFqn}: ${descriptor.backingType}"
             )

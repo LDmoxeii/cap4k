@@ -1587,22 +1587,6 @@ class PipelinePluginFunctionalTest {
         val nilUuid = "00000000-0000-0000-0000-000000000000"
         val applicationSideCells = listOf(
             ApplicationSideCell(
-                tableName = "snowflake_long_record",
-                entityName = "SnowflakeLongRecord",
-                backingType = "Long",
-                deletedProperty = "var deleted: Long = 0L",
-                activeSqlLiteral = "0",
-                strategy = "snowflake",
-            ),
-            ApplicationSideCell(
-                tableName = "snowflake_string_record",
-                entityName = "SnowflakeStringRecord",
-                backingType = "String",
-                deletedProperty = "var deleted: String = \"0\"",
-                activeSqlLiteral = "'0'",
-                strategy = "snowflake",
-            ),
-            ApplicationSideCell(
                 tableName = "uuid_string_record",
                 entityName = "UuidStringRecord",
                 backingType = "String",
@@ -1749,7 +1733,6 @@ class PipelinePluginFunctionalTest {
             append(generatedIdentityFactory)
         }
         assertFalse(allGeneratedEvidence.contains("ApplicationSideId"))
-        assertFalse(allGeneratedEvidence.contains("snowflake-long"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1883,7 +1866,7 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
             Regex(
-                """includeTables\.set\(\s*listOf\(\s*"video_post",\s*"snowflake_long_record",\s*"snowflake_string_record",\s*"uuid_string_record",\s*"uuid_native_record",\s*\)\s*\)"""
+                """includeTables\.set\(\s*listOf\(\s*"video_post",\s*"uuid_string_record",\s*"uuid_native_record",\s*\)\s*\)"""
             ),
             "includeTables.set(listOf(\"video\", \"audit_log\"))",
         )
@@ -2171,7 +2154,6 @@ class PipelinePluginFunctionalTest {
             .map { it.asJsonObject }
             .associateBy { it.get("tableName").asString }
         val videoPostPolicy = resolvedPolicies.getValue("video_post")
-        val snowflakeLongPolicy = resolvedPolicies.getValue("snowflake_long_record")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
@@ -2180,12 +2162,10 @@ class PipelinePluginFunctionalTest {
             "database.generated-always",
             defaults.getAsJsonObject("columnPolicyDefaults").get("created_by").asString,
         )
-        assertEquals(6, resolvedPolicies.size)
+        assertEquals(4, resolvedPolicies.size)
         assertEquals(
             setOf(
                 "video_post",
-                "snowflake_long_record",
-                "snowflake_string_record",
                 "uuid_string_record",
                 "uuid_native_record",
                 "audit_log",
@@ -2223,12 +2203,6 @@ class PipelinePluginFunctionalTest {
         assertEquals("database.generated-always", videoPostPolicy.getAsJsonArray("fields").single {
             it.asJsonObject.get("columnName").asString == "created_by"
         }.asJsonObject.get("policyKey").asString)
-        assertEquals("identifier.snowflake", snowflakeLongPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertTrue(snowflakeLongPolicy.getAsJsonArray("fields").none {
-            it.asJsonObject.get("role").asString == "VERSION"
-        })
         val auditLogPolicy = resolvedPolicies.getValue("audit_log")
         assertEquals("identifier.database-identity", auditLogPolicy.getAsJsonArray("fields").single {
             it.asJsonObject.get("columnName").asString == "id"

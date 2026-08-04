@@ -10,6 +10,7 @@ internal data class ResolvedStrongIdBacking(
 internal object AggregateStrongIdBackingResolver {
     fun resolve(tableName: String, column: DbColumnSnapshot, strategy: String): ResolvedStrongIdBacking {
         val path = "$tableName.${column.name}"
+        ApplicationIdentifierPolicyContract.rejectRetired(strategy, path)
         val storage = try {
             AggregateIdStorageCatalog.resolve(tableName, column)
         } catch (error: IllegalArgumentException) {
@@ -23,7 +24,6 @@ internal object AggregateStrongIdBackingResolver {
 
         return when (strategy) {
             "uuid7" -> resolveUuid7(path, storage, column)
-            "snowflake" -> resolveSnowflake(path, storage, column)
             "identity" ->
                 error("database identity $path does not have an application-side Strong ID backing")
             else -> throw IllegalArgumentException("unsupported application-side identifier policy for $path: $strategy")
@@ -44,33 +44,6 @@ internal object AggregateStrongIdBackingResolver {
 
         is ResolvedAggregateIdStorage.NativeUuid -> ResolvedStrongIdBacking("UUID", null)
         is ResolvedAggregateIdStorage.Integral -> unsupported("uuid7", path, column)
-    }
-
-    private fun resolveSnowflake(
-        path: String,
-        storage: ResolvedAggregateIdStorage,
-        column: DbColumnSnapshot,
-    ): ResolvedStrongIdBacking = when (storage) {
-        is ResolvedAggregateIdStorage.Character -> {
-            require(storage.capacity >= 19) {
-                "SNOWFLAKE character storage $path requires capacity >= 19, got ${storage.capacity}"
-            }
-            ResolvedStrongIdBacking("String", storage.capacity)
-        }
-
-        is ResolvedAggregateIdStorage.Integral -> {
-            require(
-                storage.bits == 64 &&
-                    !storage.unsigned &&
-                    storage.kotlinType in setOf("Long", "kotlin.Long"),
-            ) {
-                "SNOWFLAKE storage $path requires signed 64-bit Long, got " +
-                    "bits=${storage.bits}, unsigned=${storage.unsigned}, kotlinType=${storage.kotlinType}"
-            }
-            ResolvedStrongIdBacking("Long", null)
-        }
-
-        is ResolvedAggregateIdStorage.NativeUuid -> unsupported("snowflake", path, column)
     }
 
     private fun unsupported(strategy: String, path: String, column: DbColumnSnapshot): Nothing =

@@ -1,0 +1,84 @@
+# Acceptance evidence
+
+<!-- comet-native:acceptance-evidence:start -->
+[
+  {
+    "acceptance_id": "acceptance-01e7cc456e289677ba7d1719ef40598fa5d7a94d35a4f8f3b82541fd9e388556",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-core/src/main/kotlin/com/only4/cap4k/plugin/pipeline/core/AggregateIdPolicyResolver.kt",
+      "cap4k-plugin-pipeline-core/src/test/kotlin/com/only4/cap4k/plugin/pipeline/core/DefaultCanonicalAssemblerTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-082f7300d9eb20b87cff6e6c316150cce6579025616c969f9016a52afc4973f8",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/ManagedFieldPolicies.kt",
+      "cap4k-plugin-pipeline-api/src/test/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModelsTest.kt",
+      "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/id/BuiltInIdentifierStrategies.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-6138936cbc1dc45abbcf01bdd7f2b60035aae86fce53eb11ab1cdb94a882cc18",
+    "evidence_refs": [
+      "AGENTS.md",
+      "docs/public/concepts/modeling-building-blocks/strong-id.md",
+      "docs/public/reference/runtime-database-schema.md",
+      "scripts/validate-current-runtime-facts.ps1",
+      "settings.gradle.kts"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-73b728cf2e75c4528cf17f76189b3d9da89a8c7f7b30f82c6a9c3703c481280a",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-source-design-json/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",
+      "cap4k-plugin-pipeline-source-design-json/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProviderTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-b0e5e2203d858007472d69799a49bad9b534076505b611bc97d5e434a126dfae",
+    "evidence_refs": [
+      "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactory.kt",
+      "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kProjectConfigFactoryTest.kt",
+      "cap4k-plugin-pipeline-source-db/src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParser.kt",
+      "cap4k-plugin-pipeline-source-db/src/test/kotlin/com/only4/cap4k/plugin/pipeline/source/db/DbColumnAnnotationParserTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-e51f4c9f464b297665a75e74aa8ab9cdb4b77a63a13b627c4fca34605f52757f",
+    "evidence_refs": [
+      "scripts/validate-current-runtime-facts.ps1",
+      "settings.gradle.kts"
+    ]
+  }
+]
+<!-- comet-native:acceptance-evidence:end -->
+
+# Commands and results
+
+- `.\gradlew.bat :ddd-core:test :cap4k-ddd-jpa-starter:test :cap4k-ddd-command-jpa-starter:test :cap4k-ddd-domain-event-jpa-starter:test :cap4k-ddd-locker-jdbc-starter:test --no-daemon --console=plain` — passed after rebasing the merged Console retirement onto the latest `origin/master`.
+- `.\gradlew.bat :cap4k-plugin-pipeline-api:test :cap4k-plugin-pipeline-source-design-json:test :cap4k-plugin-pipeline-source-db:test :cap4k-plugin-pipeline-core:test :cap4k-plugin-pipeline-generator-aggregate:test :cap4k-plugin-pipeline-renderer-pebble:test :cap4k-plugin-pipeline-gradle:test --no-daemon --console=plain` — passed; this includes explicit Design JSON, schema, Gradle configuration, planner, catalog, renderer, and functional diagnostics for the retired strategy.
+- `.\scripts\test-pr-workflow.ps1` — passed with `OK: PR workflow script tests passed.`
+- `.\gradlew.bat -p buildSrc test --no-daemon --console=plain` — passed.
+- `.\gradlew.bat check --no-daemon --console=plain` — passed in 23m 14s; 217 actionable tasks (75 executed, 18 from cache, 124 up-to-date).
+- `git diff --check` — passed; Git emitted only line-ending normalization warnings for three Kotlin files.
+- A bounded working-tree scan over tracked and non-ignored untracked files found no retired implementation symbols outside documentation/evidence and no Snowflake claims in replacement specifications other than the focused retirement specification.
+- The deleted `ddd-distributed-snowflake` and `cap4k-ddd-snowflake-starter` directories are absent, `HEAD` and `origin/master` were both `4bdd23122a828eb27f8b3012e574f01dc6862a49`, and the working diff contains no `cap4k-ddd-console` path authored by this branch.
+
+# Skipped checks
+
+- `PostgreSqlSoftDeleteIntegrationTest > real PostgreSQL proves native UUID soft delete from metadata through executed planner SQL()` was skipped because the optional `CAP4K_TEST_POSTGRES_*` external database environment was not configured. The adjacent cleanup-behavior tests passed.
+- `.\scripts\validate-current-runtime-facts.ps1` is intentionally deferred until the Comet Archive transaction installs the seven complete canonical specification replacements. Its pre-archive equivalent (active implementation plus proposed current specifications) passed; the repository script will be run after archive and before commit, push, or PR creation.
+
+# Spec consistency
+
+The focused retirement specification and six complete replacement specifications consistently define UUID7 as the sole built-in application-side Strong ID allocation strategy. Database identity/autoincrement remains a persistence policy and never acts as an application allocation fallback. Explicit `snowflake` input is rejected at Design JSON, database annotation, Gradle configuration, canonical policy, and generator-planning boundaries with a diagnostic naming `uuid7` as supported. No unrelated Runtime finding is included.
+
+# Known limitations and risks
+
+- The Comet implementation-scope baseline predates the required Console retirement rebase. A content-addressed partial-scope allowance enumerates the deleted Snowflake paths that no longer exist and the upstream Console paths from PR #159; `git diff origin/master` confirms that this branch does not author Console deletion work.
+- The optional real-PostgreSQL integration environment was unavailable locally. H2 metadata and persistence functional coverage, including provider identity and UUID behavior, passed in the full suite.
+- This is intentionally breaking: no alias, deprecated API, fallback codec, dual implementation, or compatibility bridge is retained.
+
+# Conclusion
+
+Pass. The implementation, focused tests, full required Gradle check, PR workflow checks, buildSrc tests, proposed-spec consistency scan, and stale-surface scan demonstrate that the in-house Snowflake capability is retired and UUID7 is the only built-in application-side Strong ID strategy. Final canonical current-facts validation remains a mandatory post-archive gate before delivery.

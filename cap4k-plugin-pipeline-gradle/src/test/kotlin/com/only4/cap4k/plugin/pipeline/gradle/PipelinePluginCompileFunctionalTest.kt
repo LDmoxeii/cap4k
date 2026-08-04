@@ -911,22 +911,6 @@ class PipelinePluginCompileFunctionalTest {
         val nilUuid = "00000000-0000-0000-0000-000000000000"
         val applicationSideCells = listOf(
             ApplicationSideCell(
-                tableName = "snowflake_long_record",
-                entityName = "SnowflakeLongRecord",
-                backingType = "Long",
-                deletedProperty = "var deleted: Long = 0L",
-                activeSqlLiteral = "0",
-                strategy = "snowflake",
-            ),
-            ApplicationSideCell(
-                tableName = "snowflake_string_record",
-                entityName = "SnowflakeStringRecord",
-                backingType = "String",
-                deletedProperty = "var deleted: String = \"0\"",
-                activeSqlLiteral = "'0'",
-                strategy = "snowflake",
-            ),
-            ApplicationSideCell(
                 tableName = "uuid_string_record",
                 entityName = "UuidStringRecord",
                 backingType = "String",
@@ -1100,7 +1084,6 @@ class PipelinePluginCompileFunctionalTest {
             append(generatedIdentityFactory)
         }
         assertFalse(allGeneratedEvidence.contains("ApplicationSideId"))
-        assertFalse(allGeneratedEvidence.contains("snowflake-long"))
 
         fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/generate", "h2/compile"))
         val compileResult = FunctionalFixtureSupport

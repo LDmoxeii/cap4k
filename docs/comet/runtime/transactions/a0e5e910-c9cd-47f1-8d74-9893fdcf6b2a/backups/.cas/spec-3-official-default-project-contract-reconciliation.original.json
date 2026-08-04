@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-3-official-default-project-contract-reconciliation",
+  "role": "original",
+  "hash": "5c2c4b8342f2c441092b691a7302cbe69d362fa490e88c97e70586c624601c31",
+  "identity": {
+    "dev": 950912656,
+    "ino": 281474982578745,
+    "birthtimeMs": 1785820094971.8792
+  }
+}

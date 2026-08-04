@@ -6,18 +6,6 @@ create table video_post (
     title varchar(128) not null
 );
 
-create table snowflake_long_record (
-    id bigint primary key comment '@Managed=identifier.snowflake;',
-    deleted bigint not null default 0 comment '@Managed=soft-delete;',
-    title varchar(128) not null
-);
-
-create table snowflake_string_record (
-    id varchar(19) primary key comment '@Managed=identifier.snowflake;',
-    deleted varchar(19) not null default '0' comment '@Managed=soft-delete;',
-    title varchar(128) not null
-);
-
 create table uuid_string_record (
     id varchar(36) primary key comment '@Managed=identifier.uuid7;',
     deleted varchar(36) not null default '00000000-0000-0000-0000-000000000000' comment '@Managed=soft-delete;',

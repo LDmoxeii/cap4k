@@ -156,6 +156,7 @@ class DesignJsonSourceProvider : SourceProvider {
             val rawTag = readRequiredString(obj, "tag", "design entry", trim = false)
             val name = readRequiredString(obj, "name", "design entry")
             val tag = parseTag(rawTag)
+            rejectRetiredApplicationIdentifierStrategy(obj, name)
             rejectRemovedFields(obj, name)
             val fields = parseFields(obj["fields"], name, "fields")
             val resultFields = parseFields(obj["resultFields"], name, "resultFields")
@@ -188,6 +189,23 @@ class DesignJsonSourceProvider : SourceProvider {
             throw IllegalArgumentException("Unsupported design tag: $rawTag")
         }
         return rawTag
+    }
+
+    private fun rejectRetiredApplicationIdentifierStrategy(obj: JsonObject, name: String) {
+        val element = obj["idStrategy"] ?: return
+        if (
+            element.isJsonPrimitive &&
+            element.asJsonPrimitive.isString &&
+            element.asString.trim().let { value ->
+                value.equals("snowflake", ignoreCase = true) ||
+                    value.equals("identifier.snowflake", ignoreCase = true)
+            }
+        ) {
+            throw IllegalArgumentException(
+                "unsupported application-side Strong ID strategy: rejected value '${element.asString}' " +
+                    "at design entry $name idStrategy; supported application-side strategy: uuid7",
+            )
+        }
     }
 
     private fun rejectRemovedFields(obj: JsonObject, name: String) {

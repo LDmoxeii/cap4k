@@ -27,7 +27,6 @@ import java.io.Serializable
 import java.util.UUID
 
 private const val UUID7_TEXT = "019c0000-0000-7000-8000-000000000001"
-private const val SNOWFLAKE_TEXT = "7288198123456789012"
 
 @DataJpaTest(
     properties = [
@@ -52,47 +51,30 @@ class StrongIdJpaRuntimeTest {
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @Test
-    fun `hibernate persists reloads and exposes direct strong id backing values`() {
+    fun `hibernate persists reloads and exposes UUID7 strong id backing values`() {
         val id = UuidTextId.parse(UUID7_TEXT)
         val nativeUuid = UuidNativeId.parse(UUID7_TEXT)
-        val snowflakeText = SnowflakeTextId.parse(SNOWFLAKE_TEXT)
-        val snowflakeLong = SnowflakeLongId.parse(SNOWFLAKE_TEXT)
 
-        repository.save(
-            StrongIdMatrix(
-                id = id,
-                nativeUuid = nativeUuid,
-                snowflakeText = snowflakeText,
-                snowflakeLong = snowflakeLong,
-            )
-        )
+        repository.save(StrongIdMatrix(id = id, nativeUuid = nativeUuid))
         entityManager.flush()
         entityManager.clear()
 
         val loaded = repository.findById(id).orElseThrow()
         val persistedValues = jdbcTemplate.queryForObject(
-            """select "id", "native_uuid", "snowflake_text", "snowflake_long" from "strong_id_matrix""""
+            """select "id", "native_uuid" from "strong_id_matrix""""
         ) { resultSet, _ ->
             listOf(
                 resultSet.getObject("id"),
                 resultSet.getObject("native_uuid"),
-                resultSet.getObject("snowflake_text"),
-                resultSet.getObject("snowflake_long"),
             )
         } ?: error("strong id matrix row was not persisted")
 
         assertEquals(id, loaded.id)
         assertEquals(nativeUuid, loaded.nativeUuid)
-        assertEquals(snowflakeText, loaded.snowflakeText)
-        assertEquals(snowflakeLong, loaded.snowflakeLong)
         assertTrue(persistedValues[0] is String)
         assertTrue(persistedValues[1] is UUID)
-        assertTrue(persistedValues[2] is String)
-        assertTrue(persistedValues[3] is Long)
         assertEquals(UUID7_TEXT, persistedValues[0])
         assertEquals(UUID.fromString(UUID7_TEXT), persistedValues[1])
-        assertEquals(SNOWFLAKE_TEXT, persistedValues[2])
-        assertEquals(SNOWFLAKE_TEXT.toLong(), persistedValues[3])
     }
 
     @Test
@@ -227,63 +209,6 @@ class UuidNativeId protected constructor() : StrongId<UUID>, Serializable {
     override fun hashCode(): Int = value.hashCode()
 }
 
-@Embeddable
-class SnowflakeTextId protected constructor() : StrongId<String>, Serializable {
-    @Column(name = "value", nullable = false, updatable = false)
-    override lateinit var value: String
-        protected set
-
-    private constructor(value: String) : this() {
-        this.value = value
-    }
-
-    override fun toString(): String = value.toString()
-
-    companion object {
-        fun of(value: String): SnowflakeTextId =
-            SnowflakeTextId(StrongIds.requireSnowflake(value, "SnowflakeTextId"))
-
-        fun parse(value: String): SnowflakeTextId = of(value)
-
-        @JvmStatic
-        fun from(value: String): SnowflakeTextId = parse(value)
-    }
-
-    override fun equals(other: Any?): Boolean =
-        this === other || (other is SnowflakeTextId && value == other.value)
-
-    override fun hashCode(): Int = value.hashCode()
-}
-
-@Embeddable
-class SnowflakeLongId protected constructor() : StrongId<Long>, Serializable {
-    @Column(name = "value", nullable = false, updatable = false)
-    override var value: Long = 0L
-        protected set
-
-    private constructor(value: Long) : this() {
-        this.value = value
-    }
-
-    override fun toString(): String = value.toString()
-
-    companion object {
-        fun of(value: Long): SnowflakeLongId =
-            SnowflakeLongId(StrongIds.requireSnowflake(value, "SnowflakeLongId"))
-
-        fun parse(value: String): SnowflakeLongId =
-            of(StrongIds.requireSnowflake(value, "SnowflakeLongId").toLong())
-
-        @JvmStatic
-        fun from(value: String): SnowflakeLongId = parse(value)
-    }
-
-    override fun equals(other: Any?): Boolean =
-        this === other || (other is SnowflakeLongId && value == other.value)
-
-    override fun hashCode(): Int = value.hashCode()
-}
-
 @Entity
 @Table(name = "`strong_id_matrix`")
 open class StrongIdMatrix protected constructor() {
@@ -297,26 +222,12 @@ open class StrongIdMatrix protected constructor() {
     open lateinit var nativeUuid: UuidNativeId
         protected set
 
-    @Embedded
-    @AttributeOverride(name = "value", column = Column(name = "`snowflake_text`", updatable = false, length = 19))
-    open lateinit var snowflakeText: SnowflakeTextId
-        protected set
-
-    @Embedded
-    @AttributeOverride(name = "value", column = Column(name = "`snowflake_long`", updatable = false))
-    open lateinit var snowflakeLong: SnowflakeLongId
-        protected set
-
     constructor(
         id: UuidTextId,
         nativeUuid: UuidNativeId,
-        snowflakeText: SnowflakeTextId,
-        snowflakeLong: SnowflakeLongId,
     ) : this() {
         this.id = id
         this.nativeUuid = nativeUuid
-        this.snowflakeText = snowflakeText
-        this.snowflakeLong = snowflakeLong
     }
 }
 

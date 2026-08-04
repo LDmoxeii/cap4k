@@ -28,6 +28,7 @@ internal object ManagedFieldPolicyResolver {
         tables: List<DbTableSnapshot>,
         contributedDefinitions: List<OwnedManagedFieldPolicyDefinition>,
     ): List<ResolvedManagedEntityPolicy> {
+        ApplicationIdentifierPolicyContract.validate(config, tables, contributedDefinitions)
         val definitions = collectDefinitions(contributedDefinitions)
         val tableByName = tables.associateBy { it.tableName.lowercase(Locale.ROOT) }
         val resolved = entities.mapNotNull { entity ->
@@ -60,6 +61,7 @@ internal object ManagedFieldPolicyResolver {
 
     private fun validateDefinition(owned: OwnedManagedFieldPolicyDefinition) {
         val definition = owned.definition
+        ApplicationIdentifierPolicyContract.rejectRetired(definition.key, "managed field policy definition")
         requireManagedFieldPolicyKey(definition.key)
         require(definition.lifecycles.isNotEmpty()) {
             "managed field policy ${definition.key} must declare at least one lifecycle"
