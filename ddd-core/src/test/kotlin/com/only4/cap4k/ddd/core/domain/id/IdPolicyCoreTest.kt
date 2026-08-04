@@ -13,7 +13,6 @@ class IdPolicyCoreTest {
     @Test
     fun `built in identifier strategy constants are stable`() {
         assertEquals("uuid7", BuiltInIdentifierStrategies.UUID7)
-        assertEquals("snowflake", BuiltInIdentifierStrategies.SNOWFLAKE)
     }
 
     @Test

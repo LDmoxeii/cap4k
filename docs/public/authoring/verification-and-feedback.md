@@ -67,6 +67,7 @@ analysis evidence 说明现有代码结构如何连接。参考项目中，已�
 - `analysis/drawing-board/drawing_board_domain_event.json`
 - `analysis/drawing-board/drawing_board_integration_event.json`
 - `analysis/drawing-board/drawing_board_query.json`
+- `analysis/drawing-board/drawing_board_aggregate_elements.json`（Aggregate element 结构证据，不是 Design JSON）
 
 运行 README analysis 入口后，本地 `build/cap4k/analysis-plan.json` 可作为 analysis generation plan evidence。它和 `build/cap4k/plan.json` 一样，是本地 generated evidence，不是提交源码真相。
 

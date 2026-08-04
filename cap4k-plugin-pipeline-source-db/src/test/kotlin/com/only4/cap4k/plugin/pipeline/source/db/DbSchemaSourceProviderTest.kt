@@ -29,8 +29,8 @@ class DbSchemaSourceProviderTest {
                     create table strong_id_evidence (
                         uuid_text varchar(36) not null,
                         uuid_native uuid not null,
-                        snowflake_text varchar(19) not null,
-                        snowflake_long bigint not null,
+                        text_capacity varchar(19) not null,
+                        integral_value bigint not null,
                         primary key (uuid_text)
                     )
                     """.trimIndent()
@@ -65,8 +65,8 @@ class DbSchemaSourceProviderTest {
         assertEquals(36, columns.getValue("uuid_text").columnSize)
         assertEquals("UUID", columns.getValue("uuid_native").dbType.uppercase())
         assertTrue(columns.getValue("uuid_native").jdbcType in setOf(Types.OTHER, Types.BINARY))
-        assertEquals(19, columns.getValue("snowflake_text").columnSize)
-        assertEquals(Types.BIGINT, columns.getValue("snowflake_long").jdbcType)
+        assertEquals(19, columns.getValue("text_capacity").columnSize)
+        assertEquals(Types.BIGINT, columns.getValue("integral_value").jdbcType)
     }
 
     @Test
@@ -820,7 +820,7 @@ class DbSchemaSourceProviderTest {
                     """.trimIndent()
                 )
                 statement.execute(
-                    "comment on table video_post is 'Video post root @IdGenerator=snowflakeIdGenerator;'"
+                    "comment on table video_post is 'Video post root @IdGenerator=legacyIdGenerator;'"
                 )
             }
         }

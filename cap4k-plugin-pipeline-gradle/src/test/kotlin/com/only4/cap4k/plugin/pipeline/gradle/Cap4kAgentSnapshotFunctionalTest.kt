@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -9,6 +9,8 @@ import java.nio.file.Files
 import kotlin.io.path.writeText
 
 class Cap4kAgentSnapshotFunctionalTest {
+    private val jsonMapper = PipelineJson.newMapper(includeNulls = true)
+
     @Test
     fun `analysis plan and agent snapshot form a bounded manifest-first dry run`() {
         val projectDir = Files.createTempDirectory("agent-functional-analysis")
@@ -23,14 +25,14 @@ class Cap4kAgentSnapshotFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kAnalysisPlan")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kAgentSnapshot")?.outcome)
         val output = projectDir.resolve("build/cap4k/agent")
-        val manifest = JsonParser.parseString(output.resolve("manifest.json").toFile().readText()).asJsonObject
-        val analysis = JsonParser.parseString(output.resolve("analysis.json").toFile().readText()).asJsonObject
-        assertEquals("partial", manifest.get("status").asString)
-        assertEquals("partial", analysis.get("status").asString)
-        assertEquals("fresh", analysis.getAsJsonObject("evidence").get("freshness").asString)
-        assertTrue(analysis.getAsJsonArray("plannedOutputPaths").size() > 0)
-        assertEquals(0, analysis.getAsJsonArray("availableOutputPaths").size())
-        assertEquals("cap4kAnalysisGenerate", analysis.get("nextAction").asString)
+        val manifest = jsonMapper.readTree(output.resolve("manifest.json").toFile().readText()).requireObjectNode()
+        val analysis = jsonMapper.readTree(output.resolve("analysis.json").toFile().readText()).requireObjectNode()
+        assertEquals("partial", manifest.get("status").asText())
+        assertEquals("partial", analysis.get("status").asText())
+        assertEquals("fresh", analysis.requireObjectNode("evidence").get("freshness").asText())
+        assertTrue(analysis.requireArrayNode("plannedOutputPaths").size() > 0)
+        assertEquals(0, analysis.requireArrayNode("availableOutputPaths").size())
+        assertEquals("cap4kAnalysisGenerate", analysis.get("nextAction").asText())
 
         val generated = FunctionalFixtureSupport.runner(
             projectDir,
@@ -39,15 +41,15 @@ class Cap4kAgentSnapshotFunctionalTest {
         ).build()
 
         assertEquals(TaskOutcome.SUCCESS, generated.task(":cap4kAnalysisGenerate")?.outcome)
-        val generatedAnalysis = JsonParser.parseString(
+        val generatedAnalysis = jsonMapper.readTree(
             output.resolve("analysis.json").toFile().readText()
-        ).asJsonObject
-        assertEquals("ok", generatedAnalysis.get("status").asString)
+        ).requireObjectNode()
+        assertEquals("ok", generatedAnalysis.get("status").asText())
         assertEquals(
-            generatedAnalysis.getAsJsonArray("plannedOutputPaths").size(),
-            generatedAnalysis.getAsJsonArray("availableOutputPaths").size(),
+            generatedAnalysis.requireArrayNode("plannedOutputPaths").size(),
+            generatedAnalysis.requireArrayNode("availableOutputPaths").size(),
         )
-        assertTrue(generatedAnalysis.get("nextAction").isJsonNull)
+        assertTrue(generatedAnalysis.get("nextAction").isNull)
     }
 
     @Test
@@ -66,9 +68,9 @@ class Cap4kAgentSnapshotFunctionalTest {
 
         assertEquals(TaskOutcome.FAILED, result.task(":cap4kAgentSnapshot")?.outcome)
         val output = projectDir.resolve("build/cap4k/agent")
-        val manifest = JsonParser.parseString(output.resolve("manifest.json").toFile().readText()).asJsonObject
+        val manifest = jsonMapper.readTree(output.resolve("manifest.json").toFile().readText()).requireObjectNode()
         val diagnostics = output.resolve("diagnostics.json").toFile().readText()
-        assertEquals("invalid", manifest.get("status").asString)
+        assertEquals("invalid", manifest.get("status").asText())
         assertTrue(diagnostics.contains("project-configuration-invalid"))
     }
 
@@ -84,9 +86,9 @@ class Cap4kAgentSnapshotFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kAgentSnapshot")?.outcome)
         val output = projectDir.resolve("build/cap4k/agent")
-        val manifest = JsonParser.parseString(output.resolve("manifest.json").toFile().readText()).asJsonObject
+        val manifest = jsonMapper.readTree(output.resolve("manifest.json").toFile().readText()).requireObjectNode()
         val diagnostics = output.resolve("diagnostics.json").toFile().readText()
-        assertEquals("partial", manifest.get("status").asString)
+        assertEquals("partial", manifest.get("status").asText())
         assertTrue(diagnostics.contains("plan-evidence-invalid"))
         assertTrue(diagnostics.contains("items must be a JSON array"))
     }

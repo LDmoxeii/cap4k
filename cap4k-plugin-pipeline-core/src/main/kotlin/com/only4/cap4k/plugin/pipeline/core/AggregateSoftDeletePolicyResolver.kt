@@ -34,6 +34,7 @@ internal object AggregateSoftDeletePolicyResolver {
             "identifier.database-identity" -> "identity"
             else -> identifier.policyKey.removePrefix("identifier.")
         }
+        ApplicationIdentifierPolicyContract.rejectRetired(strategy, idLocation.path)
         if (!idResolution.isResolved || !deletedResolution.isResolved) {
             reject(
                 idPath = idResolution.path,
@@ -52,7 +53,7 @@ internal object AggregateSoftDeletePolicyResolver {
         val idStorageDescription = describeStorage(idStorage, idColumn)
         val deletedStorageDescription = describeStorage(deletedStorage, deletedColumn)
         val activeSentinel = when (strategy) {
-            IDENTITY, SNOWFLAKE -> SoftDeleteActiveSentinel.ZERO
+            IDENTITY -> SoftDeleteActiveSentinel.ZERO
             UUID7 -> SoftDeleteActiveSentinel.NIL_UUID
             else -> reject(
                 table = table,
@@ -61,7 +62,7 @@ internal object AggregateSoftDeletePolicyResolver {
                 strategy = strategy,
                 idStorage = idStorageDescription,
                 deletedStorage = deletedStorageDescription,
-                evidence = "accepted strategies are identity, uuid7, snowflake",
+                evidence = "accepted strategies are identity and uuid7",
             )
         }
 
@@ -147,27 +148,6 @@ internal object AggregateSoftDeletePolicyResolver {
                     "identity SELF_ID storage requires existing identity Kotlin support"
 
                 else -> null
-            }
-
-            SNOWFLAKE -> when (idStorage) {
-                is ResolvedAggregateIdStorage.Integral -> if (
-                    idStorage.bits == 64 &&
-                    !idStorage.unsigned &&
-                    idStorage.kotlinType in LONG_KOTLIN_TYPES
-                ) {
-                    null
-                } else {
-                    "snowflake integral ID storage requires signed 64-bit Long"
-                }
-
-                is ResolvedAggregateIdStorage.Character -> if (idStorage.capacity >= SNOWFLAKE_TEXT_CAPACITY) {
-                    null
-                } else {
-                    "snowflake String ID storage requires capacity >= $SNOWFLAKE_TEXT_CAPACITY"
-                }
-
-                is ResolvedAggregateIdStorage.NativeUuid ->
-                    "snowflake ID storage must be signed 64-bit Long or String"
             }
 
             UUID7 -> when (idStorage) {
@@ -375,20 +355,13 @@ internal object AggregateSoftDeletePolicyResolver {
 
     private const val IDENTITY = "identity"
     private const val UUID7 = "uuid7"
-    private const val SNOWFLAKE = "snowflake"
     private const val UUID_TEXT_CAPACITY = 36
-    private const val SNOWFLAKE_TEXT_CAPACITY = 19
 
     private val IDENTITY_KOTLIN_TYPES = setOf(
         "Short",
         "kotlin.Short",
         "Int",
         "kotlin.Int",
-        "Long",
-        "kotlin.Long",
-    )
-
-    private val LONG_KOTLIN_TYPES = setOf(
         "Long",
         "kotlin.Long",
     )

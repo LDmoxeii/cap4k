@@ -8,6 +8,7 @@ import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 @Entity
 @Table(name = "`__archived_event`")
@@ -78,6 +79,10 @@ class ArchivedEvent(
      */
     @Column(name = "`create_at`")
     var createAt: LocalDateTime = LocalDateTime.now(),
+
+    /** Immutable time at which the reliable event was first registered for publication. */
+    @Column(name = "`published_at`", nullable = false)
+    var publishedAt: LocalDateTime = LocalDateTime.now(ZoneOffset.UTC),
 
     /**
      * 分发状态
@@ -174,6 +179,7 @@ class ArchivedEvent(
         this.executionContext = event.executionContext
         this.exception = event.exception
         this.createAt = event.createAt
+        this.publishedAt = event.publishedAt
         this.expireAt = event.expireAt
         this.eventState = event.eventState
         this.tryTimes = event.tryTimes

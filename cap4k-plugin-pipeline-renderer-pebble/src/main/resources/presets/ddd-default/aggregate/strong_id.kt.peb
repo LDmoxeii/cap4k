@@ -31,13 +31,8 @@ import {{ import }}
 @Embeddable
 class {{ typeName }} protected constructor() : StrongId<{{ valueType }}>, Serializable {
     @Column(name = "value", nullable = false, updatable = false)
-{% if longBacked -%}
-    override var value: Long = 0L
-        protected set
-{% else -%}
     override lateinit var value: {{ valueType }}
         protected set
-{% endif %}
 
     @JsonCreator(mode = JsonCreator.Mode.DISABLED)
     private constructor(value: {{ valueType }}) : this() {
@@ -61,17 +56,6 @@ class {{ typeName }} protected constructor() : StrongId<{{ valueType }}>, Serial
 
         fun parse(value: String): {{ typeName }} =
             of(UUID.fromString(StrongIds.requireUuidV7(value, "{{ typeName }}")))
-{% elseif validationKind == "SNOWFLAKE" and stringBacked -%}
-        fun of(value: String): {{ typeName }} =
-            {{ typeName }}(StrongIds.requireSnowflake(value, "{{ typeName }}"))
-
-        fun parse(value: String): {{ typeName }} = of(value)
-{% elseif validationKind == "SNOWFLAKE" and longBacked -%}
-        fun of(value: Long): {{ typeName }} =
-            {{ typeName }}(StrongIds.requireSnowflake(value, "{{ typeName }}"))
-
-        fun parse(value: String): {{ typeName }} =
-            of(StrongIds.requireSnowflake(value, "{{ typeName }}").toLong())
 {% endif %}
 
         @JvmStatic

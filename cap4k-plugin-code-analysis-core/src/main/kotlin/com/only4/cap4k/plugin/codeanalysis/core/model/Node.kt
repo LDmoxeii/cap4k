@@ -25,6 +25,7 @@ enum class NodeType {
     capabilityhandler,
     apipayload,
     domainservice,
+    repository,
     aggregate,
     entitymethod,
     domainevent,

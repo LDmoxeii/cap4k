@@ -423,8 +423,8 @@ class AggregateArtifactPlannerTest {
                 strongIds = listOf(
                     generatedOwnId("LineId", packageName, "UUID", "Line", "uuid7"),
                     generatedOwnId("OrderId", packageName, "String", "Order", "uuid7"),
-                    generatedOwnId("PaymentId", packageName, "String", "Payment", "snowflake"),
-                    generatedOwnId("ShipmentId", packageName, "Long", "Shipment", "snowflake"),
+                    generatedOwnId("PaymentId", packageName, "String", "Payment", "uuid7"),
+                    generatedOwnId("ShipmentId", packageName, "UUID", "Shipment", "uuid7"),
                     StrongIdModel(
                         typeName = "OrderReferenceId",
                         packageName = packageName,
@@ -633,20 +633,6 @@ class AggregateArtifactPlannerTest {
                         kind = StrongIdKind.OWN_ID,
                         idStrategy = "uuid7",
                     ),
-                    StrongIdModel(
-                        typeName = "SnowflakeTextId",
-                        packageName = "com.acme.demo.domain.aggregates.example",
-                        valueType = "String",
-                        kind = StrongIdKind.OWN_ID,
-                        idStrategy = "snowflake",
-                    ),
-                    StrongIdModel(
-                        typeName = "SnowflakeLongId",
-                        packageName = "com.acme.demo.domain.aggregates.example",
-                        valueType = "Long",
-                        kind = StrongIdKind.OWN_ID,
-                        idStrategy = "snowflake",
-                    ),
                 ),
             ),
         )
@@ -656,8 +642,6 @@ class AggregateArtifactPlannerTest {
             .associateBy { it.context.getValue("typeName") }
         val uuidText = strongIds.getValue("UuidTextId")
         val uuidNative = strongIds.getValue("UuidNativeId")
-        val snowflakeText = strongIds.getValue("SnowflakeTextId")
-        val snowflakeLong = strongIds.getValue("SnowflakeLongId")
         val allocationContextKey = "can" + "GenerateNew"
 
         assertEquals("String", uuidText.context["valueType"])
@@ -667,13 +651,30 @@ class AggregateArtifactPlannerTest {
         assertEquals("UUID", uuidNative.context["valueType"])
         assertEquals(true, uuidNative.context["uuidBacked"])
 
-        assertEquals("String", snowflakeText.context["valueType"])
-        assertEquals("SNOWFLAKE", snowflakeText.context["validationKind"])
-
-        assertEquals("Long", snowflakeLong.context["valueType"])
-        assertEquals(true, snowflakeLong.context["longBacked"])
-
         assertTrue(strongIds.values.all { allocationContextKey !in it.context })
+    }
+
+    @Test
+    fun `strong id planner rejects retired snowflake strategy without substitution`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            StrongIdArtifactPlanner().plan(
+                aggregateConfig(),
+                CanonicalModel(
+                    strongIds = listOf(
+                        StrongIdModel(
+                            typeName = "RetiredId",
+                            packageName = "com.acme.demo.domain.aggregates.example",
+                            valueType = "Long",
+                            kind = StrongIdKind.OWN_ID,
+                            idStrategy = "snowflake",
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(error.message!!.contains("rejected value 'snowflake'"), error.message)
+        assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
     }
 
     @Test
@@ -686,8 +687,6 @@ class AggregateArtifactPlannerTest {
             fields = listOf(
                 FieldModel("uuidText", "UuidTextId", nullable = false, columnName = "uuid_text"),
                 FieldModel("uuidNative", "UuidNativeId", nullable = false, columnName = "uuid_native"),
-                FieldModel("snowflakeText", "SnowflakeTextId", nullable = false, columnName = "snowflake_text"),
-                FieldModel("snowflakeLong", "SnowflakeLongId", nullable = false, columnName = "snowflake_long"),
             ),
             idField = FieldModel("uuidText", "UuidTextId", nullable = false, columnName = "uuid_text"),
         )
@@ -704,8 +703,6 @@ class AggregateArtifactPlannerTest {
                         columns = listOf(
                             AggregateColumnJpaModel("uuidText", "uuid_text", isId = true, columnLength = 40),
                             AggregateColumnJpaModel("uuidNative", "uuid_native", isId = false, columnLength = 36),
-                            AggregateColumnJpaModel("snowflakeText", "snowflake_text", isId = false, columnLength = 24),
-                            AggregateColumnJpaModel("snowflakeLong", "snowflake_long", isId = false, columnLength = 19),
                         ),
                     )
                 ),
@@ -729,20 +726,6 @@ class AggregateArtifactPlannerTest {
                         kind = StrongIdKind.REFERENCE,
                         idStrategy = "uuid7",
                     ),
-                    StrongIdModel(
-                        typeName = "SnowflakeTextId",
-                        packageName = entity.packageName,
-                        valueType = "String",
-                        kind = StrongIdKind.REFERENCE,
-                        idStrategy = "snowflake",
-                    ),
-                    StrongIdModel(
-                        typeName = "SnowflakeLongId",
-                        packageName = entity.packageName,
-                        valueType = "Long",
-                        kind = StrongIdKind.REFERENCE,
-                        idStrategy = "snowflake",
-                    ),
                 ),
             ),
         ).single { it.templateId == "aggregate/entity.kt.peb" }.context
@@ -752,8 +735,6 @@ class AggregateArtifactPlannerTest {
 
         assertEquals(40, fields.getValue("uuidText")["attributeOverrideLength"])
         assertNull(fields.getValue("uuidNative")["attributeOverrideLength"])
-        assertEquals(24, fields.getValue("snowflakeText")["attributeOverrideLength"])
-        assertNull(fields.getValue("snowflakeLong")["attributeOverrideLength"])
     }
 
     @Test
@@ -765,13 +746,6 @@ class AggregateArtifactPlannerTest {
                 valueType = "Long",
                 kind = StrongIdKind.OWN_ID,
                 idStrategy = "uuid7",
-            ),
-            StrongIdModel(
-                typeName = "SnowflakeUuidId",
-                packageName = "com.acme.demo.domain.aggregates.example",
-                valueType = "UUID",
-                kind = StrongIdKind.OWN_ID,
-                idStrategy = "snowflake",
             ),
         ).forEach { strongId ->
             val error = assertThrows(IllegalArgumentException::class.java) {
@@ -837,8 +811,8 @@ class AggregateArtifactPlannerTest {
                         ownerEntityPackageName = "com.demo.domain.order",
                         ownerAggregateName = "Order",
                         ownerAggregatePackageName = "com.demo.domain.order",
-                        idStrategy = "snowflake",
-                        valueType = "Long",
+                        idStrategy = "uuid7",
+                        valueType = "String",
                         isEmbeddedId = true,
                     ),
                 ),
@@ -1434,6 +1408,7 @@ class AggregateArtifactPlannerTest {
         val repository = plan.single()
 
         assertEquals("UserMessageRepository", repository.context["typeName"])
+        assertEquals("UserMessageJpaRepositoryAdapter", repository.context["carrierTypeName"])
         assertEquals("UserMessage", repository.context["entityName"])
         assertEquals(
             "com.acme.demo.domain.aggregates.user_message.UserMessage",
@@ -2330,54 +2305,6 @@ class AggregateArtifactPlannerTest {
         assertEquals("java.util.UUID", idField["fieldType"])
         assertEquals(null, idField["defaultValue"])
         assertEquals(emptyList<String>(), entityArtifact.context["imports"])
-    }
-
-    @Test
-    fun `entity planner omits application side snowflake render keys on Long id field`() {
-        val entity = EntityModel(
-            name = "VideoPost",
-            packageName = "com.acme.demo.domain.aggregates.video_post",
-            tableName = "video_post",
-            comment = "video post",
-            fields = listOf(
-                FieldModel("id", "Long"),
-                FieldModel("title", "String"),
-            ),
-            idField = FieldModel("id", "Long"),
-        )
-        val plan = planAggregate(
-            aggregateConfig(),
-            CanonicalModel(
-                entities = listOf(entity),
-                aggregateEntityJpa = listOf(
-                    defaultAggregateEntityJpa(entity)
-                ),
-                aggregateIdPolicyControls = listOf(
-                    AggregateIdPolicyControl(
-                        entityName = "VideoPost",
-                        entityPackageName = "com.acme.demo.domain.aggregates.video_post",
-                        tableName = "video_post",
-                        idFieldName = "id",
-                        idFieldType = "Long",
-                        strategy = "snowflake",
-                        kind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                    )
-                ),
-            )
-        )
-
-        val entityArtifact = plan.single { it.outputPath.endsWith("/VideoPost.kt") }
-        @Suppress("UNCHECKED_CAST")
-        val scalarFields = entityArtifact.context["fields"] as List<Map<String, Any?>>
-        val idField = scalarFields.single { it["fieldName"] == "id" }
-
-        assertEquals(null, idField["defaultValue"])
-        assertEquals(null, idField["updatable"])
-        assertEquals(null, idField["generatedValueStrategy"])
-        assertFalse(idField.containsKey("generatedValue" + "Generator"))
-        assertFalse(idField.containsKey("genericGenerator" + "Name"))
-        assertFalse(idField.containsKey("genericGenerator" + "Strategy"))
-        assertEquals(false, entityArtifact.context["hasGeneratedValueFields"])
     }
 
     @Test
@@ -3795,17 +3722,6 @@ class AggregateArtifactPlannerTest {
 
         val cases = listOf(
             Case(
-                "LongMarker",
-                "LongMarkerId",
-                "Long",
-                "snowflake",
-                "Long",
-                "0",
-                AggregateIdStorageKind.INTEGRAL,
-                SoftDeleteActiveSentinel.ZERO,
-                "0L",
-            ),
-            Case(
                 "StringMarker",
                 "StringMarkerId",
                 "String",
@@ -3980,13 +3896,13 @@ class AggregateArtifactPlannerTest {
                     softDeleteResolvedPolicy(
                         entity = root,
                         idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                        idStrategy = "snowflake",
+                        idStrategy = "uuid7",
                         createAllowedFields = listOf("title"),
                     ),
                     softDeleteResolvedPolicy(
                         entity = child,
                         idKind = AggregateIdPolicyKind.APPLICATION_SIDE,
-                        idStrategy = "snowflake",
+                        idStrategy = "uuid7",
                         createAllowedFields = listOf("lineNo"),
                     ),
                 ),
@@ -3994,25 +3910,25 @@ class AggregateArtifactPlannerTest {
                     StrongIdModel(
                         typeName = "OrderId",
                         packageName = packageName,
-                        valueType = "Long",
+                        valueType = "String",
                         kind = StrongIdKind.OWN_ID,
                         ownerEntityName = root.name,
                         ownerEntityPackageName = packageName,
                         ownerAggregateName = root.name,
                         ownerAggregatePackageName = packageName,
-                        idStrategy = "snowflake",
+                        idStrategy = "uuid7",
                         isEmbeddedId = true,
                     ),
                     StrongIdModel(
                         typeName = "OrderLineId",
                         packageName = packageName,
-                        valueType = "Long",
+                        valueType = "String",
                         kind = StrongIdKind.OWN_ID,
                         ownerEntityName = child.name,
                         ownerEntityPackageName = packageName,
                         ownerAggregateName = root.name,
                         ownerAggregatePackageName = packageName,
-                        idStrategy = "snowflake",
+                        idStrategy = "uuid7",
                         isEmbeddedId = true,
                     ),
                 ),

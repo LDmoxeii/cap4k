@@ -97,6 +97,15 @@ internal object DbColumnAnnotationParser {
 
         val rawValue = matchingAnnotations.single().value
         require(rawValue.isNotBlank()) { "invalid @Managed annotation: value is required." }
+        if (
+            rawValue.trim().equals("identifier.snowflake", ignoreCase = true) ||
+            rawValue.trim().equals("snowflake", ignoreCase = true)
+        ) {
+            throw IllegalArgumentException(
+                "unsupported application-side Strong ID strategy: rejected value '$rawValue' at @Managed policy key; " +
+                    "supported application-side strategy: uuid7",
+            )
+        }
 
         return requireManagedFieldPolicyKey(rawValue, "@Managed policy key")
     }

@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.progress-checkpoint.v1",
+  "id": "5cc6808f-df8f-4ed8-9c72-6468fd540492",
+  "change": "runtime-snowflake-retirement",
+  "phase": "build",
+  "previousRevision": 2,
+  "stateRevision": 3,
+  "summary": "Shape is confirmed; isolated branch/worktree created from origin/master; root settings and AGENTS Snowflake claims are being removed while Runtime, Pipeline, and docs work proceeds in disjoint parallel slices.",
+  "nextAction": "Integrate Runtime/Pipeline/docs changes, run focused tests, and hold PR creation until Console retirement merges and the branch is rebased.",
+  "inputHash": "24a24f0336520fed52b15c2e0d2b0a8a5c9aad45090bbc67fee1e3366fda5b06",
+  "manifestHash": "a97fc2f34a891fe08dfa08c9188d22bf1397400b8c5b52d60c1014065a733df2",
+  "manifestRef": "runtime/checkpoints/manifests/a97fc2f34a891fe08dfa08c9188d22bf1397400b8c5b52d60c1014065a733df2.json",
+  "artifactCount": 2,
+  "createdAt": "2026-08-04T05:45:43.616Z"
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "comet.native.partial-allowance.v1",
+  "change": "runtime-console-retirement",
+  "scopeHash": "620d36eac0eddb99d2ade62bc58be451e5c77842ae06977dac566d5f0297bee9",
+  "scopeIds": [
+    "scope:2ab883b2931941112dd6521b37295df3cc554a650dfa5b7ad9239081fb66ab2b",
+    "scope:3eeee07b7862777eeb017d83e3656dc7d389e08b6e382b7994e8489624213d5b",
+    "scope:45e70895a4165f60f3f2dc5e02df61ca3e0c4d0d24dd59e94ee1936efc7fdb88",
+    "scope:5ba2716a00c31e74bffa6384902049f8cc63e48fb4fb31b27ed72098a97f7057",
+    "scope:71818b3e1f37f53571d2f541543447a9d98fc690af50f60973ee3ab986a76a8a",
+    "scope:7ad94d2351e67cf6821df2a58a7d6989b59deaf16e4aba4c24eea1a897a0f811",
+    "scope:a1915b9eb8d378423aaf35a42d10163f7b0765d56e22bc0138e1c4b89f97f885",
+    "scope:bd60d4ea9ee4c46fe3294eb3a4c3207c1ade948ad26ae27c85cdb716967b430d",
+    "scope:c0a4722597252961bf406b6c16bf0f97ff5d526f931fbf50d57e049c29dca228",
+    "scope:c3bf287679bdd005b13371819a8725ac96ff11cc3fa569fdbc808f92e94f605d",
+    "scope:e9ffaca16b97b6e199c830831ca0c1fb4b340ff4e9f5baf9c6ae740e38554809",
+    "scope:ed868044ae88cc6c52b7bc82b67a3b67c4c779c84831a5f546bba7a7c3f91fc0"
+  ],
+  "reason": "The only unattributed paths are the 12 deleted cap4k-ddd-console module files. They no longer exist as current project artifacts and were absent from the Native baseline, so the Runtime cannot attribute their removals; Git diff, stale-surface checks, focused tests, and the full repository check verify the deletion scope.",
+  "confirmedSummary": "Removed cap4k-ddd-console, its auto-configuration, tests, direct SQL administration services, unauthenticated HTTP endpoints, active build registration, public documentation, and Agent facts; preserved the existing programmatic Command/Event recovery APIs plus Locker and Snowflake Runtime modules.",
+  "sourceRevision": 2,
+  "confirmedAt": "2026-08-04T08:28:45.940Z",
+  "allowanceHash": "815a8ce018098a65b6d973efe63e83f74b54abe6f820c9c1703d6aa4d9f578d8"
+}

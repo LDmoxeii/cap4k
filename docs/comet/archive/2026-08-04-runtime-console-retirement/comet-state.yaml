@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-console-retirement
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 6d603a8a74c1465e1e4423d8a977d6991fa5d974d27b19c8d50fac0608eb48e7
+spec_changes:
+  - capability: runtime-console-retirement
+    operation: create
+    source: specs/runtime-console-retirement/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/620d36eac0eddb99d2ade62bc58be451e5c77842ae06977dac566d5f0297bee9.json
+verification_evidence: runtime/evidence/verifications/61820268a56d4f2bd7bdb48019c8dd29fb7e685e060eeb79d0ae0c56ca548936.json
+partial_allowance: runtime/evidence/allowances/815a8ce018098a65b6d973efe63e83f74b54abe6f820c9c1703d6aa4d9f578d8.json
+archived: true
+created_at: 2026-08-04
+run_id: 0d078d12-90b1-44a6-a215-96fb8e96f8be

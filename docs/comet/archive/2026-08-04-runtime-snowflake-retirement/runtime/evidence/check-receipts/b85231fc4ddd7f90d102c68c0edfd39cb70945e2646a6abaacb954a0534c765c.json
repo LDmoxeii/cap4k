@@ -1,0 +1,44 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "runtime-snowflake-retirement",
+  "sourceRevision": 4,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "cd0b904d1f41326fb6eef6180b3b84b2294589d5596f08aa615a240284f5e6e0",
+  "status": "passed",
+  "startedAt": "2026-08-04T11:34:57.681Z",
+  "endedAt": "2026-08-04T11:35:14.803Z",
+  "contract": {
+    "expectedHash": "d061bcd23eccdec91d0b86c5f3008ebc1bf20a2dae23ad2a49e0914a125859ce",
+    "beforeHash": "d061bcd23eccdec91d0b86c5f3008ebc1bf20a2dae23ad2a49e0914a125859ce",
+    "afterHash": "d061bcd23eccdec91d0b86c5f3008ebc1bf20a2dae23ad2a49e0914a125859ce"
+  },
+  "implementation": {
+    "scopeHash": "707884aa0942e91fbecc5db8727bb0fc6d55e6467ae89a14a390f7690a500683",
+    "expectedSnapshotHash": "89e7b297e788e76d7ea6987cd3359ae3703d1684b7e561a236badaf45547bdf5",
+    "beforeSnapshotHash": "89e7b297e788e76d7ea6987cd3359ae3703d1684b7e561a236badaf45547bdf5",
+    "afterSnapshotHash": "89e7b297e788e76d7ea6987cd3359ae3703d1684b7e561a236badaf45547bdf5"
+  },
+  "counts": {
+    "filesSelected": 59,
+    "filesScanned": 59,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 2075992,
+    "issueCount": 0,
+    "recordedIssueCount": 0
+  },
+  "issues": [],
+  "issuesTruncated": false,
+  "stale": false,
+  "staleReasons": [],
+  "receiptHash": "b85231fc4ddd7f90d102c68c0edfd39cb70945e2646a6abaacb954a0534c765c"
+}

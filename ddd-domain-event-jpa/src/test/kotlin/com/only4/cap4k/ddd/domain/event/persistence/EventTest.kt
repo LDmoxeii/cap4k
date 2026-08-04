@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 @DisplayName("Event实体类测试")
 class EventTest {
@@ -35,13 +37,18 @@ class EventTest {
             val retryTimes = 3
 
             // When
+            val beforeRegistration = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
             event.init(payload, svcName, testTime, expireAfter, retryTimes)
+            val afterRegistration = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS)
 
             // Then
             assertNotNull(event.eventUuid)
             assertEquals(svcName, event.svcName)
             assertEquals("test.event", event.eventType) // TestEvent now has @DomainEvent("test.event") annotation
             assertEquals(testTime, event.createAt)
+            assertTrue(event.publishedAt >= beforeRegistration)
+            assertTrue(event.publishedAt <= afterRegistration)
+            assertNotEquals(testTime, event.publishedAt)
             assertEquals(testTime.plusSeconds(1800), event.expireAt) // 30分钟
             assertEquals(Event.EventState.INIT, event.eventState)
             assertEquals(retryTimes, event.tryTimes)

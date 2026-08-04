@@ -130,6 +130,16 @@ data class DesignElementSnapshot(
     val eventName: String? = null,
 )
 
+data class AggregateElementSnapshot(
+    val carrierQualifiedName: String,
+    val aggregate: String,
+    val name: String,
+    val packageName: String,
+    val description: String,
+    val type: String,
+    val root: Boolean,
+)
+
 data class AggregateMetadataRecord(
     val aggregateName: String,
     val rootQualifiedName: String,
@@ -215,6 +225,7 @@ data class IrAnalysisSnapshot(
     val nodes: List<IrNodeSnapshot>,
     val edges: List<IrEdgeSnapshot>,
     val designElements: List<DesignElementSnapshot> = emptyList(),
+    val aggregateElements: List<AggregateElementSnapshot> = emptyList(),
 ) : SourceSnapshot
 
 data class EnumManifestSnapshot(
@@ -381,7 +392,10 @@ data class RepositoryModel(
     val packageName: String,
     val entityName: String,
     val idType: String,
-)
+) {
+    val carrierTypeName: String
+        get() = "${entityName}JpaRepositoryAdapter"
+}
 
 data class AnalysisNodeModel(
     val id: String,
@@ -397,6 +411,16 @@ data class AnalysisEdgeModel(
     val toId: String,
     val type: String,
     val label: String? = null,
+)
+
+data class AggregateElementModel(
+    val carrierQualifiedName: String,
+    val aggregate: String,
+    val name: String,
+    val packageName: String,
+    val description: String,
+    val type: String,
+    val root: Boolean,
 )
 
 data class DrawingBoardElementModel(
@@ -450,6 +474,7 @@ private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelection
 data class DrawingBoardModel(
     val elements: List<DrawingBoardElementModel>,
     val elementsByTag: Map<String, List<DrawingBoardElementModel>> = elements.groupBy { it.tag },
+    val aggregateElements: List<AggregateElementModel> = emptyList(),
 ) {
     init {
         require(elementsByTag == elements.groupBy { it.tag }) {
@@ -462,6 +487,7 @@ data class AnalysisGraphModel(
     val inputDirs: List<String>,
     val nodes: List<AnalysisNodeModel>,
     val edges: List<AnalysisEdgeModel>,
+    val aggregateElements: List<AggregateElementModel> = emptyList(),
 )
 
 data class AggregateRef(

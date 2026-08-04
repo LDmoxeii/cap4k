@@ -10,10 +10,13 @@ import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.query.QueryExecution
 import com.only4.cap4k.ddd.core.application.query.QueryHandler
 import com.only4.cap4k.ddd.core.application.query.impl.DefaultQuerySupervisor
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -25,7 +28,9 @@ import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.scheduling.annotation.Async
 import org.springframework.transaction.event.TransactionalEventListener
+import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -146,22 +151,34 @@ class Cap4kEventListenerFactoryTest {
     }
 
     @Test
-    fun `event handler waits for ignored Mediator managed query tasks and propagates their failure`() {
+    fun `reliable handler keeps delivery context through scoped async query completion and failure`() {
         val scopes = DefaultInvocationScopeManager()
         val executionContexts = DefaultExecutionContextManager()
+        val reliableDeliveryContexts = DefaultReliableEventDeliveryContextManager(executionContexts, executionContexts)
+        val deliveryContext = ReliableEventDeliveryContext(
+            eventId = "event-42",
+            eventName = "order.created",
+            publishedAt = Instant.parse("2026-08-04T08:09:10Z"),
+            attempt = 2,
+            redeliveryHint = ReliableEventRedeliveryHint.REDELIVERED,
+        )
+        val observedDeliveryContexts = ConcurrentLinkedQueue<ReliableEventDeliveryContext>()
         val executor = BoundedApplicationAsyncExecutor(2, 8, threadNamePrefix = "event-query-test-")
         val queryStarted = CountDownLatch(1)
         val releaseQuery = CountDownLatch(1)
         val taskFailure = IllegalStateException("query failed")
         val querySupervisor = DefaultQuerySupervisor(
             handlers = listOf(object : QueryHandler<ManagedQuery, String> {
-                override fun handle(query: ManagedQuery): String = when (query.value) {
-                    "wait" -> {
-                        queryStarted.countDown()
-                        releaseQuery.await(5, TimeUnit.SECONDS)
-                        "done"
+                override fun handle(query: ManagedQuery): String {
+                    observedDeliveryContexts += reliableDeliveryContexts.current()
+                    return when (query.value) {
+                        "wait" -> {
+                            queryStarted.countDown()
+                            releaseQuery.await(5, TimeUnit.SECONDS)
+                            "done"
+                        }
+                        else -> throw taskFailure
                     }
-                    else -> throw taskFailure
                 }
             }),
             interceptors = emptyList(),
@@ -177,16 +194,26 @@ class Cap4kEventListenerFactoryTest {
 
         try {
             withRuntimeContext(ManagedAsyncHandler::class.java, scopes) { _, dispatcher ->
-                val delivery = CompletableFuture.runAsync { dispatcher.dispatch(DomainPayload("wait")) }
+                val delivery = CompletableFuture.runAsync {
+                    reliableDeliveryContexts.install(deliveryContext).use {
+                        dispatcher.dispatch(DomainPayload("wait"))
+                    }
+                    assertNull(reliableDeliveryContexts.currentOrNull())
+                }
                 assertTrue(queryStarted.await(5, TimeUnit.SECONDS))
                 assertFalse(delivery.isDone)
                 releaseQuery.countDown()
                 delivery.get(5, TimeUnit.SECONDS)
+                assertEquals(deliveryContext, observedDeliveryContexts.remove())
 
                 val failure = assertThrows<EventListenerInvocationException> {
-                    dispatcher.dispatch(DomainPayload("fail"))
+                    reliableDeliveryContexts.install(deliveryContext).use {
+                        dispatcher.dispatch(DomainPayload("fail"))
+                    }
                 }
                 assertSame(taskFailure, failure.cause)
+                assertEquals(deliveryContext, observedDeliveryContexts.remove())
+                assertNull(reliableDeliveryContexts.currentOrNull())
             }
         } finally {
             executor.close()

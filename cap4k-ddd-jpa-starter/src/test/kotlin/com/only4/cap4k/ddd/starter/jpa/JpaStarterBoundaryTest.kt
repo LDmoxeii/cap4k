@@ -1,11 +1,8 @@
 package com.only4.cap4k.ddd.starter.jpa
 
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
-import java.nio.file.Files
-import java.nio.file.Path
 
 class JpaStarterBoundaryTest {
     @Test
@@ -21,11 +18,6 @@ class JpaStarterBoundaryTest {
 
     @Test
     fun `JPA starter does not select advanced implementations`() {
-        val buildScript = Files.readString(Path.of("build.gradle.kts"))
-        assertFalse(
-            Regex("""(?m)^\s*(api|implementation)\(project\(\":ddd-distributed-snowflake\"\)\)""")
-                .containsMatchIn(buildScript),
-        )
         assertNotOnClasspath("com.only4.cap4k.ddd.application.distributed.locker.JdbcLocker")
         assertNotOnClasspath("com.only4.cap4k.ddd.application.saga.JpaSagaRecordRepository")
         assertNotOnClasspath("com.only4.cap4k.ddd.application.command.JpaCommandRecordRepository")

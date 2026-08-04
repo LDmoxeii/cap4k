@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
-import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.*
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
@@ -1052,26 +1052,6 @@ class PebbleArtifactRendererTest {
                 applicationSideId = false,
             ),
             MatrixCell(
-                typeName = "SnowflakeLongRecord",
-                backingType = "Long",
-                deletedType = "Long",
-                propertyInitializer = "0L",
-                storageKind = "INTEGRAL",
-                activeSentinel = "ZERO",
-                sqlActiveLiteral = "0",
-                applicationSideId = true,
-            ),
-            MatrixCell(
-                typeName = "SnowflakeStringRecord",
-                backingType = "String",
-                deletedType = "String",
-                propertyInitializer = "\"0\"",
-                storageKind = "CHARACTER",
-                activeSentinel = "ZERO",
-                sqlActiveLiteral = "'0'",
-                applicationSideId = true,
-            ),
-            MatrixCell(
                 typeName = "Uuid7StringRecord",
                 backingType = "String",
                 deletedType = "String",
@@ -1705,14 +1685,13 @@ class PebbleArtifactRendererTest {
 
     @Test
     @OptIn(org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi::class)
-    fun `aggregate strong id template renders four storage nearest variants with scalar string json`() {
+    fun `aggregate strong id template renders UUID7 storage variants with scalar string json`() {
         fun renderStrongId(
             packageName: String,
             valueType: String,
             validationKind: String,
             stringBacked: Boolean,
             uuidBacked: Boolean,
-            longBacked: Boolean,
         ): String =
             renderTemplate(
                 templateId = "aggregate/strong_id.kt.peb",
@@ -1724,24 +1703,18 @@ class PebbleArtifactRendererTest {
                     "validationKind" to validationKind,
                     "stringBacked" to stringBacked,
                     "uuidBacked" to uuidBacked,
-                    "longBacked" to longBacked,
                     "imports" to emptyList<String>(),
                 ),
             )
 
-        val uuidText = renderStrongId("com.acme.demo.ids.uuidtext", "String", "UUID7", true, false, false)
-        val uuidNative = renderStrongId("com.acme.demo.ids.uuidnative", "UUID", "UUID7", false, true, false)
-        val snowflakeText = renderStrongId("com.acme.demo.ids.snowflaketext", "String", "SNOWFLAKE", true, false, false)
-        val snowflakeLong = renderStrongId("com.acme.demo.ids.snowflakelong", "Long", "SNOWFLAKE", false, false, true)
+        val uuidText = renderStrongId("com.acme.demo.ids.uuidtext", "String", "UUID7", true, false)
+        val uuidNative = renderStrongId("com.acme.demo.ids.uuidnative", "UUID", "UUID7", false, true)
 
         assertTrue(uuidText.contains("StrongId<String>"))
         assertTrue(uuidText.contains("fun of(value: String): OrderId"))
         assertTrue(uuidNative.contains("StrongId<UUID>"))
         assertTrue(uuidNative.contains("fun of(value: UUID): OrderId"))
-        assertTrue(snowflakeText.contains("StrongIds.requireSnowflake(value, \"OrderId\")"))
-        assertTrue(snowflakeLong.contains("override var value: Long = 0L"))
-        assertTrue(snowflakeLong.contains("fun jsonValue(): String = value.toString()"))
-        listOf(uuidText, uuidNative, snowflakeText, snowflakeLong).forEach { source ->
+        listOf(uuidText, uuidNative).forEach { source ->
             assertReadableKotlin(source)
             assertFalse(source.contains("fun new("))
             assertFalse(source.contains("AttributeConverter"))
@@ -1759,8 +1732,6 @@ class PebbleArtifactRendererTest {
         val generatedSources = listOf(
             SourceFile.kotlin("UuidTextOrderId.kt", uuidText),
             SourceFile.kotlin("UuidNativeOrderId.kt", uuidNative),
-            SourceFile.kotlin("SnowflakeTextOrderId.kt", snowflakeText),
-            SourceFile.kotlin("SnowflakeLongOrderId.kt", snowflakeLong),
         )
         val result = KotlinCompilation().apply {
             sources = generatedSources + strongIdCompileStubs
@@ -1792,8 +1763,6 @@ class PebbleArtifactRendererTest {
             object StrongIds {
                 fun requireUuidV7(value: String, typeName: String): String = value
                 fun requireUuidV7(value: UUID, typeName: String): UUID = value
-                fun requireSnowflake(value: String, typeName: String): String = value
-                fun requireSnowflake(value: Long, typeName: String): Long = value
             }
             """.trimIndent(),
         ),
@@ -2576,13 +2545,9 @@ class PebbleArtifactRendererTest {
 
         val uuidTextEntity = renderStrongIdEntity("UuidTextId", "uuid_text", 40, embeddedId = true)
         val uuidNativeEntity = renderStrongIdEntity("UuidNativeId", "uuid_native", null, embeddedId = false)
-        val snowflakeTextEntity = renderStrongIdEntity("SnowflakeTextId", "snowflake_text", 24, embeddedId = false)
-        val snowflakeLongEntity = renderStrongIdEntity("SnowflakeLongId", "snowflake_long", null, embeddedId = false)
 
         assertTrue(uuidTextEntity.contains("updatable = false, length = 40"))
         assertFalse(uuidNativeEntity.contains("length ="))
-        assertFalse(snowflakeLongEntity.contains("length ="))
-        assertTrue(snowflakeTextEntity.contains("length = 24"))
     }
 
     @Test
@@ -2953,6 +2918,7 @@ class PebbleArtifactRendererTest {
             context = mapOf(
                 "packageName" to "com.acme.demo.adapter.domain.repositories",
                 "typeName" to "ContentRepository",
+                "carrierTypeName" to "ContentJpaRepositoryAdapter",
                 "entityName" to "Content",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
                 "aggregateName" to "Content",
@@ -2965,13 +2931,13 @@ class PebbleArtifactRendererTest {
         assertReadableKotlin(content)
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.Content"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
-        assertTrue(
-            content.contains(
-                "interface ContentRepository : JpaRepository<Content, ContentId>, JpaSpecificationExecutor<Content>"
-            )
-        )
-        assertTrue(content.contains("jpaRepository: JpaRepository<Content, ContentId>"))
+        assertTrue(content.contains("internal open class ContentJpaRepositoryAdapter("))
+        assertTrue(content.contains("entityManager: EntityManager"))
         assertTrue(content.contains("AbstractJpaRepository<Content, ContentId>"))
+        assertTrue(content.contains("Content::class.java"))
+        assertFalse(content.contains("interface ContentRepository"))
+        assertFalse(content.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(content.contains("JpaSpecificationExecutor"))
         assertFalse(content.contains("QuerydslPredicateExecutor"))
         assertFalse(content.contains("AbstractQuerydslRepository"))
         assertFalse(content.contains("QuerydslRepositoryAdapter"))
@@ -3037,6 +3003,7 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.domain.repositories",
                         "typeName" to "UserMessageRepository",
+                        "carrierTypeName" to "UserMessageJpaRepositoryAdapter",
                         "entityName" to "UserMessage",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "aggregateName" to "UserMessage",
@@ -3090,13 +3057,13 @@ class PebbleArtifactRendererTest {
         val schemaContent = rendered.single { it.outputPath.endsWith("SUserMessage.kt") }.content
 
         assertTrue(repositoryContent.contains("@Repository"))
-        assertTrue(
-            repositoryContent.contains(
-                "interface UserMessageRepository : JpaRepository<UserMessage, Long>, JpaSpecificationExecutor<UserMessage>"
-            )
-        )
-        assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("internal open class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("entityManager: EntityManager"))
         assertTrue(repositoryContent.contains("AbstractJpaRepository<UserMessage, Long>"))
+        assertTrue(repositoryContent.contains("UserMessage::class.java"))
+        assertFalse(repositoryContent.contains("interface UserMessageRepository"))
+        assertFalse(repositoryContent.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(repositoryContent.contains("JpaSpecificationExecutor"))
         assertFalse(repositoryContent.contains("QuerydslPredicateExecutor"))
         assertFalse(repositoryContent.contains("AbstractQuerydslRepository"))
         assertFalse(repositoryContent.contains("QuerydslRepositoryAdapter"))
@@ -4622,6 +4589,7 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.domain.repositories",
                         "typeName" to "OrderRepository",
+                        "carrierTypeName" to "OrderJpaRepositoryAdapter",
                         "entityName" to "Order",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "aggregateName" to "Order",
@@ -4692,7 +4660,11 @@ class PebbleArtifactRendererTest {
         assertTrue(entityContent.contains("var orderNo: String? = orderNo"))
         assertFalse(entityContent.contains("jakarta.persistence"))
         assertTrue(repositoryContent.contains("@Repository"))
-        assertTrue(repositoryContent.contains("interface OrderRepository : JpaRepository<Order, Long>, JpaSpecificationExecutor<Order>"))
+        assertTrue(repositoryContent.contains("internal open class OrderJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("Order::class.java"))
+        assertFalse(repositoryContent.contains("interface OrderRepository"))
+        assertFalse(repositoryContent.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(repositoryContent.contains("JpaSpecificationExecutor"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
         assertFalse(factoryContent.contains(legacyAggregateAnnotationFq))
@@ -6249,16 +6221,16 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+        val element = PipelineJson.newMapper().readTree(content).single()
 
-        assertEquals("cmd", element["tag"].asString)
-        assertEquals("orders.api", element["package"].asString)
-        assertEquals("Submit\"Order", element["name"].asString)
-        assertEquals("line1\nline2", element["description"].asString)
-        assertEquals("Ops\\Audit", element["aggregates"].asJsonArray[1].asString)
-        assertEquals(true, element["persist"].asBoolean)
-        assertEquals("say \"hi\"", element["fields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
-        assertEquals("status", element["resultFields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals("cmd", element["tag"].asText())
+        assertEquals("orders.api", element["package"].asText())
+        assertEquals("Submit\"Order", element["name"].asText())
+        assertEquals("line1\nline2", element["description"].asText())
+        assertEquals("Ops\\Audit", element["aggregates"][1].asText())
+        assertEquals(true, element["persist"].asBoolean())
+        assertEquals("say \"hi\"", element["fields"][0]["defaultValue"].asText())
+        assertEquals("status", element["resultFields"][0]["name"].asText())
     }
 
     @Test
@@ -6528,46 +6500,46 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        val elements = JsonParser.parseString(content).asJsonArray
+        val elements = PipelineJson.newMapper().readTree(content)
 
-        assertEquals("query", elements[0].asJsonObject["tag"].asString)
-        assertEquals("orders.queries", elements[0].asJsonObject["package"].asString)
-        assertEquals("ReadOrder", elements[0].asJsonObject["name"].asString)
-        assertEquals("read order", elements[0].asJsonObject["description"].asString)
-        assertTrue(elements[0].asJsonObject["fields"].asJsonArray.size() == 1)
-        assertTrue(elements[0].asJsonObject["resultFields"].asJsonArray.size() == 1)
-        assertFalse(elements[0].asJsonObject.has("desc"))
-        assertFalse(elements[0].asJsonObject.has("requestFields"))
-        assertFalse(elements[0].asJsonObject.has("responseFields"))
-        assertFalse(elements[0].asJsonObject.has("traits"))
-        assertFalse(elements[0].asJsonObject.has("role"))
-        assertFalse(elements[0].asJsonObject.has("eventName"))
-        assertFalse(elements[0].asJsonObject.has("entity"))
-        assertFalse(elements[0].asJsonObject.has("message"))
-        assertFalse(elements[0].asJsonObject.has("targets"))
-        assertFalse(elements[0].asJsonObject.has("valueType"))
-        assertFalse(elements[0].asJsonObject.has("artifacts"))
+        assertEquals("query", elements[0]["tag"].asText())
+        assertEquals("orders.queries", elements[0]["package"].asText())
+        assertEquals("ReadOrder", elements[0]["name"].asText())
+        assertEquals("read order", elements[0]["description"].asText())
+        assertTrue(elements[0]["fields"].size() == 1)
+        assertTrue(elements[0]["resultFields"].size() == 1)
+        assertFalse(elements[0].has("desc"))
+        assertFalse(elements[0].has("requestFields"))
+        assertFalse(elements[0].has("responseFields"))
+        assertFalse(elements[0].has("traits"))
+        assertFalse(elements[0].has("role"))
+        assertFalse(elements[0].has("eventName"))
+        assertFalse(elements[0].has("entity"))
+        assertFalse(elements[0].has("message"))
+        assertFalse(elements[0].has("targets"))
+        assertFalse(elements[0].has("valueType"))
+        assertFalse(elements[0].has("artifacts"))
 
-        val pageQuery = elements[1].asJsonObject
-        assertEquals("PageOrders", pageQuery["name"].asString)
+        val pageQuery = elements[1]
+        assertEquals("PageOrders", pageQuery["name"].asText())
         assertTrue(pageQuery.has("artifacts"))
-        assertEquals("query", pageQuery["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
-        assertEquals("page", pageQuery["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
+        assertEquals("query", pageQuery["artifacts"][0]["family"].asText())
+        assertEquals("page", pageQuery["artifacts"][0]["variant"].asText())
 
-        val inboundIntegration = elements[2].asJsonObject
+        val inboundIntegration = elements[2]
         assertFalse(inboundIntegration.has("artifacts"))
 
-        val explicitIntegration = elements[3].asJsonObject
-        assertEquals(2, explicitIntegration["artifacts"].asJsonArray.size())
-        assertEquals("integration-event", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
-        assertEquals("inbound", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
-        assertEquals("integration-subscriber", explicitIntegration["artifacts"].asJsonArray[1].asJsonObject["family"].asString)
-        assertFalse(explicitIntegration["artifacts"].asJsonArray[1].asJsonObject.has("variant"))
+        val explicitIntegration = elements[3]
+        assertEquals(2, explicitIntegration["artifacts"].size())
+        assertEquals("integration-event", explicitIntegration["artifacts"][0]["family"].asText())
+        assertEquals("inbound", explicitIntegration["artifacts"][0]["variant"].asText())
+        assertEquals("integration-subscriber", explicitIntegration["artifacts"][1]["family"].asText())
+        assertFalse(explicitIntegration["artifacts"][1].has("variant"))
 
-        val explicitEmptyArtifacts = elements[4].asJsonObject
-        assertEquals("QueryWithoutArtifacts", explicitEmptyArtifacts["name"].asString)
+        val explicitEmptyArtifacts = elements[4]
+        assertEquals("QueryWithoutArtifacts", explicitEmptyArtifacts["name"].asText())
         assertTrue(explicitEmptyArtifacts.has("artifacts"))
-        assertEquals(0, explicitEmptyArtifacts["artifacts"].asJsonArray.size())
+        assertEquals(0, explicitEmptyArtifacts["artifacts"].size())
     }
 
     @Test
@@ -6619,9 +6591,9 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\\u003e"))
         assertFalse(content.contains("\\u0026"))
 
-        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
-        assertEquals("Map<String, String> <raw> & stable", element["description"].asString)
-        assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
+        val element = PipelineJson.newMapper().readTree(content).single()
+        assertEquals("Map<String, String> <raw> & stable", element["description"].asText())
+        assertEquals("Content", element["aggregates"].single().asText())
     }
 
     @Test
@@ -6691,19 +6663,19 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
-        val fields = element["fields"].asJsonArray
-        val resultFields = element["resultFields"].asJsonArray
+        val element = PipelineJson.newMapper().readTree(rendered.single().content).single()
+        val fields = element["fields"]
+        val resultFields = element["resultFields"]
 
-        assertEquals("emptySet()", fields[0].asJsonObject["defaultValue"].asString)
-        assertEquals("null", fields[1].asJsonObject["defaultValue"].asString)
+        assertEquals("emptySet()", fields[0]["defaultValue"].asText())
+        assertEquals("null", fields[1]["defaultValue"].asText())
         assertEquals(
             "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
-            resultFields[0].asJsonObject["defaultValue"].asString,
+            resultFields[0]["defaultValue"].asText(),
         )
         assertEquals(
             "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            resultFields[1].asJsonObject["defaultValue"].asString,
+            resultFields[1]["defaultValue"].asText(),
         )
     }
 
@@ -6756,10 +6728,10 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
+        val element = PipelineJson.newMapper().readTree(rendered.single().content).single()
         assertTrue(!element.has("entity"))
-        assertEquals(1, element["fields"].asJsonArray.size())
-        assertEquals("reason", element["fields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals(1, element["fields"].size())
+        assertEquals("reason", element["fields"][0]["name"].asText())
     }
 
     @Test
@@ -6814,9 +6786,9 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("\"eventName\": \"cap4k.reference.contentstudio.media-processing.succeeded\""))
 
-        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+        val element = PipelineJson.newMapper().readTree(content).single()
         assertTrue(!element.has("role"))
-        assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asString)
+        assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asText())
     }
 
     @Test

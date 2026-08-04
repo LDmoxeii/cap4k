@@ -29,13 +29,13 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         requireDrawingBoardAnalysisMetadata(model)
-        val elementsByTag = model.drawingBoard?.elementsByTag ?: return emptyList()
+        val drawingBoard = model.drawingBoard ?: return emptyList()
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val outputRoot = artifactLayout.drawingBoardOutputRoot()
 
-        return supportedTags.flatMap { tag ->
-            val elements = elementsByTag[tag].orEmpty()
+        val designArtifacts = supportedTags.flatMap { tag ->
+            val elements = drawingBoard.elementsByTag[tag].orEmpty()
             if (elements.isEmpty()) {
                 emptyList()
             } else {
@@ -56,6 +56,22 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
                 )
             }
         }
+        val aggregateElements = drawingBoard.aggregateElements
+            .sortedBy(AggregateElementModel::carrierQualifiedName)
+        if (aggregateElements.isEmpty()) {
+            return designArtifacts
+        }
+
+        return designArtifacts + ArtifactPlanItem(
+            generatorId = id,
+            moduleRole = "project",
+            templateId = "drawing-board/aggregate-elements.json.peb",
+            outputPath = artifactLayout.projectResourcePath(outputRoot, "drawing_board_aggregate_elements.json"),
+            context = mapOf("aggregateElements" to aggregateElements),
+            conflictPolicy = ConflictPolicy.OVERWRITE,
+            outputKind = ArtifactOutputKind.OUTPUT_ARTIFACT,
+            resolvedOutputRoot = outputRoot,
+        )
     }
 
     private companion object {
@@ -178,13 +194,18 @@ private val ArtifactComparator =
 
 private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
     val missing = model.analysisGraph?.nodes.orEmpty()
-        .filter { node -> DESIGN_BLOCK_METADATA_FQ in node.missingMetadata }
-        .groupBy { node -> node.metadataOwner ?: node.fullName }
+        .flatMap { node ->
+            listOf(DESIGN_BLOCK_METADATA_FQ, AGGREGATE_ELEMENT_METADATA_FQ)
+                .filter { metadataFq -> metadataFq in node.missingMetadata }
+                .map { metadataFq -> (node.metadataOwner ?: node.fullName) to metadataFq }
+        }
+        .distinct()
+        .sortedWith(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
     if (missing.isEmpty()) {
         return
     }
-    val details = missing.keys.sorted().joinToString(separator = System.lineSeparator()) { symbol ->
-        "- symbol: $symbol; missing metadata: $DESIGN_BLOCK_METADATA_FQ; affected capability: Drawing Board"
+    val details = missing.joinToString(separator = System.lineSeparator()) { (symbol, metadataFq) ->
+        "- symbol: $symbol; missing metadata: $metadataFq; affected capability: Drawing Board"
     }
     throw IllegalArgumentException(
         buildString {
@@ -202,3 +223,5 @@ private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
 
 private const val DESIGN_BLOCK_METADATA_FQ =
     "com.only4.cap4k.analysis.metadata.DesignBlockMetadata"
+private const val AGGREGATE_ELEMENT_METADATA_FQ =
+    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"

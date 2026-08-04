@@ -19,7 +19,7 @@ plugins {
 include("cap4k-analysis-metadata")
 include("ddd-core")
 include("ddd-application-command-jpa")
-include("ddd-distributed-locker-jdbc", "ddd-distributed-snowflake")
+include("ddd-distributed-locker-jdbc")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")
 include(
     "ddd-integration-event-http",
@@ -28,11 +28,9 @@ include(
     "ddd-integration-event-rocketmq"
 )
 include(
-    "cap4k-ddd-console",
     "cap4k-ddd-core-starter",
     "cap4k-ddd-jpa-starter",
     "cap4k-ddd-locker-jdbc-starter",
-    "cap4k-ddd-snowflake-starter",
     "cap4k-ddd-command-jpa-starter",
     "cap4k-ddd-domain-event-jpa-starter",
     "cap4k-ddd-integration-event-http-starter",
@@ -45,6 +43,7 @@ include("cap4k-plugin-code-analysis-compiler")
 include("cap4k-plugin-code-analysis-flow-export")
 include(
     "cap4k-plugin-pipeline-api",
+    "cap4k-plugin-pipeline-json",
     "cap4k-plugin-pipeline-agent",
     "cap4k-plugin-pipeline-core",
     "cap4k-plugin-pipeline-renderer-api",

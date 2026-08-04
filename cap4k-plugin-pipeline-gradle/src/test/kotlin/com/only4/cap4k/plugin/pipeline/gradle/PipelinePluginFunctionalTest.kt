@@ -1,10 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.JsonParser
-import com.google.gson.JsonObject
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyCompileFixture
 import com.only4.cap4k.plugin.pipeline.gradle.FunctionalFixtureSupport.copyFixture
-import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -20,6 +18,8 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 class PipelinePluginFunctionalTest {
+    private val jsonMapper = PipelineJson.newMapper(includeNulls = true)
+
     private val legacyAggregateAnnotationFq =
         listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
     private val legacyAggregateCall = "@" + "Aggregate("
@@ -32,31 +32,30 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-plan")
         copyCompileFixture(projectDir, "design-integrated-compile-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
         val planText = planFile.readText()
-        val planJson = JsonParser.parseString(planText).asJsonObject
-        val planItems = planJson.getAsJsonArray("items").map { it.asJsonObject }
-        val designItems = planItems.filter { item -> item.get("templateId").asString.startsWith("design/") }
-        val commandItem = designItems.first { it.get("templateId").asString == "design/command.kt.peb" }
+        val planJson = jsonMapper.readTree(planText).requireObjectNode()
+        val planItems = planJson.requireArrayNode("items").map { it.requireObjectNode() }
+        val designItems = planItems.filter { item -> item.get("templateId").asText().startsWith("design/") }
+        val commandItem = designItems.first { it.get("templateId").asText() == "design/command.kt.peb" }
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.exists())
         assertTrue(planText.contains("\n  \"items\""))
-        assertTrue(planText.contains("\"diagnostics\""))
-        assertTrue(planText.contains("\"templateId\": \"design/command.kt.peb\""))
-        assertTrue(planText.contains("\"templateId\": \"design/query.kt.peb\""))
-        assertTrue(planText.contains("\"templateId\": \"design/domain_service.kt.peb\""))
-        assertTrue(planText.contains("\"templateId\": \"types/value-object\""))
-        assertFalse(planText.contains("\"generatorId\": \"design-validator\""))
-        assertFalse(planText.contains("\"templateId\": \"design/validator.kt.peb\""))
-        assertFalse(planText.contains("\"templateId\": \"design/query_" + "list.kt.peb\""))
-        assertFalse(planText.contains("\"templateId\": \"design/query_" + "page.kt.peb\""))
+        assertTrue(planJson.has("diagnostics"))
+        val templateIds = planItems.map { item -> item.get("templateId").asText() }.toSet()
+        assertTrue("design/command.kt.peb" in templateIds)
+        assertTrue("design/query.kt.peb" in templateIds)
+        assertTrue("design/domain_service.kt.peb" in templateIds)
+        assertTrue("types/value-object" in templateIds)
+        assertFalse(planItems.any { item -> item.get("generatorId").asText() == "design-validator" })
+        assertFalse("design/validator.kt.peb" in templateIds)
+        assertFalse("design/query_list.kt.peb" in templateIds)
+        assertFalse("design/query_page.kt.peb" in templateIds)
         assertEquals(
             setOf(
                 "command",
@@ -71,7 +70,7 @@ class PipelinePluginFunctionalTest {
                 "integration-subscriber",
                 "domain-service",
             ),
-            designItems.map { item -> item.get("generatorId").asString }.toSet(),
+            designItems.map { item -> item.get("generatorId").asText() }.toSet(),
         )
         assertFalse(
             designItems.any { item ->
@@ -79,11 +78,11 @@ class PipelinePluginFunctionalTest {
                 contractText.contains("scheduled") || contractText.contains("job") || contractText.contains("validator")
             },
         )
-        assertEquals("command", commandItem.get("generatorId").asString)
-        assertEquals("", commandItem.get("resolvedOutputRoot").asString)
+        assertEquals("command", commandItem.get("generatorId").asText())
+        assertEquals("", commandItem.get("resolvedOutputRoot").asText())
         assertEquals(
             "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
-            commandItem.get("outputPath").asString,
+            commandItem.get("outputPath").asText(),
         )
     }
 
@@ -93,9 +92,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-generate")
         copyFixture(projectDir)
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -158,9 +155,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-generate-list-page")
         copyFixture(projectDir)
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -223,9 +218,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-default-values")
         copyFixture(projectDir, "design-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -252,9 +245,7 @@ class PipelinePluginFunctionalTest {
             "demo-application/src/main/kotlin/com/acme/demo/application/commands/video/post/InvalidVideoPostCmd.kt"
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .buildAndFail()
 
@@ -273,9 +264,7 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.appendTemplateOverrideBlock()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -333,9 +322,7 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.appendTemplateOverrideBlock()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -402,9 +389,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-plan")
         copyFixture(projectDir, "design-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
@@ -430,9 +415,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-query-handler-generate")
         copyFixture(projectDir, "design-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -520,9 +503,7 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.appendTemplateOverrideBlock()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -556,9 +537,7 @@ class PipelinePluginFunctionalTest {
             buildFileContent.replace("        adapterModulePath.set(\"demo-adapter\")", "        adapterModulePath.set(\"\")")
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -576,9 +555,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-capability-plan")
         copyFixture(projectDir, "design-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
@@ -607,9 +584,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-capability-generate")
         copyFixture(projectDir, "design-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -648,9 +623,7 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         buildFile.appendTemplateOverrideBlock()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -681,9 +654,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -701,9 +672,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-type-registry")
         copyFixture(projectDir, "design-type-registry-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -748,9 +717,7 @@ class PipelinePluginFunctionalTest {
             """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .buildAndFail()
         assertTrue(result.output.contains("failed to resolve semantic type for field"))
@@ -765,21 +732,19 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "design-sample")
 
         val designFile = projectDir.resolve("design/design.json")
-        val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
+        val designEntries = jsonMapper.readTree(designFile.readText()).requireArrayNode()
         val findOrder = designEntries
-            .map { it.asJsonObject }
-            .single { it["name"].asString == "FindOrder" }
-        findOrder["fields"].asJsonArray.add(
-            JsonObject().apply {
-                addProperty("name", "ambiguousStatus")
-                addProperty("type", "Status")
+            .map { it.requireObjectNode() }
+            .single { it["name"].asText() == "FindOrder" }
+        findOrder["fields"].requireArrayNode().add(
+            jsonMapper.createObjectNode().apply {
+                put("name", "ambiguousStatus")
+                put("type", "Status")
             }
         )
         designFile.writeText(designEntries.toString())
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .buildAndFail()
 
@@ -794,9 +759,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-rerun")
         copyFixture(projectDir)
 
-        GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -805,9 +768,7 @@ class PipelinePluginFunctionalTest {
         )
         commandFile.writeText("sentinel")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -821,9 +782,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-manifest")
         copyFixture(projectDir, "design-manifest-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -842,9 +801,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate")
         copyFixture(projectDir, "aggregate-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -1031,9 +988,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-minimal")
         copyFixture(projectDir, "aggregate-minimal-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -1527,9 +1482,7 @@ class PipelinePluginFunctionalTest {
         val applicationBuildFile = projectDir.resolve("demo-application/build.gradle.kts").readText().trim()
         val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -1558,16 +1511,12 @@ class PipelinePluginFunctionalTest {
         val adapterBuildFile = projectDir.resolve("demo-adapter/build.gradle.kts").readText().trim()
         val fixtureBuildFile = projectDir.resolve("build.gradle.kts")
 
-        val planResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val planResult = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
         fixtureBuildFile.writeText(fixtureBuildFile.readText().replace("h2/demo", "h2/generate"))
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -1586,22 +1535,6 @@ class PipelinePluginFunctionalTest {
 
         val nilUuid = "00000000-0000-0000-0000-000000000000"
         val applicationSideCells = listOf(
-            ApplicationSideCell(
-                tableName = "snowflake_long_record",
-                entityName = "SnowflakeLongRecord",
-                backingType = "Long",
-                deletedProperty = "var deleted: Long = 0L",
-                activeSqlLiteral = "0",
-                strategy = "snowflake",
-            ),
-            ApplicationSideCell(
-                tableName = "snowflake_string_record",
-                entityName = "SnowflakeStringRecord",
-                backingType = "String",
-                deletedProperty = "var deleted: String = \"0\"",
-                activeSqlLiteral = "'0'",
-                strategy = "snowflake",
-            ),
             ApplicationSideCell(
                 tableName = "uuid_string_record",
                 entityName = "UuidStringRecord",
@@ -1749,7 +1682,6 @@ class PipelinePluginFunctionalTest {
             append(generatedIdentityFactory)
         }
         assertFalse(allGeneratedEvidence.contains("ApplicationSideId"))
-        assertFalse(allGeneratedEvidence.contains("snowflake-long"))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -1800,9 +1732,7 @@ class PipelinePluginFunctionalTest {
         assertTrue(patchedBuildFile.contains("""identifierDefaultPolicy.set("identifier.database-identity")"""))
         assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
         val generatedVideoPost = projectDir.resolve(
@@ -1838,9 +1768,7 @@ class PipelinePluginFunctionalTest {
             ).replaceFirst("@Managed=soft-delete;", "")
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
         val generatedVideoPost = projectDir.resolve(
@@ -1883,16 +1811,14 @@ class PipelinePluginFunctionalTest {
         val buildFile = projectDir.resolve("build.gradle.kts")
         val patchedBuildFile = buildFile.readText().replace(
             Regex(
-                """includeTables\.set\(\s*listOf\(\s*"video_post",\s*"snowflake_long_record",\s*"snowflake_string_record",\s*"uuid_string_record",\s*"uuid_native_record",\s*\)\s*\)"""
+                """includeTables\.set\(\s*listOf\(\s*"video_post",\s*"uuid_string_record",\s*"uuid_native_record",\s*\)\s*\)"""
             ),
             "includeTables.set(listOf(\"video\", \"audit_log\"))",
         )
         buildFile.writeText(patchedBuildFile)
         assertTrue(patchedBuildFile.contains("includeTables.set(listOf(\"video\", \"audit_log\"))"))
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .buildAndFail()
 
@@ -1910,14 +1836,10 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum")
         copyFixture(projectDir, "aggregate-enum-sample")
 
-        val planResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val planResult = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
-        val generateResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val generateResult = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
         val planFile = projectDir.resolve("build/cap4k/plan.json")
@@ -2019,9 +1941,7 @@ class PipelinePluginFunctionalTest {
                 )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -2067,9 +1987,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val overrideResult = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val overrideResult = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -2084,9 +2002,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-skip")
         copyFixture(projectDir, "aggregate-policy-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -2156,36 +2072,31 @@ class PipelinePluginFunctionalTest {
         buildFile.writeText(patchedBuildFile)
         assertTrue(patchedBuildFile.contains("\"audit_log\""))
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
         val planJson = projectDir.resolve("build/cap4k/plan.json").readText()
-        val planObject = JsonParser.parseString(planJson).asJsonObject
-        val defaults = planObject.getAsJsonObject("managedFieldDefaults")
-        val resolvedPoliciesArray = planObject.getAsJsonArray("managedFieldPolicies")
-        val firstResolvedPolicy = resolvedPoliciesArray.first().asJsonObject
+        val planObject = jsonMapper.readTree(planJson).requireObjectNode()
+        val defaults = planObject.requireObjectNode("managedFieldDefaults")
+        val resolvedPoliciesArray = planObject.requireArrayNode("managedFieldPolicies")
+        val firstResolvedPolicy = resolvedPoliciesArray.first().requireObjectNode()
         val resolvedPolicies = resolvedPoliciesArray
-            .map { it.asJsonObject }
-            .associateBy { it.get("tableName").asString }
+            .map { it.requireObjectNode() }
+            .associateBy { it.get("tableName").asText() }
         val videoPostPolicy = resolvedPolicies.getValue("video_post")
-        val snowflakeLongPolicy = resolvedPolicies.getValue("snowflake_long_record")
 
         assertTrue(result.output.contains("BUILD SUCCESSFUL"))
         assertFalse(planObject.has("aggregateIdPolicy"))
-        assertEquals("identifier.uuid7", defaults.get("identifierDefaultPolicy").asString)
+        assertEquals("identifier.uuid7", defaults.get("identifierDefaultPolicy").asText())
         assertEquals(
             "database.generated-always",
-            defaults.getAsJsonObject("columnPolicyDefaults").get("created_by").asString,
+            defaults.requireObjectNode("columnPolicyDefaults").get("created_by").asText(),
         )
-        assertEquals(6, resolvedPolicies.size)
+        assertEquals(4, resolvedPolicies.size)
         assertEquals(
             setOf(
                 "video_post",
-                "snowflake_long_record",
-                "snowflake_string_record",
                 "uuid_string_record",
                 "uuid_native_record",
                 "audit_log",
@@ -2193,48 +2104,42 @@ class PipelinePluginFunctionalTest {
             resolvedPolicies.keys,
         )
         assertTrue(firstResolvedPolicy.has("fields"))
-        assertTrue(firstResolvedPolicy.getAsJsonArray("fields").size() > 0)
+        assertTrue(firstResolvedPolicy.requireArrayNode("fields").size() > 0)
         assertTrue(firstResolvedPolicy.has("writeSurface"))
-        assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("createAllowedFields"))
-        assertTrue(firstResolvedPolicy.getAsJsonObject("writeSurface").has("updateAllowedFields"))
-        assertEquals("identifier.database-identity", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertEquals("soft-delete", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "deleted"
-        }.asJsonObject.get("policyKey").asString)
-        assertEquals("version", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "version"
-        }.asJsonObject.get("policyKey").asString)
+        assertTrue(firstResolvedPolicy.requireObjectNode("writeSurface").has("createAllowedFields"))
+        assertTrue(firstResolvedPolicy.requireObjectNode("writeSurface").has("updateAllowedFields"))
+        assertEquals("identifier.database-identity", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "id"
+        }.requireObjectNode().get("policyKey").asText())
+        assertEquals("soft-delete", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "deleted"
+        }.requireObjectNode().get("policyKey").asText())
+        assertEquals("version", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "version"
+        }.requireObjectNode().get("policyKey").asText())
         assertEquals(
             setOf("id", "deleted", "version", "db_updated_at", "created_by"),
-            videoPostPolicy.getAsJsonArray("fields").map {
-                it.asJsonObject.get("columnName").asString
+            videoPostPolicy.requireArrayNode("fields").map {
+                it.requireObjectNode().get("columnName").asText()
             }.toSet(),
         )
         assertEquals(
             listOf("title"),
-            videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("createAllowedFields").map { it.asString }
+            videoPostPolicy.requireObjectNode("writeSurface").requireArrayNode("createAllowedFields").map { it.asText() }
         )
         assertEquals(
             listOf("title"),
-            videoPostPolicy.getAsJsonObject("writeSurface").getAsJsonArray("updateAllowedFields").map { it.asString }
+            videoPostPolicy.requireObjectNode("writeSurface").requireArrayNode("updateAllowedFields").map { it.asText() }
         )
-        assertEquals("database.generated-always", videoPostPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "created_by"
-        }.asJsonObject.get("policyKey").asString)
-        assertEquals("identifier.snowflake", snowflakeLongPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertTrue(snowflakeLongPolicy.getAsJsonArray("fields").none {
-            it.asJsonObject.get("role").asString == "VERSION"
-        })
+        assertEquals("database.generated-always", videoPostPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "created_by"
+        }.requireObjectNode().get("policyKey").asText())
         val auditLogPolicy = resolvedPolicies.getValue("audit_log")
-        assertEquals("identifier.database-identity", auditLogPolicy.getAsJsonArray("fields").single {
-            it.asJsonObject.get("columnName").asString == "id"
-        }.asJsonObject.get("policyKey").asString)
-        assertTrue(auditLogPolicy.getAsJsonArray("fields").none {
-            it.asJsonObject.get("role").asString == "VERSION"
+        assertEquals("identifier.database-identity", auditLogPolicy.requireArrayNode("fields").single {
+            it.requireObjectNode().get("columnName").asText() == "id"
+        }.requireObjectNode().get("policyKey").asText())
+        assertTrue(auditLogPolicy.requireArrayNode("fields").none {
+            it.requireObjectNode().get("role").asText() == "VERSION"
         })
     }
 
@@ -2261,9 +2166,7 @@ class PipelinePluginFunctionalTest {
                 """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -2292,9 +2195,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -2330,9 +2231,7 @@ class PipelinePluginFunctionalTest {
                 )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -2371,9 +2270,7 @@ class PipelinePluginFunctionalTest {
 
         val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
@@ -2387,9 +2284,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow")
         copyFixture(projectDir, "flow-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
             .build()
 
@@ -2423,9 +2318,7 @@ class PipelinePluginFunctionalTest {
             """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan")
             .buildAndFail()
 
@@ -2449,9 +2342,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
             .build()
 
@@ -2494,9 +2385,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -2513,9 +2402,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-analysis-drawing-board")
         copyFixture(projectDir, "drawing-board-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
             .build()
 
@@ -2567,9 +2454,7 @@ class PipelinePluginFunctionalTest {
         val sentinel = outputDir.resolve("sentinel.txt")
         sentinel.writeText("unchanged")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisGenerate")
             .buildAndFail()
 
@@ -2587,9 +2472,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-flow-compile")
         copyFixture(projectDir, "flow-compile-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan")
             .build()
 
@@ -2619,9 +2502,7 @@ class PipelinePluginFunctionalTest {
                 """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisGenerateWrapper")
             .build()
 
@@ -2639,9 +2520,7 @@ class PipelinePluginFunctionalTest {
         copyFixture(projectDir, "flow-sample")
         projectDir.resolve("analysis/app/build/cap4k-code-analysis/rels.json").toFile().delete()
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan")
             .buildAndFail()
 
@@ -2655,9 +2534,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-plan")
         copyFixture(projectDir, "design-api-payload-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
@@ -2676,9 +2553,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-generate")
         copyFixture(projectDir, "design-api-payload-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -2729,9 +2604,7 @@ class PipelinePluginFunctionalTest {
                 """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -2763,9 +2636,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-plan")
         copyFixture(projectDir, "design-domain-event-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
@@ -2784,13 +2655,11 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-domain-event-generate")
         copyFixture(projectDir, "design-domain-event-sample")
         val designFile = projectDir.resolve("design/design.json")
-        val designEntries = JsonParser.parseString(designFile.readText()).asJsonArray
-        designEntries.single().asJsonObject.addProperty("description", "order */ \"created\" \\event ${'$'}status")
+        val designEntries = jsonMapper.readTree(designFile.readText()).requireArrayNode()
+        designEntries.single().requireObjectNode().put("description", "order */ \"created\" \\event ${'$'}status")
         designFile.writeText(designEntries.toString())
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -2860,9 +2729,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan", "cap4kGenerate")
             .build()
 
@@ -2895,9 +2762,7 @@ class PipelinePluginFunctionalTest {
                 """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate")
             .build()
 
@@ -2932,9 +2797,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -2960,9 +2823,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -3010,9 +2871,7 @@ class PipelinePluginFunctionalTest {
                 """.trimIndent()
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .build()
 
@@ -3036,9 +2895,7 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kPlan")
             .buildAndFail()
 
@@ -3050,9 +2907,7 @@ class PipelinePluginFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-known-bug-parity")
         copyCompileFixture(projectDir, "known-bug-parity-sample")
 
-        val result = GradleRunner.create()
-            .withProjectDir(projectDir.toFile())
-            .withPluginClasspath()
+        val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kGenerate", "build")
             .build()
 
@@ -3118,12 +2973,13 @@ class PipelinePluginFunctionalTest {
 
         val repositoryContent = repositoryFile.readText()
         assertTrue(repositoryContent.contains("import com.acme.demo.domain.aggregates.user_message.UserMessageId"))
-        assertTrue(
-            repositoryContent.contains(
-                "interface UserMessageRepository : JpaRepository<UserMessage, UserMessageId>, JpaSpecificationExecutor<UserMessage>"
-            )
-        )
-        assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("internal open class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("entityManager: EntityManager"))
+        assertTrue(repositoryContent.contains("UserMessage::class.java"))
+        assertTrue(repositoryContent.contains("AbstractJpaRepository<UserMessage, UserMessageId>"))
+        assertFalse(repositoryContent.contains("interface UserMessageRepository"))
+        assertFalse(repositoryContent.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(repositoryContent.contains("JpaSpecificationExecutor"))
 
         val schemaContent = schemaFile.readText()
         assertTrue(schemaContent.contains("class SUserMessage("))
@@ -3218,18 +3074,18 @@ class PipelinePluginFunctionalTest {
         resolvedOutputRoot: String,
         conflictPolicy: String,
     ) {
-        val item = JsonParser.parseString(planContent)
-            .asJsonObject
-            .getAsJsonArray("items")
-            .map { it.asJsonObject }
+        val item = jsonMapper.readTree(planContent)
+            .requireObjectNode()
+            .requireArrayNode("items")
+            .map { it.requireObjectNode() }
             .single {
-                it.get("templateId").asString == templateId &&
-                    it.get("outputPath").asString.endsWith(outputPathSuffix)
+                it.get("templateId").asText() == templateId &&
+                    it.get("outputPath").asText().endsWith(outputPathSuffix)
             }
 
-        assertEquals(outputKind, item.get("outputKind").asString)
-        assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asString)
-        assertEquals(conflictPolicy, item.get("conflictPolicy").asString)
+        assertEquals(outputKind, item.get("outputKind").asText())
+        assertEquals(resolvedOutputRoot, item.get("resolvedOutputRoot").asText())
+        assertEquals(conflictPolicy, item.get("conflictPolicy").asText())
     }
 
     private fun functionalAddonJar(projectDir: Path): Path {

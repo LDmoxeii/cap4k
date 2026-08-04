@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
+import com.only4.cap4k.plugin.pipeline.api.AggregateElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -1612,6 +1613,45 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(2, model.analysisGraph!!.nodes.size)
         assertEquals("controllermethod", model.analysisGraph!!.nodes.first().type)
         assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
+    }
+
+    @Test
+    fun `preserves aggregate structure in analysis graph and drawing board without creating design tags`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = listOf("adapter/build/cap4k-code-analysis"),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    aggregateElements = listOf(
+                        AggregateElementSnapshot(
+                            carrierQualifiedName =
+                                "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                            aggregate = "Order",
+                            name = "OrderRepository",
+                            packageName = "com.acme.demo.adapter.domain.repositories",
+                            description = "Order repository carrier",
+                            type = "repository",
+                            root = false,
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        val graphRepository = model.analysisGraph!!.aggregateElements.single()
+        assertEquals("OrderRepository", graphRepository.name)
+        assertEquals(
+            "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+            graphRepository.carrierQualifiedName,
+        )
+        val drawingBoard = requireNotNull(model.drawingBoard)
+        assertEquals(listOf(graphRepository), drawingBoard.aggregateElements)
+        assertTrue(drawingBoard.elements.isEmpty())
+        assertTrue(drawingBoard.elementsByTag.isEmpty())
+        assertTrue("repository" !in drawingBoard.elementsByTag)
+        assertTrue(model.designBlocks.isEmpty())
     }
 
     @Test
@@ -3924,7 +3964,7 @@ class DefaultCanonicalAssemblerTest {
     @Test
     fun `generated value marker uses DSL default strategy with DB explicit source`() {
         val result = assembleAggregate(
-            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake"),
+            config = projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
             tables = listOf(
                 table(
                     name = "audit_log",
@@ -4035,48 +4075,6 @@ class DefaultCanonicalAssemblerTest {
             )
             assertEquals("id", control.idFieldName)
             assertNull(control.versionFieldName)
-        }
-    }
-
-    @Test
-    fun `snowflake Long soft delete keeps Long strong id backing and publishes zero integral semantics`() {
-        listOf("0::bigint", "CAST(0 AS BIGINT)", "(((0)))").forEach { defaultValue ->
-            val result = assembleSoftDelete(
-                idStrategy = "identifier.snowflake",
-                idDbType = "BIGINT",
-                idKotlinType = "Long",
-                deletedDbType = "BIGINT",
-                deletedKotlinType = "Long",
-                defaultValue = defaultValue,
-            )
-
-            assertStrongIdBacking(result.model, "Long")
-            assertSemanticSoftDelete(
-                result = result.model,
-                expectedStorageKind = AggregateIdStorageKind.INTEGRAL,
-                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
-            )
-        }
-    }
-
-    @Test
-    fun `snowflake String soft delete keeps String strong id backing and publishes zero character semantics`() {
-        listOf("'0'", "'0'::character varying", "CAST('0' AS VARCHAR)", "((('0')))").forEach { defaultValue ->
-            val result = assembleSoftDelete(
-                idStrategy = "identifier.snowflake",
-                idDbType = "VARCHAR(19)",
-                idKotlinType = "String",
-                deletedDbType = "VARCHAR(32)",
-                deletedKotlinType = "String",
-                defaultValue = defaultValue,
-            )
-
-            assertStrongIdBacking(result.model, "String")
-            assertSemanticSoftDelete(
-                result = result.model,
-                expectedStorageKind = AggregateIdStorageKind.CHARACTER,
-                expectedSentinel = SoftDeleteActiveSentinel.ZERO,
-            )
         }
     }
 
@@ -4208,9 +4206,6 @@ class DefaultCanonicalAssemblerTest {
     fun `soft delete policy rejects cross storage SELF_ID assignment in every direction`() {
         val nilUuid = "'00000000-0000-0000-0000-000000000000'"
         val cases = listOf(
-            SoftDeleteStorageCase("identifier.snowflake", "BIGINT", "Long", "VARCHAR(19)", "String", "'0'"),
-            SoftDeleteStorageCase("identifier.snowflake", "BIGINT", "Long", "UUID", "java.util.UUID", nilUuid),
-            SoftDeleteStorageCase("identifier.snowflake", "VARCHAR(19)", "String", "BIGINT", "Long", "0"),
             SoftDeleteStorageCase("identifier.uuid7", "VARCHAR(36)", "String", "UUID", "java.util.UUID", nilUuid),
             SoftDeleteStorageCase("identifier.uuid7", "UUID", "java.util.UUID", "BIGINT", "Long", "0"),
             SoftDeleteStorageCase("identifier.uuid7", "UUID", "java.util.UUID", "VARCHAR(36)", "String", nilUuid),
@@ -4502,16 +4497,6 @@ class DefaultCanonicalAssemblerTest {
         val cases = listOf(
             DirectSoftDeleteCase("sequence", "BIGINT", "Long", "BIGINT", "Long", "0", "accepted strategies"),
             DirectSoftDeleteCase("identity", "VARCHAR(19)", "String", "VARCHAR(19)", "String", "'0'", "integral"),
-            DirectSoftDeleteCase("snowflake", "INT", "Int", "INT", "Int", "0", "signed 64-bit Long"),
-            DirectSoftDeleteCase(
-                "snowflake",
-                "UUID",
-                "java.util.UUID",
-                "UUID",
-                "java.util.UUID",
-                "'00000000-0000-0000-0000-000000000000'",
-                "Long or String",
-            ),
             DirectSoftDeleteCase("uuid7", "BIGINT", "Long", "BIGINT", "Long", "0", "String or UUID"),
         )
 
@@ -4695,7 +4680,7 @@ class DefaultCanonicalAssemblerTest {
     fun `explicit deleted marker overrides DSL default column name`() {
         val result = assembleAggregate(
             config = projectConfigWithSpecialFieldDefaults(
-                idDefaultStrategy = "snowflake",
+                idDefaultStrategy = "uuid7",
                 deletedDefaultColumn = "",
             ),
             tables = listOf(
@@ -4794,7 +4779,7 @@ class DefaultCanonicalAssemblerTest {
     fun `assembler fails fast when multiple deleted columns are marked explicitly`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             DefaultCanonicalAssembler().assemble(
-                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "snowflake"),
+                projectConfigWithSpecialFieldDefaults(idDefaultStrategy = "uuid7"),
                 listOf(
                     DbSchemaSnapshot(
                         tables = listOf(
@@ -6120,6 +6105,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("video_post_uk_v_title", unique.physicalName)
         assertEquals(listOf("title"), unique.columns)
         assertEquals("VideoPostRepository", model.repositories.single().name)
+        assertEquals("VideoPostJpaRepositoryAdapter", model.repositories.single().carrierTypeName)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
         assertEquals("Long", model.repositories.single().idType)
     }
@@ -6964,7 +6950,7 @@ class DefaultCanonicalAssemblerTest {
 
     private fun identifierPolicyKey(value: String): String = when (value) {
         "identity", "db_identity", "database-identity" -> "identifier.database-identity"
-        "uuid7", "snowflake", "assigned" -> "identifier.$value"
+        "uuid7", "assigned" -> "identifier.$value"
         else -> value
     }
 
@@ -7139,29 +7125,9 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `snowflake character storage resolves storage nearest own strong id`() {
-        assertOwnStrongId(
-            model = assembleOrderWithId(
-                column(
-                    "id",
-                    "VARCHAR(19)",
-                    "String",
-                    false,
-                    primaryKey = true,
-                    idStrategy = "identifier.snowflake",
-                    jdbcType = Types.VARCHAR,
-                    columnSize = 19,
-                )
-            ),
-            expectedValueType = "String",
-            expectedStrategy = "snowflake",
-        )
-    }
-
-    @Test
-    fun `snowflake bigint storage resolves storage nearest own strong id`() {
-        assertOwnStrongId(
-            model = assembleOrderWithId(
+    fun `schema managed policy rejects retired snowflake with supported strategy diagnostic`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            assembleOrderWithId(
                 column(
                     "id",
                     "BIGINT",
@@ -7172,10 +7138,12 @@ class DefaultCanonicalAssemblerTest {
                     jdbcType = Types.BIGINT,
                     columnSize = 64,
                 )
-            ),
-            expectedValueType = "Long",
-            expectedStrategy = "snowflake",
-        )
+            )
+        }
+
+        assertTrue(error.message!!.contains("rejected value 'identifier.snowflake'"), error.message)
+        assertTrue(error.message!!.contains("order.id#comment:@Managed"), error.message)
+        assertTrue(error.message!!.contains("supported application-side strategy: uuid7"), error.message)
     }
 
     @Test
@@ -7293,7 +7261,7 @@ class DefaultCanonicalAssemblerTest {
             generators = emptyMap(),
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             managedFields = ManagedFieldDefaultsConfig(
-                identifierDefaultPolicy = "identifier.snowflake",
+                identifierDefaultPolicy = "identifier.uuid7",
             ),
         )
     }
@@ -7314,7 +7282,7 @@ class DefaultCanonicalAssemblerTest {
             templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
             artifactLayout = artifactLayout,
             managedFields = ManagedFieldDefaultsConfig(
-                identifierDefaultPolicy = "identifier.snowflake",
+                identifierDefaultPolicy = "identifier.uuid7",
             ),
         )
     }

@@ -1182,7 +1182,7 @@ class DefaultPipelineRunnerTest {
                 ),
                 templates = TemplateConfig("ddd-default", emptyList(), ConflictPolicy.SKIP),
                 managedFields = ManagedFieldDefaultsConfig(
-                    identifierDefaultPolicy = "identifier.snowflake",
+                    identifierDefaultPolicy = "identifier.uuid7",
                     columnPolicyDefaults = mapOf(
                         "created_by" to "initialization.request-context",
                     ),

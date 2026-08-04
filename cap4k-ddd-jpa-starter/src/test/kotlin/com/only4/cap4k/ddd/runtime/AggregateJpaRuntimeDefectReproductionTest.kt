@@ -9,12 +9,8 @@ import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload
 import com.only4.cap4k.ddd.core.domain.aggregate.OwnedEntityList
-import com.only4.cap4k.ddd.core.domain.id.BuiltInIdentifierStrategies
-import com.only4.cap4k.ddd.core.domain.id.IdentifierCapability
-import com.only4.cap4k.ddd.core.domain.id.IdentifierStrategy
+import com.only4.cap4k.ddd.core.autoconfigure.Uuid7IdentifierStrategy
 import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
-import com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator
-import com.only4.cap4k.ddd.domain.distributed.snowflake.SnowflakeIdGenerator
 import com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository
 import com.only4.cap4k.ddd.domain.repo.JpaPredicate
 import jakarta.persistence.CascadeType
@@ -37,10 +33,7 @@ import jakarta.persistence.Version
 import org.hibernate.HibernateException
 import org.hibernate.PersistentObjectException
 import org.hibernate.Session
-import org.hibernate.annotations.GenericGenerator
-import org.hibernate.id.IdentifierGenerationException
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -56,7 +49,6 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
@@ -64,9 +56,11 @@ import org.springframework.stereotype.Repository
 import org.springframework.test.context.TestPropertySource
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
-import kotlin.reflect.KClass
+import java.util.UUID
 
-private const val SNOWFLAKE_GENERATOR = "com.only4.cap4k.ddd.domain.distributed.SnowflakeIdentifierGenerator"
+private val runtimeUuid7 = Uuid7IdentifierStrategy()
+
+private fun nextRuntimeUuid(): UUID = runtimeUuid7.next(UUID::class)
 
 /**
  * Runtime characterization for aggregate JPA behavior.
@@ -103,9 +97,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @Autowired
     @Qualifier("jpaUnitOfWork")
     private lateinit var unitOfWork: JpaUnitOfWork
-
-    @Autowired
-    private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
     @Qualifier("defaultCommandSupervisor")
@@ -158,23 +149,15 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
-    @DisplayName("application-side generated id is assigned when root id is omitted")
-    fun applicationSideGeneratedIdIsAssignedWhenRootIdIsOmitted() {
-        val classification = classifyRuntimeBehavior(
-            label = "omitted application-side generated id",
-            desiredContract = {
-                val root = saveRoot(RuntimeRoot(name = "omitted-id"))
-                assertNotEquals(0L, root.id, "A root created without an id should receive a generated id")
-                assertTrue(rootJpaRepository.existsById(root.id), "The generated id should point to a row")
-            },
-            knownDefect = { failure ->
-                failure.hasCause<IdentifierGenerationException>() ||
-                    failure.hasCause<jakarta.persistence.PersistenceException>() ||
-                    failure is AssertionError
-            }
-        )
+    @DisplayName("application-side UUID7 is assigned when root id is omitted")
+    fun applicationSideUuid7IsAssignedWhenRootIdIsOmitted() {
+        val root = saveRoot(RuntimeRoot(name = "omitted-id"))
 
-        assertSupported(classification)
+        assertEquals(7, root.id.version(), "A root created without an id should receive a UUID7 id")
+        assertTrue(
+            countRows("select count(*) from `runtime_root` where `id` = ?", root.id) == 1,
+            "The generated id should point to a row",
+        )
     }
 
     @Test
@@ -220,6 +203,18 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
+    @DisplayName("Mediator repositories removes an aggregate through explicit delete intent")
+    fun mediatorRepositoriesRemovesAggregate() {
+        val root = saveRoot(RuntimeRoot(name = "command-remove"))
+        JpaUnitOfWork.reset()
+
+        val removed = Mediator.commands.send(RemoveRuntimeRootCommand(root.id))
+
+        assertEquals(1, removed)
+        assertEquals(0, countRows("select count(*) from `runtime_root` where `id` = ?", root.id))
+    }
+
+    @Test
     @DisplayName("nested Mediator Command reuses the same physical Hibernate Session")
     fun nestedMediatorCommandReusesCurrentUnitOfWork() {
         val root = saveRoot(RuntimeRoot(name = "nested-command"))
@@ -248,7 +243,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         JpaUnitOfWork.reset()
 
         val childCount = requireNotNull(TransactionTemplate(transactionManager).execute {
-            val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+            val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
             loaded.children.size
         })
 
@@ -262,7 +257,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level root-only create save",
             desiredContract = {
                 val root = saveRoot(newThreeLevelRoot("create-graph"))
-                assertNotEquals(0L, root.id)
+                assertEquals(7, root.id.version())
                 assertEquals(1, countRows("select count(*) from `runtime_root`"))
                 assertEquals(2, countRows("select count(*) from `runtime_child`"))
                 assertEquals(4, countRows("select count(*) from `runtime_grandchild`"))
@@ -283,27 +278,28 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level generated parent id binding",
             desiredContract = {
                 val root = saveRoot(newThreeLevelRoot("generated-parent-binding"))
-                assertNotEquals(0L, root.id)
+                assertEquals(7, root.id.version())
 
-                val childIds = queryLongs(
+                val childIds = queryUuids(
                     "select `id` from `runtime_child` where `root_id` = ? order by `name`",
                     root.id
                 )
                 assertEquals(2, childIds.size)
-                assertTrue(childIds.all { it != 0L }, "Every child should receive a generated id")
-                assertEquals(2, countRows("select count(*) from `runtime_child` where `root_id` = ${root.id}"))
+                assertTrue(childIds.all { it.version() == 7 }, "Every child should receive a UUID7 id")
+                assertEquals(2, countRows("select count(*) from `runtime_child` where `root_id` = ?", root.id))
 
                 childIds.forEach { childId ->
                     assertEquals(
                         2,
-                        countRows("select count(*) from `runtime_grandchild` where `child_id` = $childId"),
+                        countRows("select count(*) from `runtime_grandchild` where `child_id` = ?", childId),
                         "Every child should own two grandchildren through its generated id"
                     )
                 }
                 assertEquals(
                     4,
                     countRows(
-                        "select count(*) from `runtime_grandchild` where `child_id` in (${childIds.joinToString()})"
+                        "select count(*) from `runtime_grandchild` where `child_id` in (?, ?)",
+                        *childIds.toTypedArray(),
                     )
                 )
             },
@@ -327,9 +323,9 @@ class AggregateJpaRuntimeDefectReproductionTest {
                         children.add(RuntimeReverseChild(name = "reverse-child-parent-child"))
                     }
                 )
-                assertNotEquals(0L, root.id)
+                assertEquals(7, root.id.version())
 
-                val childIds = queryLongs(
+                val childIds = queryUuids(
                     "select `id` from `runtime_reverse_child` where `root_id` = ? order by `name`",
                     root.id
                 )
@@ -362,8 +358,8 @@ class AggregateJpaRuntimeDefectReproductionTest {
                 unitOfWork.execute {
                     unitOfWork.registerNew(root)
                 }
-                assertNotEquals(0L, root.id)
-                val childId = queryLong("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
+                assertEquals(7, root.id.version())
+                val childId = queryUuid("select `id` from `runtime_fk_mirror_child` where `name` = ?", "fk-mirror-child")
                 JpaUnitOfWork.reset()
 
                 val loadedChild = fkMirrorChildJpaRepository.findById(childId).orElseThrow()
@@ -382,15 +378,15 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
-    @DisplayName("reverse eager navigation on nested entities remains a known defect with create intent")
-    fun reverseEagerNavigationOnNestedEntitiesRemainsAKnownDefectWithCreateIntent() {
+    @DisplayName("reverse eager navigation on nested entities supports create intent")
+    fun reverseEagerNavigationOnNestedEntitiesSupportsCreateIntent() {
         val classification = classifyRuntimeBehavior(
             label = "three-level reverse eager navigation",
             desiredContract = {
                 val root = saveReverseRoot(newThreeLevelReverseRoot("reverse-eager"))
-                assertNotEquals(0L, root.id)
+                assertEquals(7, root.id.version())
 
-                val grandchildIds = queryLongs(
+                val grandchildIds = queryUuids(
                     "select `id` from `runtime_reverse_grandchild` order by `name`"
                 )
                 assertEquals(4, grandchildIds.size)
@@ -408,7 +404,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             }
         )
 
-        assertKnownDefect(classification)
+        assertSupported(classification)
     }
 
     @Test
@@ -418,7 +414,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "safe cascade nested reverse eager navigation",
             desiredContract = {
                 val root = saveSafeReverseRoot(newThreeLevelSafeReverseRoot("safe-reverse-eager"))
-                assertNotEquals(0L, root.id)
+                assertEquals(7, root.id.version())
                 assertEquals(1, countRows("select count(*) from `runtime_safe_reverse_root`"))
                 assertEquals(2, countRows("select count(*) from `runtime_safe_reverse_child`"))
                 assertEquals(4, countRows("select count(*) from `runtime_safe_reverse_grandchild`"))
@@ -443,7 +439,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed scalar update",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     loaded.children.first().name = "updated-child"
                     loaded.children.first().grandchildren.first().name = "updated-grandchild"
                     unitOfWork.observeRepositoryLoad(loaded)
@@ -475,7 +471,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
         val error = assertThrows(IllegalStateException::class.java) {
             unitOfWork.execute {
-                val proxy = rootJpaRepository.getReferenceById(root.id)
+                val proxy = entityManager.getReference(RuntimeRoot::class.java, root.id)
                 val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
                 unitOfWork.observeRepositoryLoad(proxy)
                 unitOfWork.registerDelete(detached)
@@ -496,7 +492,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed grandchild orphan removal",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     loaded.children.first().grandchildren.removeAt(0)
                     unitOfWork.observeRepositoryLoad(loaded)
                 }
@@ -525,7 +521,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed child orphan removal",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     loaded.children.removeAt(0)
                     unitOfWork.observeRepositoryLoad(loaded)
                 }
@@ -558,7 +554,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed clear and re-add",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     val firstChild = loaded.children.first()
                     firstChild.grandchildren.clear()
                     firstChild.grandchildren.add(RuntimeGrandchild(name = "clear-readd-new-grandchild"))
@@ -767,8 +763,11 @@ class AggregateJpaRuntimeDefectReproductionTest {
     private fun queryLong(sql: String, vararg args: Any): Long =
         requireNotNull(jdbcTemplate.queryForObject(sql, Long::class.java, *args))
 
-    private fun queryLongs(sql: String, vararg args: Any): List<Long> =
-        jdbcTemplate.queryForList(sql, Long::class.java, *args).map { it.toLong() }
+    private fun queryUuid(sql: String, vararg args: Any): UUID =
+        requireNotNull(jdbcTemplate.queryForObject(sql, UUID::class.java, *args))
+
+    private fun queryUuids(sql: String, vararg args: Any): List<UUID> =
+        jdbcTemplate.queryForList(sql, UUID::class.java, *args)
 
     private fun importedKeyCount(tableName: String): Int =
         requireNotNull(jdbcTemplate.dataSource).connection.use { connection ->
@@ -844,10 +843,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
         assertEquals(RuntimeClassification.SUPPORTED, classification)
     }
 
-    private fun assertKnownDefect(classification: RuntimeClassification) {
-        assertEquals(RuntimeClassification.KNOWN_DEFECT, classification)
-    }
-
     private fun classifyRuntimeBehavior(
         label: String,
         desiredContract: () -> Unit,
@@ -884,16 +879,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @EnableJpaRepositories(basePackages = ["com.only4.cap4k.ddd", "com.only4.cap4k.ddd.runtime"])
     class RuntimeTestApplication {
         @Bean
-        fun snowflakeIdGenerator(): SnowflakeIdGenerator =
-            SnowflakeIdGenerator(workerId = 1L, datacenterId = 1L)
-                .also(SnowflakeIdentifierGenerator::configure)
-
-        @Bean
-        fun snowflakeIdentifierStrategy(
-            snowflakeIdGenerator: SnowflakeIdGenerator
-        ): IdentifierStrategy = TestSnowflakeIdentifierStrategy(snowflakeIdGenerator)
-
-        @Bean
         fun runtimeRootFactory(): AggregateFactory<RuntimeRootPayload, RuntimeRoot> = RuntimeRootFactory()
     }
 }
@@ -904,31 +889,6 @@ data class RuntimeRootPayload(
 
 class RuntimeRootFactory : AggregateFactory<RuntimeRootPayload, RuntimeRoot> {
     override fun create(entityPayload: RuntimeRootPayload): RuntimeRoot = RuntimeRoot(name = entityPayload.name)
-}
-
-private class TestSnowflakeIdentifierStrategy(
-    private val snowflakeIdGenerator: SnowflakeIdGenerator,
-) : IdentifierStrategy {
-    override val name: String = BuiltInIdentifierStrategies.SNOWFLAKE
-    override val capabilities: Set<IdentifierCapability> =
-        setOf(IdentifierCapability.ENTITY_ID_PREASSIGNMENT)
-
-    override fun supports(type: KClass<*>): Boolean =
-        type == Long::class || type == String::class
-
-    override fun <T : Any> next(type: KClass<T>): T {
-        require(supports(type))
-        val value: Any = when (type) {
-            Long::class -> snowflakeIdGenerator.nextId()
-            String::class -> snowflakeIdGenerator.nextId().toString()
-            else -> error("unsupported")
-        }
-        @Suppress("UNCHECKED_CAST")
-        return value as T
-    }
-
-    override fun isDefaultValue(value: Any?, type: KClass<*>): Boolean =
-        value == null || value == 0L || value == "" || value == "0"
 }
 
 @Entity
@@ -1043,16 +1003,14 @@ open class RuntimeEntrustedGrandchild protected constructor() {
 
 @Entity
 @Table(name = "`runtime_root`")
-open class RuntimeRoot(id: Long = 0L, name: String = "") {
+open class RuntimeRoot(id: UUID = nextRuntimeUuid(), name: String = "") {
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY, orphanRemoval = true)
     @JoinColumn(name = "`root_id`", nullable = false)
     open var children: MutableList<RuntimeChild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1061,16 +1019,14 @@ open class RuntimeRoot(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_child`")
-open class RuntimeChild(id: Long = 0L, name: String = "") {
+open class RuntimeChild(id: UUID = nextRuntimeUuid(), name: String = "") {
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.LAZY, orphanRemoval = true)
     @JoinColumn(name = "`child_id`", nullable = false)
     open var grandchildren: MutableList<RuntimeGrandchild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1079,12 +1035,10 @@ open class RuntimeChild(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_grandchild`")
-open class RuntimeGrandchild(id: Long = 0L, name: String = "") {
+open class RuntimeGrandchild(id: UUID = nextRuntimeUuid(), name: String = "") {
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1093,16 +1047,14 @@ open class RuntimeGrandchild(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_reverse_root`")
-open class RuntimeReverseRoot(id: Long = 0L, name: String = "") {
+open class RuntimeReverseRoot(id: UUID = nextRuntimeUuid(), name: String = "") {
     @OneToMany(cascade = [CascadeType.ALL], fetch = FetchType.EAGER, orphanRemoval = true)
     @JoinColumn(name = "`root_id`", nullable = false)
     open var children: MutableList<RuntimeReverseChild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1111,7 +1063,7 @@ open class RuntimeReverseRoot(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_reverse_child`")
-open class RuntimeReverseChild(id: Long = 0L, name: String = "") {
+open class RuntimeReverseChild(id: UUID = nextRuntimeUuid(), name: String = "") {
     @ManyToOne(cascade = [], fetch = FetchType.EAGER)
     @JoinColumn(name = "`root_id`", nullable = false, insertable = false, updatable = false)
     open var root: RuntimeReverseRoot? = null
@@ -1121,10 +1073,8 @@ open class RuntimeReverseChild(id: Long = 0L, name: String = "") {
     open var grandchildren: MutableList<RuntimeReverseGrandchild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1133,16 +1083,14 @@ open class RuntimeReverseChild(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_reverse_grandchild`")
-open class RuntimeReverseGrandchild(id: Long = 0L, name: String = "") {
+open class RuntimeReverseGrandchild(id: UUID = nextRuntimeUuid(), name: String = "") {
     @ManyToOne(cascade = [], fetch = FetchType.EAGER)
     @JoinColumn(name = "`child_id`", nullable = false, insertable = false, updatable = false)
     open var child: RuntimeReverseChild? = null
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1151,7 +1099,7 @@ open class RuntimeReverseGrandchild(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_safe_reverse_root`")
-open class RuntimeSafeReverseRoot(id: Long = 0L, name: String = "") {
+open class RuntimeSafeReverseRoot(id: UUID = nextRuntimeUuid(), name: String = "") {
     @OneToMany(
         cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE],
         fetch = FetchType.EAGER,
@@ -1161,10 +1109,8 @@ open class RuntimeSafeReverseRoot(id: Long = 0L, name: String = "") {
     open var children: MutableList<RuntimeSafeReverseChild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1173,7 +1119,7 @@ open class RuntimeSafeReverseRoot(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_safe_reverse_child`")
-open class RuntimeSafeReverseChild(id: Long = 0L, name: String = "") {
+open class RuntimeSafeReverseChild(id: UUID = nextRuntimeUuid(), name: String = "") {
     @ManyToOne(cascade = [], fetch = FetchType.EAGER)
     @JoinColumn(name = "`root_id`", nullable = false, insertable = false, updatable = false)
     open var root: RuntimeSafeReverseRoot? = null
@@ -1187,10 +1133,8 @@ open class RuntimeSafeReverseChild(id: Long = 0L, name: String = "") {
     open var grandchildren: MutableList<RuntimeSafeReverseGrandchild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1199,16 +1143,14 @@ open class RuntimeSafeReverseChild(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_safe_reverse_grandchild`")
-open class RuntimeSafeReverseGrandchild(id: Long = 0L, name: String = "") {
+open class RuntimeSafeReverseGrandchild(id: UUID = nextRuntimeUuid(), name: String = "") {
     @ManyToOne(cascade = [], fetch = FetchType.EAGER)
     @JoinColumn(name = "`child_id`", nullable = false, insertable = false, updatable = false)
     open var child: RuntimeSafeReverseChild? = null
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1217,16 +1159,14 @@ open class RuntimeSafeReverseGrandchild(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_fk_mirror_root`")
-open class RuntimeFkMirrorRoot(id: Long = 0L, name: String = "") {
+open class RuntimeFkMirrorRoot(id: UUID = nextRuntimeUuid(), name: String = "") {
     @OneToMany(cascade = [CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE], fetch = FetchType.LAZY, orphanRemoval = true)
     @JoinColumn(name = "`root_id`", nullable = false)
     open var children: MutableList<RuntimeFkMirrorChild> = mutableListOf()
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`name`", nullable = false)
@@ -1235,43 +1175,37 @@ open class RuntimeFkMirrorRoot(id: Long = 0L, name: String = "") {
 
 @Entity
 @Table(name = "`runtime_fk_mirror_child`")
-open class RuntimeFkMirrorChild(id: Long = 0L, rootId: Long = 0L, name: String = "") {
+open class RuntimeFkMirrorChild(id: UUID = nextRuntimeUuid(), rootId: UUID = UUID(0L, 0L), name: String = "") {
     @ManyToOne(cascade = [], fetch = FetchType.LAZY)
     @JoinColumn(name = "`root_id`", nullable = false, insertable = false, updatable = false)
     open var root: RuntimeFkMirrorRoot? = null
 
     @Id
-    @GeneratedValue(generator = SNOWFLAKE_GENERATOR)
-    @GenericGenerator(name = SNOWFLAKE_GENERATOR, strategy = SNOWFLAKE_GENERATOR)
-    @Column(name = "`id`", insertable = false, updatable = false)
-    open var id: Long = id
+    @Column(name = "`id`", updatable = false)
+    open var id: UUID = id
         protected set
 
     @Column(name = "`root_id`", insertable = false, updatable = false)
-    open var rootId: Long = rootId
+    open var rootId: UUID = rootId
         protected set
 
     @Column(name = "`name`", nullable = false)
     open var name: String = name
 }
 
-interface RuntimeRootJpaRepository :
-    JpaRepository<RuntimeRoot, Long>,
-    JpaSpecificationExecutor<RuntimeRoot>
+interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, UUID>
 
-interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, Long>
+interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, UUID>
 
-interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, Long>
-
-interface RuntimeFkMirrorChildJpaRepository : JpaRepository<RuntimeFkMirrorChild, Long>
+interface RuntimeFkMirrorChildJpaRepository : JpaRepository<RuntimeFkMirrorChild, UUID>
 
 @Repository
-class RuntimeRootRepository(
-    rootJpaRepository: RuntimeRootJpaRepository
-) : AbstractJpaRepository<RuntimeRoot, Long>(rootJpaRepository, rootJpaRepository)
+internal open class RuntimeRootRepository(
+    entityManager: EntityManager,
+) : AbstractJpaRepository<RuntimeRoot, UUID>(RuntimeRoot::class.java, entityManager)
 
 data class CountRuntimeRootChildrenCommand(
-    val rootId: Long
+    val rootId: UUID
 ) : Command<CountRuntimeRootChildrenResponse>
 
 data class CountRuntimeRootChildrenResponse(
@@ -1279,12 +1213,10 @@ data class CountRuntimeRootChildrenResponse(
 )
 
 @Component
-class CountRuntimeRootChildrenCommandHandler(
-    @param:Qualifier("defaultRepositorySupervisor")
-    private val repositorySupervisor: RepositorySupervisor
-) : CommandHandler<CountRuntimeRootChildrenCommand, CountRuntimeRootChildrenResponse> {
+class CountRuntimeRootChildrenCommandHandler :
+    CommandHandler<CountRuntimeRootChildrenCommand, CountRuntimeRootChildrenResponse> {
     override fun handle(command: CountRuntimeRootChildrenCommand): CountRuntimeRootChildrenResponse {
-        val root = repositorySupervisor.findOne(
+        val root = Mediator.repositories.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
         ) ?: error("RuntimeRoot not found: ${command.rootId}")
 
@@ -1293,7 +1225,7 @@ class CountRuntimeRootChildrenCommandHandler(
 }
 
 data class RenameRuntimeRootCommand(
-    val rootId: Long,
+    val rootId: UUID,
     val name: String,
 ) : Command<RenameRuntimeRootResult>
 
@@ -1304,13 +1236,11 @@ data class RenameRuntimeRootResult(
 
 @Component
 class RenameRuntimeRootCommandHandler(
-    @param:Qualifier("defaultRepositorySupervisor")
-    private val repositorySupervisor: RepositorySupervisor,
     private val unitOfWork: CommandUnitOfWorkCoordinator,
     private val entityManager: EntityManager,
 ) : CommandHandler<RenameRuntimeRootCommand, RenameRuntimeRootResult> {
     override fun handle(command: RenameRuntimeRootCommand): RenameRuntimeRootResult {
-        val root = repositorySupervisor.findOne(
+        val root = Mediator.repositories.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
         ) ?: error("RuntimeRoot not found: ${command.rootId}")
         root.name = command.name
@@ -1321,8 +1251,20 @@ class RenameRuntimeRootCommandHandler(
     }
 }
 
+data class RemoveRuntimeRootCommand(
+    val rootId: UUID,
+) : Command<Int>
+
+@Component
+class RemoveRuntimeRootCommandHandler : CommandHandler<RemoveRuntimeRootCommand, Int> {
+    override fun handle(command: RemoveRuntimeRootCommand): Int =
+        Mediator.repositories.remove(
+            JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
+        ).size
+}
+
 data class NestedRenameRuntimeRootCommand(
-    val rootId: Long,
+    val rootId: UUID,
     val name: String,
 ) : Command<NestedRenameRuntimeRootResult>
 

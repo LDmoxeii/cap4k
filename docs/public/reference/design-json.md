@@ -13,7 +13,7 @@
 - `domain_event.fields` 是生成事件的完整 payload；省略或留空时生成无 payload 的 marker event。
 - `domain_event.aggregates` 只表达归属和放置，不会隐式生成 Aggregate、Entity、Strong ID 或 snapshot 字段。
 - Domain Event field 的 resolved semantic type graph 不得直接或嵌套包含 cap4k 已知的 Aggregate/Entity；应显式使用标量、Strong ID、Value Object、enum 或专用不可变 snapshot。
-- 当前 Drawing Board generator 输出满足这些规则，可以由人或 Agent 通过 `sources.designJson.files` 显式注册为普通 design JSON 输入；cap4k 不会自动注册或回灌 analysis output。
+- 当前 Drawing Board generator 的普通 tag 输出满足这些规则，可以由人或 Agent 通过 `sources.designJson.files` 显式注册为普通 design JSON 输入；Aggregate element 结构文件不满足 Design JSON contract。cap4k 不会自动注册或回灌 analysis output。
 
 ## 支持的 Normal Tags
 
@@ -171,7 +171,9 @@ field item 常见 shape：
 
 ## Analysis 片段边界
 
-drawing-board JSON 是 analysis evidence。当前 Drawing Board generator 会输出满足本页字段集合、tag 约束、field shape 和 artifact selection 的普通 Design JSON；人或 Agent 可以把选定文件显式加入 `sources.designJson.files`。这不会自动发生，也不代表任意 analysis JSON 都是合法输入。
+Drawing Board JSON 是 analysis evidence。当前 Drawing Board generator 的普通 `drawing_board_<tag>.json` 文件满足本页字段集合、tag 约束、field shape 和 artifact selection；人或 Agent 可以把选定的普通 tag 文件显式加入 `sources.designJson.files`。这不会自动发生，也不代表任意 analysis JSON 都是合法输入。
+
+`drawing_board_aggregate_elements.json` 是独立的 Aggregate element 结构证据，不带 Design JSON `tag`，不能加入 `sources.designJson.files`。不要为了回灌该文件而把 `repository` 添加为 normal tag；`repository` 不在受支持的 Normal Tags 中。
 
 跨上下文复用 Integration Event 时，可以复制 outbound published-language contract，并显式把 artifact variant 改为 inbound。这个修改是消费上下文的新设计决策；Analyzer 和 Generator 都不会自动改变 event direction。
 

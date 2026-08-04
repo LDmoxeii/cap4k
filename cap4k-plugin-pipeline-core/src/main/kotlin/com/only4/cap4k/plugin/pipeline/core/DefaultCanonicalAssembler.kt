@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateElementModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationNodeModel
@@ -428,6 +429,21 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             unsupportedTables = unsupportedTables,
         )
 
+        val aggregateElements = analysisSnapshot
+            ?.aggregateElements
+            .orEmpty()
+            .map { element ->
+                AggregateElementModel(
+                    carrierQualifiedName = element.carrierQualifiedName,
+                    aggregate = element.aggregate,
+                    name = element.name,
+                    packageName = element.packageName,
+                    description = element.description,
+                    type = element.type,
+                    root = element.root,
+                )
+            }
+
         val analysisGraph = analysisSnapshot?.let {
             AnalysisGraphModel(
                 inputDirs = it.inputDirs,
@@ -449,10 +465,11 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         label = edge.label,
                     )
                 },
+                aggregateElements = aggregateElements,
             )
         }
 
-        val drawingBoard = analysisSnapshot
+        val drawingBoardElements = analysisSnapshot
             ?.designElements
             .orEmpty()
             .mapNotNull { element ->
@@ -477,13 +494,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             }
             .toList()
-            .takeIf { it.isNotEmpty() }
-            ?.let { elements ->
-                DrawingBoardModel(
-                    elements = elements,
-                    elementsByTag = elements.groupBy { it.tag },
-                )
-            }
+            .orEmpty()
+        val drawingBoard = if (drawingBoardElements.isNotEmpty() || aggregateElements.isNotEmpty()) {
+            DrawingBoardModel(
+                elements = drawingBoardElements,
+                elementsByTag = drawingBoardElements.groupBy { it.tag },
+                aggregateElements = aggregateElements,
+            )
+        } else {
+            null
+        }
 
         return CanonicalAssemblyResult(
             model = CanonicalModel(
@@ -558,7 +578,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             ?: return null
         val strategy = when (identifierPolicyKey(config, idColumn)) {
             "identifier.uuid7" -> "uuid7"
-            "identifier.snowflake" -> "snowflake"
             else -> return null
         }
         require(idColumn.refAggregate.isNullOrBlank() && idColumn.refId.isNullOrBlank()) {
@@ -586,7 +605,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
 
     private fun identifierStrategy(policyKey: String): String = when (policyKey) {
         "identifier.uuid7" -> "uuid7"
-        "identifier.snowflake" -> "snowflake"
         "identifier.assigned" -> "assigned"
         "identifier.database-identity" -> "identity"
         else -> policyKey.removePrefix("identifier.")
@@ -1402,7 +1420,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
         val artifactDeclarations = buildList {
             addAll(schemas.map { schema -> "${schema.packageName}.${schema.name}" })
-            addAll(repositories.map { repository -> "${repository.packageName}.${repository.name}" })
+            addAll(repositories.map { repository -> "${repository.packageName}.${repository.carrierTypeName}" })
             addAll(domainServices.map { service -> "${service.packageName}.${service.name}" })
             addAll(valueObjects.flatMap { valueObject -> valueObject.definition.artifactDeclarationFqns() })
             addAll(designBlocks.flatMap { block ->

@@ -34,7 +34,6 @@ Standard keys include:
 | Policy key | Meaning |
 | --- | --- |
 | `identifier.uuid7` | Application UUID7 identifier; preserve a valid explicit value or allocate at aggregate admission. |
-| `identifier.snowflake` | Application Snowflake identifier; preserve a valid explicit value or allocate at aggregate admission. |
 | `identifier.assigned` | Caller-assigned identifier required at aggregate admission. |
 | `identifier.database-identity` | Database-assigned identity, unavailable until provider persistence. |
 | `version` | Hibernate optimistic-lock version. |
@@ -47,6 +46,10 @@ Standard keys include:
 | `enrichment.audit-time.updated-at` | Persistence-enriched update time. |
 | `enrichment.audit-actor.created-by` | Persistence-enriched creation actor. |
 | `enrichment.audit-actor.updated-by` | Persistence-enriched update actor. |
+
+`identifier.uuid7` is the only built-in application-side Strong ID allocation policy. `identifier.database-identity` describes database assignment or autoincrement as persistence policy; it is not an application-side allocation strategy.
+
+An explicit request for an unsupported identifier policy fails canonical validation with a diagnostic that lists the supported identifier policies. It is never remapped to another policy.
 
 Pipeline Extensions may define additional exact policy keys. The DB parser validates key syntax; canonical resolution validates that an installed definition owns every selected key.
 

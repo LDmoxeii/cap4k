@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "83dbaa4c-2282-4272-8904-772755db8e09",
+  "kind": "archive",
+  "status": "committed",
+  "change": "reliable-event-delivery-context",
+  "createdAt": "2026-08-04T10:30:44.570Z",
+  "preflightHash": "641346814b6d4557aeec5c7066e6beb81340b3fa1fec4bbaa679c16ccc4b6c12",
+  "operations": [
+    {
+      "id": "spec-1-reliable-event-delivery-context",
+      "type": "write",
+      "target": "specs/reliable-event-delivery-context/spec.md",
+      "staged": "runtime/transactions/83dbaa4c-2282-4272-8904-772755db8e09/staged/specs/reliable-event-delivery-context/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "26e7e0fe7d17448df6ce22f1cd3c87ec920d14af8fce18ba1ed968d31766ea8b"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/reliable-event-delivery-context",
+      "target": "archive/2026-08-04-reliable-event-delivery-context",
+      "expectedSourceHash": "3da5b41f4d79ceab7e4aa5047c234658d4af7fcb41749a91a696671ae820bcaf",
+      "expectedTargetHash": null
+    }
+  ]
+}

@@ -1,10 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonArray
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.agent.AgentCredentialRedactor
 import com.only4.cap4k.plugin.pipeline.agent.AgentFreshnessEvaluator
 import com.only4.cap4k.plugin.pipeline.agent.AgentHashing
@@ -48,6 +46,7 @@ import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Project
@@ -735,9 +734,10 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
             return null
         }
         return try {
-            val document = JsonParser.parseString(file.readText(Charsets.UTF_8))
+            val mapper = PipelineJson.newMapper(includeNulls = true)
+            val document = mapper.readTree(file.readText(Charsets.UTF_8))
             validatePlanReport(document)
-            GsonBuilder().create().fromJson(document, PlanReport::class.java)
+            mapper.treeToValue(document, PlanReport::class.java)
         } catch (failure: Exception) {
             diagnostics += diagnostic(
                 id = "plan-evidence-invalid-${stableSuffix(projectRelativePath(file))}",
@@ -751,12 +751,12 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
         }
     }
 
-    private fun validatePlanReport(document: JsonElement) {
-        require(document.isJsonObject) { "plan report root must be a JSON object" }
-        val report = document.asJsonObject
+    private fun validatePlanReport(document: JsonNode) {
+        require(document.isObject) { "plan report root must be a JSON object" }
+        val report = document as ObjectNode
         requiredArray(report, "items", "plan report").forEachIndexed { index, item ->
-            require(item.isJsonObject) { "plan report items[$index] must be a JSON object" }
-            val artifact = item.asJsonObject
+            require(item.isObject) { "plan report items[$index] must be a JSON object" }
+            val artifact = item as ObjectNode
             requiredString(artifact, "generatorId", "plan report items[$index]")
             requiredString(artifact, "moduleRole", "plan report items[$index]")
             requiredString(artifact, "templateId", "plan report items[$index]")
@@ -789,11 +789,11 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
             require(requiredString(evidence, "configurationIdentity", "plan report evidence").isNotBlank()) {
                 "plan report evidence configurationIdentity must not be blank"
             }
-            evidence["localInputIdentity"]?.takeUnless(JsonElement::isJsonNull)?.let { localIdentity ->
-                require(localIdentity.isJsonPrimitive && localIdentity.asJsonPrimitive.isString) {
+            evidence["localInputIdentity"]?.takeUnless(JsonNode::isNull)?.let { localIdentity ->
+                require(localIdentity.isTextual) {
                     "plan report evidence localInputIdentity must be a string or null"
                 }
-                require(localIdentity.asString.isNotBlank()) {
+                require(localIdentity.asText().isNotBlank()) {
                     "plan report evidence localInputIdentity must not be blank"
                 }
             }
@@ -807,23 +807,23 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
                     .forEach { field ->
                         requiredArray(aggregate, field, "plan report aggregate diagnostics")
                             .forEachIndexed { index, value ->
-                                require(value.isJsonPrimitive && value.asJsonPrimitive.isString) {
+                                require(value.isTextual) {
                                     "plan report aggregate diagnostics $field[$index] must be a string"
                                 }
                             }
                     }
                 requiredArray(aggregate, "unsupportedTables", "plan report aggregate diagnostics")
                     .forEachIndexed { index, value ->
-                        require(value.isJsonObject) {
+                        require(value.isObject) {
                             "plan report aggregate diagnostics unsupportedTables[$index] must be a JSON object"
                         }
                         requiredString(
-                            value.asJsonObject,
+                            value as ObjectNode,
                             "tableName",
                             "plan report aggregate diagnostics unsupportedTables[$index]",
                         )
                         requiredString(
-                            value.asJsonObject,
+                            value,
                             "reason",
                             "plan report aggregate diagnostics unsupportedTables[$index]",
                         )
@@ -831,42 +831,42 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
             }
     }
 
-    private fun requiredArray(parent: JsonObject, field: String, owner: String): JsonArray {
+    private fun requiredArray(parent: ObjectNode, field: String, owner: String): ArrayNode {
         val value = parent[field]
-        require(value != null && value.isJsonArray) { "$owner $field must be a JSON array" }
-        return value.asJsonArray
+        require(value != null && value.isArray) { "$owner $field must be a JSON array" }
+        return value as ArrayNode
     }
 
-    private fun requiredObject(parent: JsonObject, field: String, owner: String): JsonObject {
+    private fun requiredObject(parent: ObjectNode, field: String, owner: String): ObjectNode {
         val value = parent[field]
-        require(value != null && value.isJsonObject) { "$owner $field must be a JSON object" }
-        return value.asJsonObject
+        require(value != null && value.isObject) { "$owner $field must be a JSON object" }
+        return value as ObjectNode
     }
 
-    private fun JsonObject.optionalObject(field: String, owner: String): JsonObject? {
+    private fun ObjectNode.optionalObject(field: String, owner: String): ObjectNode? {
         val value = this[field] ?: return null
-        if (value.isJsonNull) return null
-        require(value.isJsonObject) { "$owner $field must be a JSON object or null" }
-        return value.asJsonObject
+        if (value.isNull) return null
+        require(value.isObject) { "$owner $field must be a JSON object or null" }
+        return value as ObjectNode
     }
 
-    private fun requiredString(parent: JsonObject, field: String, owner: String): String {
+    private fun requiredString(parent: ObjectNode, field: String, owner: String): String {
         val value = parent[field]
-        require(value != null && value.isJsonPrimitive && value.asJsonPrimitive.isString) {
+        require(value != null && value.isTextual) {
             "$owner $field must be a string"
         }
-        return value.asString
+        return value.asText()
     }
 
-    private fun requiredBoolean(parent: JsonObject, field: String, owner: String) {
+    private fun requiredBoolean(parent: ObjectNode, field: String, owner: String) {
         val value = parent[field]
-        require(value != null && value.isJsonPrimitive && value.asJsonPrimitive.isBoolean) {
+        require(value != null && value.isBoolean) {
             "$owner $field must be a boolean"
         }
     }
 
     private fun requiredEnum(
-        parent: JsonObject,
+        parent: ObjectNode,
         field: String,
         owner: String,
         allowedValues: Set<String>,

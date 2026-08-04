@@ -4,6 +4,8 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import io.mockk.*
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -20,6 +22,11 @@ import org.springframework.messaging.Message
 
 @DisplayName("RocketMQ集成事件订阅适配器测试")
 class RocketMqIntegrationEventSubscriberAdapterTest {
+
+    private val noOpReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
+        override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
+        override fun suppress(): AutoCloseable = AutoCloseable { }
+    }
 
     private val eventHandlerDispatcher: EventHandlerDispatcher = mockk()
     private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure = mockk()
@@ -48,7 +55,8 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             eventTypeCatalog = eventTypeCatalog,
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
-            msgCharset = msgCharset
+            msgCharset = msgCharset,
+            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
         )
     }
 
@@ -76,7 +84,12 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
 
         every { messageExt.msgId } returns "msg-123"
         every { messageExt.body } returns messageBody.toByteArray()
-        every { messageExt.properties } returns mapOf("key" to "value")
+        every { messageExt.properties } returns mapOf(
+            "key" to "value",
+            "cap4k-event-id" to "event-123",
+            "cap4k-timestamp" to "1000",
+        )
+        every { messageExt.reconsumeTimes } returns 0
         every { eventHandlerDispatcher.dispatch(any()) } just Runs
         every { eventMessageInterceptor1.preSubscribe(any<Message<*>>()) } just Runs
         every { eventMessageInterceptor1.postSubscribe(any<Message<*>>()) } just Runs
@@ -179,7 +192,8 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             eventTypeCatalog = eventTypeCatalog,
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
-            msgCharset = msgCharset
+            msgCharset = msgCharset,
+            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
         )
 
         val messageExt = mockk<MessageExt>()
@@ -189,7 +203,11 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
 
         every { messageExt.msgId } returns "msg-123"
         every { messageExt.body } returns messageBody.toByteArray()
-        every { messageExt.properties } returns emptyMap()
+        every { messageExt.properties } returns mapOf(
+            "cap4k-event-id" to "event-123",
+            "cap4k-timestamp" to "1000",
+        )
+        every { messageExt.reconsumeTimes } returns 0
         every { eventHandlerDispatcher.dispatch(testEvent) } just Runs
 
         mockkStatic("com.alibaba.fastjson.JSON")

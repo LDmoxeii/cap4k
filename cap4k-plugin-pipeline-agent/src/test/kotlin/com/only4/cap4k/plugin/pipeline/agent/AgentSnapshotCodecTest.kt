@@ -41,6 +41,7 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
 import com.only4.cap4k.plugin.pipeline.api.PipelineInputSafety
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -80,9 +81,12 @@ class AgentSnapshotCodecTest {
         assertEquals(AgentHashing.sha256(encoded.manifestJson), encoded.manifestSha256)
 
         val capabilitiesJson = encoded.sectionJsonByPath.getValue("capabilities.json")
-        assertTrue(capabilitiesJson.contains("\"kind\": \"generator\""))
-        assertTrue(capabilitiesJson.contains("\"executionLanes\""))
-        assertTrue(capabilitiesJson.contains("\"authoring\""))
+        val capabilitiesTree = PipelineJson.newMapper().readTree(capabilitiesJson)
+        assertTrue(capabilitiesTree.findValues("kind").any { it.asText() == "generator" })
+        assertTrue(capabilitiesTree.findValues("executionLanes").isNotEmpty())
+        assertTrue(capabilitiesTree.findValues("executionLanes").any { lanes ->
+            lanes.any { it.asText() == "authoring" }
+        })
         assertTrue(capabilitiesJson.indexOf(PipelinePublicTasks.PLAN) < capabilitiesJson.indexOf(PipelinePublicTasks.GENERATE))
 
         val diagnosticsJson = encoded.sectionJsonByPath.getValue("diagnostics.json")

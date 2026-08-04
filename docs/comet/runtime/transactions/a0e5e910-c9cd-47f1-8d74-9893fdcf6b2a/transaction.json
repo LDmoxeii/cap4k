@@ -1,0 +1,81 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-snowflake-retirement",
+  "createdAt": "2026-08-04T11:36:13.470Z",
+  "preflightHash": "707583bd488fd30edc9401c4a930ea7acf3afe3dbeb9b7c7d99b735e800b512b",
+  "operations": [
+    {
+      "id": "spec-1-managed-field-policy-and-pipeline-extension",
+      "type": "write",
+      "target": "specs/managed-field-policy-and-pipeline-extension/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/managed-field-policy-and-pipeline-extension/spec.md",
+      "backup": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/backups/specs/managed-field-policy-and-pipeline-extension/spec.md",
+      "expectedTargetHash": "2405358a8a4b5ab38c7d4018a66c2983b639abd941006b5beb94425b74ae4749",
+      "stagedHash": "cc63510e24338569000466354b742fe4c2248e7b24ce429882ead6bf01bcb40b"
+    },
+    {
+      "id": "spec-2-official-default-project-contract",
+      "type": "write",
+      "target": "specs/official-default-project-contract/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/official-default-project-contract/spec.md",
+      "backup": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/backups/specs/official-default-project-contract/spec.md",
+      "expectedTargetHash": "4982258cc593ea85a4b70c8094cfce3e7901a9c2bef0360ab56f6a35dbf71018",
+      "stagedHash": "cd407115eb428d109efd37627e6a297fcb7f2539dcd7ef718e03a9b7c599f666"
+    },
+    {
+      "id": "spec-3-official-default-project-contract-reconciliation",
+      "type": "write",
+      "target": "specs/official-default-project-contract-reconciliation/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/official-default-project-contract-reconciliation/spec.md",
+      "backup": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/backups/specs/official-default-project-contract-reconciliation/spec.md",
+      "expectedTargetHash": "5c2c4b8342f2c441092b691a7302cbe69d362fa490e88c97e70586c624601c31",
+      "stagedHash": "aea251e7b371c090366ad711037d4fc1b19645911d707360c9968c585839b13e"
+    },
+    {
+      "id": "spec-4-owned-child-factory-creation",
+      "type": "write",
+      "target": "specs/owned-child-factory-creation/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/owned-child-factory-creation/spec.md",
+      "backup": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/backups/specs/owned-child-factory-creation/spec.md",
+      "expectedTargetHash": "3a54ee43fb38f2e71be46d4752aba6cb7b3a334bbf29b990819fa50142fff496",
+      "stagedHash": "7764247c243abd48e2ab22e6f818cf51f120840ae45a7a2081f55550d6d0fa7a"
+    },
+    {
+      "id": "spec-5-runtime-console-retirement",
+      "type": "write",
+      "target": "specs/runtime-console-retirement/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/runtime-console-retirement/spec.md",
+      "backup": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/backups/specs/runtime-console-retirement/spec.md",
+      "expectedTargetHash": "45bc8890b4b8c01456367df28570ef8aae5d5ed83df62a2c53af974fc5540845",
+      "stagedHash": "c4829cd0a34d1fc67b6a83c5bcbc509cdb7572d3032480a0f382bc3317274d92"
+    },
+    {
+      "id": "spec-6-runtime-snowflake-retirement",
+      "type": "write",
+      "target": "specs/runtime-snowflake-retirement/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/runtime-snowflake-retirement/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "a51427287fb9a8a9771c59769269754fd26d9f1ffc5d662767830d7735a63047"
+    },
+    {
+      "id": "spec-7-strong-id-mvc-binding",
+      "type": "write",
+      "target": "specs/strong-id-mvc-binding/spec.md",
+      "staged": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/staged/specs/strong-id-mvc-binding/spec.md",
+      "backup": "runtime/transactions/a0e5e910-c9cd-47f1-8d74-9893fdcf6b2a/backups/specs/strong-id-mvc-binding/spec.md",
+      "expectedTargetHash": "4ddc98fdfc3629ea34ff3c564d225b68297bd1eda37b89346278a4b0e5d2a9e4",
+      "stagedHash": "7b460cfb6fa8f27fcfd5833a0e94c8ed4091d604ad603a628f90602cd8ff6222"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-snowflake-retirement",
+      "target": "archive/2026-08-04-runtime-snowflake-retirement",
+      "expectedSourceHash": "3ac676d32624b6a20568b005e68e2b8eb513cbac149336f1b205b9ecad67f226",
+      "expectedTargetHash": null
+    }
+  ]
+}

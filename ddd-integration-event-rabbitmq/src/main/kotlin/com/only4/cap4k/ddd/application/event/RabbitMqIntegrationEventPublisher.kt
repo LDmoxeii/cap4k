@@ -13,6 +13,7 @@ import org.springframework.amqp.core.MessagePostProcessor
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.core.env.Environment
+import java.util.Date
 import java.util.concurrent.ExecutorService
 
 /**
@@ -116,6 +117,7 @@ class RabbitMqIntegrationEventPublisher(
         override fun postProcessMessage(message: Message): Message {
             log.info("集成事件发送成功, ${event.id}")
             message.messageProperties.messageId = event.id
+            message.messageProperties.timestamp = Date.from(event.publishedAt)
             executionContext?.let {
                 message.messageProperties.setHeader(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, it)
             }

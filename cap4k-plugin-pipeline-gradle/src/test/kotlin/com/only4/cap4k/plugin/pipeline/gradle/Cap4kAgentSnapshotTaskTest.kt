@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.gradle
 
-import com.google.gson.GsonBuilder
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.agent.AgentHashing
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotCodec
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
@@ -30,6 +30,9 @@ import java.io.File
 import kotlin.io.path.createTempDirectory
 
 class Cap4kAgentSnapshotTaskTest {
+    private val planMapper = PipelineJson.newMapper(includeNulls = true)
+    private val planWriter = PipelineJson.prettyWriter(planMapper)
+
     @Test
     fun `writes one manifest-first snapshot with all seven sections`() {
         val project = project("agent-snapshot-valid")
@@ -254,7 +257,7 @@ class Cap4kAgentSnapshotTaskTest {
         val planFile = project.layout.buildDirectory.file("cap4k/plan.json").get().asFile
         planFile.parentFile.mkdirs()
         planFile.writeText(
-            GsonBuilder().setPrettyPrinting().create().toJson(
+            planWriter.writeValueAsString(
                 PlanReport(
                     items = emptyList(),
                     outcome = PlanOutcome.FAILED,
@@ -331,7 +334,7 @@ class Cap4kAgentSnapshotTaskTest {
         val planFile = project.layout.buildDirectory.file("cap4k/plan.json").get().asFile
         planFile.parentFile.mkdirs()
         planFile.writeText(
-            GsonBuilder().setPrettyPrinting().create().toJson(
+            planWriter.writeValueAsString(
                 PlanReport(
                     items = emptyList(),
                     diagnostics = PipelineDiagnostics(

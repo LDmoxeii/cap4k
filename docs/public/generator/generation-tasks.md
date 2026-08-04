@@ -107,7 +107,7 @@ analysis tasks 读取 compiler analysis output root：
 build/cap4k-code-analysis
 ```
 
-必要 IR input 是 `nodes.json` 和 `rels.json`，`design-elements.json` 是可选 input。analysis output 用于观察现有代码结构，帮助 verification 看 controller、subscriber、job、Command、Query 和 Capability flow 如何连接。它们不生成 source skeleton。
+必要 IR input 是 `nodes.json`、`rels.json` 和 `aggregate-elements.json`；没有 Aggregate element 时后者也必须存在并写为 `[]`。`design-elements.json` 仍是可选 input，compiler 会输出这四个文件。Analysis output 用于观察现有代码结构，帮助 verification 看 controller、subscriber、job、Command、Query、Capability flow 与 Aggregate element 如何连接。Drawing Board 的 Aggregate element 文件是结构证据，不是 Design JSON；analysis outputs 不生成 source skeleton。
 
 analysis evidence 详见 [Analysis Evidence](analysis-evidence.md) 和 [Analysis Outputs](../reference/analysis-outputs.md)。
 

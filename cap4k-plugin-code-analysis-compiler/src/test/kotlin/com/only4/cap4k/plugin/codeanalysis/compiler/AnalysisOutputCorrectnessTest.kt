@@ -343,6 +343,101 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `repository carrier metadata is recovered as aggregate structure without becoming design json`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "AggregateElementMetadata.kt",
+                    """
+                        package com.only4.cap4k.analysis.metadata
+
+                        annotation class AggregateElementMetadata(
+                            val aggregate: String,
+                            val name: String = "",
+                            val packageName: String = "",
+                            val description: String = "",
+                            val type: String,
+                            val root: Boolean = false,
+                        )
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "OrderJpaRepositoryAdapter.kt",
+                    """
+                        package demo.adapter.domain.repositories
+
+                        import com.only4.cap4k.analysis.metadata.AggregateElementMetadata
+
+                        @AggregateElementMetadata(
+                            aggregate = "Order",
+                            name = "OrderRepository",
+                            packageName = "demo.adapter.domain.repositories",
+                            description = "Order repository carrier",
+                            type = "repository",
+                        )
+                        internal class OrderJpaRepositoryAdapter
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        assertEquals(
+            """[{"carrierQualifiedName":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter","aggregate":"Order","name":"OrderRepository","packageName":"demo.adapter.domain.repositories","description":"Order repository carrier","type":"repository","root":false}]""",
+            outputDir.resolve("aggregate-elements.json").toFile().readText(),
+        )
+        assertEquals("[]", outputDir.resolve("design-elements.json").toFile().readText())
+    }
+
+    @Test
+    fun `repository carrier without aggregate metadata is reported as incomplete analysis evidence`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "Repository.kt",
+                    """
+                        package com.only4.cap4k.ddd.core.domain.repo
+
+                        interface Repository<ENTITY : Any>
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "RepositoryStereotype.kt",
+                    """
+                        package org.springframework.stereotype
+
+                        @Target(AnnotationTarget.CLASS)
+                        annotation class Repository
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "OrderJpaRepositoryAdapter.kt",
+                    """
+                        package demo.adapter.domain.repositories
+
+                        import com.only4.cap4k.ddd.core.domain.repo.Repository as Cap4kRepository
+                        import org.springframework.stereotype.Repository
+
+                        @Repository
+                        internal class OrderJpaRepositoryAdapter : Cap4kRepository<Any>
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        assertTrue(
+            nodes.contains(
+                "\"fullName\":\"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter\"," +
+                    "\"type\":\"repository\",\"missingMetadata\":[" +
+                    "\"com.only4.cap4k.analysis.metadata.AggregateElementMetadata\"]," +
+                    "\"metadataOwner\":\"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter\""
+            ),
+            nodes,
+        )
+        assertEquals("[]", outputDir.resolve("aggregate-elements.json").toFile().readText())
+    }
+
+    @Test
     fun `top level behavior on aggregate annotated generated style entity without application side id keeps exact domain event edge`() {
         val rels = compileRelationships(
             categorySources(
