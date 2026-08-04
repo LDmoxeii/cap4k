@@ -1,6 +1,6 @@
 schema: comet.native.v3
 minimum_runtime_version: 3
-revision: 23
+revision: 26
 name: framework-capability-audit
 language: en
 phase: shape

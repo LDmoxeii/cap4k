@@ -1,15 +1,15 @@
 {
   "schema": "comet.native.progress-checkpoint.v1",
-  "id": "e2734ebe-0306-445f-b109-983a5ffd792f",
+  "id": "05cde302-f9fa-441e-bc91-cd3f674ad19c",
   "change": "framework-capability-audit",
   "phase": "shape",
-  "previousRevision": 22,
-  "stateRevision": 23,
-  "summary": "PR #157 merged as ba948c29 after all six review blockers were resolved. The audit line merged origin/master@ba948c29 and independently reran the real two-project DesignRoundTripFunctionalTest with --rerun-tasks; it passed in 5m 6s with all 72 actionable tasks executed. Generator gate is now READY and Issue #102 is closed.",
-  "nextAction": "Begin the Runtime capability audit on the refreshed audit line, preserving PR #152 reliable-event entity-payload rejection as an accepted runtime boundary. Do not start downstream real-project validation until Runtime and Analyzer audits also close.",
-  "inputHash": "f35a9b770175db7f0ee20e37393d123758ad9d54414362206ba30d1d814c6c5e",
-  "manifestHash": "a3806c31243c0073ea6a9dad7963dacbcb7f6fffaee1ee4cb2c31aab05860dd4",
-  "manifestRef": "runtime/checkpoints/manifests/a3806c31243c0073ea6a9dad7963dacbcb7f6fffaee1ee4cb2c31aab05860dd4.json",
-  "artifactCount": 1,
-  "createdAt": "2026-08-03T07:41:12.305Z"
+  "previousRevision": 25,
+  "stateRevision": 26,
+  "summary": "The user confirmed the complete Runtime target contract. Runtime Shape decisions now cover provider composition, repository ownership, handler completion and local ordering, reliable delivery context, transport acknowledgement, retry/claim/lease/redrive, safe failure facts, retention, retired capabilities, and verification expectations.",
+  "nextAction": "Prepare a dependency-aware set of independent Runtime implementation/fix branches and fork-session opening statements. Keep production code unchanged on the audit branch; after fixes merge to master, refresh and reverify Runtime before Analyzer.",
+  "inputHash": "7eaa2fa0302c53e94cb67227f7ff5bdec6756f03493cde78d17dbafd85c85751",
+  "manifestHash": "22827256971576238d8503869326fbd9e55ff4072bb333a7724521f4e23ed0a1",
+  "manifestRef": "runtime/checkpoints/manifests/22827256971576238d8503869326fbd9e55ff4072bb333a7724521f4e23ed0a1.json",
+  "artifactCount": 0,
+  "createdAt": "2026-08-03T13:56:02.235Z"
 }
