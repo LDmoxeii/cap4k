@@ -47,6 +47,7 @@ import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerDescriptorResolver
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerRegistry
+import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport
@@ -73,6 +74,15 @@ class CoreRuntimeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(ExecutionContextAccessor::class)
     fun executionContextManager(): DefaultExecutionContextManager = DefaultExecutionContextManager()
+
+    @Bean
+    fun reliableEventDeliveryContextManager(
+        executionContextAccessor: ExecutionContextAccessor,
+        executionContextScopeManager: ExecutionContextScopeManager,
+    ): DefaultReliableEventDeliveryContextManager = DefaultReliableEventDeliveryContextManager(
+        executionContextAccessor,
+        executionContextScopeManager,
+    )
 
     @Bean
     @ConditionalOnMissingBean(ExecutionContextCodecRegistry::class)

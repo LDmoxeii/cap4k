@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.application.event
 
 import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
+import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
@@ -10,6 +11,9 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
+import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.rabbitmq.client.Channel
 import io.mockk.every
@@ -25,16 +29,21 @@ import org.springframework.amqp.core.MessageProperties
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
 import org.springframework.core.env.Environment
+import java.time.Instant
+import java.util.Date
 
 class RabbitMqIntegrationEventExecutionContextTest {
     @Test
     fun `consumer installs external context before dispatch and clears it afterwards`() {
         val contextManager = DefaultExecutionContextManager()
         val codecRegistry = ExecutionContextCodecRegistry(listOf(TransportContextCodec))
+        val reliableContextManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager)
         val subscriberManager = mockk<EventHandlerDispatcher>()
         var observedContext: TransportContext? = null
+        var observedDeliveryContext: ReliableEventDeliveryContext? = null
         every { subscriberManager.dispatch(any()) } answers {
             observedContext = contextManager.current()[TransportContextKey]
+            observedDeliveryContext = reliableContextManager.currentOrNull()
         }
         val adapter = RabbitMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = subscriberManager,
@@ -47,13 +56,17 @@ class RabbitMqIntegrationEventExecutionContextTest {
             applicationName = "test-app",
             executionContextCodecRegistry = codecRegistry,
             executionContextScopeManager = contextManager,
+            reliableEventDeliveryContextScopeManager = reliableContextManager,
         )
         val envelope = IntegrationEventExecutionContextEnvelope.encode(
             codecRegistry.encode(originSnapshot(), ExecutionContextBoundary.INTEGRATION_EVENT),
         )
+        val publishedAt = Instant.parse("2026-01-01T00:00:00.123Z")
         val properties = MessageProperties().apply {
             deliveryTag = 17L
             messageId = "message-17"
+            timestamp = Date.from(publishedAt)
+            redelivered = false
             setHeader(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, envelope)
         }
         val message = Message(JSON.toJSONString(ContextTransportEvent("payload")).toByteArray(), properties)
@@ -70,8 +83,74 @@ class RabbitMqIntegrationEventExecutionContextTest {
         method.invoke(adapter, ContextTransportEvent::class.java, message, channel)
 
         assertEquals(TransportContext("origin"), observedContext)
+        assertEquals(
+            ReliableEventDeliveryContext(
+                eventId = "message-17",
+                eventName = "ContextTransportEvent",
+                publishedAt = publishedAt,
+                attempt = null,
+                redeliveryHint = ReliableEventRedeliveryHint.FIRST,
+            ),
+            observedDeliveryContext,
+        )
         assertTrue(contextManager.current().isEmpty)
+        assertEquals(null, reliableContextManager.currentOrNull())
         verify(exactly = 1) { channel.basicAck(17L, false) }
+    }
+
+    @Test
+    fun `reliable context is suppressed for interceptors and cleared after failure`() {
+        val contextManager = DefaultExecutionContextManager()
+        val reliableContextManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager)
+        val interceptorObservations = mutableListOf<ReliableEventDeliveryContext?>()
+        val interceptor = object : EventMessageInterceptor {
+            override fun initPublish(message: org.springframework.messaging.Message<*>) = Unit
+            override fun prePublish(message: org.springframework.messaging.Message<*>) = Unit
+            override fun postPublish(message: org.springframework.messaging.Message<*>) = Unit
+            override fun preSubscribe(message: org.springframework.messaging.Message<*>) {
+                interceptorObservations += reliableContextManager.currentOrNull()
+            }
+            override fun postSubscribe(message: org.springframework.messaging.Message<*>) {
+                interceptorObservations += reliableContextManager.currentOrNull()
+            }
+        }
+        val subscriberManager = mockk<EventHandlerDispatcher>()
+        every { subscriberManager.dispatch(any()) } throws IllegalStateException("handler failure")
+        val adapter = RabbitMqIntegrationEventSubscriberAdapter(
+            eventHandlerDispatcher = subscriberManager,
+            eventMessageInterceptors = listOf(interceptor),
+            rabbitMqIntegrationEventConfigure = null,
+            rabbitListenerContainerFactory = mockk<SimpleRabbitListenerContainerFactory>(),
+            connectionFactory = mockk<ConnectionFactory>(),
+            environment = mockk<Environment>(),
+            eventTypeCatalog = EmptyEventCatalog,
+            applicationName = "test-app",
+            executionContextScopeManager = contextManager,
+            reliableEventDeliveryContextScopeManager = reliableContextManager,
+        )
+        val properties = MessageProperties().apply {
+            deliveryTag = 18L
+            messageId = "message-18"
+            timestamp = Date.from(Instant.EPOCH)
+            redelivered = true
+        }
+        val message = Message(JSON.toJSONString(ContextTransportEvent("payload")).toByteArray(), properties)
+        val channel = mockk<Channel> {
+            every { basicReject(18L, true) } just runs
+        }
+        val method = adapter.javaClass.getDeclaredMethod(
+            "onMessage",
+            Class::class.java,
+            Message::class.java,
+            Channel::class.java,
+        ).apply { isAccessible = true }
+
+        method.invoke(adapter, ContextTransportEvent::class.java, message, channel)
+
+        assertEquals(listOf(null), interceptorObservations)
+        assertEquals(null, reliableContextManager.currentOrNull())
+        assertTrue(contextManager.current().isEmpty)
+        verify(exactly = 1) { channel.basicReject(18L, true) }
     }
 
     private object EmptyEventCatalog : EventTypeCatalog {

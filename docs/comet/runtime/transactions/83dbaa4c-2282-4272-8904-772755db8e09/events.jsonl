@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-04T10:30:48.046Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-04T10:30:54.173Z","type":"operation-started","operationId":"spec-1-reliable-event-delivery-context"}
+{"sequence":3,"timestamp":"2026-08-04T10:30:54.658Z","type":"operation-completed","operationId":"spec-1-reliable-event-delivery-context"}
+{"sequence":4,"timestamp":"2026-08-04T10:30:54.721Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-04T10:30:55.858Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-04T10:30:56.586Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-04T10:30:56.813Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-04T10:30:56.990Z","type":"commit"}

@@ -1,17 +1,20 @@
 package com.only4.cap4k.ddd.application.event.capabilities
 
 import com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapter
-import io.mockk.clearAllMocks
-import io.mockk.every
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
+import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestTemplate
+import java.time.Instant
 
 @ExtendWith(MockKExtension::class)
 @DisplayName("集成事件 HTTP 回调 Capability 测试")
@@ -38,15 +41,17 @@ class IntegrationEventHttpCallbackTriggerCapabilityTest {
             uuid = "event-123",
             event = "user.created",
             payload = mapOf("userId" to "user-456"),
+            publishedAt = Instant.parse("2026-08-04T00:00:00.123Z"),
         )
         val expectedResponse = HttpIntegrationEventSubscriberAdapter.OperationResponse<String>(
             success = true,
             message = "处理成功",
         )
+        val requestEntity = slot<HttpEntity<*>>()
         every {
             restTemplate.postForEntity(
                 any<String>(),
-                any(),
+                capture(requestEntity),
                 eq(HttpIntegrationEventSubscriberAdapter.OperationResponse::class.java),
                 any<Map<String, Any>>(),
             )
@@ -54,5 +59,9 @@ class IntegrationEventHttpCallbackTriggerCapabilityTest {
             ResponseEntity<HttpIntegrationEventSubscriberAdapter.OperationResponse<*>>
 
         assertTrue(handler.call(request).success)
+        assertEquals(
+            request.publishedAt.toEpochMilli().toString(),
+            requestEntity.captured.headers.getFirst(HEADER_KEY_CAP4K_TIMESTAMP),
+        )
     }
 }

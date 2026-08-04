@@ -12,6 +12,8 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextAccessor
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.query.QueryHandler
@@ -20,6 +22,7 @@ import com.only4.cap4k.ddd.core.application.async.ApplicationAsyncExecutor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -49,6 +52,10 @@ class CoreStarterAutoConfigurationTest {
             assertTrue(context.startupFailure == null)
             assertTrue(context.getBeansOfType(CommandRecordRepository::class.java).isEmpty())
             assertEquals(1, context.getBeansOfType(EventHandlerDispatcher::class.java).size)
+            assertSame(
+                context.getBean(ReliableEventDeliveryContextAccessor::class.java),
+                context.getBean(ReliableEventDeliveryContextScopeManager::class.java),
+            )
             assertEquals(
                 setOf(TestIntegrationEvent::class.java),
                 context.getBean(EventTypeCatalog::class.java).integrationEventTypes(),

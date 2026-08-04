@@ -2,7 +2,7 @@
 
 Mediator 是运行时路由 facade，用来把 Command、Query 或 Capability call 交给对应 Handler。它让调用方不必直接知道每个 Handler 的具体类名和装配方式，但它不是业务编排引擎，也不是 domain layer 的依赖。
 
-当 controller、console entry、subscriber、job 或 adapter entry 需要触发应用层行为时，可以通过 `Mediator.commands`、`Mediator.queries` 或 `Mediator.capabilities` 进入明确分类。Mediator 不暴露 generic `requests` 或应用侧 `uow` 逃生口；Command、Query 与 Capability 各自保留独立事务、异步和调用规则。
+当 controller、subscriber、job 或 adapter entry 需要触发应用层行为时，可以通过 `Mediator.commands`、`Mediator.queries` 或 `Mediator.capabilities` 进入明确分类。Mediator 不暴露 generic `requests` 或应用侧 `uow` 逃生口；Command、Query 与 Capability 各自保留独立事务、异步和调用规则。
 
 Query 与 Capability 都通过同一种阻塞 Handler 同时支持同步和异步 Supervisor API。`askAsync()`、`callAsync()` 使用框架有界 executor 和 ExecutionContext 传播；它们提供可控并行机会，不承诺线程切换或强制取消。异步 Command 则是可靠登记和新事务执行，不能退化成 Caller Runs。
 

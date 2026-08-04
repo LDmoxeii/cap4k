@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapt
 import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
 import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -12,6 +13,7 @@ import org.springframework.http.MediaType
 import org.springframework.web.client.RestTemplate
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 
 /**
  * Invokes a subscriber-owned HTTP callback capability.
@@ -29,7 +31,11 @@ object IntegrationEventHttpCallbackTriggerCapability {
             val url = buildUrlWithParams(request.url, uriParams)
 
             return runCatching {
-                val requestEntity = createRequestEntity(request.payload, request.executionContext)
+                val requestEntity = createRequestEntity(
+                    request.payload,
+                    request.publishedAt,
+                    request.executionContext,
+                )
                 val response = restTemplate.postForEntity(
                     url,
                     requestEntity,
@@ -56,10 +62,11 @@ object IntegrationEventHttpCallbackTriggerCapability {
             }
         }
 
-        private fun createRequestEntity(payload: Any?, executionContext: String) = HttpEntity(
+        private fun createRequestEntity(payload: Any?, publishedAt: Instant, executionContext: String) = HttpEntity(
             payload?.let { JSON.toJSONString(it).toByteArray(StandardCharsets.UTF_8) },
             HttpHeaders().apply {
                 contentType = MediaType.APPLICATION_JSON
+                set(HEADER_KEY_CAP4K_TIMESTAMP, publishedAt.toEpochMilli().toString())
                 set(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, executionContext)
             },
         )
@@ -99,6 +106,7 @@ object IntegrationEventHttpCallbackTriggerCapability {
         val uuid: String,
         val event: String,
         val payload: Any?,
+        val publishedAt: Instant,
         val executionContext: String = "[]",
     ) : CapabilityCall<Response>
 

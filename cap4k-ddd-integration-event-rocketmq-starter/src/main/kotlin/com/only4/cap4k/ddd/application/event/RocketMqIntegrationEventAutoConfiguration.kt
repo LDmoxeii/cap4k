@@ -15,6 +15,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_ROCKETMQ_NAME_SERVER
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
@@ -72,6 +73,7 @@ class RocketMqIntegrationEventAutoConfiguration {
         eventTypeCatalog: EventTypeCatalog,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         executionContextScopeManager: ExecutionContextScopeManager,
+        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
         @Value(CONFIG_KEY_4_ROCKETMQ_NAME_SERVER) defaultNameServer: String,
         @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET) messageCharset: String,
@@ -86,5 +88,6 @@ class RocketMqIntegrationEventAutoConfiguration {
         messageCharset,
         executionContextCodecRegistry,
         executionContextScopeManager,
+        reliableEventDeliveryContextScopeManager,
     ).apply { init() }
 }

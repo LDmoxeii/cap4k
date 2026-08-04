@@ -15,6 +15,7 @@ import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSu
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
@@ -22,6 +23,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -34,6 +36,7 @@ import org.springframework.core.env.Environment
 import org.springframework.web.HttpRequestHandler
 import org.springframework.web.client.RestTemplate
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 
 @AutoConfiguration
 @EnableConfigurationProperties(HttpIntegrationEventAdapterProperties::class)
@@ -117,6 +120,7 @@ class HttpIntegrationEventAutoConfiguration {
         eventTypeCatalog: EventTypeCatalog,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         executionContextScopeManager: ExecutionContextScopeManager,
+        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
         @Value("\${server.port:80}") serverPort: String,
         @Value("\${server.servlet.context-path:}") serverServletContextPath: String,
@@ -132,6 +136,7 @@ class HttpIntegrationEventAutoConfiguration {
         CONSUME_PATH,
         executionContextCodecRegistry,
         executionContextScopeManager,
+        reliableEventDeliveryContextScopeManager,
     ).apply { init() }
 
     @Bean(name = [SUBSCRIBE_PATH])
@@ -230,10 +235,11 @@ class HttpIntegrationEventAutoConfiguration {
     fun httpIntegrationEventConsumeHandler(
         subscriberAdapter: HttpIntegrationEventSubscriberAdapter,
     ): HttpRequestHandler = HttpRequestHandler { request, response ->
-        val eventId = request.getParameter(EVENT_ID_PARAM)
-        val event = request.getParameter(EVENT_PARAM).orEmpty()
+        val eventId = request.singleNonBlankParameter(EVENT_ID_PARAM)
+        val eventName = request.singleNonBlankParameter(EVENT_PARAM)
+        val publishedAt = request.strictEpochMillisHeader()
         val payload = request.inputStream.bufferedReader().use { it.readText() }
-        log.info("IntegrationEvent uuid={} event={}", eventId, event)
+        log.info("IntegrationEvent uuid={} event={} publishedAt={}", eventId, eventName, publishedAt)
 
         val headers = mutableMapOf<String, Any>()
         eventId?.let { headers[EVENT_ID_PARAM] = it }
@@ -246,7 +252,11 @@ class HttpIntegrationEventAutoConfiguration {
             }
         }.onFailure { throwable -> log.warn("读取请求头异常", throwable) }
 
-        val success = subscriberAdapter.consume(event, payload, headers)
+        val success = if (eventId == null || eventName == null || publishedAt == null) {
+            false
+        } else {
+            subscriberAdapter.consume(eventId, eventName, publishedAt, payload, headers)
+        }
         writeJson(
             response,
             HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
@@ -254,6 +264,16 @@ class HttpIntegrationEventAutoConfiguration {
                 message = if (success) "ok" else "fail",
             ),
         )
+    }
+
+    private fun jakarta.servlet.http.HttpServletRequest.singleNonBlankParameter(name: String): String? =
+        getParameterValues(name)?.singleOrNull()?.takeIf(String::isNotBlank)
+
+    private fun jakarta.servlet.http.HttpServletRequest.strictEpochMillisHeader(): Instant? {
+        val raw = getHeaders(HEADER_KEY_CAP4K_TIMESTAMP).toList().singleOrNull() ?: return null
+        val millis = raw.toLongOrNull() ?: return null
+        if (raw != millis.toString()) return null
+        return runCatching { Instant.ofEpochMilli(millis) }.getOrNull()
     }
 
     private fun writeJson(response: jakarta.servlet.http.HttpServletResponse, value: Any) {
