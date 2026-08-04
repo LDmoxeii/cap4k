@@ -206,6 +206,13 @@ class AgentSnapshotCodec(
     )
 
     private fun normalizeRuntime(section: AgentRuntimeSection): AgentRuntimeSection = section.copy(
+        eventHandler = section.eventHandler.copy(
+            eventKinds = section.eventHandler.eventKinds.distinct().sorted(),
+            forbidden = section.eventHandler.forbidden.distinct().sorted(),
+            managedAsyncCompletion = section.eventHandler.managedAsyncCompletion.copy(
+                trackedOperations = section.eventHandler.managedAsyncCompletion.trackedOperations.distinct().sorted(),
+            ),
+        ),
         extensions = section.extensions
             .map { extension ->
                 extension.copy(

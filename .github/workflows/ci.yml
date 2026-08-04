@@ -112,6 +112,10 @@ jobs:
         shell: pwsh
         run: ./scripts/test-pr-workflow.ps1
 
+      - name: Validate current runtime facts
+        shell: pwsh
+        run: ./scripts/validate-current-runtime-facts.ps1
+
       - name: Validate PR body
         if: github.event_name == 'pull_request'
         shell: pwsh

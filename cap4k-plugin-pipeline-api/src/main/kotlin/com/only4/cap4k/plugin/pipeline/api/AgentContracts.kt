@@ -1,12 +1,12 @@
 package com.only4.cap4k.plugin.pipeline.api
 
-const val CAP4K_AGENT_CONTRACT_VERSION: Int = 1
+const val CAP4K_AGENT_CONTRACT_VERSION: Int = 2
 const val CAP4K_AGENT_MANIFEST_SCHEMA: String = "cap4k.agent.manifest.v1"
 const val CAP4K_AGENT_PROJECT_SCHEMA: String = "cap4k.agent.project.v1"
 const val CAP4K_AGENT_CAPABILITIES_SCHEMA: String = "cap4k.agent.capabilities.v1"
 const val CAP4K_AGENT_INPUTS_SCHEMA: String = "cap4k.agent.inputs.v1"
 const val CAP4K_AGENT_OWNERSHIP_SCHEMA: String = "cap4k.agent.ownership.v1"
-const val CAP4K_AGENT_RUNTIME_SCHEMA: String = "cap4k.agent.runtime.v1"
+const val CAP4K_AGENT_RUNTIME_SCHEMA: String = "cap4k.agent.runtime.v2"
 const val CAP4K_AGENT_ANALYSIS_SCHEMA: String = "cap4k.agent.analysis.v1"
 const val CAP4K_AGENT_DIAGNOSTICS_SCHEMA: String = "cap4k.agent.diagnostics.v1"
 const val CAP4K_PLAN_EVIDENCE_SCHEMA: String = "cap4k.plan-evidence.v1"
@@ -220,9 +220,70 @@ data class AgentRuntimeExtension(
     val sensitiveOptionKeys: List<String> = emptyList(),
 )
 
+enum class AgentEventHandlerAuthoring {
+    METHOD_LEVEL_EVENT_LISTENER,
+}
+
+enum class AgentEventHandlerExecution {
+    SYNCHRONOUS_SEQUENTIAL_FAIL_FAST,
+}
+
+enum class AgentEventHandlerEqualOrder {
+    UNSPECIFIED,
+}
+
+enum class AgentEventHandlerReturnType {
+    UNIT_OR_VOID,
+}
+
+enum class AgentEventHandlerManagedAsyncCompletion {
+    WAIT_BEFORE_HANDLER_COMPLETION,
+}
+
+enum class AgentEventHandlerManagedAsyncFailure {
+    FAIL_HANDLER,
+}
+
+data class AgentEventHandlerOrderingContract(
+    val annotation: String = "org.springframework.core.annotation.Order",
+    val target: String = "method",
+    val lowerValuesFirst: Boolean = true,
+    val equalValues: AgentEventHandlerEqualOrder = AgentEventHandlerEqualOrder.UNSPECIFIED,
+)
+
+data class AgentEventHandlerManagedAsyncContract(
+    val trackedOperations: List<String> = listOf(
+        "Mediator.queries.askAsync",
+        "Mediator.capabilities.callAsync",
+    ),
+    val completion: AgentEventHandlerManagedAsyncCompletion =
+        AgentEventHandlerManagedAsyncCompletion.WAIT_BEFORE_HANDLER_COMPLETION,
+    val failure: AgentEventHandlerManagedAsyncFailure = AgentEventHandlerManagedAsyncFailure.FAIL_HANDLER,
+)
+
+data class AgentEventHandlerContract(
+    val authoring: AgentEventHandlerAuthoring = AgentEventHandlerAuthoring.METHOD_LEVEL_EVENT_LISTENER,
+    val eventKinds: List<String> = listOf("domain_event", "integration_event"),
+    val execution: AgentEventHandlerExecution = AgentEventHandlerExecution.SYNCHRONOUS_SEQUENTIAL_FAIL_FAST,
+    val ordering: AgentEventHandlerOrderingContract = AgentEventHandlerOrderingContract(),
+    val supportsCondition: Boolean = true,
+    val returnType: AgentEventHandlerReturnType = AgentEventHandlerReturnType.UNIT_OR_VOID,
+    val forbidden: List<String> = listOf(
+        "async_annotation",
+        "suspending_function",
+        "transactional_event_listener",
+        "default_execution_false",
+        "multiple_event_declarations",
+        "polymorphic_subscription",
+        "non_unit_or_void_return",
+    ),
+    val managedAsyncCompletion: AgentEventHandlerManagedAsyncContract = AgentEventHandlerManagedAsyncContract(),
+)
+
 data class AgentRuntimeSection(
     val schema: String = CAP4K_AGENT_RUNTIME_SCHEMA,
     val status: AgentSnapshotStatus,
+    val eventHandler: AgentEventHandlerContract = AgentEventHandlerContract(),
     val extensions: List<AgentRuntimeExtension> = emptyList(),
     val boundaries: Map<String, List<PipelineCapabilityBoundary>> = emptyMap(),
     val externalIoSafe: Boolean = true,
