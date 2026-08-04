@@ -13,7 +13,7 @@
 | `capabilities.json` | provider descriptor 派生的 supported catalog 与当前 project effective view。 |
 | `inputs.json` | configured input、local path/readability、external-I/O safety、脱敏 identity 与显式 plan task。 |
 | `ownership.json` | 既有 plan 中的 output kind、conflict policy、managed roots 与 freshness。 |
-| `runtime.json` | runtime/provider boundaries 与已加载 extension contribution 概要。 |
+| `runtime.json` | 版本化 Event Handler authoring/execution contract、runtime/provider boundaries 与已加载 extension contribution 概要。 |
 | `analysis.json` | analysis 配置、IR node/edge/design-element counts、计划输出、当前可用输出、既有 evidence 与可证明范围。 |
 | `diagnostics.json` | 稳定 diagnostic identity、level、stage、path、message 与 actionable hint。 |
 
@@ -45,6 +45,8 @@ Agent task 可以读取既有 `build/cap4k/plan.json` 和 `build/cap4k/analysis-
 `analysis.json` 区分 `plannedOutputPaths` 与 `availableOutputPaths`。只运行 `cap4kAnalysisPlan` 时，fresh plan 可以证明将生成什么，但不能证明 artifacts 已存在；此时 analysis 分区为 `partial` 并给出 `cap4kAnalysisGenerate`。只有计划输出都存在且不早于当前 plan 时，该分区才把 outputs 报告为 available。
 
 Pipeline Extension discovery 只读取本地 resolved classpath metadata。Extension SPI 要求 provider 构造、descriptor 和 contribution discovery 保持确定、无副作用，不得连接网络、数据库或其他 live source，也不得修改文件或启动进程；真正的 contribution work 只能在显式 pipeline operation 中执行。若 extension inspection 失败，`runtime.externalIoSafe` 为 `false`，snapshot 同时以 structured diagnostic 报告失败，不能对该次检查作安全性声明。
+
+`runtime.json` 的 `eventHandler` 是当前 cap4k 版本的静态 Runtime 作者契约，不是对业务代码做 classpath scan 的观察结果。它说明方法级 `@EventListener` 是唯一作者入口，Domain Event 与 Integration Event 共用同步、串行、fail-fast 执行模型，方法级 `@Order` 只为不同数值建立顺序、相同值不承诺次序，以及 Handler 返回时如何等待当前 scope 的 `askAsync()` / `callAsync()`。`forbidden` 列表用于在写代码前避开启动时会被 Runtime 拒绝的 Handler shape。
 
 ## Credential Boundary
 

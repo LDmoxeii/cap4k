@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.AgentCapabilitiesSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticsSection
 import com.only4.cap4k.plugin.pipeline.api.AgentOwnershipSection
+import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeSection
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.PlanOutcome
@@ -68,6 +69,17 @@ class Cap4kAgentSnapshotTaskTest {
                 "Subscriber",
             ),
             capabilities.supported.single { it.providerId == "design-json" }.tacticalCarriers,
+        )
+        val runtime = AgentSnapshotCodec().fromJson(
+            output.resolve("runtime.json").readText(Charsets.UTF_8),
+            AgentRuntimeSection::class.java,
+        )
+        assertEquals("METHOD_LEVEL_EVENT_LISTENER", runtime.eventHandler.authoring.name)
+        assertEquals("SYNCHRONOUS_SEQUENTIAL_FAIL_FAST", runtime.eventHandler.execution.name)
+        assertEquals("UNSPECIFIED", runtime.eventHandler.ordering.equalValues.name)
+        assertEquals(
+            setOf("Mediator.queries.askAsync", "Mediator.capabilities.callAsync"),
+            runtime.eventHandler.managedAsyncCompletion.trackedOperations.toSet(),
         )
     }
 

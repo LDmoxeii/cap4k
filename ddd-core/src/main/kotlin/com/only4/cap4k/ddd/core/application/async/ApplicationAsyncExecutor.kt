@@ -27,6 +27,7 @@ class BoundedApplicationAsyncExecutor(
 ) : ApplicationAsyncExecutor, AutoCloseable {
     private val overloadStrategy = overloadStrategy
     private val executor: ThreadPoolExecutor
+    private val workerDepth = ThreadLocal<Int>()
 
     init {
         require(workerCount > 0) { "Async executor workerCount must be positive" }
@@ -45,11 +46,19 @@ class BoundedApplicationAsyncExecutor(
     override fun <RESULT : Any> submit(task: () -> RESULT): CompletionStage<RESULT> {
         val result = CompletableFuture<RESULT>()
         val command = Runnable {
+            val previousDepth = workerDepth.get() ?: 0
+            workerDepth.set(previousDepth + 1)
             try {
                 result.complete(task())
             } catch (ex: Throwable) {
                 result.completeExceptionally(ex)
+            } finally {
+                if (previousDepth == 0) workerDepth.remove() else workerDepth.set(previousDepth)
             }
+        }
+        if ((workerDepth.get() ?: 0) > 0) {
+            command.run()
+            return result
         }
         try {
             executor.execute(command)

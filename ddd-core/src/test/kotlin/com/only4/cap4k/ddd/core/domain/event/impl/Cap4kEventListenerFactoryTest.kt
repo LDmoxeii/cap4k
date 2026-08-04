@@ -1,270 +1,356 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
+import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.async.BoundedApplicationAsyncExecutor
+import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextPropagation
+import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
+import com.only4.cap4k.ddd.core.application.invocation.InvocationPolicy
+import com.only4.cap4k.ddd.core.application.query.Query
+import com.only4.cap4k.ddd.core.application.query.QueryExecution
+import com.only4.cap4k.ddd.core.application.query.QueryHandler
+import com.only4.cap4k.ddd.core.application.query.impl.DefaultQuerySupervisor
+import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
+import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.scheduling.annotation.Async
 import org.springframework.transaction.event.TransactionalEventListener
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
-@DisplayName("Cap4kEventListenerFactory 测试")
 class Cap4kEventListenerFactoryTest {
+    private val resolver = Cap4kEventHandlerDescriptorResolver()
 
     @AfterEach
-    fun tearDown() {
-        EventRuntimeContext.reset()
-    }
+    fun resetRuntimeContext() = EventRuntimeContext.reset()
 
     @Test
-    @DisplayName("工厂应该支持普通 EventListener 且不接管 TransactionalEventListener")
-    fun `factory supports regular event listeners but not transactional event listeners`() {
-        val factory = Cap4kEventListenerFactory()
-
-        assertTrue(factory.supportsMethod(listenerMethod("regularListener")))
-        assertFalse(factory.supportsMethod(listenerMethod("transactionalListener")))
-    }
-
-    @Test
-    fun `factory rejects async ordinary event listeners`() {
-        val error = assertThrows<IllegalStateException> {
-            Cap4kEventListenerFactory().supportsMethod(listenerMethod("asyncListener"))
-        }
-
-        assertTrue(error.message.orEmpty().contains("cannot use @Async"))
-        assertTrue(error.message.orEmpty().contains("reliable Command"))
-    }
-
-    @Test
-    fun `cap4k listener adapter remains synchronous when Spring multicaster has an executor`() {
-        val adapter = TestableCap4kApplicationListenerMethodAdapter(
-            beanName = "synchronousListener",
-            targetClass = ListenerMethods::class.java,
-            method = listenerMethod("regularListener"),
-            targetBean = ListenerMethods(),
+    fun `factory claims only concrete cap4k event methods`() {
+        val factory = Cap4kEventListenerFactory(
+            resolver,
+            Cap4kEventHandlerRegistry(),
+            DefaultInvocationScopeManager(),
         )
 
-        assertFalse(adapter.supportsAsyncExecution())
+        assertTrue(factory.supportsMethod(method(ValidMethods::class.java, "domain", DomainPayload::class.java)))
+        assertTrue(factory.supportsMethod(method(ValidMethods::class.java, "integration", IntegrationPayload::class.java)))
+        assertFalse(factory.supportsMethod(method(OrdinaryMethods::class.java, "ordinary", OrdinaryPayload::class.java)))
+        assertEquals(Ordered.HIGHEST_PRECEDENCE, factory.order)
     }
 
     @Test
-    @DisplayName("Spring 事件监听处理应该优先选择 Cap4k 工厂")
-    fun `spring event listener processing selects cap4k factory before default factory`() {
-        AnnotationConfigApplicationContext().use { context ->
-            context.registerBeanDefinition(
-                "cap4kEventListenerFactory",
-                BeanDefinitionBuilder.genericBeanDefinition(Cap4kEventListenerFactory::class.java).beanDefinition,
-            )
-            context.registerBeanDefinition(
-                "springManagedListener",
-                BeanDefinitionBuilder.genericBeanDefinition(SpringManagedFailingListener::class.java).beanDefinition,
-            )
-            context.refresh()
+    fun `resolver preserves condition order and composed listener semantics`() {
+        val descriptor = requireNotNull(
+            resolver.resolve(
+                "validMethods",
+                ValidMethods::class.java,
+                method(ValidMethods::class.java, "composed", DomainPayload::class.java),
+            ),
+        )
 
-            val exception = assertThrows<EventListenerInvocationException> {
-                context.publishEvent(TestPayload("spring"))
+        assertEquals(DomainPayload::class.java, descriptor.eventPayloadClass)
+        assertEquals(Cap4kEventKind.DOMAIN, descriptor.eventKind)
+        assertEquals(-20, descriptor.order)
+        assertEquals("", descriptor.condition)
+    }
+
+    @Test
+    fun `resolver rejects unsupported cap4k handler shapes at discovery`() {
+        val invalidMethods = listOf(
+            "transactional" to "@TransactionalEventListener",
+            "async" to "@Async",
+            "returning" to "Unit/void",
+            "multipleClasses" to "exactly one concrete cap4k event",
+            "mismatchedClass" to "exactly match",
+            "defaultExecutionDisabled" to "defaultExecution=false",
+            "suspending" to "suspend",
+            "abstractPayload" to "concrete event type",
+        )
+
+        invalidMethods.forEach { (methodName, expectedMessage) ->
+            val reflected = InvalidMethods::class.java.declaredMethods.first { it.name == methodName }
+            val failure = assertThrows<IllegalArgumentException>(methodName) {
+                resolver.resolve("invalidMethods", InvalidMethods::class.java, reflected)
+            }
+            assertTrue(failure.message.orEmpty().contains(expectedMessage), failure.message)
+        }
+    }
+
+    @Test
+    fun `transactional cap4k listener fails during Spring listener discovery`() {
+        AnnotationConfigApplicationContext().use { context ->
+            val scopes = DefaultInvocationScopeManager()
+            context.beanFactory.registerSingleton(
+                "cap4kEventListenerFactory",
+                Cap4kEventListenerFactory(resolver, Cap4kEventHandlerRegistry(), scopes),
+            )
+            context.registerBeanDefinition(
+                "invalidTransactionalHandler",
+                BeanDefinitionBuilder.genericBeanDefinition(InvalidTransactionalHandler::class.java).beanDefinition,
+            )
+
+            val failure = assertThrows<RuntimeException> { context.refresh() }
+
+            assertTrue(failure.stackTraceToString().contains("@TransactionalEventListener"))
+        }
+    }
+
+    @Test
+    fun `dispatcher evaluates conditions orders handlers and stops after first failure`() {
+        withRuntimeContext(OrderedHandlers::class.java) { context, dispatcher ->
+            val handlers = context.getBean(OrderedHandlers::class.java)
+
+            val failure = assertThrows<EventListenerInvocationException> {
+                dispatcher.dispatch(DomainPayload("run", enabled = false))
             }
 
-            assertEquals("springManagedListener", exception.listenerBeanName)
-            assertEquals(SpringManagedFailingListener::class.java, exception.listenerClass)
-            assertEquals("failingListener", exception.listenerMethod.name)
-            assertEquals(TestPayload::class.java, exception.eventPayloadClass)
-            assertSame(SpringManagedFailingListener.failure, exception.cause)
+            assertEquals(listOf("first", "failing"), handlers.calls)
+            assertSame(OrderedHandlers.failure, failure.cause)
+            assertEquals("failing", failure.listenerMethod.name)
         }
     }
 
     @Test
-    @DisplayName("监听器失败时应该抛出包含监听器和事件诊断信息的异常")
-    fun `failing listener invocation throws diagnostic exception`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
-        val adapter = TestableCap4kApplicationListenerMethodAdapter(
-            beanName = "diagnosticListener",
-            targetClass = ListenerMethods::class.java,
-            method = listenerMethod("failingListener"),
-            targetBean = ListenerMethods()
-        )
+    fun `condition can select a second method on the same bean`() {
+        withRuntimeContext(ConditionalHandlers::class.java) { context, dispatcher ->
+            val handlers = context.getBean(ConditionalHandlers::class.java)
 
-        val exception = assertThrows<EventListenerInvocationException> {
-            adapter.invoke(TestPayload("boom"))
+            dispatcher.dispatch(DomainPayload("skip", enabled = false))
+            dispatcher.dispatch(DomainPayload("run", enabled = true))
+
+            assertEquals(listOf("always:skip", "conditional:run", "always:run"), handlers.calls)
         }
-
-        assertEquals("diagnosticListener", exception.listenerBeanName)
-        assertEquals(ListenerMethods::class.java, exception.listenerClass)
-        assertEquals("failingListener", exception.listenerMethod.name)
-        assertEquals(TestPayload::class.java, exception.eventPayloadClass)
-        assertSame(ListenerMethods.failure, exception.cause)
-        assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH.name, exception.diagnosticContext?.scopeType)
-        assertEquals("diagnosticListener", exception.diagnosticContext?.listenerBeanName)
-        assertEquals(ListenerMethods::class.java.name, exception.diagnosticContext?.listenerClassName)
-        assertEquals("failingListener", exception.diagnosticContext?.listenerMethodName)
-
-        EventRuntimeContext.pop(scope)
     }
 
     @Test
-    @DisplayName("监听器元数据成功后应该恢复")
-    fun `listener metadata is restored after successful invocation`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
-        scope.listenerBeanName = "previousBean"
-        scope.listenerClass = ExistingListener::class.java
-        scope.listenerMethod = ExistingListener::class.java.getDeclaredMethod("previous")
+    fun `ordinary Spring event remains owned by the default Spring listener path`() {
+        withRuntimeContext(OrdinaryMethods::class.java) { context, dispatcher ->
+            val listener = context.getBean(OrdinaryMethods::class.java)
 
-        val targetBean = ListenerMethods()
-        val adapter = TestableCap4kApplicationListenerMethodAdapter(
-            beanName = "successListener",
-            targetClass = ListenerMethods::class.java,
-            method = listenerMethod("successfulListener"),
-            targetBean = targetBean
-        )
+            context.publishEvent(OrdinaryPayload("spring"))
+            dispatcher.dispatch(DomainPayload("cap4k"))
 
-        adapter.invoke(TestPayload("ok"))
-
-        assertEquals(
-            ListenerInvocation(
-                beanName = "successListener",
-                listenerClass = ListenerMethods::class.java,
-                methodName = "successfulListener",
-            ),
-            targetBean.invocations.single()
-        )
-        assertEquals("previousBean", scope.listenerBeanName)
-        assertEquals(ExistingListener::class.java, scope.listenerClass)
-        assertEquals("previous", scope.listenerMethod?.name)
-
-        EventRuntimeContext.pop(scope)
+            assertEquals(listOf("spring"), listener.values)
+        }
     }
 
     @Test
-    @DisplayName("监听器元数据失败后也应该恢复")
-    fun `listener metadata is restored after failed invocation`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
+    fun `event handler waits for ignored Mediator managed query tasks and propagates their failure`() {
+        val scopes = DefaultInvocationScopeManager()
+        val executionContexts = DefaultExecutionContextManager()
+        val executor = BoundedApplicationAsyncExecutor(2, 8, threadNamePrefix = "event-query-test-")
+        val queryStarted = CountDownLatch(1)
+        val releaseQuery = CountDownLatch(1)
+        val taskFailure = IllegalStateException("query failed")
+        val querySupervisor = DefaultQuerySupervisor(
+            handlers = listOf(object : QueryHandler<ManagedQuery, String> {
+                override fun handle(query: ManagedQuery): String = when (query.value) {
+                    "wait" -> {
+                        queryStarted.countDown()
+                        releaseQuery.await(5, TimeUnit.SECONDS)
+                        "done"
+                    }
+                    else -> throw taskFailure
+                }
+            }),
+            interceptors = emptyList(),
+            validator = null,
+            invocationPolicy = InvocationPolicy(scopes),
+            invocationScopeManager = scopes,
+            executionContextAccessor = executionContexts,
+            executionContextPropagation = ExecutionContextPropagation(executionContexts, executionContexts),
+            asyncExecutor = executor,
+            queryExecutionProvider = { ImmediateQueryExecution },
+        ).apply { init() }
+        ManagedAsyncHandler.querySupervisor = querySupervisor
 
-        val adapter = TestableCap4kApplicationListenerMethodAdapter(
-            beanName = "failureListener",
-            targetClass = ListenerMethods::class.java,
-            method = listenerMethod("failingListener"),
-            targetBean = ListenerMethods()
-        )
+        try {
+            withRuntimeContext(ManagedAsyncHandler::class.java, scopes) { _, dispatcher ->
+                val delivery = CompletableFuture.runAsync { dispatcher.dispatch(DomainPayload("wait")) }
+                assertTrue(queryStarted.await(5, TimeUnit.SECONDS))
+                assertFalse(delivery.isDone)
+                releaseQuery.countDown()
+                delivery.get(5, TimeUnit.SECONDS)
 
-        assertThrows<EventListenerInvocationException> {
-            adapter.invoke(TestPayload("boom"))
+                val failure = assertThrows<EventListenerInvocationException> {
+                    dispatcher.dispatch(DomainPayload("fail"))
+                }
+                assertSame(taskFailure, failure.cause)
+            }
+        } finally {
+            executor.close()
         }
-
-        assertNull(scope.listenerBeanName)
-        assertNull(scope.listenerClass)
-        assertNull(scope.listenerMethod)
-
-        EventRuntimeContext.pop(scope)
     }
 
-    @Test
-    @DisplayName("监听器返回值发布事件应该被拒绝")
-    fun `listener return value event publication is rejected`() {
-        val scope = EventRuntimeContext.push(EventRuntimeScopeType.APPLICATION_INVOCATION)
-        val adapter = TestableCap4kApplicationListenerMethodAdapter(
-            beanName = "returningListener",
-            targetClass = ListenerMethods::class.java,
-            method = listenerMethod("returningListener"),
-            targetBean = ListenerMethods()
-        )
-
-        val exception = assertThrows<EventListenerInvocationException> {
-            adapter.invoke(TestPayload("return"))
-        }
-
-        assertEquals("returningListener", exception.listenerBeanName)
-        assertEquals("returningListener", exception.diagnosticContext?.listenerBeanName)
-        assertTrue(exception.cause is UnsupportedOperationException)
-        assertTrue(exception.message?.contains("returningListener") == true)
-        assertNull(scope.listenerBeanName)
-        assertNull(scope.listenerClass)
-        assertNull(scope.listenerMethod)
-
-        EventRuntimeContext.pop(scope)
-    }
-
-    private class TestableCap4kApplicationListenerMethodAdapter(
-        beanName: String,
-        targetClass: Class<*>,
-        method: java.lang.reflect.Method,
-        private val targetBean: Any,
-    ) : Cap4kApplicationListenerMethodAdapter(beanName, targetClass, method) {
-
-        fun invoke(vararg args: Any?): Any? = doInvoke(*args)
-
-        override fun getTargetBean(): Any = targetBean
-    }
-
-    private class ListenerMethods {
-        val invocations: MutableList<ListenerInvocation> = mutableListOf()
-
-        @EventListener
-        fun regularListener(event: TestPayload) {
-        }
-
-        @TransactionalEventListener
-        fun transactionalListener(event: TestPayload) {
-        }
-
-        @EventListener
-        fun successfulListener(event: TestPayload) {
-            val scope = EventRuntimeContext.current()
-            invocations += ListenerInvocation(
-                beanName = scope.listenerBeanName,
-                listenerClass = scope.listenerClass,
-                methodName = scope.listenerMethod?.name,
+    private fun withRuntimeContext(
+        listenerClass: Class<*>,
+        scopes: DefaultInvocationScopeManager = DefaultInvocationScopeManager(),
+        block: (AnnotationConfigApplicationContext, DefaultEventHandlerDispatcher) -> Unit,
+    ) {
+        AnnotationConfigApplicationContext().use { context ->
+            val registry = Cap4kEventHandlerRegistry()
+            context.beanFactory.registerSingleton("cap4kInvocationScopes", scopes)
+            context.beanFactory.registerSingleton("cap4kEventHandlerDescriptorResolver", resolver)
+            context.beanFactory.registerSingleton("cap4kEventHandlerRegistry", registry)
+            context.beanFactory.registerSingleton(
+                "cap4kEventListenerFactory",
+                Cap4kEventListenerFactory(resolver, registry, scopes),
             )
+            context.registerBeanDefinition(
+                "listenerUnderTest",
+                BeanDefinitionBuilder.genericBeanDefinition(listenerClass).beanDefinition,
+            )
+            context.refresh()
+            block(context, DefaultEventHandlerDispatcher(registry))
         }
+    }
+
+    private fun method(owner: Class<*>, name: String, vararg parameters: Class<*>) =
+        owner.getDeclaredMethod(name, *parameters)
+
+    @DomainEvent
+    data class DomainPayload(
+        val value: String,
+        val enabled: Boolean = true,
+    )
+
+    @IntegrationEvent("integration.payload")
+    data class IntegrationPayload(val value: String)
+
+    data class OrdinaryPayload(val value: String)
+
+    @DomainEvent
+    abstract class AbstractDomainPayload
+
+    @Target(AnnotationTarget.FUNCTION)
+    @Retention(AnnotationRetention.RUNTIME)
+    @EventListener
+    annotation class DomainReaction
+
+    class ValidMethods {
+        @EventListener
+        fun domain(event: DomainPayload) = Unit
+
+        @EventListener
+        fun integration(event: IntegrationPayload) = Unit
+
+        @DomainReaction
+        @Order(-20)
+        fun composed(event: DomainPayload) = Unit
+    }
+
+    class OrdinaryMethods {
+        val values = mutableListOf<String>()
+
+        @EventListener
+        fun ordinary(event: OrdinaryPayload): DomainPayload {
+            values += event.value
+            return DomainPayload(event.value)
+        }
+    }
+
+    class InvalidMethods {
+        @TransactionalEventListener
+        fun transactional(event: DomainPayload) = Unit
 
         @Async
         @EventListener
-        fun asyncListener(event: TestPayload) {
-        }
+        fun async(event: DomainPayload) = Unit
 
         @EventListener
-        fun failingListener(event: TestPayload) {
+        fun returning(event: DomainPayload): String = event.value
+
+        @EventListener(classes = [DomainPayload::class, IntegrationPayload::class])
+        fun multipleClasses(event: DomainPayload) = Unit
+
+        @EventListener(classes = [IntegrationPayload::class])
+        fun mismatchedClass(event: DomainPayload) = Unit
+
+        @EventListener(defaultExecution = false)
+        fun defaultExecutionDisabled(event: DomainPayload) = Unit
+
+        @EventListener
+        suspend fun suspending(event: DomainPayload) = Unit
+
+        @EventListener
+        fun abstractPayload(event: AbstractDomainPayload) = Unit
+    }
+
+    class InvalidTransactionalHandler {
+        @TransactionalEventListener
+        fun handle(event: DomainPayload) = Unit
+    }
+
+    class OrderedHandlers {
+        val calls = mutableListOf<String>()
+
+        @Order(0)
+        @EventListener
+        fun first(event: DomainPayload) {
+            calls += "first"
+        }
+
+        @Order(10)
+        @EventListener
+        fun failing(event: DomainPayload) {
+            calls += "failing"
             throw failure
         }
 
+        @Order(20)
         @EventListener
-        fun returningListener(event: TestPayload): TestPayload = event
-
-        companion object {
-            val failure = IllegalStateException("listener failed")
-        }
-    }
-
-    private class SpringManagedFailingListener {
-        @EventListener
-        fun failingListener(event: TestPayload) {
-            throw failure
+        fun skipped(event: DomainPayload) {
+            calls += "skipped"
         }
 
         companion object {
-            val failure = IllegalStateException("spring listener failed")
+            val failure = IllegalStateException("handler failed")
         }
     }
 
-    private class ExistingListener {
-        fun previous() {
+    class ConditionalHandlers {
+        val calls = mutableListOf<String>()
+
+        @Order(0)
+        @EventListener(condition = "#root.args[0].enabled")
+        fun conditional(event: DomainPayload) {
+            calls += "conditional:${event.value}"
+        }
+
+        @Order(10)
+        @EventListener
+        fun always(event: DomainPayload) {
+            calls += "always:${event.value}"
         }
     }
 
-    private data class ListenerInvocation(
-        val beanName: String?,
-        val listenerClass: Class<*>?,
-        val methodName: String?,
-    )
+    data class ManagedQuery(val value: String) : Query<String>
 
-    private data class TestPayload(val value: String)
+    class ManagedAsyncHandler {
+        @EventListener
+        fun handle(event: DomainPayload) {
+            querySupervisor.askAsync(ManagedQuery(event.value))
+        }
 
-    private fun listenerMethod(name: String): java.lang.reflect.Method =
-        ListenerMethods::class.java.getDeclaredMethod(name, TestPayload::class.java)
+        companion object {
+            lateinit var querySupervisor: DefaultQuerySupervisor
+        }
+    }
+
+    private object ImmediateQueryExecution : QueryExecution {
+        override val active: Boolean = false
+
+        override fun <RESULT> execute(block: () -> RESULT): RESULT = block()
+    }
 }

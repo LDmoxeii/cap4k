@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
  * @date 2025/07/24
  */
 open class DefaultEventPublisher(
-    private val eventSubscriberManager: EventSubscriberManager,
+    private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val integrationEventPublishers: List<IntegrationEventPublisher>,
     private val eventRecordRepository: EventRecordRepository,
     private val eventMessageInterceptorManager: EventMessageInterceptorManager,
@@ -185,7 +185,7 @@ open class DefaultEventPublisher(
             val now = LocalDateTime.now()
             val dispatchScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
             scope = dispatchScope
-            eventSubscriberManager.dispatch(event.payload)
+            eventHandlerDispatcher.dispatch(event.payload)
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
                 (integrationEventManager
                     ?: throw ProviderUnavailableException(

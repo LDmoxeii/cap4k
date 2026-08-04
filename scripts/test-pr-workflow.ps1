@@ -55,7 +55,7 @@ $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("cap4k-pr-workflow-test
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 
 try {
-    $workflowText = Get-Content -LiteralPath $ciWorkflow -Raw -Encoding UTF8
+    $workflowText = (Get-Content -LiteralPath $ciWorkflow -Raw -Encoding UTF8).Replace("`r`n", "`n")
     $prBodyValidationStep = @'
       - name: Validate PR body
         if: github.event_name == 'pull_request'
@@ -68,6 +68,7 @@ try {
           Set-Content -LiteralPath $bodyFile -Value $env:PR_BODY -Encoding utf8NoBOM
           ./scripts/validate-pr-body.ps1 -BodyFile $bodyFile -Base $env:BASE_REF -RequireChangeType
 '@
+    $prBodyValidationStep = $prBodyValidationStep.Replace("`r`n", "`n")
 
     if ($workflowText -notlike "*$prBodyValidationStep*") {
         throw "CI workflow must validate pull-request bodies with validate-pr-body.ps1."

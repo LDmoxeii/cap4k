@@ -26,6 +26,7 @@ import com.only4.cap4k.ddd.core.application.query.impl.DefaultQuerySupervisor
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -146,10 +147,9 @@ class DefaultApplicationSupervisorsTest {
                 }),
             )
 
-            val failure = assertThrows<ExecutionException> {
+            val policyFailure = assertThrows<InvocationNotAllowedException> {
                 supervisor.ask(TestQuery("outer"))
             }
-            val policyFailure = failure.cause as InvocationNotAllowedException
             assertEquals(InvocationKind.QUERY, policyFailure.currentKind)
             assertTrue(policyFailure.asynchronous)
         }
@@ -178,6 +178,94 @@ class DefaultApplicationSupervisorsTest {
 
             assertEquals("inline", commandSupervisor.send(TestCommand("inline")))
             assertNull(runtime.invocationScopes.current())
+        }
+    }
+
+    @Test
+    fun `command does not complete before ignored managed capability task converges`() {
+        TestRuntime().use { runtime ->
+            val capabilityStarted = CountDownLatch(1)
+            val releaseCapability = CountDownLatch(1)
+            val capabilitySupervisor = runtime.capability(
+                listOf(object : CapabilityHandler<TestCapability, String> {
+                    override fun call(request: TestCapability): String {
+                        capabilityStarted.countDown()
+                        releaseCapability.await(5, TimeUnit.SECONDS)
+                        return request.value
+                    }
+                }),
+            )
+            val commandSupervisor = runtime.command(
+                listOf(object : CommandHandler<TestCommand, String> {
+                    override fun handle(command: TestCommand): String {
+                        capabilitySupervisor.callAsync(TestCapability(command.value))
+                        return "accepted:${command.value}"
+                    }
+                }),
+            )
+
+            val result = CompletableFuture.supplyAsync { commandSupervisor.send(TestCommand("work")) }
+            assertTrue(capabilityStarted.await(5, TimeUnit.SECONDS))
+            assertFalse(result.isDone)
+            releaseCapability.countDown()
+
+            assertEquals("accepted:work", result.get(5, TimeUnit.SECONDS))
+            assertNull(runtime.invocationScopes.current())
+        }
+    }
+
+    @Test
+    fun `ignored managed task failure fails the enclosing handler and unit of work`() {
+        TestRuntime().use { runtime ->
+            val taskFailure = IllegalStateException("capability failed")
+            val capabilitySupervisor = runtime.capability(
+                listOf(object : CapabilityHandler<TestCapability, String> {
+                    override fun call(request: TestCapability): String = throw taskFailure
+                }),
+            )
+            val unitOfWork = RecordingUnitOfWork()
+            val commandSupervisor = runtime.command(
+                listOf(object : CommandHandler<TestCommand, String> {
+                    override fun handle(command: TestCommand): String {
+                        capabilitySupervisor.callAsync(TestCapability(command.value))
+                        return "must-not-complete"
+                    }
+                }),
+                unitOfWork = unitOfWork,
+            )
+
+            val thrown = assertThrows<IllegalStateException> {
+                commandSupervisor.send(TestCommand("work"))
+            }
+
+            assertSame(taskFailure, thrown)
+            assertFalse(unitOfWork.active)
+            assertNull(runtime.invocationScopes.current())
+        }
+    }
+
+    @Test
+    fun `single worker async capability can converge a nested async capability without starvation`() {
+        TestRuntime().use { runtime ->
+            lateinit var capabilitySupervisor: DefaultCapabilitySupervisor
+            val calls = mutableListOf<String>()
+            capabilitySupervisor = runtime.capability(
+                listOf(object : CapabilityHandler<TestCapability, String> {
+                    override fun call(request: TestCapability): String {
+                        calls += request.value
+                        if (request.value == "outer") {
+                            capabilitySupervisor.callAsync(TestCapability("inner"))
+                        }
+                        return request.value
+                    }
+                }),
+            )
+
+            assertEquals(
+                "outer",
+                capabilitySupervisor.callAsync(TestCapability("outer")).toCompletableFuture().get(5, TimeUnit.SECONDS),
+            )
+            assertEquals(listOf("outer", "inner"), calls)
         }
     }
 

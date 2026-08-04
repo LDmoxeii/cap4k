@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import io.mockk.every
@@ -24,7 +24,7 @@ class HttpIntegrationEventExecutionContextTest {
     fun `consumer installs external context before dispatch and clears it afterwards`() {
         val contextManager = DefaultExecutionContextManager()
         val codecRegistry = ExecutionContextCodecRegistry(listOf(TransportContextCodec))
-        val subscriberManager = mockk<EventSubscriberManager>()
+        val subscriberManager = mockk<EventHandlerDispatcher>()
         val subscriberRegister = mockk<HttpIntegrationEventSubscriberRegister>()
         val environment = mockk<Environment>()
         var observedContext: TransportContext? = null
@@ -34,7 +34,7 @@ class HttpIntegrationEventExecutionContextTest {
         every { subscriberRegister.subscribe(any(), any(), any()) } returns true
         every { environment.resolvePlaceholders(any()) } answers { firstArg() }
         val adapter = HttpIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = subscriberManager,
+            eventHandlerDispatcher = subscriberManager,
             eventMessageInterceptors = emptyList(),
             httpIntegrationEventSubscriberRegister = subscriberRegister,
             environment = environment,

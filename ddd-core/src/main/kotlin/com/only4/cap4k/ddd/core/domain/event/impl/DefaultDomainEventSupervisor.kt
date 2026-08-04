@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -21,7 +21,7 @@ import java.time.LocalDateTime
  */
 open class DefaultDomainEventSupervisor(
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
-    private val eventSubscriberManager: EventSubscriberManager,
+    private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val reliableDomainEventProvider: ReliableDomainEventProvider? = null,
     private val integrationEventManager: IntegrationEventManager? = null,
     private val executionContextAccessor: ExecutionContextAccessor = ExecutionContextAccessor {
@@ -127,7 +127,7 @@ open class DefaultDomainEventSupervisor(
         var completed = false
         try {
             EventRuntimeContext.withCausalFrame("Event:${eventPayload.javaClass.name}") {
-                eventSubscriberManager.dispatch(eventPayload)
+                eventHandlerDispatcher.dispatch(eventPayload)
             }
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
                 (integrationEventManager
@@ -168,6 +168,9 @@ open class DefaultDomainEventSupervisor(
     private fun validateDomainEvent(eventPayload: Any) {
         if (eventPayload.javaClass.isAnnotationPresent(IntegrationEvent::class.java)) {
             throw DomainException("事件类型不能为集成事件")
+        }
+        if (!eventPayload.javaClass.isAnnotationPresent(DomainEvent::class.java)) {
+            throw DomainException("事件类型必须为领域事件")
         }
         DomainEventPayloadValidator.validate(eventPayload)
     }

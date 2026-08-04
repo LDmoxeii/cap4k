@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
@@ -32,7 +32,7 @@ import org.springframework.messaging.support.GenericMessage
  * @date 2025/07/31
  */
 class RabbitMqIntegrationEventSubscriberAdapter(
-    private val eventSubscriberManager: EventSubscriberManager,
+    private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
     private val rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure?,
     private val rabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory,
@@ -146,7 +146,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         )
 
         orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
-        eventSubscriberManager.dispatch(message.payload)
+        eventHandlerDispatcher.dispatch(message.payload)
         orderedEventMessageInterceptors.forEach { it.postSubscribe(message) }
     }
 
@@ -165,7 +165,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         )
         executionContextScopeManager.install(executionContext).use {
             if (orderedEventMessageInterceptors.isEmpty()) {
-                eventSubscriberManager.dispatch(eventPayload)
+                eventHandlerDispatcher.dispatch(eventPayload)
             } else {
                 processWithInterceptors(msg, eventPayload)
             }

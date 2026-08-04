@@ -1,0 +1,52 @@
+$ErrorActionPreference = 'Stop'
+
+$repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$currentDirectories = @(
+    'docs/public',
+    'docs/comet/specs',
+    'docs/superpowers/analysis',
+    'skills'
+)
+$currentFiles = @(
+    'AGENTS.md',
+    'README.md',
+    'cap4k-plugin-pipeline-gradle/README.md'
+)
+$retiredTerms = [ordered]@{
+    'EventSubscriberManager' = '\b(?:Default)?EventSubscriberManager\b'
+    'AbstractEventSubscriber' = '\bAbstractEventSubscriber\b'
+    'EventSubscriber<T>' = '\bEventSubscriber\s*<'
+}
+
+$files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
+foreach ($relativeDirectory in $currentDirectories) {
+    $directory = Join-Path $repoRoot $relativeDirectory
+    if (Test-Path -LiteralPath $directory -PathType Container) {
+        Get-ChildItem -LiteralPath $directory -Recurse -File |
+            Where-Object { $_.Extension -in @('.md', '.yaml', '.yml') } |
+            ForEach-Object { $files.Add($_) }
+    }
+}
+foreach ($relativeFile in $currentFiles) {
+    $file = Join-Path $repoRoot $relativeFile
+    if (Test-Path -LiteralPath $file -PathType Leaf) {
+        $files.Add((Get-Item -LiteralPath $file))
+    }
+}
+
+$violations = [System.Collections.Generic.List[string]]::new()
+foreach ($file in $files) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    foreach ($entry in $retiredTerms.GetEnumerator()) {
+        if ($text -match $entry.Value) {
+            $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
+            $violations.Add("${relativePath}: retired runtime term '$($entry.Key)'")
+        }
+    }
+}
+
+if ($violations.Count -gt 0) {
+    throw "Current runtime facts contain retired Event Subscriber APIs:`n$($violations -join "`n")"
+}
+
+Write-Output "OK: current runtime facts contain no retired Event Subscriber APIs."

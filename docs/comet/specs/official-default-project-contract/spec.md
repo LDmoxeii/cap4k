@@ -22,7 +22,9 @@ HTTP、RabbitMQ 与 RocketMQ starter 分别拥有 transport publisher/subscriber
 
 Command、Query 与 Capability 是独立 public contract，不存在 generic Request marker、Handler、Supervisor 或 `Mediator.requests`。Command 独占 REQUIRED transaction 和自动 UoW completion；嵌套 Command 加入当前物理事务和 UoW。Query 不创建 write UoW。Capability 不创建、挂起或提交本地事务。enqueue/schedule/result 等可靠语义只属于 Command，并通过可选 `ReliableCommandSupervisor` 提供。
 
-本地 Domain Event 通过 `EventSubscriberManager` 同步、fail-fast 分发，并桥接 Spring listener。UoW 以非重入因果 frontier 释放事件：当前 frontier 执行期间产生的事件进入下一 frontier。需要 persist 或未来 schedule 的事件通过可选 `ReliableDomainEventProvider` 保存；未安装 provider 时在调用点失败。普通 Domain Event 不允许混用 `@Async` Handler；本地异步工作使用可靠 Command。
+本地 Domain Event 与入站 Integration Event 统一通过方法级 Spring `@EventListener` Handler 同步、串行、fail-fast 分发。不同方法级 `@Order` 值按数值从小到大执行；相同值不承诺次序。Handler 必须返回 `Unit/void`；`@Async`、`suspend`、`@TransactionalEventListener`、`defaultExecution=false`、多事件声明和多态订阅在启动发现阶段确定性失败。Handler 可以同步发送 Command、查询 Query、调用 Capability，也可以并行启动 `askAsync()` / `callAsync()`；Runtime 在方法返回后等待当前 Handler scope 登记的所有此类任务，任一失败都会使 Handler 失败。需要在当前调用栈之外改变状态的工作使用可靠 Command 的 `enqueue`、`schedule` 或 `delay`。
+
+UoW 以非重入因果 frontier 释放 Domain Event：当前 frontier 执行期间产生的事件进入下一 frontier。需要 persist 或未来 schedule 的事件通过可选 `ReliableDomainEventProvider` 保存；未安装 provider 时在调用点失败。
 
 事件类型不得通过 package/classpath scan 获取。transport 使用显式 `EventTypeCatalog`；生成的 `@EventListener` handler 签名或业务提供的 catalog 是合法注册来源。
 

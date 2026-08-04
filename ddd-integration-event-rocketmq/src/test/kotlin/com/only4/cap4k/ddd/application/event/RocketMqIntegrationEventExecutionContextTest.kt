@@ -8,7 +8,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import io.mockk.every
@@ -28,13 +28,13 @@ class RocketMqIntegrationEventExecutionContextTest {
     fun `consumer installs external context before dispatch and clears it afterwards`() {
         val contextManager = DefaultExecutionContextManager()
         val codecRegistry = ExecutionContextCodecRegistry(listOf(TransportContextCodec))
-        val subscriberManager = mockk<EventSubscriberManager>()
+        val subscriberManager = mockk<EventHandlerDispatcher>()
         var observedContext: TransportContext? = null
         every { subscriberManager.dispatch(any()) } answers {
             observedContext = contextManager.current()[TransportContextKey]
         }
         val adapter = RocketMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = subscriberManager,
+            eventHandlerDispatcher = subscriberManager,
             eventMessageInterceptors = emptyList(),
             rocketMqIntegrationEventConfigure = null,
             environment = mockk<Environment>(),

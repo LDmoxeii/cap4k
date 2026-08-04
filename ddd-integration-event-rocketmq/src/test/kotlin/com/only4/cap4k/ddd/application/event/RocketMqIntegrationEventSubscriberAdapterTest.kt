@@ -2,7 +2,7 @@ package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import io.mockk.*
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
@@ -21,7 +21,7 @@ import org.springframework.messaging.Message
 @DisplayName("RocketMQ集成事件订阅适配器测试")
 class RocketMqIntegrationEventSubscriberAdapterTest {
 
-    private val eventSubscriberManager: EventSubscriberManager = mockk()
+    private val eventHandlerDispatcher: EventHandlerDispatcher = mockk()
     private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure = mockk()
     private val environment: Environment = mockk()
     private val eventMessageInterceptor1: EventMessageInterceptor = mockk()
@@ -41,7 +41,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         clearAllMocks()
 
         adapter = RocketMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = listOf(eventMessageInterceptor1, eventMessageInterceptor2),
             rocketMqIntegrationEventConfigure = rocketMqIntegrationEventConfigure,
             environment = environment,
@@ -77,7 +77,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         every { messageExt.msgId } returns "msg-123"
         every { messageExt.body } returns messageBody.toByteArray()
         every { messageExt.properties } returns mapOf("key" to "value")
-        every { eventSubscriberManager.dispatch(any()) } just Runs
+        every { eventHandlerDispatcher.dispatch(any()) } just Runs
         every { eventMessageInterceptor1.preSubscribe(any<Message<*>>()) } just Runs
         every { eventMessageInterceptor1.postSubscribe(any<Message<*>>()) } just Runs
         every { eventMessageInterceptor2.preSubscribe(any<Message<*>>()) } just Runs
@@ -122,7 +122,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
 
         // then
         assertEquals(ConsumeConcurrentlyStatus.CONSUME_SUCCESS, result)
-        verify { eventSubscriberManager.dispatch(testEvent) }
+        verify { eventHandlerDispatcher.dispatch(testEvent) }
         verify { eventMessageInterceptor1.preSubscribe(any<Message<*>>()) }
         verify { eventMessageInterceptor1.postSubscribe(any<Message<*>>()) }
         verify { eventMessageInterceptor2.preSubscribe(any<Message<*>>()) }
@@ -172,7 +172,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     fun `should handle message consumption without interceptors`() {
         // given
         val adapterWithoutInterceptors = RocketMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = emptyList(),
             rocketMqIntegrationEventConfigure = rocketMqIntegrationEventConfigure,
             environment = environment,
@@ -190,7 +190,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         every { messageExt.msgId } returns "msg-123"
         every { messageExt.body } returns messageBody.toByteArray()
         every { messageExt.properties } returns emptyMap()
-        every { eventSubscriberManager.dispatch(testEvent) } just Runs
+        every { eventHandlerDispatcher.dispatch(testEvent) } just Runs
 
         mockkStatic("com.alibaba.fastjson.JSON")
         every {
@@ -216,7 +216,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
 
         // then
         assertEquals(ConsumeConcurrentlyStatus.CONSUME_SUCCESS, result)
-        verify { eventSubscriberManager.dispatch(testEvent) }
+        verify { eventHandlerDispatcher.dispatch(testEvent) }
     }
 
     // 测试用的集成事件类
