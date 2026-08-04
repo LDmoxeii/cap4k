@@ -3,7 +3,7 @@ package com.only4.cap4k.ddd.application.event
 import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.rabbitmq.client.Channel
 import io.mockk.*
@@ -27,7 +27,7 @@ import org.springframework.core.env.Environment
 @DisplayName("RabbitMQ集成事件订阅适配器测试")
 class RabbitMqIntegrationEventSubscriberAdapterTest {
 
-    private lateinit var eventSubscriberManager: EventSubscriberManager
+    private lateinit var eventHandlerDispatcher: EventHandlerDispatcher
     private lateinit var rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure
     private lateinit var rabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory
     private lateinit var connectionFactory: ConnectionFactory
@@ -39,14 +39,14 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
 
     @BeforeEach
     fun setUp() {
-        eventSubscriberManager = mockk()
+        eventHandlerDispatcher = mockk()
         rabbitMqIntegrationEventConfigure = mockk()
         rabbitListenerContainerFactory = mockk()
         connectionFactory = mockk()
         environment = mockk()
 
         adapter = RabbitMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = emptyList(),
             rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
@@ -126,7 +126,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     fun shouldAutoDeclareQueue() {
         // Arrange - 简化测试，只验证没有异常抛出
         val autoDeclareAdapter = RabbitMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = emptyList(),
             rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
@@ -178,7 +178,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.deliveryTag } returns deliveryTag
         every { messageProperties.messageId } returns messageId
         every { messageProperties.headers } returns mutableMapOf()
-        every { eventSubscriberManager.dispatch(any()) } just runs
+        every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(deliveryTag, false) } just runs
 
         mockkStatic(JSON::class)
@@ -203,7 +203,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         onMessageMethod.invoke(adapter, TestEventPayload::class.java, message, channel)
 
         // Assert
-        verify { eventSubscriberManager.dispatch(testPayload) }
+        verify { eventHandlerDispatcher.dispatch(testPayload) }
         verify { channel.basicAck(deliveryTag, false) }
 
         unmockkStatic(JSON::class)
@@ -258,7 +258,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { interceptor2.postSubscribe(any()) } just runs
 
         val adapterWithInterceptors = RabbitMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = listOf(interceptor1, interceptor2),
             rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
@@ -278,7 +278,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
-        every { eventSubscriberManager.dispatch(any()) } just runs
+        every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(any(), any()) } just runs
 
         mockkStatic(JSON::class)
@@ -307,7 +307,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         verify { interceptor1.postSubscribe(any()) }
         verify { interceptor2.preSubscribe(any()) }
         verify { interceptor2.postSubscribe(any()) }
-        verify { eventSubscriberManager.dispatch(testPayload) }
+        verify { eventHandlerDispatcher.dispatch(testPayload) }
 
         unmockkStatic(JSON::class)
         unmockkStatic(OrderUtils::class)
@@ -330,7 +330,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { lowPriorityInterceptor.postSubscribe(any()) } just runs
 
         val adapterWithOrderedInterceptors = RabbitMqIntegrationEventSubscriberAdapter(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = listOf(lowPriorityInterceptor, highPriorityInterceptor),
             rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
             rabbitListenerContainerFactory = rabbitListenerContainerFactory,
@@ -351,7 +351,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
-        every { eventSubscriberManager.dispatch(any()) } just runs
+        every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(any(), any()) } just runs
 
         mockkStatic(JSON::class)

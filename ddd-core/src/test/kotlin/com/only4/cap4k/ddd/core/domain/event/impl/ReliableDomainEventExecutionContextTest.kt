@@ -14,7 +14,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.share.Constants
 import io.mockk.every
 import io.mockk.just
@@ -30,9 +30,9 @@ class ReliableDomainEventExecutionContextTest {
     fun `reliable event handler observes producer context and worker scope is cleared`() {
         val contextManager = DefaultExecutionContextManager()
         val codecRegistry = ExecutionContextCodecRegistry(listOf(TestContextCodec))
-        val eventSubscriberManager = mockk<EventSubscriberManager>()
+        val eventHandlerDispatcher = mockk<EventHandlerDispatcher>()
         var observedContext: TestContext? = null
-        every { eventSubscriberManager.dispatch(any()) } answers {
+        every { eventHandlerDispatcher.dispatch(any()) } answers {
             observedContext = contextManager.current()[TestContextKey]
         }
         val event = mockk<EventRecord>()
@@ -50,7 +50,7 @@ class ReliableDomainEventExecutionContextTest {
         every { event.endDelivery(any()) } just runs
 
         val publisher = TestEventPublisher(
-            eventSubscriberManager = eventSubscriberManager,
+            eventHandlerDispatcher = eventHandlerDispatcher,
             eventRecordRepository = mockk(relaxed = true),
             eventMessageInterceptorManager = mockk {
                 every { orderedEventMessageInterceptors } returns emptySet()
@@ -72,7 +72,7 @@ class ReliableDomainEventExecutionContextTest {
     }
 
     private class TestEventPublisher(
-        eventSubscriberManager: EventSubscriberManager,
+        eventHandlerDispatcher: EventHandlerDispatcher,
         eventRecordRepository: EventRecordRepository,
         eventMessageInterceptorManager: EventMessageInterceptorManager,
         domainEventInterceptorManager: DomainEventInterceptorManager,
@@ -82,7 +82,7 @@ class ReliableDomainEventExecutionContextTest {
         contextManager: DefaultExecutionContextManager,
         codecRegistry: ExecutionContextCodecRegistry,
     ) : DefaultEventPublisher(
-        eventSubscriberManager = eventSubscriberManager,
+        eventHandlerDispatcher = eventHandlerDispatcher,
         integrationEventPublishers = emptyList(),
         eventRecordRepository = eventRecordRepository,
         eventMessageInterceptorManager = eventMessageInterceptorManager,

@@ -3,7 +3,7 @@ package com.only4.cap4k.ddd.core.domain.event.impl
 import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import io.mockk.every
@@ -22,27 +22,27 @@ class DefaultDomainEventSupervisorTest {
         every { orderedDomainEventInterceptors } returns emptySet()
         every { orderedEventInterceptors4DomainEvent } returns emptySet()
     }
-    private val eventSubscriberManager = mockk<EventSubscriberManager>()
+    private val eventHandlerDispatcher = mockk<EventHandlerDispatcher>()
 
     @AfterEach
     fun resetContext() = EventRuntimeContext.reset()
 
     @Test
     fun `immediate local event is published synchronously without an event repository`() {
-        every { eventSubscriberManager.dispatch(any()) } just runs
-        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventSubscriberManager)
+        every { eventHandlerDispatcher.dispatch(any()) } just runs
+        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventHandlerDispatcher)
         val entity = Any()
         val event = LocalEvent("created")
 
         supervisor.attach(event, entity)
         supervisor.release(setOf(entity))
 
-        verify(exactly = 1) { eventSubscriberManager.dispatch(event) }
+        verify(exactly = 1) { eventHandlerDispatcher.dispatch(event) }
     }
 
     @Test
     fun `persistent event fails at release when reliable provider is absent`() {
-        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventSubscriberManager)
+        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventHandlerDispatcher)
         val entity = Any()
         supervisor.attach(PersistentEvent("created"), entity)
 
@@ -56,7 +56,7 @@ class DefaultDomainEventSupervisorTest {
         every { reliableProvider.publish(any(), any(), any()) } just runs
         val supervisor = DefaultDomainEventSupervisor(
             interceptorManager,
-            eventSubscriberManager,
+            eventHandlerDispatcher,
             reliableProvider,
         )
         val entity = Any()
@@ -66,7 +66,7 @@ class DefaultDomainEventSupervisorTest {
         supervisor.release(setOf(entity))
 
         verify(exactly = 1) { reliableProvider.publish(event, any(), any()) }
-        verify(exactly = 0) { eventSubscriberManager.dispatch(any()) }
+        verify(exactly = 0) { eventHandlerDispatcher.dispatch(any()) }
     }
 
     @Test
@@ -75,7 +75,7 @@ class DefaultDomainEventSupervisorTest {
         every { reliableProvider.publish(any(), any(), any()) } just runs
         val supervisor = DefaultDomainEventSupervisor(
             interceptorManager,
-            eventSubscriberManager,
+            eventHandlerDispatcher,
             reliableProvider,
         )
         val entity = Any()
@@ -90,14 +90,14 @@ class DefaultDomainEventSupervisorTest {
 
     @Test
     fun `events produced by a handler remain for the next UoW frontier`() {
-        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventSubscriberManager)
+        val supervisor = DefaultDomainEventSupervisor(interceptorManager, eventHandlerDispatcher)
         val entity = Any()
         val first = LocalEvent("first")
         val derived = LocalEvent("derived")
-        every { eventSubscriberManager.dispatch(first) } answers {
+        every { eventHandlerDispatcher.dispatch(first) } answers {
             supervisor.attach(derived, entity)
         }
-        every { eventSubscriberManager.dispatch(derived) } just runs
+        every { eventHandlerDispatcher.dispatch(derived) } just runs
 
         EventRuntimeContextManager.beginUnitOfWork()
         try {
@@ -106,18 +106,19 @@ class DefaultDomainEventSupervisorTest {
             supervisor.release(setOf(entity))
 
             assertEquals(1, supervisor.pendingCount())
-            verify(exactly = 1) { eventSubscriberManager.dispatch(first) }
-            verify(exactly = 0) { eventSubscriberManager.dispatch(derived) }
+            verify(exactly = 1) { eventHandlerDispatcher.dispatch(first) }
+            verify(exactly = 0) { eventHandlerDispatcher.dispatch(derived) }
 
             supervisor.release(setOf(entity))
 
             assertEquals(0, supervisor.pendingCount())
-            verify(exactly = 1) { eventSubscriberManager.dispatch(derived) }
+            verify(exactly = 1) { eventHandlerDispatcher.dispatch(derived) }
         } finally {
             EventRuntimeContextManager.endUnitOfWork()
         }
     }
 
+    @DomainEvent
     data class LocalEvent(val value: String)
 
     @DomainEvent(persist = true)

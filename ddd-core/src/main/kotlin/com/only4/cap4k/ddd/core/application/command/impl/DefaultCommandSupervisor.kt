@@ -55,7 +55,9 @@ open class DefaultCommandSupervisor(
         val scope = invocationScopeManager.enter(InvocationKind.COMMAND)
         return try {
             EventRuntimeContext.withCausalFrame("Command:${command.javaClass.name}") {
-                unitOfWorkProvider().execute { dispatcher.dispatch(command) }
+                unitOfWorkProvider().execute {
+                    scope.complete { dispatcher.dispatch(command) }
+                }
             }
         } finally {
             scope.close()

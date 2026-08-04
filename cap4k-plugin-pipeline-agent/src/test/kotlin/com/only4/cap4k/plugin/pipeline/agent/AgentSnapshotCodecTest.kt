@@ -7,6 +7,12 @@ import com.only4.cap4k.plugin.pipeline.api.AgentDiagnostic
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticLevel
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticsSection
 import com.only4.cap4k.plugin.pipeline.api.AgentEffectiveCapability
+import com.only4.cap4k.plugin.pipeline.api.AgentEventHandlerAuthoring
+import com.only4.cap4k.plugin.pipeline.api.AgentEventHandlerEqualOrder
+import com.only4.cap4k.plugin.pipeline.api.AgentEventHandlerExecution
+import com.only4.cap4k.plugin.pipeline.api.AgentEventHandlerManagedAsyncCompletion
+import com.only4.cap4k.plugin.pipeline.api.AgentEventHandlerManagedAsyncFailure
+import com.only4.cap4k.plugin.pipeline.api.AgentEventHandlerReturnType
 import com.only4.cap4k.plugin.pipeline.api.AgentEvidence
 import com.only4.cap4k.plugin.pipeline.api.AgentEvidenceFreshness
 import com.only4.cap4k.plugin.pipeline.api.AgentInput
@@ -84,6 +90,31 @@ class AgentSnapshotCodecTest {
         assertFalse(diagnosticsJson.contains("jdbc:postgresql"))
         assertFalse(diagnosticsJson.contains("hunter2"))
         assertFalse(diagnosticsJson.contains("api-token"))
+
+        val runtimeJson = encoded.sectionJsonByPath.getValue("runtime.json")
+        val runtime = codec.fromJson(runtimeJson, AgentRuntimeSection::class.java)
+        assertEquals(AgentEventHandlerAuthoring.METHOD_LEVEL_EVENT_LISTENER, runtime.eventHandler.authoring)
+        assertEquals(
+            AgentEventHandlerExecution.SYNCHRONOUS_SEQUENTIAL_FAIL_FAST,
+            runtime.eventHandler.execution,
+        )
+        assertEquals(AgentEventHandlerEqualOrder.UNSPECIFIED, runtime.eventHandler.ordering.equalValues)
+        assertEquals("method", runtime.eventHandler.ordering.target)
+        assertTrue(runtime.eventHandler.ordering.lowerValuesFirst)
+        assertEquals(AgentEventHandlerReturnType.UNIT_OR_VOID, runtime.eventHandler.returnType)
+        assertEquals(
+            AgentEventHandlerManagedAsyncCompletion.WAIT_BEFORE_HANDLER_COMPLETION,
+            runtime.eventHandler.managedAsyncCompletion.completion,
+        )
+        assertEquals(
+            AgentEventHandlerManagedAsyncFailure.FAIL_HANDLER,
+            runtime.eventHandler.managedAsyncCompletion.failure,
+        )
+        assertEquals(
+            listOf("Mediator.capabilities.callAsync", "Mediator.queries.askAsync"),
+            runtime.eventHandler.managedAsyncCompletion.trackedOperations,
+        )
+        assertTrue("transactional_event_listener" in runtime.eventHandler.forbidden)
 
         val decodedProject = codec.fromJson(
             encoded.sectionJsonByPath.getValue("project.json"),

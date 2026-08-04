@@ -19,7 +19,7 @@ import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import org.slf4j.LoggerFactory
@@ -110,7 +110,7 @@ class HttpIntegrationEventAutoConfiguration {
 
     @Bean
     fun httpIntegrationEventSubscriberAdapter(
-        eventSubscriberManager: EventSubscriberManager,
+        eventHandlerDispatcher: EventHandlerDispatcher,
         eventMessageInterceptors: List<EventMessageInterceptor>,
         subscriberRegister: HttpIntegrationEventSubscriberRegister,
         environment: Environment,
@@ -121,7 +121,7 @@ class HttpIntegrationEventAutoConfiguration {
         @Value("\${server.port:80}") serverPort: String,
         @Value("\${server.servlet.context-path:}") serverServletContextPath: String,
     ): HttpIntegrationEventSubscriberAdapter = HttpIntegrationEventSubscriberAdapter(
-        eventSubscriberManager,
+        eventHandlerDispatcher,
         eventMessageInterceptors,
         subscriberRegister,
         environment,

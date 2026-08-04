@@ -45,6 +45,8 @@ import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
 import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerDescriptorResolver
+import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerRegistry
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisorSupport
@@ -187,9 +189,18 @@ class CoreRuntimeAutoConfiguration {
         DefaultDomainServiceSupervisor(applicationContext)
 
     @Bean
+    fun cap4kEventHandlerDescriptorResolver(): Cap4kEventHandlerDescriptorResolver =
+        Cap4kEventHandlerDescriptorResolver()
+
+    @Bean
+    fun cap4kEventHandlerRegistry(): Cap4kEventHandlerRegistry = Cap4kEventHandlerRegistry()
+
+    @Bean
     @ConditionalOnMissingBean(EventTypeCatalog::class)
-    fun eventTypeCatalog(beanFactory: ListableBeanFactory): EventTypeCatalog =
-        SpringEventTypeCatalog(beanFactory)
+    fun eventTypeCatalog(
+        beanFactory: ListableBeanFactory,
+        descriptorResolver: Cap4kEventHandlerDescriptorResolver,
+    ): EventTypeCatalog = SpringEventTypeCatalog(beanFactory, descriptorResolver)
 
     @Bean
     fun mediatorCapabilityBinder(

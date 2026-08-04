@@ -13,7 +13,7 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.domain.event.EventSubscriberManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -33,7 +33,7 @@ class HttpIntegrationEventAutoConfigurationTest {
                 IntegrationEventInterceptorManager::class.java,
                 Supplier { mock(IntegrationEventInterceptorManager::class.java) },
             )
-            .withBean(EventSubscriberManager::class.java, Supplier { mock(EventSubscriberManager::class.java) })
+            .withBean(EventHandlerDispatcher::class.java, Supplier { mock(EventHandlerDispatcher::class.java) })
             .withBean(
                 ExecutionContextAccessor::class.java,
                 Supplier { ExecutionContextAccessor { ExecutionContextSnapshot.EMPTY } },

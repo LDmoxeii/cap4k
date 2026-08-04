@@ -26,7 +26,7 @@ Run `cap4kAgentSnapshot` and read `build/cap4k/agent/manifest.json` first. Load 
 - `capabilities.json`: supported catalog plus effective current-project state;
 - `inputs.json`: configured sources, local paths, safety, and stable redacted identities;
 - `ownership.json`: planned artifacts, templates, output kind/root, conflict policy, and freshness;
-- `runtime.json`: installed extensions and explicit runtime/provider boundaries;
+- `runtime.json`: the versioned Event Handler authoring/execution contract, installed extensions, and explicit runtime/provider boundaries;
 - `analysis.json`: analysis configuration and available evidence;
 - `diagnostics.json`: actionable failures, hints, and unsupported boundaries.
 
