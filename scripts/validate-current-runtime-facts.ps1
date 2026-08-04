@@ -16,6 +16,11 @@ $retiredTerms = [ordered]@{
     'EventSubscriberManager' = '\b(?:Default)?EventSubscriberManager\b'
     'AbstractEventSubscriber' = '\bAbstractEventSubscriber\b'
     'EventSubscriber<T>' = '\bEventSubscriber\s*<'
+    'Console module' = '\bcap4k-ddd-console\b'
+    'Console starter' = '\bcap4k-ddd-console-starter\b'
+    'Console auto-configuration' = '\bDDDConsoleAutoConfiguration\b'
+    'Console runtime package' = '\bcom\.only4\.cap4k\.ddd\.console\b'
+    'Console HTTP endpoint' = '/cap4k/console(?:/|\b)'
 }
 
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
@@ -37,16 +42,19 @@ foreach ($relativeFile in $currentFiles) {
 $violations = [System.Collections.Generic.List[string]]::new()
 foreach ($file in $files) {
     $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
     foreach ($entry in $retiredTerms.GetEnumerator()) {
         if ($text -match $entry.Value) {
-            $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
+            if ($entry.Key -eq 'Console module' -and $relativePath -eq 'docs/comet/specs/runtime-console-retirement/spec.md') {
+                continue
+            }
             $violations.Add("${relativePath}: retired runtime term '$($entry.Key)'")
         }
     }
 }
 
 if ($violations.Count -gt 0) {
-    throw "Current runtime facts contain retired Event Subscriber APIs:`n$($violations -join "`n")"
+    throw "Current runtime facts contain retired Runtime surfaces:`n$($violations -join "`n")"
 }
 
-Write-Output "OK: current runtime facts contain no retired Event Subscriber APIs."
+Write-Output "OK: current runtime facts contain no retired Runtime surfaces."
