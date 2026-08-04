@@ -49,7 +49,6 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.ComponentScan
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
@@ -98,9 +97,6 @@ class AggregateJpaRuntimeDefectReproductionTest {
     @Autowired
     @Qualifier("jpaUnitOfWork")
     private lateinit var unitOfWork: JpaUnitOfWork
-
-    @Autowired
-    private lateinit var rootJpaRepository: RuntimeRootJpaRepository
 
     @Autowired
     @Qualifier("defaultCommandSupervisor")
@@ -158,7 +154,10 @@ class AggregateJpaRuntimeDefectReproductionTest {
         val root = saveRoot(RuntimeRoot(name = "omitted-id"))
 
         assertEquals(7, root.id.version(), "A root created without an id should receive a UUID7 id")
-        assertTrue(rootJpaRepository.existsById(root.id), "The generated id should point to a row")
+        assertTrue(
+            countRows("select count(*) from `runtime_root` where `id` = ?", root.id) == 1,
+            "The generated id should point to a row",
+        )
     }
 
     @Test
@@ -204,6 +203,18 @@ class AggregateJpaRuntimeDefectReproductionTest {
     }
 
     @Test
+    @DisplayName("Mediator repositories removes an aggregate through explicit delete intent")
+    fun mediatorRepositoriesRemovesAggregate() {
+        val root = saveRoot(RuntimeRoot(name = "command-remove"))
+        JpaUnitOfWork.reset()
+
+        val removed = Mediator.commands.send(RemoveRuntimeRootCommand(root.id))
+
+        assertEquals(1, removed)
+        assertEquals(0, countRows("select count(*) from `runtime_root` where `id` = ?", root.id))
+    }
+
+    @Test
     @DisplayName("nested Mediator Command reuses the same physical Hibernate Session")
     fun nestedMediatorCommandReusesCurrentUnitOfWork() {
         val root = saveRoot(RuntimeRoot(name = "nested-command"))
@@ -232,7 +243,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
         JpaUnitOfWork.reset()
 
         val childCount = requireNotNull(TransactionTemplate(transactionManager).execute {
-            val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+            val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
             loaded.children.size
         })
 
@@ -428,7 +439,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed scalar update",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     loaded.children.first().name = "updated-child"
                     loaded.children.first().grandchildren.first().name = "updated-grandchild"
                     unitOfWork.observeRepositoryLoad(loaded)
@@ -460,7 +471,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
 
         val error = assertThrows(IllegalStateException::class.java) {
             unitOfWork.execute {
-                val proxy = rootJpaRepository.getReferenceById(root.id)
+                val proxy = entityManager.getReference(RuntimeRoot::class.java, root.id)
                 val detached = RuntimeRoot(id = root.id, name = "detached-conflict")
                 unitOfWork.observeRepositoryLoad(proxy)
                 unitOfWork.registerDelete(detached)
@@ -481,7 +492,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed grandchild orphan removal",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     loaded.children.first().grandchildren.removeAt(0)
                     unitOfWork.observeRepositoryLoad(loaded)
                 }
@@ -510,7 +521,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed child orphan removal",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     loaded.children.removeAt(0)
                     unitOfWork.observeRepositoryLoad(loaded)
                 }
@@ -543,7 +554,7 @@ class AggregateJpaRuntimeDefectReproductionTest {
             label = "three-level managed clear and re-add",
             desiredContract = {
                 unitOfWork.execute {
-                    val loaded = rootJpaRepository.findById(root.id).orElseThrow()
+                    val loaded = entityManager.find(RuntimeRoot::class.java, root.id) ?: error("RuntimeRoot not found: ${root.id}")
                     val firstChild = loaded.children.first()
                     firstChild.grandchildren.clear()
                     firstChild.grandchildren.add(RuntimeGrandchild(name = "clear-readd-new-grandchild"))
@@ -1182,10 +1193,6 @@ open class RuntimeFkMirrorChild(id: UUID = nextRuntimeUuid(), rootId: UUID = UUI
     open var name: String = name
 }
 
-interface RuntimeRootJpaRepository :
-    JpaRepository<RuntimeRoot, UUID>,
-    JpaSpecificationExecutor<RuntimeRoot>
-
 interface RuntimeReverseChildJpaRepository : JpaRepository<RuntimeReverseChild, UUID>
 
 interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGrandchild, UUID>
@@ -1193,9 +1200,9 @@ interface RuntimeReverseGrandchildJpaRepository : JpaRepository<RuntimeReverseGr
 interface RuntimeFkMirrorChildJpaRepository : JpaRepository<RuntimeFkMirrorChild, UUID>
 
 @Repository
-class RuntimeRootRepository(
-    rootJpaRepository: RuntimeRootJpaRepository
-) : AbstractJpaRepository<RuntimeRoot, UUID>(rootJpaRepository, rootJpaRepository)
+internal open class RuntimeRootRepository(
+    entityManager: EntityManager,
+) : AbstractJpaRepository<RuntimeRoot, UUID>(RuntimeRoot::class.java, entityManager)
 
 data class CountRuntimeRootChildrenCommand(
     val rootId: UUID
@@ -1206,12 +1213,10 @@ data class CountRuntimeRootChildrenResponse(
 )
 
 @Component
-class CountRuntimeRootChildrenCommandHandler(
-    @param:Qualifier("defaultRepositorySupervisor")
-    private val repositorySupervisor: RepositorySupervisor
-) : CommandHandler<CountRuntimeRootChildrenCommand, CountRuntimeRootChildrenResponse> {
+class CountRuntimeRootChildrenCommandHandler :
+    CommandHandler<CountRuntimeRootChildrenCommand, CountRuntimeRootChildrenResponse> {
     override fun handle(command: CountRuntimeRootChildrenCommand): CountRuntimeRootChildrenResponse {
-        val root = repositorySupervisor.findOne(
+        val root = Mediator.repositories.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
         ) ?: error("RuntimeRoot not found: ${command.rootId}")
 
@@ -1231,13 +1236,11 @@ data class RenameRuntimeRootResult(
 
 @Component
 class RenameRuntimeRootCommandHandler(
-    @param:Qualifier("defaultRepositorySupervisor")
-    private val repositorySupervisor: RepositorySupervisor,
     private val unitOfWork: CommandUnitOfWorkCoordinator,
     private val entityManager: EntityManager,
 ) : CommandHandler<RenameRuntimeRootCommand, RenameRuntimeRootResult> {
     override fun handle(command: RenameRuntimeRootCommand): RenameRuntimeRootResult {
-        val root = repositorySupervisor.findOne(
+        val root = Mediator.repositories.findOne(
             JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
         ) ?: error("RuntimeRoot not found: ${command.rootId}")
         root.name = command.name
@@ -1246,6 +1249,18 @@ class RenameRuntimeRootCommandHandler(
             sessionIdentity = System.identityHashCode(entityManager.unwrap(Session::class.java)),
         )
     }
+}
+
+data class RemoveRuntimeRootCommand(
+    val rootId: UUID,
+) : Command<Int>
+
+@Component
+class RemoveRuntimeRootCommandHandler : CommandHandler<RemoveRuntimeRootCommand, Int> {
+    override fun handle(command: RemoveRuntimeRootCommand): Int =
+        Mediator.repositories.remove(
+            JpaPredicate.byId(RuntimeRoot::class.java, command.rootId)
+        ).size
 }
 
 data class NestedRenameRuntimeRootCommand(

@@ -64,10 +64,11 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 
 - `nodes.json`
 - `rels.json`
+- `aggregate-elements.json`；没有 Aggregate element 时也必须存在并写为 `[]`
 
-`design-elements.json` 是可选 input，但 compiler analysis 会输出它。`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 使用 source id `ir-analysis`，并 route 到 generator ids `flow` 和 `drawing-board`。
+`design-elements.json` 仍是可选 input。Compiler analysis 会输出以上三个必需文件以及 `design-elements.json`，共四个文件。`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 使用 source id `ir-analysis`，并 route 到 generator ids `flow` 和 `drawing-board`。
 
-这条路径用于观察已经存在的代码结构。它不会生成普通 source skeleton，也不是 `cap4kPlan` / `cap4kGenerate` 的输入替身。
+这条路径用于观察已经存在的代码结构。Drawing Board 的普通 tag 文件可以作为显式 Design JSON 输入；独立的 `drawing_board_aggregate_elements.json` 只提供 Aggregate element 结构证据，不是 Design JSON。Analysis 路径不会生成普通 source skeleton，也不是 `cap4kPlan` / `cap4kGenerate` 的输入替身。
 
 ## Reference Project Examples
 
@@ -93,7 +94,7 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 - `capability` 或 `integration_event` 没有清晰 published language。
 - `types.valueObjectManifest` 的类型没有值对象语义。
 - `types.enumManifest` 把复杂规则压成枚举值。
-- `sources.irAnalysis.inputDirs` 指向的 IR 输出不完整，缺少 `nodes.json` 或 `rels.json`。
+- `sources.irAnalysis.inputDirs` 指向的 IR 输出不完整，缺少 `nodes.json`、`rels.json` 或 `aggregate-elements.json`；没有 Aggregate element 时后者也必须为 `[]`。
 - plan 中的 module placement 不能被 Gradle extension 和 architecture 解释。
 
 输入审查的目标是让 generator 读取正确事实。缺少事实时，先修正模型、schema、design JSON 或 manifests，再进入 plan review。

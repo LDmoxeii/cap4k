@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.source.ir
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.only4.cap4k.plugin.pipeline.api.AggregateElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
@@ -60,6 +61,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         val nodesById = linkedMapOf<String, IrNodeSnapshot>()
         val edgeKeys = linkedSetOf<EdgeKey>()
         val designElements = mutableListOf<DesignElementSnapshot>()
+        val aggregateElementsByCarrier = linkedMapOf<String, AggregateElementSnapshot>()
 
         inputDirs.forEach { inputDir ->
             val dir = File(inputDir)
@@ -70,6 +72,10 @@ class IrAnalysisSourceProvider : SourceProvider {
             require(nodesFile.exists() && relsFile.exists()) {
                 "ir-analysis inputDir is missing nodes.json or rels.json: $inputDir"
             }
+            val aggregateElementsFile = File(dir, "aggregate-elements.json")
+            require(aggregateElementsFile.exists()) {
+                "ir-analysis inputDir is missing aggregate-elements.json: $inputDir"
+            }
 
             val inputNodes = parseNodes(nodesFile)
             val designElementsFile = File(dir, "design-elements.json")
@@ -78,6 +84,7 @@ class IrAnalysisSourceProvider : SourceProvider {
             } else {
                 emptyList()
             }
+            val inputAggregateElements = parseAggregateElements(aggregateElementsFile)
             requireRequestedAnalysisMetadata(
                 config = config,
                 nodes = inputNodes,
@@ -105,6 +112,13 @@ class IrAnalysisSourceProvider : SourceProvider {
             }
 
             designElements.addAll(inputDesignElements)
+            inputAggregateElements.forEach { aggregateElement ->
+                val existing = aggregateElementsByCarrier[aggregateElement.carrierQualifiedName]
+                require(existing == null || existing == aggregateElement) {
+                    "conflicting aggregate element metadata for ${aggregateElement.carrierQualifiedName}"
+                }
+                aggregateElementsByCarrier.putIfAbsent(aggregateElement.carrierQualifiedName, aggregateElement)
+            }
         }
 
         return IrAnalysisSnapshot(
@@ -119,6 +133,7 @@ class IrAnalysisSourceProvider : SourceProvider {
                 )
             },
             designElements = designElements,
+            aggregateElements = aggregateElementsByCarrier.values.toList(),
         )
     }
 
@@ -134,9 +149,11 @@ class IrAnalysisSourceProvider : SourceProvider {
         if ("drawing-board" in config.generators) {
             requestedCapabilities += DRAWING_BOARD_CAPABILITY
             nodes.forEach { node ->
-                if (DESIGN_BLOCK_METADATA_FQ in node.missingMetadata) {
-                    missing.getOrPut((node.metadataOwner ?: node.fullName) to DESIGN_BLOCK_METADATA_FQ) { linkedSetOf() }
-                        .add(DRAWING_BOARD_CAPABILITY)
+                listOf(DESIGN_BLOCK_METADATA_FQ, AGGREGATE_ELEMENT_METADATA_FQ).forEach { metadataFq ->
+                    if (metadataFq in node.missingMetadata) {
+                        missing.getOrPut((node.metadataOwner ?: node.fullName) to metadataFq) { linkedSetOf() }
+                            .add(DRAWING_BOARD_CAPABILITY)
+                    }
                 }
             }
             if (designElements.isEmpty()) {
@@ -225,6 +242,24 @@ class IrAnalysisSourceProvider : SourceProvider {
                 eventName = obj.optionalString("eventName", context),
                 fields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
                 resultFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
+            )
+        }
+    }
+
+    private fun parseAggregateElements(file: File): List<AggregateElementSnapshot> {
+        val array = parseRequiredArray(file, "aggregate-elements")
+        return array.mapIndexed { index, element ->
+            val context = "aggregate element at index $index"
+            val obj = element.objectNodeOrNull()
+                ?: throw IllegalArgumentException("$context must be an object")
+            AggregateElementSnapshot(
+                carrierQualifiedName = obj.requiredString("carrierQualifiedName", context),
+                aggregate = obj.requiredString("aggregate", context),
+                name = obj.optionalString("name", context).orEmpty().trim(),
+                packageName = obj.optionalString("packageName", context).orEmpty().trim(),
+                description = obj.optionalString("description", context).orEmpty().trim(),
+                type = obj.requiredString("type", context),
+                root = obj.optionalBoolean("root", context) ?: false,
             )
         }
     }

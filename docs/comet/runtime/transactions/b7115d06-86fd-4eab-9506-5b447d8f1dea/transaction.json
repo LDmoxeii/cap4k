@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b7115d06-86fd-4eab-9506-5b447d8f1dea",
+  "kind": "archive",
+  "status": "committed",
+  "change": "generated-repository-adapter-boundary",
+  "createdAt": "2026-08-04T12:50:01.255Z",
+  "preflightHash": "0910743f933e1618c96a5f5b95e976c41c20fff2f845981d0a2808d8ea912e16",
+  "operations": [
+    {
+      "id": "spec-1-generated-repository-adapter-boundary",
+      "type": "write",
+      "target": "specs/generated-repository-adapter-boundary/spec.md",
+      "staged": "runtime/transactions/b7115d06-86fd-4eab-9506-5b447d8f1dea/staged/specs/generated-repository-adapter-boundary/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "2204bb16ff0c92a5d978562f44370cb7ca95002ba51acd6ae39ba6f44fee49ce"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/generated-repository-adapter-boundary",
+      "target": "archive/2026-08-04-generated-repository-adapter-boundary",
+      "expectedSourceHash": "9f5e440d9fd7cf16513d5b162d2d323ca6b567ca4226d3fc0d3c369922a49dc0",
+      "expectedTargetHash": null
+    }
+  ]
+}

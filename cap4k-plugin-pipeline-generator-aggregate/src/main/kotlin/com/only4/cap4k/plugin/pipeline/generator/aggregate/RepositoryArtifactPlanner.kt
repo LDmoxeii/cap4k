@@ -34,6 +34,7 @@ internal class RepositoryArtifactPlanner : AggregateArtifactFamilyPlanner {
                 context = mapOf(
                     "packageName" to repository.packageName,
                     "typeName" to repository.name,
+                    "carrierTypeName" to repository.carrierTypeName,
                     "aggregateElement" to aggregateElementContext(
                         aggregate = aggregateName,
                         name = repository.name,

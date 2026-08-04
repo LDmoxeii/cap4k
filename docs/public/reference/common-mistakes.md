@@ -34,7 +34,8 @@
 | --- | --- |
 | 把 `cap4kAnalysisGenerate` 当作 source generation。 | 它导出 analysis/observation artifacts，尤其是 flow 和 drawing-board。 |
 | 期待 `flow` 和 `drawing-board` 创建 source skeletons。 | 它们通过 IR analysis input 观察 existing code structure。 |
-| `build/cap4k-code-analysis` 下缺少 `nodes.json` 或 `rels.json`。 | IR analysis input 不完整。 |
+| `build/cap4k-code-analysis` 下缺少 `nodes.json`、`rels.json` 或 `aggregate-elements.json`。 | IR analysis input 不完整；没有 Aggregate element 时也要提供 `aggregate-elements.json`，内容为 `[]`。 |
+| 把 `drawing_board_aggregate_elements.json` 注册到 `sources.designJson.files`。 | 该文件是 Aggregate element 结构证据，不是 Design JSON；只选择普通 `drawing_board_<tag>.json` 文件。 |
 
 ## Orchestration And Event Mistakes
 

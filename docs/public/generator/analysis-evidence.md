@@ -16,8 +16,9 @@ build/cap4k-code-analysis
 
 - `nodes.json`
 - `rels.json`
+- `aggregate-elements.json`；没有 Aggregate element 时也必须存在，内容为 `[]`
 
-`design-elements.json` 是可选 input，但 compiler analysis 会输出它。analysis generation 使用 source id `ir-analysis`，并 route 到 generator ids：
+`design-elements.json` 仍是可选 input。Compiler analysis 会输出 `nodes.json`、`rels.json`、`design-elements.json` 和 `aggregate-elements.json` 四个文件。analysis generation 使用 source id `ir-analysis`，并 route 到 generator ids：
 
 - `flow`
 - `drawing-board`
@@ -78,8 +79,11 @@ flow evidence 只能说明代码连接方式。连接存在不代表业务规则
 - `analysis/drawing-board/drawing_board_domain_event.json`
 - `analysis/drawing-board/drawing_board_integration_event.json`
 - `analysis/drawing-board/drawing_board_query.json`
+- `analysis/drawing-board/drawing_board_aggregate_elements.json`（存在 Aggregate element 时）
 
-drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Capability 和 event 锚点？”它不回答这些锚点是否完成业务实现。
+普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类，可以作为显式 Design JSON 输入。`drawing_board_aggregate_elements.json` 则记录 Aggregate element 的结构证据；它没有 `tag`，不是 Design JSON，不能注册到 `sources.designJson.files`。
+
+drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Capability、event 锚点和 Aggregate element？”它不回答这些锚点是否完成业务实现。
 
 ## Verification Usage
 
@@ -88,7 +92,7 @@ drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Ca
 1. 先用 design inputs 和 source 确认作者本来想表达什么。
 2. 再用 `cap4kAnalysisPlan` 的 `analysis-plan.json` 确认 observation output 将如何生成。
 3. 再读 `analysis/flows`，看 runtime-adjacent path 是否经过预期 controller、subscriber、job 和 application use case。
-4. 再读 `analysis/drawing-board`，确认 Command、Query、Capability 和 event 锚点是否和 design JSON/source 对齐。
+4. 再读 `analysis/drawing-board`：用普通 tag 文件确认 Command、Query、Capability 和 event 锚点是否和 design JSON/source 对齐；用 `drawing_board_aggregate_elements.json` 检查 Aggregate element 结构。
 5. 最后把发现反馈到 [Verification And Feedback](../authoring/verification-and-feedback.md)、[Technical Design](../authoring/technical-design.md) 或 [Implementation Inside Generated Skeletons](../authoring/implementation-inside-generated-skeletons.md)。
 
 常见反馈包括：
@@ -105,6 +109,7 @@ analysis evidence 是观察证据，不是 source truth。public docs 中要保�
 - `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 不参与 ordinary `cap4kPlan` / `cap4kGenerate` source generation。
 - `flow` 和 `drawing-board` 是 analysis/observation outputs，不是 business source skeletons。
 - `analysis/flows` 和 `analysis/drawing-board` 可以作为已提交 reference evidence。
+- Drawing Board 的 Aggregate element 文件是结构证据，不是 Design JSON；不要把它与普通 tag 文件混用。
 - `build/cap4k/analysis-plan.json` 需要本地运行 analysis plan task 后才出现。
 - 业务正确性仍需 source、tests、HTTP examples、generation plan 和 human review 共同证明。
 
@@ -113,8 +118,8 @@ analysis evidence 的价值，是让 authoring loop 在验证阶段看见结构�
 <!-- IMAGE_PROMPT:
 Purpose: 帮助读者理解 cap4k analysis evidence 如何从 IR analysis input 生成 flows 与 drawing-board，并在 verification 中反馈 authoring loop。
 Type: workflow diagram
-Prompt: Draw a cap4k analysis evidence workflow. Start with build/cap4k-code-analysis containing nodes.json and rels.json, selected by sources.irAnalysis.inputDirs. Show cap4kAnalysisPlan producing build/cap4k/analysis-plan.json, then cap4kAnalysisGenerate producing analysis/flows and analysis/drawing-board. Then show verification feedback to technical design and implementation. Use Chinese labels while preserving English identifiers.
-Must show: sources.irAnalysis.inputDirs, build/cap4k-code-analysis, nodes.json, rels.json, design-elements.json as optional input, cap4kAnalysisPlan, analysis-plan.json, cap4kAnalysisGenerate, flow, drawing-board, analysis/flows, analysis/drawing-board, verification feedback
-Must avoid: 不要暗示 analysis outputs 是 source skeletons；不要把 flow/drawing-board 放进 cap4kPlan/cap4kGenerate；不要暗示 analysis evidence 会证明业务规则自动正确
+Prompt: Draw a cap4k analysis evidence workflow. Start with build/cap4k-code-analysis containing required nodes.json, rels.json, and aggregate-elements.json (show [] when there are no aggregate elements), plus optional design-elements.json, selected by sources.irAnalysis.inputDirs. Show cap4kAnalysisPlan producing build/cap4k/analysis-plan.json, then cap4kAnalysisGenerate producing analysis/flows and analysis/drawing-board. Separate normal-tag drawing_board_<tag>.json Design JSON-compatible evidence from drawing_board_aggregate_elements.json structural evidence. Then show verification feedback to technical design and implementation. Use Chinese labels while preserving English identifiers.
+Must show: sources.irAnalysis.inputDirs, build/cap4k-code-analysis, required nodes.json, required rels.json, required aggregate-elements.json with empty [] allowed, optional design-elements.json, cap4kAnalysisPlan, analysis-plan.json, cap4kAnalysisGenerate, flow, drawing-board, normal-tag drawing_board_<tag>.json, drawing_board_aggregate_elements.json structural evidence, analysis/flows, analysis/drawing-board, verification feedback
+Must avoid: 不要暗示 analysis outputs 是 source skeletons；不要把 flow/drawing-board 放进 cap4kPlan/cap4kGenerate；不要把 drawing_board_aggregate_elements.json 画成 Design JSON；不要暗示 analysis evidence 会证明业务规则自动正确
 Alt text after insertion: cap4k analysis evidence 工作流，展示 IR input、cap4kAnalysisPlan、analysis-plan.json、cap4kAnalysisGenerate、flows、drawing-board 和 verification feedback。
 -->

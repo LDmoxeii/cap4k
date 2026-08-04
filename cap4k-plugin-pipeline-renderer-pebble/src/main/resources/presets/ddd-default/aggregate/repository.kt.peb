@@ -1,13 +1,11 @@
 package {{ packageName }}
 
-{{ use("org.springframework.data.jpa.repository.JpaRepository") -}}
-{{ use("org.springframework.data.jpa.repository.JpaSpecificationExecutor") -}}
+{{ use("jakarta.persistence.EntityManager") -}}
 {{ use("org.springframework.stereotype.Repository") -}}
 {% if aggregateElement is defined -%}
 {{ use("com.only4.cap4k.analysis.metadata.AggregateElementMetadata") -}}
 {% endif -%}
 {{ use("com.only4.cap4k.ddd.domain.repo.AbstractJpaRepository") -}}
-{{ use("org.springframework.stereotype.Component") -}}
 {%- if entityTypeFqn %}
 {{ use(entityTypeFqn) -}}
 {%- endif %}
@@ -29,14 +27,9 @@ import {{ import }}
     root = {{ aggregateElement.root }}
 )
 {% endif -%}
-interface {{ typeName }} : JpaRepository<{{ entityName }}, {{ idType }}>, JpaSpecificationExecutor<{{ entityName }}> {
-
-    @Component
-    class {{ entityName }}JpaRepositoryAdapter(
-        jpaSpecificationExecutor: JpaSpecificationExecutor<{{ entityName }}>,
-        jpaRepository: JpaRepository<{{ entityName }}, {{ idType }}>
-    ) : AbstractJpaRepository<{{ entityName }}, {{ idType }}>(
-        jpaSpecificationExecutor,
-        jpaRepository
-    )
-}
+internal open class {{ carrierTypeName }}(
+    entityManager: EntityManager,
+) : AbstractJpaRepository<{{ entityName }}, {{ idType }}>(
+    {{ entityName }}::class.java,
+    entityManager,
+)

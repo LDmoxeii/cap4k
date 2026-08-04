@@ -49,6 +49,7 @@ tasks.register("compileKotlin") {
             ]
             """.trimIndent()
         )
+        outputDir.resolve("aggregate-elements.json").writeText("[]")
     }
 }
 

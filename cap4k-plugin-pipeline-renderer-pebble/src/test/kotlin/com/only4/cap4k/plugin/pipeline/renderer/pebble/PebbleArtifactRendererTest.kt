@@ -2918,6 +2918,7 @@ class PebbleArtifactRendererTest {
             context = mapOf(
                 "packageName" to "com.acme.demo.adapter.domain.repositories",
                 "typeName" to "ContentRepository",
+                "carrierTypeName" to "ContentJpaRepositoryAdapter",
                 "entityName" to "Content",
                 "entityTypeFqn" to "com.acme.demo.domain.aggregates.content.Content",
                 "aggregateName" to "Content",
@@ -2930,13 +2931,13 @@ class PebbleArtifactRendererTest {
         assertReadableKotlin(content)
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.Content"))
         assertTrue(content.contains("import com.acme.demo.domain.aggregates.content.ContentId"))
-        assertTrue(
-            content.contains(
-                "interface ContentRepository : JpaRepository<Content, ContentId>, JpaSpecificationExecutor<Content>"
-            )
-        )
-        assertTrue(content.contains("jpaRepository: JpaRepository<Content, ContentId>"))
+        assertTrue(content.contains("internal open class ContentJpaRepositoryAdapter("))
+        assertTrue(content.contains("entityManager: EntityManager"))
         assertTrue(content.contains("AbstractJpaRepository<Content, ContentId>"))
+        assertTrue(content.contains("Content::class.java"))
+        assertFalse(content.contains("interface ContentRepository"))
+        assertFalse(content.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(content.contains("JpaSpecificationExecutor"))
         assertFalse(content.contains("QuerydslPredicateExecutor"))
         assertFalse(content.contains("AbstractQuerydslRepository"))
         assertFalse(content.contains("QuerydslRepositoryAdapter"))
@@ -3002,6 +3003,7 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.domain.repositories",
                         "typeName" to "UserMessageRepository",
+                        "carrierTypeName" to "UserMessageJpaRepositoryAdapter",
                         "entityName" to "UserMessage",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.user_message.UserMessage",
                         "aggregateName" to "UserMessage",
@@ -3055,13 +3057,13 @@ class PebbleArtifactRendererTest {
         val schemaContent = rendered.single { it.outputPath.endsWith("SUserMessage.kt") }.content
 
         assertTrue(repositoryContent.contains("@Repository"))
-        assertTrue(
-            repositoryContent.contains(
-                "interface UserMessageRepository : JpaRepository<UserMessage, Long>, JpaSpecificationExecutor<UserMessage>"
-            )
-        )
-        assertTrue(repositoryContent.contains("class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("internal open class UserMessageJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("entityManager: EntityManager"))
         assertTrue(repositoryContent.contains("AbstractJpaRepository<UserMessage, Long>"))
+        assertTrue(repositoryContent.contains("UserMessage::class.java"))
+        assertFalse(repositoryContent.contains("interface UserMessageRepository"))
+        assertFalse(repositoryContent.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(repositoryContent.contains("JpaSpecificationExecutor"))
         assertFalse(repositoryContent.contains("QuerydslPredicateExecutor"))
         assertFalse(repositoryContent.contains("AbstractQuerydslRepository"))
         assertFalse(repositoryContent.contains("QuerydslRepositoryAdapter"))
@@ -4587,6 +4589,7 @@ class PebbleArtifactRendererTest {
                     context = mapOf(
                         "packageName" to "com.acme.demo.adapter.domain.repositories",
                         "typeName" to "OrderRepository",
+                        "carrierTypeName" to "OrderJpaRepositoryAdapter",
                         "entityName" to "Order",
                         "entityTypeFqn" to "com.acme.demo.domain.aggregates.order.Order",
                         "aggregateName" to "Order",
@@ -4657,7 +4660,11 @@ class PebbleArtifactRendererTest {
         assertTrue(entityContent.contains("var orderNo: String? = orderNo"))
         assertFalse(entityContent.contains("jakarta.persistence"))
         assertTrue(repositoryContent.contains("@Repository"))
-        assertTrue(repositoryContent.contains("interface OrderRepository : JpaRepository<Order, Long>, JpaSpecificationExecutor<Order>"))
+        assertTrue(repositoryContent.contains("internal open class OrderJpaRepositoryAdapter("))
+        assertTrue(repositoryContent.contains("Order::class.java"))
+        assertFalse(repositoryContent.contains("interface OrderRepository"))
+        assertFalse(repositoryContent.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(repositoryContent.contains("JpaSpecificationExecutor"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory"))
         assertTrue(factoryContent.contains("import com.only4.cap4k.ddd.core.domain.aggregate.AggregatePayload"))
         assertFalse(factoryContent.contains(legacyAggregateAnnotationFq))

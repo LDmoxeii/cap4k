@@ -53,6 +53,7 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
         JsonFileMetadataSink(outDir.toString()).write(collector.nodesAsSequence(), collector.relsAsSequence())
         val designElements = DesignElementCollector(options).collect(moduleFragment)
         (outDir / "design-elements.json").writeText(DesignElementJsonWriter().write(designElements))
+        (outDir / "aggregate-elements.json").writeText(AggregateElementJsonWriter().write(index.aggregateElements))
     }
 }
 
@@ -87,7 +88,14 @@ private fun findModuleRootByGradle(filePaths: Iterable<String>): Path? {
     return null
 }
 
-private data class AggregateInfo(val aggregateName: String, val type: String, val root: Boolean)
+private data class AggregateInfo(
+    val aggregateName: String,
+    val name: String,
+    val packageName: String,
+    val description: String,
+    val type: String,
+    val root: Boolean,
+)
 
 private data class EntityMethodRef(
     val aggregateRootFq: String,
@@ -97,6 +105,7 @@ private data class EntityMethodRef(
 
 private data class ClassIndex(
     val aggregateInfoByClass: Map<String, AggregateInfo>,
+    val aggregateElements: List<AggregateElementRecord>,
     val aggregateRootsByName: Map<String, String>,
     val entityMethodNamesByClass: Map<String, Set<String>>,
     val domainEventClasses: Set<String>,
@@ -237,6 +246,19 @@ private class ClassIndexBuilder(
 
     fun build(): ClassIndex = ClassIndex(
         aggregateInfoByClass = aggregateInfoByClass.toMap(),
+        aggregateElements = aggregateInfoByClass.entries
+            .sortedBy { (carrierQualifiedName, _) -> carrierQualifiedName }
+            .map { (carrierQualifiedName, info) ->
+                AggregateElementRecord(
+                    carrierQualifiedName = carrierQualifiedName,
+                    aggregate = info.aggregateName,
+                    name = info.name,
+                    packageName = info.packageName,
+                    description = info.description,
+                    type = info.type,
+                    root = info.root,
+                )
+            },
         aggregateRootsByName = aggregateRootsByName.toMap(),
         entityMethodNamesByClass = entityMethodNamesByClass.mapValues { it.value.toSet() },
         domainEventClasses = domainEventClasses.toSet(),
@@ -287,11 +309,13 @@ private class GraphCollector(
     private val querySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.query.QuerySupervisor")
     private val capabilitySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor")
     private val repositorySupervisorFq = FqName(options.repositorySupervisorFq)
+    private val repositoryFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Repository")
     private val aggregateFactorySupervisorFq = FqName(options.aggregateFactorySupervisorFq)
     private val constraintValidatorFq = FqName("jakarta.validation.ConstraintValidator")
     private val constraintValidatorJavaxFq = FqName("javax.validation.ConstraintValidator")
     private val predicateFq = FqName("com.only4.cap4k.ddd.core.domain.repo.Predicate")
     private val domainServiceAnn = FqName("com.only4.cap4k.ddd.core.domain.service.annotation.DomainService")
+    private val springRepositoryAnn = FqName("org.springframework.stereotype.Repository")
     private val jakartaEntityAnn = FqName("jakarta.persistence.Entity")
     private val javaxEntityAnn = FqName("javax.persistence.Entity")
 
@@ -315,6 +339,13 @@ private class GraphCollector(
             }
         } else if (declaration.hasAnnotation(jakartaEntityAnn) || declaration.hasAnnotation(javaxEntityAnn)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.aggregate))
+            requireAggregateElementMetadata(fqcn, declaration)
+        }
+
+        val isRepositoryMetadataCarrier = declaration.hasAnnotation(springRepositoryAnn) &&
+            declaration.isOrImplements(repositoryFq)
+        if (isRepositoryMetadataCarrier && !declaration.hasAnnotation(aggregateElementMetadataAnn)) {
+            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.repository))
             requireAggregateElementMetadata(fqcn, declaration)
         }
 
@@ -1039,6 +1070,9 @@ private fun IrClass.readAggregateElementInfo(aggregateElementMetadataAnn: FqName
         ?: return null
     val className = fqNameWhenAvailable?.asString() ?: name.asString()
     val aggregateName = ann.getStringArg("aggregate").orEmpty().trim()
+    val name = ann.getStringArg("name").orEmpty().trim()
+    val packageName = ann.getStringArg("packageName").orEmpty().trim()
+    val description = ann.getStringArg("description").orEmpty().trim()
     val type = ann.getStringArg("type").orEmpty().trim()
     require(aggregateName.isNotEmpty()) {
         "AggregateElementMetadata annotation on $className must declare non-blank aggregate"
@@ -1050,7 +1084,14 @@ private fun IrClass.readAggregateElementInfo(aggregateElementMetadataAnn: FqName
         "AggregateElementMetadata annotation on $className has unsupported type: $type"
     }
     val root = ann.getBooleanArg("root") ?: false
-    return AggregateInfo(aggregateName, type, root)
+    return AggregateInfo(
+        aggregateName = aggregateName,
+        name = name,
+        packageName = packageName,
+        description = description,
+        type = type,
+        root = root,
+    )
 }
 
 private fun inferGeneratedAggregateRootFq(entityFq: String, aggregateName: String): String? {

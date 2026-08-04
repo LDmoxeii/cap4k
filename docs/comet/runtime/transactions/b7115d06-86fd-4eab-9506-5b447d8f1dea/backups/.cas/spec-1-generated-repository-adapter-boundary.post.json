@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-generated-repository-adapter-boundary",
+  "role": "post",
+  "hash": "2204bb16ff0c92a5d978562f44370cb7ca95002ba51acd6ae39ba6f44fee49ce",
+  "identity": {
+    "dev": 950912656,
+    "ino": 14355223812942928,
+    "birthtimeMs": 1785847808060.7292
+  }
+}

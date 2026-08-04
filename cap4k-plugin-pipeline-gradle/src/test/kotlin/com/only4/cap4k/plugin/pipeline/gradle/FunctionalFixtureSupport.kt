@@ -36,9 +36,19 @@ object FunctionalFixtureSupport {
     fun runner(projectDir: Path, vararg arguments: String): GradleRunner = GradleRunner.create()
         .withProjectDir(projectDir.toFile())
         .withPluginClasspath()
+        .withTestKitDir(gradleUserHome().toFile())
         .withArguments(*arguments)
 
     fun repositoryRoot(): Path = discoverRepositoryRoot()
+
+    private fun gradleUserHome(): Path {
+        val configured = System.getenv("GRADLE_USER_HOME")
+        return if (configured.isNullOrBlank()) {
+            Path.of(System.getProperty("user.home"), ".gradle")
+        } else {
+            Path.of(configured)
+        }
+    }
 
     fun generateThenCompile(projectDir: Path, vararg compileTasks: String): Pair<BuildResult, BuildResult> {
         require(compileTasks.isNotEmpty()) {
