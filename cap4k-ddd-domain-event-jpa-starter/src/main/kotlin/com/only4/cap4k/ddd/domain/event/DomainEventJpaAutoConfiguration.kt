@@ -12,6 +12,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventPublisher
 import com.only4.cap4k.ddd.domain.event.configure.EventProperties
 import com.only4.cap4k.ddd.domain.event.configure.EventScheduleProperties
@@ -72,6 +73,7 @@ class DomainEventJpaAutoConfiguration {
         integrationEventManagerProvider: ObjectProvider<IntegrationEventManager>,
         executionContextScopeManager: ExecutionContextScopeManager,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
+        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
         properties: EventProperties,
     ): DefaultEventPublisher = DefaultEventPublisher(
         eventHandlerDispatcher,
@@ -85,6 +87,7 @@ class DomainEventJpaAutoConfiguration {
         properties.publisherThreadPoolSize,
         executionContextScopeManager,
         executionContextCodecRegistry,
+        reliableEventDeliveryContextScopeManager,
     ).apply { init() }
 
     @Bean

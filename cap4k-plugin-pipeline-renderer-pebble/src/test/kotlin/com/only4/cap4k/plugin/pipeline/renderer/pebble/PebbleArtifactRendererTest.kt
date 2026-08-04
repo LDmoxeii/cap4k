@@ -1,6 +1,6 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
-import com.google.gson.JsonParser
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.api.*
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
@@ -6214,16 +6214,16 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+        val element = PipelineJson.newMapper().readTree(content).single()
 
-        assertEquals("cmd", element["tag"].asString)
-        assertEquals("orders.api", element["package"].asString)
-        assertEquals("Submit\"Order", element["name"].asString)
-        assertEquals("line1\nline2", element["description"].asString)
-        assertEquals("Ops\\Audit", element["aggregates"].asJsonArray[1].asString)
-        assertEquals(true, element["persist"].asBoolean)
-        assertEquals("say \"hi\"", element["fields"].asJsonArray[0].asJsonObject["defaultValue"].asString)
-        assertEquals("status", element["resultFields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals("cmd", element["tag"].asText())
+        assertEquals("orders.api", element["package"].asText())
+        assertEquals("Submit\"Order", element["name"].asText())
+        assertEquals("line1\nline2", element["description"].asText())
+        assertEquals("Ops\\Audit", element["aggregates"][1].asText())
+        assertEquals(true, element["persist"].asBoolean())
+        assertEquals("say \"hi\"", element["fields"][0]["defaultValue"].asText())
+        assertEquals("status", element["resultFields"][0]["name"].asText())
     }
 
     @Test
@@ -6493,46 +6493,46 @@ class PebbleArtifactRendererTest {
         )
 
         val content = rendered.single().content
-        val elements = JsonParser.parseString(content).asJsonArray
+        val elements = PipelineJson.newMapper().readTree(content)
 
-        assertEquals("query", elements[0].asJsonObject["tag"].asString)
-        assertEquals("orders.queries", elements[0].asJsonObject["package"].asString)
-        assertEquals("ReadOrder", elements[0].asJsonObject["name"].asString)
-        assertEquals("read order", elements[0].asJsonObject["description"].asString)
-        assertTrue(elements[0].asJsonObject["fields"].asJsonArray.size() == 1)
-        assertTrue(elements[0].asJsonObject["resultFields"].asJsonArray.size() == 1)
-        assertFalse(elements[0].asJsonObject.has("desc"))
-        assertFalse(elements[0].asJsonObject.has("requestFields"))
-        assertFalse(elements[0].asJsonObject.has("responseFields"))
-        assertFalse(elements[0].asJsonObject.has("traits"))
-        assertFalse(elements[0].asJsonObject.has("role"))
-        assertFalse(elements[0].asJsonObject.has("eventName"))
-        assertFalse(elements[0].asJsonObject.has("entity"))
-        assertFalse(elements[0].asJsonObject.has("message"))
-        assertFalse(elements[0].asJsonObject.has("targets"))
-        assertFalse(elements[0].asJsonObject.has("valueType"))
-        assertFalse(elements[0].asJsonObject.has("artifacts"))
+        assertEquals("query", elements[0]["tag"].asText())
+        assertEquals("orders.queries", elements[0]["package"].asText())
+        assertEquals("ReadOrder", elements[0]["name"].asText())
+        assertEquals("read order", elements[0]["description"].asText())
+        assertTrue(elements[0]["fields"].size() == 1)
+        assertTrue(elements[0]["resultFields"].size() == 1)
+        assertFalse(elements[0].has("desc"))
+        assertFalse(elements[0].has("requestFields"))
+        assertFalse(elements[0].has("responseFields"))
+        assertFalse(elements[0].has("traits"))
+        assertFalse(elements[0].has("role"))
+        assertFalse(elements[0].has("eventName"))
+        assertFalse(elements[0].has("entity"))
+        assertFalse(elements[0].has("message"))
+        assertFalse(elements[0].has("targets"))
+        assertFalse(elements[0].has("valueType"))
+        assertFalse(elements[0].has("artifacts"))
 
-        val pageQuery = elements[1].asJsonObject
-        assertEquals("PageOrders", pageQuery["name"].asString)
+        val pageQuery = elements[1]
+        assertEquals("PageOrders", pageQuery["name"].asText())
         assertTrue(pageQuery.has("artifacts"))
-        assertEquals("query", pageQuery["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
-        assertEquals("page", pageQuery["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
+        assertEquals("query", pageQuery["artifacts"][0]["family"].asText())
+        assertEquals("page", pageQuery["artifacts"][0]["variant"].asText())
 
-        val inboundIntegration = elements[2].asJsonObject
+        val inboundIntegration = elements[2]
         assertFalse(inboundIntegration.has("artifacts"))
 
-        val explicitIntegration = elements[3].asJsonObject
-        assertEquals(2, explicitIntegration["artifacts"].asJsonArray.size())
-        assertEquals("integration-event", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["family"].asString)
-        assertEquals("inbound", explicitIntegration["artifacts"].asJsonArray[0].asJsonObject["variant"].asString)
-        assertEquals("integration-subscriber", explicitIntegration["artifacts"].asJsonArray[1].asJsonObject["family"].asString)
-        assertFalse(explicitIntegration["artifacts"].asJsonArray[1].asJsonObject.has("variant"))
+        val explicitIntegration = elements[3]
+        assertEquals(2, explicitIntegration["artifacts"].size())
+        assertEquals("integration-event", explicitIntegration["artifacts"][0]["family"].asText())
+        assertEquals("inbound", explicitIntegration["artifacts"][0]["variant"].asText())
+        assertEquals("integration-subscriber", explicitIntegration["artifacts"][1]["family"].asText())
+        assertFalse(explicitIntegration["artifacts"][1].has("variant"))
 
-        val explicitEmptyArtifacts = elements[4].asJsonObject
-        assertEquals("QueryWithoutArtifacts", explicitEmptyArtifacts["name"].asString)
+        val explicitEmptyArtifacts = elements[4]
+        assertEquals("QueryWithoutArtifacts", explicitEmptyArtifacts["name"].asText())
         assertTrue(explicitEmptyArtifacts.has("artifacts"))
-        assertEquals(0, explicitEmptyArtifacts["artifacts"].asJsonArray.size())
+        assertEquals(0, explicitEmptyArtifacts["artifacts"].size())
     }
 
     @Test
@@ -6584,9 +6584,9 @@ class PebbleArtifactRendererTest {
         assertFalse(content.contains("\\u003e"))
         assertFalse(content.contains("\\u0026"))
 
-        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
-        assertEquals("Map<String, String> <raw> & stable", element["description"].asString)
-        assertEquals("Content", element["aggregates"].asJsonArray.single().asString)
+        val element = PipelineJson.newMapper().readTree(content).single()
+        assertEquals("Map<String, String> <raw> & stable", element["description"].asText())
+        assertEquals("Content", element["aggregates"].single().asText())
     }
 
     @Test
@@ -6656,19 +6656,19 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
-        val fields = element["fields"].asJsonArray
-        val resultFields = element["resultFields"].asJsonArray
+        val element = PipelineJson.newMapper().readTree(rendered.single().content).single()
+        val fields = element["fields"]
+        val resultFields = element["resultFields"]
 
-        assertEquals("emptySet()", fields[0].asJsonObject["defaultValue"].asString)
-        assertEquals("null", fields[1].asJsonObject["defaultValue"].asString)
+        assertEquals("emptySet()", fields[0]["defaultValue"].asText())
+        assertEquals("null", fields[1]["defaultValue"].asText())
         assertEquals(
             "demo.application.shared.defaults.SharedCaptchaChannel.IMAGE",
-            resultFields[0].asJsonObject["defaultValue"].asString,
+            resultFields[0]["defaultValue"].asText(),
         )
         assertEquals(
             "demo.application.shared.defaults.SHARED_FIELD_DEFAULT_TITLE",
-            resultFields[1].asJsonObject["defaultValue"].asString,
+            resultFields[1]["defaultValue"].asText(),
         )
     }
 
@@ -6721,10 +6721,10 @@ class PebbleArtifactRendererTest {
             )
         )
 
-        val element = JsonParser.parseString(rendered.single().content).asJsonArray.single().asJsonObject
+        val element = PipelineJson.newMapper().readTree(rendered.single().content).single()
         assertTrue(!element.has("entity"))
-        assertEquals(1, element["fields"].asJsonArray.size())
-        assertEquals("reason", element["fields"].asJsonArray[0].asJsonObject["name"].asString)
+        assertEquals(1, element["fields"].size())
+        assertEquals("reason", element["fields"][0]["name"].asText())
     }
 
     @Test
@@ -6779,9 +6779,9 @@ class PebbleArtifactRendererTest {
         val content = rendered.single().content
         assertTrue(content.contains("\"eventName\": \"cap4k.reference.contentstudio.media-processing.succeeded\""))
 
-        val element = JsonParser.parseString(content).asJsonArray.single().asJsonObject
+        val element = PipelineJson.newMapper().readTree(content).single()
         assertTrue(!element.has("role"))
-        assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asString)
+        assertEquals("cap4k.reference.contentstudio.media-processing.succeeded", element["eventName"].asText())
     }
 
     @Test

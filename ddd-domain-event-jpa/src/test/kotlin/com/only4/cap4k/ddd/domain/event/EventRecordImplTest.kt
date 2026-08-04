@@ -49,6 +49,8 @@ class EventRecordImplTest {
             assertEquals("test.event", eventRecord.type) // TestEvent now has @DomainEvent("test.event") annotation
             assertEquals(payload, eventRecord.payload)
             assertEquals(testTime, eventRecord.scheduleTime)
+            assertEquals(eventRecord.event.publishedAt.toInstant(ZoneOffset.UTC), eventRecord.publishedAt)
+            assertEquals(1, eventRecord.deliveryAttempt)
             assertNotNull(eventRecord.nextTryTime)
             assertFalse(eventRecord.isPersist) // 默认为false
         }
@@ -221,7 +223,7 @@ class EventRecordImplTest {
             assertNotNull(headers[Constants.HEADER_KEY_CAP4K_EVENT_ID])
             assertEquals(Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE])
             assertEquals(false, headers[Constants.HEADER_KEY_CAP4K_PERSIST])
-            assertNotNull(headers[Constants.HEADER_KEY_CAP4K_TIMESTAMP])
+            assertEquals(eventRecord.publishedAt.toEpochMilli(), headers[Constants.HEADER_KEY_CAP4K_TIMESTAMP])
         }
 
         @Test

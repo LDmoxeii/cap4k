@@ -15,6 +15,8 @@ import org.springframework.amqp.rabbit.connection.Connection
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.core.env.Environment
+import java.time.Instant
+import java.util.Date
 import java.util.concurrent.ExecutorService
 
 @DisplayName("RabbitMQ集成事件发布器测试")
@@ -288,9 +290,11 @@ class RabbitMqIntegrationEventPublisherTest {
         val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>()
         val message = mockk<Message>()
         val messageProperties = mockk<org.springframework.amqp.core.MessageProperties>()
+        val timestamp = slot<Date>()
 
         every { message.messageProperties } returns messageProperties
         every { messageProperties.messageId = any<String>() } just runs
+        every { messageProperties.timestamp = capture(timestamp) } just runs
         every { publishCallback.onSuccess(event) } just runs
 
         val callback = RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback(event, publishCallback)
@@ -300,6 +304,7 @@ class RabbitMqIntegrationEventPublisherTest {
 
         // Assert
         assertEquals(message, result)
+        assertEquals(event.publishedAt, timestamp.captured.toInstant())
         verify { publishCallback.onSuccess(event) }
     }
 
@@ -315,6 +320,7 @@ class RabbitMqIntegrationEventPublisherTest {
 
         every { message.messageProperties } returns messageProperties
         every { messageProperties.messageId = any<String>() } just runs
+        every { messageProperties.timestamp = any() } just runs
         every { publishCallback.onSuccess(event) } throws exception
         every { publishCallback.onException(event, exception) } just runs
 
@@ -331,6 +337,7 @@ class RabbitMqIntegrationEventPublisherTest {
     private fun createTestEventRecord(type: String): EventRecord {
         return mockk<EventRecord> {
             every { id } returns "test-id"
+            every { publishedAt } returns Instant.parse("2026-01-01T00:00:00.123Z")
             every { this@mockk.type } returns type
             every { executionContext } returns emptyList()
             every { message } returns mockk {

@@ -25,7 +25,6 @@ rocketmq = "2.3.1"
 
 # JSON processing
 fastjson = "1.2.83"
-gson = "2.10.1"
 pebble = "3.2.4"
 jackson = "2.17.2"
 
@@ -82,7 +81,6 @@ rocketmq = { module = "org.apache.rocketmq:rocketmq-spring-boot-starter", versio
 
 # JSON processing
 fastjson = { module = "com.alibaba:fastjson", version.ref = "fastjson" }
-gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 pebble = { module = "io.pebbletemplates:pebble", version.ref = "pebble" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 

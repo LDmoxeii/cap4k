@@ -13,11 +13,17 @@ import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.messaging.Message
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.TimeUnit
+
+private object TestReliableEventDeliveryContextScopeManager : ReliableEventDeliveryContextScopeManager {
+    override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
+    override fun suppress(): AutoCloseable = AutoCloseable { }
+}
 
 /**
  * DefaultEventPublisher测试
@@ -74,7 +80,8 @@ class DefaultEventPublisherTest {
             integrationEventInterceptorManager,
             integrationEventManager,
             integrationEventPublisherCallback,
-            threadPoolSize
+            threadPoolSize,
+            reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
         )
     }
 
@@ -128,7 +135,8 @@ class DefaultEventPublisherTest {
                 integrationEventInterceptorManager,
                 integrationEventManager,
                 integrationEventPublisherCallback,
-                2
+                2,
+                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
             )
 
             // when - 多次调用init方法
@@ -282,7 +290,8 @@ class DefaultEventPublisherTest {
                 integrationEventInterceptorManager,
                 realIntegrationManager,
                 integrationEventPublisherCallback,
-                threadPoolSize
+                threadPoolSize,
+                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
             )
 
             every { applicationEventPublisher.publishEvent(any()) } answers {
@@ -376,7 +385,8 @@ class DefaultEventPublisherTest {
                 integrationEventInterceptorManager,
                 realIntegrationManager,
                 integrationEventPublisherCallback,
-                threadPoolSize
+                threadPoolSize,
+                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
             )
 
             every { applicationEventPublisher.publishEvent(any()) } answers {
@@ -458,7 +468,8 @@ class DefaultEventPublisherTest {
                 integrationEventInterceptorManager,
                 realIntegrationManager,
                 integrationEventPublisherCallback,
-                threadPoolSize
+                threadPoolSize,
+                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
             )
 
             every { eventHandlerDispatcher.dispatch(any()) } answers {
@@ -548,7 +559,8 @@ class DefaultEventPublisherTest {
                 integrationEventInterceptorManager,
                 integrationEventManager,
                 integrationEventPublisherCallback,
-                threadPoolSize
+                threadPoolSize,
+                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
             )
             val eventRecord = createTestEventRecord(
                 eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION,
@@ -732,7 +744,6 @@ class DefaultEventPublisherTest {
         val message = mockk<Message<Any>>()
         val headers = mutableMapOf<String, Any>()
 
-
         headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE] = eventType
         if (persist) {
             headers[Constants.HEADER_KEY_CAP4K_PERSIST] = true
@@ -745,6 +756,9 @@ class DefaultEventPublisherTest {
         every { eventRecord.payload } returns payload
         every { eventRecord.executionContext } returns emptyList()
         every { eventRecord.id } returns "test-id"
+        every { eventRecord.type } returns eventType
+        every { eventRecord.publishedAt } returns Instant.parse("2026-08-04T00:00:00Z")
+        every { eventRecord.deliveryAttempt } returns 1
         every { eventRecord.markPersist(any()) } just Runs
         every { eventRecord.endDelivery(any()) } just Runs
         every { eventRecord.occurredException(any(), any()) } just Runs
@@ -767,7 +781,8 @@ class DefaultEventPublisherTest {
             integrationEventInterceptorManager,
             integrationEventManager,
             integrationEventPublisherCallback,
-            threadPoolSize
+            threadPoolSize,
+            reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
         )
 
     private fun assertScheduledWithPositiveMillis(scheduled: ScheduledCall) {
@@ -791,6 +806,7 @@ class DefaultEventPublisherTest {
         integrationEventManager: IntegrationEventManager,
         integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
         threadPoolSize: Int,
+        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
     ) : DefaultEventPublisher(
         eventHandlerDispatcher,
         integrationEventPublishers,
@@ -800,7 +816,8 @@ class DefaultEventPublisherTest {
         integrationEventInterceptorManager,
         integrationEventManager,
         integrationEventPublisherCallback,
-        threadPoolSize
+        threadPoolSize,
+        reliableEventDeliveryContextScopeManager = reliableEventDeliveryContextScopeManager,
     ) {
         fun publishDomain(event: EventRecord) {
             internalPublish4DomainEvent(event)
@@ -817,6 +834,7 @@ class DefaultEventPublisherTest {
         integrationEventManager: IntegrationEventManager,
         integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
         threadPoolSize: Int,
+        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
     ) : DefaultEventPublisher(
         eventHandlerDispatcher,
         integrationEventPublishers,
@@ -826,7 +844,8 @@ class DefaultEventPublisherTest {
         integrationEventInterceptorManager,
         integrationEventManager,
         integrationEventPublisherCallback,
-        threadPoolSize
+        threadPoolSize,
+        reliableEventDeliveryContextScopeManager = reliableEventDeliveryContextScopeManager,
     ) {
         private val scheduledCalls = mutableListOf<ScheduledCall>()
 

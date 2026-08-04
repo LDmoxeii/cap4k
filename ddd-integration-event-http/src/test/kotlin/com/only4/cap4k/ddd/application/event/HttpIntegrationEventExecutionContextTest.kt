@@ -8,6 +8,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.core.env.Environment
+import java.time.Instant
 
 class HttpIntegrationEventExecutionContextTest {
     @Test
@@ -45,13 +47,16 @@ class HttpIntegrationEventExecutionContextTest {
             httpConsumePath = "/consume",
             executionContextCodecRegistry = codecRegistry,
             executionContextScopeManager = contextManager,
+            reliableEventDeliveryContextScopeManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager),
         ).apply { init() }
         val envelope = IntegrationEventExecutionContextEnvelope.encode(
             codecRegistry.encode(originSnapshot(), ExecutionContextBoundary.INTEGRATION_EVENT),
         )
 
         val consumed = adapter.consume(
-            event = "context.transport.event",
+            eventId = "event-123",
+            eventName = "context.transport.event",
+            publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
             payloadJsonStr = JSON.toJSONString(ContextTransportEvent("payload")),
             headers = mapOf(HEADER_KEY_CAP4K_EXECUTION_CONTEXT.uppercase() to envelope),
         )

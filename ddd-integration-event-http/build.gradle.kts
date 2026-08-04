@@ -16,6 +16,8 @@ dependencies {
     implementation(libs.slf4j)
 
     // Test dependencies
+    testImplementation(libs.spring.context)
+    testImplementation(libs.spring.tx)
     testImplementation(libs.spring.messaging)
     testImplementation(libs.spring.web)
     testImplementation(platform(libs.junit.bom))

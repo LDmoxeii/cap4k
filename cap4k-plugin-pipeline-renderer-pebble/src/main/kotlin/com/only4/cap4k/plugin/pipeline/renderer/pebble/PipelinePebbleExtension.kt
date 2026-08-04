@@ -1,7 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.renderer.pebble
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import io.pebbletemplates.pebble.extension.AbstractExtension
 import io.pebbletemplates.pebble.extension.Filter
 import io.pebbletemplates.pebble.extension.Function
@@ -208,7 +208,7 @@ private class UseFunction(
 }
 
 private class JsonFilter(
-    private val gson: Gson = GsonBuilder().disableHtmlEscaping().create(),
+    private val mapper: ObjectMapper = PipelineJson.newMapper(),
 ) : Filter {
     override fun getArgumentNames(): List<String> = emptyList()
 
@@ -218,7 +218,7 @@ private class JsonFilter(
         self: PebbleTemplate?,
         context: EvaluationContext?,
         lineNumber: Int,
-    ): Any = gson.toJson(input)
+    ): Any = mapper.writeValueAsString(input)
 }
 
 private fun readStringProperty(value: Any, propertyName: String): String? {

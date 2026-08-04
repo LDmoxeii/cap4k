@@ -9,6 +9,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventListenerFactory
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerDescriptorResolver
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerRegistry
@@ -42,12 +43,14 @@ class CoreDomainEventAutoConfiguration {
         reliableProvider: ObjectProvider<ReliableDomainEventProvider>,
         integrationEventManager: ObjectProvider<IntegrationEventManager>,
         executionContextAccessor: ExecutionContextAccessor,
+        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
     ): DefaultDomainEventSupervisor = DefaultDomainEventSupervisor(
         interceptorManager,
         eventHandlerDispatcher,
         reliableProvider.getIfUnique(),
         integrationEventManager.getIfUnique(),
         executionContextAccessor,
+        reliableEventDeliveryContextScopeManager,
     )
 
     @Bean

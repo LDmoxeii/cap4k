@@ -56,6 +56,7 @@ class HttpIntegrationEventPublisher(
                                 uuid = event.id,
                                 event = resolvedDestination,
                                 payload = event.payload,
+                                publishedAt = event.publishedAt,
                                 executionContext = IntegrationEventExecutionContextEnvelope.encode(event.executionContext),
                             )
                         )
