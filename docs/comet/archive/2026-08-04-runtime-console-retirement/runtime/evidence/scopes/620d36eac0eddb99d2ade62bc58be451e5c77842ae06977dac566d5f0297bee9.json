@@ -1,0 +1,453 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "6d603a8a74c1465e1e4423d8a977d6991fa5d974d27b19c8d50fac0608eb48e7",
+  "baselineProjectionRef": "runtime/evidence/snapshots/27f6f1b04b113b910853fa2321866b8ddd86e6c852c4e29d75eb4024c1a414f6.json",
+  "baselineProjectionHash": "27f6f1b04b113b910853fa2321866b8ddd86e6c852c4e29d75eb4024c1a414f6",
+  "currentProjectionRef": "runtime/evidence/snapshots/8a63a9f186c71d57dd731e045349dc8ede40aa062f810668bd9f7a4a33b52c92.json",
+  "currentProjectionHash": "8a63a9f186c71d57dd731e045349dc8ede40aa062f810668bd9f7a4a33b52c92",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "docs/public/concepts/execution-and-ownership/mediator.md",
+      "kind": "file"
+    },
+    {
+      "path": "docs/superpowers/analysis/architecture-map.md",
+      "kind": "file"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-and-runtime-boundaries-design.md",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "file"
+    },
+    {
+      "path": "settings.gradle.kts",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-console/build.gradle.kts",
+      "kind": "removed",
+      "before": {
+        "hash": "9912ebb90d5cc3ab2128a1c6ffe04ec3642303b5fd4d1494d5fb6f32ca6c4657",
+        "size": 1120
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfiguration.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "1d5b4eda23622c6134ee248ec86afef514526e32791405f3af6cc155ce3ef3d3",
+        "size": 13010
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "00a51511ca768d1b4b22295b6619579c591547faa162331c87e8fdf3dc7fe99f",
+        "size": 5042
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "1e6a2e835d7723493c35fafc1ddda434c7fdfe3e8a237d475bf64ee15fb8856e",
+        "size": 4865
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "63d226f2e418afcdda62e61e8f611233ecc2fa7a2adac5ab560d3d95f2fef278",
+        "size": 2818
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "7c9dd2bf6e763a7045e7c140ff23ba23f024d490b29808bc21b8c4e203718109",
+        "size": 2766
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports",
+      "kind": "removed",
+      "before": {
+        "hash": "83e373e9a174f6c76d363e263f7a3b0e62c26b79fa37ed352397a07e075db028",
+        "size": 57
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfigurationTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "420aff84af9380e5354e636ec0bf06883122a85d5eb072fc6d564ac5e0c5bcf2",
+        "size": 5740
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "c220be42e503628d031f31363f5c0d9dd7bde0369a66f8acf7ce02d57766e1d7",
+        "size": 14124
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "da4a18096af9a05ae358747ca7d827e49153ebc56906dacb94d8c499e0704a8d",
+        "size": 10262
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "913172d054bbe5c1b1eeb80916bf83b7cb1c71cabd0e254481f27af7658016b2",
+        "size": 10907
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "4106e829c0c1e10a451fbaca63c991561ad94a1fb71ef02915532949c5704af0",
+        "size": 13980
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "docs/public/concepts/execution-and-ownership/mediator.md",
+      "kind": "modified",
+      "before": {
+        "hash": "84020654f54e40689aaa7f02d39ae3055804b62b6bc36e5078312ff42d421183",
+        "size": 2769
+      },
+      "after": {
+        "hash": "7eab675c6c7fa93f625d0afe1cf91574da0562cbc7dc002252a356d7d9d20257",
+        "size": 2753
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public/concepts/execution-and-ownership/mediator.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "docs/superpowers/analysis/architecture-map.md",
+      "kind": "modified",
+      "before": {
+        "hash": "5972afa92bf2027fa968a4d1a0fe64a130b7f0956c3aad6f03a365a737dbf0e1",
+        "size": 9810
+      },
+      "after": {
+        "hash": "4335cd8b60bfea0ca0122413fcfa2826f09869355e687fb60e4eb9508adbc3d5",
+        "size": 9706
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/analysis/architecture-map.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-and-runtime-boundaries-design.md",
+      "kind": "modified",
+      "before": {
+        "hash": "950a8dc354f20252ecccd8133beed20f261e111ceaf17ade3ee7567d208eeeb9",
+        "size": 38567
+      },
+      "after": {
+        "hash": "dbc5cd52c0cc9a831af1ba63021f0876428722f9344c3c27ed49b7b75a551082",
+        "size": 38263
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/specs/2026-07-25-cap4k-official-default-project-and-runtime-boundaries-design.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "77073dfdb54eaf8d41811019ff879c29c6bb505ce850f560fe8e5b9687b036b2",
+        "size": 1920
+      },
+      "after": {
+        "hash": "feec8ddb939aace0bd8d66fa05b6cf49ea0791768659062c734fb1ea69763320",
+        "size": 2374
+      },
+      "attributedTo": [
+        {
+          "path": "scripts/validate-current-runtime-facts.ps1",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "settings.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "a61c8a88937eb6478dc32a8726602e11f6a85faceab2f8c8e1eaf71ffe7e41ba",
+        "size": 2532
+      },
+      "after": {
+        "hash": "c748a0bf3a0fc47f2ea8b7071b97d23a2b57e962ca4b49c64492c7721230ef39",
+        "size": 2506
+      },
+      "attributedTo": [
+        {
+          "path": "settings.gradle.kts",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "cap4k-ddd-console/build.gradle.kts",
+      "kind": "removed",
+      "before": {
+        "hash": "9912ebb90d5cc3ab2128a1c6ffe04ec3642303b5fd4d1494d5fb6f32ca6c4657",
+        "size": 1120
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfiguration.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "1d5b4eda23622c6134ee248ec86afef514526e32791405f3af6cc155ce3ef3d3",
+        "size": 13010
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "00a51511ca768d1b4b22295b6619579c591547faa162331c87e8fdf3dc7fe99f",
+        "size": 5042
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "1e6a2e835d7723493c35fafc1ddda434c7fdfe3e8a237d475bf64ee15fb8856e",
+        "size": 4865
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "63d226f2e418afcdda62e61e8f611233ecc2fa7a2adac5ab560d3d95f2fef278",
+        "size": 2818
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "7c9dd2bf6e763a7045e7c140ff23ba23f024d490b29808bc21b8c4e203718109",
+        "size": 2766
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports",
+      "kind": "removed",
+      "before": {
+        "hash": "83e373e9a174f6c76d363e263f7a3b0e62c26b79fa37ed352397a07e075db028",
+        "size": 57
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfigurationTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "420aff84af9380e5354e636ec0bf06883122a85d5eb072fc6d564ac5e0c5bcf2",
+        "size": 5740
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "c220be42e503628d031f31363f5c0d9dd7bde0369a66f8acf7ce02d57766e1d7",
+        "size": 14124
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "da4a18096af9a05ae358747ca7d827e49153ebc56906dacb94d8c499e0704a8d",
+        "size": 10262
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "913172d054bbe5c1b1eeb80916bf83b7cb1c71cabd0e254481f27af7658016b2",
+        "size": 10907
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "4106e829c0c1e10a451fbaca63c991561ad94a1fb71ef02915532949c5704af0",
+        "size": 13980
+      },
+      "after": null,
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:3eeee07b7862777eeb017d83e3656dc7d389e08b6e382b7994e8489624213d5b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/build.gradle.kts"
+    },
+    {
+      "id": "scope:71818b3e1f37f53571d2f541543447a9d98fc690af50f60973ee3ab986a76a8a",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfiguration.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfiguration.kt"
+    },
+    {
+      "id": "scope:bd60d4ea9ee4c46fe3294eb3a4c3207c1ade948ad26ae27c85cdb716967b430d",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleService.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleService.kt"
+    },
+    {
+      "id": "scope:c0a4722597252961bf406b6c16bf0f97ff5d526f931fbf50d57e049c29dca228",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleService.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleService.kt"
+    },
+    {
+      "id": "scope:ed868044ae88cc6c52b7bc82b67a3b67c4c779c84831a5f546bba7a7c3f91fc0",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleService.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleService.kt"
+    },
+    {
+      "id": "scope:2ab883b2931941112dd6521b37295df3cc554a650dfa5b7ad9239081fb66ab2b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleService.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/main/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleService.kt"
+    },
+    {
+      "id": "scope:7ad94d2351e67cf6821df2a58a7d6989b59deaf16e4aba4c24eea1a897a0f811",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"
+    },
+    {
+      "id": "scope:5ba2716a00c31e74bffa6384902049f8cc63e48fb4fb31b27ed72098a97f7057",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfigurationTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/DDDConsoleAutoConfigurationTest.kt"
+    },
+    {
+      "id": "scope:a1915b9eb8d378423aaf35a42d10163f7b0765d56e22bc0138e1c4b89f97f885",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleServiceTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/command/CommandConsoleServiceTest.kt"
+    },
+    {
+      "id": "scope:45e70895a4165f60f3f2dc5e02df61ca3e0c4d0d24dd59e94ee1936efc7fdb88",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleServiceTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/event/EventConsoleServiceTest.kt"
+    },
+    {
+      "id": "scope:e9ffaca16b97b6e199c830831ca0c1fb4b340ff4e9f5baf9c6ae740e38554809",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleServiceTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/locker/LockerConsoleServiceTest.kt"
+    },
+    {
+      "id": "scope:c3bf287679bdd005b13371819a8725ac96ff11cc3fa569fdbc808f92e94f605d",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleServiceTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-console/src/test/kotlin/com/only4/cap4k/ddd/console/snowflake/SnowflakeConsoleServiceTest.kt"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "620d36eac0eddb99d2ade62bc58be451e5c77842ae06977dac566d5f0297bee9"
+}

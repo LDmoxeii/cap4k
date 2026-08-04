@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "1c3d9e29-507d-42f8-b0e3-48828a19283b",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-console-retirement",
+  "createdAt": "2026-08-04T08:38:10.604Z",
+  "preflightHash": "83b1f7e5d540b038b75e7abcf47664a02ac8e7589d5fcf32aca1fc30509cb492",
+  "operations": [
+    {
+      "id": "spec-1-runtime-console-retirement",
+      "type": "write",
+      "target": "specs/runtime-console-retirement/spec.md",
+      "staged": "runtime/transactions/1c3d9e29-507d-42f8-b0e3-48828a19283b/staged/specs/runtime-console-retirement/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "4e92912ef7683893df540083b2f70cce5418a02b96110b2a23dc36023032d384"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-console-retirement",
+      "target": "archive/2026-08-04-runtime-console-retirement",
+      "expectedSourceHash": "7d54999e653c3213eadafccdaebff0702ed07560b577460ae57f83313fb9dd43",
+      "expectedTargetHash": null
+    }
+  ]
+}

@@ -28,7 +28,6 @@ include(
     "ddd-integration-event-rocketmq"
 )
 include(
-    "cap4k-ddd-console",
     "cap4k-ddd-core-starter",
     "cap4k-ddd-jpa-starter",
     "cap4k-ddd-locker-jdbc-starter",
