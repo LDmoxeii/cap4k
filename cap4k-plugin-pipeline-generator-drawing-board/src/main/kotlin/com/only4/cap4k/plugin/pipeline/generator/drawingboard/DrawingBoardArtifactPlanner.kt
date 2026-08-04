@@ -29,13 +29,13 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         requireDrawingBoardAnalysisMetadata(model)
-        val elementsByTag = model.drawingBoard?.elementsByTag ?: return emptyList()
+        val drawingBoard = model.drawingBoard ?: return emptyList()
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val outputRoot = artifactLayout.drawingBoardOutputRoot()
 
-        return supportedTags.flatMap { tag ->
-            val elements = elementsByTag[tag].orEmpty()
+        val designArtifacts = supportedTags.flatMap { tag ->
+            val elements = drawingBoard.elementsByTag[tag].orEmpty()
             if (elements.isEmpty()) {
                 emptyList()
             } else {
@@ -56,6 +56,22 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
                 )
             }
         }
+        val aggregateElements = drawingBoard.aggregateElements
+            .sortedBy(AggregateElementModel::carrierQualifiedName)
+        if (aggregateElements.isEmpty()) {
+            return designArtifacts
+        }
+
+        return designArtifacts + ArtifactPlanItem(
+            generatorId = id,
+            moduleRole = "project",
+            templateId = "drawing-board/aggregate-elements.json.peb",
+            outputPath = artifactLayout.projectResourcePath(outputRoot, "drawing_board_aggregate_elements.json"),
+            context = mapOf("aggregateElements" to aggregateElements),
+            conflictPolicy = ConflictPolicy.OVERWRITE,
+            outputKind = ArtifactOutputKind.OUTPUT_ARTIFACT,
+            resolvedOutputRoot = outputRoot,
+        )
     }
 
     private companion object {

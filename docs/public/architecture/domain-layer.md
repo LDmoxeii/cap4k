@@ -16,7 +16,7 @@ Domain layer 不负责 Controller、API Payload、HTTP status、request header�
 
 ## 生成骨架
 
-cap4k generation 可以在 domain module 中生成稳定骨架，例如 aggregate 目录、Entity、Value Object、Repository contract、Domain Event、Domain Service 或 Factory 入口。生成骨架负责保持命名、目录和基础 shape 一致，方便 application layer 找到写入边界和事件类型。
+cap4k generation 可以在 domain module 中生成稳定骨架，例如 aggregate 目录、Entity、Value Object、Domain Event、Domain Service 或 Factory 入口。DB Source 派生的 Repository carrier 则生成在 adapter module，并保持 framework-owned、provider-private；application layer 只通过 `Mediator.repositories` 找到聚合访问边界。生成骨架负责保持命名、目录和基础 shape 一致。
 
 生成骨架不是业务结论。`ContentPublicationReadyDomainEvent` 这样的事件类型可以由设计输入形成稳定入口，但什么时候产生事件、事件携带哪些业务含义、哪些状态不允许推进，仍属于手写逻辑。
 
@@ -30,7 +30,7 @@ cap4k generation 可以在 domain module 中生成稳定骨架，例如 aggregat
 
 Domain layer 的依赖方向是向内自足：它不依赖 application、adapter 或 start。application layer 可以依赖 domain 来加载 Aggregate、调用行为并保存；adapter 和 start 可以通过更外层协作间接使用 domain，但 domain 不反向引用它们。
 
-Repository contract、Domain Event 类型和值对象可以被外层使用，但它们不能因为外层协议改变而失去领域命名。若协议字段和领域语言不一致，protocol shape 应由 framework/runtime transport 与 adapter mapping 收敛；application 只解释 typed fact 或 use-case input，并委托 Command 或 application behavior。Domain 不承担协议转换。
+Aggregate、Domain Event 类型和值对象可以被外层使用，但它们不能因为外层协议改变而失去领域命名。Repository 访问由 framework 的 `Mediator.repositories` 提供，生成的 JPA carrier 留在 adapter/provider 内部。若协议字段和领域语言不一致，protocol shape 应由 framework/runtime transport 与 adapter mapping 收敛；application 只解释 typed fact 或 use-case input，并委托 Command 或 application behavior。Domain 不承担协议转换。
 
 ## 参考项目
 

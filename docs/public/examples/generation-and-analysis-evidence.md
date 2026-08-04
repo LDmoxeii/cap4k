@@ -34,7 +34,7 @@ schema 与 design inputs 一起决定 generated skeleton 如何连接 persistenc
 
 - `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentReviewCmd`、`StartMediaProcessingCmd`、`MarkMediaProcessingSucceededCmd`、`RecordContentMediaReadyCmd`、`PublishContentCmd` 是否落在 application module。
 - API payload、controller、query adapter、Capability Handler 是否落在 adapter module。
-- Value Object、enum、Repository、factory、domain event 是否落在 domain module。
+- Value Object、enum、factory、domain event 是否落在 domain module，DB Source 派生的 provider-private Repository carrier 是否落在 adapter module。
 - `conflictPolicy` 是否保护已有手写逻辑。
 
 README 中列出的 generation 入口是：

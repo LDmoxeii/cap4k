@@ -53,6 +53,7 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
         JsonFileMetadataSink(outDir.toString()).write(collector.nodesAsSequence(), collector.relsAsSequence())
         val designElements = DesignElementCollector(options).collect(moduleFragment)
         (outDir / "design-elements.json").writeText(DesignElementJsonWriter().write(designElements))
+        (outDir / "aggregate-elements.json").writeText(AggregateElementJsonWriter().write(index.aggregateElements))
     }
 }
 
@@ -87,7 +88,14 @@ private fun findModuleRootByGradle(filePaths: Iterable<String>): Path? {
     return null
 }
 
-private data class AggregateInfo(val aggregateName: String, val type: String, val root: Boolean)
+private data class AggregateInfo(
+    val aggregateName: String,
+    val name: String,
+    val packageName: String,
+    val description: String,
+    val type: String,
+    val root: Boolean,
+)
 
 private data class EntityMethodRef(
     val aggregateRootFq: String,
@@ -97,6 +105,7 @@ private data class EntityMethodRef(
 
 private data class ClassIndex(
     val aggregateInfoByClass: Map<String, AggregateInfo>,
+    val aggregateElements: List<AggregateElementRecord>,
     val aggregateRootsByName: Map<String, String>,
     val entityMethodNamesByClass: Map<String, Set<String>>,
     val domainEventClasses: Set<String>,
@@ -237,6 +246,19 @@ private class ClassIndexBuilder(
 
     fun build(): ClassIndex = ClassIndex(
         aggregateInfoByClass = aggregateInfoByClass.toMap(),
+        aggregateElements = aggregateInfoByClass.entries
+            .sortedBy { (carrierQualifiedName, _) -> carrierQualifiedName }
+            .map { (carrierQualifiedName, info) ->
+                AggregateElementRecord(
+                    carrierQualifiedName = carrierQualifiedName,
+                    aggregate = info.aggregateName,
+                    name = info.name,
+                    packageName = info.packageName,
+                    description = info.description,
+                    type = info.type,
+                    root = info.root,
+                )
+            },
         aggregateRootsByName = aggregateRootsByName.toMap(),
         entityMethodNamesByClass = entityMethodNamesByClass.mapValues { it.value.toSet() },
         domainEventClasses = domainEventClasses.toSet(),
@@ -1039,6 +1061,9 @@ private fun IrClass.readAggregateElementInfo(aggregateElementMetadataAnn: FqName
         ?: return null
     val className = fqNameWhenAvailable?.asString() ?: name.asString()
     val aggregateName = ann.getStringArg("aggregate").orEmpty().trim()
+    val name = ann.getStringArg("name").orEmpty().trim()
+    val packageName = ann.getStringArg("packageName").orEmpty().trim()
+    val description = ann.getStringArg("description").orEmpty().trim()
     val type = ann.getStringArg("type").orEmpty().trim()
     require(aggregateName.isNotEmpty()) {
         "AggregateElementMetadata annotation on $className must declare non-blank aggregate"
@@ -1050,7 +1075,14 @@ private fun IrClass.readAggregateElementInfo(aggregateElementMetadataAnn: FqName
         "AggregateElementMetadata annotation on $className has unsupported type: $type"
     }
     val root = ann.getBooleanArg("root") ?: false
-    return AggregateInfo(aggregateName, type, root)
+    return AggregateInfo(
+        aggregateName = aggregateName,
+        name = name,
+        packageName = packageName,
+        description = description,
+        type = type,
+        root = root,
+    )
 }
 
 private fun inferGeneratedAggregateRootFq(entityFq: String, aggregateName: String): String? {

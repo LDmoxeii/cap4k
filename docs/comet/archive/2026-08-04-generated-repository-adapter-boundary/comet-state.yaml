@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: generated-repository-adapter-boundary
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: b241e88dccf6e99754c24b280ed9e2088ad8e99e53131ba3cf35cc88b83e5c03
+spec_changes:
+  - capability: generated-repository-adapter-boundary
+    operation: create
+    source: specs/generated-repository-adapter-boundary/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/e9feaa81e616eb2b4746c322eddeb8b8de5af878f608ca8539a6494b4ed1744a.json
+verification_evidence: runtime/evidence/verifications/e68072287921064a18b226294a20029abab6cc58ff9fd3755db1d293680e4828.json
+partial_allowance: runtime/evidence/allowances/fc193a10c6a5e8f8a2f20796ddc7e22853b70c956bc233a70192707f11891012.json
+archived: true
+created_at: 2026-08-04
+run_id: c2128d44-387d-4c63-9890-8fb000884caf

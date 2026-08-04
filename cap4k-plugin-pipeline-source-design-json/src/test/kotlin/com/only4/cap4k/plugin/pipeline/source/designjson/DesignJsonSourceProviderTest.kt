@@ -718,8 +718,9 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `validator scheduled reaction and job tags are unsupported as normal design tags`() {
+    fun `structural and automation tags are unsupported as normal design tags`() {
         val unsupportedTags = listOf(
+            "repository" to "OrderRepository",
             "validator" to "ValidAuthor",
             "scheduled_reaction" to "MediaProcessingPollingFallback",
             "job" to "MediaProcessingPollingFallbackJob",

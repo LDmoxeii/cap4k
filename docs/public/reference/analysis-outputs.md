@@ -16,8 +16,9 @@ build/cap4k-code-analysis
 | --- | --- |
 | `nodes.json` | code element nodes。 |
 | `rels.json` | relationships between nodes。 |
+| `aggregate-elements.json` | Aggregate element 结构证据；没有元素时也必须存在，内容为 `[]`。 |
 
-`design-elements.json` 是 optional input，同时 compiler analysis 会输出它。
+`design-elements.json` 仍是 optional input。Compiler analysis 会输出 `nodes.json`、`rels.json`、`design-elements.json` 和 `aggregate-elements.json` 四个文件。
 
 ## DSL Selection
 
@@ -95,6 +96,9 @@ flow evidence 回答 controller、subscriber、job、Command dispatch、Query pa
 | `analysis/drawing-board/drawing_board_capability.json` | Capability anchors。 |
 | `analysis/drawing-board/drawing_board_domain_event.json` | domain event anchors。 |
 | `analysis/drawing-board/drawing_board_integration_event.json` | integration event anchors。 |
+| `analysis/drawing-board/drawing_board_aggregate_elements.json` | Aggregate element 结构证据。 |
+
+普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类。`drawing_board_aggregate_elements.json` 则记录 `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type` 与 `root`；它不带 `tag`，不是 Design JSON。
 
 drawing-board evidence 回答代码中有哪些 anchors。它不说明这些 anchors 已经完成。
 
@@ -103,7 +107,7 @@ drawing-board evidence 回答代码中有哪些 anchors。它不说明这些 anc
 Drawing Board 与 metadata-dependent Flow Analysis 依赖专用的 BINARY-retained compile-time contract：
 
 - `DesignBlockMetadata`：设计载体 identity、package、description、aggregate ownership、artifact family/variant 等；
-- `AggregateElementMetadata`：Aggregate element 的 aggregate/type/root identity 等。
+- `AggregateElementMetadata`：Aggregate element 的 carrier identity、aggregate、name、package、description、type 与 root 等结构信息。
 
 它们来自 `io.github.ldmoxeii:cap4k-analysis-metadata`，业务模块只在 `compileOnly` classpath 使用。默认 templates 会生成这些 annotations；自定义 templates 删除 annotation 时，项目明确 opt out 对应能力。
 
@@ -115,17 +119,19 @@ Drawing Board 与 metadata-dependent Flow Analysis 依赖专用的 BINARY-retain
 
 `cap4kAnalysisGenerate` 不是 source generation。flow 和 drawing-board output 默认是 observation evidence，用来观察已有代码结构。
 
-drawing-board 文件由当前 generator 输出为直接兼容 [Design JSON](design-json.md) 的普通 JSON array。需要恢复或传递当前 tactical contract 时，由人或 Agent 选择文件并显式注册到 `sources.designJson.files`；不需要额外 converter。
+Drawing Board 的普通 tag 文件由当前 generator 输出为直接兼容 [Design JSON](design-json.md) 的普通 JSON array。需要恢复或传递当前 tactical contract 时，由人或 Agent 选择这些普通 tag 文件并显式注册到 `sources.designJson.files`；不需要额外 converter。
+
+`drawing_board_aggregate_elements.json` 是这一规则的明确例外：它是 Aggregate element 结构证据，不是 Design JSON，不能注册到 `sources.designJson.files`。`repository` 也不是受支持的普通 Design JSON tag。
 
 显式注册保留原有 artifact direction。跨上下文把 outbound Integration Event 改成 inbound 是新的设计决策，必须在输入中明确修改；cap4k 不会自动转换。
 
-任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。只有 Drawing Board 的当前 Design JSON contract 支持上述显式输入路径，flow、nodes、rels 和其他 observation output 不支持。
+任意 analysis output 都不能自动当作 ordinary source-generation input skeleton。只有 Drawing Board 的普通 tag 输出支持上述显式 Design JSON 输入路径；flow、nodes、rels、aggregate element 结构证据和其他 observation output 不支持。
 
 ## 边界检查
 
 - `cap4kAnalysisGenerate` 不是 source generation。
 - `flow` 和 `drawing-board` 是显式配置的 analysis/observation outputs。
 - 缺失必要 analysis metadata 时必须 fail fast；恢复默认 template/annotation 与 `compileOnly` dependency 后才能重新启用能力。
-- 缺少 `nodes.json` 或 `rels.json` 表示 analysis input 不完整。
+- 缺少 `nodes.json`、`rels.json` 或 `aggregate-elements.json` 表示 analysis input 不完整；无 Aggregate element 时后者也必须为 `[]`。
 - `build/cap4k/analysis-plan.json` 是 `build/` 下的本地 generated evidence。
 - 已提交的 `analysis/flows` 和 `analysis/drawing-board` 是 reference evidence，不是 runtime configuration。

@@ -2,6 +2,7 @@
 
 package com.only4.cap4k.plugin.pipeline.gradle
 
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.only4.cap4k.plugin.codeanalysis.compiler.Cap4kCodeAnalysisCompilerRegistrar
 import com.only4.cap4k.plugin.codeanalysis.core.config.OptionsKeys
@@ -32,6 +33,7 @@ import com.only4.cap4k.plugin.pipeline.source.valueobject.ValueObjectManifestSou
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -74,13 +76,19 @@ class DesignRoundTripFunctionalTest {
 
         generateAndCompile(projectA)
         val firstGenerationSkeleton = frameworkOwnedSkeleton(projectA)
+        val firstRepositoryCarrier = repositoryCarrier(projectA)
+        assertGeneratedRepositoryCarrier(firstRepositoryCarrier.source)
 
         val analysisModules = analyzeWithRealCompiler(projectA)
         assertEquals(listOf("domain", "application", "adapter"), analysisModules.map { it.role })
         analysisModules.forEach(::assertRealAnalysisOutput)
+        val analyzedRepositoryEvidence = aggregateElementEvidence(
+            analysisModules.single { it.role == "adapter" }.analysisDir,
+        ).single { evidence -> evidence.get("type").asString == "repository" }
+        assertRepositoryEvidence(analyzedRepositoryEvidence)
 
         configureDrawingBoard(projectA, analysisModules.map { it.analysisDir })
-        val drawingBoardResult = runner(
+        val drawingBoardResult = roundTripRunner(
             projectA,
             "cap4kAnalysisPlan",
             "cap4kAnalysisGenerate",
@@ -95,6 +103,20 @@ class DesignRoundTripFunctionalTest {
                 assertTrue(entries.size() > 0, "Drawing Board output must not be partial or empty: $output")
             }
         }
+        val drawingBoardRepositoryEvidenceFile = projectA.resolve(
+            "analysis-design/drawing_board_aggregate_elements.json",
+        )
+        assertTrue(
+            Files.isRegularFile(drawingBoardRepositoryEvidenceFile),
+            "Missing Drawing Board aggregate element evidence: $drawingBoardRepositoryEvidenceFile",
+        )
+        val drawingBoardRepositoryEvidence = JsonParser.parseString(
+            drawingBoardRepositoryEvidenceFile.readText(),
+        ).asJsonArray.map { it.asJsonObject }
+            .single { evidence -> evidence.get("type").asString == "repository" }
+        assertRepositoryEvidence(drawingBoardRepositoryEvidence)
+        assertEquals(analyzedRepositoryEvidence, drawingBoardRepositoryEvidence)
+        assertFalse(drawingBoardRepositoryEvidence.has("tag"))
 
         val projectABytesAfterRoundTrip = Files.readAllBytes(originalDesignFile)
         assertArrayEquals(
@@ -119,7 +141,21 @@ class DesignRoundTripFunctionalTest {
 
         generateAndCompile(projectB)
         val secondGenerationSkeleton = frameworkOwnedSkeleton(projectB)
+        val secondRepositoryCarrier = repositoryCarrier(projectB)
+        assertGeneratedRepositoryCarrier(secondRepositoryCarrier.source)
+        assertEquals(firstRepositoryCarrier, secondRepositoryCarrier)
         assertEquals(firstGenerationSkeleton, secondGenerationSkeleton)
+
+        val repeatGeneration = roundTripRunner(
+            projectB,
+            "cap4kPlan",
+            "cap4kGenerate",
+            "--stacktrace",
+        ).build()
+        assertBuildSucceeded(repeatGeneration)
+        assertTaskSucceeded(repeatGeneration, ":cap4kPlan")
+        assertTaskSucceeded(repeatGeneration, ":cap4kGenerate")
+        assertEquals(secondRepositoryCarrier, repositoryCarrier(projectB))
 
         val firstRuntimeAnnotations = runtimeAnnotationProjection(firstGenerationSkeleton)
         val secondRuntimeAnnotations = runtimeAnnotationProjection(secondGenerationSkeleton)
@@ -197,7 +233,7 @@ class DesignRoundTripFunctionalTest {
         .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun generateAndCompile(projectDir: Path) {
-        val generateResult = runner(
+        val generateResult = roundTripRunner(
             projectDir,
             "cap4kPlan",
             "cap4kGenerate",
@@ -207,7 +243,7 @@ class DesignRoundTripFunctionalTest {
         assertTaskSucceeded(generateResult, ":cap4kPlan")
         assertTaskSucceeded(generateResult, ":cap4kGenerate")
 
-        val compileResult = runner(
+        val compileResult = roundTripRunner(
             projectDir,
             ":demo-domain:compileKotlin",
             ":demo-application:compileKotlin",
@@ -310,7 +346,7 @@ class DesignRoundTripFunctionalTest {
     }
 
     private fun assertRealAnalysisOutput(module: AnalyzedModule) {
-        listOf("nodes.json", "rels.json", "design-elements.json").forEach { fileName ->
+        listOf("nodes.json", "rels.json", "design-elements.json", "aggregate-elements.json").forEach { fileName ->
             assertTrue(
                 Files.isRegularFile(module.analysisDir.resolve(fileName)),
                 "Real Analyzer did not write $fileName for ${module.role}: ${module.analysisDir}",
@@ -324,6 +360,62 @@ class DesignRoundTripFunctionalTest {
             "Real Analyzer produced no design elements for ${module.role}",
         )
         assertTrue(Files.isDirectory(module.classesDir.toPath()))
+    }
+
+    private fun aggregateElementEvidence(analysisDir: Path): List<JsonObject> =
+        JsonParser.parseString(analysisDir.resolve("aggregate-elements.json").readText())
+            .asJsonArray
+            .map { element -> element.asJsonObject }
+
+    private fun assertRepositoryEvidence(evidence: JsonObject) {
+        assertEquals(
+            "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+            evidence.get("carrierQualifiedName").asString,
+        )
+        assertEquals("Order", evidence.get("aggregate").asString)
+        assertEquals("OrderRepository", evidence.get("name").asString)
+        assertEquals(
+            "com.acme.demo.adapter.domain.repositories",
+            evidence.get("packageName").asString,
+        )
+        assertEquals("", evidence.get("description").asString)
+        assertEquals("repository", evidence.get("type").asString)
+        assertFalse(evidence.get("root").asBoolean)
+    }
+
+    private fun repositoryCarrier(projectDir: Path): RepositoryCarrierProjection {
+        val plan = JsonParser.parseString(projectDir.resolve("build/cap4k/plan.json").readText()).asJsonObject
+        val item = plan.getAsJsonArray("items")
+            .map { it.asJsonObject }
+            .single { candidate ->
+                candidate.get("generatorId").asString == "aggregate" &&
+                    candidate.get("templateId").asString == "aggregate/repository.kt.peb"
+            }
+        val configuredOutputPath = item.get("outputPath").asString.replace('\\', '/')
+        val output = Path.of(configuredOutputPath).let { path ->
+            if (path.isAbsolute) path else projectDir.resolve(configuredOutputPath)
+        }.normalize()
+        assertTrue(Files.isRegularFile(output), "Missing generated repository carrier: $output")
+        val relativeOutputPath = if (output.startsWith(projectDir)) {
+            projectDir.relativize(output).toString().replace('\\', '/')
+        } else {
+            configuredOutputPath
+        }
+        return RepositoryCarrierProjection(
+            outputPath = relativeOutputPath,
+            source = output.readText().replace("\r\n", "\n").trimEnd() + "\n",
+        )
+    }
+
+    private fun assertGeneratedRepositoryCarrier(source: String) {
+        assertTrue(source.contains("@Repository"))
+        assertTrue(source.contains("internal open class OrderJpaRepositoryAdapter("))
+        assertTrue(source.contains("entityManager: EntityManager"))
+        assertTrue(source.contains("AbstractJpaRepository<Order, OrderId>"))
+        assertTrue(source.contains("Order::class.java"))
+        assertFalse(source.contains("interface OrderRepository"))
+        assertFalse(source.contains("org.springframework.data.jpa.repository.JpaRepository"))
+        assertFalse(source.contains("JpaSpecificationExecutor"))
     }
 
     private fun resolveAnalyzerPluginClasspaths(): List<File> {
@@ -698,10 +790,18 @@ $registeredPaths
         val ownerAggregateName: String?,
     )
 
+    private data class RepositoryCarrierProjection(
+        val outputPath: String,
+        val source: String,
+    )
+
     private data class RuntimeAnnotationProjection(
         val domainEvents: Map<String, String>,
         val integrationEvents: Map<String, String>,
     )
+
+    private fun roundTripRunner(projectDir: Path, vararg arguments: String): GradleRunner =
+        runner(projectDir, *arguments)
 
     private companion object {
         const val FixtureName = "design-roundtrip-compile-sample"

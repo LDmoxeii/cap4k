@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.api.AggregateCascadeType
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateFetchType
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdPolicyKind
+import com.only4.cap4k.plugin.pipeline.api.AggregateElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.AggregateIdStorageKind
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateRelationType
@@ -1612,6 +1613,45 @@ class DefaultCanonicalAssemblerTest {
         assertEquals(2, model.analysisGraph!!.nodes.size)
         assertEquals("controllermethod", model.analysisGraph!!.nodes.first().type)
         assertEquals("ControllerMethodToCommand", model.analysisGraph!!.edges.single().type)
+    }
+
+    @Test
+    fun `preserves aggregate structure in analysis graph and drawing board without creating design tags`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                IrAnalysisSnapshot(
+                    inputDirs = listOf("adapter/build/cap4k-code-analysis"),
+                    nodes = emptyList(),
+                    edges = emptyList(),
+                    aggregateElements = listOf(
+                        AggregateElementSnapshot(
+                            carrierQualifiedName =
+                                "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                            aggregate = "Order",
+                            name = "OrderRepository",
+                            packageName = "com.acme.demo.adapter.domain.repositories",
+                            description = "Order repository carrier",
+                            type = "repository",
+                            root = false,
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        val graphRepository = model.analysisGraph!!.aggregateElements.single()
+        assertEquals("OrderRepository", graphRepository.name)
+        assertEquals(
+            "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+            graphRepository.carrierQualifiedName,
+        )
+        val drawingBoard = requireNotNull(model.drawingBoard)
+        assertEquals(listOf(graphRepository), drawingBoard.aggregateElements)
+        assertTrue(drawingBoard.elements.isEmpty())
+        assertTrue(drawingBoard.elementsByTag.isEmpty())
+        assertTrue("repository" !in drawingBoard.elementsByTag)
+        assertTrue(model.designBlocks.isEmpty())
     }
 
     @Test
@@ -6120,6 +6160,7 @@ class DefaultCanonicalAssemblerTest {
         assertEquals("video_post_uk_v_title", unique.physicalName)
         assertEquals(listOf("title"), unique.columns)
         assertEquals("VideoPostRepository", model.repositories.single().name)
+        assertEquals("VideoPostJpaRepositoryAdapter", model.repositories.single().carrierTypeName)
         assertEquals("com.acme.demo.adapter.domain.repositories", model.repositories.single().packageName)
         assertEquals("Long", model.repositories.single().idType)
     }

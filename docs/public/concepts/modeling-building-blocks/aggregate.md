@@ -6,7 +6,7 @@ Aggregate Root 是领域模型的事务一致性边界。它负责保护一组�
 
 当一个用例需要在一次写入中同时判断状态、修改内部对象、记录领域事实并保证不变量时，就应该从 Aggregate 开始建模。Command 进入应用层后，应通过 Repository 加载 managed Aggregate Root，调用它暴露的行为方法并直接返回；外层 UoW 自动识别实际变化。内部 Entity 和 Value Object 可以参与判断，但不能绕过 Aggregate Root 成为独立写入口。
 
-在 cap4k 项目中，Aggregate 位于 domain layer。generator 可以依据输入生成聚合目录、实体骨架、Repository 接口或事件骨架等稳定结构；真正的状态转移、业务不变量、事件触发条件和异常处理必须由手写逻辑表达。Repository 提供聚合级读取和 root 删除入口，Factory 创建 root，外层 Command UoW 管理观察、稳定化和提交时机。
+在 cap4k 项目中，Aggregate 位于 domain layer。generator 可以依据输入生成聚合目录、实体骨架、事件骨架，以及位于 adapter layer 的 provider-private Repository carrier；真正的状态转移、业务不变量、事件触发条件和异常处理必须由手写逻辑表达。业务代码通过 `Mediator.repositories` 完成聚合级读取和 root 删除，Factory 创建 root，外层 Command UoW 管理观察、稳定化和提交时机。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`ContentBehavior.kt` 是阅读 Aggregate 行为的直接锚点，展示 `Content` 如何围绕发布准备、review approval、媒体处理和 `ContentPublicationReadyDomainEvent` 保护边界。
 

@@ -1434,6 +1434,7 @@ class AggregateArtifactPlannerTest {
         val repository = plan.single()
 
         assertEquals("UserMessageRepository", repository.context["typeName"])
+        assertEquals("UserMessageJpaRepositoryAdapter", repository.context["carrierTypeName"])
         assertEquals("UserMessage", repository.context["entityName"])
         assertEquals(
             "com.acme.demo.domain.aggregates.user_message.UserMessage",

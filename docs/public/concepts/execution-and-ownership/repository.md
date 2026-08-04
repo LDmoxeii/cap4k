@@ -1,10 +1,10 @@
 # Repository
 
-Repository 是 Aggregate 的读取和访问边界。它让 application layer 以聚合为单位加载业务对象，而不是直接暴露底层持久化细节。cap4k 的 Repository 接口不提供保存能力：Command 中加载的 Aggregate 保持 managed 并由当前 write UoW 自动观察，实际变化由 Hibernate dirty checking 识别；root 删除通过 Repository 明确登记。Repository 不是业务决策桶，也不是任意查询 service。
+Repository 是 Aggregate 的读取和访问边界。它让 application layer 以聚合为单位加载业务对象，而不是直接暴露底层持久化细节。业务代码唯一的聚合仓储入口是 `Mediator.repositories`，不注入 generated Spring Data repository。cap4k 的 Repository 能力不提供保存操作：Command 中加载的 Aggregate 保持 managed 并由当前 write UoW 自动观察，实际变化由 Hibernate dirty checking 识别；root 删除通过 `RepositorySupervisor.remove` 明确登记。Repository 不是业务决策桶，也不是任意查询 service。
 
 当 Command handler 需要取得某个 Aggregate Root 并调用它的行为时，应通过 Repository 完成读取。状态变化完成后直接返回，由外层 Command 自动稳定化和提交；没有手动 save 或 UoW 登记步骤。一个 Command 可以读取多个 Aggregate，但只有真实变化的 Aggregate 进入最终持久化变化集。Repository 不应该替代 Aggregate 判断状态变化是否允许，也不应该把跨聚合业务规则集中到数据访问方法里。
 
-在 cap4k 中，generator 可以根据聚合模型生成 Repository 接口或稳定访问骨架。生成部分表达聚合读取契约；具体查询条件与异常语义结合项目手写。框架不再通过 `AggregateLoadPlan` 强制展开完整对象图：Command 事务保证按需 lazy navigation，UoW 只检查已初始化或实际发生 queued/orphan 变化的 owned 关系。
+在 cap4k 中，DB Source 根据 schema 事实驱动 generator 生成 framework-owned、provider-private 的 JPA carrier。carrier 只负责把 `Mediator.repositories` 接到 `AbstractJpaRepository`，不是业务代码可注入的公开接口，也不是 Design JSON 输入。具体查询条件与异常语义由业务代码通过 `Mediator.repositories` 表达。框架不再通过 `AggregateLoadPlan` 强制展开完整对象图：Command 事务保证按需 lazy navigation，UoW 只检查已初始化或实际发生 queued/orphan 变化的 owned 关系。
 
 Repository 与层级协作的关系要保持清楚：domain layer 通过 Aggregate 保护业务不变量，application layer 在 Command handler 中组织用例，Repository 负责聚合级访问，外层 UoW 负责提交边界。Query handler 也可以在 Handler 全程的只读事务里使用 Repository 并按需 lazy navigation，但列表、报表和跨形状读取通常仍应使用 Criteria、projection 或独立查询组件。
 

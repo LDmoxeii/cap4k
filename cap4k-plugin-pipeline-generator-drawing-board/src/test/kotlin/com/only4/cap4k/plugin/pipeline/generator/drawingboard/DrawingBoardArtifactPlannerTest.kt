@@ -2,6 +2,7 @@ package com.only4.cap4k.plugin.pipeline.generator.drawingboard
 
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
+import com.only4.cap4k.plugin.pipeline.api.AggregateElementModel
 import com.only4.cap4k.plugin.pipeline.api.ArtifactLayoutConfig
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
@@ -336,6 +337,38 @@ class DrawingBoardArtifactPlannerTest {
             listOf("LegacySubmitOrder"),
             (plan.single().context["elements"] as List<*>).filterIsInstance<DrawingBoardRenderElement>().map { it.name },
         )
+    }
+
+    @Test
+    fun `plans aggregate structure as a separate non design drawing board artifact`() {
+        val repository = AggregateElementModel(
+            carrierQualifiedName = "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+            aggregate = "Order",
+            name = "OrderRepository",
+            packageName = "com.acme.demo.adapter.domain.repositories",
+            description = "Order repository carrier",
+            type = "repository",
+            root = false,
+        )
+
+        val plan = DrawingBoardArtifactPlanner().plan(
+            config(),
+            CanonicalModel(
+                drawingBoard = DrawingBoardModel(
+                    elements = emptyList(),
+                    aggregateElements = listOf(repository),
+                ),
+            ),
+        )
+
+        val artifact = plan.single()
+        assertEquals("design/drawing_board_aggregate_elements.json", artifact.outputPath)
+        assertEquals("drawing-board/aggregate-elements.json.peb", artifact.templateId)
+        assertEquals(listOf(repository), artifact.context["aggregateElements"])
+        assertFalse("drawingBoardTag" in artifact.context)
+        assertTrue(artifact.context.values.none { value -> value == "repository" })
+        assertEquals(ConflictPolicy.OVERWRITE, artifact.conflictPolicy)
+        assertEquals(ArtifactOutputKind.OUTPUT_ARTIFACT, artifact.outputKind)
     }
 
     @Test

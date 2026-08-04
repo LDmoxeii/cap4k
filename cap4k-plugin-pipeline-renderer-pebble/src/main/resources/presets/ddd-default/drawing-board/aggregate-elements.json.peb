@@ -1,0 +1,13 @@
+[
+{%- for element in aggregateElements %}
+  {
+    "carrierQualifiedName": {{ element.carrierQualifiedName | json | raw }},
+    "aggregate": {{ element.aggregate | json | raw }},
+    "name": {{ element.name | json | raw }},
+    "packageName": {{ element.packageName | json | raw }},
+    "description": {{ element.description | json | raw }},
+    "type": {{ element.type | json | raw }},
+    "root": {{ element.root }}
+  }{% if not loop.last %},{% endif %}
+{%- endfor %}
+]

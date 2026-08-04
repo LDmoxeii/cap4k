@@ -6,7 +6,6 @@ import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
 import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import io.mockk.*
-import jakarta.persistence.EntityManager
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -16,27 +15,19 @@ import org.springframework.data.domain.PageImpl
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import java.util.*
 
 class AbstractJpaRepositoryTest {
 
-    private lateinit var mockJpaSpecificationExecutor: JpaSpecificationExecutor<TestEntity>
-    private lateinit var mockJpaRepository: JpaRepository<TestEntity, Long>
-    private lateinit var mockEntityManager: EntityManager
+    private lateinit var mockProvider: JpaRepositoryProvider<TestEntity, Long>
     private lateinit var repository: AbstractJpaRepository<TestEntity, Long>
 
     private data class TestEntity(val id: Long, val name: String)
 
     @BeforeEach
     fun setup() {
-        mockJpaSpecificationExecutor = mockk<JpaSpecificationExecutor<TestEntity>>(relaxed = true)
-        mockJpaRepository = mockk<JpaRepository<TestEntity, Long>>(relaxed = true)
-        mockEntityManager = mockk<EntityManager>(relaxed = true)
-
-        repository = AbstractJpaRepository(mockJpaSpecificationExecutor, mockJpaRepository)
-        repository.entityManager = mockEntityManager
+        mockProvider = mockk<JpaRepositoryProvider<TestEntity, Long>>(relaxed = true)
+        repository = AbstractJpaRepository(mockProvider)
 
         // Mock static methods
         mockkStatic("com.only4.cap4k.ddd.core.share.misc.ClassUtils")
@@ -96,13 +87,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns optional
+        every { mockProvider.findById(1L) } returns optional
 
         val result = repository.findOne(predicate)
 
         assertEquals(entity, result)
-        verify { mockJpaRepository.findById(1L) }
-        verify(exactly = 0) { mockEntityManager.detach(any()) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -114,13 +104,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns optional
+        every { mockProvider.findById(1L) } returns optional
 
         val result = repository.findOne(predicate)
 
         assertEquals(entity, result)
-        verify { mockJpaRepository.findById(1L) }
-        verify(exactly = 0) { mockEntityManager.detach(any()) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -133,12 +122,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { mockJpaSpecificationExecutor.findOne(specification) } returns optional
+        every { mockProvider.findOne(specification) } returns optional
 
         val result = repository.findOne(predicate)
 
         assertEquals(entity, result)
-        verify { mockJpaSpecificationExecutor.findOne(specification) }
+        verify { mockProvider.findOne(specification) }
     }
 
     @Test
@@ -164,12 +153,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns optional
+        every { mockProvider.findById(1L) } returns optional
 
         val result = repository.findFirst(predicate, orders)
 
         assertEquals(entity, result)
-        verify { mockJpaRepository.findById(1L) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -188,12 +177,12 @@ class AbstractJpaRepositoryTest {
             1,
             Sort.by(Sort.Direction.DESC, "name")
         )
-        every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns page
+        every { mockProvider.findAll(specification, any<PageRequest>()) } returns page
 
         val result = repository.findFirst(predicate, orders)
 
         assertEquals(entity, result)
-        verify { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) }
+        verify { mockProvider.findAll(specification, any<PageRequest>()) }
     }
 
     @Test
@@ -212,7 +201,7 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockJpaRepository.findAllById(ids) } returns entities
+        every { mockProvider.findAllById(ids) } returns entities
 
         val result = repository.findPage(predicate, pageParam)
 
@@ -250,13 +239,13 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
         every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
-        every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns springPage
+        every { mockProvider.findAll(specification, any<PageRequest>()) } returns springPage
         every { fromSpringData(springPage) } returns expectedPageData
 
         val result = repository.findPage(predicate, pageParam)
 
         assertEquals(expectedPageData, result)
-        verify { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) }
+        verify { mockProvider.findAll(specification, any<PageRequest>()) }
     }
 
     @Test
@@ -272,13 +261,12 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
         every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
-        every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns springPage
+        every { mockProvider.findAll(specification, any<PageRequest>()) } returns springPage
         every { fromSpringData(springPage) } returns expectedPageData
 
         val result = repository.findPage(predicate, pageParam)
 
         assertEquals(expectedPageData, result)
-        verify(exactly = 0) { mockEntityManager.detach(any()) }
     }
 
     @Test
@@ -291,12 +279,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockJpaRepository.findAllById(ids) } returns entities
+        every { mockProvider.findAllById(ids) } returns entities
 
         val result = repository.find(predicate, orders)
 
         assertEquals(entities, result)
-        verify { mockJpaRepository.findAllById(ids) }
+        verify { mockProvider.findAllById(ids) }
     }
 
     @Test
@@ -326,12 +314,12 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
         every { toSpringData(orders) } returns sort
-        every { mockJpaSpecificationExecutor.findAll(specification, sort) } returns entities
+        every { mockProvider.findAll(specification, sort) } returns entities
 
         val result = repository.find(predicate, orders)
 
         assertEquals(entities, result)
-        verify { mockJpaSpecificationExecutor.findAll(specification, sort) }
+        verify { mockProvider.findAll(specification, sort) }
     }
 
     @Test
@@ -346,12 +334,11 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
         every { toSpringData(orders) } returns sort
-        every { mockJpaSpecificationExecutor.findAll(specification, sort) } returns entities
+        every { mockProvider.findAll(specification, sort) } returns entities
 
         val result = repository.find(predicate, orders)
 
         assertEquals(entities, result)
-        verify(exactly = 0) { mockEntityManager.detach(any()) }
     }
 
     @Test
@@ -364,12 +351,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockJpaRepository.findAllById(ids) } returns entities
+        every { mockProvider.findAllById(ids) } returns entities
 
         val result = repository.find(predicate, pageParam)
 
         assertEquals(entities, result)
-        verify { mockJpaRepository.findAllById(ids) }
+        verify { mockProvider.findAllById(ids) }
     }
 
     @Test
@@ -384,12 +371,12 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
         every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
-        every { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) } returns springPage
+        every { mockProvider.findAll(specification, any<PageRequest>()) } returns springPage
 
         val result = repository.find(predicate, pageParam)
 
         assertEquals(entities, result)
-        verify { mockJpaSpecificationExecutor.findAll(specification, any<PageRequest>()) }
+        verify { mockProvider.findAll(specification, any<PageRequest>()) }
     }
 
     @Test
@@ -400,12 +387,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns Optional.of(entity)
+        every { mockProvider.findById(1L) } returns Optional.of(entity)
 
         val result = repository.count(predicate)
 
         assertEquals(1L, result)
-        verify { mockJpaRepository.findById(1L) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -415,12 +402,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns Optional.empty()
+        every { mockProvider.findById(1L) } returns Optional.empty()
 
         val result = repository.count(predicate)
 
         assertEquals(0L, result)
-        verify { mockJpaRepository.findById(1L) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -432,12 +419,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { mockJpaRepository.findAllById(ids) } returns entities
+        every { mockProvider.findAllById(ids) } returns entities
 
         val result = repository.count(predicate)
 
         assertEquals(2L, result)
-        verify { mockJpaRepository.findAllById(ids) }
+        verify { mockProvider.findAllById(ids) }
     }
 
     @Test
@@ -463,12 +450,12 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { mockJpaSpecificationExecutor.count(specification) } returns 5L
+        every { mockProvider.count(specification) } returns 5L
 
         val result = repository.count(predicate)
 
         assertEquals(5L, result)
-        verify { mockJpaSpecificationExecutor.count(specification) }
+        verify { mockProvider.count(specification) }
     }
 
     @Test
@@ -479,12 +466,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns Optional.of(entity)
+        every { mockProvider.findById(1L) } returns Optional.of(entity)
 
         val result = repository.exists(predicate)
 
         assertTrue(result)
-        verify { mockJpaRepository.findById(1L) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -494,12 +481,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockJpaRepository.findById(1L) } returns Optional.empty()
+        every { mockProvider.findById(1L) } returns Optional.empty()
 
         val result = repository.exists(predicate)
 
         assertFalse(result)
-        verify { mockJpaRepository.findById(1L) }
+        verify { mockProvider.findById(1L) }
     }
 
     @Test
@@ -511,12 +498,12 @@ class AbstractJpaRepositoryTest {
 
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { mockJpaRepository.findAllById(ids) } returns entities
+        every { mockProvider.findAllById(ids) } returns entities
 
         val result = repository.exists(predicate)
 
         assertTrue(result)
-        verify { mockJpaRepository.findAllById(ids) }
+        verify { mockProvider.findAllById(ids) }
     }
 
     @Test
@@ -542,11 +529,11 @@ class AbstractJpaRepositoryTest {
         every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
         every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { mockJpaSpecificationExecutor.exists(specification) } returns true
+        every { mockProvider.exists(specification) } returns true
 
         val result = repository.exists(predicate)
 
         assertTrue(result)
-        verify { mockJpaSpecificationExecutor.exists(specification) }
+        verify { mockProvider.exists(specification) }
     }
 }

@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -37,6 +38,7 @@ class IrAnalysisSourceProviderTest {
             ]
             """.trimIndent()
         )
+        dirA.writeEmptyAggregateElements()
         dirB.resolve("nodes.json").writeText(
             """
             [
@@ -53,6 +55,7 @@ class IrAnalysisSourceProviderTest {
             ]
             """.trimIndent()
         )
+        dirB.writeEmptyAggregateElements()
 
         val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString())) as IrAnalysisSnapshot
 
@@ -64,6 +67,45 @@ class IrAnalysisSourceProviderTest {
         assertEquals(2, snapshot.edges.size)
         assertEquals("CommandToCommandHandler", snapshot.edges.last().type)
         assertTrue(snapshot.designElements.isEmpty())
+        assertTrue(snapshot.aggregateElements.isEmpty())
+    }
+
+    @Test
+    fun `collect parses repository aggregate structure independently from design elements`() {
+        val dir = Files.createTempDirectory("cap4k-ir-aggregate-elements")
+        dir.resolve("nodes.json").writeText("[]")
+        dir.resolve("rels.json").writeText("[]")
+        dir.resolve("design-elements.json").writeText("[]")
+        dir.resolve("aggregate-elements.json").writeText(
+            """
+            [
+              {
+                "carrierQualifiedName": "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+                "aggregate": "Order",
+                "name": "OrderRepository",
+                "packageName": "com.acme.demo.adapter.domain.repositories",
+                "description": "Order repository carrier",
+                "type": "repository",
+                "root": false
+              }
+            ]
+            """.trimIndent(),
+        )
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+
+        assertTrue(snapshot.designElements.isEmpty())
+        val repository = snapshot.aggregateElements.single()
+        assertEquals(
+            "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
+            repository.carrierQualifiedName,
+        )
+        assertEquals("Order", repository.aggregate)
+        assertEquals("OrderRepository", repository.name)
+        assertEquals("com.acme.demo.adapter.domain.repositories", repository.packageName)
+        assertEquals("Order repository carrier", repository.description)
+        assertEquals("repository", repository.type)
+        assertEquals(false, repository.root)
     }
 
     @Test
@@ -81,6 +123,7 @@ class IrAnalysisSourceProviderTest {
             val dir = Files.createTempDirectory("cap4k-ir-malformed-graph-$index")
             dir.resolve("nodes.json").writeText(nodesJson)
             dir.resolve("rels.json").writeText(relsJson)
+            dir.writeEmptyAggregateElements()
 
             val error = assertThrows<IllegalArgumentException> {
                 IrAnalysisSourceProvider().collect(config(dir.toString()))
@@ -101,6 +144,7 @@ class IrAnalysisSourceProviderTest {
             val dir = Files.createTempDirectory("cap4k-ir-malformed-root-$index")
             dir.resolve("nodes.json").writeText(nodesJson)
             dir.resolve("rels.json").writeText(relsJson)
+            dir.writeEmptyAggregateElements()
 
             val error = assertThrows<IllegalArgumentException> {
                 IrAnalysisSourceProvider().collect(config(dir.toString()))
@@ -117,6 +161,7 @@ class IrAnalysisSourceProviderTest {
 
         dir.resolve("nodes.json").writeText("""[]""")
         dir.resolve("rels.json").writeText("""[]""")
+        dir.writeEmptyAggregateElements()
         dir.resolve("design-elements.json").writeText(
             """
             [
@@ -207,6 +252,7 @@ class IrAnalysisSourceProviderTest {
 
         dir.resolve("nodes.json").writeText("""[]""")
         dir.resolve("rels.json").writeText("""[]""")
+        dir.writeEmptyAggregateElements()
         dir.resolve("design-elements.json").writeText(
             """
             [
@@ -275,6 +321,7 @@ class IrAnalysisSourceProviderTest {
             val dir = Files.createTempDirectory("cap4k-ir-malformed-fields-$index")
             dir.resolve("nodes.json").writeText("""[]""")
             dir.resolve("rels.json").writeText("""[]""")
+            dir.writeEmptyAggregateElements()
             dir.resolve("design-elements.json").writeText(json)
 
             val error = assertThrows<IllegalArgumentException> {
@@ -301,6 +348,7 @@ class IrAnalysisSourceProviderTest {
             val dir = Files.createTempDirectory("cap4k-ir-removed-$field")
             dir.resolve("nodes.json").writeText("""[]""")
             dir.resolve("rels.json").writeText("""[]""")
+            dir.writeEmptyAggregateElements()
             dir.resolve("design-elements.json").writeText(
                 """
                 [
@@ -341,6 +389,7 @@ class IrAnalysisSourceProviderTest {
             """.trimIndent()
         )
         dir.resolve("rels.json").writeText("""[]""")
+        dir.writeEmptyAggregateElements()
 
         val error = assertThrows<IllegalArgumentException> {
             IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
@@ -379,6 +428,7 @@ class IrAnalysisSourceProviderTest {
             """.trimIndent()
         )
         dir.resolve("rels.json").writeText("""[]""")
+        dir.writeEmptyAggregateElements()
 
         val error = assertThrows<IllegalArgumentException> {
             IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("flow")))
@@ -416,6 +466,7 @@ class IrAnalysisSourceProviderTest {
             """.trimIndent()
         )
         dir.resolve("rels.json").writeText("[]")
+        dir.writeEmptyAggregateElements()
 
         val error = assertThrows<IllegalArgumentException> {
             IrAnalysisSourceProvider().collect(
@@ -439,6 +490,7 @@ class IrAnalysisSourceProviderTest {
             """[{"id":"FindOrderQry.Request","name":"Request","fullName":"demo.FindOrderQry.Request","type":"query"}]"""
         )
         dir.resolve("rels.json").writeText("""[]""")
+        dir.writeEmptyAggregateElements()
 
         val error = assertThrows<IllegalArgumentException> {
             IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
@@ -455,6 +507,7 @@ class IrAnalysisSourceProviderTest {
             """[{"id":"CompleteQry.Request","name":"Request","fullName":"demo.CompleteQry.Request","type":"query"}]"""
         )
         completeDir.resolve("rels.json").writeText("[]")
+        completeDir.writeEmptyAggregateElements()
         completeDir.resolve("design-elements.json").writeText(
             """
             [
@@ -475,6 +528,7 @@ class IrAnalysisSourceProviderTest {
             """[{"id":"MissingQry.Request","name":"Request","fullName":"demo.MissingQry.Request","type":"query"}]"""
         )
         incompleteDir.resolve("rels.json").writeText("[]")
+        incompleteDir.writeEmptyAggregateElements()
 
         val error = assertThrows<IllegalArgumentException> {
             IrAnalysisSourceProvider().collect(
@@ -498,12 +552,14 @@ class IrAnalysisSourceProviderTest {
             """[{"id":"CompleteQry.Request","name":"Request","fullName":"demo.CompleteQry.Request","type":"query"}]"""
         )
         completeDir.resolve("rels.json").writeText("[]")
+        completeDir.writeEmptyAggregateElements()
         completeDir.resolve("design-elements.json").writeText(
             """[{"tag":"query","package":"complete","name":"Complete","artifacts":[{"family":"query"}]}]"""
         )
         val emptyDir = Files.createTempDirectory("cap4k-ir-empty-module")
         emptyDir.resolve("nodes.json").writeText("[]")
         emptyDir.resolve("rels.json").writeText("[]")
+        emptyDir.writeEmptyAggregateElements()
 
         val snapshot = IrAnalysisSourceProvider().collect(
             config(completeDir.toString(), emptyDir.toString(), generators = setOf("drawing-board"))
@@ -517,6 +573,7 @@ class IrAnalysisSourceProviderTest {
         val dir = Files.createTempDirectory("cap4k-ir-no-design")
         dir.resolve("nodes.json").writeText("""[]""")
         dir.resolve("rels.json").writeText("""[]""")
+        dir.writeEmptyAggregateElements()
 
         val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
 
@@ -534,6 +591,23 @@ class IrAnalysisSourceProviderTest {
 
         assertTrue(error.message!!.contains("ir-analysis inputDir is missing nodes.json or rels.json"))
         assertTrue(error.message!!.contains(dir.toString()))
+    }
+
+    @Test
+    fun `collect rejects a missing aggregate elements sidecar`() {
+        val dir = Files.createTempDirectory("cap4k-ir-missing-aggregate-elements")
+        dir.resolve("nodes.json").writeText("[]")
+        dir.resolve("rels.json").writeText("[]")
+
+        val error = assertThrows<IllegalArgumentException> {
+            IrAnalysisSourceProvider().collect(config(dir.toString()))
+        }
+
+        assertEquals("ir-analysis inputDir is missing aggregate-elements.json: $dir", error.message)
+    }
+
+    private fun Path.writeEmptyAggregateElements() {
+        resolve("aggregate-elements.json").writeText("[]")
     }
 
     private fun config(
