@@ -27,6 +27,16 @@ $retiredTerms = [ordered]@{
     'Snowflake policy' = '\bidentifier\.snowflake\b'
     'Worker-ID capability' = '\bWorker-?ID\b|\b__worker_id\b|\bworker_id\.sql\b'
 }
+$allowedRetiredTermsByPath = @{
+    # These active Runtime contract specs intentionally name the retired boundary they define.
+    # Keep this allowlist exact: new current-facts docs must still fail until their historical
+    # wording is reviewed explicitly.
+    'docs/comet/specs/runtime-agent-api-facts/spec.md' = @('Snowflake capability')
+    'docs/comet/specs/runtime-agent-retired-descriptors/spec.md' = @('Snowflake capability')
+    'docs/comet/specs/runtime-handler-contract/spec.md' = @('EventSubscriber<T>')
+    'docs/comet/specs/runtime-roadmap/spec.md' = @('EventSubscriber<T>', 'Snowflake capability')
+    'docs/comet/specs/runtime-surface-cleanup/spec.md' = @('Snowflake capability')
+}
 
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
 foreach ($relativeDirectory in $currentDirectories) {
@@ -50,6 +60,9 @@ foreach ($file in $files) {
     $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
     foreach ($entry in $retiredTerms.GetEnumerator()) {
         if ($text -match $entry.Value) {
+            if ($allowedRetiredTermsByPath.ContainsKey($relativePath) -and $entry.Key -in $allowedRetiredTermsByPath[$relativePath]) {
+                continue
+            }
             if ($entry.Key -eq 'Console module' -and $relativePath -eq 'docs/comet/specs/runtime-console-retirement/spec.md') {
                 continue
             }
