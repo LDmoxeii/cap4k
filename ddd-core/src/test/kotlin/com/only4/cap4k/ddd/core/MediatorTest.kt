@@ -10,12 +10,15 @@ class MediatorTest {
     @Test
     fun `mediator exposes configured identifier capability without a mediator instance`() {
         MediatorSupport.configure(RecordingIdentifierGenerator)
-
-        assertEquals("order-id", Mediator.identifiers.next("order-id", String::class))
-        val methodNames = Mediator::class.java.methods.map { it.name }.toSet()
-        assertFalse("getInstance" in methodNames)
-        assertFalse("getCmd" in methodNames)
-        assertFalse("getRepo" in methodNames)
+        try {
+            assertEquals("order-id", Mediator.identifiers.next("order-id", String::class))
+            val methodNames = Mediator::class.java.methods.map { it.name }.toSet()
+            assertFalse("getInstance" in methodNames)
+            assertFalse("getCmd" in methodNames)
+            assertFalse("getRepo" in methodNames)
+        } finally {
+            MediatorSupport.release(RecordingIdentifierGenerator)
+        }
     }
 
     private object RecordingIdentifierGenerator : IdentifierGenerator {

@@ -20,5 +20,9 @@ object ReliableCommandSupervisorSupport {
 
     fun configure(supervisor: ReliableCommandSupervisor) = supervisorSlot.configure(supervisor)
 
+    fun release(supervisor: ReliableCommandSupervisor) = supervisorSlot.release(supervisor)
+
     fun configure(manager: CommandManager) = managerSlot.configure(manager)
+
+    fun release(manager: CommandManager) = managerSlot.release(manager)
 }

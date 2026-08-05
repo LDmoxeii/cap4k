@@ -11,6 +11,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.query.QueryExecution
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.autoconfigure.RuntimeProviderComposition
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactory
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateLifecycleInvoker
@@ -26,6 +27,7 @@ import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.domain.repo.configure.JpaUnitOfWorkProperties
 import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -80,7 +82,7 @@ class JpaRepositoryAutoConfiguration {
     @ConditionalOnMissingBean(CommandUnitOfWorkCoordinator::class)
     fun jpaUnitOfWork(
         domainEventManager: DomainEventManager,
-        integrationEventManager: ObjectProvider<IntegrationEventManager>,
+        beanFactory: ListableBeanFactory,
         lifecycleInvoker: AggregateLifecycleInvoker,
         jpaUnitOfWorkProperties: JpaUnitOfWorkProperties,
         managedFieldRegistry: ManagedFieldRegistry,
@@ -90,7 +92,11 @@ class JpaRepositoryAutoConfiguration {
         executionContextAccessor: ExecutionContextAccessor,
     ): JpaUnitOfWork = JpaUnitOfWork(
         domainEventManager = domainEventManager,
-        integrationEventManager = integrationEventManager.getIfUnique(),
+        integrationEventManager = RuntimeProviderComposition.optional(
+            beanFactory,
+            IntegrationEventManager::class.java,
+            "integration-event-manager",
+        ),
         lifecycleInvoker = lifecycleInvoker,
         managedFieldRegistry = managedFieldRegistry,
         managedEntityAdmissionCoordinator = managedEntityAdmissionCoordinator,

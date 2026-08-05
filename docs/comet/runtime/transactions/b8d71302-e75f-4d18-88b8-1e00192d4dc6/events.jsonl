@@ -1,0 +1,6 @@
+{"sequence":1,"timestamp":"2026-08-05T09:49:14.752Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-05T09:49:19.812Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":3,"timestamp":"2026-08-05T09:49:20.865Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":4,"timestamp":"2026-08-05T09:49:21.473Z","type":"archive-finalization-started"}
+{"sequence":5,"timestamp":"2026-08-05T09:49:21.717Z","type":"archive-finalized"}
+{"sequence":6,"timestamp":"2026-08-05T09:49:21.795Z","type":"commit"}

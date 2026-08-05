@@ -6,10 +6,8 @@ import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpUn
 import com.only4.cap4k.ddd.application.event.configure.HttpIntegrationEventAdapterProperties
 import com.only4.cap4k.ddd.application.event.impl.DefaultHttpIntegrationEventSubscriberRegister
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -74,10 +72,7 @@ class HttpIntegrationEventAutoConfiguration {
         executionContextAccessor,
         executionContextCodecRegistry,
         invocationScopeAccessor,
-    ).also {
-        IntegrationEventSupervisorSupport.configure(it as IntegrationEventSupervisor)
-        IntegrationEventSupervisorSupport.configure(it as IntegrationEventManager)
-    }
+    )
 
     @Bean
     fun httpIntegrationEventCallbackTriggerCapabilityHandler(): IntegrationEventHttpCallbackTriggerCapability.Handler =

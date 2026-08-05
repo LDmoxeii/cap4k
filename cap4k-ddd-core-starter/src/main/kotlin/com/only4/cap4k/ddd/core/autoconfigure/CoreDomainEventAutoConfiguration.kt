@@ -16,7 +16,7 @@ import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerRegistry
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventHandlerDispatcher
-import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean
@@ -40,15 +40,22 @@ class CoreDomainEventAutoConfiguration {
     fun defaultDomainEventSupervisor(
         interceptorManager: DomainEventInterceptorManager,
         eventHandlerDispatcher: EventHandlerDispatcher,
-        reliableProvider: ObjectProvider<ReliableDomainEventProvider>,
-        integrationEventManager: ObjectProvider<IntegrationEventManager>,
+        beanFactory: ListableBeanFactory,
         executionContextAccessor: ExecutionContextAccessor,
         reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
     ): DefaultDomainEventSupervisor = DefaultDomainEventSupervisor(
         interceptorManager,
         eventHandlerDispatcher,
-        reliableProvider.getIfUnique(),
-        integrationEventManager.getIfUnique(),
+        RuntimeProviderComposition.optional(
+            beanFactory,
+            ReliableDomainEventProvider::class.java,
+            "reliable-domain-events",
+        ),
+        RuntimeProviderComposition.optional(
+            beanFactory,
+            IntegrationEventManager::class.java,
+            "integration-event-manager",
+        ),
         executionContextAccessor,
         reliableEventDeliveryContextScopeManager,
     )

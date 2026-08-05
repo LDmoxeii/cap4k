@@ -17,4 +17,8 @@ object DomainServiceSupervisorSupport {
     fun configure(domainServiceSupervisor: DomainServiceSupervisor) {
         slot.configure(domainServiceSupervisor)
     }
+
+    fun release(domainServiceSupervisor: DomainServiceSupervisor) {
+        slot.release(domainServiceSupervisor)
+    }
 }

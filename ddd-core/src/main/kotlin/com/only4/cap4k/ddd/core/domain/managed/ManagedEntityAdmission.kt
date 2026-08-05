@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.managed
 
+import com.only4.cap4k.ddd.core.ProviderSlot
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import java.lang.ref.ReferenceQueue
@@ -159,22 +160,29 @@ class DefaultManagedEntityAdmissionCoordinator(
 }
 
 object ManagedEntityAdmissionCoordinatorSupport {
-    @Volatile
-    private var configured: ManagedEntityAdmissionCoordinator? = null
+    private val slot = ProviderSlot<ManagedEntityAdmissionCoordinator>(
+        "managed-entity-admission",
+        "cap4k-ddd-core-starter",
+    )
 
     @JvmStatic
     fun configure(coordinator: ManagedEntityAdmissionCoordinator) {
-        configured = coordinator
+        slot.configure(coordinator)
     }
 
     @JvmStatic
     fun admit(entity: Any, kind: ManagedEntityAdmissionKind) {
-        configured?.admit(entity, kind)
+        slot.getOrNull()?.admit(entity, kind)
+    }
+
+    @JvmStatic
+    fun release(coordinator: ManagedEntityAdmissionCoordinator) {
+        slot.release(coordinator)
     }
 
     @JvmStatic
     fun reset() {
-        configured = null
+        slot.reset()
     }
 }
 

@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.autoconfigure.RuntimeProviderComposition
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
@@ -20,7 +21,7 @@ import com.only4.cap4k.ddd.domain.event.persistence.ArchivedEventJpaRepository
 import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.domain.EntityScan
@@ -70,7 +71,7 @@ class DomainEventJpaAutoConfiguration {
         eventRecordRepository: EventRecordRepository,
         infrastructure: ReliableEventInfrastructure,
         domainEventInterceptorManager: DomainEventInterceptorManager,
-        integrationEventManagerProvider: ObjectProvider<IntegrationEventManager>,
+        beanFactory: ListableBeanFactory,
         executionContextScopeManager: ExecutionContextScopeManager,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
@@ -82,7 +83,11 @@ class DomainEventJpaAutoConfiguration {
         infrastructure,
         domainEventInterceptorManager,
         infrastructure,
-        integrationEventManagerProvider.getIfUnique(),
+        RuntimeProviderComposition.optional(
+            beanFactory,
+            IntegrationEventManager::class.java,
+            "integration-event-manager",
+        ),
         infrastructure,
         properties.publisherThreadPoolSize,
         executionContextScopeManager,

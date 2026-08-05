@@ -23,7 +23,15 @@ object MediatorSupport {
         iocSlot.configure(applicationContext)
     }
 
+    fun release(applicationContext: ApplicationContext) {
+        iocSlot.release(applicationContext)
+    }
+
     fun configure(identifierGenerator: IdentifierGenerator) {
         identifierSlot.configure(identifierGenerator)
+    }
+
+    fun release(identifierGenerator: IdentifierGenerator) {
+        identifierSlot.release(identifierGenerator)
     }
 }
