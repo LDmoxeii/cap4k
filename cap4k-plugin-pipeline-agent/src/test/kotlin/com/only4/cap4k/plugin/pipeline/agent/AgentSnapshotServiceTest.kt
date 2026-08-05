@@ -20,6 +20,7 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AgentSnapshotServiceTest {
@@ -112,6 +113,52 @@ class AgentSnapshotServiceTest {
         assertThrows(IllegalArgumentException::class.java) {
             service.assemble(request(capabilityDescriptors = listOf(descriptor, descriptor)))
         }
+    }
+
+    @Test
+    fun `retired runtime descriptor identities fail fast`() {
+        val retiredIdentities = listOf("console", "locker", "saga", "snowflake")
+
+        retiredIdentities.forEach { retiredIdentity ->
+            val capabilityFailure = assertThrows(IllegalArgumentException::class.java) {
+                service.assemble(
+                    request(
+                        capabilityDescriptors = listOf(
+                            descriptor("runtime.${retiredIdentity}", "active-provider")
+                        )
+                    )
+                )
+            }
+            assertTrue(capabilityFailure.message.orEmpty().contains("retired ${retiredIdentity}"))
+
+            val providerFailure = assertThrows(IllegalArgumentException::class.java) {
+                service.assemble(
+                    request(
+                        capabilityDescriptors = listOf(
+                            descriptor("pipeline.generator.active", retiredIdentity)
+                        )
+                    )
+                )
+            }
+            assertTrue(providerFailure.message.orEmpty().contains("retired ${retiredIdentity}"))
+        }
+    }
+
+    @Test
+    fun `retirement matching uses exact identity segments`() {
+        val descriptors = listOf(
+            descriptor("runtime.console-export", "console-export"),
+            descriptor("runtime.snowflake-audit", "snowflake-audit"),
+            descriptor("pipeline.generator.lockers", "lockers"),
+            descriptor("pipeline.generator.saga-tools", "saga-tools"),
+        )
+
+        val snapshot = service.assemble(request(capabilityDescriptors = descriptors))
+
+        assertEquals(
+            descriptors.map(PipelineCapabilityDescriptor::capabilityId).sorted(),
+            snapshot.capabilities.supported.map { it.capabilityId },
+        )
     }
 
     @Test

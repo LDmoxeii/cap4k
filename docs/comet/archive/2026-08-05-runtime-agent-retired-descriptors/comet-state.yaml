@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-agent-retired-descriptors
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 77ad059a8d548bf1ba1f49e85d01203fda0270ead449608d57bae1bdd0cba802
+spec_changes:
+  - capability: runtime-agent-retired-descriptors
+    operation: replace
+    source: specs/runtime-agent-retired-descriptors/spec.md
+    base_hash: 402f111998388461cac034b23d2fa107c7c088e19c5d808d8f1f7179532b06fd
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/da288e4fdd3e494d89213403c64ad0b57301ef28448c4979f7650aa74bee648c.json
+verification_evidence: runtime/evidence/verifications/270cc77ea1a38632d557e740c594cfbfc591e9e23c88fa10511b635ad1082ed2.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-05
+run_id: 9f292025-63dd-4eab-8610-4055636e4b17

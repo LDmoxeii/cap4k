@@ -38,6 +38,25 @@ $allowedRetiredTermsByPath = @{
     'docs/comet/specs/runtime-surface-cleanup/spec.md' = @('Snowflake capability')
 }
 
+$expectedRetiredDescriptorIdentities = @('console', 'locker', 'saga', 'snowflake')
+$retiredDescriptorPolicyFile = Join-Path $repoRoot 'cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt'
+$retiredDescriptorPolicyText = Get-Content -LiteralPath $retiredDescriptorPolicyFile -Raw -Encoding UTF8
+$declaredRetiredDescriptorIdentities = [regex]::Matches(
+    $retiredDescriptorPolicyText,
+    '(?m)^\s*"([a-z][a-z0-9-]*)",\s*$'
+) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if (Compare-Object $expectedRetiredDescriptorIdentities $declaredRetiredDescriptorIdentities) {
+    throw ('Retired Runtime descriptor policy must declare exactly: ' + ($expectedRetiredDescriptorIdentities -join ', ') + '.')
+}
+
+$descriptorSourceFiles = Get-ChildItem -LiteralPath $repoRoot -Directory |
+    ForEach-Object {
+        $sourceRoot = Join-Path $_.FullName 'src/main/kotlin'
+        if (Test-Path -LiteralPath $sourceRoot -PathType Container) {
+            Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.kt'
+        }
+    }
+
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
 foreach ($relativeDirectory in $currentDirectories) {
     $directory = Join-Path $repoRoot $relativeDirectory
@@ -88,6 +107,21 @@ foreach ($file in $files) {
                 continue
             }
             $violations.Add("${relativePath}: retired runtime term '$($entry.Key)'")
+        }
+    }
+}
+
+foreach ($file in $descriptorSourceFiles) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
+    foreach ($identity in $expectedRetiredDescriptorIdentities) {
+        $escapedIdentity = [regex]::Escape($identity)
+        $descriptorPatterns = @(
+            ('\b(?:capabilityId|providerId)\s*=\s*["''](?:[^"'']*\.)?{0}["'']' -f $escapedIdentity),
+            ('\boverride\s+val\s+id(?:\s*:\s*String)?\s*=\s*["'']{0}["'']' -f $escapedIdentity)
+        )
+        if ($descriptorPatterns | Where-Object { $text -match $_ }) {
+            $violations.Add("${relativePath}: retired Runtime descriptor identity '$identity'")
         }
     }
 }
