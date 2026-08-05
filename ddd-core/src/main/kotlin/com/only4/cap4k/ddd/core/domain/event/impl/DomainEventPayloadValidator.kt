@@ -12,7 +12,7 @@ import java.util.IdentityHashMap
  * never retain a live persistent Entity/Aggregate reference. Persistence
  * annotations are detected by name so the core contract stays ORM-neutral.
  */
-internal object DomainEventPayloadValidator {
+object DomainEventPayloadValidator {
     private val entityAnnotationNames = setOf(
         "jakarta.persistence.Entity",
         "javax.persistence.Entity",

@@ -6,7 +6,6 @@ dependencies {
     implementation(project(":ddd-core"))
 
     // Implementation dependencies
-    implementation(libs.fastjson)
     implementation(kotlin("reflect"))
 
     compileOnly(libs.spring.messaging)

@@ -1,11 +1,11 @@
 package com.only4.cap4k.ddd.application.event.capabilities
 
-import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapter
 import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
 import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -63,7 +63,7 @@ object IntegrationEventHttpCallbackTriggerCapability {
         }
 
         private fun createRequestEntity(payload: Any?, publishedAt: Instant, executionContext: String) = HttpEntity(
-            payload?.let { JSON.toJSONString(it).toByteArray(StandardCharsets.UTF_8) },
+            payload?.let { RuntimeJson.write(it).toByteArray(StandardCharsets.UTF_8) },
             HttpHeaders().apply {
                 contentType = MediaType.APPLICATION_JSON
                 set(HEADER_KEY_CAP4K_TIMESTAMP, publishedAt.toEpochMilli().toString())

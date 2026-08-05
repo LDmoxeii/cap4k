@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -60,7 +60,7 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         val message = mockk<MessageExt> {
             every { msgId } returns "message-23"
-            every { body } returns JSON.toJSONString(ContextTransportEvent("payload")).toByteArray()
+            every { body } returns RuntimeJson.write(ContextTransportEvent("payload")).toByteArray()
             every { properties } returns mapOf(
                 HEADER_KEY_CAP4K_EXECUTION_CONTEXT to envelope,
                 HEADER_KEY_CAP4K_EVENT_ID to "message-23",
@@ -121,7 +121,7 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         fun message(id: String, timestamp: String, reconsumeTimes: Int) = mockk<MessageExt> {
             every { msgId } returns id
-            every { body } returns JSON.toJSONString(ContextTransportEvent(id)).toByteArray()
+            every { body } returns RuntimeJson.write(ContextTransportEvent(id)).toByteArray()
             every { properties } returns mapOf(
                 HEADER_KEY_CAP4K_EVENT_ID to id,
                 HEADER_KEY_CAP4K_TIMESTAMP to timestamp,
@@ -180,7 +180,7 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         val message = mockk<MessageExt> {
             every { msgId } returns "failed"
-            every { body } returns JSON.toJSONString(ContextTransportEvent("failed")).toByteArray()
+            every { body } returns RuntimeJson.write(ContextTransportEvent("failed")).toByteArray()
             every { properties } returns mapOf(
                 HEADER_KEY_CAP4K_EVENT_ID to "failed",
                 HEADER_KEY_CAP4K_TIMESTAMP to "1000",
@@ -225,7 +225,7 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         val message = mockk<MessageExt> {
             every { msgId } returns "noncanonical"
-            every { body } returns JSON.toJSONString(ContextTransportEvent("payload")).toByteArray()
+            every { body } returns RuntimeJson.write(ContextTransportEvent("payload")).toByteArray()
             every { properties } returns mapOf(
                 HEADER_KEY_CAP4K_EVENT_ID to "noncanonical",
                 HEADER_KEY_CAP4K_TIMESTAMP to "01000",

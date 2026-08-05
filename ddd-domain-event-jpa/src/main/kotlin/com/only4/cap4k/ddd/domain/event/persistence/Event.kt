@@ -1,14 +1,12 @@
 package com.only4.cap4k.ddd.domain.event.persistence
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.annotation.JSONField
-import com.alibaba.fastjson.parser.Feature
-import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
-import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventPayloadValidator
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
@@ -185,7 +183,8 @@ class Event(
     }
 
     @Transient
-    @JSONField(serialize = false)
+    @get:JsonIgnore
+    @field:JsonIgnore
     var payload: Any? = null
         get() {
             if (field != null) {
@@ -198,24 +197,29 @@ class Event(
                     log.error("事件类型解析错误", e)
                     throw DomainException("事件数据类型解析错误: $dataType", e)
                 }
-                field = JSON.parseObject(data, dataClass, Feature.SupportNonPublicField)
+                field = RuntimeJson.read(data, dataClass)
             } else throw DomainException("事件数据类型未指定")
             return field
         }
         private set
 
     private fun loadPayload(payload: Any) {
-        this.payload = payload
-        this.data = JSON.toJSONString(payload, IgnoreNonFieldGetter, SkipTransientField)
-        this.dataType = payload.javaClass.name
-
         val integrationEvent = payload.javaClass.getAnnotation(IntegrationEvent::class.java)
         val domainEvent = payload.javaClass.getAnnotation(DomainEvent::class.java)
+
+        if (integrationEvent == null && domainEvent == null) {
+            throw DomainException("事件类型未指定: ${payload.javaClass.name}")
+        }
+        DomainEventPayloadValidator.validate(payload)
+
+        this.payload = payload
+        this.data = RuntimeJson.write(payload)
+        this.dataType = payload.javaClass.name
 
         this.eventType = when {
             integrationEvent != null -> integrationEvent.value
             domainEvent != null -> domainEvent.value
-            else -> throw DomainException("事件类型未指定: ${payload.javaClass.name}")
+            else -> error("unreachable")
         }
 
         val retry = payload.javaClass.getAnnotation(Retry::class.java)
@@ -296,7 +300,7 @@ class Event(
     }
 
     override fun toString(): String {
-        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
+        return RuntimeJson.write(this)
     }
 
     enum class EventState(val value: Int, val stateName: String) {

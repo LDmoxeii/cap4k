@@ -1,7 +1,5 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
 import com.only4.cap4k.ddd.core.Mediator
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
@@ -15,6 +13,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import org.slf4j.LoggerFactory
 import org.springframework.core.Ordered
@@ -124,10 +123,10 @@ class HttpIntegrationEventSubscriberAdapter(
         require(eventName.isNotBlank()) { "eventName must not be blank" }
 
         val integrationEventClass = eventPayloadClassMap[eventName]
-            ?: return logAndReturnFailure("未找到事件类型映射", eventName, payloadJsonStr)
+            ?: return logAndReturnFailure("未找到事件类型映射", eventName)
 
         val eventPayload = parseEventPayload(payloadJsonStr, integrationEventClass)
-            ?: return logAndReturnFailure("事件载荷解析失败", eventName, payloadJsonStr)
+            ?: return logAndReturnFailure("事件载荷解析失败", eventName)
 
         val deliveryContext = ReliableEventDeliveryContext(
             eventId = eventId,
@@ -150,19 +149,19 @@ class HttpIntegrationEventSubscriberAdapter(
         }
         true
     }.onFailure { ex ->
-        log.error("集成事件消费失败, event: $eventName, payload: $payloadJsonStr", ex)
+        log.error("集成事件消费失败, event: $eventName", ex)
     }.getOrDefault(false)
 
-    private fun logAndReturnFailure(reason: String, eventName: String, payloadJsonStr: String): Boolean {
-        log.error("集成事件消费失败 - $reason, event: $eventName, payload: $payloadJsonStr")
+    private fun logAndReturnFailure(reason: String, eventName: String): Boolean {
+        log.error("集成事件消费失败 - $reason, event: $eventName")
         return false
     }
 
     private fun parseEventPayload(payloadJsonStr: String, eventClass: Class<*>): Any? {
         return try {
-            JSON.parseObject(payloadJsonStr, eventClass, Feature.SupportNonPublicField)
+            RuntimeJson.read(payloadJsonStr, eventClass)
         } catch (ex: Exception) {
-            log.error("JSON解析失败: $payloadJsonStr", ex)
+            log.error("JSON解析失败, eventType=${eventClass.name}", ex)
             null
         }
     }

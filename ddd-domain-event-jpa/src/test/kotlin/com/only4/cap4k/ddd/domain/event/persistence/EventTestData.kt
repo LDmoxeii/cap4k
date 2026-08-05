@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.domain.event.persistence
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.annotation.Retry
+import jakarta.persistence.Entity
 
 /**
  * 测试用的事件数据类
@@ -67,4 +68,14 @@ data class InventoryUpdatedEvent(
 data class SimpleEvent(
     val id: String = "",
     val value: String = ""
+)
+
+@Entity
+class PersistentEntity(
+    var id: String = "",
+)
+
+@DomainEvent("entity-backed.rejected")
+data class EntityBackedEvent(
+    val entity: PersistentEntity,
 )

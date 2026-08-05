@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
@@ -183,7 +183,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         val testPayload = TestEventPayload("test")
 
         every { message.messageProperties } returns messageProperties
-        every { message.body } returns JSON.toJSONString(testPayload).toByteArray()
+        every { message.body } returns RuntimeJson.write(testPayload).toByteArray()
         every { messageProperties.deliveryTag } returns deliveryTag
         every { messageProperties.messageId } returns messageId
         every { messageProperties.headers } returns mutableMapOf()
@@ -191,16 +191,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.redelivered } returns false
         every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(deliveryTag, false) } just runs
-
-        mockkStatic(JSON::class)
-        every {
-            JSON.parseObject(
-                any<String>(),
-                TestEventPayload::class.java,
-                any<com.alibaba.fastjson.parser.Feature>()
-            )
-        } returns testPayload
-
         // 使用反射调用私有方法
         val onMessageMethod = adapter::class.java.getDeclaredMethod(
             "onMessage",
@@ -216,8 +206,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         // Assert
         verify { eventHandlerDispatcher.dispatch(testPayload) }
         verify { channel.basicAck(deliveryTag, false) }
-
-        unmockkStatic(JSON::class)
     }
 
     @Test
@@ -286,7 +274,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         val testPayload = TestEventPayload("test")
 
         every { message.messageProperties } returns messageProperties
-        every { message.body } returns JSON.toJSONString(testPayload).toByteArray()
+        every { message.body } returns RuntimeJson.write(testPayload).toByteArray()
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
@@ -294,16 +282,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.redelivered } returns false
         every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(any(), any()) } just runs
-
-        mockkStatic(JSON::class)
-        every {
-            JSON.parseObject(
-                any<String>(),
-                TestEventPayload::class.java,
-                any<com.alibaba.fastjson.parser.Feature>()
-            )
-        } returns testPayload
-
         // 使用反射调用私有方法
         val onMessageMethod = adapterWithInterceptors::class.java.getDeclaredMethod(
             "onMessage",
@@ -322,8 +300,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         verify { interceptor2.preSubscribe(any()) }
         verify { interceptor2.postSubscribe(any()) }
         verify { eventHandlerDispatcher.dispatch(testPayload) }
-
-        unmockkStatic(JSON::class)
         unmockkStatic(OrderUtils::class)
     }
 
@@ -362,7 +338,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         val testPayload = TestEventPayload("test")
 
         every { message.messageProperties } returns messageProperties
-        every { message.body } returns JSON.toJSONString(testPayload).toByteArray()
+        every { message.body } returns RuntimeJson.write(testPayload).toByteArray()
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
@@ -370,16 +346,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { messageProperties.redelivered } returns false
         every { eventHandlerDispatcher.dispatch(any()) } just runs
         every { channel.basicAck(any(), any()) } just runs
-
-        mockkStatic(JSON::class)
-        every {
-            JSON.parseObject(
-                any<String>(),
-                TestEventPayload::class.java,
-                any<com.alibaba.fastjson.parser.Feature>()
-            )
-        } returns testPayload
-
         // 使用反射调用私有方法测试拦截器排序
         val onMessageMethod = adapterWithOrderedInterceptors::class.java.getDeclaredMethod(
             "onMessage",
@@ -397,8 +363,6 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         verify { highPriorityInterceptor.postSubscribe(any()) }
         verify { lowPriorityInterceptor.preSubscribe(any()) }
         verify { lowPriorityInterceptor.postSubscribe(any()) }
-
-        unmockkStatic(JSON::class)
         unmockkStatic(OrderUtils::class)
     }
 

@@ -1,8 +1,5 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
-import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -76,10 +73,7 @@ class RocketMqIntegrationEventPublisher(
 
         override fun onException(throwable: Throwable) {
             try {
-                val msg = "集成事件发送失败, ${event.id} body=${
-                    JSON.toJSONString(event.payload, IgnoreNonFieldGetter, SkipTransientField)
-                }"
-                log.error(msg, throwable)
+                log.error("集成事件发送失败, ${event.id}", throwable)
                 publishCallback.onException(event, throwable)
             } catch (e: Throwable) {
                 log.error("回调失败（事件发送异常）", e)

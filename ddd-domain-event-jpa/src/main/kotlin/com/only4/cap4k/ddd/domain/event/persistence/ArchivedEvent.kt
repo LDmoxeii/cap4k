@@ -1,8 +1,6 @@
 package com.only4.cap4k.ddd.domain.event.persistence
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
-import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.domain.event.persistence.Event.EventState
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
@@ -203,6 +201,6 @@ class ArchivedEvent(
     }
 
     override fun toString(): String {
-        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
+        return RuntimeJson.write(this)
     }
 }

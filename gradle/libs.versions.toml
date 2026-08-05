@@ -24,7 +24,6 @@ validation = "3.0.2"
 rocketmq = "2.3.1"
 
 # JSON processing
-fastjson = "1.2.83"
 pebble = "3.2.4"
 jackson = "2.17.2"
 
@@ -80,9 +79,9 @@ validation = { module = "jakarta.validation:jakarta.validation-api", version.ref
 rocketmq = { module = "org.apache.rocketmq:rocketmq-spring-boot-starter", version.ref = "rocketmq" }
 
 # JSON processing
-fastjson = { module = "com.alibaba:fastjson", version.ref = "fastjson" }
 pebble = { module = "io.pebbletemplates:pebble", version.ref = "pebble" }
 jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
 
 # Testing
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
