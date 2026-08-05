@@ -462,62 +462,67 @@ class EventTest {
     }
 
     @Nested
-    @DisplayName("异常处理测试")
-    inner class ExceptionHandlingTest {
-
-        @BeforeEach
-        fun setUp() {
-            val payload = TestEvent("test", 12345)
-            event.init(payload, "test", testTime, Duration.ofMinutes(30), 3)
-        }
+    @DisplayName("安全失败事实测试")
+    inner class SafeFailureFactsTest {
 
         @Test
-        @DisplayName("记录异常信息")
-        fun `should record exception information`() {
-            // Given
-            val exception = RuntimeException("Test exception message")
+        @DisplayName("失败事实不包含事件载荷、异常消息或堆栈")
+        fun `should retain safe retryable facts without raw data`() {
+            val payloadSecret = "payload-secret-123"
+            val exceptionSecret = "exception-token-456"
+            event.init(
+                TestEvent(payloadSecret, 12345),
+                "test-service",
+                testTime,
+                Duration.ofMinutes(30),
+                3,
+            )
             val errorTime = testTime.plusMinutes(5)
 
-            // When
-            event.occurredException(errorTime, exception)
+            event.occurredException(errorTime, RuntimeException("token=$exceptionSecret"))
 
-            // Then
+            val failure = event.failureFacts!!
             assertEquals(Event.EventState.EXCEPTION, event.eventState)
-            assertNotNull(event.exception)
-            assertTrue(event.exception!!.contains("Test exception message"))
-            assertTrue(event.exception!!.contains("RuntimeException"))
+            assertEquals(RuntimeException::class.java.name, failure.type)
+            assertEquals("Reliable Event delivery failed", failure.message)
+            assertEquals(errorTime, failure.occurredAt)
+            assertEquals(1, failure.attempt)
+            assertEquals(event.eventUuid, failure.correlationId)
+            assertTrue(failure.retryable)
+            assertFalse(failure.terminal)
+            assertFalse(event.failureFactsJson!!.contains(payloadSecret))
+            assertFalse(event.failureFactsJson!!.contains(exceptionSecret))
+            assertFalse(event.toString().contains(payloadSecret))
+            assertFalse(event.toString().contains(exceptionSecret))
+            assertFalse(event.failureFactsJson!!.contains("EventTest"))
+            assertEquals(failure, Event(failureFactsJson = event.failureFactsJson).failureFacts)
         }
 
         @Test
-        @DisplayName("已发送的事件不记录异常")
-        fun `should not record exception for delivered event`() {
-            // Given
+        @DisplayName("最后一次失败被分类为终止失败")
+        fun `should classify final failed attempt as terminal`() {
+            event.init(TestEvent("test", 12345), "test-service", testTime, Duration.ofMinutes(30), 1)
+
+            event.occurredException(testTime.plusSeconds(1), IllegalStateException("raw-secret"))
+
+            val failure = event.failureFacts!!
+            assertFalse(failure.retryable)
+            assertTrue(failure.terminal)
+            assertEquals(1, failure.attempt)
+            assertFalse(event.failureFactsJson!!.contains("raw-secret"))
+        }
+
+        @Test
+        @DisplayName("已投递事件不覆盖失败事实")
+        fun `should not record failure for delivered event`() {
+            event.init(TestEvent("test", 12345), "test-service", testTime, Duration.ofMinutes(30), 3)
             event.eventState = Event.EventState.DELIVERED
-            val exception = RuntimeException("Test exception")
-            val errorTime = testTime.plusMinutes(5)
-            val originalException = event.exception
+            val originalFailure = event.failureFactsJson
 
-            // When
-            event.occurredException(errorTime, exception)
+            event.occurredException(testTime.plusMinutes(5), RuntimeException("raw-secret"))
 
-            // Then
-            assertEquals(Event.EventState.DELIVERED, event.eventState) // 状态不变
-            assertEquals(originalException, event.exception) // 异常信息不变
-        }
-
-        @Test
-        @DisplayName("异常信息包含堆栈跟踪")
-        fun `should include stack trace in exception`() {
-            // Given
-            val exception = RuntimeException("Test exception")
-            val errorTime = testTime.plusMinutes(5)
-
-            // When
-            event.occurredException(errorTime, exception)
-
-            // Then
-            assertNotNull(event.exception)
-            assertTrue(event.exception!!.contains("EventTest")) // 应该包含调用堆栈
+            assertEquals(Event.EventState.DELIVERED, event.eventState)
+            assertEquals(originalFailure, event.failureFactsJson)
         }
     }
 
@@ -724,7 +729,7 @@ class EventTest {
             // 发送失败，记录异常
             event.occurredException(firstTry, RuntimeException("Network timeout"))
             assertEquals(Event.EventState.EXCEPTION, event.eventState)
-            assertNotNull(event.exception)
+            assertNotNull(event.failureFacts)
 
             // When - 第二次尝试发送
             val secondTry = firstTry.plusMinutes(2)
@@ -787,8 +792,8 @@ class EventTest {
     inner class ToStringTest {
 
         @Test
-        @DisplayName("toString应该返回JSON格式")
-        fun `should return JSON format string`() {
+        @DisplayName("toString应该返回安全诊断摘要")
+        fun `should return safe diagnostic summary`() {
             // Given
             val payload = TestEvent("test message", 12345)
             event.init(payload, "test-service", testTime, Duration.ofMinutes(10), 3)
@@ -800,9 +805,10 @@ class EventTest {
             assertNotNull(result)
             assertTrue(result.contains("eventUuid"))
             assertTrue(result.contains("test-service"))
-            assertTrue(result.contains("eventState"))
-            // payload字段应该被排除（@JSONField(serialize = false)）
+            assertTrue(result.contains("state=init"))
+            assertFalse(result.contains("test message"))
             assertFalse(result.contains("payload"))
+            assertFalse(result.contains("data="))
         }
     }
 }

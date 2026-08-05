@@ -166,50 +166,6 @@ class CommandRecordImplTest {
         }
     }
 
-    @Nested
-    @DisplayName("结果处理测试")
-    inner class ResultHandlingTest {
-
-        @BeforeEach
-        fun setUp() {
-            val commandParam = TestCommand("test", mapOf("key" to "value"))
-            commandRecord.init(commandParam, "test-service", "TEST_TYPE", testTime, Duration.ofMinutes(10), 3)
-        }
-
-        @Test
-        @DisplayName("应该能够获取设置的结果")
-        fun `should be able to get set result`() {
-            // Given
-            val testResult = TestCommandResult(true, "Success", "test data")
-            commandRecord.endCommand(testTime.plusMinutes(1), testResult)
-
-            // When
-            val result = commandRecord.getResult<TestCommandResult>()
-
-            // Then
-            assertNotNull(result)
-            assertEquals(testResult, result)
-            assertTrue(result!!.success)
-            assertEquals("Success", result.message)
-        }
-
-        @Test
-        @DisplayName("应该能够处理复杂结果类型")
-        fun `should handle complex result types`() {
-            // Given
-            val createUserResult = CreateUserResult("user123", "john", System.currentTimeMillis())
-            commandRecord.endCommand(testTime.plusMinutes(1), createUserResult)
-
-            // When
-            val result = commandRecord.getResult<CreateUserResult>()
-
-            // Then
-            assertNotNull(result)
-            assertEquals(createUserResult, result)
-            assertEquals("user123", result!!.userId)
-            assertEquals("john", result.username)
-        }
-    }
 
     @Nested
     @DisplayName("命令状态管理测试")
@@ -254,50 +210,93 @@ class CommandRecordImplTest {
         }
 
         @Test
-        @DisplayName("应该能够记录异常")
-        fun `should be able to record exception`() {
-            // Given
-            val exception = RuntimeException("Test exception")
+        @DisplayName("异常只记录安全、结构化、可重试的失败事实")
+        fun `should retain safe retryable failure facts without payload or exception text`() {
+            val payloadSecret = "payload-secret-123"
+            val exceptionSecret = "exception-token-456"
+            commandRecord = CommandRecordImpl().also {
+                it.init(
+                    TestCommand("test", mapOf("token" to payloadSecret)),
+                    "test-service",
+                    "TEST_TYPE",
+                    testTime,
+                    Duration.ofMinutes(30),
+                    3,
+                )
+            }
+            commandRecord.beginCommand(testTime)
 
-            // When
-            commandRecord.occurredException(testTime.plusMinutes(1), exception)
+            commandRecord.occurredException(
+                testTime.plusSeconds(1),
+                RuntimeException("request failed token=$exceptionSecret"),
+            )
 
-            // Then
-            assertNotNull(commandRecord.entity.exception)
-            assertTrue(commandRecord.entity.exception!!.contains("Test exception"))
+            val failure = commandRecord.failure!!
+            assertNotNull(failure)
+            assertEquals(RuntimeException::class.java.name, failure.type)
+            assertEquals("Reliable Command execution failed", failure.message)
+            assertEquals(testTime.plusSeconds(1), failure.occurredAt)
+            assertEquals(1, failure.attempt)
+            assertEquals(commandRecord.id, failure.correlationId)
+            assertTrue(failure.retryable)
+            assertFalse(failure.terminal)
+            assertFalse(commandRecord.entity.failureFactsJson!!.contains(payloadSecret))
+            assertFalse(commandRecord.entity.failureFactsJson!!.contains(exceptionSecret))
+            assertFalse(commandRecord.toString().contains(payloadSecret))
+            assertFalse(commandRecord.toString().contains(exceptionSecret))
+            assertEquals(
+                failure,
+                CommandRecordEntity(failureFactsJson = commandRecord.entity.failureFactsJson).failureFacts,
+            )
+        }
+
+        @Test
+        @DisplayName("最后一次异常记录终止失败事实")
+        fun `should classify the final failed attempt as terminal`() {
+            commandRecord = CommandRecordImpl().also {
+                it.init(
+                    TestCommand("test", mapOf("key" to "value")),
+                    "test-service",
+                    "TEST_TYPE",
+                    testTime,
+                    Duration.ofMinutes(30),
+                    1,
+                )
+            }
+            commandRecord.beginCommand(testTime)
+
+            commandRecord.occurredException(testTime.plusSeconds(1), IllegalStateException("raw-secret"))
+
+            val failure = commandRecord.failure!!
+            assertNotNull(failure)
+            assertFalse(failure.retryable)
+            assertTrue(failure.terminal)
+            assertEquals(1, failure.attempt)
+            assertFalse(commandRecord.entity.failureFactsJson!!.contains("raw-secret"))
         }
 
         @Test
         @DisplayName("应该能够结束命令")
         fun `should be able to end command`() {
-            // Given
-            val result = TestCommandResult(true, "Completed successfully")
+            commandRecord.endCommand(testTime.plusMinutes(1))
 
-            // When
-            commandRecord.endCommand(testTime.plusMinutes(1), result)
-
-            // Then
             assertTrue(commandRecord.isExecuted)
             assertFalse(commandRecord.isValid)
-            assertEquals(result, commandRecord.getResult<TestCommandResult>())
+            assertNull(commandRecord.failure)
         }
 
         @Test
         @DisplayName("应该能够处理命令执行流程")
         fun `should handle command execution flow`() {
-            // Given
-            val result = CreateUserResult("user123", "john")
-
             // When - 开始命令
             val beginResult = commandRecord.beginCommand(testTime.plusMinutes(1))
             assertTrue(beginResult)
             assertTrue(commandRecord.isExecuting)
 
             // Then - 结束命令
-            commandRecord.endCommand(testTime.plusMinutes(2), result)
+            commandRecord.endCommand(testTime.plusMinutes(2))
             assertTrue(commandRecord.isExecuted)
             assertFalse(commandRecord.isExecuting)
-            assertEquals(result, commandRecord.getResult<CreateUserResult>())
         }
     }
 
@@ -446,18 +445,6 @@ class CommandRecordImplTest {
             assertFalse(retrievedParam.options.enableCache)
         }
 
-        @Test
-        @DisplayName("应该处理类型转换异常")
-        fun `should handle type casting exceptions`() {
-            // Given
-            val commandParam = TestCommand("test", mapOf("key" to "value"))
-            commandRecord.init(commandParam, "test-service", "TEST_TYPE", testTime, Duration.ofMinutes(10), 3)
-            commandRecord.endCommand(testTime.plusMinutes(1), "string result")
-
-            // When & Then - 尝试获取错误类型的结果应该返回字符串
-            val result = commandRecord.getResult<String>()
-            assertEquals("string result", result)
-        }
     }
 
     @Nested

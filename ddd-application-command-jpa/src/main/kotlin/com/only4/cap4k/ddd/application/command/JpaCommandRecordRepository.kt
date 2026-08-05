@@ -1,6 +1,4 @@
 package com.only4.cap4k.ddd.application.command
-import com.only4.cap4k.ddd.application.command.persistence.ArchivedCommandRecordEntity
-import com.only4.cap4k.ddd.application.command.persistence.ArchivedCommandRecordJpaRepository
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
 import com.only4.cap4k.ddd.core.application.command.CommandRecord
@@ -20,7 +18,6 @@ import java.time.LocalDateTime
  */
 open class JpaCommandRecordRepository(
     private val commandJpaRepository: CommandRecordJpaRepository,
-    private val archivedCommandRecordJpaRepository: ArchivedCommandRecordJpaRepository
 ) : CommandRecordRepository {
 
     override fun create(): CommandRecord = CommandRecordImpl()
@@ -82,44 +79,4 @@ open class JpaCommandRecordRepository(
         }.toList()
     }
 
-    override fun archiveByExpireAt(serviceName: String, maxExpireAt: LocalDateTime, limit: Int): Int {
-        val commands = commandJpaRepository.findAll({ root, cq, cb ->
-            cq.where(
-                cb.and(
-                    // 【状态】
-                    cb.or(
-                        cb.equal(root.get<CommandRecordEntity.CommandState>(CommandRecordEntity.F_COMMAND_STATE), CommandRecordEntity.CommandState.CANCEL),
-                        cb.equal(root.get<CommandRecordEntity.CommandState>(CommandRecordEntity.F_COMMAND_STATE), CommandRecordEntity.CommandState.EXPIRED),
-                        cb.equal(
-                            root.get<CommandRecordEntity.CommandState>(CommandRecordEntity.F_COMMAND_STATE),
-                            CommandRecordEntity.CommandState.EXHAUSTED
-                        ),
-                        cb.equal(root.get<CommandRecordEntity.CommandState>(CommandRecordEntity.F_COMMAND_STATE), CommandRecordEntity.CommandState.EXECUTED)
-                    ),
-                    cb.lessThan(root.get(CommandRecordEntity.F_EXPIRE_AT), maxExpireAt),
-                    cb.equal(root.get<String>(CommandRecordEntity.F_SVC_NAME), serviceName)
-                )
-            )
-            null
-        }, PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, CommandRecordEntity.F_NEXT_TRY_TIME)))
-
-        if (!commands.hasContent()) {
-            return 0
-        }
-
-        val archivedCommands = commands.map { command ->
-            ArchivedCommandRecordEntity().apply {
-                archiveFrom(command)
-            }
-        }.toList()
-
-        migrate(commands.content, archivedCommands)
-        return commands.numberOfElements
-    }
-
-    @Transactional
-    open fun migrate(commands: List<CommandRecordEntity>, archivedCommands: List<ArchivedCommandRecordEntity>) {
-        archivedCommandRecordJpaRepository.saveAll(archivedCommands)
-        commandJpaRepository.deleteAllInBatch(commands)
-    }
 }

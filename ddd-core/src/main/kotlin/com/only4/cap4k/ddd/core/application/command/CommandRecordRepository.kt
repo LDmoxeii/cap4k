@@ -7,5 +7,4 @@ interface CommandRecordRepository {
     fun save(commandRecord: CommandRecord)
     fun getById(id: String): CommandRecord
     fun getByNextTryTime(serviceName: String, maxNextTryTime: LocalDateTime, limit: Int): List<CommandRecord>
-    fun archiveByExpireAt(serviceName: String, maxExpireAt: LocalDateTime, limit: Int): Int
 }

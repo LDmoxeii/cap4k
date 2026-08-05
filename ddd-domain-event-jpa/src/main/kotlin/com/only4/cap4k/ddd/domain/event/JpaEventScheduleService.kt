@@ -23,7 +23,6 @@ class JpaEventScheduleService(
     private val locker: Locker,
     private val svcName: String,
     private val retryLockerKey: String,
-    private val archiveLockerKey: String,
     private val enableAddPartition: Boolean,
     private val jdbcTemplate: JdbcTemplate
 ) {
@@ -78,48 +77,13 @@ class JpaEventScheduleService(
 
             true
         } catch (ex: Exception) {
-            log.error("可靠事件重试:异常失败", ex)
+            log.error("可靠事件重试:异常失败 failureType={}", ex.javaClass.name)
             false
         } finally {
             locker.release(retryLockerKey, pwd)
         }
     }
 
-    /**
-     * 本地事件库归档
-     */
-    fun archive(expireDays: Int, batchSize: Int, maxLockDuration: Duration) {
-        val pwd = randomString(8, hasDigital = true, hasLetter = true)
-
-        if (!locker.acquire(archiveLockerKey, pwd, maxLockDuration)) {
-            return
-        }
-
-        try {
-            log.info("事件归档")
-
-            val expireDate = LocalDateTime.now().minusDays(expireDays.toLong())
-            var failCount = 0
-
-            while (true) {
-                try {
-                    val archivedCount = eventRecordRepository.archiveByExpireAt(svcName, expireDate, batchSize)
-                    if (archivedCount == 0) {
-                        break
-                    }
-                } catch (ex: Exception) {
-                    failCount++
-                    log.error("事件归档:失败", ex)
-                    if (failCount >= 3) {
-                        log.info("事件归档:累计3次异常退出任务")
-                        break
-                    }
-                }
-            }
-        } finally {
-            locker.release(archiveLockerKey, pwd)
-        }
-    }
 
     /**
      * 添加分区
@@ -131,7 +95,6 @@ class JpaEventScheduleService(
 
         val now = LocalDateTime.now()
         addPartition("__event", now.plusMonths(1))
-        addPartition("__archived_event", now.plusMonths(1))
     }
 
     /**
@@ -149,8 +112,10 @@ class JpaEventScheduleService(
         } catch (ex: Exception) {
             if (ex.message?.contains("Duplicate partition") != true) {
                 log.error(
-                    "分区创建异常 table = $table partition = p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
-                    ex
+                    "分区创建异常 table={} partition={} failureType={}",
+                    table,
+                    "p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
+                    ex.javaClass.name,
                 )
             }
         }

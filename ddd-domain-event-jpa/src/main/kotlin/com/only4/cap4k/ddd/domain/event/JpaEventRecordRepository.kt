@@ -3,8 +3,6 @@ package com.only4.cap4k.ddd.domain.event
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.share.DomainException
-import com.only4.cap4k.ddd.domain.event.persistence.ArchivedEvent
-import com.only4.cap4k.ddd.domain.event.persistence.ArchivedEventJpaRepository
 import com.only4.cap4k.ddd.domain.event.persistence.Event
 import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
 import org.springframework.data.domain.PageRequest
@@ -21,7 +19,6 @@ import java.time.LocalDateTime
  */
 open class JpaEventRecordRepository(
     private val eventJpaRepository: EventJpaRepository,
-    private val archivedEventJpaRepository: ArchivedEventJpaRepository
 ) : EventRecordRepository {
 
     override fun create(): EventRecord = EventRecordImpl()
@@ -77,41 +74,4 @@ open class JpaEventRecordRepository(
         }.toList()
     }
 
-    override fun archiveByExpireAt(svcName: String, maxExpireAt: LocalDateTime, limit: Int): Int {
-        val events = eventJpaRepository.findAll({ root, cq, cb ->
-            cq.where(
-                cb.and(
-                    // 【状态】
-                    cb.or(
-                        cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.CANCEL),
-                        cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.EXPIRED),
-                        cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.EXHAUSTED),
-                        cb.equal(root.get<Event.EventState>(Event.F_EVENT_STATE), Event.EventState.DELIVERED)
-                    ),
-                    cb.lessThan(root.get(Event.F_EXPIRE_AT), maxExpireAt),
-                    cb.equal(root.get<String>(Event.F_SVC_NAME), svcName)
-                )
-            )
-            null
-        }, PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, Event.F_NEXT_TRY_TIME)))
-
-        if (!events.hasContent()) {
-            return 0
-        }
-
-        val archivedEvents = events.map { event ->
-            ArchivedEvent().apply {
-                archiveFrom(event)
-            }
-        }.toList()
-
-        migrate(events.content, archivedEvents)
-        return events.numberOfElements
-    }
-
-    @Transactional
-    open fun migrate(events: List<Event>, archivedEvents: List<ArchivedEvent>) {
-        archivedEventJpaRepository.saveAll(archivedEvents)
-        eventJpaRepository.deleteAllInBatch(events)
-    }
 }

@@ -9,8 +9,6 @@ interface ReliableCommandSupervisor {
         schedule: LocalDateTime,
     ): String
 
-    fun <RESULT : Any> result(commandId: String): RESULT?
-
     companion object {
         @JvmStatic
         val instance: ReliableCommandSupervisor
