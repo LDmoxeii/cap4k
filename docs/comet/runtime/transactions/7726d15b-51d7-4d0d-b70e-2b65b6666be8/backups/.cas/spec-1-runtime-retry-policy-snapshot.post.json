@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-retry-policy-snapshot",
+  "role": "post",
+  "hash": "4a5baf7baf71be7946080902a4d8f2015669d1d8d08b493774c228a740fab5bf",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1407374884521843,
+    "birthtimeMs": 1785917007643.034
+  }
+}

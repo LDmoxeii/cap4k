@@ -660,6 +660,7 @@ class JpaCommandRecordRepositoryTest {
             every { expireAt } returns testTime.plusHours(1)
             every { createAt } returns testTime.minusHours(1)
             every { tryTimes } returns 3
+            every { retryPolicy } returns "{}"
             every { triedTimes } returns 0
             every { commandResult } returns null
             every { version } returns 1

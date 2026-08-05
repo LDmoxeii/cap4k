@@ -1,0 +1,345 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "7e1f38d8818462d47135cf00f4003b97d22c31f81d47b9c49d119708c68027b8",
+  "baselineProjectionRef": "runtime/evidence/snapshots/ce28756e3c25e10f76869bda3b3035ec0e47dd7a3639f31a0de97b2c1803dac9.json",
+  "baselineProjectionHash": "ce28756e3c25e10f76869bda3b3035ec0e47dd7a3639f31a0de97b2c1803dac9",
+  "currentProjectionRef": "runtime/evidence/snapshots/cb84c492cc7ff75470b12e0f5ce7cbb1941245a7fba55b5a1ad0594cb0d845bb.json",
+  "currentProjectionHash": "cb84c492cc7ff75470b12e0f5ce7cbb1941245a7fba55b5a1ad0594cb0d845bb",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshot.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventRetryPolicySnapshotTest.kt",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/ArchivedCommandRecordEntity.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "dbde6164279a57773ace0b62b848ffe8ade9de9f7a0bbad4149a1fd0bf468eee",
+        "size": 4478
+      },
+      "after": {
+        "hash": "10b897e38e2b05d935b36115e85035f705b0154a58b9fee5894939838d2e5678",
+        "size": 4693
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "3011f0cc87cdb6792dbd8898f8247ea0ffd89342642e784b7f39040dec7af622",
+        "size": 11478
+      },
+      "after": {
+        "hash": "06b79a0c4d9395854fb383185417a32ef439422c5ce083456165e70757710e74",
+        "size": 11580
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "af11daffcd7467d20da842addee48975419aaf4830629df4240ad5dde8247f92",
+        "size": 4858
+      },
+      "after": {
+        "hash": "22191d58f62b8c0b96a432f5a721e85770f7ba4b85aa10fa8df8c8eb2eb1d0e5",
+        "size": 5034
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandRecordRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "888509207cdd96fbac3f29193f24f625da94a9ede42cc598e5f1ead498460c61",
+        "size": 26516
+      },
+      "after": {
+        "hash": "18e11ef73fd03f373475ec81cf9e1c92445bf7de8fba5eb1d86c80d45a422123",
+        "size": 26561
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "7e036ef9cc05ccf2a0c6a11868d3cef5ffacc7deed9479d59d9eb1772c1484be",
+        "size": 2531
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshot.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c4c7e10c0c9bd7e1c3e2c4d033b09b093d408704316dc57d8ff41fbbc22a5cc8",
+        "size": 2703
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshot.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c38e48dd9efa1e76ecf7e12769cdfd93a095debbc85209e0e502cef2776937f5",
+        "size": 2224
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/ArchivedEvent.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "11cd1e91415ebecda42a714b9bc60eddcc779856d6b36099ba039534903b2a07",
+        "size": 5896
+      },
+      "after": {
+        "hash": "bae820f328956ae4ebf40ed89ef87b15e9b8e2defef49c6af637edcf55c2f99a",
+        "size": 6107
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "505e171bdf8f975ea8001b673852d97bc4bf4357a01bc0197cf0e49d5c28c272",
+        "size": 11171
+      },
+      "after": {
+        "hash": "f9a73f2d143d104ad5f6b2500b88b5cc9194b1495ad78c125d9abb717adfb29f",
+        "size": 11279
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/resources/event.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "f633090b35a38b89ed7fd5e77f94cb26ed28d13dc5facb054506a4d44f4c74ea",
+        "size": 4605
+      },
+      "after": {
+        "hash": "be585f331a0e03529545fe3c1258edc8b5641f1005dc90f1f0d54b743a1c522b",
+        "size": 4771
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventRecordRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "e237aa944f028d83582328ab30be79ec56ddeed14d0b83b68c17529fc7c25db6",
+        "size": 22124
+      },
+      "after": {
+        "hash": "0e8c00436e6dcafad52eae3001ebf679a5c92ba8e90050eb60e26afacd2a27ed",
+        "size": 22169
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventRetryPolicySnapshotTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "01443343042a3f082532363172ba6fdfacad81e755dc14f29dd908dd2b2036a3",
+        "size": 2494
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventRetryPolicySnapshotTest.kt",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/ArchivedCommandRecordEntity.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "dbde6164279a57773ace0b62b848ffe8ade9de9f7a0bbad4149a1fd0bf468eee",
+        "size": 4478
+      },
+      "after": {
+        "hash": "10b897e38e2b05d935b36115e85035f705b0154a58b9fee5894939838d2e5678",
+        "size": 4693
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "af11daffcd7467d20da842addee48975419aaf4830629df4240ad5dde8247f92",
+        "size": 4858
+      },
+      "after": {
+        "hash": "22191d58f62b8c0b96a432f5a721e85770f7ba4b85aa10fa8df8c8eb2eb1d0e5",
+        "size": 5034
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandRecordRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "888509207cdd96fbac3f29193f24f625da94a9ede42cc598e5f1ead498460c61",
+        "size": 26516
+      },
+      "after": {
+        "hash": "18e11ef73fd03f373475ec81cf9e1c92445bf7de8fba5eb1d86c80d45a422123",
+        "size": 26561
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "c38e48dd9efa1e76ecf7e12769cdfd93a095debbc85209e0e502cef2776937f5",
+        "size": 2224
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/ArchivedEvent.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "11cd1e91415ebecda42a714b9bc60eddcc779856d6b36099ba039534903b2a07",
+        "size": 5896
+      },
+      "after": {
+        "hash": "bae820f328956ae4ebf40ed89ef87b15e9b8e2defef49c6af637edcf55c2f99a",
+        "size": 6107
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/resources/event.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "f633090b35a38b89ed7fd5e77f94cb26ed28d13dc5facb054506a4d44f4c74ea",
+        "size": 4605
+      },
+      "after": {
+        "hash": "be585f331a0e03529545fe3c1258edc8b5641f1005dc90f1f0d54b743a1c522b",
+        "size": 4771
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventRecordRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "e237aa944f028d83582328ab30be79ec56ddeed14d0b83b68c17529fc7c25db6",
+        "size": 22124
+      },
+      "after": {
+        "hash": "0e8c00436e6dcafad52eae3001ebf679a5c92ba8e90050eb60e26afacd2a27ed",
+        "size": 22169
+      },
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:d35bb823fef8fd95f5ebc6b30d157a28c3ebafdfef647aaf9afba34c86636b50",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/ArchivedCommandRecordEntity.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/ArchivedCommandRecordEntity.kt"
+    },
+    {
+      "id": "scope:0749f2fe45235bc094383c2507b02371cacfd4095d43681c01a2192b1a8d02c8",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "reason": "Changed path is not covered by a declared artifact: ddd-application-command-jpa/src/main/resources/command.sql"
+    },
+    {
+      "id": "scope:25200a3fe159e1a141b59e219150249a930022d4b19126a8891d2248f95d2b96",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandRecordRepositoryTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandRecordRepositoryTest.kt"
+    },
+    {
+      "id": "scope:d748b7a9d39a9ad3299be86584108a58bfcd46e767e724373fd4c176ed0d3ad3",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt"
+    },
+    {
+      "id": "scope:ee8cad1aaad6800c3479d74f1b22638768c54dea058e3b7e0b65b11301c31fc1",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/ArchivedEvent.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/ArchivedEvent.kt"
+    },
+    {
+      "id": "scope:3c82570bc992a4b85e0a48646c61b19ac0b178c87758022fa238bcdb2a187b80",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-event-jpa/src/main/resources/event.sql",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-event-jpa/src/main/resources/event.sql"
+    },
+    {
+      "id": "scope:fa7fec40d5ad0b6d3e7c902a196e5b1c779a1f8473ae65ede08543e452286a75",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventRecordRepositoryTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventRecordRepositoryTest.kt"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "0af588a4e2310b3119759cbe6ad80e02848b12f9a8c40b94e5af07fd16419a88"
+}
