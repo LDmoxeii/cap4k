@@ -118,6 +118,10 @@ class ArchivedEvent(
     @Column(name = "`try_times`", nullable = false)
     var tryTimes: Int = 0,
 
+    /** Immutable retry-policy snapshot captured by the active event record. */
+    @Column(name = "`retry_policy`", nullable = false)
+    var retryPolicy: String = "",
+
     /**
      * 乐观锁
      * int(11) NOT NULL DEFAULT '0'
@@ -181,6 +185,7 @@ class ArchivedEvent(
         this.expireAt = event.expireAt
         this.eventState = event.eventState
         this.tryTimes = event.tryTimes
+        this.retryPolicy = event.retryPolicy
         this.triedTimes = event.triedTimes
         this.lastTryTime = event.lastTryTime
         this.nextTryTime = event.nextTryTime

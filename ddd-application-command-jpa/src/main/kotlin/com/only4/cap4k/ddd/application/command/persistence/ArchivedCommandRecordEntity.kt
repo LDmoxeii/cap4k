@@ -129,6 +129,10 @@ class ArchivedCommandRecordEntity(
     @Column(name = "`try_times`")
     var tryTimes: Int = 0,
 
+    /** Immutable retry-policy snapshot captured by the active command record. */
+    @Column(name = "`retry_policy`", nullable = false)
+    var retryPolicy: String = "",
+
     /**
      * 数据版本（支持乐观锁）
      * int          NOT NULL DEFAULT '0'
@@ -158,6 +162,7 @@ class ArchivedCommandRecordEntity(
         this.nextTryTime = command.nextTryTime
         this.triedTimes = command.triedTimes
         this.tryTimes = command.tryTimes
+        this.retryPolicy = command.retryPolicy
         this.version = command.version
     }
 }

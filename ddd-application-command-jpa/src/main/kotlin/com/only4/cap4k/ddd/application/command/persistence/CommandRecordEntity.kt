@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
+import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
@@ -138,6 +139,10 @@ class CommandRecordEntity(
     @Column(name = "`try_times`")
     var tryTimes: Int = 0,
 
+    /** Immutable retry-policy snapshot captured when the reliable command is registered. */
+    @Column(name = "`retry_policy`", nullable = false)
+    var retryPolicy: String = "",
+
     /**
      * 数据版本（支持乐观锁）
      * int          NOT NULL DEFAULT '0'
@@ -162,6 +167,7 @@ class CommandRecordEntity(
         const val F_EXPIRE_AT = "expireAt"
         const val F_COMMAND_STATE = "commandState"
         const val F_TRY_TIMES = "tryTimes"
+        const val F_RETRY_POLICY = "retryPolicy"
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
@@ -218,8 +224,10 @@ class CommandRecordEntity(
         this.param = RuntimeJson.write(commandParam)
         this.paramType = commandParam.javaClass.name
         val retry = commandParam.javaClass.getAnnotation(Retry::class.java)
+        val policySnapshot = ReliableRetryPolicySnapshot.capture(retry, this.tryTimes)
+        this.retryPolicy = RuntimeJson.write(policySnapshot)
+        this.tryTimes = policySnapshot.retryLimit
         if (retry != null) {
-            this.tryTimes = retry.retryTimes
             this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
     }
@@ -312,16 +320,8 @@ class CommandRecordEntity(
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val retry = commandParam!!.javaClass.getAnnotation(Retry::class.java)
-        if (retry == null || retry.retryIntervals.isEmpty()) {
-            return when {
-                this.triedTimes <= 10 -> now.plusMinutes(1)
-                this.triedTimes <= 20 -> now.plusMinutes(5)
-                else -> now.plusMinutes(10)
-            }
-        }
-        val index = (this.triedTimes - 1).coerceIn(0, retry.retryIntervals.lastIndex)
-        return now.plusMinutes(retry.retryIntervals[index].toLong())
+        val policySnapshot = RuntimeJson.read(retryPolicy, ReliableRetryPolicySnapshot::class.java)
+        return now.plusMinutes(policySnapshot.delayMinutesFor(this.triedTimes))
     }
 
     override fun toString(): String {

@@ -597,6 +597,7 @@ class JpaEventRecordRepositoryTest {
             every { exception } returns null
             every { expireAt } returns testTime.plusHours(1)
             every { tryTimes } returns 3
+            every { retryPolicy } returns "{}"
             every { triedTimes } returns 0
             every { lastTryTime } returns testTime.minusHours(1)
             every { version } returns 1

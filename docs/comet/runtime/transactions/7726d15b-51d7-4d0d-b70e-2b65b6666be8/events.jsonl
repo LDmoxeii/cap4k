@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-05T08:03:19.758Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-05T08:03:26.970Z","type":"operation-started","operationId":"spec-1-runtime-retry-policy-snapshot"}
+{"sequence":3,"timestamp":"2026-08-05T08:03:28.914Z","type":"operation-completed","operationId":"spec-1-runtime-retry-policy-snapshot"}
+{"sequence":4,"timestamp":"2026-08-05T08:03:29.094Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-05T08:03:31.415Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-05T08:03:32.264Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-05T08:03:32.521Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-05T08:03:32.799Z","type":"commit"}

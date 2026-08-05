@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-retry-policy-snapshot
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 7e1f38d8818462d47135cf00f4003b97d22c31f81d47b9c49d119708c68027b8
+spec_changes:
+  - capability: runtime-retry-policy-snapshot
+    operation: replace
+    source: specs/runtime-retry-policy-snapshot/spec.md
+    base_hash: 9fc0cde4ca19706e404407eefb6141983fb19c05c85037f66ca86470401931d0
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/263a68345ea38f6261ccc01053f5960ffb98d5439415794ee9f1295551daeaeb.json
+verification_evidence: runtime/evidence/verifications/f8cc38151c1830c76c70b96f262acb7c363579bdf693008fa144faa5a5b9d314.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-05
+run_id: 188f45d7-ff5f-45f5-91bb-ebb96119b355

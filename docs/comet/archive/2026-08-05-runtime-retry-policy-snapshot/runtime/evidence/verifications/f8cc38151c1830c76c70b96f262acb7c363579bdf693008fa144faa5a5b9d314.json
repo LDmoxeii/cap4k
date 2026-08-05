@@ -1,0 +1,65 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-retry-policy-snapshot",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "7e1f38d8818462d47135cf00f4003b97d22c31f81d47b9c49d119708c68027b8",
+  "acceptanceCriteriaHash": "24625085b93b01b4ce4f1b695b82c9cd06de94b9ac7d00bd0f99f7a6f66bfa66",
+  "implementationScopeRef": "runtime/evidence/scopes/263a68345ea38f6261ccc01053f5960ffb98d5439415794ee9f1295551daeaeb.json",
+  "implementationScopeHash": "263a68345ea38f6261ccc01053f5960ffb98d5439415794ee9f1295551daeaeb",
+  "reportRef": "verification.md",
+  "reportHash": "a5d9164a8a969614ba27c784e335cdf8441415e9b0de192a839627e0dd20cd6b",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "24625085b93b01b4ce4f1b695b82c9cd06de94b9ac7d00bd0f99f7a6f66bfa66",
+    "total": 3,
+    "evidenced": 3,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-179bd85a9b87e5b98af53e0bafe5891e99c6e3b3afc02a7e2cbc9497eff4e1fe",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventRetryPolicySnapshotTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-1aa16117aa8290521b4b68dc23ca44f6935288a10804368f3c6070860c481261",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/ArchivedCommandRecordEntity.kt",
+          "ddd-application-command-jpa/src/main/resources/command.sql",
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/ArchivedEvent.kt",
+          "ddd-domain-event-jpa/src/main/resources/event.sql",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventRetryPolicySnapshotTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d24e47a5d470ed8edcbac05c6e73ebd14427d789b7dcdfe04f3ab0f81d669686",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventRetryPolicySnapshotTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "23463ea4ccf3a1754f3c21951396f2aadec9752ee4aeeea370c15d8e406a83d5"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/d6f8bb9855176f4d28cbd98457fbb95d887264013c1183cae1732badf5d0ed4a.json",
+  "createdAt": "2026-08-05T08:01:26.562Z",
+  "envelopeHash": "f8cc38151c1830c76c70b96f262acb7c363579bdf693008fa144faa5a5b9d314"
+}
