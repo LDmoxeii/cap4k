@@ -48,6 +48,10 @@ object IntegrationEventSupervisorSupport {
         supervisorSlot.configure(integrationEventSupervisor)
     }
 
+    fun release(integrationEventSupervisor: IntegrationEventSupervisor) {
+        supervisorSlot.release(integrationEventSupervisor)
+    }
+
     /**
      * 配置集成事件管理器
      * 在应用启动时调用此方法进行配置
@@ -57,5 +61,9 @@ object IntegrationEventSupervisorSupport {
      */
     fun configure(integrationEventManager: IntegrationEventManager) {
         managerSlot.configure(integrationEventManager)
+    }
+
+    fun release(integrationEventManager: IntegrationEventManager) {
+        managerSlot.release(integrationEventManager)
     }
 }

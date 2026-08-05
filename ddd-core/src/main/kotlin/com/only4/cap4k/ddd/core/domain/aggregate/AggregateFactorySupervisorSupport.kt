@@ -17,4 +17,8 @@ object AggregateFactorySupervisorSupport {
     fun configure(aggregateFactorySupervisor: AggregateFactorySupervisor) {
         slot.configure(aggregateFactorySupervisor)
     }
+
+    fun release(aggregateFactorySupervisor: AggregateFactorySupervisor) {
+        slot.release(aggregateFactorySupervisor)
+    }
 }

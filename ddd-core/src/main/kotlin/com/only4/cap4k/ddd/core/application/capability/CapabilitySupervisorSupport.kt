@@ -11,4 +11,8 @@ object CapabilitySupervisorSupport {
     fun configure(supervisor: CapabilitySupervisor) {
         slot.configure(supervisor)
     }
+
+    fun release(supervisor: CapabilitySupervisor) {
+        slot.release(supervisor)
+    }
 }

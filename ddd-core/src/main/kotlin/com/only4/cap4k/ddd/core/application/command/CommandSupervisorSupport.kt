@@ -11,4 +11,8 @@ object CommandSupervisorSupport {
     fun configure(supervisor: CommandSupervisor) {
         slot.configure(supervisor)
     }
+
+    fun release(supervisor: CommandSupervisor) {
+        slot.release(supervisor)
+    }
 }

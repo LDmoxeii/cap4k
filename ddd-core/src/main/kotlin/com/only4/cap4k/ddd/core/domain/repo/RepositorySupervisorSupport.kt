@@ -17,4 +17,8 @@ object RepositorySupervisorSupport {
     fun configure(repositorySupervisor: RepositorySupervisor) {
         slot.configure(repositorySupervisor)
     }
+
+    fun release(repositorySupervisor: RepositorySupervisor) {
+        slot.release(repositorySupervisor)
+    }
 }
