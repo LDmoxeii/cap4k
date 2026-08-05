@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
@@ -50,7 +50,7 @@ class HttpIntegrationEventDeliveryContextTest {
                 eventId = "event-123",
                 eventName = "http.delivery.event",
                 publishedAt = publishedAt,
-                payloadJsonStr = JSON.toJSONString(HttpDeliveryEvent("payload")),
+                payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("payload")),
             ),
         )
 
@@ -85,7 +85,7 @@ class HttpIntegrationEventDeliveryContextTest {
                 eventId = "event-failure",
                 eventName = "http.delivery.event",
                 publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-                payloadJsonStr = JSON.toJSONString(HttpDeliveryEvent("payload")),
+                payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("payload")),
             ),
         )
 
@@ -108,14 +108,14 @@ class HttpIntegrationEventDeliveryContextTest {
             eventId = "first",
             eventName = "http.delivery.event",
             publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-            payloadJsonStr = JSON.toJSONString(HttpDeliveryEvent("first")),
+            payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("first")),
         ))
         assertNull(fixture.deliveryManager.currentOrNull())
         assertTrue(fixture.adapter.consume(
             eventId = "second",
             eventName = "http.delivery.event",
             publishedAt = Instant.parse("2026-08-04T00:00:01Z"),
-            payloadJsonStr = JSON.toJSONString(HttpDeliveryEvent("second")),
+            payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("second")),
         ))
         assertNull(fixture.deliveryManager.currentOrNull())
 
@@ -147,7 +147,7 @@ class HttpIntegrationEventDeliveryContextTest {
                     eventId = "condition-skip",
                     eventName = "http.delivery.event",
                     publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-                    payloadJsonStr = JSON.toJSONString(HttpDeliveryEvent("skip", enabled = false)),
+                    payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("skip", enabled = false)),
                 ),
             )
 

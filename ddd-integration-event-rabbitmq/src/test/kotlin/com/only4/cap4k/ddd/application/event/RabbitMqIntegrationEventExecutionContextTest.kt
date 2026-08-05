@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
@@ -69,7 +69,7 @@ class RabbitMqIntegrationEventExecutionContextTest {
             redelivered = false
             setHeader(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, envelope)
         }
-        val message = Message(JSON.toJSONString(ContextTransportEvent("payload")).toByteArray(), properties)
+        val message = Message(RuntimeJson.write(ContextTransportEvent("payload")).toByteArray(), properties)
         val channel = mockk<Channel> {
             every { basicAck(17L, false) } just runs
         }
@@ -134,7 +134,7 @@ class RabbitMqIntegrationEventExecutionContextTest {
             timestamp = Date.from(Instant.EPOCH)
             redelivered = true
         }
-        val message = Message(JSON.toJSONString(ContextTransportEvent("payload")).toByteArray(), properties)
+        val message = Message(RuntimeJson.write(ContextTransportEvent("payload")).toByteArray(), properties)
         val channel = mockk<Channel> {
             every { basicReject(18L, true) } just runs
         }

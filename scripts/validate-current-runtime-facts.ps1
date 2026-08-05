@@ -65,6 +65,15 @@ foreach ($file in $files) {
             ) {
                 continue
             }
+            if (
+                $relativePath -eq 'docs/comet/specs/runtime-jackson-only/spec.md' -and
+                $entry.Key -in @(
+                    'EventSubscriber<T>',
+                    'Snowflake capability'
+                )
+            ) {
+                continue
+            }
             $violations.Add("${relativePath}: retired runtime term '$($entry.Key)'")
         }
     }

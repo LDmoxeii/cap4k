@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpCallbackTriggerCapability
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
 import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpUnsubscribeCapability
@@ -24,6 +23,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -146,7 +146,10 @@ class HttpIntegrationEventAutoConfiguration {
     ): HttpRequestHandler = HttpRequestHandler { request, response ->
         val event = request.getParameter(EVENT_PARAM).orEmpty()
         val subscriber = request.getParameter(SUBSCRIBER_PARAM).orEmpty()
-        val callbackUrl = JSON.parseObject(request.inputStream.bufferedReader().use { it.readText() }, String::class.java)
+        val callbackUrl = RuntimeJson.read(
+            request.inputStream.bufferedReader().use { it.readText() },
+            String::class.java,
+        )
             .orEmpty()
         val success = event.isNotBlank() && subscriber.isNotBlank() && callbackUrl.isNotBlank() &&
             subscriberRegister.subscribe(event, subscriber, callbackUrl)
@@ -279,6 +282,6 @@ class HttpIntegrationEventAutoConfiguration {
     private fun writeJson(response: jakarta.servlet.http.HttpServletResponse, value: Any) {
         response.characterEncoding = StandardCharsets.UTF_8.name()
         response.contentType = "application/json; charset=utf-8"
-        response.writer.use { writer -> writer.write(JSON.toJSONString(value)) }
+        response.writer.use { writer -> writer.write(RuntimeJson.write(value)) }
     }
 }

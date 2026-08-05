@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.application.event.HttpIntegrationEventAutoConfiguration.Companion.EVENT_ID_PARAM
 import com.only4.cap4k.ddd.application.event.HttpIntegrationEventAutoConfiguration.Companion.EVENT_PARAM
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
@@ -113,7 +113,7 @@ class HttpIntegrationEventConsumeHandlerTest {
         addParameter(EVENT_ID_PARAM, eventId)
         addParameter(EVENT_PARAM, eventName)
         addHeader("cap4k-timestamp", timestamp)
-        setContent(JSON.toJSONString(payload).toByteArray(Charsets.UTF_8))
+        setContent(RuntimeJson.write(payload).toByteArray(Charsets.UTF_8))
     }
 
     private fun fixture(): Fixture {

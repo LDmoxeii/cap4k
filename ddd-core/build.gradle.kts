@@ -16,6 +16,8 @@ dependencies {
 
     // Common dependencies
     implementation(libs.slf4j)
+    api(libs.jackson.module.kotlin)
+    implementation(libs.jackson.datatype.jsr310)
 
     // Test dependencies
     testImplementation(platform(libs.junit.bom))

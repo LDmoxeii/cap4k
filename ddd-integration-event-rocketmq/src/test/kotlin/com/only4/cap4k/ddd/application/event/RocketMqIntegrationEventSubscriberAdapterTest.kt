@@ -111,16 +111,6 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             )
         } returns 2
 
-        // 模拟JSON解析
-        mockkStatic("com.alibaba.fastjson.JSON")
-        every {
-            com.alibaba.fastjson.JSON.parseObject(
-                messageBody,
-                TestEventPayload::class.java,
-                any<com.alibaba.fastjson.parser.Feature>()
-            )
-        } returns testEvent
-
         // 通过反射调用私有方法来测试消息处理
         val method = adapter.javaClass.getDeclaredMethod(
             "onMessage",
@@ -148,21 +138,9 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         // given
         val messageExt = mockk<MessageExt>()
         val context = mockk<ConsumeConcurrentlyContext>()
-        val exception = RuntimeException("消费异常")
-
         every { messageExt.msgId } returns "msg-123"
         every { messageExt.body } returns "invalid-json".toByteArray()
         every { messageExt.properties } returns emptyMap()
-
-        // 模拟JSON解析异常
-        mockkStatic("com.alibaba.fastjson.JSON")
-        every {
-            com.alibaba.fastjson.JSON.parseObject(
-                any<String>(),
-                any<Class<*>>(),
-                any<com.alibaba.fastjson.parser.Feature>()
-            )
-        } throws exception
 
         // 通过反射调用私有方法
         val method = adapter.javaClass.getDeclaredMethod(
@@ -209,16 +187,6 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         )
         every { messageExt.reconsumeTimes } returns 0
         every { eventHandlerDispatcher.dispatch(testEvent) } just Runs
-
-        mockkStatic("com.alibaba.fastjson.JSON")
-        every {
-            com.alibaba.fastjson.JSON.parseObject(
-                messageBody,
-                TestEventPayload::class.java,
-                any<com.alibaba.fastjson.parser.Feature>()
-            )
-        } returns testEvent
-
         // 通过反射调用私有方法
         val method = adapterWithoutInterceptors.javaClass.getDeclaredMethod(
             "onMessage",

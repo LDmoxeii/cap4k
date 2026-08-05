@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.domain.event.persistence
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -125,6 +125,23 @@ class EventTest {
                 event.init(null as Any, "test-service", testTime, Duration.ofMinutes(10), 3)
             }
         }
+
+        @Test
+        @DisplayName("可靠事件拒绝持久化实体载荷")
+        fun `should reject persistent entity references in reliable event payload`() {
+            val error = assertThrows<com.only4.cap4k.ddd.core.share.DomainException> {
+                event.init(
+                    EntityBackedEvent(PersistentEntity("entity-1")),
+                    "test-service",
+                    testTime,
+                    Duration.ofMinutes(10),
+                    3,
+                )
+            }
+
+            assertTrue(error.message.orEmpty().contains("persistent Entity reference"))
+            assertFalse(error.message.orEmpty().contains("entity-1"))
+        }
     }
 
     @Nested
@@ -150,7 +167,7 @@ class EventTest {
         fun `should deserialize payload from JSON when not directly set`() {
             // Given - 模拟从数据库加载的情况
             val originalPayload = UserCreatedEvent("user123", "john", "john@test.com")
-            event.data = JSON.toJSONString(originalPayload)
+            event.data = RuntimeJson.write(originalPayload)
             event.dataType = UserCreatedEvent::class.java.name
 
             // When
@@ -196,7 +213,7 @@ class EventTest {
         fun `should cache deserialized payload`() {
             // Given - 设置需要反序列化的payload
             val originalPayload = TestEvent("test", 12345)
-            event.data = JSON.toJSONString(originalPayload)
+            event.data = RuntimeJson.write(originalPayload)
             event.dataType = TestEvent::class.java.name
 
             // When - 多次访问payload

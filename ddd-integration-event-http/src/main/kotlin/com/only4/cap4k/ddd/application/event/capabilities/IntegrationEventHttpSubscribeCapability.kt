@@ -1,9 +1,9 @@
 package com.only4.cap4k.ddd.application.event.capabilities
 
-import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.application.event.HttpIntegrationEventSubscriberAdapter
 import com.only4.cap4k.ddd.core.application.capability.CapabilityCall
 import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
@@ -56,7 +56,7 @@ object IntegrationEventHttpSubscribeCapability {
         }
 
         private fun createRequestEntity(callbackUrl: String) = HttpEntity(
-            JSON.toJSONString(callbackUrl).toByteArray(StandardCharsets.UTF_8),
+            RuntimeJson.write(callbackUrl).toByteArray(StandardCharsets.UTF_8),
             HttpHeaders().apply { contentType = MediaType.APPLICATION_JSON },
         )
 

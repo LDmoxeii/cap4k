@@ -1,7 +1,5 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.parser.Feature
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -13,6 +11,7 @@ import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.rabbitmq.client.Channel
 import org.slf4j.LoggerFactory
@@ -140,7 +139,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
 
     private fun org.springframework.amqp.core.Message.parseEventPayload(integrationEventClass: Class<*>): Any {
         val strMsg = String(this.body, charset(msgCharset))
-        return JSON.parseObject(strMsg, integrationEventClass, Feature.SupportNonPublicField)
+        return RuntimeJson.read(strMsg, integrationEventClass)
     }
 
     private fun processWithInterceptors(

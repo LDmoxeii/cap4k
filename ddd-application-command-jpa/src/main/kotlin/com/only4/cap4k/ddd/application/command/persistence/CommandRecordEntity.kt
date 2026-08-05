@@ -1,12 +1,10 @@
 package com.only4.cap4k.ddd.application.command.persistence
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.annotation.JSONField
-import com.alibaba.fastjson.parser.Feature
-import com.alibaba.fastjson.serializer.SerializerFeature
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.annotation.Retry
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
@@ -195,7 +193,8 @@ class CommandRecordEntity(
     }
 
     @Transient
-    @JSONField(serialize = false)
+    @get:JsonIgnore
+    @field:JsonIgnore
     var commandParam: Command<*>? = null
         get() {
             if (field != null) {
@@ -208,7 +207,7 @@ class CommandRecordEntity(
                     log.error("参数类型解析错误", e)
                     throw DomainException("参数类型解析错误: $paramType", e)
                 }
-                field = JSON.parseObject(param, dataClass, Feature.SupportNonPublicField) as Command<*>
+                field = RuntimeJson.read(param, dataClass) as Command<*>
             }
             return field
         }
@@ -216,11 +215,7 @@ class CommandRecordEntity(
 
     private fun loadCommand(commandParam: Command<*>) {
         this.commandParam = commandParam
-        this.param = JSON.toJSONString(
-            commandParam,
-            SerializerFeature.IgnoreNonFieldGetter,
-            SerializerFeature.SkipTransientField
-        )
+        this.param = RuntimeJson.write(commandParam)
         this.paramType = commandParam.javaClass.name
         val retry = commandParam.javaClass.getAnnotation(Retry::class.java)
         if (retry != null) {
@@ -230,7 +225,8 @@ class CommandRecordEntity(
     }
 
     @Transient
-    @JSONField(serialize = false)
+    @get:JsonIgnore
+    @field:JsonIgnore
     var commandResult: Any? = null
         get() {
             if (field != null) {
@@ -243,7 +239,7 @@ class CommandRecordEntity(
                     log.error("返回类型解析错误", e)
                     throw DomainException("返回类型解析错误: $resultType", e)
                 }
-                field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
+                field = RuntimeJson.read(result, dataClass)
             }
             return field
         }
@@ -251,11 +247,7 @@ class CommandRecordEntity(
 
     private fun loadCommandResult(result: Any) {
         this.commandResult = result
-        this.result = JSON.toJSONString(
-            result,
-            SerializerFeature.IgnoreNonFieldGetter,
-            SerializerFeature.SkipTransientField
-        )
+        this.result = RuntimeJson.write(result)
         this.resultType = result.javaClass.name
     }
 
@@ -333,7 +325,7 @@ class CommandRecordEntity(
     }
 
     override fun toString(): String {
-        return JSON.toJSONString(this, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
+        return RuntimeJson.write(this)
     }
 
     enum class CommandState(val value: Int, val stateName: String) {
