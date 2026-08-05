@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-agent-retired-descriptors",
+  "role": "post",
+  "hash": "2aa9b94df56a8d16347a4738b16b00d363d6571a3270d6ef215e43eaa9912b98",
+  "identity": {
+    "dev": 950912656,
+    "ino": 2251799814651109,
+    "birthtimeMs": 1785916928984.3015
+  }
+}

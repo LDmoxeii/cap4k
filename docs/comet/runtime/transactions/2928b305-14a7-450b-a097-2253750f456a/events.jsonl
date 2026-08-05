@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-05T08:01:58.345Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-05T08:02:08.132Z","type":"operation-started","operationId":"spec-1-runtime-agent-retired-descriptors"}
+{"sequence":3,"timestamp":"2026-08-05T08:02:09.445Z","type":"operation-completed","operationId":"spec-1-runtime-agent-retired-descriptors"}
+{"sequence":4,"timestamp":"2026-08-05T08:02:09.549Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-05T08:02:11.458Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-05T08:02:12.551Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-05T08:02:12.853Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-05T08:02:13.226Z","type":"commit"}
