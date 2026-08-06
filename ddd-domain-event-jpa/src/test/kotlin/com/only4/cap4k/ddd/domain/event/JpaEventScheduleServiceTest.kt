@@ -7,7 +7,6 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.domain.event.persistence.TestEvent
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -30,7 +29,6 @@ class JpaEventScheduleServiceTest {
 
     private val svcName = "test-service"
     private val retryLockerKey = "retry-lock"
-    private val archiveLockerKey = "archive-lock"
     private val enableAddPartition = true
 
     @BeforeEach
@@ -46,7 +44,6 @@ class JpaEventScheduleServiceTest {
             locker = locker,
             svcName = svcName,
             retryLockerKey = retryLockerKey,
-            archiveLockerKey = archiveLockerKey,
             enableAddPartition = enableAddPartition,
             jdbcTemplate = jdbcTemplate
         )
@@ -76,8 +73,7 @@ class JpaEventScheduleServiceTest {
                 locker = locker,
                 svcName = svcName,
                 retryLockerKey = retryLockerKey,
-                archiveLockerKey = archiveLockerKey,
-                enableAddPartition = false,
+                    enableAddPartition = false,
                 jdbcTemplate = jdbcTemplate
             )
 
@@ -194,135 +190,6 @@ class JpaEventScheduleServiceTest {
     }
 
     @Nested
-    @DisplayName("事件归档测试")
-    inner class ArchiveTest {
-
-        @Test
-        @DisplayName("应该成功执行事件归档")
-        fun `should execute event archiving successfully`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            every { eventRecordRepository.archiveByExpireAt(any(), any(), batchSize) } returnsMany listOf(50, 30, 0)
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 3) { eventRecordRepository.archiveByExpireAt(svcName, any(), batchSize) }
-            verify { locker.release(archiveLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("当获取锁失败时应该直接返回")
-        fun `should return immediately when archive lock acquisition fails`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns false
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 0) { eventRecordRepository.archiveByExpireAt(any(), any(), any()) }
-            verify(exactly = 0) { locker.release(any(), any()) }
-        }
-
-        @Test
-        @DisplayName("应该处理归档过程中的异常")
-        fun `should handle exceptions during archiving`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            // 模拟前3次调用都抛出异常
-            var callCount = 0
-            every {
-                eventRecordRepository.archiveByExpireAt(any(), any(), batchSize)
-            } answers {
-                callCount++
-                if (callCount <= 3) {
-                    throw RuntimeException("Archive failed $callCount")
-                } else {
-                    0
-                }
-            }
-
-            // When
-            assertDoesNotThrow {
-                scheduleService.archive(expireDays, batchSize, maxLockDuration)
-            }
-
-            // Then - 应该在3次失败后退出
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 3) { eventRecordRepository.archiveByExpireAt(svcName, any(), batchSize) }
-            verify { locker.release(archiveLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("当没有事件需要归档时应该正常结束")
-        fun `should finish normally when no events need archiving`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            every { eventRecordRepository.archiveByExpireAt(any(), any(), batchSize) } returns 0
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 1) { eventRecordRepository.archiveByExpireAt(svcName, any(), batchSize) }
-            verify { locker.release(archiveLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("应该使用正确的过期时间计算")
-        fun `should use correct expire time calculation`() {
-            // Given
-            val expireDays = 7
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-            val expireTimeSlot = slot<LocalDateTime>()
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            every {
-                eventRecordRepository.archiveByExpireAt(
-                    svcName,
-                    capture(expireTimeSlot),
-                    batchSize
-                )
-            } returns 0
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            val capturedExpireTime = expireTimeSlot.captured
-            val expectedExpireTime = LocalDateTime.now().minusDays(expireDays.toLong())
-
-            // 允许几秒钟的误差
-            assertTrue(
-                capturedExpireTime.isAfter(expectedExpireTime.minusSeconds(5)) &&
-                        capturedExpireTime.isBefore(expectedExpireTime.plusSeconds(5))
-            )
-        }
-    }
-
-    @Nested
     @DisplayName("分区管理测试")
     inner class PartitionManagementTest {
 
@@ -333,7 +200,7 @@ class JpaEventScheduleServiceTest {
             scheduleService.addPartition()
 
             // Then
-            verify(atLeast = 2) { jdbcTemplate.execute(any<String>()) }
+            verify(exactly = 1) { jdbcTemplate.execute(any<String>()) }
         }
 
         @Test
@@ -400,8 +267,7 @@ class JpaEventScheduleServiceTest {
                 locker = locker,
                 svcName = svcName,
                 retryLockerKey = retryLockerKey,
-                archiveLockerKey = archiveLockerKey,
-                enableAddPartition = false,
+                    enableAddPartition = false,
                 jdbcTemplate = jdbcTemplate
             )
 
@@ -423,23 +289,16 @@ class JpaEventScheduleServiceTest {
             // Given
             every { locker.acquire(any(), any(), any()) } returns true
             every { eventRecordRepository.getByNextTryTime(any(), any(), any()) } returns emptyList()
-            every { eventRecordRepository.archiveByExpireAt(any(), any(), any()) } returns 0
 
-            // When - 初始化
+            // When
             scheduleService.init()
-
-            // Then - 执行补偿
             scheduleService.retry(10, Duration.ofMinutes(5), Duration.ofMinutes(10))
 
-            // And - 执行归档
-            scheduleService.archive(30, 100, Duration.ofMinutes(15))
-
-            // Then - 验证所有操作都被执行
-            verify(atLeast = 1) { jdbcTemplate.execute(any<String>()) }
-            verify(exactly = 2) { locker.acquire(any(), any(), any()) }
+            // Then
+            verify(exactly = 1) { jdbcTemplate.execute(any<String>()) }
+            verify(exactly = 1) { locker.acquire(any(), any(), any()) }
             verify { eventRecordRepository.getByNextTryTime(any(), any(), any()) }
-            verify { eventRecordRepository.archiveByExpireAt(any(), any(), any()) }
-            verify(exactly = 2) { locker.release(any(), any()) }
+            verify(exactly = 1) { locker.release(any(), any()) }
         }
     }
 
@@ -469,27 +328,6 @@ class JpaEventScheduleServiceTest {
             assertTrue(duration < 5000) // 应该在5秒内完成
         }
 
-        @Test
-        @DisplayName("大批量事件归档性能测试")
-        fun `should handle large batch archiving efficiently`() {
-            // Given
-            val batchSize = 1000
-            val archiveCount = 500
-
-            every { locker.acquire(archiveLockerKey, any(), any()) } returns true
-            every {
-                eventRecordRepository.archiveByExpireAt(any(), any(), batchSize)
-            } returnsMany listOf(archiveCount, 0)
-
-            // When
-            val startTime = System.currentTimeMillis()
-            scheduleService.archive(30, batchSize, Duration.ofMinutes(15))
-            val duration = System.currentTimeMillis() - startTime
-
-            // Then
-            verify(exactly = 2) { eventRecordRepository.archiveByExpireAt(any(), any(), batchSize) }
-            assertTrue(duration < 3000) // 应该在3秒内完成
-        }
     }
 
     private fun createMockEventRecord(eventId: String): EventRecord {

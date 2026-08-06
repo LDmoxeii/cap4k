@@ -17,7 +17,6 @@ import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeMa
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultEventPublisher
 import com.only4.cap4k.ddd.domain.event.configure.EventProperties
 import com.only4.cap4k.ddd.domain.event.configure.EventScheduleProperties
-import com.only4.cap4k.ddd.domain.event.persistence.ArchivedEventJpaRepository
 import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import org.springframework.beans.factory.annotation.Value
@@ -42,15 +41,13 @@ import java.time.Duration
 class DomainEventJpaAutoConfiguration {
     companion object {
         const val RETRY_LOCKER_KEY = "event_retry[$CONFIG_KEY_4_SVC_NAME]"
-        const val ARCHIVE_LOCKER_KEY = "event_archive[$CONFIG_KEY_4_SVC_NAME]"
     }
 
     @Bean
     @ConditionalOnMissingBean(EventRecordRepository::class)
     fun eventRecordRepository(
         eventJpaRepository: EventJpaRepository,
-        archivedEventJpaRepository: ArchivedEventJpaRepository,
-    ): JpaEventRecordRepository = JpaEventRecordRepository(eventJpaRepository, archivedEventJpaRepository)
+    ): JpaEventRecordRepository = JpaEventRecordRepository(eventJpaRepository)
 
     @Bean
     fun reliableEventInfrastructure(
@@ -120,7 +117,6 @@ class DomainEventJpaAutoConfiguration {
         locker: Locker,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
         @Value(RETRY_LOCKER_KEY) retryLockerKey: String,
-        @Value(ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         properties: EventScheduleProperties,
         jdbcTemplate: JdbcTemplate,
     ): JpaEventScheduleService = JpaEventScheduleService(
@@ -129,7 +125,6 @@ class DomainEventJpaAutoConfiguration {
         locker,
         serviceName,
         retryLockerKey,
-        archiveLockerKey,
         properties.addPartitionEnable,
         jdbcTemplate,
     ).apply { init() }
@@ -151,12 +146,6 @@ class DomainEventJpaAutoConfiguration {
             Duration.ofSeconds(properties.retryMaxLockSeconds.toLong()),
         )
 
-        @Scheduled(cron = "\${cap4k.ddd.domain.event.schedule.archiveCron:\${cap4k.ddd.domain.event.schedule.archive-cron:0 0 2 * * ?}}")
-        fun archive() = service.archive(
-            properties.archiveExpireDays,
-            properties.archiveBatchSize,
-            Duration.ofSeconds(properties.archiveMaxLockSeconds.toLong()),
-        )
 
         @Scheduled(cron = "\${cap4k.ddd.domain.event.schedule.addPartitionCron:\${cap4k.ddd.domain.event.schedule.add-partition-cron:0 0 0 * * ?}}")
         fun addPartition() = service.addPartition()

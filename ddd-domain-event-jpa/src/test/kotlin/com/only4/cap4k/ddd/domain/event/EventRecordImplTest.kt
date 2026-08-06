@@ -363,17 +363,19 @@ class EventRecordImplTest {
         }
 
         @Test
-        @DisplayName("应该能够记录异常")
-        fun `should be able to record exception`() {
+        @DisplayName("应该只记录安全失败事实")
+        fun `should record only safe failure facts`() {
             // Given
-            val exception = RuntimeException("Test exception")
+            val secret = "credential=hidden"
 
             // When
-            eventRecord.occurredException(testTime.plusMinutes(1), exception)
+            eventRecord.occurredException(testTime.plusMinutes(1), RuntimeException(secret))
 
             // Then
-            assertNotNull(eventRecord.event.exception)
-            assertTrue(eventRecord.event.exception!!.contains("Test exception"))
+            val failure = eventRecord.failure!!
+            assertEquals(RuntimeException::class.java.name, failure.type)
+            assertEquals("Reliable Event delivery failed", failure.message)
+            assertFalse(eventRecord.event.failureFactsJson!!.contains(secret))
         }
 
         @Test

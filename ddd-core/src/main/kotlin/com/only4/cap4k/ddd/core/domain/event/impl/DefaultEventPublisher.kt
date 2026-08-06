@@ -227,8 +227,9 @@ open class DefaultEventPublisher(
             scope?.let(EventRuntimeContext::discard)
             domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
                 .forEach { interceptor -> interceptor.onException(ex, event) }
-            log.error("领域事件发布失败：${event.id}", ex)
-            throw DomainException("领域事件发布失败：${event.id}", ex)
+            val failureType = ex.javaClass.name
+            log.error("领域事件发布失败: eventId={}, failureType={}", event.id, failureType)
+            throw DomainException("领域事件发布失败: eventId=${event.id}, failureType=$failureType")
         } finally {
             scope?.let {
                 if (EventRuntimeContext.currentOrNull() === it) {
@@ -258,8 +259,9 @@ open class DefaultEventPublisher(
         } catch (ex: Exception) {
             integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
                 .forEach { interceptor -> interceptor.onException(ex, event) }
-            log.error("集成事件发布失败：${event.id}", ex)
-            throw DomainException("集成事件发布失败: ${event.id}", ex)
+            val failureType = ex.javaClass.name
+            log.error("集成事件发布失败: eventId={}, failureType={}", event.id, failureType)
+            throw DomainException("集成事件发布失败: eventId=${event.id}, failureType=$failureType")
         }
     }
 }

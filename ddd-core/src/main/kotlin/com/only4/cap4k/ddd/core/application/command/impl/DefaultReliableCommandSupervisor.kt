@@ -80,9 +80,6 @@ open class DefaultReliableCommandSupervisor(
         }
     }
 
-    override fun <RESULT : Any> result(commandId: String): RESULT? =
-        commandRecordRepository.getById(commandId).getResult()
-
     override fun resume(command: CommandRecord, minNextTryTime: LocalDateTime) {
         val now = LocalDateTime.now()
         val commandTime = if (Duration.between(command.nextTryTime, now).isNegative) now else command.nextTryTime
@@ -107,9 +104,6 @@ open class DefaultReliableCommandSupervisor(
 
     override fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<CommandRecord> =
         commandRecordRepository.getByNextTryTime(serviceName, maxNextTryTime, limit)
-
-    override fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int =
-        commandRecordRepository.archiveByExpireAt(serviceName, maxExpireAt, limit)
 
     protected open fun createCommandRecord(
         commandType: String,
@@ -153,7 +147,7 @@ open class DefaultReliableCommandSupervisor(
         val result = executionContextScopeManager.install(snapshot).use {
             commandSupervisor.send(command as Command<Any>)
         }
-        record.endCommand(LocalDateTime.now(), result)
+        record.endCommand(LocalDateTime.now())
         commandRecordRepository.save(record)
         result
     } catch (throwable: Throwable) {

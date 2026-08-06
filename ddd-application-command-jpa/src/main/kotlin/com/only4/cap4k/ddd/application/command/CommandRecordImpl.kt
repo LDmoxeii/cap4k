@@ -3,7 +3,7 @@ import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandRecord
-import com.only4.cap4k.ddd.core.share.DomainException
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -51,14 +51,8 @@ class CommandRecordImpl : CommandRecord {
     override val executionContext: List<EncodedExecutionContextElement>
         get() = JpaExecutionContextEnvelope.decode(entity.executionContext)
 
-    override fun <R : Any> getResult(): R? {
-        @Suppress("UNCHECKED_CAST")
-        val result = entity.commandResult as? R
-        if (result == null && !entity.exception.isNullOrEmpty()) {
-            throw DomainException(entity.exception!!)
-        }
-        return result
-    }
+    override val failure: ReliableFailureFacts?
+        get() = entity.failureFacts
 
     override val scheduleTime: LocalDateTime
         get() = entity.lastTryTime
@@ -82,8 +76,8 @@ class CommandRecordImpl : CommandRecord {
 
     override fun cancelCommand(now: LocalDateTime): Boolean = entity.cancelCommand(now)
 
-    override fun endCommand(now: LocalDateTime, result: Any) {
-        entity.endCommand(now, result)
+    override fun endCommand(now: LocalDateTime) {
+        entity.endCommand(now)
     }
 
     override fun occurredException(now: LocalDateTime, throwable: Throwable) {

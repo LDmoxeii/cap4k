@@ -21,6 +21,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -317,14 +318,12 @@ class DefaultReliableCommandSupervisorTest {
             limit: Int,
         ): List<CommandRecord> = records.values.take(limit)
 
-        override fun archiveByExpireAt(serviceName: String, maxExpireAt: LocalDateTime, limit: Int): Int = 0
 
         fun single(): CommandRecord = records.values.single()
     }
 
     private class TestCommandRecord : CommandRecord {
         private lateinit var payload: Command<*>
-        private var result: Any? = null
         private var executing: Boolean = false
         private var executed: Boolean = false
 
@@ -334,6 +333,7 @@ class DefaultReliableCommandSupervisorTest {
             get() = payload
         override var executionContext: List<EncodedExecutionContextElement> = emptyList()
             private set
+        override val failure: ReliableFailureFacts? = null
         override lateinit var scheduleTime: LocalDateTime
         override lateinit var nextTryTime: LocalDateTime
         override val isValid: Boolean
@@ -361,9 +361,6 @@ class DefaultReliableCommandSupervisorTest {
             this.executionContext = executionContext.toList()
         }
 
-        @Suppress("UNCHECKED_CAST")
-        override fun <RESULT : Any> getResult(): RESULT? = result as RESULT?
-
         override fun beginCommand(now: LocalDateTime): Boolean {
             executing = true
             scheduleTime = now
@@ -376,8 +373,7 @@ class DefaultReliableCommandSupervisorTest {
             return true
         }
 
-        override fun endCommand(now: LocalDateTime, result: Any) {
-            this.result = result
+        override fun endCommand(now: LocalDateTime) {
             executing = false
             executed = true
         }

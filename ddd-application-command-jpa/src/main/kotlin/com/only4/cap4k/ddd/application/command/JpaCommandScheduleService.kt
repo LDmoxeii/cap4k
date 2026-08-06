@@ -19,7 +19,6 @@ class JpaCommandScheduleService(
     private val commandManager: CommandManager,
     private val locker: Locker,
     private val retryLockerKey: String,
-    private val archiveLockerKey: String,
     private val enableAddPartition: Boolean,
     private val jdbcTemplate: JdbcTemplate
 ) {
@@ -74,48 +73,13 @@ class JpaCommandScheduleService(
 
             true
         } catch (ex: Exception) {
-            log.error("可靠命令重试:异常失败", ex)
+            log.error("可靠命令重试:异常失败 failureType={}", ex.javaClass.name)
             false
         } finally {
             locker.release(retryLockerKey, pwd)
         }
     }
 
-    /**
-     * 本地命令库归档
-     */
-    fun archive(expireDays: Int, batchSize: Int, maxLockDuration: Duration) {
-        val pwd = randomString(8, hasDigital = true, hasLetter = true)
-
-        if (!locker.acquire(archiveLockerKey, pwd, maxLockDuration)) {
-            return
-        }
-
-        try {
-            log.info("命令归档")
-
-            val expireDate = LocalDateTime.now().minusDays(expireDays.toLong())
-            var failCount = 0
-
-            while (true) {
-                try {
-                    val archivedCount = commandManager.archiveByExpireAt(expireDate, batchSize)
-                    if (archivedCount == 0) {
-                        break
-                    }
-                } catch (ex: Exception) {
-                    failCount++
-                    log.error("命令归档:失败", ex)
-                    if (failCount >= 3) {
-                        log.info("命令归档:累计3次异常退出任务")
-                        break
-                    }
-                }
-            }
-        } finally {
-            locker.release(archiveLockerKey, pwd)
-        }
-    }
 
     /**
      * 添加分区
@@ -127,7 +91,6 @@ class JpaCommandScheduleService(
 
         val now = LocalDateTime.now()
         addPartition("__command", now.plusMonths(1))
-        addPartition("__archived_command", now.plusMonths(1))
     }
 
     /**
@@ -145,8 +108,10 @@ class JpaCommandScheduleService(
         } catch (ex: Exception) {
             if (ex.message?.contains("Duplicate partition") != true) {
                 log.error(
-                    "分区创建异常 table = $table partition = p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
-                    ex
+                    "分区创建异常 table={} partition={} failureType={}",
+                    table,
+                    "p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
+                    ex.javaClass.name,
                 )
             }
         }

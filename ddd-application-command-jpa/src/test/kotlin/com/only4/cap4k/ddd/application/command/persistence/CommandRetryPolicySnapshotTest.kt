@@ -15,7 +15,7 @@ class CommandRetryPolicySnapshotTest {
     private val createdAt = LocalDateTime.of(2025, 1, 15, 10, 30)
 
     @Test
-    fun `stored policy survives archive and ignores the currently loaded command annotation`() {
+    fun `stored policy survives active reload and ignores the currently loaded command annotation`() {
         val original = CommandRecordEntity().init(
             commandParam = OriginalPolicyCommand("business-secret"),
             svcName = "test-service",
@@ -25,10 +25,7 @@ class CommandRetryPolicySnapshotTest {
             retryTimes = 99,
         )
         val snapshot = RuntimeJson.read(original.retryPolicy, ReliableRetryPolicySnapshot::class.java)
-        val archived = ArchivedCommandRecordEntity().archiveFrom(original)
-
         assertEquals(4, snapshot.retryLimit)
-        assertEquals(original.retryPolicy, archived.retryPolicy)
         assertFalse(original.retryPolicy.contains("business-secret"))
 
         val reloaded = CommandRecordEntity(
@@ -43,10 +40,11 @@ class CommandRetryPolicySnapshotTest {
             nextTryTime = createdAt,
             triedTimes = 1,
             tryTimes = original.tryTimes,
-            retryPolicy = archived.retryPolicy,
+            retryPolicy = original.retryPolicy,
         )
         val retryAt = createdAt.plusMinutes(10)
 
+        assertEquals(original.retryPolicy, reloaded.retryPolicy)
         assertTrue(reloaded.beginCommand(retryAt))
         assertEquals(retryAt.plusMinutes(7), reloaded.nextTryTime)
     }

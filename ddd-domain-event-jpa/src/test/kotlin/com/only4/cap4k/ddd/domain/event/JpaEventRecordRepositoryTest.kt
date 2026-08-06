@@ -22,14 +22,12 @@ class JpaEventRecordRepositoryTest {
 
     private lateinit var repository: JpaEventRecordRepository
     private lateinit var eventJpaRepository: EventJpaRepository
-    private lateinit var archivedEventJpaRepository: ArchivedEventJpaRepository
     private val testTime: LocalDateTime = LocalDateTime.of(2025, 1, 15, 10, 30, 0)
 
     @BeforeEach
     fun setUp() {
         eventJpaRepository = mockk()
-        archivedEventJpaRepository = mockk()
-        repository = JpaEventRecordRepository(eventJpaRepository, archivedEventJpaRepository)
+        repository = JpaEventRecordRepository(eventJpaRepository)
     }
 
     @Nested
@@ -277,171 +275,6 @@ class JpaEventRecordRepositoryTest {
     }
 
     @Nested
-    @DisplayName("归档过期事件测试")
-    inner class ArchiveByExpireAtTest {
-
-        @Test
-        @DisplayName("应该成功归档过期的事件")
-        fun `should archive expired events successfully`() {
-            // Given
-            val svcName = "test-service"
-            val maxExpireAt = testTime.minusDays(1)
-            val limit = 10
-
-            val mockEvents = listOf(
-                createMockEvent("event1", Event.EventState.DELIVERED),
-                createMockEvent("event2", Event.EventState.CANCEL),
-                createMockEvent("event3", Event.EventState.EXPIRED)
-            )
-            val mockPage = PageImpl(mockEvents)
-
-            val mockArchivedEvents = listOf(
-                mockk<ArchivedEvent>(),
-                mockk<ArchivedEvent>(),
-                mockk<ArchivedEvent>()
-            )
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            every { archivedEventJpaRepository.saveAll(any<List<ArchivedEvent>>()) } returns mockArchivedEvents
-            every { eventJpaRepository.deleteAllInBatch(any<List<Event>>()) } just Runs
-
-            // When
-            val archivedCount = repository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-            // Then
-            assertEquals(3, archivedCount)
-
-            verify { archivedEventJpaRepository.saveAll(any<List<ArchivedEvent>>()) }
-            verify { eventJpaRepository.deleteAllInBatch(mockEvents) }
-        }
-
-        @Test
-        @DisplayName("当没有事件需要归档时应该返回0")
-        fun `should return 0 when no events to archive`() {
-            // Given
-            val svcName = "test-service"
-            val maxExpireAt = testTime.minusDays(1)
-            val limit = 10
-            val emptyPage = PageImpl<Event>(emptyList())
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns emptyPage
-
-            // When
-            val archivedCount = repository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-            // Then
-            assertEquals(0, archivedCount)
-
-            verify(exactly = 0) { archivedEventJpaRepository.saveAll(any<List<ArchivedEvent>>()) }
-            verify(exactly = 0) { eventJpaRepository.deleteAllInBatch(any<List<Event>>()) }
-        }
-
-        @Test
-        @DisplayName("应该使用正确的查询条件查找需要归档的事件")
-        fun `should use correct criteria to find events for archiving`() {
-            // Given
-            val svcName = "test-service"
-            val maxExpireAt = testTime.minusDays(1)
-            val limit = 10
-            val emptyPage = PageImpl<Event>(emptyList())
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns emptyPage
-
-            // When
-            repository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-            // Then
-            verify {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, Event.F_NEXT_TRY_TIME))
-                )
-            }
-        }
-    }
-
-    @Nested
-    @DisplayName("迁移方法测试")
-    inner class MigrateTest {
-
-        @Test
-        @DisplayName("应该成功迁移事件到归档表")
-        fun `should migrate events to archive table successfully`() {
-            // Given
-            val events = listOf(
-                createMockEvent("event1", Event.EventState.DELIVERED),
-                createMockEvent("event2", Event.EventState.CANCEL)
-            )
-            val archivedEvents = listOf(mockk<ArchivedEvent>(), mockk<ArchivedEvent>())
-
-            every { archivedEventJpaRepository.saveAll(archivedEvents) } returns archivedEvents
-            every { eventJpaRepository.deleteAllInBatch(events) } returns Unit
-
-            // When
-            repository.migrate(events, archivedEvents)
-
-            // Then
-            verify { archivedEventJpaRepository.saveAll(archivedEvents) }
-            verify { eventJpaRepository.deleteAllInBatch(events) }
-        }
-
-        @Test
-        @DisplayName("应该能够处理空列表")
-        fun `should handle empty lists`() {
-            // Given
-            val emptyEvents = emptyList<Event>()
-            val emptyArchivedEvents = emptyList<ArchivedEvent>()
-
-            every { archivedEventJpaRepository.saveAll(emptyArchivedEvents) } returns emptyArchivedEvents
-            every { eventJpaRepository.deleteAllInBatch(emptyEvents) } returns Unit
-
-            // When & Then
-            assertDoesNotThrow {
-                repository.migrate(emptyEvents, emptyArchivedEvents)
-            }
-
-            verify { archivedEventJpaRepository.saveAll(emptyArchivedEvents) }
-            verify { eventJpaRepository.deleteAllInBatch(emptyEvents) }
-        }
-
-        @Test
-        @DisplayName("当保存归档事件失败时应该抛出异常")
-        fun `should throw exception when saving archived events fails`() {
-            // Given
-            val events = listOf(createMockEvent("event1", Event.EventState.DELIVERED))
-            val archivedEvents = listOf(mockk<ArchivedEvent>())
-
-            every {
-                archivedEventJpaRepository.saveAll(archivedEvents)
-            } throws RuntimeException("Database error")
-
-            // When & Then
-            assertThrows<RuntimeException> {
-                repository.migrate(events, archivedEvents)
-            }
-
-            verify { archivedEventJpaRepository.saveAll(archivedEvents) }
-            verify(exactly = 0) { eventJpaRepository.deleteAllInBatch(any()) }
-        }
-    }
-
-    @Nested
     @DisplayName("集成测试")
     inner class IntegrationTest {
 
@@ -464,7 +297,6 @@ class JpaEventRecordRepositoryTest {
                 every { eventState } returns Event.EventState.INIT
                 every { data } returns """{"userId":"user123","name":"john","email":"john@test.com"}"""
                 every { dataType } returns "UserCreatedEvent"
-                every { exception } returns null
                 every { expireAt } returns testTime.plusHours(1)
                 every { tryTimes } returns 3
                 every { triedTimes } returns 0
@@ -555,29 +387,6 @@ class JpaEventRecordRepositoryTest {
             }
         }
 
-        @Test
-        @DisplayName("应该处理归档过程中的异常")
-        fun `should handle exceptions during archiving`() {
-            // Given
-            val mockEvents = listOf(createMockEvent("event1", Event.EventState.DELIVERED))
-            val mockPage = PageImpl(mockEvents)
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            every {
-                archivedEventJpaRepository.saveAll(any<List<ArchivedEvent>>())
-            } throws RuntimeException("Archive table full")
-
-            // When & Then
-            assertThrows<RuntimeException> {
-                repository.archiveByExpireAt("test-service", testTime.minusDays(1), 10)
-            }
-        }
     }
 
     private fun createMockEvent(eventId: String, state: Event.EventState): Event {
@@ -594,7 +403,6 @@ class JpaEventRecordRepositoryTest {
             every { data } returns """{"value":"test","number":12345}"""
             every { dataType } returns "TestEvent"
             every { executionContext } returns null
-            every { exception } returns null
             every { expireAt } returns testTime.plusHours(1)
             every { tryTimes } returns 3
             every { retryPolicy } returns "{}"

@@ -1,0 +1,19 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "0e83bbd5-788b-4ac3-9f24-c5c71d469535",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-safe-failure-result-repository",
+  "createdAt": "2026-08-05T10:00:34.294Z",
+  "preflightHash": "b119ae432b8ea7bd517d643e6c1fb311a75f1c37d97513e00bd69c940f5200ce",
+  "operations": [
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-safe-failure-result-repository",
+      "target": "archive/2026-08-05-runtime-safe-failure-result-repository",
+      "expectedSourceHash": "9e16e01bf6aeaf41f8ff4d11fc0ae65bfc9992d50d30c0b6912de8cfee801243",
+      "expectedTargetHash": null
+    }
+  ]
+}

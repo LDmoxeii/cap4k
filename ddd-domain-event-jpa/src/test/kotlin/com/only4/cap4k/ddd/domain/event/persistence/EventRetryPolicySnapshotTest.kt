@@ -15,7 +15,7 @@ class EventRetryPolicySnapshotTest {
     private val createdAt = LocalDateTime.of(2025, 1, 15, 10, 30)
 
     @Test
-    fun `stored policy survives archive and ignores the currently loaded event annotation`() {
+    fun `stored policy survives active reload and ignores the currently loaded event annotation`() {
         val original = Event().init(
             payload = OriginalPolicyEvent("business-secret"),
             svcName = "test-service",
@@ -24,10 +24,7 @@ class EventRetryPolicySnapshotTest {
             retryTimes = 99,
         )
         val snapshot = RuntimeJson.read(original.retryPolicy, ReliableRetryPolicySnapshot::class.java)
-        val archived = ArchivedEvent.fromEvent(original)
-
         assertEquals(4, snapshot.retryLimit)
-        assertEquals(original.retryPolicy, archived.retryPolicy)
         assertFalse(original.retryPolicy.contains("business-secret"))
 
         val reloaded = Event(
@@ -43,10 +40,11 @@ class EventRetryPolicySnapshotTest {
             nextTryTime = createdAt,
             triedTimes = 1,
             tryTimes = original.tryTimes,
-            retryPolicy = archived.retryPolicy,
+            retryPolicy = original.retryPolicy,
         )
         val retryAt = createdAt.plusMinutes(10)
 
+        assertEquals(original.retryPolicy, reloaded.retryPolicy)
         assertTrue(reloaded.beginDelivery(retryAt))
         assertEquals(retryAt.plusMinutes(7), reloaded.nextTryTime)
     }

@@ -5,6 +5,7 @@ import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextEleme
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_ID
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_PERSIST
@@ -64,6 +65,9 @@ class EventRecordImpl : EventRecord {
 
     override val payload: Any
         get() = event.payload!!
+
+    override val failure: ReliableFailureFacts?
+        get() = event.failureFacts
 
     override val executionContext: List<EncodedExecutionContextElement>
         get() = JpaExecutionContextEnvelope.decode(event.executionContext)
