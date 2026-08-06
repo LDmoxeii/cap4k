@@ -4,7 +4,6 @@ plugins {
 dependencies {
     implementation(project(":ddd-core"))
 
-    implementation(libs.fastjson)
     implementation(kotlin("reflect"))
 
     implementation(libs.spring.amqp)

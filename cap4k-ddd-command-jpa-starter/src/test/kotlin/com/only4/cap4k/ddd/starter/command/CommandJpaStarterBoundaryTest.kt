@@ -24,7 +24,6 @@ class CommandJpaStarterBoundaryTest {
                 com.only4.cap4k.ddd.core.application.command.CommandManager::class.java,
                 Locker::class.java,
                 String::class.java,
-                String::class.java,
                 com.only4.cap4k.ddd.application.command.configure.CommandScheduleProperties::class.java,
                 org.springframework.jdbc.core.JdbcTemplate::class.java,
             )

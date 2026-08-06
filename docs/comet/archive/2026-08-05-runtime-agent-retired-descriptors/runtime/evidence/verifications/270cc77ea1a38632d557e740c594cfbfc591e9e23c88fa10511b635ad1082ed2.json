@@ -1,0 +1,68 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-agent-retired-descriptors",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "77ad059a8d548bf1ba1f49e85d01203fda0270ead449608d57bae1bdd0cba802",
+  "acceptanceCriteriaHash": "0a0ddbe32d7801899fe65d26640c2adf4a8a75a5e41aaae06dd7e22dae9ac3c6",
+  "implementationScopeRef": "runtime/evidence/scopes/da288e4fdd3e494d89213403c64ad0b57301ef28448c4979f7650aa74bee648c.json",
+  "implementationScopeHash": "da288e4fdd3e494d89213403c64ad0b57301ef28448c4979f7650aa74bee648c",
+  "reportRef": "verification.md",
+  "reportHash": "16c8a10bc8a88f281c6d2716815e404237e2d0b8cbb5128115351028fb383e0e",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "0a0ddbe32d7801899fe65d26640c2adf4a8a75a5e41aaae06dd7e22dae9ac3c6",
+    "total": 4,
+    "evidenced": 4,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-01f0301fff4468d1c4b2777060bbbc8e7c06f4809667e81674e03945179f832d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6c1a4505f5489bcd53d4fe34982fd70ad919e361f6b243c32d1ba6222fe42c91",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a1cbc255d37868ad5e150da5b6a79c1c871010ef45e0bf4e4a6bcc74ecab773c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-dffe15570bb8c314f1b29d054978ee017f24ef25fe63bb9ac6d060805782f79d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+          "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "af9efc79bcf0abf1f6061c3dd896e7a4f559fbc377d4cfa3a5aecd2c053fefd1"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/99ae965841107dbe24486b0d82a92ae7b79156ee535b657d699315a961fb18cf.json",
+  "createdAt": "2026-08-05T08:00:26.507Z",
+  "envelopeHash": "270cc77ea1a38632d557e740c594cfbfc591e9e23c88fa10511b635ad1082ed2"
+}

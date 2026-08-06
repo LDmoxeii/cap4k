@@ -1,18 +1,17 @@
 package com.only4.cap4k.ddd.application.command.persistence
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.annotation.JSONField
-import com.alibaba.fastjson.parser.Feature
-import com.alibaba.fastjson.serializer.SerializerFeature
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.share.DomainException
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
+import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.annotation.Retry
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
+import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import org.slf4j.LoggerFactory
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.*
@@ -69,26 +68,9 @@ class CommandRecordEntity(
     @Column(name = "`execution_context`")
     var executionContext: String? = null,
 
-    /**
-     * 结果
-     * text
-     */
-    @Column(name = "`result`")
-    var result: String = "",
-
-    /**
-     * 结果类型
-     * varchar(255) NOT NULL DEFAULT ''
-     */
-    @Column(name = "`result_type`")
-    var resultType: String = "",
-
-    /**
-     * 执行异常
-     * text
-     */
-    @Column(name = "`exception`")
-    var exception: String? = null,
+    /** Safe structured facts for the latest failed execution attempt. */
+    @Column(name = "`failure_facts`", columnDefinition = "text")
+    var failureFactsJson: String? = null,
 
     /**
      * 过期时间
@@ -140,6 +122,10 @@ class CommandRecordEntity(
     @Column(name = "`try_times`")
     var tryTimes: Int = 0,
 
+    /** Immutable retry-policy snapshot captured when the reliable command is registered. */
+    @Column(name = "`retry_policy`", nullable = false)
+    var retryPolicy: String = "",
+
     /**
      * 数据版本（支持乐观锁）
      * int          NOT NULL DEFAULT '0'
@@ -157,13 +143,12 @@ class CommandRecordEntity(
         const val F_PARAM = "param"
         const val F_PARAM_TYPE = "paramType"
         const val F_EXECUTION_CONTEXT = "executionContext"
-        const val F_RESULT = "result"
-        const val F_RESULT_TYPE = "resultType"
-        const val F_EXCEPTION = "exception"
+        const val F_FAILURE_FACTS_JSON = "failureFactsJson"
         const val F_CREATE_AT = "createAt"
         const val F_EXPIRE_AT = "expireAt"
         const val F_COMMAND_STATE = "commandState"
         const val F_TRY_TIMES = "tryTimes"
+        const val F_RETRY_POLICY = "retryPolicy"
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
@@ -190,12 +175,11 @@ class CommandRecordEntity(
         loadCommand(commandParam)
 
         this.nextTryTime = calculateNextTryTime(scheduleAt)
-        this.result = ""
-        this.resultType = ""
     }
 
     @Transient
-    @JSONField(serialize = false)
+    @get:JsonIgnore
+    @field:JsonIgnore
     var commandParam: Command<*>? = null
         get() {
             if (field != null) {
@@ -205,10 +189,10 @@ class CommandRecordEntity(
                 val dataClass = try {
                     Class.forName(paramType)
                 } catch (e: ClassNotFoundException) {
-                    log.error("参数类型解析错误", e)
-                    throw DomainException("参数类型解析错误: $paramType", e)
+                    log.error("参数类型解析错误 failureType={}", e.javaClass.name)
+                    throw DomainException("参数类型解析错误")
                 }
-                field = JSON.parseObject(param, dataClass, Feature.SupportNonPublicField) as Command<*>
+                field = RuntimeJson.read(param, dataClass) as Command<*>
             }
             return field
         }
@@ -216,47 +200,38 @@ class CommandRecordEntity(
 
     private fun loadCommand(commandParam: Command<*>) {
         this.commandParam = commandParam
-        this.param = JSON.toJSONString(
-            commandParam,
-            SerializerFeature.IgnoreNonFieldGetter,
-            SerializerFeature.SkipTransientField
-        )
+        this.param = RuntimeJson.write(commandParam)
         this.paramType = commandParam.javaClass.name
         val retry = commandParam.javaClass.getAnnotation(Retry::class.java)
+        val policySnapshot = ReliableRetryPolicySnapshot.capture(retry, this.tryTimes)
+        this.retryPolicy = RuntimeJson.write(policySnapshot)
+        this.tryTimes = policySnapshot.retryLimit
         if (retry != null) {
-            this.tryTimes = retry.retryTimes
             this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
     }
 
     @Transient
-    @JSONField(serialize = false)
-    var commandResult: Any? = null
+    @get:JsonIgnore
+    @field:JsonIgnore
+    var failureFacts: ReliableFailureFacts? = null
         get() {
-            if (field != null) {
-                return field
-            }
-            if (resultType.isNotBlank()) {
-                val dataClass = try {
-                    Class.forName(resultType)
-                } catch (e: ClassNotFoundException) {
-                    log.error("返回类型解析错误", e)
-                    throw DomainException("返回类型解析错误: $resultType", e)
-                }
-                field = JSON.parseObject(result, dataClass, Feature.SupportNonPublicField)
+            if (field == null && !failureFactsJson.isNullOrBlank()) {
+                field = RuntimeJson.read(failureFactsJson!!, ReliableFailureFacts::class.java)
             }
             return field
         }
         private set
 
-    private fun loadCommandResult(result: Any) {
-        this.commandResult = result
-        this.result = JSON.toJSONString(
-            result,
-            SerializerFeature.IgnoreNonFieldGetter,
-            SerializerFeature.SkipTransientField
-        )
-        this.resultType = result.javaClass.name
+    private fun recordFailure(facts: ReliableFailureFacts) {
+        failureFacts = facts
+        failureFactsJson = RuntimeJson.write(facts)
+    }
+
+    private fun markFailureTerminal() {
+        val current = failureFacts ?: return
+        if (current.terminal) return
+        recordFailure(current.copy(retryable = false, terminal = true))
     }
 
     val isValid: Boolean
@@ -278,11 +253,13 @@ class CommandRecordEntity(
             // 超过重试次数
             this.triedTimes >= this.tryTimes -> {
                 this.commandState = CommandState.EXHAUSTED
+                markFailureTerminal()
                 return false
             }
             // 事件过期
             now.isAfter(this.expireAt) -> {
                 this.commandState = CommandState.EXPIRED
+                markFailureTerminal()
                 return false
             }
             // 未到下次重试时间
@@ -296,9 +273,8 @@ class CommandRecordEntity(
         return true
     }
 
-    fun endCommand(now: LocalDateTime, result: Any) {
+    fun endCommand(now: LocalDateTime) {
         this.commandState = CommandState.EXECUTED
-        loadCommandResult(result)
     }
 
     fun cancelCommand(now: LocalDateTime): Boolean {
@@ -314,27 +290,28 @@ class CommandRecordEntity(
             return
         }
         this.commandState = CommandState.EXCEPTION
-        val sw = StringWriter()
-        ex.printStackTrace(PrintWriter(sw, true))
-        this.exception = sw.toString()
+        val retryable = this.triedTimes < this.tryTimes && !now.isAfter(this.expireAt)
+        recordFailure(
+            ReliableFailureFacts.capture(
+                operation = ReliableFailureOperation.COMMAND_EXECUTION,
+                throwable = ex,
+                occurredAt = now,
+                attempt = this.triedTimes.coerceAtLeast(1),
+                correlationId = this.commandUuid,
+                retryable = retryable,
+            )
+        )
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val retry = commandParam!!.javaClass.getAnnotation(Retry::class.java)
-        if (retry == null || retry.retryIntervals.isEmpty()) {
-            return when {
-                this.triedTimes <= 10 -> now.plusMinutes(1)
-                this.triedTimes <= 20 -> now.plusMinutes(5)
-                else -> now.plusMinutes(10)
-            }
-        }
-        val index = (this.triedTimes - 1).coerceIn(0, retry.retryIntervals.lastIndex)
-        return now.plusMinutes(retry.retryIntervals[index].toLong())
+        val policySnapshot = RuntimeJson.read(retryPolicy, ReliableRetryPolicySnapshot::class.java)
+        return now.plusMinutes(policySnapshot.delayMinutesFor(this.triedTimes))
     }
 
-    override fun toString(): String {
-        return JSON.toJSONString(this, SerializerFeature.IgnoreNonFieldGetter, SerializerFeature.SkipTransientField)
-    }
+    override fun toString(): String =
+        "CommandRecord(commandUuid=$commandUuid, service=$svcName, type=$commandType, " +
+            "state=${commandState.stateName}, attempt=$triedTimes/$tryTimes, " +
+            "lastTryTime=$lastTryTime, nextTryTime=$nextTryTime, failure=$failureFacts)"
 
     enum class CommandState(val value: Int, val stateName: String) {
         /**

@@ -5,7 +5,6 @@ import com.only4.cap4k.ddd.core.application.command.CommandRecord
 import com.only4.cap4k.ddd.core.application.distributed.Locker
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -25,7 +24,6 @@ class JpaCommandScheduleServiceTest {
     private lateinit var jdbcTemplate: JdbcTemplate
 
     private val retryLockerKey = "retry-lock"
-    private val archiveLockerKey = "archive-lock"
     private val enableAddPartition = true
 
     @BeforeEach
@@ -38,7 +36,6 @@ class JpaCommandScheduleServiceTest {
             commandManager = commandManager,
             locker = locker,
             retryLockerKey = retryLockerKey,
-            archiveLockerKey = archiveLockerKey,
             enableAddPartition = enableAddPartition,
             jdbcTemplate = jdbcTemplate
         )
@@ -66,7 +63,6 @@ class JpaCommandScheduleServiceTest {
                 commandManager = commandManager,
                 locker = locker,
                 retryLockerKey = retryLockerKey,
-                archiveLockerKey = archiveLockerKey,
                 enableAddPartition = false,
                 jdbcTemplate = jdbcTemplate
             )
@@ -234,134 +230,6 @@ class JpaCommandScheduleServiceTest {
     }
 
     @Nested
-    @DisplayName("命令归档测试")
-    inner class ArchiveTest {
-
-        @Test
-        @DisplayName("应该成功执行命令归档")
-        fun `should execute command archiving successfully`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            every { commandManager.archiveByExpireAt(any(), batchSize) } returnsMany listOf(50, 30, 0)
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 3) { commandManager.archiveByExpireAt(any(), batchSize) }
-            verify { locker.release(archiveLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("当获取锁失败时应该直接返回")
-        fun `should return immediately when archive lock acquisition fails`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns false
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 0) { commandManager.archiveByExpireAt(any(), any()) }
-            verify(exactly = 0) { locker.release(any(), any()) }
-        }
-
-        @Test
-        @DisplayName("应该处理归档过程中的异常")
-        fun `should handle exceptions during archiving`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            // 模拟前3次调用都抛出异常
-            var callCount = 0
-            every {
-                commandManager.archiveByExpireAt(any(), batchSize)
-            } answers {
-                callCount++
-                if (callCount <= 3) {
-                    throw RuntimeException("Archive failed $callCount")
-                } else {
-                    0
-                }
-            }
-
-            // When
-            assertDoesNotThrow {
-                scheduleService.archive(expireDays, batchSize, maxLockDuration)
-            }
-
-            // Then - 应该在3次失败后退出
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 3) { commandManager.archiveByExpireAt(any(), batchSize) }
-            verify { locker.release(archiveLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("当没有命令需要归档时应该正常结束")
-        fun `should finish normally when no commands need archiving`() {
-            // Given
-            val expireDays = 30
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            every { commandManager.archiveByExpireAt(any(), batchSize) } returns 0
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(archiveLockerKey, any(), maxLockDuration) }
-            verify(exactly = 1) { commandManager.archiveByExpireAt(any(), batchSize) }
-            verify { locker.release(archiveLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("应该使用正确的过期时间计算")
-        fun `should use correct expire time calculation`() {
-            // Given
-            val expireDays = 7
-            val batchSize = 100
-            val maxLockDuration = Duration.ofMinutes(15)
-            val expireTimeSlot = slot<LocalDateTime>()
-
-            every { locker.acquire(archiveLockerKey, any(), maxLockDuration) } returns true
-            every {
-                commandManager.archiveByExpireAt(
-                    capture(expireTimeSlot),
-                    batchSize
-                )
-            } returns 0
-
-            // When
-            scheduleService.archive(expireDays, batchSize, maxLockDuration)
-
-            // Then
-            val capturedExpireTime = expireTimeSlot.captured
-            val expectedExpireTime = LocalDateTime.now().minusDays(expireDays.toLong())
-
-            // 允许几秒钟的误差
-            assertTrue(
-                capturedExpireTime.isAfter(expectedExpireTime.minusSeconds(5)) &&
-                        capturedExpireTime.isBefore(expectedExpireTime.plusSeconds(5))
-            )
-        }
-    }
-
-    @Nested
     @DisplayName("分区管理测试")
     inner class PartitionManagementTest {
 
@@ -372,7 +240,7 @@ class JpaCommandScheduleServiceTest {
             scheduleService.addPartition()
 
             // Then
-            verify(atLeast = 2) { jdbcTemplate.execute(any<String>()) }
+            verify(exactly = 1) { jdbcTemplate.execute(any<String>()) }
         }
 
         @Test
@@ -437,7 +305,6 @@ class JpaCommandScheduleServiceTest {
                 commandManager = commandManager,
                 locker = locker,
                 retryLockerKey = retryLockerKey,
-                archiveLockerKey = archiveLockerKey,
                 enableAddPartition = false,
                 jdbcTemplate = jdbcTemplate
             )
@@ -460,8 +327,8 @@ class JpaCommandScheduleServiceTest {
             scheduleService.addPartition()
 
             // Then
-            assertTrue(sqlCapture.any { it.contains("__command") })
-            assertTrue(sqlCapture.any { it.contains("__archived_command") })
+            assertEquals(1, sqlCapture.size)
+            assertTrue(sqlCapture.single().contains("__command"))
         }
     }
 
@@ -475,50 +342,38 @@ class JpaCommandScheduleServiceTest {
             // Given
             every { locker.acquire(any(), any(), any()) } returns true
             every { commandManager.getByNextTryTime(any(), any()) } returns emptyList()
-            every { commandManager.archiveByExpireAt(any(), any()) } returns 0
 
-            // When - 初始化
+            // When
             scheduleService.init()
-
-            // Then - 执行补偿
             scheduleService.retry(10, Duration.ofMinutes(5), Duration.ofMinutes(10))
 
-            // And - 执行归档
-            scheduleService.archive(30, 100, Duration.ofMinutes(15))
-
-            // Then - 验证所有操作都被执行
-            verify(atLeast = 1) { jdbcTemplate.execute(any<String>()) }
-            verify(exactly = 2) { locker.acquire(any(), any(), any()) }
+            // Then
+            verify(exactly = 1) { jdbcTemplate.execute(any<String>()) }
+            verify(exactly = 1) { locker.acquire(any(), any(), any()) }
             verify { commandManager.getByNextTryTime(any(), any()) }
-            verify { commandManager.archiveByExpireAt(any(), any()) }
-            verify(exactly = 2) { locker.release(any(), any()) }
+            verify(exactly = 1) { locker.release(any(), any()) }
         }
 
         @Test
         @DisplayName("复杂场景下的服务行为测试")
         fun `should handle service behavior in complex scenarios`() {
-            // Given - 模拟复杂的执行场景
+            // Given
             val mockCommandRecords = listOf(
                 createMockCommandRecord("urgent-command-1"),
                 createMockCommandRecord("normal-command-2"),
                 createMockCommandRecord("low-priority-command-3")
             )
-
             every { locker.acquire(retryLockerKey, any(), any()) } returns true
-            every { locker.acquire(archiveLockerKey, any(), any()) } returns true
             every {
                 commandManager.getByNextTryTime(any(), any())
             } returnsMany listOf(mockCommandRecords, emptyList())
-            every { commandManager.archiveByExpireAt(any(), any()) } returnsMany listOf(100, 50, 0)
 
-            // When - 执行完整的调度周期
+            // When
             scheduleService.init()
             scheduleService.retry(10, Duration.ofMinutes(5), Duration.ofMinutes(10))
-            scheduleService.archive(30, 100, Duration.ofMinutes(15))
 
-            // Then - 验证所有命令都被正确处理
+            // Then
             verify(exactly = 3) { commandManager.resume(any(), any()) }
-            verify(exactly = 3) { commandManager.archiveByExpireAt(any(), any()) }
         }
     }
 
@@ -548,25 +403,6 @@ class JpaCommandScheduleServiceTest {
             assertTrue(duration < 5000) // 应该在5秒内完成
         }
 
-        @Test
-        @DisplayName("大批量命令归档性能测试")
-        fun `should handle large batch archiving efficiently`() {
-            // Given
-            val batchSize = 1000
-            val archiveCount = 500
-
-            every { locker.acquire(archiveLockerKey, any(), any()) } returns true
-            every { commandManager.archiveByExpireAt(any(), batchSize) } returnsMany listOf(archiveCount, 0)
-
-            // When
-            val startTime = System.currentTimeMillis()
-            scheduleService.archive(30, batchSize, Duration.ofMinutes(15))
-            val duration = System.currentTimeMillis() - startTime
-
-            // Then
-            verify(exactly = 2) { commandManager.archiveByExpireAt(any(), batchSize) }
-            assertTrue(duration < 3000) // 应该在3秒内完成
-        }
 
         @Test
         @DisplayName("高并发分区创建性能测试")
@@ -612,19 +448,6 @@ class JpaCommandScheduleServiceTest {
             }
         }
 
-        @Test
-        @DisplayName("应该处理负数过期天数")
-        fun `should handle negative expire days`() {
-            // Given
-            val expireDays = -1
-            every { locker.acquire(archiveLockerKey, any(), any()) } returns true
-            every { commandManager.archiveByExpireAt(any(), any()) } returns 0
-
-            // When & Then
-            assertDoesNotThrow {
-                scheduleService.archive(expireDays, 100, Duration.ofMinutes(15))
-            }
-        }
 
         @Test
         @DisplayName("应该处理极短的锁持有时间")

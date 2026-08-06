@@ -1,0 +1,58 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "runtime-jackson-only",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "41f4f0c47074613b15d0aa2d481a204fecc1d01b0ef569a42d4ab18fe1662e3c",
+  "status": "failed",
+  "startedAt": "2026-08-05T04:14:10.977Z",
+  "endedAt": "2026-08-05T04:14:17.095Z",
+  "contract": {
+    "expectedHash": "d8ad9bafb79deafa8f4d04a5b8a3b8fcc8896d4bb8f6663cf39828f34283bb6d",
+    "beforeHash": "d8ad9bafb79deafa8f4d04a5b8a3b8fcc8896d4bb8f6663cf39828f34283bb6d",
+    "afterHash": "d8ad9bafb79deafa8f4d04a5b8a3b8fcc8896d4bb8f6663cf39828f34283bb6d"
+  },
+  "implementation": {
+    "scopeHash": "5f84bd85adfc53e85a224ec9d68b107d36e9d17cd0954792ad6db236104d15d8",
+    "expectedSnapshotHash": "bf81153da09da78c3ddb3ded00720a215707f2ec4d67d1bc06e5e5ed6de8af83",
+    "beforeSnapshotHash": "7e7a6d29d26946aa6a0d45d1d69fa9adb727db3cf0135246f461b45200a8bb56",
+    "afterSnapshotHash": "7e7a6d29d26946aa6a0d45d1d69fa9adb727db3cf0135246f461b45200a8bb56"
+  },
+  "counts": {
+    "filesSelected": 37,
+    "filesScanned": 35,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 196568,
+    "issueCount": 2,
+    "recordedIssueCount": 2
+  },
+  "issues": [
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt",
+      "line": 1,
+      "kind": "scope-mismatch"
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt",
+      "line": 1,
+      "kind": "scope-mismatch"
+    }
+  ],
+  "issuesTruncated": false,
+  "stale": true,
+  "staleReasons": [
+    "implementation-before-does-not-match-scope",
+    "implementation-after-does-not-match-scope"
+  ],
+  "receiptHash": "5f3c3ef90a84c16930b47c07b94c8813f629cf582e1732f4d410c8b502489cc6"
+}

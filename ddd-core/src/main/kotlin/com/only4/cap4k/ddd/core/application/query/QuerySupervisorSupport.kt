@@ -11,4 +11,8 @@ object QuerySupervisorSupport {
     fun configure(supervisor: QuerySupervisor) {
         slot.configure(supervisor)
     }
+
+    fun release(supervisor: QuerySupervisor) {
+        slot.release(supervisor)
+    }
 }

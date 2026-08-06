@@ -6,7 +6,6 @@ interface CommandManager {
     fun resume(command: CommandRecord, minNextTryTime: LocalDateTime)
     fun retry(id: String)
     fun getByNextTryTime(maxNextTryTime: LocalDateTime, limit: Int): List<CommandRecord>
-    fun archiveByExpireAt(maxExpireAt: LocalDateTime, limit: Int): Int
 
     companion object {
         @JvmStatic

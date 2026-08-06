@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.application.command
 
-import com.only4.cap4k.ddd.application.command.persistence.ArchivedCommandRecordEntity
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
@@ -14,7 +13,7 @@ import java.time.LocalDateTime
 
 class CommandExecutionContextPersistenceTest {
     @Test
-    fun `payload and context are stored separately and archive preserves the original envelope`() {
+    fun `payload and context are stored separately`() {
         val context = listOf(EncodedExecutionContextElement("actor", 2, "user-7"))
         val record = CommandRecordImpl().apply {
             init(
@@ -31,8 +30,6 @@ class CommandExecutionContextPersistenceTest {
         assertEquals(context, record.executionContext)
         assertNotEquals(record.entity.param, record.entity.executionContext)
 
-        val archived = ArchivedCommandRecordEntity().archiveFrom(record.entity)
-        assertEquals(record.entity.executionContext, archived.executionContext)
     }
 
     @Test

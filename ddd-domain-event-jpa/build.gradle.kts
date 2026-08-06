@@ -7,7 +7,6 @@ dependencies {
     implementation(project(":ddd-core"))
 
     // Implementation dependencies
-    implementation(libs.fastjson)
     implementation(kotlin("reflect"))
 
     // Compile-only dependencies

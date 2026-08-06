@@ -24,9 +24,6 @@ interface CommandSupervisor {
     fun <COMMAND : Command<RESULT>, RESULT : Any> delay(command: COMMAND, delay: Duration): String =
         schedule(command, LocalDateTime.now().plus(delay))
 
-    fun <RESULT : Any> result(commandId: String): RESULT? =
-        ReliableCommandSupervisor.instance.result(commandId)
-
     companion object {
         @JvmStatic
         val instance: CommandSupervisor

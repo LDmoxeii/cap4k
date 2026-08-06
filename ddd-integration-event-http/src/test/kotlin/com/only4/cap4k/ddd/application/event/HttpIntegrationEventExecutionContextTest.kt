@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -57,7 +57,7 @@ class HttpIntegrationEventExecutionContextTest {
             eventId = "event-123",
             eventName = "context.transport.event",
             publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-            payloadJsonStr = JSON.toJSONString(ContextTransportEvent("payload")),
+            payloadJsonStr = RuntimeJson.write(ContextTransportEvent("payload")),
             headers = mapOf(HEADER_KEY_CAP4K_EXECUTION_CONTEXT.uppercase() to envelope),
         )
 

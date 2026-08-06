@@ -1,20 +1,19 @@
 package com.only4.cap4k.ddd.domain.event.persistence
 
-import com.alibaba.fastjson.JSON
-import com.alibaba.fastjson.annotation.JSONField
-import com.alibaba.fastjson.parser.Feature
-import com.alibaba.fastjson.serializer.SerializerFeature.IgnoreNonFieldGetter
-import com.alibaba.fastjson.serializer.SerializerFeature.SkipTransientField
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventPayloadValidator
 import com.only4.cap4k.ddd.core.share.DomainException
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
+import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.annotation.Retry
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
+import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
 import org.slf4j.LoggerFactory
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.ZoneOffset
@@ -73,12 +72,9 @@ class Event(
     @Column(name = "`execution_context`")
     var executionContext: String? = null,
 
-    /**
-     * 异常信息
-     * text (nullable)
-     */
-    @Column(name = "`exception`")
-    var exception: String? = null,
+    /** Safe structured facts for the latest failed delivery attempt. */
+    @Column(name = "`failure_facts`", columnDefinition = "text")
+    var failureFactsJson: String? = null,
 
     /**
      * 过期时间
@@ -134,6 +130,10 @@ class Event(
     @Column(name = "`try_times`")
     var tryTimes: Int = 0,
 
+    /** Immutable retry-policy snapshot captured when the reliable event is registered. */
+    @Column(name = "`retry_policy`", nullable = false)
+    var retryPolicy: String = "",
+
     /**
      * 数据版本（支持乐观锁）
      * int          NOT NULL DEFAULT '0'
@@ -151,12 +151,13 @@ class Event(
         const val F_DATA = "data"
         const val F_DATA_TYPE = "dataType"
         const val F_EXECUTION_CONTEXT = "executionContext"
-        const val F_EXCEPTION = "exception"
+        const val F_FAILURE_FACTS_JSON = "failureFactsJson"
         const val F_CREATE_AT = "createAt"
         const val F_PUBLISHED_AT = "publishedAt"
         const val F_EXPIRE_AT = "expireAt"
         const val F_EVENT_STATE = "eventState"
         const val F_TRY_TIMES = "tryTimes"
+        const val F_RETRY_POLICY = "retryPolicy"
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
@@ -185,7 +186,8 @@ class Event(
     }
 
     @Transient
-    @JSONField(serialize = false)
+    @get:JsonIgnore
+    @field:JsonIgnore
     var payload: Any? = null
         get() {
             if (field != null) {
@@ -195,32 +197,62 @@ class Event(
                 val dataClass: Class<*> = try {
                     Class.forName(dataType)
                 } catch (e: ClassNotFoundException) {
-                    log.error("事件类型解析错误", e)
-                    throw DomainException("事件数据类型解析错误: $dataType", e)
+                    log.error("事件类型解析错误 failureType={}", e.javaClass.name)
+                    throw DomainException("事件数据类型解析错误")
                 }
-                field = JSON.parseObject(data, dataClass, Feature.SupportNonPublicField)
+                field = RuntimeJson.read(data, dataClass)
             } else throw DomainException("事件数据类型未指定")
             return field
         }
         private set
 
-    private fun loadPayload(payload: Any) {
-        this.payload = payload
-        this.data = JSON.toJSONString(payload, IgnoreNonFieldGetter, SkipTransientField)
-        this.dataType = payload.javaClass.name
+    @Transient
+    @get:JsonIgnore
+    @field:JsonIgnore
+    var failureFacts: ReliableFailureFacts? = null
+        get() {
+            if (field == null && !failureFactsJson.isNullOrBlank()) {
+                field = RuntimeJson.read(failureFactsJson!!, ReliableFailureFacts::class.java)
+            }
+            return field
+        }
+        private set
 
+    private fun recordFailure(facts: ReliableFailureFacts) {
+        failureFacts = facts
+        failureFactsJson = RuntimeJson.write(facts)
+    }
+
+    private fun markFailureTerminal() {
+        val current = failureFacts ?: return
+        if (current.terminal) return
+        recordFailure(current.copy(retryable = false, terminal = true))
+    }
+
+    private fun loadPayload(payload: Any) {
         val integrationEvent = payload.javaClass.getAnnotation(IntegrationEvent::class.java)
         val domainEvent = payload.javaClass.getAnnotation(DomainEvent::class.java)
+
+        if (integrationEvent == null && domainEvent == null) {
+            throw DomainException("事件类型未指定: ${payload.javaClass.name}")
+        }
+        DomainEventPayloadValidator.validate(payload)
+
+        this.payload = payload
+        this.data = RuntimeJson.write(payload)
+        this.dataType = payload.javaClass.name
 
         this.eventType = when {
             integrationEvent != null -> integrationEvent.value
             domainEvent != null -> domainEvent.value
-            else -> throw DomainException("事件类型未指定: ${payload.javaClass.name}")
+            else -> error("unreachable")
         }
 
         val retry = payload.javaClass.getAnnotation(Retry::class.java)
+        val policySnapshot = ReliableRetryPolicySnapshot.capture(retry, this.tryTimes)
+        this.retryPolicy = RuntimeJson.write(policySnapshot)
+        this.tryTimes = policySnapshot.retryLimit
         if (retry != null) {
-            this.tryTimes = retry.retryTimes
             this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
     }
@@ -244,11 +276,13 @@ class Event(
             // 超过重试次数
             this.triedTimes >= this.tryTimes -> {
                 this.eventState = EventState.EXHAUSTED
+                markFailureTerminal()
                 return false
             }
             // 事件过期
             now.isAfter(this.expireAt) -> {
                 this.eventState = EventState.EXPIRED
+                markFailureTerminal()
                 return false
             }
             // 未到下次重试时间
@@ -277,27 +311,28 @@ class Event(
             return@apply
         }
         this.eventState = EventState.EXCEPTION
-        val sw = StringWriter()
-        ex.printStackTrace(PrintWriter(sw, true))
-        this.exception = sw.toString()
+        val retryable = this.triedTimes < this.tryTimes && !now.isAfter(this.expireAt)
+        recordFailure(
+            ReliableFailureFacts.capture(
+                operation = ReliableFailureOperation.EVENT_DELIVERY,
+                throwable = ex,
+                occurredAt = now,
+                attempt = this.triedTimes.coerceAtLeast(1),
+                correlationId = this.eventUuid,
+                retryable = retryable,
+            )
+        )
     }
 
     private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val retry = payload!!.javaClass.getAnnotation(Retry::class.java)
-        if (retry == null || retry.retryIntervals.isEmpty()) {
-            return when {
-                this.triedTimes <= 10 -> now.plusMinutes(1)
-                this.triedTimes <= 20 -> now.plusMinutes(5)
-                else -> now.plusMinutes(10)
-            }
-        }
-        val index = (this.triedTimes - 1).coerceIn(0, retry.retryIntervals.lastIndex)
-        return now.plusMinutes(retry.retryIntervals[index].toLong())
+        val policySnapshot = RuntimeJson.read(retryPolicy, ReliableRetryPolicySnapshot::class.java)
+        return now.plusMinutes(policySnapshot.delayMinutesFor(this.triedTimes))
     }
 
-    override fun toString(): String {
-        return JSON.toJSONString(this, IgnoreNonFieldGetter, SkipTransientField)
-    }
+    override fun toString(): String =
+        "EventRecord(eventUuid=$eventUuid, service=$svcName, type=$eventType, " +
+            "state=${eventState.stateName}, attempt=$triedTimes/$tryTimes, " +
+            "lastTryTime=$lastTryTime, nextTryTime=$nextTryTime, failure=$failureFacts)"
 
     enum class EventState(val value: Int, val stateName: String) {
         /**

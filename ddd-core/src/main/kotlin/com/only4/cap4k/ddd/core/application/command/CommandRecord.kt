@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.application.command
 
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -19,7 +20,7 @@ interface CommandRecord {
     val type: String
     val command: Command<*>
     val executionContext: List<EncodedExecutionContextElement>
-    fun <RESULT : Any> getResult(): RESULT?
+    val failure: ReliableFailureFacts?
     val scheduleTime: LocalDateTime
     val nextTryTime: LocalDateTime
     val isValid: Boolean
@@ -28,6 +29,6 @@ interface CommandRecord {
     val isExecuted: Boolean
     fun beginCommand(now: LocalDateTime): Boolean
     fun cancelCommand(now: LocalDateTime): Boolean
-    fun endCommand(now: LocalDateTime, result: Any)
+    fun endCommand(now: LocalDateTime)
     fun occurredException(now: LocalDateTime, throwable: Throwable)
 }

@@ -1,0 +1,19 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b8d71302-e75f-4d18-88b8-1e00192d4dc6",
+  "kind": "archive",
+  "status": "committed",
+  "change": "implement-runtime-provider-composition",
+  "createdAt": "2026-08-05T09:49:11.516Z",
+  "preflightHash": "b044eae9102fdcfac6aa9e179bc581595a4090395faf26f6d0a7c695b51e846e",
+  "operations": [
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/implement-runtime-provider-composition",
+      "target": "archive/2026-08-05-implement-runtime-provider-composition",
+      "expectedSourceHash": "7a33a7adf1065a2edf29e94d38084b9908a450d04a3c6fcee35e09077a097aac",
+      "expectedTargetHash": null
+    }
+  ]
+}

@@ -8,13 +8,18 @@ import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextAccessor
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
+import com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.query.QueryHandler
 import com.only4.cap4k.ddd.core.application.query.QueryExecution
@@ -26,9 +31,15 @@ import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.Mockito.mock
+import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.context.ApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.EventListener
+import java.time.LocalDateTime
 
 class CoreStarterAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
@@ -50,6 +61,7 @@ class CoreStarterAutoConfigurationTest {
     fun `core starter provides distinct application dispatchers uuid7 ioc and local event without reliable stores`() {
         contextRunner.run { context ->
             assertTrue(context.startupFailure == null)
+            assertTrue(IntegrationEventSupervisorSupport.managerOrNull() == null)
             assertTrue(context.getBeansOfType(CommandRecordRepository::class.java).isEmpty())
             assertEquals(1, context.getBeansOfType(EventHandlerDispatcher::class.java).size)
             assertSame(
@@ -110,9 +122,102 @@ class CoreStarterAutoConfigurationTest {
             .run { context ->
                 val failure = requireNotNull(context.startupFailure).stackTraceToString()
                 assertTrue(failure.contains("cap4k provider 'commands' requires exactly one implementation"))
-                assertTrue(failure.contains("commandA"))
-                assertTrue(failure.contains("commandB"))
+                assertTrue(failure.contains("found [commandA, commandB]"))
             }
+    }
+
+    @Test
+    fun `runtime binder fails startup when a required provider is missing`() {
+        ApplicationContextRunner()
+            .withUserConfiguration(MissingRequiredProviderConfiguration::class.java)
+            .run { context ->
+                val failure = requireNotNull(context.startupFailure).stackTraceToString()
+                assertTrue(failure.contains("cap4k provider 'identifiers' requires exactly one implementation"))
+                assertTrue(failure.contains("found []"))
+            }
+    }
+
+    @Test
+    fun `optional integration event manager conflict fails instead of degrading to absent`() {
+        contextRunner
+            .withBean("integrationManagerB", TestIntegrationEventManager::class.java)
+            .withBean("integrationManagerA", TestIntegrationEventManager::class.java)
+            .run { context ->
+                val failure = requireNotNull(context.startupFailure).stackTraceToString()
+                assertTrue(failure.contains("cap4k provider 'integration-event-manager' allows at most one implementation"))
+                assertTrue(failure.contains("found [integrationManagerA, integrationManagerB]"))
+            }
+    }
+
+    @Test
+    fun `optional reliable domain event provider conflict reports sorted bean identities`() {
+        contextRunner
+            .withBean("reliableProviderB", TestReliableDomainEventProvider::class.java)
+            .withBean("reliableProviderA", TestReliableDomainEventProvider::class.java)
+            .run { context ->
+                val failure = requireNotNull(context.startupFailure).stackTraceToString()
+                assertTrue(failure.contains("cap4k provider 'reliable-domain-events' allows at most one implementation"))
+                assertTrue(failure.contains("found [reliableProviderA, reliableProviderB]"))
+            }
+    }
+
+    @Test
+    fun `optional repository provider conflict reports sorted bean identities`() {
+        contextRunner
+            .withInitializer { context ->
+                context.beanFactory.registerSingleton("repositoryB", mock(RepositorySupervisor::class.java))
+                context.beanFactory.registerSingleton("repositoryA", mock(RepositorySupervisor::class.java))
+            }
+            .run { context ->
+                val failure = requireNotNull(context.startupFailure).stackTraceToString()
+                assertTrue(failure.contains("cap4k provider 'repositories' allows at most one implementation"))
+                assertTrue(failure.contains("found [repositoryA, repositoryB]"))
+            }
+    }
+
+    @Test
+    fun `one optional provider is bound for the context and released on close`() {
+        contextRunner
+            .withBean("integrationManager", TestIntegrationEventManager::class.java)
+            .run { context ->
+                assertTrue(context.startupFailure == null)
+                assertSame(
+                    context.getBean("integrationManager", IntegrationEventManager::class.java),
+                    IntegrationEventSupervisorSupport.manager,
+                )
+            }
+
+        assertTrue(IntegrationEventSupervisorSupport.managerOrNull() == null)
+    }
+
+    @Test
+    fun `provider registrations are released between sequential application contexts`() {
+        contextRunner.run { first ->
+            assertTrue(first.startupFailure == null)
+            assertEquals(first, Mediator.ioc)
+        }
+
+        contextRunner.run { second ->
+            assertTrue(second.startupFailure == null)
+            assertEquals(second, Mediator.ioc)
+        }
+    }
+
+    @Test
+    fun `a second active context cannot replace registry providers owned by the first`() {
+        contextRunner.run { first ->
+            assertTrue(first.startupFailure == null)
+            assertEquals(first, Mediator.ioc)
+
+            contextRunner.run { second ->
+                val failure = requireNotNull(second.startupFailure).stackTraceToString()
+                assertTrue(failure.contains("cap4k provider 'ioc' is already configured"))
+                assertTrue(failure.contains("cannot register"))
+                assertEquals(first, Mediator.ioc)
+            }
+
+            assertEquals(first, Mediator.ioc)
+        }
     }
 
     data class TestCommand(val value: String) : Command<String>
@@ -156,6 +261,18 @@ class CoreStarterAutoConfigurationTest {
             error("not invoked")
     }
 
+    class TestIntegrationEventManager : IntegrationEventManager {
+        override fun release() = Unit
+    }
+
+    class TestReliableDomainEventProvider : ReliableDomainEventProvider {
+        override fun publish(
+            eventPayload: Any,
+            schedule: LocalDateTime,
+            executionContext: ExecutionContextSnapshot,
+        ) = Unit
+    }
+
     @DomainEvent
     data class TestEvent(val value: String)
 
@@ -172,5 +289,14 @@ class CoreStarterAutoConfigurationTest {
 
         @EventListener
         fun onIntegration(event: TestIntegrationEvent) = Unit
+    }
+
+    @Configuration(proxyBeanMethods = false)
+    class MissingRequiredProviderConfiguration {
+        @Bean
+        fun runtimeProviderBinder(
+            applicationContext: ApplicationContext,
+            beanFactory: ListableBeanFactory,
+        ): RuntimeProviderBinder = RuntimeProviderBinder(applicationContext, beanFactory)
     }
 }

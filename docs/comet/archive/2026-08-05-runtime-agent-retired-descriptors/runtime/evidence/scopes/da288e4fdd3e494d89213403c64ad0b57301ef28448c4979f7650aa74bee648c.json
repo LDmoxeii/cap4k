@@ -1,0 +1,102 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "77ad059a8d548bf1ba1f49e85d01203fda0270ead449608d57bae1bdd0cba802",
+  "baselineProjectionRef": "runtime/evidence/snapshots/ce28756e3c25e10f76869bda3b3035ec0e47dd7a3639f31a0de97b2c1803dac9.json",
+  "baselineProjectionHash": "ce28756e3c25e10f76869bda3b3035ec0e47dd7a3639f31a0de97b2c1803dac9",
+  "currentProjectionRef": "runtime/evidence/snapshots/1c9bb98360241d1e8522ad461fa38c46d2c7d9b05416979fe0457f85302abb20.json",
+  "currentProjectionHash": "1c9bb98360241d1e8522ad461fa38c46d2c7d9b05416979fe0457f85302abb20",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "c2068ca5482f51f0546e1c7794fc443eb33464a9e14f7f5178ddcc5ded91bad9",
+        "size": 10259
+      },
+      "after": {
+        "hash": "b44de614e0fe199de2f61118cc5f0bddbf560d6d3cc3cfabba25f9d6cb9f121b",
+        "size": 10326
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "39d2517126b210927027efe66d9e38941408bd02f8d01135fbd9b5736d7dfb12",
+        "size": 1290
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "8a9a31561b3068cc809f6f517060f680417114bec239a9d62c382bfeaa367634",
+        "size": 8544
+      },
+      "after": {
+        "hash": "6d3f5982bc365d3a1b322af1463d1934afd3e8aef64d7e6cf1110fbcc798e00a",
+        "size": 10481
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "2064e4cad554a7d0010c06d84c5f6f4a8715a578703f39d161a9dab9cba20836",
+        "size": 4322
+      },
+      "after": {
+        "hash": "e526944c3a0e82685f2129bcf58d0f6f02c650483c189d12a79b80ab2ba38799",
+        "size": 6221
+      },
+      "attributedTo": [
+        {
+          "path": "scripts/validate-current-runtime-facts.ps1",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "da288e4fdd3e494d89213403c64ad0b57301ef28448c4979f7650aa74bee648c"
+}

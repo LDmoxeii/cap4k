@@ -26,12 +26,20 @@ object DomainEventSupervisorSupport {
         supervisorSlot.configure(domainEventSupervisor)
     }
 
+    fun release(domainEventSupervisor: DomainEventSupervisor) {
+        supervisorSlot.release(domainEventSupervisor)
+    }
+
     /**
      * 配置领域事件发布管理器
      * @param domainEventManager [DomainEventManager]
      */
     fun configure(domainEventManager: DomainEventManager) {
         managerSlot.configure(domainEventManager)
+    }
+
+    fun release(domainEventManager: DomainEventManager) {
+        managerSlot.release(domainEventManager)
     }
 
     /**

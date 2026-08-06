@@ -29,10 +29,26 @@ internal class ProviderSlot<T : Any>(
 
     fun getOrNull(): T? = provider
 
+    @Synchronized
     fun configure(provider: T) {
+        val configured = this.provider
+        if (configured != null) {
+            error(
+                "cap4k provider '$providerName' is already configured by ${configured.javaClass.name}; " +
+                    "cannot register ${provider.javaClass.name}"
+            )
+        }
         this.provider = provider
     }
 
+    @Synchronized
+    fun release(provider: T) {
+        if (this.provider === provider) {
+            this.provider = null
+        }
+    }
+
+    @Synchronized
     fun reset() {
         provider = null
     }

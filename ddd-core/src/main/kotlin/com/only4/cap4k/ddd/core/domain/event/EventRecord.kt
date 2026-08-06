@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event
 
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import org.springframework.messaging.Message
 import java.time.Duration
 import java.time.Instant
@@ -47,6 +48,9 @@ interface EventRecord {
      * @return
      */
     val payload: Any
+
+    /** Safe structured facts for the latest failed reliable delivery attempt. */
+    val failure: ReliableFailureFacts?
 
     /** Encoded origin attribution retained unchanged by the durable record. */
     val executionContext: List<EncodedExecutionContextElement>

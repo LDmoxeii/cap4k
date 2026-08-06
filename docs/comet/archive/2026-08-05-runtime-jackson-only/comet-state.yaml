@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: runtime-jackson-only
+language: zh-CN
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: d8ad9bafb79deafa8f4d04a5b8a3b8fcc8896d4bb8f6663cf39828f34283bb6d
+spec_changes:
+  - capability: runtime-jackson-only
+    operation: create
+    source: specs/runtime-jackson-only/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/02b4d4a8e72c22bed9457ab439ebee9d49d50f9ac4b9f1ec8c66478594139b2d.json
+verification_evidence: runtime/evidence/verifications/ab343068c3d92b2d7cd7ad9a2b5560aae38e9ccef75b1871bae48c81a858a08f.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-05
+run_id: 3cd2d827-8f6e-4848-9ec9-56239d075fcd

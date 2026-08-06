@@ -1,0 +1,114 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-jackson-only",
+  "sourceRevision": 5,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "d8ad9bafb79deafa8f4d04a5b8a3b8fcc8896d4bb8f6663cf39828f34283bb6d",
+  "acceptanceCriteriaHash": "df24ac46152848818b67217a6da58ec3d2dd1762b3750556f18c028165959765",
+  "implementationScopeRef": "runtime/evidence/scopes/02b4d4a8e72c22bed9457ab439ebee9d49d50f9ac4b9f1ec8c66478594139b2d.json",
+  "implementationScopeHash": "02b4d4a8e72c22bed9457ab439ebee9d49d50f9ac4b9f1ec8c66478594139b2d",
+  "reportRef": "verification.md",
+  "reportHash": "15b4570636a95d215fe04a30fcc9a1380615bc872eb27a56c17465468a2f5358",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "df24ac46152848818b67217a6da58ec3d2dd1762b3750556f18c028165959765",
+    "total": 6,
+    "evidenced": 6,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-1ab18e6d1c8e08c3bbdb348c72672de4e6770c1d0815d414091fe8039b91189b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DomainEventPayloadValidator.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJson.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJsonTest.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4e465b8105c97cf5bfba60c36ec68fb2da45744fa018a02aeebebfd8a347099a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJson.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJsonTest.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c0f7aacbe58d2659ac246d115c466f3fad982e1e8d7ee41e0c3fd31b4a004676",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/IntegrationEventExecutionContextEnvelope.kt",
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventExecutionContextTest.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapter.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c1d888a963d8f7ac9f28a9703bb3b9ddd89195afc80d51b3c18e5ab15ba7328b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/CommandExecutionContextPersistenceTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJsonTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventExecutionContextPersistenceTest.kt",
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventDeliveryContextTest.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventExecutionContextTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventExecutionContextTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-de4058df69d982290c78e9d710bb56bb91eb929f05715f84c6c3a4e87a8d1281",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJson.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/json/RuntimeJsonTest.kt",
+          "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/capabilities/IntegrationEventHttpCallbackTriggerCapability.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapter.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ef12aa9cf74cb3ec94c596d4f536dde7d23f58857925d61fbc5a103f33b54952",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-http-starter/build.gradle.kts",
+          "ddd-application-command-jpa/build.gradle.kts",
+          "ddd-core/build.gradle.kts",
+          "ddd-domain-event-jpa/build.gradle.kts",
+          "ddd-integration-event-http-jpa/build.gradle.kts",
+          "ddd-integration-event-http/build.gradle.kts",
+          "ddd-integration-event-rabbitmq/build.gradle.kts",
+          "ddd-integration-event-rocketmq/build.gradle.kts",
+          "gradle/libs.versions.toml",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "3579413513f39fe6fa91c184218831b1d3f8eea0e6216a108dfcd9ea3e531365"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/80975d080ab4af641f3485c22664d21b8e8a2b83293fbf4a0431a6bc16a24579.json",
+  "createdAt": "2026-08-05T04:27:44.886Z",
+  "envelopeHash": "ab343068c3d92b2d7cd7ad9a2b5560aae38e9ccef75b1871bae48c81a858a08f"
+}

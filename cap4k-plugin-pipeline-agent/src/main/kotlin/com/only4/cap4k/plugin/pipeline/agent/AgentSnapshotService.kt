@@ -64,6 +64,7 @@ class AgentSnapshotService {
     private fun normalizeDescriptors(
         descriptors: List<PipelineCapabilityDescriptor>,
     ): List<PipelineCapabilityDescriptor> {
+        RetiredRuntimeDescriptorPolicy.requireActive(descriptors)
         val duplicateCapabilityId = descriptors
             .groupingBy(PipelineCapabilityDescriptor::capabilityId)
             .eachCount()

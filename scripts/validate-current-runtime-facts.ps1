@@ -27,6 +27,35 @@ $retiredTerms = [ordered]@{
     'Snowflake policy' = '\bidentifier\.snowflake\b'
     'Worker-ID capability' = '\bWorker-?ID\b|\b__worker_id\b|\bworker_id\.sql\b'
 }
+$allowedRetiredTermsByPath = @{
+    # These active Runtime contract specs intentionally name the retired boundary they define.
+    # Keep this allowlist exact: new current-facts docs must still fail until their historical
+    # wording is reviewed explicitly.
+    'docs/comet/specs/runtime-agent-api-facts/spec.md' = @('Snowflake capability')
+    'docs/comet/specs/runtime-agent-retired-descriptors/spec.md' = @('Snowflake capability')
+    'docs/comet/specs/runtime-handler-contract/spec.md' = @('EventSubscriber<T>')
+    'docs/comet/specs/runtime-roadmap/spec.md' = @('EventSubscriber<T>', 'Snowflake capability')
+    'docs/comet/specs/runtime-surface-cleanup/spec.md' = @('Snowflake capability')
+}
+
+$expectedRetiredDescriptorIdentities = @('console', 'locker', 'saga', 'snowflake')
+$retiredDescriptorPolicyFile = Join-Path $repoRoot 'cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt'
+$retiredDescriptorPolicyText = Get-Content -LiteralPath $retiredDescriptorPolicyFile -Raw -Encoding UTF8
+$declaredRetiredDescriptorIdentities = [regex]::Matches(
+    $retiredDescriptorPolicyText,
+    '(?m)^\s*"([a-z][a-z0-9-]*)",\s*$'
+) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if (Compare-Object $expectedRetiredDescriptorIdentities $declaredRetiredDescriptorIdentities) {
+    throw ('Retired Runtime descriptor policy must declare exactly: ' + ($expectedRetiredDescriptorIdentities -join ', ') + '.')
+}
+
+$descriptorSourceFiles = Get-ChildItem -LiteralPath $repoRoot -Directory |
+    ForEach-Object {
+        $sourceRoot = Join-Path $_.FullName 'src/main/kotlin'
+        if (Test-Path -LiteralPath $sourceRoot -PathType Container) {
+            Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.kt'
+        }
+    }
 
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
 foreach ($relativeDirectory in $currentDirectories) {
@@ -50,6 +79,9 @@ foreach ($file in $files) {
     $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
     foreach ($entry in $retiredTerms.GetEnumerator()) {
         if ($text -match $entry.Value) {
+            if ($allowedRetiredTermsByPath.ContainsKey($relativePath) -and $entry.Key -in $allowedRetiredTermsByPath[$relativePath]) {
+                continue
+            }
             if ($entry.Key -eq 'Console module' -and $relativePath -eq 'docs/comet/specs/runtime-console-retirement/spec.md') {
                 continue
             }
@@ -65,7 +97,31 @@ foreach ($file in $files) {
             ) {
                 continue
             }
+            if (
+                $relativePath -eq 'docs/comet/specs/runtime-jackson-only/spec.md' -and
+                $entry.Key -in @(
+                    'EventSubscriber<T>',
+                    'Snowflake capability'
+                )
+            ) {
+                continue
+            }
             $violations.Add("${relativePath}: retired runtime term '$($entry.Key)'")
+        }
+    }
+}
+
+foreach ($file in $descriptorSourceFiles) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
+    foreach ($identity in $expectedRetiredDescriptorIdentities) {
+        $escapedIdentity = [regex]::Escape($identity)
+        $descriptorPatterns = @(
+            ('\b(?:capabilityId|providerId)\s*=\s*["''](?:[^"'']*\.)?{0}["'']' -f $escapedIdentity),
+            ('\boverride\s+val\s+id(?:\s*:\s*String)?\s*=\s*["'']{0}["'']' -f $escapedIdentity)
+        )
+        if ($descriptorPatterns | Where-Object { $text -match $_ }) {
+            $violations.Add("${relativePath}: retired Runtime descriptor identity '$identity'")
         }
     }
 }

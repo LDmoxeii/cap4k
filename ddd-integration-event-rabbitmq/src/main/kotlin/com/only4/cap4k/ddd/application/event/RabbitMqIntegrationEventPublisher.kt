@@ -1,12 +1,12 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.alibaba.fastjson.JSON
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.createFixedThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessagePostProcessor
@@ -58,7 +58,7 @@ class RabbitMqIntegrationEventPublisher(
             }
 
             val (exchange, tag) = parseDestination(destination)
-            val message = JSON.toJSONString(event.payload)
+            val message = RuntimeJson.write(event.payload)
             val executionContext = IntegrationEventExecutionContextEnvelope.encode(event.executionContext)
 
             if (autoDeclareExchange) {

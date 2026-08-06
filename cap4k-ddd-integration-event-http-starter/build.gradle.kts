@@ -13,7 +13,6 @@ dependencies {
     api(libs.spring.web.mvc)
 
     implementation(libs.spring.boot.starter)
-    implementation(libs.fastjson)
     implementation(libs.slf4j)
 
     testImplementation(libs.spring.boot.starter.test) {

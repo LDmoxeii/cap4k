@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.application.command
 import com.only4.cap4k.ddd.application.command.JpaCommandRecordRepository
 import com.only4.cap4k.ddd.application.command.JpaCommandScheduleService
 import com.only4.cap4k.ddd.application.command.JpaReliableCommandTransaction
-import com.only4.cap4k.ddd.application.command.persistence.ArchivedCommandRecordJpaRepository
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
 import com.only4.cap4k.ddd.application.command.configure.CommandProperties
 import com.only4.cap4k.ddd.application.command.configure.CommandScheduleProperties
@@ -42,15 +41,13 @@ import java.time.Duration
 class CommandJpaAutoConfiguration {
     companion object {
         const val RETRY_LOCKER_KEY = "command_retry[$CONFIG_KEY_4_SVC_NAME]"
-        const val ARCHIVE_LOCKER_KEY = "command_archive[$CONFIG_KEY_4_SVC_NAME]"
     }
 
     @Bean
     @ConditionalOnMissingBean(CommandRecordRepository::class)
     fun jpaCommandRecordRepository(
         commandJpaRepository: CommandRecordJpaRepository,
-        archivedCommandRecordJpaRepository: ArchivedCommandRecordJpaRepository,
-    ): JpaCommandRecordRepository = JpaCommandRecordRepository(commandJpaRepository, archivedCommandRecordJpaRepository)
+    ): JpaCommandRecordRepository = JpaCommandRecordRepository(commandJpaRepository)
 
     @Bean
     @ConditionalOnMissingBean(ReliableCommandSupervisor::class)
@@ -90,14 +87,12 @@ class CommandJpaAutoConfiguration {
         commandManager: CommandManager,
         locker: Locker,
         @Value(RETRY_LOCKER_KEY) retryLockerKey: String,
-        @Value(ARCHIVE_LOCKER_KEY) archiveLockerKey: String,
         properties: CommandScheduleProperties,
         jdbcTemplate: JdbcTemplate,
     ): JpaCommandScheduleService = JpaCommandScheduleService(
         commandManager,
         locker,
         retryLockerKey,
-        archiveLockerKey,
         properties.addPartitionEnable,
         jdbcTemplate,
     ).apply { init() }
@@ -119,12 +114,6 @@ class CommandJpaAutoConfiguration {
             Duration.ofSeconds(properties.retryMaxLockSeconds.toLong()),
         )
 
-        @Scheduled(cron = "\${cap4k.ddd.application.command.schedule.archiveCron:\${cap4k.ddd.application.command.schedule.archive-cron:0 0 2 * * ?}}")
-        fun archive() = scheduleService.archive(
-            properties.archiveExpireDays,
-            properties.archiveBatchSize,
-            Duration.ofSeconds(properties.archiveMaxLockSeconds.toLong()),
-        )
 
         @Scheduled(cron = "\${cap4k.ddd.application.command.schedule.addPartitionCron:\${cap4k.ddd.application.command.schedule.add-partition-cron:0 0 0 * * ?}}")
         fun addPartition() = scheduleService.addPartition()

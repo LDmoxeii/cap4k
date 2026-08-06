@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "7726d15b-51d7-4d0d-b70e-2b65b6666be8",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-retry-policy-snapshot",
+  "createdAt": "2026-08-05T08:03:06.432Z",
+  "preflightHash": "89044938d3078c23c2087f3dcf412c310166d98aebf0e7561a521f24f421ff07",
+  "operations": [
+    {
+      "id": "spec-1-runtime-retry-policy-snapshot",
+      "type": "write",
+      "target": "specs/runtime-retry-policy-snapshot/spec.md",
+      "staged": "runtime/transactions/7726d15b-51d7-4d0d-b70e-2b65b6666be8/staged/specs/runtime-retry-policy-snapshot/spec.md",
+      "backup": "runtime/transactions/7726d15b-51d7-4d0d-b70e-2b65b6666be8/backups/specs/runtime-retry-policy-snapshot/spec.md",
+      "expectedTargetHash": "9fc0cde4ca19706e404407eefb6141983fb19c05c85037f66ca86470401931d0",
+      "stagedHash": "4a5baf7baf71be7946080902a4d8f2015669d1d8d08b493774c228a740fab5bf"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-retry-policy-snapshot",
+      "target": "archive/2026-08-05-runtime-retry-policy-snapshot",
+      "expectedSourceHash": "35f9e15cc0ce1f7cc6a6fb4f0e269c622bb34c13d00e0680d10086da81b83392",
+      "expectedTargetHash": null
+    }
+  ]
+}

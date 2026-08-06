@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "2928b305-14a7-450b-a097-2253750f456a",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-agent-retired-descriptors",
+  "createdAt": "2026-08-05T08:01:44.468Z",
+  "preflightHash": "86af4abe0148f8d7efba946dfb070bf85f9be83a7026984d95900df592b5c98d",
+  "operations": [
+    {
+      "id": "spec-1-runtime-agent-retired-descriptors",
+      "type": "write",
+      "target": "specs/runtime-agent-retired-descriptors/spec.md",
+      "staged": "runtime/transactions/2928b305-14a7-450b-a097-2253750f456a/staged/specs/runtime-agent-retired-descriptors/spec.md",
+      "backup": "runtime/transactions/2928b305-14a7-450b-a097-2253750f456a/backups/specs/runtime-agent-retired-descriptors/spec.md",
+      "expectedTargetHash": "402f111998388461cac034b23d2fa107c7c088e19c5d808d8f1f7179532b06fd",
+      "stagedHash": "2aa9b94df56a8d16347a4738b16b00d363d6571a3270d6ef215e43eaa9912b98"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-agent-retired-descriptors",
+      "target": "archive/2026-08-05-runtime-agent-retired-descriptors",
+      "expectedSourceHash": "55837ac0d623e6f13ef4e6dab46f69699cf9f28731a05a4adb84ec7d1ee072f9",
+      "expectedTargetHash": null
+    }
+  ]
+}

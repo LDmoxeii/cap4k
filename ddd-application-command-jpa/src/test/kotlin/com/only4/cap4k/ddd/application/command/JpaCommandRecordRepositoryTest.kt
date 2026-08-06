@@ -21,14 +21,12 @@ class JpaCommandRecordRepositoryTest {
 
     private lateinit var repository: JpaCommandRecordRepository
     private lateinit var commandJpaRepository: CommandRecordJpaRepository
-    private lateinit var archivedCommandRecordJpaRepository: ArchivedCommandRecordJpaRepository
     private val testTime: LocalDateTime = LocalDateTime.of(2025, 1, 15, 10, 30, 0)
 
     @BeforeEach
     fun setUp() {
         commandJpaRepository = mockk()
-        archivedCommandRecordJpaRepository = mockk()
-        repository = JpaCommandRecordRepository(commandJpaRepository, archivedCommandRecordJpaRepository)
+        repository = JpaCommandRecordRepository(commandJpaRepository)
     }
 
     @Nested
@@ -278,171 +276,6 @@ class JpaCommandRecordRepositoryTest {
     }
 
     @Nested
-    @DisplayName("归档过期命令测试")
-    inner class ArchiveByExpireAtTest {
-
-        @Test
-        @DisplayName("应该成功归档过期的命令")
-        fun `should archive expired commands successfully`() {
-            // Given
-            val svcName = "test-service"
-            val maxExpireAt = testTime.minusDays(1)
-            val limit = 10
-
-            val mockCommands = listOf(
-                createMockCommand("command1", CommandRecordEntity.CommandState.EXECUTED),
-                createMockCommand("command2", CommandRecordEntity.CommandState.CANCEL),
-                createMockCommand("command3", CommandRecordEntity.CommandState.EXPIRED)
-            )
-            val mockPage = PageImpl(mockCommands)
-
-            val mockArchivedCommandRecordEntitys = listOf(
-                mockk<ArchivedCommandRecordEntity>(),
-                mockk<ArchivedCommandRecordEntity>(),
-                mockk<ArchivedCommandRecordEntity>()
-            )
-
-            every {
-                commandJpaRepository.findAll(
-                    any<Specification<CommandRecordEntity>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            every { archivedCommandRecordJpaRepository.saveAll(any<List<ArchivedCommandRecordEntity>>()) } returns mockArchivedCommandRecordEntitys
-            every { commandJpaRepository.deleteAllInBatch(any<List<CommandRecordEntity>>()) } just Runs
-
-            // When
-            val archivedCount = repository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-            // Then
-            assertEquals(3, archivedCount)
-
-            verify { archivedCommandRecordJpaRepository.saveAll(any<List<ArchivedCommandRecordEntity>>()) }
-            verify { commandJpaRepository.deleteAllInBatch(mockCommands) }
-        }
-
-        @Test
-        @DisplayName("当没有命令需要归档时应该返回0")
-        fun `should return 0 when no commands to archive`() {
-            // Given
-            val svcName = "test-service"
-            val maxExpireAt = testTime.minusDays(1)
-            val limit = 10
-            val emptyPage = PageImpl<CommandRecordEntity>(emptyList())
-
-            every {
-                commandJpaRepository.findAll(
-                    any<Specification<CommandRecordEntity>>(),
-                    any<PageRequest>()
-                )
-            } returns emptyPage
-
-            // When
-            val archivedCount = repository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-            // Then
-            assertEquals(0, archivedCount)
-
-            verify(exactly = 0) { archivedCommandRecordJpaRepository.saveAll(any<List<ArchivedCommandRecordEntity>>()) }
-            verify(exactly = 0) { commandJpaRepository.deleteAllInBatch(any<List<CommandRecordEntity>>()) }
-        }
-
-        @Test
-        @DisplayName("应该使用正确的查询条件查找需要归档的命令")
-        fun `should use correct criteria to find commands for archiving`() {
-            // Given
-            val svcName = "test-service"
-            val maxExpireAt = testTime.minusDays(1)
-            val limit = 10
-            val emptyPage = PageImpl<CommandRecordEntity>(emptyList())
-
-            every {
-                commandJpaRepository.findAll(
-                    any<Specification<CommandRecordEntity>>(),
-                    any<PageRequest>()
-                )
-            } returns emptyPage
-
-            // When
-            repository.archiveByExpireAt(svcName, maxExpireAt, limit)
-
-            // Then
-            verify {
-                commandJpaRepository.findAll(
-                    any<Specification<CommandRecordEntity>>(),
-                    PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, CommandRecordEntity.F_NEXT_TRY_TIME))
-                )
-            }
-        }
-    }
-
-    @Nested
-    @DisplayName("迁移方法测试")
-    inner class MigrateTest {
-
-        @Test
-        @DisplayName("应该成功迁移命令到归档表")
-        fun `should migrate commands to archive table successfully`() {
-            // Given
-            val commands = listOf(
-                createMockCommand("command1", CommandRecordEntity.CommandState.EXECUTED),
-                createMockCommand("command2", CommandRecordEntity.CommandState.CANCEL)
-            )
-            val archivedCommands = listOf(mockk<ArchivedCommandRecordEntity>(), mockk<ArchivedCommandRecordEntity>())
-
-            every { archivedCommandRecordJpaRepository.saveAll(archivedCommands) } returns archivedCommands
-            every { commandJpaRepository.deleteAllInBatch(commands) } returns Unit
-
-            // When
-            repository.migrate(commands, archivedCommands)
-
-            // Then
-            verify { archivedCommandRecordJpaRepository.saveAll(archivedCommands) }
-            verify { commandJpaRepository.deleteAllInBatch(commands) }
-        }
-
-        @Test
-        @DisplayName("应该能够处理空列表")
-        fun `should handle empty lists`() {
-            // Given
-            val emptyCommands = emptyList<CommandRecordEntity>()
-            val emptyArchivedCommandRecordEntitys = emptyList<ArchivedCommandRecordEntity>()
-
-            every { archivedCommandRecordJpaRepository.saveAll(emptyArchivedCommandRecordEntitys) } returns emptyArchivedCommandRecordEntitys
-            every { commandJpaRepository.deleteAllInBatch(emptyCommands) } returns Unit
-
-            // When & Then
-            assertDoesNotThrow {
-                repository.migrate(emptyCommands, emptyArchivedCommandRecordEntitys)
-            }
-
-            verify { archivedCommandRecordJpaRepository.saveAll(emptyArchivedCommandRecordEntitys) }
-            verify { commandJpaRepository.deleteAllInBatch(emptyCommands) }
-        }
-
-        @Test
-        @DisplayName("当保存归档命令失败时应该抛出异常")
-        fun `should throw exception when saving archived commands fails`() {
-            // Given
-            val commands = listOf(createMockCommand("command1", CommandRecordEntity.CommandState.EXECUTED))
-            val archivedCommands = listOf(mockk<ArchivedCommandRecordEntity>())
-
-            every {
-                archivedCommandRecordJpaRepository.saveAll(archivedCommands)
-            } throws RuntimeException("Database error")
-
-            // When & Then
-            assertThrows<RuntimeException> {
-                repository.migrate(commands, archivedCommands)
-            }
-
-            verify { archivedCommandRecordJpaRepository.saveAll(archivedCommands) }
-            verify(exactly = 0) { commandJpaRepository.deleteAllInBatch(any()) }
-        }
-    }
-
-    @Nested
     @DisplayName("集成测试")
     inner class IntegrationTest {
 
@@ -464,14 +297,10 @@ class JpaCommandRecordRepositoryTest {
                 every { commandState } returns CommandRecordEntity.CommandState.INIT
                 every { param } returns """{"username":"john","email":"john@test.com","role":"ADMIN"}"""
                 every { paramType } returns "CreateUserCommand"
-                every { result } returns """{"success":true,"userId":"12345"}"""
-                every { resultType } returns "CreateUserResult"
-                every { exception } returns null
                 every { expireAt } returns testTime.plusHours(1)
                 every { createAt } returns testTime.minusHours(1)
                 every { tryTimes } returns 3
                 every { triedTimes } returns 0
-                every { commandResult } returns null
                 every { version } returns 1
             }
 
@@ -558,29 +387,6 @@ class JpaCommandRecordRepositoryTest {
             }
         }
 
-        @Test
-        @DisplayName("应该处理归档过程中的异常")
-        fun `should handle exceptions during archiving`() {
-            // Given
-            val mockCommands = listOf(createMockCommand("command1", CommandRecordEntity.CommandState.EXECUTED))
-            val mockPage = PageImpl(mockCommands)
-
-            every {
-                commandJpaRepository.findAll(
-                    any<Specification<CommandRecordEntity>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            every {
-                archivedCommandRecordJpaRepository.saveAll(any<List<ArchivedCommandRecordEntity>>())
-            } throws RuntimeException("Archive table full")
-
-            // When & Then
-            assertThrows<RuntimeException> {
-                repository.archiveByExpireAt("test-service", testTime.minusDays(1), 10)
-            }
-        }
     }
 
     @Nested
@@ -612,33 +418,6 @@ class JpaCommandRecordRepositoryTest {
             assertTrue(duration < 5000) // 应该在5秒内完成
         }
 
-        @Test
-        @DisplayName("大批量命令归档性能测试")
-        fun `should handle large batch command archiving efficiently`() {
-            // Given
-            val batchSize = 1000
-            val largeCommandList = (1..batchSize).map { createMockCommand("command$it", CommandRecordEntity.CommandState.EXECUTED) }
-            val mockPage = PageImpl(largeCommandList)
-
-            every {
-                commandJpaRepository.findAll(
-                    any<Specification<CommandRecordEntity>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            every { archivedCommandRecordJpaRepository.saveAll(any<List<ArchivedCommandRecordEntity>>()) } returns emptyList()
-            every { commandJpaRepository.deleteAllInBatch(any<List<CommandRecordEntity>>()) } just Runs
-
-            // When
-            val startTime = System.currentTimeMillis()
-            val archivedCount = repository.archiveByExpireAt("test-service", testTime.minusDays(1), batchSize)
-            val duration = System.currentTimeMillis() - startTime
-
-            // Then
-            assertEquals(batchSize, archivedCount)
-            assertTrue(duration < 3000) // 应该在3秒内完成
-        }
     }
 
     private fun createMockCommand(commandId: String, state: CommandRecordEntity.CommandState): CommandRecordEntity {
@@ -654,14 +433,11 @@ class JpaCommandRecordRepositoryTest {
             every { param } returns """{"action":"test","data":{"key":"value"},"timestamp":123456789}"""
             every { paramType } returns "TestCommand"
             every { executionContext } returns null
-            every { result } returns """{"success":true,"message":"completed"}"""
-            every { resultType } returns "TestResult"
-            every { exception } returns null
             every { expireAt } returns testTime.plusHours(1)
             every { createAt } returns testTime.minusHours(1)
             every { tryTimes } returns 3
+            every { retryPolicy } returns "{}"
             every { triedTimes } returns 0
-            every { commandResult } returns null
             every { version } returns 1
         }
     }
