@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "2270bc99-717e-4604-a032-cdb1c6b9b560",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-jpa-atomic-claim-lease",
+  "createdAt": "2026-08-07T02:58:11.350Z",
+  "preflightHash": "fe88f43051cded36885d3a2de24a25e69ce532640a49a751f284c8904672a576",
+  "operations": [
+    {
+      "id": "spec-1-runtime-jpa-atomic-claim-lease",
+      "type": "write",
+      "target": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+      "staged": "runtime/transactions/2270bc99-717e-4604-a032-cdb1c6b9b560/staged/specs/runtime-jpa-atomic-claim-lease/spec.md",
+      "backup": "runtime/transactions/2270bc99-717e-4604-a032-cdb1c6b9b560/backups/specs/runtime-jpa-atomic-claim-lease/spec.md",
+      "expectedTargetHash": "ca5fdae1f20b1d9dfd88f5ee0ed5186c71b037225afaff6c5b2eb7279f8a0a41",
+      "stagedHash": "6d33b47ad87e750c7032112c2a53dfd38c7681756b93c061a5425eb6b60936f1"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-jpa-atomic-claim-lease",
+      "target": "archive/2026-08-07-runtime-jpa-atomic-claim-lease",
+      "expectedSourceHash": "6c6f05833a58e84ebdee2b542f354a66079cb832357c924952f855a977efb34c",
+      "expectedTargetHash": null
+    }
+  ]
+}

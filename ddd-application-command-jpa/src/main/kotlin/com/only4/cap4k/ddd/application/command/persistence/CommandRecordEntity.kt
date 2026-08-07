@@ -103,7 +103,7 @@ class CommandRecordEntity(
 
     /**
      * 下次尝试时间
-     * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
     @Column(name = "`next_try_time`")
     var nextTryTime: LocalDateTime = LocalDateTime.now(),
@@ -133,6 +133,21 @@ class CommandRecordEntity(
     @Version
     @Column(name = "`version`")
     var version: Int = 0,
+
+    /** Private runtime ownership token assigned by the atomic JPA substrate. */
+    @Column(name = "`delivery_token`", length = 64)
+    var deliveryToken: String? = null,
+
+    /** Private runtime lease boundary for the current delivery token. */
+    @Column(name = "`lease_until`")
+    var leaseUntil: LocalDateTime? = null,
+
+    /** Database audit columns retained for schema/projection parity. */
+    @Column(name = "`db_created_at`", insertable = false, updatable = false)
+    var dbCreatedAt: LocalDateTime? = null,
+
+    @Column(name = "`db_updated_at`", insertable = false, updatable = false)
+    var dbUpdatedAt: LocalDateTime? = null,
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(CommandRecordEntity::class.java)
@@ -152,6 +167,8 @@ class CommandRecordEntity(
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
+        const val F_DELIVERY_TOKEN = "deliveryToken"
+        const val F_LEASE_UNTIL = "leaseUntil"
     }
 
     fun init(

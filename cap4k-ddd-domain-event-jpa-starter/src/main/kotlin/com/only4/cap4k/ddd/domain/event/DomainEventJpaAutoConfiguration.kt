@@ -50,6 +50,11 @@ class DomainEventJpaAutoConfiguration {
     ): JpaEventRecordRepository = JpaEventRecordRepository(eventJpaRepository)
 
     @Bean
+    @ConditionalOnMissingBean(JpaEventExecutionSubstrate::class)
+    fun jpaEventExecutionSubstrate(
+        eventJpaRepository: EventJpaRepository,
+    ): JpaEventExecutionSubstrate = JpaEventExecutionSubstrate(eventJpaRepository)
+    @Bean
     fun reliableEventInfrastructure(
         messageInterceptors: List<EventMessageInterceptor>,
         eventInterceptors: List<EventInterceptor>,
