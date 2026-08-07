@@ -11,6 +11,8 @@ import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import jakarta.persistence.*
 import org.hibernate.annotations.DynamicInsert
 import org.hibernate.annotations.DynamicUpdate
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.time.LocalDateTime
@@ -76,14 +78,14 @@ class CommandRecordEntity(
      * 过期时间
      * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
-    @Column(name = "`expire_at`")
+    @Column(name = "`expire_at`", columnDefinition = "datetime(3)")
     var expireAt: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 创建时间
      * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
-    @Column(name = "`create_at`")
+    @Column(name = "`create_at`", columnDefinition = "datetime(3)")
     var createAt: LocalDateTime = LocalDateTime.now(),
 
     /**
@@ -98,14 +100,14 @@ class CommandRecordEntity(
      * 上次尝试时间
      * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
-    @Column(name = "`last_try_time`")
+    @Column(name = "`last_try_time`", columnDefinition = "datetime(3)")
     var lastTryTime: LocalDateTime = LocalDateTime.now(),
 
     /**
      * 下次尝试时间
-     * datetime     NOT NULL DEFAULT '0001-01-01 00:00:00'
+     * datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP
      */
-    @Column(name = "`next_try_time`")
+    @Column(name = "`next_try_time`", columnDefinition = "datetime(3)")
     var nextTryTime: LocalDateTime = LocalDateTime.now(),
 
     /**
@@ -133,6 +135,22 @@ class CommandRecordEntity(
     @Version
     @Column(name = "`version`")
     var version: Int = 0,
+
+    /** Private runtime ownership token assigned by the atomic JPA substrate. */
+    @JdbcTypeCode(SqlTypes.VARBINARY)
+    @Column(name = "`delivery_token`", length = 32, columnDefinition = "varbinary(32)")
+    var deliveryToken: ByteArray? = null,
+
+    /** Private runtime lease boundary for the current delivery token. */
+    @Column(name = "`lease_until`", columnDefinition = "datetime(3)")
+    var leaseUntil: LocalDateTime? = null,
+
+    /** Database audit columns retained for schema/projection parity. */
+    @Column(name = "`db_created_at`", insertable = false, updatable = false, columnDefinition = "datetime(3)")
+    var dbCreatedAt: LocalDateTime? = null,
+
+    @Column(name = "`db_updated_at`", insertable = false, updatable = false, columnDefinition = "datetime(3)")
+    var dbUpdatedAt: LocalDateTime? = null,
 ) {
     companion object {
         private val log = LoggerFactory.getLogger(CommandRecordEntity::class.java)
@@ -152,6 +170,8 @@ class CommandRecordEntity(
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
+        const val F_DELIVERY_TOKEN = "deliveryToken"
+        const val F_LEASE_UNTIL = "leaseUntil"
     }
 
     fun init(

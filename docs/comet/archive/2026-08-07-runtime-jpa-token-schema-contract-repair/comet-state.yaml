@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-jpa-token-schema-contract-repair
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 9c81fdef1380e143593d3510ec4b2f32e25d5781cb4b403776555ccd4e5eb253
+spec_changes:
+  - capability: runtime-jpa-atomic-claim-lease
+    operation: replace
+    source: specs/runtime-jpa-atomic-claim-lease/spec.md
+    base_hash: 6d33b47ad87e750c7032112c2a53dfd38c7681756b93c061a5425eb6b60936f1
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/674af8852d627d02957e36a3da3db2f0a45b6f92fbe8d3ae2854d29accab793f.json
+verification_evidence: runtime/evidence/verifications/cad5ce7fc8a5142c37bbec39871f1de01a021d8d77f25a1ae7d91b08df13e715.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-07
+run_id: 0dac89be-7c42-4e95-a674-369334a8ffc5

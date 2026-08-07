@@ -1,0 +1,299 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-jpa-token-schema-contract-repair",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "9c81fdef1380e143593d3510ec4b2f32e25d5781cb4b403776555ccd4e5eb253",
+  "acceptanceCriteriaHash": "20cf612bb70cfae46dda6ef60aebac56f301ef2d221b6051f7e0ff3cd0a4cb0e",
+  "implementationScopeRef": "runtime/evidence/scopes/674af8852d627d02957e36a3da3db2f0a45b6f92fbe8d3ae2854d29accab793f.json",
+  "implementationScopeHash": "674af8852d627d02957e36a3da3db2f0a45b6f92fbe8d3ae2854d29accab793f",
+  "reportRef": "verification.md",
+  "reportHash": "ed9867fd76b640f4c61f7800814c2ee09a44d357d0d9278c0e5a6b277ccd10c6",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "20cf612bb70cfae46dda6ef60aebac56f301ef2d221b6051f7e0ff3cd0a4cb0e",
+    "total": 23,
+    "evidenced": 23,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-0ea51aff1a28525e9b32e7e13afdf97dd3239da27eeb13b93525fb53c4548643",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-1d55ef9cf0740530c90c9f64c8cbc302e30a26e743a40ed8241eb8db7ca216c4",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-383c50013ab8e6338dbd9369cdeb1a0ed1ecc0130f518886e9635582da51c5d9",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4169d9a90e5d7f2035e0c6c535d1ad772be45b9871c8e2a04aa5b20d2fb789cd",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4207d200ae4c7937fc3b2b631ccb47c80dbbcc5630bd5583a1493217ae04ef20",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-42150ed79098648903166f1b4b58d3cd070db5cc108dba601844cfa22d89472d",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4a3e064d099ce5402806eabd7758300d6fe3d9b052f5eebf7e3eec195c7306e7",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4c1d25cd7670117eab77f76c81b72b6e65856e5f6e61b2ec006a76e2b40c56ca",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-507749bf5e14d05bb6abb7f54b4dbb106e71883b1aa44f6413a3f7ff821861d6",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-5bbd8a5ae759a2ff798b089aa8e49fab463121461186cf7dcdc5111a55d69cc4",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+          "ddd-application-command-jpa/src/main/resources/command.sql",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+          "ddd-domain-event-jpa/src/main/resources/event.sql"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-70a362c6a3f23af9d515fde9b7374dc6c3442aed9786a97b3ff97ac45e4f05c8",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-899877aadbec5595ed29ae503524c784834d028ba563f32987de5806d8d0a32c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-9eb2f80273a38028d8321d98558261f2dc476250a22e0c9b2fe9b553e0cb3d5f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-b17fc15ba5afedb88861957c7ba87386ffb1ddb366b3630a81a014473a321b4c",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-b5c7c926187f20cb7413aa1ab7443422b3ccdae28154e59c558bd226b24a2484",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-bafcc8a5a077802b4a84c15df72c76eb748bb8f118ff9e6f7d0d3f62f0b35f0f",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-bf589a7735c58c533e9e58ff0ea2fed8e1f7b97d34e765fe4a8b32c6bb23b87e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c6c2eceae3af3376c7c918a02ca848de64548a30d3eb18333bb7766d4eca863c",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c8e20c8469e43c94dd1a9a121ff9d1a1136bcdbdaba43a4081f8e8c3b4537ac8",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d361d9f070fe553375f5d62f896e4c7a8075fb32f80cdb04f97a0575a9fe87dc",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+          "ddd-application-command-jpa/src/main/resources/command.sql",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+          "ddd-domain-event-jpa/src/main/resources/event.sql"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ec5b0ba7ecaa04e38148a7157d970c148349329efa5e7a275d68ba2db8a0ffb4",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f883231eb993aec7463dc29728efc07783c62bd3cada6d3786e41cfa05a9cf37",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-fbb9b10488fc7c747c307fc2976e3a04292ed955862008b602f7b451ba5b9de2",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "263d96ebda4c7b998cf8a2c48027e97a1252ece55758d3c8d8de722710be174f"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/1c5334ad4b68cdf93cc617d215b18baa38715a8c54ff086c7cbec50cae4a95c0.json",
+  "createdAt": "2026-08-07T11:30:58.021Z",
+  "envelopeHash": "cad5ce7fc8a5142c37bbec39871f1de01a021d8d77f25a1ae7d91b08df13e715"
+}

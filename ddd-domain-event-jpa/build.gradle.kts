@@ -5,6 +5,7 @@ plugins {
 dependencies {
     // Project dependencies
     implementation(project(":ddd-core"))
+    implementation(project(":ddd-domain-repo-jpa"))
 
     // Implementation dependencies
     implementation(kotlin("reflect"))

@@ -1,0 +1,68 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "runtime-jpa-atomic-claim-lease",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "0e0b2c68ff5568a50bc87bb530a30dae0307c17d5be6290069f53c35085ca83f",
+  "status": "failed",
+  "startedAt": "2026-08-07T02:39:57.407Z",
+  "endedAt": "2026-08-07T02:40:04.260Z",
+  "contract": {
+    "expectedHash": "e0358e22ad6dca71f2c39fe881590316f4c6a6b46fce16624640f6217a80b994",
+    "beforeHash": "e0358e22ad6dca71f2c39fe881590316f4c6a6b46fce16624640f6217a80b994",
+    "afterHash": "e0358e22ad6dca71f2c39fe881590316f4c6a6b46fce16624640f6217a80b994"
+  },
+  "implementation": {
+    "scopeHash": "1d4d005533ad2f65e63ae0a92c5a31c904d102646fca74cc900b402361474256",
+    "expectedSnapshotHash": "4275df3e1afd8ce59bde1505cff60eb9a5e57447d365ab8ea39ff2f7a064a8ed",
+    "beforeSnapshotHash": "ef26554d09e77e7acd129e91cb738dd5eaeeb377a86e564629f5bc91c02b6081",
+    "afterSnapshotHash": "ef26554d09e77e7acd129e91cb738dd5eaeeb377a86e564629f5bc91c02b6081"
+  },
+  "counts": {
+    "filesSelected": 15,
+    "filesScanned": 11,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 65666,
+    "issueCount": 4,
+    "recordedIssueCount": 4
+  },
+  "issues": [
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "line": 1,
+      "kind": "scope-mismatch"
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "line": 1,
+      "kind": "scope-mismatch"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "line": 1,
+      "kind": "scope-mismatch"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/resources/event.sql",
+      "line": 1,
+      "kind": "scope-mismatch"
+    }
+  ],
+  "issuesTruncated": false,
+  "stale": true,
+  "staleReasons": [
+    "implementation-before-does-not-match-scope",
+    "implementation-after-does-not-match-scope"
+  ],
+  "receiptHash": "cfcd7904b2a6f8850ddd1186a1ee99540787938e3c43f7553cd561b89201851b"
+}

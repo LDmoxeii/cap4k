@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: runtime-jpa-atomic-claim-lease
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: e0358e22ad6dca71f2c39fe881590316f4c6a6b46fce16624640f6217a80b994
+spec_changes:
+  - capability: runtime-jpa-atomic-claim-lease
+    operation: replace
+    source: specs/runtime-jpa-atomic-claim-lease/spec.md
+    base_hash: ca5fdae1f20b1d9dfd88f5ee0ed5186c71b037225afaff6c5b2eb7279f8a0a41
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/98d2a86840e957f8586629272c2b1df220265b7bea92ff34defaf5f2c628d432.json
+verification_evidence: runtime/evidence/verifications/79861547c1be5559ece66089f985de84be6700defc5d56568c7783cf4baf04c0.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-06
+run_id: 06085976-090a-49a8-83d2-76f2014579c0

@@ -1,0 +1,292 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "e0358e22ad6dca71f2c39fe881590316f4c6a6b46fce16624640f6217a80b994",
+  "baselineProjectionRef": "runtime/evidence/snapshots/1047ac135f5a29c3bb1b56c2cd5bdebf9a0a452933c9e74816cb3dd027caa5fc.json",
+  "baselineProjectionHash": "1047ac135f5a29c3bb1b56c2cd5bdebf9a0a452933c9e74816cb3dd027caa5fc",
+  "currentProjectionRef": "runtime/evidence/snapshots/584e3104e401a1509765a435dfde5a28965fc54e10b5ab53d8e6eae4db2bb7c7.json",
+  "currentProjectionHash": "584e3104e401a1509765a435dfde5a28965fc54e10b5ab53d8e6eae4db2bb7c7",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-command-jpa-starter",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-application-command-jpa",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-domain-event-jpa",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-domain-repo-jpa",
+      "kind": "directory"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command/CommandJpaAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "7278119b30b2816ead21c3a9a3b718f6a0dc766df40273ceba5aa98e20397613",
+        "size": 6273
+      },
+      "after": {
+        "hash": "7c3268ade87df12b312ea5ba11f01809e2928bfa3b58c8d9e4d7d17fd1b55e0e",
+        "size": 6531
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "3a3526731716c1145b5c129e11cd8c6b0c0e542c92883b457ba4eb19fe2fffb1",
+        "size": 16748
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/domain/event/DomainEventJpaAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "d680464c05a854b2fed8fbf789af0e354023dee508146681acc63f03098f56c2",
+        "size": 6992
+      },
+      "after": {
+        "hash": "14e6af2f6c8154b305801cf7efd44c1280a6c00c16fbd78d8b05962f6175f5d1",
+        "size": 7234
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-domain-event-jpa-starter",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "399e425a932b4e4731b4627e662aa13fc3280ee2974d01e1999d8c42e6c7d2ad",
+        "size": 16354
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-domain-event-jpa-starter",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/build.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "c87ac5041c3b9f685eeed1a6acc2fb3b91bd054f2d666105c97e72c8f1c8ef07",
+        "size": 832
+      },
+      "after": {
+        "hash": "f2fc23597e418c71bc30f9794a02a32ec735139ed804f8c569334bac1499c611",
+        "size": 885
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "eda1075f5eeb570ee4ad6c07023231d03181d464d17ead1cad3ba2ef8e446f3a",
+        "size": 5809
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "e734aff8ed474cc308fa2a9d1fe5c3cb5ea1f694f1fb086274655c870dc059b5",
+        "size": 11811
+      },
+      "after": {
+        "hash": "a15794df3d554a68378561c34634bf39da99b4db17ef1771a0d3e79fe28d5fd8",
+        "size": 12549
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "c781d4485b45dd95911118ff0d7ca40d2070b14b66ba4ce5e494db7a83532fbd",
+        "size": 406
+      },
+      "after": {
+        "hash": "1fcf62e801dc3c76c83ea620dcd61e98e5c379cd9a76ad79fc73faba778d05c7",
+        "size": 5851
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "8c035f8fc03ae8adcb53f174d09e9e7fdd7b5e1440cc239eb649de24477787b3",
+        "size": 2402
+      },
+      "after": {
+        "hash": "a8e4574186776bc2029d3e8b86b031ad261766857c0d4cd0cefa0dc0ffd516bc",
+        "size": 2625
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/build.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "d954a6cb6843b30dd6c49af0e499c0a03b871606307da9930110c493a243e94b",
+        "size": 1073
+      },
+      "after": {
+        "hash": "a09a086473eace52d6dff4fa4ea4fac018788a2488f7682934a247e283e5f832",
+        "size": 1126
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "6bc80b6ef41d4e578763e189a0bd41f011c709daaf145979d4178b40efdde850",
+        "size": 5559
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "e8b8e98bef13981df482e7a56f3173bfe2fbc07418ee61e2f5b51a824c65cfbc",
+        "size": 12810
+      },
+      "after": {
+        "hash": "6ce7d5a85ae9cca6415bfddd60e48a33f519e892eb0d56225488475826fe2da0",
+        "size": 13548
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "3e92e23071add37c504b3f04f418635c48787f76ba578f947c58f20bd17721a2",
+        "size": 359
+      },
+      "after": {
+        "hash": "3b029373e727edf42d601cfd11a68f98cf1f818c346d77c43acf5dabff4620ff",
+        "size": 5426
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/resources/event.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "22819456222f21c8f5e0f4dab4966fd86b305bb44f49b2278f2e08dade59e68b",
+        "size": 2394
+      },
+      "after": {
+        "hash": "b5f10802eb27ef0e1eb5d4bda9500b018367beab11b0f41c52a407407351878e",
+        "size": 2620
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "15ad5a527af9a05977c251d8f63ba11d3f54c51a2fba9117b5af7716e4c22452",
+        "size": 1148
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-repo-jpa",
+          "kind": "directory"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "98d2a86840e957f8586629272c2b1df220265b7bea92ff34defaf5f2c628d432"
+}

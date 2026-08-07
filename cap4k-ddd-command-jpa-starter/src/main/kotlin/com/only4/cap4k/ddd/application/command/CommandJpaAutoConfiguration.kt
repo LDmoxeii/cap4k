@@ -50,6 +50,12 @@ class CommandJpaAutoConfiguration {
     ): JpaCommandRecordRepository = JpaCommandRecordRepository(commandJpaRepository)
 
     @Bean
+    @ConditionalOnMissingBean(JpaCommandExecutionSubstrate::class)
+    fun jpaCommandExecutionSubstrate(
+        commandJpaRepository: CommandRecordJpaRepository,
+    ): JpaCommandExecutionSubstrate = JpaCommandExecutionSubstrate(commandJpaRepository)
+
+    @Bean
     @ConditionalOnMissingBean(ReliableCommandSupervisor::class)
     fun reliableCommandSupervisor(
         commandSupervisor: CommandSupervisor,
