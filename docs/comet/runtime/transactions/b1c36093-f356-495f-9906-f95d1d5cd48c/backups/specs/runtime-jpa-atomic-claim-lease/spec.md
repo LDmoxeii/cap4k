@@ -1,7 +1,7 @@
 ## Requirements
 
 ### Requirement: Shared private ownership contract
-The runtime MUST provide one private semantic contract for reliable Command and reliable Event execution ownership. Command and Event MAY have different JPA entity/carrier classes and SQL projections, but state transitions, token validation, lease rules, binary token storage, timestamp precision, and failure boundaries MUST have the same meaning.
+The runtime MUST provide one private semantic contract for reliable Command and reliable Event execution ownership. Command and Event MAY have different JPA entity/carrier classes and SQL projections, but state transitions, token validation, lease rules, and failure boundaries MUST have the same meaning.
 
 #### Scenario: Same ownership semantics
 - **WHEN** a worker claims a Command or Event record
@@ -24,23 +24,15 @@ The substrate MUST claim an eligible record within one database transaction/stat
 - **WHEN** a record is terminal or cancelled
 - **THEN** claim is rejected even if its retry time or lease is expired, and no state, token, lease, or attempt fields change
 
-### Requirement: Strict bytewise ownership token
-Each successful claim MUST return a non-empty opaque token associated with the claimed row and lease owner. Token identity MUST be the exact original 32-byte sequence. Runtime and persistence comparisons MUST NOT depend on text collation, padding, case folding, trimming, Unicode normalization, or other canonicalization. The token MUST be immutable at the ownership API boundary and persisted in a binary 32-byte-capable column.
+### Requirement: Opaque delivery token
+Each successful claim MUST return a non-empty, unguessable/opaque token associated with the claimed row and lease owner. The token MUST be persisted with the claim so that a caller cannot forge ownership from a row id or record UUID alone.
 
-#### Scenario: Case-only token mismatch
-- **WHEN** the persisted owner token contains lowercase hexadecimal ASCII bytes and renew, acknowledge, or failure/retry is invoked with an uppercase-only byte variation
+#### Scenario: Token mismatch
+- **WHEN** renew, acknowledge, or failure/retry transition is invoked with a token different from the currently persisted token
 - **THEN** the operation is rejected and has zero durable write effect
-
-#### Scenario: Byte or length mismatch
-- **WHEN** a token differs by one byte or by byte length from the currently persisted token
-- **THEN** the operation is rejected and has zero durable write effect
-
-#### Scenario: Token immutability
-- **WHEN** a caller mutates an input byte array or a byte array returned from the token value
-- **THEN** the token identity, equality, hash code, and future database binding remain unchanged
 
 ### Requirement: Token-bound lease renewal
-The owner MUST be able to renew an unexpired lease by presenting the current token. Renewal MUST extend only that token's lease, MUST reject every bytewise token mismatch, and MUST reject terminal/cancelled records. Renewal after the current lease expiry MUST be rejected; expiry is recovered through a new claim.
+The owner MUST be able to renew an unexpired lease by presenting the current token. Renewal MUST extend only that token's lease, MUST reject token mismatch, and MUST reject terminal/cancelled records. Renewal after the current lease expiry MUST be rejected; expiry is recovered through a new claim.
 
 #### Scenario: Renewal before expiry
 - **WHEN** the current token renews before lease expiry
@@ -51,7 +43,7 @@ The owner MUST be able to renew an unexpired lease by presenting the current tok
 - **THEN** renewal is rejected and the expired row remains eligible for a future claim
 
 ### Requirement: Token-bound completion and retry transitions
-Acknowledgement and failure/retry transitions MUST verify the current bytewise token and lease ownership before writing. Successful acknowledgement MUST enter the existing terminal success state. Failure MUST persist safe structured `failure_facts`, use the retry-policy snapshot stored on the record, and enter the existing retryable or terminal failure state according to that snapshot and record expiry. No operation may persist business payload or an exception stack trace as failure data.
+Acknowledgement and failure/retry transitions MUST verify the current token and lease ownership before writing. Successful acknowledgement MUST enter the existing terminal success state. Failure MUST persist safe structured `failure_facts`, use the retry-policy snapshot stored on the record, and enter the existing retryable or terminal failure state according to that snapshot and record expiry. No operation may persist business payload or an exception stack trace as failure data.
 
 #### Scenario: Successful acknowledgement
 - **WHEN** the owner acknowledges with the current token before lease expiry
@@ -79,25 +71,15 @@ The substrate MUST continue using the immutable retry-policy snapshot captured w
 - **WHEN** current retry annotations/configuration change after a record is persisted
 - **THEN** the next retry transition uses the record's original `retry_policy` snapshot
 
-### Requirement: SQL and JPA schema parity
-The Command and Event JPA carrier mappings and shipped SQL resources MUST express the same ownership-token and runtime-time contract. The token column MUST be binary with capacity exactly 32 bytes. Runtime-owned timestamps used by expiry, due-time, lease, publication, and audit transitions MUST preserve millisecond precision in both schema paths.
-
-#### Scenario: Hibernate-generated schema
-- **WHEN** integration tests create the Command or Event schema from JPA metadata
-- **THEN** database metadata reports a binary 32-byte token column and millisecond-capable runtime timestamp columns
-
-#### Scenario: Shipped SQL schema
-- **WHEN** `command.sql` and `event.sql` are inspected as production DDL
-- **THEN** their token and runtime timestamp declarations match the corresponding JPA carrier contract
 ### Requirement: Real JPA integration verification
-The change MUST include real JPA integration tests, not only mocks or in-memory concurrency tests. Tests MUST run separate transactions for competing workers and cover both Command and Event carriers. Verification MUST distinguish executable H2/MySQL-mode evidence from real-MySQL-specific evidence and MUST NOT report an unperformed engine run as passing.
+The change MUST include real JPA integration tests, not only mocks or in-memory concurrency tests. Tests MUST run separate transactions for competing workers and cover both Command and Event carriers.
 
 #### Scenario: Required integration matrix
 - **WHEN** the verification suite runs
-- **THEN** it covers concurrent claimers, strict token mismatch, renewal before/after expiry, worker/process-loss re-claim, terminal/cancelled rejection, atomic rollback/write visibility, retry snapshot stability, actual generated-schema metadata, and SQL/entity contract alignment for both record types
+- **THEN** it covers concurrent claimers, token mismatch, renewal before/after expiry, worker/process-loss re-claim, terminal/cancelled rejection, atomic rollback/write visibility, retry snapshot stability, and SQL/entity field alignment for both record types
 
 ### Requirement: Scope boundaries
-This change MUST remain private runtime infrastructure. It MUST NOT add public Scheduler/Job/Task APIs, manual redrive, retention/cleanup, Integration Event envelope/transport, partition management, or broad legacy Locker/scheduling removal.
+This change MUST remain private runtime infrastructure. It MUST NOT add public Scheduler/Job/Task APIs, manual redrive, retention/cleanup, Integration Event envelope/transport, or broad legacy Locker/scheduling removal.
 
 #### Scenario: Downstream integration remains separate
 - **WHEN** this change is complete

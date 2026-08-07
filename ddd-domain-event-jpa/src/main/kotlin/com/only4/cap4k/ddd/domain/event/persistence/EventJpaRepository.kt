@@ -161,7 +161,7 @@ interface EventJpaRepository :
         @Param("ownedState") ownedState: Event.EventState,
         @Param("now") now: LocalDateTime,
         @Param("nextTryTime") nextTryTime: LocalDateTime,
-        @Param("token") token: String,
+        @Param("token") token: ByteArray,
         @Param("leaseUntil") leaseUntil: LocalDateTime,
         @Param("retryLimit") retryLimit: Int,
     ): Int
@@ -181,7 +181,7 @@ interface EventJpaRepository :
     )
     fun renew(
         @Param("recordId") recordId: Long,
-        @Param("token") token: String,
+        @Param("token") token: ByteArray,
         @Param("ownedState") ownedState: Event.EventState,
         @Param("now") now: LocalDateTime,
         @Param("leaseUntil") leaseUntil: LocalDateTime,
@@ -203,7 +203,7 @@ interface EventJpaRepository :
     )
     fun acknowledge(
         @Param("recordId") recordId: Long,
-        @Param("token") token: String,
+        @Param("token") token: ByteArray,
         @Param("ownedState") ownedState: Event.EventState,
         @Param("successState") successState: Event.EventState,
         @Param("now") now: LocalDateTime,
@@ -227,7 +227,7 @@ interface EventJpaRepository :
     )
     fun transitionFailure(
         @Param("recordId") recordId: Long,
-        @Param("token") token: String,
+        @Param("token") token: ByteArray,
         @Param("ownedState") ownedState: Event.EventState,
         @Param("failureState") failureState: Event.EventState,
         @Param("failureFacts") failureFacts: String,

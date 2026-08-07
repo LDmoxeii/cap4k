@@ -1,0 +1,44 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "runtime-jpa-token-schema-contract-repair",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "6b118a223f4ccc95eeb49e07c82666e91b2130fedbe0bf4042bb798cddd63d2c",
+  "status": "passed",
+  "startedAt": "2026-08-07T11:27:38.207Z",
+  "endedAt": "2026-08-07T11:27:43.191Z",
+  "contract": {
+    "expectedHash": "9c81fdef1380e143593d3510ec4b2f32e25d5781cb4b403776555ccd4e5eb253",
+    "beforeHash": "9c81fdef1380e143593d3510ec4b2f32e25d5781cb4b403776555ccd4e5eb253",
+    "afterHash": "9c81fdef1380e143593d3510ec4b2f32e25d5781cb4b403776555ccd4e5eb253"
+  },
+  "implementation": {
+    "scopeHash": "674af8852d627d02957e36a3da3db2f0a45b6f92fbe8d3ae2854d29accab793f",
+    "expectedSnapshotHash": "0ca2bbc09a221d2ee855437a573820db19f615961c623b28cadf30b45709d74a",
+    "beforeSnapshotHash": "0ca2bbc09a221d2ee855437a573820db19f615961c623b28cadf30b45709d74a",
+    "afterSnapshotHash": "0ca2bbc09a221d2ee855437a573820db19f615961c623b28cadf30b45709d74a"
+  },
+  "counts": {
+    "filesSelected": 11,
+    "filesScanned": 11,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 135418,
+    "issueCount": 0,
+    "recordedIssueCount": 0
+  },
+  "issues": [],
+  "issuesTruncated": false,
+  "stale": false,
+  "staleReasons": [],
+  "receiptHash": "1c5334ad4b68cdf93cc617d215b18baa38715a8c54ff086c7cbec50cae4a95c0"
+}

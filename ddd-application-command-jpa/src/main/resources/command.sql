@@ -18,7 +18,7 @@ CREATE TABLE `__command`
     `try_times`      int(11)      NOT NULL DEFAULT '0' COMMENT '尝试次数',
     `retry_policy`   text         NOT NULL COMMENT '创建时冻结的重试策略快照',
     `version`        int          NOT NULL DEFAULT '0',
-    `delivery_token` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NULL COMMENT 'Private ownership token',
+    `delivery_token` varbinary(32) NULL COMMENT 'Private ownership token',
     `lease_until`    datetime(3)  NULL COMMENT 'Private lease expiry',
     `db_created_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     `db_updated_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',

@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-07T11:32:46.663Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-07T11:32:49.892Z","type":"operation-started","operationId":"spec-1-runtime-jpa-atomic-claim-lease"}
+{"sequence":3,"timestamp":"2026-08-07T11:32:50.337Z","type":"operation-completed","operationId":"spec-1-runtime-jpa-atomic-claim-lease"}
+{"sequence":4,"timestamp":"2026-08-07T11:32:50.376Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-07T11:32:50.991Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-07T11:32:51.358Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-07T11:32:51.484Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-07T11:32:51.642Z","type":"commit"}

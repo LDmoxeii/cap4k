@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b1c36093-f356-495f-9906-f95d1d5cd48c",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-jpa-token-schema-contract-repair",
+  "createdAt": "2026-08-07T11:32:44.649Z",
+  "preflightHash": "be66c8285b7e0986ebaa4101eb0480313259e8c58c1ddf4f8d4193215d068527",
+  "operations": [
+    {
+      "id": "spec-1-runtime-jpa-atomic-claim-lease",
+      "type": "write",
+      "target": "specs/runtime-jpa-atomic-claim-lease/spec.md",
+      "staged": "runtime/transactions/b1c36093-f356-495f-9906-f95d1d5cd48c/staged/specs/runtime-jpa-atomic-claim-lease/spec.md",
+      "backup": "runtime/transactions/b1c36093-f356-495f-9906-f95d1d5cd48c/backups/specs/runtime-jpa-atomic-claim-lease/spec.md",
+      "expectedTargetHash": "6d33b47ad87e750c7032112c2a53dfd38c7681756b93c061a5425eb6b60936f1",
+      "stagedHash": "8b25bf366d493c1a860ecd8c93dab55f595f611927080bd8267782bc3cd98260"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-jpa-token-schema-contract-repair",
+      "target": "archive/2026-08-07-runtime-jpa-token-schema-contract-repair",
+      "expectedSourceHash": "08d7d6232ed28553b9c55186695fdb1e4a64393bab4fc3568a6a1c555f217662",
+      "expectedTargetHash": null
+    }
+  ]
+}

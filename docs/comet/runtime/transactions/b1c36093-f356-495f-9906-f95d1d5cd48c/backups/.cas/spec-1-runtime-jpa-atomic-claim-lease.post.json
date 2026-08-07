@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-jpa-atomic-claim-lease",
+  "role": "post",
+  "hash": "8b25bf366d493c1a860ecd8c93dab55f595f611927080bd8267782bc3cd98260",
+  "identity": {
+    "dev": 950912656,
+    "ino": 7318349395735132,
+    "birthtimeMs": 1786102370151.6655
+  }
+}

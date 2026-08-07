@@ -97,7 +97,7 @@ open class JpaCommandExecutionSubstrate(
                 ownedState = CommandRecordEntity.CommandState.EXECUTING,
                 now = effectiveNow,
                 nextTryTime = nextTryTime,
-                token = token,
+                token = token.toByteArray(),
                 leaseUntil = leaseUntil,
                 retryLimit = retryPolicy.retryLimit,
             )
@@ -117,7 +117,7 @@ open class JpaCommandExecutionSubstrate(
         val effectiveNow = ReliableJpaOwnership.normalize(now)
         return records.renew(
             recordId = ownership.recordId,
-            token = ownership.token,
+            token = ownership.token.toByteArray(),
             ownedState = CommandRecordEntity.CommandState.EXECUTING,
             now = effectiveNow,
             leaseUntil = ReliableJpaOwnership.leaseUntil(effectiveNow, leaseDuration),
@@ -127,7 +127,7 @@ open class JpaCommandExecutionSubstrate(
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     open fun acknowledge(ownership: JpaOwnershipClaim, now: LocalDateTime): Boolean = records.acknowledge(
         recordId = ownership.recordId,
-        token = ownership.token,
+        token = ownership.token.toByteArray(),
         ownedState = CommandRecordEntity.CommandState.EXECUTING,
         successState = CommandRecordEntity.CommandState.EXECUTED,
         now = ReliableJpaOwnership.normalize(now),
@@ -159,7 +159,7 @@ open class JpaCommandExecutionSubstrate(
         }
         return records.transitionFailure(
             recordId = ownership.recordId,
-            token = ownership.token,
+            token = ownership.token.toByteArray(),
             ownedState = CommandRecordEntity.CommandState.EXECUTING,
             failureState = failureState,
             failureFacts = RuntimeJson.write(facts),

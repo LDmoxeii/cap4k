@@ -1,0 +1,239 @@
+# Acceptance evidence
+
+<!-- comet-native:acceptance-evidence:start -->
+[
+  {
+    "acceptance_id": "acceptance-0ea51aff1a28525e9b32e7e13afdf97dd3239da27eeb13b93525fb53c4548643",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-1d55ef9cf0740530c90c9f64c8cbc302e30a26e743a40ed8241eb8db7ca216c4",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-383c50013ab8e6338dbd9369cdeb1a0ed1ecc0130f518886e9635582da51c5d9",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-4169d9a90e5d7f2035e0c6c535d1ad772be45b9871c8e2a04aa5b20d2fb789cd",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-4207d200ae4c7937fc3b2b631ccb47c80dbbcc5630bd5583a1493217ae04ef20",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-42150ed79098648903166f1b4b58d3cd070db5cc108dba601844cfa22d89472d",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-4a3e064d099ce5402806eabd7758300d6fe3d9b052f5eebf7e3eec195c7306e7",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-4c1d25cd7670117eab77f76c81b72b6e65856e5f6e61b2ec006a76e2b40c56ca",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-507749bf5e14d05bb6abb7f54b4dbb106e71883b1aa44f6413a3f7ff821861d6",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-5bbd8a5ae759a2ff798b089aa8e49fab463121461186cf7dcdc5111a55d69cc4",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "ddd-application-command-jpa/src/main/resources/command.sql",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "ddd-domain-event-jpa/src/main/resources/event.sql"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-70a362c6a3f23af9d515fde9b7374dc6c3442aed9786a97b3ff97ac45e4f05c8",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-899877aadbec5595ed29ae503524c784834d028ba563f32987de5806d8d0a32c",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-9eb2f80273a38028d8321d98558261f2dc476250a22e0c9b2fe9b553e0cb3d5f",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-b17fc15ba5afedb88861957c7ba87386ffb1ddb366b3630a81a014473a321b4c",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-b5c7c926187f20cb7413aa1ab7443422b3ccdae28154e59c558bd226b24a2484",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-bafcc8a5a077802b4a84c15df72c76eb748bb8f118ff9e6f7d0d3f62f0b35f0f",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-bf589a7735c58c533e9e58ff0ea2fed8e1f7b97d34e765fe4a8b32c6bb23b87e",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-c6c2eceae3af3376c7c918a02ca848de64548a30d3eb18333bb7766d4eca863c",
+    "evidence_refs": [
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt",
+      "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-c8e20c8469e43c94dd1a9a121ff9d1a1136bcdbdaba43a4081f8e8c3b4537ac8",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-d361d9f070fe553375f5d62f896e4c7a8075fb32f80cdb04f97a0575a9fe87dc",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "ddd-application-command-jpa/src/main/resources/command.sql",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "ddd-domain-event-jpa/src/main/resources/event.sql"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-ec5b0ba7ecaa04e38148a7157d970c148349329efa5e7a275d68ba2db8a0ffb4",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt",
+      "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/JpaOwnershipClaim.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-f883231eb993aec7463dc29728efc07783c62bd3cada6d3786e41cfa05a9cf37",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-fbb9b10488fc7c747c307fc2976e3a04292ed955862008b602f7b451ba5b9de2",
+    "evidence_refs": [
+      "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+      "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt"
+    ]
+  }
+]
+<!-- comet-native:acceptance-evidence:end -->
+
+# Commands and results
+
+- `./gradlew.bat :ddd-domain-repo-jpa:compileKotlin :ddd-application-command-jpa:compileKotlin :ddd-domain-event-jpa:compileKotlin --no-daemon` — PASS. The shared token contract and both JPA carriers/substrates compiled successfully.
+- `./gradlew.bat :cap4k-ddd-command-jpa-starter:test --tests '*JpaCommandAtomicClaimIntegrationTest' :cap4k-ddd-domain-event-jpa-starter:test --tests '*JpaEventAtomicClaimIntegrationTest' --no-daemon` — PASS. All 43 focused Command/Event atomic-claim integration test methods passed, including separate-transaction contention, case/length byte mismatch, lease fencing, rollback, generated metadata, SQL declarations, retry snapshots, and safe failure facts.
+- `./gradlew.bat :ddd-domain-repo-jpa:test :ddd-application-command-jpa:test :ddd-domain-event-jpa:test :cap4k-ddd-jpa-starter:test :cap4k-ddd-command-jpa-starter:test :cap4k-ddd-domain-event-jpa-starter:test --no-daemon` — PASS in 1m 26s. All six related modules and starters passed; 57 Gradle tasks were evaluated (24 executed, 33 up-to-date).
+- `comet native check runtime-jpa-token-schema-contract-repair` — PASS. Receipt: `runtime/evidence/check-receipts/1c5334ad4b68cdf93cc617d215b18baa38715a8c54ff086c7cbec50cae4a95c0.json`.
+- `git diff --check` — PASS. No whitespace errors were reported.
+- Independent review found and prevented an attempted Event retry-semantic regression; the final implementation preserves `Event.init()` as the existing first direct publication attempt and the complete Event JPA test suite passes.
+
+# Skipped checks
+
+- Real MySQL execution — NOT_PERFORMED. No provisioned MySQL engine or existing Testcontainers infrastructure was available in this change. The verification therefore does not claim actual MySQL Connector/J binding behavior, execution of the complete MySQL DDL resources, or MySQL-specific `datetime(3)` rounding/default/update behavior.
+- No transport, manual redrive, retention/cleanup, partition-management, Locker, or public scheduling verification was run because those capabilities are explicit non-goals of this change.
+
+# Spec consistency
+
+- The implementation uses one immutable `JpaOwnershipToken` value with immediate input snapshotting, defensive output copies, exact content equality/hash, and the existing lowercase 32-character UUID-hex generator.
+- Command and Event repositories bind raw token bytes only at the private JPA boundary; both carriers use explicit `VARBINARY(32)` mappings and both SQL resources declare `varbinary(32)`.
+- All runtime-owned Command/Event time columns named in the target specification declare `datetime(3)` in JPA metadata and the shipped SQL resources; H2/Hibernate JDBC metadata confirms binary width and millisecond scale.
+- Claim, renewal, acknowledgement, failure, retry snapshot, safe failure facts, expiry, terminal/cancelled, and rollback semantics remain unchanged. In particular, Event's first direct after-commit publication remains attempt 1.
+- The sealed implementation scope is complete with zero unresolved scope items.
+
+# Known limitations and risks
+
+- H2 MySQL mode proves Hibernate mapping, JDBC byte binding, conditional-update behavior, and generated metadata for this test environment; it is not a substitute for a real MySQL engine.
+- The schema parity claim is intentionally limited to the ownership-token type/width and runtime timestamp precision required by this change. Broader differences such as defaults, nullability, indexes, partition keys, and automatic partition management remain outside this repair and must not be inferred as verified.
+- `VARBINARY(32)` removes text collation, trimming, case-folding, and padding from token identity by construction, but a later MySQL-backed verification should still execute the shipped DDL and the same mismatch matrix.
+
+# Conclusion
+
+PASS. The two remaining PR #170 blockers are closed for the specified contract: ownership fencing is exact bytewise through the semantic, JPA, repository, and SQL boundaries; and Hibernate-generated metadata plus shipped SQL now agree on binary token width and millisecond timestamp precision. All related local test suites pass, with real-MySQL evidence explicitly left NOT_PERFORMED rather than reported as passing.

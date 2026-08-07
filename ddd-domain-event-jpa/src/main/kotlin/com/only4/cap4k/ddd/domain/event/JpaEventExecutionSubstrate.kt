@@ -97,7 +97,7 @@ open class JpaEventExecutionSubstrate(
                 ownedState = Event.EventState.DELIVERING,
                 now = effectiveNow,
                 nextTryTime = nextTryTime,
-                token = token,
+                token = token.toByteArray(),
                 leaseUntil = leaseUntil,
                 retryLimit = retryPolicy.retryLimit,
             )
@@ -117,7 +117,7 @@ open class JpaEventExecutionSubstrate(
         val effectiveNow = ReliableJpaOwnership.normalize(now)
         return records.renew(
             recordId = ownership.recordId,
-            token = ownership.token,
+            token = ownership.token.toByteArray(),
             ownedState = Event.EventState.DELIVERING,
             now = effectiveNow,
             leaseUntil = ReliableJpaOwnership.leaseUntil(effectiveNow, leaseDuration),
@@ -127,7 +127,7 @@ open class JpaEventExecutionSubstrate(
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     open fun acknowledge(ownership: JpaOwnershipClaim, now: LocalDateTime): Boolean = records.acknowledge(
         recordId = ownership.recordId,
-        token = ownership.token,
+        token = ownership.token.toByteArray(),
         ownedState = Event.EventState.DELIVERING,
         successState = Event.EventState.DELIVERED,
         now = ReliableJpaOwnership.normalize(now),
@@ -159,7 +159,7 @@ open class JpaEventExecutionSubstrate(
         }
         return records.transitionFailure(
             recordId = ownership.recordId,
-            token = ownership.token,
+            token = ownership.token.toByteArray(),
             ownedState = Event.EventState.DELIVERING,
             failureState = failureState,
             failureFacts = RuntimeJson.write(facts),
