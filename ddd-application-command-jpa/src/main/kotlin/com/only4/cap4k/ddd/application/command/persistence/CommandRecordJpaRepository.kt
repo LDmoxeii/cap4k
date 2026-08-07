@@ -38,6 +38,97 @@ interface CommandRecordJpaRepository :
         pageable: Pageable,
     ): List<CommandRecordEntity>
 
+    @Query(
+        """
+        select command
+          from CommandRecordEntity command
+         where command.svcName = :serviceName
+           and command.expireAt <= :now
+           and (
+                command.commandState in :readyStates
+                or
+                (command.commandState = :ownedState
+                    and (command.leaseUntil is null or command.leaseUntil <= :now))
+           )
+         order by command.id asc
+        """
+    )
+    fun findExpiredCandidates(
+        @Param("serviceName") serviceName: String,
+        @Param("readyStates") readyStates: Collection<CommandRecordEntity.CommandState>,
+        @Param("ownedState") ownedState: CommandRecordEntity.CommandState,
+        @Param("now") now: LocalDateTime,
+        pageable: Pageable,
+    ): List<CommandRecordEntity>
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        update CommandRecordEntity command
+           set command.commandState = :expiredState,
+               command.failureFactsJson = :failureFacts,
+               command.deliveryToken = null,
+               command.leaseUntil = null,
+               command.version = command.version + 1
+         where command.id = :recordId
+           and command.version = :version
+           and command.svcName = :serviceName
+           and command.expireAt <= :now
+           and (
+                command.commandState in :readyStates
+                or
+                (command.commandState = :ownedState
+                    and (command.leaseUntil is null or command.leaseUntil <= :now))
+           )
+    """
+    )
+    fun terminalizeExpired(
+        @Param("recordId") recordId: Long,
+        @Param("version") version: Int,
+        @Param("serviceName") serviceName: String,
+        @Param("readyStates") readyStates: Collection<CommandRecordEntity.CommandState>,
+        @Param("ownedState") ownedState: CommandRecordEntity.CommandState,
+        @Param("expiredState") expiredState: CommandRecordEntity.CommandState,
+        @Param("failureFacts") failureFacts: String,
+        @Param("now") now: LocalDateTime,
+    ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        update CommandRecordEntity command
+           set command.commandState = :exhaustedState,
+               command.failureFactsJson = :failureFacts,
+               command.deliveryToken = null,
+               command.leaseUntil = null,
+               command.version = command.version + 1
+         where command.id = :recordId
+           and command.version = :version
+           and command.svcName = :serviceName
+           and command.expireAt > :now
+           and command.triedTimes >= :retryLimit
+           and (
+                (command.commandState in :readyStates
+                    and command.nextTryTime <= :now
+                    and (command.leaseUntil is null or command.leaseUntil <= :now))
+                or
+                (command.commandState = :ownedState
+                    and (command.leaseUntil is null or command.leaseUntil <= :now))
+           )
+        """
+    )
+    fun terminalizeExhausted(
+        @Param("recordId") recordId: Long,
+        @Param("version") version: Int,
+        @Param("serviceName") serviceName: String,
+        @Param("readyStates") readyStates: Collection<CommandRecordEntity.CommandState>,
+        @Param("ownedState") ownedState: CommandRecordEntity.CommandState,
+        @Param("exhaustedState") exhaustedState: CommandRecordEntity.CommandState,
+        @Param("retryLimit") retryLimit: Int,
+        @Param("failureFacts") failureFacts: String,
+        @Param("now") now: LocalDateTime,
+    ): Int
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(
         """
@@ -52,6 +143,7 @@ interface CommandRecordJpaRepository :
          where command.id = :recordId
            and command.svcName = :serviceName
            and command.expireAt > :now
+           and command.triedTimes < :retryLimit
            and (
                 (command.commandState in :readyStates
                     and command.nextTryTime <= :now
@@ -71,6 +163,7 @@ interface CommandRecordJpaRepository :
         @Param("nextTryTime") nextTryTime: LocalDateTime,
         @Param("token") token: String,
         @Param("leaseUntil") leaseUntil: LocalDateTime,
+        @Param("retryLimit") retryLimit: Int,
     ): Int
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
@@ -83,7 +176,6 @@ interface CommandRecordJpaRepository :
            and command.deliveryToken = :token
            and command.leaseUntil > :now
            and command.leaseUntil < :leaseUntil
-           and command.expireAt > :now
            and command.commandState = :ownedState
         """
     )
@@ -106,7 +198,6 @@ interface CommandRecordJpaRepository :
          where command.id = :recordId
            and command.deliveryToken = :token
            and command.leaseUntil > :now
-           and command.expireAt > :now
            and command.commandState = :ownedState
         """
     )

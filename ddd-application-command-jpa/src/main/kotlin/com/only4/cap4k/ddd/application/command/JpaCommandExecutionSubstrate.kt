@@ -28,6 +28,31 @@ open class JpaCommandExecutionSubstrate(
         require(candidateLimit > 0) { "candidate limit must be positive" }
         val effectiveNow = ReliableJpaOwnership.normalize(now)
         val leaseUntil = ReliableJpaOwnership.leaseUntil(effectiveNow, leaseDuration)
+        records.findExpiredCandidates(
+            serviceName = serviceName,
+            readyStates = READY_STATES,
+            ownedState = CommandRecordEntity.CommandState.EXECUTING,
+            now = effectiveNow,
+            pageable = PageRequest.of(0, candidateLimit),
+        ).forEach { expired ->
+            val recordId = requireNotNull(expired.id) { "persisted Command record must have an id" }
+            records.terminalizeExpired(
+                recordId = recordId,
+                version = expired.version,
+                serviceName = serviceName,
+                readyStates = READY_STATES,
+                ownedState = CommandRecordEntity.CommandState.EXECUTING,
+                expiredState = CommandRecordEntity.CommandState.EXPIRED,
+                failureFacts = terminalFailureFacts(
+                    existing = expired.failureFacts,
+                    operation = ReliableFailureOperation.COMMAND_EXECUTION,
+                    occurredAt = effectiveNow,
+                    attempt = expired.triedTimes,
+                    correlationId = expired.commandUuid.ifBlank { "command-$recordId" },
+                ),
+                now = effectiveNow,
+            )
+        }
         val candidates = records.findClaimCandidates(
             serviceName = serviceName,
             now = effectiveNow,
@@ -43,6 +68,26 @@ open class JpaCommandExecutionSubstrate(
                 candidate.retryPolicy,
                 ReliableRetryPolicySnapshot::class.java,
             )
+            if (candidate.triedTimes >= retryPolicy.retryLimit) {
+                records.terminalizeExhausted(
+                    recordId = recordId,
+                    version = candidate.version,
+                    serviceName = serviceName,
+                    readyStates = READY_STATES,
+                    ownedState = CommandRecordEntity.CommandState.EXECUTING,
+                    exhaustedState = CommandRecordEntity.CommandState.EXHAUSTED,
+                    retryLimit = retryPolicy.retryLimit,
+                    failureFacts = terminalFailureFacts(
+                        existing = candidate.failureFacts,
+                        operation = ReliableFailureOperation.COMMAND_EXECUTION,
+                        occurredAt = effectiveNow,
+                        attempt = candidate.triedTimes,
+                        correlationId = candidate.commandUuid.ifBlank { "command-$recordId" },
+                    ),
+                    now = effectiveNow,
+                )
+                continue
+            }
             val nextTryTime = effectiveNow.plusMinutes(retryPolicy.delayMinutesFor(nextAttempt))
             val token = ReliableJpaOwnership.issueToken()
             val updated = records.claim(
@@ -54,6 +99,7 @@ open class JpaCommandExecutionSubstrate(
                 nextTryTime = nextTryTime,
                 token = token,
                 leaseUntil = leaseUntil,
+                retryLimit = retryPolicy.retryLimit,
             )
             if (updated == 1) {
                 return JpaOwnershipClaim(recordId, token, leaseUntil)
@@ -121,6 +167,25 @@ open class JpaCommandExecutionSubstrate(
             now = effectiveNow,
         ) == 1
     }
+
+    private fun terminalFailureFacts(
+        existing: ReliableFailureFacts?,
+        operation: ReliableFailureOperation,
+        occurredAt: LocalDateTime,
+        attempt: Int,
+        correlationId: String,
+    ): String = RuntimeJson.write(
+        existing?.copy(retryable = false, terminal = true)
+            ?: ReliableFailureFacts(
+                type = "cap4k.runtime.ReliableTerminalization",
+                message = operation.safeMessage,
+                occurredAt = occurredAt,
+                attempt = attempt.coerceAtLeast(1),
+                correlationId = correlationId,
+                retryable = false,
+                terminal = true,
+            )
+    )
 
     private companion object {
         const val DEFAULT_CANDIDATE_LIMIT = 32

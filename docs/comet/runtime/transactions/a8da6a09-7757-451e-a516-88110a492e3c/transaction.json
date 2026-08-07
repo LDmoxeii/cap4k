@@ -1,0 +1,19 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "a8da6a09-7757-451e-a516-88110a492e3c",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-jpa-atomic-claim-lease-review-fixes",
+  "createdAt": "2026-08-07T07:21:50.155Z",
+  "preflightHash": "86443526c690501d48d3d8454e0bbb67cdb31a1eddeb5535ae5a3c69a70e4d9d",
+  "operations": [
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-jpa-atomic-claim-lease-review-fixes",
+      "target": "archive/2026-08-07-runtime-jpa-atomic-claim-lease-review-fixes",
+      "expectedSourceHash": "a10984b5676a1408e57bb0c7f582c5c05b915a9d43ad90c7516f63908b204dbc",
+      "expectedTargetHash": null
+    }
+  ]
+}
