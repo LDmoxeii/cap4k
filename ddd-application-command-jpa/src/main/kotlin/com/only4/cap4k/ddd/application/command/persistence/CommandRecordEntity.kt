@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
-import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.annotation.Retry
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
@@ -194,7 +193,9 @@ class CommandRecordEntity(
 
         loadCommand(commandParam)
 
-        this.nextTryTime = calculateNextTryTime(scheduleAt)
+        // The first claim is due at the requested schedule. Retry delays are
+        // applied only after an owned attempt fails.
+        this.nextTryTime = scheduleAt
     }
 
     @Transient
@@ -243,91 +244,6 @@ class CommandRecordEntity(
         }
         private set
 
-    private fun recordFailure(facts: ReliableFailureFacts) {
-        failureFacts = facts
-        failureFactsJson = RuntimeJson.write(facts)
-    }
-
-    private fun markFailureTerminal() {
-        val current = failureFacts ?: return
-        if (current.terminal) return
-        recordFailure(current.copy(retryable = false, terminal = true))
-    }
-
-    val isValid: Boolean
-        get() = this.commandState in setOf(CommandState.INIT, CommandState.EXECUTING, CommandState.EXCEPTION)
-
-    val isInvalid: Boolean
-        get() = this.commandState in setOf(CommandState.CANCEL, CommandState.EXPIRED, CommandState.EXHAUSTED)
-
-    val isExecuting: Boolean
-        get() = CommandState.EXECUTING == this.commandState
-
-    val isExecuted: Boolean
-        get() = CommandState.EXECUTED == this.commandState
-
-    fun beginCommand(now: LocalDateTime): Boolean {
-        when {
-            // 初始状态或者确认中或者异常
-            !isValid -> return false
-            // 超过重试次数
-            this.triedTimes >= this.tryTimes -> {
-                this.commandState = CommandState.EXHAUSTED
-                markFailureTerminal()
-                return false
-            }
-            // 事件过期
-            now.isAfter(this.expireAt) -> {
-                this.commandState = CommandState.EXPIRED
-                markFailureTerminal()
-                return false
-            }
-            // 未到下次重试时间
-            this.lastTryTime != now && this.nextTryTime.isAfter(now) -> return false
-        }
-
-        this.commandState = CommandState.EXECUTING
-        this.lastTryTime = now
-        this.triedTimes += 1
-        this.nextTryTime = calculateNextTryTime(now)
-        return true
-    }
-
-    fun endCommand(now: LocalDateTime) {
-        this.commandState = CommandState.EXECUTED
-    }
-
-    fun cancelCommand(now: LocalDateTime): Boolean {
-        if (isExecuted || isInvalid) {
-            return false
-        }
-        this.commandState = CommandState.CANCEL
-        return true
-    }
-
-    fun occurredException(now: LocalDateTime, ex: Throwable) {
-        if (isExecuted) {
-            return
-        }
-        this.commandState = CommandState.EXCEPTION
-        val retryable = this.triedTimes < this.tryTimes && !now.isAfter(this.expireAt)
-        recordFailure(
-            ReliableFailureFacts.capture(
-                operation = ReliableFailureOperation.COMMAND_EXECUTION,
-                throwable = ex,
-                occurredAt = now,
-                attempt = this.triedTimes.coerceAtLeast(1),
-                correlationId = this.commandUuid,
-                retryable = retryable,
-            )
-        )
-    }
-
-    private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val policySnapshot = RuntimeJson.read(retryPolicy, ReliableRetryPolicySnapshot::class.java)
-        return now.plusMinutes(policySnapshot.delayMinutesFor(this.triedTimes))
-    }
-
     override fun toString(): String =
         "CommandRecord(commandUuid=$commandUuid, service=$svcName, type=$commandType, " +
             "state=${commandState.stateName}, attempt=$triedTimes/$tryTimes, " +
@@ -339,9 +255,7 @@ class CommandRecordEntity(
          */
         INIT(0, "init"),
 
-        /**
-         * 待确认结果
-         */
+        /** Claimed by one reliable Command worker and protected by token + lease fencing. */
         EXECUTING(-1, "executing"),
 
         /**

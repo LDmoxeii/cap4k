@@ -3,7 +3,6 @@ package com.only4.cap4k.ddd.core.autoconfigure
 import com.only4.cap4k.ddd.core.MediatorSupport
 import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
 import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisorSupport
-import com.only4.cap4k.ddd.core.application.command.CommandManager
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisorSupport
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisor
@@ -52,7 +51,6 @@ class RuntimeProviderBinder(
         val domainEventSupervisor = required(DomainEventSupervisor::class.java, "domain-events")
         val domainEventManager = required(DomainEventManager::class.java, "domain-event-manager")
         val reliableCommandSupervisor = optional(ReliableCommandSupervisor::class.java, "reliable-commands")
-        val commandManager = optional(CommandManager::class.java, "command-manager")
         val aggregateFactorySupervisor = optional(AggregateFactorySupervisor::class.java, "factories")
         val managedEntityAdmissionCoordinator = optional(
             ManagedEntityAdmissionCoordinator::class.java,
@@ -77,9 +75,6 @@ class RuntimeProviderBinder(
             bind(domainEventSupervisor, DomainEventSupervisorSupport::configure, DomainEventSupervisorSupport::release)
             bind(domainEventManager, DomainEventSupervisorSupport::configure, DomainEventSupervisorSupport::release)
             reliableCommandSupervisor?.let {
-                bind(it, ReliableCommandSupervisorSupport::configure, ReliableCommandSupervisorSupport::release)
-            }
-            commandManager?.let {
                 bind(it, ReliableCommandSupervisorSupport::configure, ReliableCommandSupervisorSupport::release)
             }
             aggregateFactorySupervisor?.let {

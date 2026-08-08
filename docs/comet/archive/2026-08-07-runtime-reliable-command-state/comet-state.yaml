@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-reliable-command-state
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 8e4b35380d4903521fad393252e3cfeb18e591eb89ff6ff147c774fd531fbff9
+spec_changes:
+  - capability: runtime-reliable-command-state
+    operation: replace
+    source: specs/runtime-reliable-command-state/spec.md
+    base_hash: fe217ecd9d8b54e89b887081c2639b53e862c83d855dfbda1ca74bf24ce34f95
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/9564307e482d7cfc9627599ff39fb633428ffca12b6389fbac53352eba9f2955.json
+verification_evidence: runtime/evidence/verifications/a3fd236a7da807436da34aaffcb5ef61c5140d0458d5e3915b073b44f455697c.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-07
+run_id: 53f68637-a7cf-4a37-91e2-ee3ed9fdc88c
