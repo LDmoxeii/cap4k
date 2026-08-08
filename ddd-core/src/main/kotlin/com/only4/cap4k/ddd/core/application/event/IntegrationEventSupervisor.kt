@@ -11,47 +11,20 @@ import java.time.LocalDateTime
  * @date 2025/07/20
  */
 interface IntegrationEventSupervisor {
-    /**
-     * 附加事件到持久化上下文
-     * 将事件添加到当前线程的上下文中，等待事务提交后发布
-     *
-     * @param eventPayload 事件消息体
-     * @param schedule 指定时间发送
-     */
-    fun <EVENT : Any> attach(
-        eventPayload: EVENT,
-        schedule: LocalDateTime = LocalDateTime.now(),
-    )
+    fun <EVENT : Any> enqueue(eventPayload: EVENT) = schedule(eventPayload, LocalDateTime.now())
 
-    fun <EVENT : Any> attach(
-        eventPayload: EVENT,
-        delay: Duration
-    ) = attach(eventPayload, LocalDateTime.now().plus(delay))
+    fun <EVENT : Any> schedule(eventPayload: EVENT, schedule: LocalDateTime)
 
-    /**
-     * 附加事件到持久化上下文
-     *
-     * @param schedule             指定时间发送
-     * @param eventPayloadSupplier 事件消息体提供者
-     * @param <EVENT>              集成事件类型
-    </EVENT> */
-    fun <EVENT : Any> attach(
-        schedule: LocalDateTime = LocalDateTime.now(),
-        eventPayloadSupplier: () -> EVENT
-    )
+    fun <EVENT : Any> delay(eventPayload: EVENT, delay: Duration) =
+        schedule(eventPayload, LocalDateTime.now().plus(delay))
 
-    fun <EVENT : Any> attach(
-        delay: Duration,
-        eventPayloadSupplier: () -> EVENT
-    ) = attach(LocalDateTime.now().plus(delay), eventPayloadSupplier)
+    fun <EVENT : Any> enqueue(eventPayloadSupplier: () -> EVENT) =
+        schedule(LocalDateTime.now(), eventPayloadSupplier)
 
-    /**
-     * 从持久化上下文解除事件
-     * 将事件从当前线程的上下文中移除
-     *
-     * @param eventPayload 事件消息体
-     */
-    fun <EVENT : Any> detach(eventPayload: EVENT)
+    fun <EVENT : Any> schedule(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT)
+
+    fun <EVENT : Any> delay(delay: Duration, eventPayloadSupplier: () -> EVENT) =
+        schedule(LocalDateTime.now().plus(delay), eventPayloadSupplier)
 
     companion object {
         /**

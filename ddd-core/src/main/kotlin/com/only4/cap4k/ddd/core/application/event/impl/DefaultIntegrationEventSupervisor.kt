@@ -11,10 +11,10 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.invocation.InvocationKind
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
-import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventRuntimeContextManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.impl.EventAttachment
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
@@ -31,7 +31,7 @@ import java.time.LocalDateTime
  * @date 2025/07/26
  */
 open class DefaultIntegrationEventSupervisor(
-    private val eventPublisher: EventPublisher,
+    private val reliableEventCoordinator: ReliableEventCoordinator,
     private val eventRecordRepository: EventRecordRepository,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
     private val applicationEventPublisher: ApplicationEventPublisher,
@@ -61,7 +61,7 @@ open class DefaultIntegrationEventSupervisor(
         }
     }
 
-    override fun <EVENT : Any> attach(eventPayload: EVENT, schedule: LocalDateTime) {
+    override fun <EVENT : Any> schedule(eventPayload: EVENT, schedule: LocalDateTime) {
         requireRegistrationScope()
         validateIntegrationEvent(eventPayload)
         EventRuntimeContext.attachmentScope()
@@ -73,7 +73,7 @@ open class DefaultIntegrationEventSupervisor(
             .forEach { interceptor -> interceptor.onAttach(eventPayload, schedule) }
     }
 
-    override fun <EVENT : Any> attach(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
+    override fun <EVENT : Any> schedule(schedule: LocalDateTime, eventPayloadSupplier: () -> EVENT) {
         requireRegistrationScope()
         EventRuntimeContext.attachmentScope()
             .attachIntegration(
@@ -87,17 +87,6 @@ open class DefaultIntegrationEventSupervisor(
             "Integration Event registration requires COMMAND or DOMAIN_EVENT_HANDLER invocation scope; " +
                 "current=${current ?: "NONE"}"
         }
-    }
-
-    override fun <EVENT : Any> detach(eventPayload: EVENT) {
-        requireRegistrationScope()
-        val attachments = (EventRuntimeContext.currentUnitOfWorkOrNull() ?: EventRuntimeContext.currentOrNull())
-            ?.integrationAttachments ?: return
-        val removed = attachments.removeAll { attachment -> attachment.matches(eventPayload) }
-        if (!removed) return
-
-        integrationEventInterceptorManager.orderedIntegrationEventInterceptors
-            .forEach { interceptor -> interceptor.onDetach(eventPayload) }
     }
 
     override fun release() {
@@ -157,11 +146,11 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     @TransactionalEventListener(
-        fallbackExecution = false,
+        fallbackExecution = true,
         classes = [IntegrationEventAttachedTransactionCommittedEvent::class]
     )
     fun onTransactionCommitted(event: IntegrationEventAttachedTransactionCommittedEvent) {
-        event.events.forEach(eventPublisher::publish)
+        if (event.events.isNotEmpty()) reliableEventCoordinator.wake()
     }
 
     private fun popEvents(): List<EventAttachment<Any>> {

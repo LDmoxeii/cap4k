@@ -1,0 +1,16 @@
+{
+  "schema": "comet.native.partial-allowance.v1",
+  "change": "runtime-reliable-event-state",
+  "scopeHash": "ab5398d491fc120eb7a12122dc5eefaebb1a5ee895e1cf78aa6aec18b284b57d",
+  "scopeIds": [
+    "scope:2f8a029fff5cb29b3f801b879c31307fce14d6da00f8f3537cdc26eea80ab0d2",
+    "scope:36252a320d6d2db5b8200860a59e36550a1cdf731c11d6157af4b0c0fad8c621",
+    "scope:9f37e7ab875d9c618c2d6f47f788426e0f2c3df3e57ccf77b46d717e7815cae7",
+    "scope:ada0c7fe1de4f87765fce4a192a65a26bea17a779c1dc0fdfb9935e9169d38b8"
+  ],
+  "reason": "The four unattributed scope items are intentional deletions of retired Event configuration, interceptor-manager implementation, and obsolete execution-context tests; the current implementation and replacement tests are covered by the declared artifacts.",
+  "confirmedSummary": "Build completed: fixed JPA reliable Event completion and lease handling, added token-bound failure for claim/load/classification failures, added real JPA provider/coordinator composition coverage, and passed the focused Gradle matrix.",
+  "sourceRevision": 3,
+  "confirmedAt": "2026-08-08T06:53:05.138Z",
+  "allowanceHash": "538a2d981f26412486b8053aa4c4da73ed063edb82ec4d7dbf7f0889832b3acf"
+}

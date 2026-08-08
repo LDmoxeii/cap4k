@@ -6,7 +6,6 @@ import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.LocalDateTime
@@ -15,7 +14,7 @@ class EventRetryPolicySnapshotTest {
     private val createdAt = LocalDateTime.of(2025, 1, 15, 10, 30)
 
     @Test
-    fun `stored policy survives active reload and ignores the currently loaded event annotation`() {
+    fun `stored policy survives reload and ignores the currently loaded event annotation`() {
         val original = Event().init(
             payload = OriginalPolicyEvent("business-secret"),
             svcName = "test-service",
@@ -24,7 +23,9 @@ class EventRetryPolicySnapshotTest {
             retryTimes = 99,
         )
         val snapshot = RuntimeJson.read(original.retryPolicy, ReliableRetryPolicySnapshot::class.java)
+
         assertEquals(4, snapshot.retryLimit)
+        assertEquals(listOf(2L, 7L), snapshot.delaySteps.map { it.delayMinutes })
         assertFalse(original.retryPolicy.contains("business-secret"))
 
         val reloaded = Event(
@@ -42,11 +43,12 @@ class EventRetryPolicySnapshotTest {
             tryTimes = original.tryTimes,
             retryPolicy = original.retryPolicy,
         )
-        val retryAt = createdAt.plusMinutes(10)
+        val reloadedSnapshot = RuntimeJson.read(reloaded.retryPolicy, ReliableRetryPolicySnapshot::class.java)
 
         assertEquals(original.retryPolicy, reloaded.retryPolicy)
-        assertTrue(reloaded.beginDelivery(retryAt))
-        assertEquals(retryAt.plusMinutes(7), reloaded.nextTryTime)
+        assertEquals(snapshot, reloadedSnapshot)
+        assertEquals(1, reloaded.triedTimes)
+        assertEquals(createdAt, reloaded.nextTryTime)
     }
 
     @DomainEvent("retry.original")

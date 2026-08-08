@@ -1,346 +1,301 @@
 package com.only4.cap4k.ddd.domain.event
 
-import com.only4.cap4k.ddd.core.application.distributed.Locker
+import com.only4.cap4k.ddd.application.JpaOwnershipClaim
+import com.only4.cap4k.ddd.application.JpaOwnershipToken
+import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
-import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
+import com.only4.cap4k.ddd.domain.event.persistence.Event
+import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
 import com.only4.cap4k.ddd.domain.event.persistence.TestEvent
+import com.only4.cap4k.ddd.domain.event.persistence.UserCreatedEvent
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import org.junit.jupiter.api.Assertions.assertDoesNotThrow
-import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Duration
 import java.time.LocalDateTime
+import java.util.Optional
+import java.util.UUID
 
-@DisplayName("JpaEventScheduleService调度服务测试")
 class JpaEventScheduleServiceTest {
+    private val publisher = mockk<EventPublisher>()
+    private val substrate = mockk<JpaEventExecutionSubstrate>()
+    private val records = mockk<EventJpaRepository>()
+    private val jdbcTemplate = mockk<JdbcTemplate>(relaxed = true)
+    private val leaseDuration = Duration.ofSeconds(30)
+    private val renewInterval = Duration.ofSeconds(10)
+    private lateinit var service: JpaEventScheduleService
 
-    private lateinit var scheduleService: JpaEventScheduleService
-    private lateinit var eventPublisher: EventPublisher
-    private lateinit var eventRecordRepository: EventRecordRepository
-    private lateinit var locker: Locker
-    private lateinit var jdbcTemplate: JdbcTemplate
+    @AfterEach
+    fun shutdown() {
+        if (::service.isInitialized) service.shutdown()
+    }
 
-    private val svcName = "test-service"
-    private val retryLockerKey = "retry-lock"
-    private val enableAddPartition = true
+    @Test
+    fun `claimed Domain Event is acknowledged only through completion`() {
+        val fixture = claimed(TestEvent("test", 12345))
+        service = newService(batchSize = 2)
+        every { substrate.claim("test-service", any(), leaseDuration, 2) } returnsMany
+            listOf(fixture.ownership, null)
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.acknowledge(fixture.ownership, any()) } returns true
+        every { publisher.publish(any(), any()) } answers {
+            val record = firstArg<EventRecord>()
+            secondArg<EventPublisher.Completion>().onSuccess(record)
+        }
 
-    @BeforeEach
-    fun setUp() {
-        eventPublisher = mockk(relaxed = true)
-        eventRecordRepository = mockk(relaxed = true)
-        locker = mockk(relaxed = true)
-        jdbcTemplate = mockk(relaxed = true)
+        assertEquals(1, service.drainNow())
 
-        scheduleService = JpaEventScheduleService(
-            eventPublisher = eventPublisher,
-            eventRecordRepository = eventRecordRepository,
-            locker = locker,
-            svcName = svcName,
-            retryLockerKey = retryLockerKey,
-            enableAddPartition = enableAddPartition,
-            jdbcTemplate = jdbcTemplate
+        verify(exactly = 1) { publisher.publish(match { it.deliveryAttempt == 1 }, any()) }
+        verify(exactly = 1) { substrate.acknowledge(fixture.ownership, any()) }
+        verify(exactly = 0) { substrate.fail(any(), any(), any()) }
+    }
+
+    @Test
+    fun `Domain Event publisher failure enters token bound failure transition`() {
+        val fixture = claimed(TestEvent("test", 12345))
+        val failure = IllegalStateException("handler failed")
+        service = newService(batchSize = 2)
+        every { substrate.claim("test-service", any(), leaseDuration, 2) } returnsMany
+            listOf(fixture.ownership, null)
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.fail(fixture.ownership, any(), failure) } returns true
+        every { publisher.publish(any(), any()) } answers {
+            val record = firstArg<EventRecord>()
+            secondArg<EventPublisher.Completion>().onFailure(record, failure)
+        }
+
+        assertEquals(1, service.drainNow())
+
+        verify(exactly = 1) { substrate.fail(fixture.ownership, any(), failure) }
+        verify(exactly = 0) { substrate.acknowledge(any(), any()) }
+    }
+
+    @Test
+    fun `Domain Event publisher must complete synchronously`() {
+        val fixture = claimed(TestEvent("test", 12345))
+        service = newService(batchSize = 2)
+        every { substrate.claim("test-service", any(), leaseDuration, 2) } returnsMany
+            listOf(fixture.ownership, null)
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.fail(fixture.ownership, any(), any()) } returns true
+        every { publisher.publish(any(), any()) } returns Unit
+
+        assertEquals(1, service.drainNow())
+
+        verify(exactly = 1) {
+            substrate.fail(
+                fixture.ownership,
+                any(),
+                match { it is IllegalStateException && it.message!!.contains("synchronous completion") },
+            )
+        }
+    }
+
+    @Test
+    fun `Integration Event may complete after publisher returns`() {
+        val fixture = claimed(UserCreatedEvent("user-1", "name", "mail@example.com"))
+        lateinit var completion: EventPublisher.Completion
+        lateinit var published: EventRecord
+        service = newService(batchSize = 2)
+        every { substrate.claim("test-service", any(), leaseDuration, 2) } returnsMany
+            listOf(fixture.ownership, null)
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.acknowledge(fixture.ownership, any()) } returns true
+        every { publisher.publish(any(), any()) } answers {
+            published = firstArg()
+            completion = secondArg()
+        }
+
+        assertEquals(1, service.drainNow())
+        verify(exactly = 0) { substrate.acknowledge(any(), any()) }
+        verify(exactly = 0) { substrate.fail(any(), any(), any()) }
+
+        completion.onSuccess(published)
+
+        verify(exactly = 1) { substrate.acknowledge(fixture.ownership, any()) }
+    }
+
+    @Test
+    fun `Integration Event lease is renewed while provider callback is pending`() {
+        val fixture = claimed(UserCreatedEvent("user-1", "name", "mail@example.com"))
+        lateinit var completion: EventPublisher.Completion
+        lateinit var published: EventRecord
+        val shortLease = Duration.ofMillis(100)
+        val shortRenewInterval = Duration.ofMillis(10)
+        service = newService(batchSize = 2, leaseDuration = shortLease, renewInterval = shortRenewInterval)
+        every { substrate.claim("test-service", any(), shortLease, 2) } returnsMany
+            listOf(fixture.ownership, null)
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.renew(fixture.ownership, any(), shortLease) } returns true
+        every { substrate.acknowledge(fixture.ownership, any()) } returns true
+        every { publisher.publish(any(), any()) } answers {
+            published = firstArg()
+            completion = secondArg()
+        }
+
+        assertEquals(1, service.drainNow())
+        verify(timeout = 500, atLeast = 1) { substrate.renew(fixture.ownership, any(), shortLease) }
+
+        completion.onSuccess(published)
+        verify(exactly = 1) { substrate.acknowledge(fixture.ownership, any()) }
+    }
+
+    @Test
+    fun `completion may retry a transition after a transient database failure`() {
+        val fixture = claimed(TestEvent("test", 12345))
+        service = newService(batchSize = 2)
+        every { substrate.claim("test-service", any(), leaseDuration, 2) } returnsMany
+            listOf(fixture.ownership, null)
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.acknowledge(fixture.ownership, any()) } returnsMany listOf(false, true)
+        every { publisher.publish(any(), any()) } answers {
+            val record = firstArg<EventRecord>()
+            val completion = secondArg<EventPublisher.Completion>()
+            completion.onSuccess(record)
+            completion.onSuccess(record)
+        }
+
+        assertEquals(1, service.drainNow())
+
+        verify(exactly = 2) { substrate.acknowledge(fixture.ownership, any()) }
+    }
+
+    @Test
+    fun `payload loading failure enters token bound failure transition`() {
+        val fixture = claimedWithoutPayload()
+        service = newService(batchSize = 1)
+        every { substrate.claim("test-service", any(), leaseDuration, 1) } returns fixture.ownership
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+        every { substrate.fail(fixture.ownership, any(), any()) } returns true
+
+        assertEquals(1, service.drainNow())
+
+        verify(exactly = 1) {
+            substrate.fail(
+                fixture.ownership,
+                any(),
+                match { it is DomainException },
+            )
+        }
+        verify(exactly = 0) { publisher.publish(any(), any()) }
+    }
+
+    @Test
+    fun `stale loaded ownership never reaches publisher`() {
+        val fixture = claimed(TestEvent("test", 12345))
+        fixture.event.deliveryToken = JpaOwnershipToken.fromText("b".repeat(32)).toByteArray()
+        service = newService(batchSize = 1)
+        every { substrate.claim("test-service", any(), leaseDuration, 1) } returns fixture.ownership
+        every { records.findById(fixture.ownership.recordId) } returns Optional.of(fixture.event)
+
+        assertEquals(1, service.drainNow())
+
+        verify(exactly = 0) { publisher.publish(any(), any()) }
+        verify(exactly = 0) { substrate.acknowledge(any(), any()) }
+        verify(exactly = 0) { substrate.fail(any(), any(), any()) }
+    }
+
+    @Test
+    fun `no due claim performs no publication`() {
+        service = newService(batchSize = 1)
+        every { substrate.claim("test-service", any(), leaseDuration, 1) } returns null
+
+        assertEquals(0, service.drainNow())
+
+        verify(exactly = 0) { records.findById(any()) }
+        verify(exactly = 0) { publisher.publish(any(), any()) }
+    }
+
+    @Test
+    fun `partition creation is optional`() {
+        service = newService(enableAddPartition = false)
+
+        service.init()
+
+        verify(exactly = 0) { jdbcTemplate.execute(any<String>()) }
+    }
+
+    @Test
+    fun `invalid lease policy is rejected`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            newService(leaseDuration = Duration.ofSeconds(5), renewInterval = Duration.ofSeconds(5))
+        }
+        assertFalse(::service.isInitialized)
+    }
+
+    private fun newService(
+        batchSize: Int = 4,
+        leaseDuration: Duration = this.leaseDuration,
+        renewInterval: Duration = this.renewInterval,
+        enableAddPartition: Boolean = false,
+    ): JpaEventScheduleService = JpaEventScheduleService(
+        eventPublisher = publisher,
+        executionSubstrate = substrate,
+        eventJpaRepository = records,
+        serviceName = "test-service",
+        batchSize = batchSize,
+        leaseDuration = leaseDuration,
+        leaseRenewInterval = renewInterval,
+        workerThreads = 1,
+        enableAddPartition = enableAddPartition,
+        jdbcTemplate = jdbcTemplate,
+    ).also { service = it }
+
+    private fun claimed(payload: Any): Fixture {
+        val ownership = JpaOwnershipClaim(
+            recordId = 1L,
+            token = JpaOwnershipToken.fromText("a".repeat(32)),
+            leaseUntil = LocalDateTime.now().plusMinutes(1),
         )
+        val event = Event().init(
+            payload = payload,
+            svcName = "test-service",
+            scheduleAt = LocalDateTime.now().minusSeconds(1),
+            expireAfter = Duration.ofHours(1),
+            retryTimes = 3,
+        ).apply {
+            id = ownership.recordId
+            eventState = Event.EventState.DELIVERING
+            triedTimes = 1
+            deliveryToken = ownership.token.toByteArray()
+            leaseUntil = ownership.leaseUntil
+        }
+        return Fixture(ownership, event)
     }
 
-    @Nested
-    @DisplayName("初始化测试")
-    inner class InitializationTest {
-
-        @Test
-        @DisplayName("应该在初始化时添加分区")
-        fun `should add partitions when initialized`() {
-            // When
-            scheduleService.init()
-
-            // Then
-            verify(atLeast = 1) { jdbcTemplate.execute(any<String>()) }
-        }
-
-        @Test
-        @DisplayName("当enableAddPartition为false时不应该添加分区")
-        fun `should not add partitions when enableAddPartition is false`() {
-            // Given
-            val serviceWithoutPartition = JpaEventScheduleService(
-                eventPublisher = eventPublisher,
-                eventRecordRepository = eventRecordRepository,
-                locker = locker,
-                svcName = svcName,
-                retryLockerKey = retryLockerKey,
-                    enableAddPartition = false,
-                jdbcTemplate = jdbcTemplate
-            )
-
-            // When
-            serviceWithoutPartition.init()
-
-            // Then
-            verify(exactly = 0) { jdbcTemplate.execute(any<String>()) }
-        }
+    private fun claimedWithoutPayload(): Fixture {
+        val ownership = JpaOwnershipClaim(
+            recordId = 1L,
+            token = JpaOwnershipToken.fromText("a".repeat(32)),
+            leaseUntil = LocalDateTime.now().plusMinutes(1),
+        )
+        val event = Event(
+            id = ownership.recordId,
+            eventUuid = UUID.randomUUID().toString(),
+            svcName = "test-service",
+            eventType = "test",
+            data = "{}",
+            dataType = "",
+            eventState = Event.EventState.DELIVERING,
+            triedTimes = 1,
+            tryTimes = 3,
+            retryPolicy = "{\"retryLimit\":3,\"delaySteps\":[{\"attempt\":1,\"delayMinutes\":1}]}" ,
+            deliveryToken = ownership.token.toByteArray(),
+            leaseUntil = ownership.leaseUntil,
+            expireAt = LocalDateTime.now().plusHours(1),
+        )
+        return Fixture(ownership, event)
     }
 
-    @Nested
-    @DisplayName("事件补偿测试")
-    inner class RetryTest {
-
-        @Test
-        @DisplayName("应该成功执行事件补偿")
-        fun `should execute event retry successfully`() {
-            // Given
-            val batchSize = 10
-            val interval = Duration.ofMinutes(5)
-            val maxLockDuration = Duration.ofMinutes(10)
-
-            val mockEventRecords = listOf(
-                createMockEventRecord("event1"),
-                createMockEventRecord("event2")
-            )
-
-            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns true
-            every { eventRecordRepository.getByNextTryTime(any(), any(), batchSize) } returnsMany listOf(
-                mockEventRecords,
-                emptyList()
-            )
-
-            // When
-            scheduleService.retry(batchSize, interval, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
-            verify { eventRecordRepository.getByNextTryTime(svcName, any(), batchSize) }
-            verify(exactly = 2) { eventPublisher.resume(any(), any()) }
-            verify { locker.release(retryLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("当获取锁失败时应该直接返回")
-        fun `should return immediately when lock acquisition fails`() {
-            // Given
-            val batchSize = 10
-            val interval = Duration.ofMinutes(5)
-            val maxLockDuration = Duration.ofMinutes(10)
-
-            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns false
-
-            // When
-            scheduleService.retry(batchSize, interval, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
-            verify(exactly = 0) { eventRecordRepository.getByNextTryTime(any(), any(), any()) }
-            verify(exactly = 0) { eventPublisher.resume(any(), any()) }
-            verify(exactly = 0) { locker.release(any(), any()) }
-        }
-
-        @Test
-        @DisplayName("应该处理补偿过程中的异常")
-        fun `should handle exceptions during retry`() {
-            // Given
-            val batchSize = 10
-            val interval = Duration.ofMinutes(5)
-            val maxLockDuration = Duration.ofMinutes(10)
-
-            val mockEventRecord = createMockEventRecord("event1")
-
-            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns true
-            every { eventRecordRepository.getByNextTryTime(any(), any(), batchSize) } returnsMany listOf(
-                listOf(
-                    mockEventRecord
-                ), emptyList()
-            )
-            every { eventPublisher.resume(any(), any()) } throws RuntimeException("Publishing failed")
-
-            // When
-            assertDoesNotThrow {
-                scheduleService.retry(batchSize, interval, maxLockDuration)
-            }
-
-            // Then
-            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
-            verify { eventPublisher.resume(mockEventRecord, any()) }
-            verify { locker.release(retryLockerKey, any()) }
-        }
-
-        @Test
-        @DisplayName("当没有事件需要补偿时应该正常结束")
-        fun `should finish normally when no events need retry`() {
-            // Given
-            val batchSize = 10
-            val interval = Duration.ofMinutes(5)
-            val maxLockDuration = Duration.ofMinutes(10)
-
-            every { locker.acquire(retryLockerKey, any(), maxLockDuration) } returns true
-            every { eventRecordRepository.getByNextTryTime(any(), any(), batchSize) } returns emptyList()
-
-            // When
-            scheduleService.retry(batchSize, interval, maxLockDuration)
-
-            // Then
-            verify { locker.acquire(retryLockerKey, any(), maxLockDuration) }
-            verify { eventRecordRepository.getByNextTryTime(svcName, any(), batchSize) }
-            verify(exactly = 0) { eventPublisher.resume(any(), any()) }
-            verify { locker.release(retryLockerKey, any()) }
-        }
-    }
-
-    @Nested
-    @DisplayName("分区管理测试")
-    inner class PartitionManagementTest {
-
-        @Test
-        @DisplayName("应该添加事件表分区")
-        fun `should add event table partitions`() {
-            // When
-            scheduleService.addPartition()
-
-            // Then
-            verify(exactly = 1) { jdbcTemplate.execute(any<String>()) }
-        }
-
-        @Test
-        @DisplayName("应该处理重复分区异常")
-        fun `should handle duplicate partition exceptions`() {
-            // Given
-            every {
-                jdbcTemplate.execute(any<String>())
-            } throws RuntimeException("Duplicate partition name 'p202501'")
-
-            // When
-            assertDoesNotThrow {
-                scheduleService.addPartition()
-            }
-
-            // Then
-            verify(atLeast = 1) { jdbcTemplate.execute(any<String>()) }
-        }
-
-        @Test
-        @DisplayName("应该处理其他数据库异常")
-        fun `should handle other database exceptions`() {
-            // Given
-            every {
-                jdbcTemplate.execute(any<String>())
-            } throws RuntimeException("Table does not exist")
-
-            // When
-            assertDoesNotThrow {
-                scheduleService.addPartition()
-            }
-
-            // Then
-            verify(atLeast = 1) { jdbcTemplate.execute(any<String>()) }
-        }
-
-        @Test
-        @DisplayName("应该生成正确的分区SQL")
-        fun `should generate correct partition SQL`() {
-            // Given
-            val sqlCapture = mutableListOf<String>()
-            every { jdbcTemplate.execute(capture(sqlCapture)) } returns Unit
-
-            // When
-            scheduleService.addPartition()
-
-            // Then
-            assertTrue(sqlCapture.isNotEmpty())
-            sqlCapture.forEach { sql ->
-                assertTrue(sql.contains("alter table"))
-                assertTrue(sql.contains("add partition"))
-                assertTrue(sql.contains("values less than"))
-                assertTrue(sql.contains("to_days"))
-            }
-        }
-
-        @Test
-        @DisplayName("当enableAddPartition为false时不应该执行分区操作")
-        fun `should not execute partition operations when enableAddPartition is false`() {
-            // Given
-            val serviceWithoutPartition = JpaEventScheduleService(
-                eventPublisher = eventPublisher,
-                eventRecordRepository = eventRecordRepository,
-                locker = locker,
-                svcName = svcName,
-                retryLockerKey = retryLockerKey,
-                    enableAddPartition = false,
-                jdbcTemplate = jdbcTemplate
-            )
-
-            // When
-            serviceWithoutPartition.addPartition()
-
-            // Then
-            verify(exactly = 0) { jdbcTemplate.execute(any<String>()) }
-        }
-    }
-
-    @Nested
-    @DisplayName("集成测试")
-    inner class IntegrationTest {
-
-        @Test
-        @DisplayName("完整的调度服务生命周期测试")
-        fun `should handle complete schedule service lifecycle`() {
-            // Given
-            every { locker.acquire(any(), any(), any()) } returns true
-            every { eventRecordRepository.getByNextTryTime(any(), any(), any()) } returns emptyList()
-
-            // When
-            scheduleService.init()
-            scheduleService.retry(10, Duration.ofMinutes(5), Duration.ofMinutes(10))
-
-            // Then
-            verify(exactly = 1) { jdbcTemplate.execute(any<String>()) }
-            verify(exactly = 1) { locker.acquire(any(), any(), any()) }
-            verify { eventRecordRepository.getByNextTryTime(any(), any(), any()) }
-            verify(exactly = 1) { locker.release(any(), any()) }
-        }
-    }
-
-    @Nested
-    @DisplayName("性能测试")
-    inner class PerformanceTest {
-
-        @Test
-        @DisplayName("大批量事件补偿性能测试")
-        fun `should handle large batch retry efficiently`() {
-            // Given
-            val batchSize = 1000
-            val largeEventList = (1..batchSize).map { createMockEventRecord("event$it") }
-
-            every { locker.acquire(retryLockerKey, any(), any()) } returns true
-            every {
-                eventRecordRepository.getByNextTryTime(any(), any(), batchSize)
-            } returnsMany listOf(largeEventList, emptyList())
-
-            // When
-            val startTime = System.currentTimeMillis()
-            scheduleService.retry(batchSize, Duration.ofMinutes(5), Duration.ofMinutes(10))
-            val duration = System.currentTimeMillis() - startTime
-
-            // Then
-            verify(exactly = batchSize) { eventPublisher.resume(any(), any()) }
-            assertTrue(duration < 5000) // 应该在5秒内完成
-        }
-
-    }
-
-    private fun createMockEventRecord(eventId: String): EventRecord {
-        return mockk<EventRecord> {
-            every { id } returns eventId
-            every { type } returns "test.event"
-            every { payload } returns TestEvent("test", 12345)
-            every { scheduleTime } returns LocalDateTime.now()
-            every { nextTryTime } returns LocalDateTime.now().plusMinutes(1)
-            every { isPersist } returns false
-            every { isValid } returns true
-            every { isInvalid } returns false
-            every { isDelivered } returns false
-        }
-    }
+    private data class Fixture(
+        val ownership: JpaOwnershipClaim,
+        val event: Event,
+    )
 }
