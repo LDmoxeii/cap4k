@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "9a9f077e-ebda-4700-b5c2-f77642a8df62",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-reliable-event-state",
+  "createdAt": "2026-08-08T07:03:49.711Z",
+  "preflightHash": "3c3314963932e3cf9b39f8dfcbfff18bfeb9423348446af07eb2c5a4111274a8",
+  "operations": [
+    {
+      "id": "spec-1-runtime-reliable-event-state",
+      "type": "write",
+      "target": "specs/runtime-reliable-event-state/spec.md",
+      "staged": "runtime/transactions/9a9f077e-ebda-4700-b5c2-f77642a8df62/staged/specs/runtime-reliable-event-state/spec.md",
+      "backup": "runtime/transactions/9a9f077e-ebda-4700-b5c2-f77642a8df62/backups/specs/runtime-reliable-event-state/spec.md",
+      "expectedTargetHash": "51ff80696b0cbf7f5d5308f360ea754be76653241bc8b4c6af269c032a274ca0",
+      "stagedHash": "e032939926dc7659c9fd8a1622530e7e86120ba902e13fd6e1b0a49127d28e98"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-reliable-event-state",
+      "target": "archive/2026-08-08-runtime-reliable-event-state",
+      "expectedSourceHash": "4f7d17cc7994b4a5b2041ff52c43b360ef758da8b9bc606d99ed4449e1d900b9",
+      "expectedTargetHash": null
+    }
+  ]
+}

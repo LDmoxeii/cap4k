@@ -1,123 +1,260 @@
 package com.only4.cap4k.ddd.domain.event
 
-import com.only4.cap4k.ddd.core.application.distributed.Locker
+import com.only4.cap4k.ddd.application.JpaOwnershipClaim
+import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
-import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
-import com.only4.cap4k.ddd.core.share.misc.randomString
+import com.only4.cap4k.ddd.core.domain.event.EventRecord
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
+import com.only4.cap4k.ddd.domain.event.persistence.Event
+import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
 import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledFuture
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * 事件调度服务
- * 失败定时重试
- *
- * @author LD_moxeii
- * @date 2025/07/27
- */
+/** Private ownership-driven reliable Event coordinator. */
 class JpaEventScheduleService(
     private val eventPublisher: EventPublisher,
-    private val eventRecordRepository: EventRecordRepository,
-    private val locker: Locker,
-    private val svcName: String,
-    private val retryLockerKey: String,
+    private val executionSubstrate: JpaEventExecutionSubstrate,
+    private val eventJpaRepository: EventJpaRepository,
+    private val serviceName: String,
+    private val batchSize: Int,
+    private val leaseDuration: Duration,
+    private val leaseRenewInterval: Duration,
+    workerThreads: Int,
     private val enableAddPartition: Boolean,
-    private val jdbcTemplate: JdbcTemplate
-) {
-    private val log = LoggerFactory.getLogger(JpaEventScheduleService::class.java)
-    private var retryRunning = false
+    private val jdbcTemplate: JdbcTemplate,
+) : ReliableEventCoordinator {
+    private val worker = Executors.newFixedThreadPool(workerThreads.coerceAtLeast(1))
+    private val leaseRenewer = Executors.newSingleThreadScheduledExecutor()
+    private val drainRunning = AtomicBoolean(false)
+    private val wakeRequested = AtomicBoolean(false)
+
+    init {
+        require(batchSize > 0) { "Event delivery batch size must be positive" }
+        require(!leaseDuration.isZero && !leaseDuration.isNegative) {
+            "Event delivery lease duration must be positive"
+        }
+        require(!leaseRenewInterval.isZero && !leaseRenewInterval.isNegative) {
+            "Event delivery lease renewal interval must be positive"
+        }
+        require(leaseRenewInterval < leaseDuration) {
+            "Event delivery lease renewal interval must be shorter than the lease duration"
+        }
+    }
 
     fun init() {
         addPartition()
     }
 
-    /**
-     * 重试到期但尚未成功投递的可靠事件
-     */
-    fun retry(batchSize: Int, interval: Duration, maxLockDuration: Duration) {
-        if (retryRunning) {
-            log.info("可靠事件重试:上次重试仍未结束，跳过")
+    override fun wake() {
+        wakeRequested.set(true)
+        startDrainIfNecessary()
+    }
+
+    /** Scheduled recovery signal. Ownership remains database-coordinated. */
+    fun retry() = wake()
+
+    internal fun drainNow(): Int = drainBatch()
+
+    fun shutdown() {
+        worker.shutdown()
+        leaseRenewer.shutdown()
+    }
+
+    private fun startDrainIfNecessary() {
+        if (!drainRunning.compareAndSet(false, true)) return
+        worker.execute {
+            try {
+                do {
+                    wakeRequested.set(false)
+                    val processed = drainBatch()
+                } while (wakeRequested.get() || processed == batchSize)
+            } catch (throwable: Throwable) {
+                log.error("Reliable Event drain failed", throwable)
+            } finally {
+                drainRunning.set(false)
+                if (wakeRequested.get()) startDrainIfNecessary()
+            }
+        }
+    }
+
+    private fun drainBatch(): Int {
+        var processed = 0
+        repeat(batchSize) {
+            val ownership = executionSubstrate.claim(
+                serviceName = serviceName,
+                now = LocalDateTime.now(),
+                leaseDuration = leaseDuration,
+                candidateLimit = batchSize,
+            ) ?: return processed
+            process(ownership)
+            processed += 1
+        }
+        return processed
+    }
+
+    private fun process(ownership: JpaOwnershipClaim) {
+        val entity = runCatching {
+            eventJpaRepository.findById(ownership.recordId).orElse(null)
+        }.getOrElse { throwable ->
+            failOwnership(ownership, throwable)
             return
         }
-
-        retryRunning = true
-        try {
-            val now = LocalDateTime.now()
-            val nextTryTime = now.plus(interval)
-
-            while (true) {
-                val processed = processEventBatch(batchSize, nextTryTime, maxLockDuration)
-                if (!processed) break
+        if (entity == null) {
+            failOwnership(
+                ownership,
+                IllegalStateException("Claimed reliable Event record disappeared: ${ownership.recordId}"),
+            )
+            return
+        }
+        if (!owns(entity, ownership)) {
+            log.warn("Claimed Event ownership could not be loaded: recordId={}", ownership.recordId)
+            return
+        }
+        val event = runCatching {
+            EventRecordImpl().apply {
+                resume(entity)
+                markPersist(true)
             }
-        } finally {
-            retryRunning = false
+        }.getOrElse { throwable ->
+            failOwnership(ownership, throwable)
+            return
+        }
+        val integrationEvent = runCatching {
+            event.payload.javaClass.isAnnotationPresent(IntegrationEvent::class.java)
+        }.getOrElse { throwable ->
+            failOwnership(ownership, throwable)
+            return
+        }
+        val completed = AtomicBoolean(false)
+        val completionMonitor = Any()
+        var renewal: ScheduledFuture<*>? = null
+
+        fun finish(action: () -> Boolean, outcome: String) {
+            synchronized(completionMonitor) {
+                if (completed.get()) return
+                val transitioned = runCatching { action() }
+                    .onFailure { throwable ->
+                        log.warn(
+                            "Reliable Event {} transition failed: eventId={}, recordId={}",
+                            outcome,
+                            event.id,
+                            ownership.recordId,
+                            throwable,
+                        )
+                    }.getOrDefault(false)
+                if (transitioned) {
+                    completed.set(true)
+                    renewal?.cancel(false)
+                } else {
+                    log.warn(
+                        "Reliable Event {} lost ownership before transition: eventId={}, recordId={}",
+                        outcome,
+                        event.id,
+                        ownership.recordId,
+                    )
+                }
+            }
+        }
+
+        renewal = leaseRenewer.scheduleAtFixedRate(
+            {
+                runCatching {
+                    executionSubstrate.renew(ownership, LocalDateTime.now(), leaseDuration)
+                }.onFailure { throwable ->
+                    log.warn("Reliable Event lease renewal failed: eventId={}", event.id, throwable)
+                }.onSuccess { renewed ->
+                    if (!renewed) renewal?.cancel(false)
+                }
+            },
+            leaseRenewInterval.toMillis(),
+            leaseRenewInterval.toMillis(),
+            TimeUnit.MILLISECONDS,
+        )
+
+        val completion = object : EventPublisher.Completion {
+            override fun onSuccess(event: EventRecord) = finish(
+                action = { executionSubstrate.acknowledge(ownership, LocalDateTime.now()) },
+                outcome = "acknowledgement",
+            )
+
+            override fun onFailure(event: EventRecord, throwable: Throwable) = finish(
+                action = { executionSubstrate.fail(ownership, LocalDateTime.now(), throwable) },
+                outcome = "failure",
+            )
+        }
+
+        runCatching { eventPublisher.publish(event, completion) }
+            .onFailure { throwable -> completion.onFailure(event, throwable) }
+
+        if (!integrationEvent && !completed.get()) {
+            completion.onFailure(
+                event,
+                IllegalStateException("Reliable Domain Event publisher returned without synchronous completion"),
+            )
         }
     }
 
-    private fun processEventBatch(batchSize: Int, nextTryTime: LocalDateTime, maxLockDuration: Duration): Boolean {
-        val pwd = randomString(8, hasDigital = true, hasLetter = true)
-
-        if (!locker.acquire(retryLockerKey, pwd, maxLockDuration)) {
-            return false
-        }
-
-        return try {
-            val eventRecords = eventRecordRepository.getByNextTryTime(svcName, nextTryTime, batchSize)
-
-            if (eventRecords.isEmpty()) {
-                return false
+    private fun failOwnership(ownership: JpaOwnershipClaim, throwable: Throwable) {
+        runCatching {
+            executionSubstrate.fail(ownership, LocalDateTime.now(), throwable)
+        }.onFailure { failure ->
+            log.warn(
+                "Reliable Event failure transition threw: recordId={}, failureType={}",
+                ownership.recordId,
+                failure.javaClass.name,
+                failure,
+            )
+        }.onSuccess { transitioned ->
+            if (!transitioned) {
+                log.warn(
+                    "Reliable Event failure transition lost ownership: recordId={}",
+                    ownership.recordId,
+                )
             }
-
-            eventRecords.forEach { eventRecord ->
-                log.info("可靠事件重试: {}", eventRecord)
-                eventPublisher.resume(eventRecord, nextTryTime)
-            }
-
-            true
-        } catch (ex: Exception) {
-            log.error("可靠事件重试:异常失败 failureType={}", ex.javaClass.name)
-            false
-        } finally {
-            locker.release(retryLockerKey, pwd)
         }
     }
 
+    private fun owns(entity: Event?, ownership: JpaOwnershipClaim): Boolean =
+        entity != null &&
+            entity.eventState == Event.EventState.DELIVERING &&
+            entity.deliveryToken?.contentEquals(ownership.token.toByteArray()) == true &&
+            entity.leaseUntil?.isAfter(LocalDateTime.now()) == true
 
-    /**
-     * 添加分区
-     */
     fun addPartition() {
-        if (!enableAddPartition) {
-            return
-        }
-
+        if (!enableAddPartition) return
         val now = LocalDateTime.now()
         addPartition("__event", now.plusMonths(1))
     }
 
-    /**
-     * 创建date日期所在月下个月的分区
-     */
     private fun addPartition(table: String, date: LocalDateTime) {
         val sql =
             "alter table $table add partition (partition p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))} " +
-                    "values less than (to_days('${
-                        date.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))
-                    }-01')) ENGINE=InnoDB)"
+                "values less than (to_days('${
+                    date.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                }-01')) ENGINE=InnoDB)"
 
         try {
             jdbcTemplate.execute(sql)
         } catch (ex: Exception) {
             if (ex.message?.contains("Duplicate partition") != true) {
                 log.error(
-                    "分区创建异常 table={} partition={} failureType={}",
+                    "Event partition creation failed: table={}, partition={}, failureType={}",
                     table,
                     "p${date.format(DateTimeFormatter.ofPattern("yyyyMM"))}",
                     ex.javaClass.name,
                 )
             }
         }
+    }
+
+    private companion object {
+        val log = LoggerFactory.getLogger(JpaEventScheduleService::class.java)
     }
 }

@@ -465,8 +465,17 @@ class JpaEventAtomicClaimIntegrationTest {
             retryPolicy = RuntimeJson.write(zeroDelayPolicy(1))
             tryTimes = 1
         }
-        record.occurredException(firstAttemptAt, IllegalStateException("business-secret"))
         records.saveAndFlush(record)
+        val ownership = requireNotNull(
+            substrate.claim(SERVICE, firstAttemptAt, Duration.ofSeconds(30)),
+        )
+        assertTrue(
+            substrate.fail(
+                ownership,
+                firstAttemptAt.plusSeconds(1),
+                IllegalStateException("business-secret"),
+            ),
+        )
 
         assertNull(substrate.claim(SERVICE, now, Duration.ofSeconds(30)))
 
@@ -482,8 +491,18 @@ class JpaEventAtomicClaimIntegrationTest {
     fun `expired retryable facts are terminalized during claim cleanup`() {
         val now = testTime()
         val attemptAt = now.minusMinutes(1)
-        val record = event(now).apply {
-            occurredException(attemptAt, IllegalStateException("business-secret"))
+        val seeded = records.saveAndFlush(event(attemptAt))
+        val ownership = requireNotNull(
+            substrate.claim(SERVICE, attemptAt, Duration.ofSeconds(30)),
+        )
+        assertTrue(
+            substrate.fail(
+                ownership,
+                attemptAt.plusSeconds(1),
+                IllegalStateException("business-secret"),
+            ),
+        )
+        val record = records.findById(seeded.id!!).orElseThrow().apply {
             expireAt = now.minusSeconds(1)
             nextTryTime = now.minusSeconds(1)
         }
@@ -504,10 +523,23 @@ class JpaEventAtomicClaimIntegrationTest {
     fun `exhausted retryable facts are terminalized during claim cleanup`() {
         val now = testTime()
         val attemptAt = now.minusMinutes(1)
-        val record = event(now).apply {
-            retryPolicy = RuntimeJson.write(zeroDelayPolicy(3))
-            tryTimes = 3
-            occurredException(attemptAt, IllegalStateException("business-secret"))
+        val seeded = records.saveAndFlush(
+            event(attemptAt).apply {
+                retryPolicy = RuntimeJson.write(zeroDelayPolicy(3))
+                tryTimes = 3
+            },
+        )
+        val ownership = requireNotNull(
+            substrate.claim(SERVICE, attemptAt, Duration.ofSeconds(30)),
+        )
+        assertTrue(
+            substrate.fail(
+                ownership,
+                attemptAt.plusSeconds(1),
+                IllegalStateException("business-secret"),
+            ),
+        )
+        val record = records.findById(seeded.id!!).orElseThrow().apply {
             triedTimes = 3
             nextTryTime = now.minusSeconds(1)
         }
@@ -538,9 +570,18 @@ class JpaEventAtomicClaimIntegrationTest {
             retryPolicy = RuntimeJson.write(zeroDelayPolicy(3))
             tryTimes = 3
         }
-        record.occurredException(firstAttemptAt, IllegalStateException("first-attempt"))
         records.saveAndFlush(record)
-        assertEquals(1, record.triedTimes)
+        val first = requireNotNull(
+            substrate.claim(SERVICE, firstAttemptAt, Duration.ofSeconds(30)),
+        )
+        assertTrue(
+            substrate.fail(
+                first,
+                firstAttemptAt.plusSeconds(1),
+                IllegalStateException("first-attempt"),
+            ),
+        )
+        assertEquals(1, records.findById(record.id!!).orElseThrow().triedTimes)
 
         val second = requireNotNull(substrate.claim(SERVICE, now, Duration.ofSeconds(30)))
         assertEquals(2, records.findById(record.id!!).orElseThrow().triedTimes)

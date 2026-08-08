@@ -16,6 +16,7 @@ dependencies {
     testImplementation(libs.spring.boot.starter.test) {
         exclude(group = "org.junit.vintage", module = "junit-vintage-engine")
     }
+    testImplementation(project(":cap4k-ddd-integration-event-http-starter"))
     testImplementation(libs.h2)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

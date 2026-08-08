@@ -5,10 +5,10 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.domain.event.DomainEventAttachedTransactionCommittedEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
-import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.event.TransactionalEventListener
 import java.time.Duration
@@ -18,7 +18,7 @@ import java.time.LocalDateTime
 open class JpaReliableDomainEventProvider(
     private val eventRecordRepository: EventRecordRepository,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
-    private val eventPublisher: EventPublisher,
+    private val reliableEventCoordinator: ReliableEventCoordinator,
     private val applicationEventPublisher: ApplicationEventPublisher,
     private val serviceName: String,
     private val executionContextCodecRegistry: ExecutionContextCodecRegistry,
@@ -54,11 +54,11 @@ open class JpaReliableDomainEventProvider(
     }
 
     @TransactionalEventListener(
-        fallbackExecution = false,
+        fallbackExecution = true,
         classes = [DomainEventAttachedTransactionCommittedEvent::class],
     )
     fun onTransactionCommitted(event: DomainEventAttachedTransactionCommittedEvent) {
-        event.events.forEach(eventPublisher::publish)
+        if (event.events.isNotEmpty()) reliableEventCoordinator.wake()
     }
 
     private fun persist(event: EventRecord) {

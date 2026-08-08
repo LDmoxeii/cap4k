@@ -58,7 +58,7 @@ interface EventRecord {
     /** Immutable instant at which this reliable event was first registered for publication. */
     val publishedAt: Instant
 
-    /** Exact positive delivery attempt owned by this reliable record, when available. */
+    /** Exact positive delivery attempt owned by this claimed reliable record. */
     val deliveryAttempt: Int?
 
     /**
@@ -66,12 +66,6 @@ interface EventRecord {
      * @return
      */
     val scheduleTime: LocalDateTime
-
-    /**
-     * 获取下次重试时间
-     * @return
-     */
-    val nextTryTime: LocalDateTime
 
     /**
      * 标记是否持久化
@@ -91,55 +85,4 @@ interface EventRecord {
      */
     val message: Message<Any>
 
-    /**
-     * 是否有效（待发送，或发送中等待确认结果）
-     * @return
-     */
-    val isValid: Boolean
-
-    /**
-     * 是否失效（过期等原因未发生成功）
-     * @return
-     */
-    val isInvalid: Boolean
-
-    /**
-     * 是否正在发送
-     * @return
-     */
-    val isDelivering: Boolean
-
-    /**
-     * 是否已发送
-     * @return
-     */
-    val isDelivered: Boolean
-
-    /**
-     * 开始发送事件
-     * @param now
-     * @return
-     */
-    fun beginDelivery(now: LocalDateTime): Boolean
-
-    /**
-     * 取消发送
-     * @param now
-     * @return
-     */
-    fun cancelDelivery(now: LocalDateTime): Boolean
-
-    /**
-     * 确认事件已发出
-     * @param now
-     */
-    fun endDelivery(now: LocalDateTime)
-
-    /**
-     * 发生异常
-     * @param now
-     * @param throwable
-     * @return
-     */
-    fun occurredException(now: LocalDateTime, throwable: Throwable)
 }

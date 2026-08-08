@@ -1,866 +1,159 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.domain.event.*
-import com.only4.cap4k.ddd.core.share.Constants
-import com.only4.cap4k.ddd.core.share.DomainException
-import io.mockk.*
-import org.junit.jupiter.api.*
-import org.junit.jupiter.api.Assertions.*
-import org.springframework.context.ApplicationEventPublisher
-import org.springframework.messaging.Message
+import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
+import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.EventPublisher
+import com.only4.cap4k.ddd.core.domain.event.EventRecord
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
+import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Test
+import org.springframework.messaging.support.GenericMessage
 import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.ScheduledThreadPoolExecutor
-import java.util.concurrent.TimeUnit
 
-private object TestReliableEventDeliveryContextScopeManager : ReliableEventDeliveryContextScopeManager {
-    override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
-    override fun suppress(): AutoCloseable = AutoCloseable { }
-}
-
-/**
- * DefaultEventPublisher测试
- *
- * @author LD_moxeii
- * @date 2025/07/24
- */
-@DisplayName("DefaultEventPublisher 测试")
 class DefaultEventPublisherTest {
-
-    private val fixedNow = LocalDateTime.of(1970, 1, 1, 0, 0, 0, 500_000_000)
-    private val fixedNextSecond = LocalDateTime.of(1970, 1, 1, 0, 0, 1, 0)
-
-    private lateinit var eventHandlerDispatcher: EventHandlerDispatcher
-    private lateinit var integrationEventPublishers: List<IntegrationEventPublisher>
-    private lateinit var eventRecordRepository: EventRecordRepository
-    private lateinit var eventMessageInterceptorManager: EventMessageInterceptorManager
-    private lateinit var domainEventInterceptorManager: DomainEventInterceptorManager
-    private lateinit var integrationEventInterceptorManager: IntegrationEventInterceptorManager
-    private lateinit var integrationEventManager: IntegrationEventManager
-    private lateinit var integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback
-    private lateinit var publisher: DefaultEventPublisher
-
-    private val threadPoolSize = 2
-
-    @BeforeEach
-    fun setUp() {
-        eventHandlerDispatcher = mockk()
-        integrationEventPublishers = listOf(mockk(), mockk())
-        eventRecordRepository = mockk()
-        eventMessageInterceptorManager = mockk()
-        domainEventInterceptorManager = mockk()
-        integrationEventInterceptorManager = mockk()
-        integrationEventManager = mockk()
-        integrationEventPublisherCallback = mockk(relaxed = true)
-
-        // Mock 默认行为
-        every { eventHandlerDispatcher.dispatch(any()) } just Runs
-        every { eventRecordRepository.save(any()) } returnsArgument 0
-        every { eventMessageInterceptorManager.orderedEventMessageInterceptors } returns emptySet()
-        every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns emptySet()
-        every { integrationEventInterceptorManager.orderedIntegrationEventInterceptors } returns emptySet()
-        every { integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent } returns emptySet()
-        every { integrationEventManager.release() } just Runs
-        every { integrationEventPublishers[0].publish(any(), any()) } just Runs
-        every { integrationEventPublishers[1].publish(any(), any()) } just Runs
-
-        publisher = DefaultEventPublisher(
-            eventHandlerDispatcher,
-            integrationEventPublishers,
-            eventRecordRepository,
-            eventMessageInterceptorManager,
-            domainEventInterceptorManager,
-            integrationEventInterceptorManager,
-            integrationEventManager,
-            integrationEventPublisherCallback,
-            threadPoolSize,
-            reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
-        )
+    private val messages = mockk<EventMessageInterceptorManager> {
+        every { orderedEventMessageInterceptors } returns emptySet()
     }
-
-    @AfterEach
-    fun tearDown() {
-        EventRuntimeContext.reset()
+    private val domainInterceptors = mockk<DomainEventInterceptorManager> {
+        every { orderedDomainEventInterceptors } returns emptySet()
+        every { orderedEventInterceptors4DomainEvent } returns emptySet()
     }
-
-    @Nested
-    @DisplayName("初始化测试")
-    inner class InitializationTests {
-
-        @Test
-        @DisplayName("应该能够初始化线程池")
-        fun `should initialize thread pool`() {
-            // given
-            val eventRecord = createTestEventRecord()
-
-            // when
-            publisher.publish(eventRecord)
-
-            // then - 初始化应该成功，不抛出异常
-            verify { eventHandlerDispatcher.dispatch(any()) }
-        }
-
-        @Test
-        @DisplayName("多次初始化应该是安全的")
-        fun `multiple initializations should be safe`() {
-            // given
-            val eventRecord1 = createTestEventRecord()
-            val eventRecord2 = createTestEventRecord()
-
-            // when
-            publisher.publish(eventRecord1)
-            publisher.publish(eventRecord2)
-
-            // then
-            verify(exactly = 2) { eventHandlerDispatcher.dispatch(any()) }
-        }
-
-        @Test
-        @DisplayName("多次调用init方法应该只创建一个executor实例")
-        fun `should create only one executor instance when init called multiple times`() {
-            // given
-            val publisher = DefaultEventPublisher(
-                eventHandlerDispatcher,
-                integrationEventPublishers,
-                eventRecordRepository,
-                eventMessageInterceptorManager,
-                domainEventInterceptorManager,
-                integrationEventInterceptorManager,
-                integrationEventManager,
-                integrationEventPublisherCallback,
-                2,
-                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
-            )
-
-            // when - 多次调用init方法
-            publisher.init()
-            publisher.init()
-            publisher.init()
-
-            // then - 通过反射获取lazy delegate
-            val lazyDelegateField = DefaultEventPublisher::class.java.getDeclaredField("executor\$delegate")
-            lazyDelegateField.isAccessible = true
-            val lazyDelegate = lazyDelegateField.get(publisher) as Lazy<ScheduledExecutorService>
-
-            // 验证lazy已初始化
-            assertTrue(lazyDelegate.isInitialized())
-
-            // 获取多次executor实例，应该是同一个对象
-            val executor1 = lazyDelegate.value
-            val executor2 = lazyDelegate.value
-            val executor3 = lazyDelegate.value
-
-            // 验证是同一个实例
-            assertSame(executor1, executor2)
-            assertSame(executor2, executor3)
-
-            // 验证线程池大小配置正确
-            assertTrue(executor1 is ScheduledThreadPoolExecutor)
-            assertEquals(2, (executor1 as ScheduledThreadPoolExecutor).corePoolSize)
-        }
+    private val integrationInterceptors = mockk<IntegrationEventInterceptorManager> {
+        every { orderedIntegrationEventInterceptors } returns emptySet()
+        every { orderedEventInterceptors4IntegrationEvent } returns emptySet()
     }
-
-    @Nested
-    @DisplayName("领域事件发布测试")
-    inner class DomainEventPublishTests {
-
-        @Test
-        @DisplayName("应该发布普通领域事件")
-        fun `should publish regular domain events`() {
-            // given
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = false
-            )
-
-            // when
-            publisher.publish(eventRecord)
-
-            // then
-            verify { eventHandlerDispatcher.dispatch(any()) }
-            verify { eventMessageInterceptorManager.orderedEventMessageInterceptors }
-            verify { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent }
-        }
-
-        @Test
-        @DisplayName("应该发布需要持久化的领域事件")
-        fun `should publish persistent domain events`() {
-            // given
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true
-            )
-
-            // when
-            publisher.publish(eventRecord)
-
-            // then
-            verify(timeout = 5_000) { eventHandlerDispatcher.dispatch(any()) }
-            verify(timeout = 5_000) { eventRecordRepository.save(any()) }
-        }
-
-        @Test
-        @DisplayName("应该处理领域事件发布异常")
-        fun `should handle domain event publishing exceptions`() {
-            // given
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
-            )
-            every { eventHandlerDispatcher.dispatch(any()) } throws RuntimeException("Dispatch failed")
-
-            // when & then
-            assertThrows<DomainException> {
-                publisher.publish(eventRecord)
-            }
-
-            verify { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent }
-        }
-
-        @Test
-        @DisplayName("领域事件监听器附加集成事件后应该在标记领域事件已投递前释放集成事件")
-        fun `domain dispatch should release listener attached integration events before marking source delivered`() {
-            // given
-            val calls = mutableListOf<String>()
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true
-            )
-            val testPublisher = createSynchronousPublisher()
-
-            every { eventHandlerDispatcher.dispatch(any()) } answers {
-                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
-                EventRuntimeContext.current()
-                    .attachIntegration(EventAttachment.eager(TestIntegrationEvent("derived")))
-                calls.add("dispatch")
-            }
-            every { integrationEventManager.release() } answers {
-                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
-                calls.add("release")
-            }
-            every { eventRecord.endDelivery(any()) } answers {
-                calls.add("endDelivery")
-            }
-            every { eventRecordRepository.save(eventRecord) } answers {
-                calls.add("saveSource")
-                eventRecord
-            }
-
-            // when
-            testPublisher.publishDomain(eventRecord)
-
-            // then
-            assertEquals(listOf("dispatch", "release", "endDelivery", "saveSource"), calls)
-            assertTrue(EventRuntimeContext.currentOrNull() == null)
-        }
-
-        @Test
-        @DisplayName("领域事件监听器附加真实集成事件时真实集成事件管理器应该持久化派生事件")
-        fun `domain dispatch should persist listener attached integration event through real integration supervisor`() {
-            // given
-            val calls = mutableListOf<String>()
-            val applicationEventPublisher = mockk<ApplicationEventPublisher>()
-            val derivedEventRecord = mockk<EventRecord>()
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true
-            )
-            val realIntegrationManager = DefaultIntegrationEventSupervisor(
-                mockk(relaxed = true),
-                eventRecordRepository,
-                integrationEventInterceptorManager,
-                applicationEventPublisher,
-                "test-service",
-                invocationScopeAccessor = com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor {
-                    com.only4.cap4k.ddd.core.application.invocation.InvocationKind.DOMAIN_EVENT_HANDLER
-                },
-            )
-            val testPublisher = TestableDefaultEventPublisher(
-                eventHandlerDispatcher,
-                integrationEventPublishers,
-                eventRecordRepository,
-                eventMessageInterceptorManager,
-                domainEventInterceptorManager,
-                integrationEventInterceptorManager,
-                realIntegrationManager,
-                integrationEventPublisherCallback,
-                threadPoolSize,
-                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
-            )
-
-            every { applicationEventPublisher.publishEvent(any()) } answers {
-                calls.add("publishIntegrationCommitted")
-            }
-            every { eventRecordRepository.create() } answers {
-                calls.add("createIntegration")
-                derivedEventRecord
-            }
-            every { derivedEventRecord.init(any(), any(), any(), any(), any()) } answers {
-                assertEquals(TestIntegrationEvent("derived"), firstArg())
-            }
-            every { derivedEventRecord.markPersist(true) } just Runs
-            every { eventRecordRepository.save(derivedEventRecord) } answers {
-                calls.add("saveIntegration")
-                derivedEventRecord
-            }
-            every { eventRecord.endDelivery(any()) } answers {
-                calls.add("endDelivery")
-            }
-            every { eventRecordRepository.save(eventRecord) } answers {
-                calls.add("saveSource")
-                eventRecord
-            }
-            every { eventHandlerDispatcher.dispatch(any()) } answers {
-                realIntegrationManager.attach(TestIntegrationEvent("derived"))
-                calls.add("dispatch")
-            }
-
-            // when
-            testPublisher.publishDomain(eventRecord)
-
-            // then
-            assertEquals(
-                listOf("dispatch", "createIntegration", "saveIntegration", "publishIntegrationCommitted", "endDelivery", "saveSource"),
-                calls
-            )
-            assertTrue(EventRuntimeContext.currentOrNull() == null)
-        }
-
-        @Test
-        @DisplayName("领域事件订阅失败时不释放集成事件且丢弃DOMAIN_DISPATCH scope")
-        fun `domain dispatch failure should not release integration events and should discard scope`() {
-            // given
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true
-            )
-            val testPublisher = createSynchronousPublisher()
-
-            every { eventHandlerDispatcher.dispatch(any()) } answers {
-                EventRuntimeContext.current()
-                    .attachIntegration(EventAttachment.eager(TestIntegrationEvent("derived")))
-                throw RuntimeException("Dispatch failed")
-            }
-
-            // when & then
-            assertThrows<DomainException> {
-                testPublisher.publishDomain(eventRecord)
-            }
-
-            verify(exactly = 0) { integrationEventManager.release() }
-            verify(exactly = 0) { eventRecord.endDelivery(any()) }
-            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
-            assertTrue(EventRuntimeContext.currentOrNull() == null)
-        }
-
-        @Test
-        @DisplayName("应该处理延迟领域事件")
-        fun `should handle delayed domain events`() {
-            // given
-            val calls = mutableListOf<String>()
-            val applicationEventPublisher = mockk<ApplicationEventPublisher>()
-            val derivedEventRecord = mockk<EventRecord>()
-            val realIntegrationManager = DefaultIntegrationEventSupervisor(
-                mockk(relaxed = true),
-                eventRecordRepository,
-                integrationEventInterceptorManager,
-                applicationEventPublisher,
-                "test-service",
-                invocationScopeAccessor = com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor {
-                    com.only4.cap4k.ddd.core.application.invocation.InvocationKind.DOMAIN_EVENT_HANDLER
-                },
-            )
-            val delayedPublisher = CapturingDefaultEventPublisher(
-                eventHandlerDispatcher,
-                integrationEventPublishers,
-                eventRecordRepository,
-                eventMessageInterceptorManager,
-                domainEventInterceptorManager,
-                integrationEventInterceptorManager,
-                realIntegrationManager,
-                integrationEventPublisherCallback,
-                threadPoolSize,
-                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
-            )
-
-            every { applicationEventPublisher.publishEvent(any()) } answers {
-                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
-                calls.add("publishIntegrationCommitted")
-            }
-            every { eventRecordRepository.create() } answers {
-                calls.add("createIntegration")
-                derivedEventRecord
-            }
-            every { derivedEventRecord.init(any(), any(), any(), any(), any()) } answers {
-                assertEquals(TestIntegrationEvent("derived"), firstArg())
-            }
-            every { derivedEventRecord.markPersist(true) } just Runs
-            every { eventRecordRepository.save(derivedEventRecord) } answers {
-                calls.add("saveIntegration")
-                derivedEventRecord
-            }
-            every { eventHandlerDispatcher.dispatch(any()) } answers {
-                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
-                realIntegrationManager.attach(TestIntegrationEvent("derived"))
-                calls.add("dispatch")
-            }
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true,
-                scheduleTime = fixedNextSecond
-            )
-            every { eventRecord.endDelivery(any()) } answers {
-                calls.add("endDelivery")
-            }
-            every { eventRecordRepository.save(eventRecord) } answers {
-                calls.add("saveSource")
-                eventRecord
-            }
-
-            // when
-            delayedPublisher.publish(eventRecord)
-            val scheduled = delayedPublisher.singleScheduled()
-
-            // then - delayed dispatch is scheduled, not executed early
-            assertScheduledWithPositiveMillis(scheduled)
-            verify(exactly = 0) { eventHandlerDispatcher.dispatch(any()) }
-            verify(exactly = 0) { eventRecordRepository.create() }
-            verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
-            verify(exactly = 0) { eventRecord.endDelivery(any()) }
-            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
-
-            scheduled.command.run()
-
-            assertEquals(
-                listOf("dispatch", "createIntegration", "saveIntegration", "publishIntegrationCommitted", "endDelivery", "saveSource"),
-                calls
-            )
-            assertTrue(EventRuntimeContext.currentOrNull() == null)
-        }
-
-        @Test
-        @DisplayName("延迟领域事件调度失败时不应泄漏附加的集成事件")
-        fun `should discard attached integration events when delayed domain dispatch fails`() {
-            // given
-            val applicationEventPublisher = mockk<ApplicationEventPublisher>(relaxed = true)
-            val realIntegrationManager = DefaultIntegrationEventSupervisor(
-                mockk(relaxed = true),
-                eventRecordRepository,
-                integrationEventInterceptorManager,
-                applicationEventPublisher,
-                "test-service",
-                invocationScopeAccessor = com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor {
-                    com.only4.cap4k.ddd.core.application.invocation.InvocationKind.DOMAIN_EVENT_HANDLER
-                },
-            )
-            val delayedPublisher = CapturingDefaultEventPublisher(
-                eventHandlerDispatcher,
-                integrationEventPublishers,
-                eventRecordRepository,
-                eventMessageInterceptorManager,
-                domainEventInterceptorManager,
-                integrationEventInterceptorManager,
-                realIntegrationManager,
-                integrationEventPublisherCallback,
-                threadPoolSize,
-                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
-            )
-
-            every { eventHandlerDispatcher.dispatch(any()) } answers {
-                assertEquals(EventRuntimeScopeType.DOMAIN_DISPATCH, EventRuntimeContext.current().type)
-                realIntegrationManager.attach(TestIntegrationEvent("derived"))
-                throw RuntimeException("Dispatch failed")
-            }
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true,
-                scheduleTime = fixedNextSecond
-            )
-
-            // when
-            delayedPublisher.publish(eventRecord)
-            val scheduled = delayedPublisher.singleScheduled()
-
-            // then - delayed dispatch is scheduled, not executed early
-            assertScheduledWithPositiveMillis(scheduled)
-            verify(exactly = 0) { eventHandlerDispatcher.dispatch(any()) }
-            verify(exactly = 0) { eventRecordRepository.create() }
-            verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
-            verify(exactly = 0) { eventRecord.endDelivery(any()) }
-            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
-
-            assertThrows<DomainException> {
-                scheduled.command.run()
-            }
-
-            verify(exactly = 1) { eventHandlerDispatcher.dispatch(any()) }
-            verify(exactly = 0) { eventRecordRepository.create() }
-            verify(exactly = 0) { applicationEventPublisher.publishEvent(any()) }
-            verify(exactly = 0) { eventRecord.endDelivery(any()) }
-            verify(exactly = 0) { eventRecordRepository.save(eventRecord) }
-            assertTrue(EventRuntimeContext.currentOrNull() == null)
-        }
-    }
-
-    @Nested
-    @DisplayName("集成事件发布测试")
-    inner class IntegrationEventPublishTests {
-
-        @Test
-        @DisplayName("应该发布集成事件")
-        fun `should publish integration events`() {
-            // given
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
-            )
-
-            // when
-            publisher.publish(eventRecord)
-
-            // then
-            verify { integrationEventPublishers[0].publish(any(), any()) }
-            verify { integrationEventPublishers[1].publish(any(), any()) }
-            verify { integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent }
-        }
-
-        @Test
-        @DisplayName("应该处理集成事件发布异常")
-        fun `should handle integration event publishing exceptions`() {
-            // given
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
-            )
-            every { integrationEventPublishers[0].publish(any(), any()) } throws RuntimeException("Publish failed")
-
-            // when & then
-            assertThrows<DomainException> {
-                publisher.publish(eventRecord)
-            }
-
-            verify { integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent }
-        }
-
-        @Test
-        @DisplayName("应该处理延迟集成事件")
-        fun `should handle delayed integration events`() {
-            // given
-            val delayedPublisher = CapturingDefaultEventPublisher(
-                eventHandlerDispatcher,
-                integrationEventPublishers,
-                eventRecordRepository,
-                eventMessageInterceptorManager,
-                domainEventInterceptorManager,
-                integrationEventInterceptorManager,
-                integrationEventManager,
-                integrationEventPublisherCallback,
-                threadPoolSize,
-                reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
-            )
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION,
-                scheduleTime = fixedNextSecond
-            )
-
-            // when
-            delayedPublisher.publish(eventRecord)
-            val scheduled = delayedPublisher.singleScheduled()
-
-            // then - delayed integration publishing is scheduled, not executed early
-            assertScheduledWithPositiveMillis(scheduled)
-            verify(exactly = 0) { integrationEventPublishers[0].publish(any(), any()) }
-            verify(exactly = 0) { integrationEventPublishers[1].publish(any(), any()) }
-
-            scheduled.command.run()
-
-            verify(exactly = 1) { integrationEventPublishers[0].publish(eventRecord, integrationEventPublisherCallback) }
-            verify(exactly = 1) { integrationEventPublishers[1].publish(eventRecord, integrationEventPublisherCallback) }
-        }
-    }
-
-    @Nested
-    @DisplayName("事件重试测试")
-    inner class EventRetryTests {
-
-        @Test
-        @DisplayName("应该能够重试事件")
-        fun `should retry events`() {
-            // given
-            val eventRecord = createTestEventRecord()
-            val minNextTryTime = LocalDateTime.now().minusMinutes(1)
-
-            every { eventRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(1) // 设置为大于minNextTryTime的时间
-            every { eventRecord.isValid } returns true
-            every { eventRecord.isDelivered } returns true
-            every { eventRecord.isDelivering } returns true
-            every { eventRecord.beginDelivery(any()) } returns true
-
-            // when
-            publisher.resume(eventRecord, minNextTryTime)
-
-            // then
-            verify { eventRecordRepository.save(eventRecord) }
-            verify { eventRecord.markPersist(true) }
-        }
-
-        @Test
-        @DisplayName("应该处理重试循环保护")
-        fun `should handle retry loop protection`() {
-            // given
-            val eventRecord = createTestEventRecord()
-            val minNextTryTime = LocalDateTime.now().plusDays(1) // 很远的未来时间
-
-            every { eventRecord.nextTryTime } returns LocalDateTime.now().minusMinutes(1)
-            every { eventRecord.isValid } returns true
-            every { eventRecord.beginDelivery(any()) } returns false
-
-            // when & then
-            assertThrows<DomainException> {
-                publisher.resume(eventRecord, minNextTryTime)
-            }
-        }
-    }
-
-    @Nested
-    @DisplayName("拦截器集成测试")
-    inner class InterceptorIntegrationTests {
-
-        @Test
-        @DisplayName("应该调用所有相关拦截器")
-        fun `should call all relevant interceptors`() {
-            // given
-            val messageInterceptor = mockk<EventMessageInterceptor>()
-            val domainInterceptor = mockk<EventInterceptor>()
-
-            every { messageInterceptor.initPublish(any()) } just Runs
-            every { messageInterceptor.prePublish(any()) } just Runs
-            every { messageInterceptor.postPublish(any()) } just Runs
-            every { domainInterceptor.preRelease(any()) } just Runs
-            every { domainInterceptor.postRelease(any()) } just Runs
-            every { domainInterceptor.prePersist(any()) } just Runs
-            every { domainInterceptor.postPersist(any()) } just Runs
-
-            every { eventMessageInterceptorManager.orderedEventMessageInterceptors } returns setOf(messageInterceptor)
-            every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns setOf(domainInterceptor)
-
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-                persist = true
-            )
-
-            // when
-            publisher.publish(eventRecord)
-
-            // then
-            verify(timeout = 5_000) { messageInterceptor.initPublish(any()) }
-            verify(timeout = 5_000) { messageInterceptor.prePublish(any()) }
-            verify(timeout = 5_000) { messageInterceptor.postPublish(any()) }
-            verify(timeout = 5_000) { domainInterceptor.preRelease(any()) }
-            verify(timeout = 5_000) { domainInterceptor.postRelease(any()) }
-            verify(timeout = 5_000) { domainInterceptor.prePersist(any()) }
-            verify(timeout = 5_000) { domainInterceptor.postPersist(any()) }
-        }
-
-        @Test
-        @DisplayName("拦截器异常应该被正确处理")
-        fun `interceptor exceptions should be handled correctly`() {
-            // given
-            val domainInterceptor = mockk<EventInterceptor>()
-            every { domainInterceptor.preRelease(any()) } throws RuntimeException("Interceptor failed")
-            every { domainInterceptor.onException(any(), any()) } just Runs
-
-            every { domainEventInterceptorManager.orderedEventInterceptors4DomainEvent } returns setOf(domainInterceptor)
-
-            val eventRecord = createTestEventRecord(
-                eventType = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
-            )
-
-            // when & then
-            assertThrows<DomainException> {
-                publisher.publish(eventRecord)
-            }
-
-            verify { domainInterceptor.onException(any(), any()) }
-        }
-    }
-
-    @Nested
-    @DisplayName("并发和性能测试")
-    inner class ConcurrencyAndPerformanceTests {
-
-        @Test
-        @DisplayName("应该能够并发发布事件")
-        fun `should publish events concurrently`() {
-            // given
-            val eventRecords = (1..10).map {
-                createTestEventRecord("event$it")
-            }
-
-            // when
-            val threads = eventRecords.map { eventRecord ->
-                Thread {
-                    publisher.publish(eventRecord)
-                }
-            }
-
-            threads.forEach { it.start() }
-            threads.forEach { it.join() }
-
-            // then
-            verify(exactly = 10) { eventHandlerDispatcher.dispatch(any()) }
-        }
-
-        @Test
-        @DisplayName("应该能够处理大量事件")
-        fun `should handle large number of events`() {
-            // given
-            val eventRecords = (1..100).map {
-                createTestEventRecord("event$it")
-            }
-
-            // when
-            eventRecords.forEach { eventRecord ->
-                publisher.publish(eventRecord)
-            }
-
-            // then
-            verify(exactly = 100) { eventHandlerDispatcher.dispatch(any()) }
-        }
-    }
-
-    // 辅助方法
-    private fun createTestEventRecord(
-        payload: String = "test payload",
-        eventType: String = Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN,
-        persist: Boolean = false,
-        scheduleTime: LocalDateTime? = null,
-    ): EventRecord {
-        val eventRecord = mockk<EventRecord>()
-        val message = mockk<Message<Any>>()
-        val headers = mutableMapOf<String, Any>()
-
-        headers[Constants.HEADER_KEY_CAP4K_EVENT_TYPE] = eventType
-        if (persist) {
-            headers[Constants.HEADER_KEY_CAP4K_PERSIST] = true
-        }
-        if (scheduleTime != null) {
-            headers[Constants.HEADER_KEY_CAP4K_SCHEDULE] = scheduleTime.toEpochSecond(ZoneOffset.UTC)
-        }
-
-        every { eventRecord.message } returns message
-        every { eventRecord.payload } returns payload
-        every { eventRecord.executionContext } returns emptyList()
-        every { eventRecord.id } returns "test-id"
-        every { eventRecord.type } returns eventType
-        every { eventRecord.publishedAt } returns Instant.parse("2026-08-04T00:00:00Z")
-        every { eventRecord.deliveryAttempt } returns 1
-        every { eventRecord.markPersist(any()) } just Runs
-        every { eventRecord.endDelivery(any()) } just Runs
-        every { eventRecord.occurredException(any(), any()) } just Runs
-        every { eventRecord.nextTryTime } returns LocalDateTime.now().plusMinutes(10) // 设置为未来时间避免死循环
-        every { eventRecord.isValid } returns true
-        every { eventRecord.isDelivered } returns true // 添加缺失的Mock属性
-        every { eventRecord.beginDelivery(any()) } returns true
-        every { message.headers } returns EventMessageInterceptor.ModifiableMessageHeaders(headers)
-
-        return eventRecord
-    }
-
-    private fun createSynchronousPublisher(): TestableDefaultEventPublisher =
-        TestableDefaultEventPublisher(
-            eventHandlerDispatcher,
-            integrationEventPublishers,
-            eventRecordRepository,
-            eventMessageInterceptorManager,
-            domainEventInterceptorManager,
-            integrationEventInterceptorManager,
-            integrationEventManager,
-            integrationEventPublisherCallback,
-            threadPoolSize,
-            reliableEventDeliveryContextScopeManager = TestReliableEventDeliveryContextScopeManager,
+    private val deliveryScopes = TrackingDeliveryScopeManager()
+
+    @Test
+    fun `domain completion occurs after synchronous dispatch and context is cleared`() {
+        val payload = DomainPayload("one")
+        val event = event(payload, HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, attempt = 1)
+        val completion = mockk<EventPublisher.Completion>(relaxed = true)
+        var dispatched = false
+        val publisher = publisher(
+            dispatcher = EventHandlerDispatcher { actual ->
+                assertSame(payload, actual)
+                assertEquals("event-1", deliveryScopes.current?.eventId)
+                assertEquals(1, deliveryScopes.current?.attempt)
+                dispatched = true
+            },
         )
 
-    private fun assertScheduledWithPositiveMillis(scheduled: ScheduledCall) {
-        assertEquals(TimeUnit.MILLISECONDS, scheduled.unit)
-        assertEquals(500, scheduled.delay)
+        publisher.publish(event, completion)
+
+        assertEquals(true, dispatched)
+        verify(exactly = 1) { completion.onSuccess(event) }
+        verify(exactly = 0) { completion.onFailure(any(), any()) }
+        assertNull(deliveryScopes.current)
     }
 
-    private data class ScheduledCall(
-        val command: Runnable,
-        val delay: Long,
-        val unit: TimeUnit,
+    @Test
+    fun `domain failure completes through failure callback and clears context`() {
+        val failure = IllegalStateException("handler failed")
+        val event = event(DomainPayload("failure"), HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, attempt = 2)
+        val completion = mockk<EventPublisher.Completion>(relaxed = true)
+        val publisher = publisher(dispatcher = EventHandlerDispatcher { throw failure })
+
+        publisher.publish(event, completion)
+
+        verify(exactly = 1) { completion.onFailure(event, failure) }
+        verify(exactly = 0) { completion.onSuccess(any()) }
+        assertNull(deliveryScopes.current)
+    }
+
+    @Test
+    fun `outbound handoff acknowledges only after provider acceptance`() {
+        val event = event(IntegrationPayload("outbound"), HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION, attempt = 1)
+        val completion = mockk<EventPublisher.Completion>(relaxed = true)
+        var callback: IntegrationEventPublisher.PublishCallback? = null
+        val provider = object : IntegrationEventPublisher {
+            override fun publish(event: EventRecord, publishCallback: IntegrationEventPublisher.PublishCallback) {
+                assertEquals("event-1", deliveryScopes.current?.eventId)
+                callback = publishCallback
+            }
+        }
+        val publisher = publisher(integrationPublishers = listOf(provider))
+
+        publisher.publish(event, completion)
+        verify(exactly = 0) { completion.onSuccess(any()) }
+
+        requireNotNull(callback).onSuccess(event)
+
+        verify(exactly = 1) { completion.onSuccess(event) }
+        assertNull(deliveryScopes.current)
+    }
+
+    @Test
+    fun `provider rejection completes through the same failure callback`() {
+        val event = event(IntegrationPayload("outbound"), HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION, attempt = 3)
+        val completion = mockk<EventPublisher.Completion>(relaxed = true)
+        val failure = IllegalArgumentException("rejected")
+        val provider = object : IntegrationEventPublisher {
+            override fun publish(event: EventRecord, publishCallback: IntegrationEventPublisher.PublishCallback) {
+                publishCallback.onException(event, failure)
+            }
+        }
+
+        publisher(integrationPublishers = listOf(provider)).publish(event, completion)
+
+        verify(exactly = 1) { completion.onFailure(event, failure) }
+        verify(exactly = 0) { completion.onSuccess(any()) }
+        assertNull(deliveryScopes.current)
+    }
+
+    private fun publisher(
+        dispatcher: EventHandlerDispatcher = EventHandlerDispatcher { },
+        integrationPublishers: List<IntegrationEventPublisher> = emptyList(),
+    ): DefaultEventPublisher = DefaultEventPublisher(
+        eventHandlerDispatcher = dispatcher,
+        integrationEventPublishers = integrationPublishers,
+        eventMessageInterceptorManager = messages,
+        domainEventInterceptorManager = domainInterceptors,
+        integrationEventInterceptorManager = integrationInterceptors,
+        reliableEventDeliveryContextScopeManager = deliveryScopes,
     )
 
-    private class TestableDefaultEventPublisher(
-        eventHandlerDispatcher: EventHandlerDispatcher,
-        integrationEventPublishers: List<IntegrationEventPublisher>,
-        eventRecordRepository: EventRecordRepository,
-        eventMessageInterceptorManager: EventMessageInterceptorManager,
-        domainEventInterceptorManager: DomainEventInterceptorManager,
-        integrationEventInterceptorManager: IntegrationEventInterceptorManager,
-        integrationEventManager: IntegrationEventManager,
-        integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
-        threadPoolSize: Int,
-        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
-    ) : DefaultEventPublisher(
-        eventHandlerDispatcher,
-        integrationEventPublishers,
-        eventRecordRepository,
-        eventMessageInterceptorManager,
-        domainEventInterceptorManager,
-        integrationEventInterceptorManager,
-        integrationEventManager,
-        integrationEventPublisherCallback,
-        threadPoolSize,
-        reliableEventDeliveryContextScopeManager = reliableEventDeliveryContextScopeManager,
-    ) {
-        fun publishDomain(event: EventRecord) {
-            internalPublish4DomainEvent(event)
+    private fun event(payload: Any, kind: String, attempt: Int): EventRecord {
+        val record = mockk<EventRecord>()
+        every { record.id } returns "event-1"
+        every { record.type } returns "test.event"
+        every { record.payload } returns payload
+        every { record.executionContext } returns emptyList()
+        every { record.publishedAt } returns Instant.parse("2026-08-08T00:00:00Z")
+        every { record.deliveryAttempt } returns attempt
+        every { record.message } returns GenericMessage(payload, mapOf(HEADER_KEY_CAP4K_EVENT_TYPE to kind))
+        return record
+    }
+
+    private class TrackingDeliveryScopeManager : ReliableEventDeliveryContextScopeManager {
+        var current: ReliableEventDeliveryContext? = null
+            private set
+
+        override fun install(context: ReliableEventDeliveryContext): AutoCloseable {
+            val previous = current
+            current = context
+            return AutoCloseable { current = previous }
+        }
+
+        override fun suppress(): AutoCloseable {
+            val previous = current
+            current = null
+            return AutoCloseable { current = previous }
         }
     }
 
-    private class CapturingDefaultEventPublisher(
-        eventHandlerDispatcher: EventHandlerDispatcher,
-        integrationEventPublishers: List<IntegrationEventPublisher>,
-        eventRecordRepository: EventRecordRepository,
-        eventMessageInterceptorManager: EventMessageInterceptorManager,
-        domainEventInterceptorManager: DomainEventInterceptorManager,
-        integrationEventInterceptorManager: IntegrationEventInterceptorManager,
-        integrationEventManager: IntegrationEventManager,
-        integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
-        threadPoolSize: Int,
-        reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
-    ) : DefaultEventPublisher(
-        eventHandlerDispatcher,
-        integrationEventPublishers,
-        eventRecordRepository,
-        eventMessageInterceptorManager,
-        domainEventInterceptorManager,
-        integrationEventInterceptorManager,
-        integrationEventManager,
-        integrationEventPublisherCallback,
-        threadPoolSize,
-        reliableEventDeliveryContextScopeManager = reliableEventDeliveryContextScopeManager,
-    ) {
-        private val scheduledCalls = mutableListOf<ScheduledCall>()
-
-        override fun now(): LocalDateTime = LocalDateTime.of(1970, 1, 1, 0, 0, 0, 500_000_000)
-
-        override fun schedule(command: Runnable, delay: Long, unit: TimeUnit) {
-            scheduledCalls.add(ScheduledCall(command, delay, unit))
-        }
-
-        fun singleScheduled(): ScheduledCall {
-            assertEquals(1, scheduledCalls.size)
-            return scheduledCalls.single()
-        }
-    }
-
-    @IntegrationEvent
-    data class TestIntegrationEvent(val message: String)
+    data class DomainPayload(val value: String)
+    data class IntegrationPayload(val value: String)
 }
