@@ -82,9 +82,6 @@ class EventRecordImpl : EventRecord {
     override val scheduleTime: LocalDateTime
         get() = event.createAt
 
-    override val nextTryTime: LocalDateTime
-        get() = event.nextTryTime
-
     override fun markPersist(persist: Boolean) {
         this.persist = persist
     }
@@ -142,31 +139,4 @@ class EventRecordImpl : EventRecord {
             }
         }
 
-    override val isValid: Boolean
-        get() = event.isValid
-
-    override val isInvalid: Boolean
-        get() = event.isInvalid
-
-    override val isDelivering: Boolean
-        get() = event.isDelivering
-
-    override val isDelivered: Boolean
-        get() = event.isDelivered
-
-    override fun beginDelivery(now: LocalDateTime): Boolean {
-        return event.beginDelivery(now)
-    }
-
-    override fun cancelDelivery(now: LocalDateTime): Boolean {
-        return event.cancelDelivery(now)
-    }
-
-    override fun occurredException(now: LocalDateTime, throwable: Throwable) {
-        event.occurredException(now, throwable)
-    }
-
-    override fun endDelivery(now: LocalDateTime) {
-        event.endDelivery(now)
-    }
 }

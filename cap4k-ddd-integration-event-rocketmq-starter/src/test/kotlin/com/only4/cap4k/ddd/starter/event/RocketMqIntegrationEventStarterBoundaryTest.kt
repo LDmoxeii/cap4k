@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.starter.event
 
 import com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventAutoConfiguration
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -17,11 +18,11 @@ class RocketMqIntegrationEventStarterBoundaryTest {
     }
 
     @Test
-    fun `transport supervisor requires an external EventRecordRepository provider`() {
+    fun `transport supervisor requires the coordinator and EventRecordRepository providers`() {
         val parameterTypes = RocketMqIntegrationEventAutoConfiguration::class.java
             .getDeclaredMethod(
                 "integrationEventSupervisor",
-                com.only4.cap4k.ddd.core.domain.event.EventPublisher::class.java,
+                ReliableEventCoordinator::class.java,
                 EventRecordRepository::class.java,
                 com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager::class.java,
                 org.springframework.context.ApplicationEventPublisher::class.java,
@@ -32,6 +33,7 @@ class RocketMqIntegrationEventStarterBoundaryTest {
             )
             .parameterTypes
 
+        assertTrue(parameterTypes.contains(ReliableEventCoordinator::class.java))
         assertTrue(parameterTypes.contains(EventRecordRepository::class.java))
     }
 

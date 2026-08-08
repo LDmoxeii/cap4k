@@ -1,0 +1,343 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-reliable-event-state",
+  "sourceRevision": 4,
+  "result": "pass",
+  "freshness": "partial",
+  "contractHash": "0adf05afb2693199a6708f1d95a7effda578d930d216279860784a9df941d827",
+  "acceptanceCriteriaHash": "782a4291e4886a77944990326cb52cd220310df1ef62cd69e6729d8a024cdfe1",
+  "implementationScopeRef": "runtime/evidence/scopes/ab5398d491fc120eb7a12122dc5eefaebb1a5ee895e1cf78aa6aec18b284b57d.json",
+  "implementationScopeHash": "ab5398d491fc120eb7a12122dc5eefaebb1a5ee895e1cf78aa6aec18b284b57d",
+  "reportRef": "verification.md",
+  "reportHash": "4a4611e4871a70808b41b130a754756b3a424d33854e62e3b92a754f79250ce6",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "782a4291e4886a77944990326cb52cd220310df1ef62cd69e6729d8a024cdfe1",
+    "total": 35,
+    "evidenced": 25,
+    "skipped": 10,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-095a3fdeee98ddf8b75cd6defb2c63d92df80d73456aa4a8ce2a34382d7dfd19",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-0a81962a112f6b1cabb0c7aaa2caded4fa0e72fac01a489cb7856249f48ac110",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-0cccfd27fa43e99c0a0c0711cabe81ba56d9cb198059d15380873adcf6c3b180",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "No dedicated test suppresses the after-commit wake and waits for scheduled coordinator recovery; direct due-claim recovery is covered separately."
+      },
+      {
+        "acceptanceId": "acceptance-1a941a23b12000060ec1669db336022f85d4154d26156302059b91bd9804e83d",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-28a6674d0158436b47fc8354b98a1c1ac8c771781c9d8da9603016cb06e0023a",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventPublisherTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventRecordImplTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2bbc7bc9a464be5f6676a42dee39688d8fab89dc6fa81f6048df6c92f3b0f75f",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "Derived outbound release on parent local failure is not covered by a focused end-to-end fixture in this slice."
+      },
+      {
+        "acceptanceId": "acceptance-3dfb0b46b4277f01d9aa6b6b05160bcb58929c20d304ab54cedc74a0895fb3f8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-45d0b59fc9c17ba565b3dfc62b356d44090e2f990b91c1b7e4a555ff2d8aa1e9",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4c98024618d2e2848c5e071f55affcccce895844b68f20ceea98c2ab78fccedf",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-59afcb4a92d96392ce3d0e1402238ecc5cc2d2412b67b7b9e7b89e8cc7b1a806",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-609c71bdf9b35ba9fb67eb36ba20c41b9d08de73b011b74347ee0188d40f43c4",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6650da529f875f2aace5925bbc17e72e346ef36985870f2b38fe751ffc44786a",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventRecordImplTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6e469df678f2a26052de370a3d92fcbebe8a1a0004194d05d9bc493fdc5cfc6e",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/DomainEventJpaStarterBoundaryTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7935da1e61fe5d190252bd26ba69864e55a258310648306babab01b6d714a4af",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "Scoped async query/capability child failure requires the broader application execution fixtures and is outside this focused Event state slice."
+      },
+      {
+        "acceptanceId": "acceptance-7eff5aaa7ce7f22108c1cded9b4c74416b2ed5ee8cfed821efe9aa0c8d5ef310",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-86794b70ef4e4b6be62bc76839a3fd8f1d3c701ca3ac9fd3a8ad1a84516dd321",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-8b57be375bfce7d34ce66f2eec98dd5f0b306ef572a84f44d7fa3fac0b4a6659",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-90ec1aabff529c1247c90d32d3ffd3517d122934136ace0d848e32c3a6364a4e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-90ff653813b2904ed25768895efac2831fd8acbca264b0a7e2b928bfc610f955",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [],
+        "skippedReason": "Scoped async join semantics are not re-tested here; this slice verifies the Event state machine boundary around the existing synchronous publisher contract."
+      },
+      {
+        "acceptanceId": "acceptance-964efa982f335daf5072fad288b9faefa297eafdb9eef21fa44d2574ac61238b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-9981081b3a573f7070450716df4ce7b408b072dccae17fe62cba5a311085b211",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [],
+        "skippedReason": "Derived Event release after parent success is not covered by a focused end-to-end fixture in this slice."
+      },
+      {
+        "acceptanceId": "acceptance-a2b8f1b98c43c86522e35df9b5c0a5957ece364e62ffa25a6f13b2a0ee968eeb",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "No transport-backed Integration Event claim-before-provider test is run in this state-machine-only matrix."
+      },
+      {
+        "acceptanceId": "acceptance-a32979e162f1e739accaa452db7980d7dc50cc5689e39356bbba87c1a5243530",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a54461e6222224b0277cc3c104d9f6a18134d329342cd533161f31def81540d7",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventPublisherTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a6d4a264d482c2d754813298ae7364abc078b3c5aaead3d6bfb622f1c14c0cdd",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventPublisherTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-aa2797c08c46082d6be1a82b2340d6f1ca9f4f9cc48337c3ebd837528b27306a",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-aa6a0383c787f089c58ac5756fc814eebd90b8e38560df3cea12814680ced24d",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "Scoped async query/capability completion is outside this focused Event state-machine verification."
+      },
+      {
+        "acceptanceId": "acceptance-b740ffd5eaa97d36fba52cdb96426eb9926b20faad30a0024ac732f6be816cff",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "The suite verifies lease-expiry re-claim and token fencing but does not simulate a process crash after an external side effect."
+      },
+      {
+        "acceptanceId": "acceptance-bd30093f3cb6e749b0f2b7e932a6e81e2e624322ebaf84e330fbc36935da2202",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "Derived outbound Event release after parent success is covered by the surrounding design but not by a focused fixture in this slice."
+      },
+      {
+        "acceptanceId": "acceptance-bf1bdb1a57d893e1effd341f6810e16e31ca555d13bd781af68f466a097a4e5d",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [],
+        "skippedReason": "Detached command scheduling semantics belong to the application command scope and are not re-tested by this Event state slice."
+      },
+      {
+        "acceptanceId": "acceptance-ca26df80a8871a494529e3e9ce0c02747bf7566a0aca52145ffd598d9b30c880",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ca78c9feeb4a29a72b83f855012dc8e21276493fa9b9307b1229c1090c268467",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-cf66082b2f620c8d95f08d9ba3abba93af93c73899e53b8b4048eb6b05a90ae2",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventPublisherTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-db6488c7f5332c1eb27159d2018d10c64657d8ac7a420c1375f38f56e8c563af",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/DomainEventJpaStarterBoundaryTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleServiceTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-fa124c7c9ad307964c7a936ca54bd5eee3ac860195e75eae7ae5b8277bc6657f",
+        "kind": "spec-scenario",
+        "source": "specs/runtime-reliable-event-state/spec.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/DefaultEventPublisherTest.kt",
+          "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventRecordImplTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "0a5c08686f885f833f5a667fd152f65675607d2c9cdcc62ff95349cfd9995130"
+  },
+  "partialAllowanceRef": "runtime/evidence/allowances/538a2d981f26412486b8053aa4c4da73ed063edb82ec4d7dbf7f0889832b3acf.json",
+  "partialAllowanceHash": "538a2d981f26412486b8053aa4c4da73ed063edb82ec4d7dbf7f0889832b3acf",
+  "receiptRef": "runtime/evidence/check-receipts/0f9a58a3ab39c6248cc7ac1b80793ddae04a8982ad69f3d8d0e78abe381010d6.json",
+  "createdAt": "2026-08-08T07:02:38.579Z",
+  "envelopeHash": "f36be51e68b4c480c5de3c5391a6f793cc0cbdc7bd3d833f3c0e746c7ba17099"
+}

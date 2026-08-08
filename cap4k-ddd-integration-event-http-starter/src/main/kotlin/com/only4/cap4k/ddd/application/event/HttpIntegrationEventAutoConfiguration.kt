@@ -15,7 +15,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventPublisher
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
@@ -55,7 +55,7 @@ class HttpIntegrationEventAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(IntegrationEventSupervisor::class)
     fun integrationEventSupervisor(
-        eventPublisher: EventPublisher,
+        reliableEventCoordinator: ReliableEventCoordinator,
         eventRecordRepository: EventRecordRepository,
         interceptorManager: IntegrationEventInterceptorManager,
         applicationEventPublisher: ApplicationEventPublisher,
@@ -64,7 +64,7 @@ class HttpIntegrationEventAutoConfiguration {
         invocationScopeAccessor: InvocationScopeAccessor,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
     ): DefaultIntegrationEventSupervisor = DefaultIntegrationEventSupervisor(
-        eventPublisher,
+        reliableEventCoordinator,
         eventRecordRepository,
         interceptorManager,
         applicationEventPublisher,

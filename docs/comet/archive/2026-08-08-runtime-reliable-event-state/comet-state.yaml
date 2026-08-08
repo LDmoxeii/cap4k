@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 6
+name: runtime-reliable-event-state
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 0adf05afb2693199a6708f1d95a7effda578d930d216279860784a9df941d827
+spec_changes:
+  - capability: runtime-reliable-event-state
+    operation: replace
+    source: specs/runtime-reliable-event-state/spec.md
+    base_hash: 51ff80696b0cbf7f5d5308f360ea754be76653241bc8b4c6af269c032a274ca0
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/ab5398d491fc120eb7a12122dc5eefaebb1a5ee895e1cf78aa6aec18b284b57d.json
+verification_evidence: runtime/evidence/verifications/f36be51e68b4c480c5de3c5391a6f793cc0cbdc7bd3d833f3c0e746c7ba17099.json
+partial_allowance: runtime/evidence/allowances/538a2d981f26412486b8053aa4c4da73ed063edb82ec4d7dbf7f0889832b3acf.json
+archived: true
+created_at: 2026-08-07
+run_id: 750f5f4e-e596-4e60-8448-91b45c00d126

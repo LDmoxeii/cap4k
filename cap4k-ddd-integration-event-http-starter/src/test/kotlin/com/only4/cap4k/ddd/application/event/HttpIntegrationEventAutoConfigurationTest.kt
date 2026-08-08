@@ -11,7 +11,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.domain.event.EventPublisher
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
@@ -29,7 +29,7 @@ class HttpIntegrationEventAutoConfigurationTest {
     private fun contextRunner(includeEventRecordRepository: Boolean): WebApplicationContextRunner {
         var runner = WebApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(HttpIntegrationEventAutoConfiguration::class.java))
-            .withBean(EventPublisher::class.java, Supplier { mock(EventPublisher::class.java) })
+            .withBean(ReliableEventCoordinator::class.java, Supplier { mock(ReliableEventCoordinator::class.java) })
             .withBean(
                 IntegrationEventInterceptorManager::class.java,
                 Supplier { mock(IntegrationEventInterceptorManager::class.java) },

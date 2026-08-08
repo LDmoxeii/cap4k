@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.progress-checkpoint.v1",
+  "id": "331607b9-0e0f-4471-b8c9-a810bdf03aec",
+  "change": "runtime-reliable-event-state",
+  "phase": "build",
+  "previousRevision": 2,
+  "stateRevision": 3,
+  "summary": "Build is partially implemented on fix/reliable-event-state-machine. Production code now routes persisted Domain Events and outbound Integration Events through ReliableEventCoordinator plus the private JPA claim/lease/token substrate; legacy EventRecord state mutation and polling APIs were removed. Core tests were rewritten, and Event JPA repository/scheduler/carrier tests are being migrated. Focused production compilation succeeded before the latest test rewrites. Work stopped intentionally for clean-session handoff; no verification phase transition has occurred.",
+  "nextAction": "Resume from Comet status/show, then compile ddd-domain-event-jpa tests. Fix only the remaining audited test drift: starter reflection/bean signatures, four occurredException fixtures in JpaEventAtomicClaimIntegrationTest, and any compile errors in the newly rewritten Event JPA tests. Run the focused Core/Event JPA/starter test matrix, add real JPA production coordinator composition evidence required by the spec, review the documented integration-event lease-renewal and pre-dispatch failure risks, then seal Build scope and enter Verify.",
+  "inputHash": "115d2c349bfa52a0582b0453326effbf3f2619ba4b5463e3ec2a7fb3889eb7d2",
+  "manifestHash": "19a092d40c1fedfd1ce79e4e1ca5eff29f219229b7f0b446b1086fd28f24d254",
+  "manifestRef": "runtime/checkpoints/manifests/19a092d40c1fedfd1ce79e4e1ca5eff29f219229b7f0b446b1086fd28f24d254.json",
+  "artifactCount": 1,
+  "createdAt": "2026-08-08T04:45:32.275Z"
+}

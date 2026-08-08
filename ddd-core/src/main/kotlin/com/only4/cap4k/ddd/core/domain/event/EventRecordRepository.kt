@@ -1,8 +1,5 @@
 package com.only4.cap4k.ddd.core.domain.event
 
-import java.time.LocalDateTime
-
-
 /**
  * 事件记录仓储
  *
@@ -13,5 +10,4 @@ interface EventRecordRepository {
     fun create(): EventRecord
     fun save(eventRecord: EventRecord)
     fun getById(id: String): EventRecord
-    fun getByNextTryTime(svcName: String, maxNextTryTime: LocalDateTime, limit: Int): List<EventRecord>
 }
