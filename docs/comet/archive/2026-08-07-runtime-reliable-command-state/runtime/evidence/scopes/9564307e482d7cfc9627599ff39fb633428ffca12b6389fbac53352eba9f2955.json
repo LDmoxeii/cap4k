@@ -1,0 +1,545 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "8e4b35380d4903521fad393252e3cfeb18e591eb89ff6ff147c774fd531fbff9",
+  "baselineProjectionRef": "runtime/evidence/snapshots/0d14061cb75c3da4f61e22c9c61db8de20b3f8e0137dfd8f1907a61f45f649fc.json",
+  "baselineProjectionHash": "0d14061cb75c3da4f61e22c9c61db8de20b3f8e0137dfd8f1907a61f45f649fc",
+  "currentProjectionRef": "runtime/evidence/snapshots/d81e8a89292d3df10c2f704c963f215a87d3697df58c5882c0cfd00b95bc9a1a.json",
+  "currentProjectionHash": "d81e8a89292d3df10c2f704c963f215a87d3697df58c5882c0cfd00b95bc9a1a",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command",
+      "kind": "directory"
+    },
+    {
+      "path": "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/RuntimeProviderBinder.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/command",
+      "kind": "directory"
+    },
+    {
+      "path": "docs/public/concepts/execution-and-ownership/command.md",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command/CommandJpaAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "3455455728cc7350e33fe96d710f9e851fe80b80313b92d9e28291b78cd51008",
+        "size": 6542
+      },
+      "after": {
+        "hash": "c416b3f033d48105c9f7b8712392f30cad2282e3bef4baf5e201ef9292e2670e",
+        "size": 5565
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command/configure/CommandProperties.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "a5aea1350eef1197cc66aa0ba1230e2a2c453ed8025819ce0821329ba05ca286",
+        "size": 330
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command/configure/CommandScheduleProperties.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "c67107d00006d2ebfc493c7fb9a62eaa99fd0d2225c46eb13e4547c8bf77b109",
+        "size": 502
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command/configure/ReliableCommandWorkerProperties.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "af9ce7fc2c672787cdacae39bf3779845c9d82b5b41deb3b1bd8a529fd88a459",
+        "size": 543
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/CommandJpaStarterBoundaryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5306af3e44f357e795c2730e32cc504a75912e1c90545d2495ab365501169507",
+        "size": 2058
+      },
+      "after": {
+        "hash": "3761b47e96864824f9c561ca27d704abd63c7147833c568e104d39af95983d81",
+        "size": 2785
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "6faaeaf74eb7076701c10a2bfa936cbb8a9d603be16a1c29835ef0e231954c96",
+        "size": 34177
+      },
+      "after": {
+        "hash": "73afa3fbbd6d63cb309aa085bea4256ac5aa8930fc7bed97eac479ebd2a70839",
+        "size": 34744
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/ReliableCommandProductionPathIntegrationTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "9ffa2d97785fd6c7bb34eb5e4eba01905e360913323f901dc8e14ff9c6ca0cb7",
+        "size": 8849
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/RuntimeProviderBinder.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "85c280e20d9856c273b6f571c3e2c2a255575a2692180dc870b0dc532bf39971",
+        "size": 7375
+      },
+      "after": {
+        "hash": "54175f47e262c950cb044745c4401454e75eb3bc9f6dde72f2a03bc3de8b2c17",
+        "size": 7054
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/RuntimeProviderBinder.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/CommandRecordImpl.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "426230ecdd2f296822f6c920633e2a785bbe84d7e133192403eae0ab082fc19f",
+        "size": 2665
+      },
+      "after": {
+        "hash": "a1ce6eed5e6ba4fbf6b12e5f387f01eb82aeee51072c58d3625a03c6a5c86ce2",
+        "size": 1303
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "d667c4266261e5ed20f206259cf1bce9ee6a601a4e5fa3e94e8cc95bcf331b56",
+        "size": 9040
+      },
+      "after": {
+        "hash": "aafe08bc14f6111c8859eff6fcd3e95808ee89d0853dcc569256020d0f37be85",
+        "size": 10348
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandRecordRepository.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "acd971b49720e5c69aa20894dae40e13cf2201d2a9ff4e0ddc82b3c85b3f59ff",
+        "size": 3748
+      },
+      "after": {
+        "hash": "dae87c122f4102cdc2f7414bb92e8bbd3c376f0d463e5482bbe183e4ed2fa916",
+        "size": 984
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandScheduleService.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "a6997ade8bbb78d8c4482c21e3f63153a6e68dda11dbeb1fe2c457c425a98068",
+        "size": 3777
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaReliableCommandWorker.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "2f7ec8ee81f49462a1b5f3e4cfd370f2f9838692af198830f31bec478423297a",
+        "size": 8046
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5ba0d1afb7221ce6f671b6eec8d3ef7b99084405e7ae498d4f2cd0e86da2ef74",
+        "size": 12967
+      },
+      "after": {
+        "hash": "d0dd3f73083e4bb31512b4f75a4608df36281d8a960fc4b28e1e303492a330bd",
+        "size": 10041
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "kind": "modified",
+      "before": {
+        "hash": "26f5c92d6e003bdfa6db87a9a824637555c3faae67e70bbf7bf889f97d06112d",
+        "size": 2684
+      },
+      "after": {
+        "hash": "ecc34f886183fef1711a247420b91ffef26fb9a2aeef143ae54711e1d7bca186",
+        "size": 2557
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/CommandExecutionContextPersistenceTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "c8e2bc51b228defbec7b9f8f80f85526780736811eaa55ffb8f46f732a971015",
+        "size": 2128
+      },
+      "after": {
+        "hash": "5e0bd54a188ece92eee75d974a150cba5ddfd9a0e7e2434760f96dc8289d9be3",
+        "size": 2097
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/CommandRecordImplTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b0a3ec5c2d1c3517c2b196672863b389075d8a672ab6627006c0cac0f45a8779",
+        "size": 19755
+      },
+      "after": {
+        "hash": "d545aae6c4eb60eba1c9522cb17bf3ebf0440850fe95370f10e2d2afe3413556",
+        "size": 1719
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandRecordRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b475573256c9f8a904a0af52b223d6c99702fe5df07ad56bf7d495e78f2f228c",
+        "size": 16934
+      },
+      "after": {
+        "hash": "d9edac9403787a80e06fc3811a5677a724fba5007f12025b9ef371f71b64e87f",
+        "size": 1554
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandScheduleServiceTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "d91136ed559b837339fabc7efe79541e16af48b6153c3846cee68469925a3850",
+        "size": 18754
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/JpaReliableCommandWorkerTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "7ad7bd4f141fea04f30bacbadc1c087718b56eb557cd9132a9dec2745b5c530a",
+        "size": 8121
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "ae051e161e79819a0b71421d7054753a68f5036343df3d9072150b4fe4c8bef0",
+        "size": 2518
+      },
+      "after": {
+        "hash": "3c46aa724ea45a0b753af223c6cd628e4d4ef19cf16e7d51f10b5185ee2add12",
+        "size": 2464
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/CommandManager.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "3fe0aec2a7a221330c75c33b977ff2fbbc94adb30106a61ec2e9683a2cb4ba0a",
+        "size": 462
+      },
+      "after": null,
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/CommandRecord.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "2a8d2fb498255b5eeeb49b3ea45a59dceeb8fdee39f05866fee97ec495bbc660",
+        "size": 1157
+      },
+      "after": {
+        "hash": "be85c6da05088e4f589b4acb591e7bbcef257adf4b45fbfaddf3506c497fa517",
+        "size": 615
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/CommandRecordRepository.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "93e4dca0c01c630c35abc3029577018ad1cab853192dbd554b871774e64ee371",
+        "size": 362
+      },
+      "after": {
+        "hash": "8d5cf254443171ef06ac0ba13d8464dc243ee8cdb65ac2557ce358c413ba3c70",
+        "size": 169
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/ReliableCommandSupervisorSupport.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "f1297e6701310361729d41be0bdb00a328aa79130b03230d9a0b99da71254929",
+        "size": 945
+      },
+      "after": {
+        "hash": "de61b5cb61b02c2eb5c8723c28435c7f092f197416fcf3abdb74a7f3d05ed56a",
+        "size": 574
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/ReliableCommandWakeUp.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "6fa91157d9c98831a996c046fec473b232141345c164e8d8522d574a2a5a6ad6",
+        "size": 408
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command/impl/DefaultReliableCommandSupervisor.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "d8887ba72eb3ab2a2388a8af14e19262e44d882289ea7f82cee32df9618e5bac",
+        "size": 7426
+      },
+      "after": {
+        "hash": "79dab417321845df2736f6c010765bb08289d37753e6b2f3a36bf62bfe39b882",
+        "size": 4053
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/command/impl/DefaultReliableCommandSupervisorTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "7b2e3eabb0a01bb59138c16973bf31b20e72d44205b5e88e2ec4393e438df3f9",
+        "size": 16822
+      },
+      "after": {
+        "hash": "aeaf4b36b59fff048fc6b086cdd7f14c179702afeeb9ed01f9a9a64734dadc2d",
+        "size": 5380
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/command",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "docs/public/concepts/execution-and-ownership/command.md",
+      "kind": "modified",
+      "before": {
+        "hash": "f5fdf1f8c99377988ea032f6f25974d36fdf360685fee48da8298aedf13067ce",
+        "size": 3278
+      },
+      "after": {
+        "hash": "48fbbe572fc2b11447c2752f8230be8242306cd8ad82f8c9a9b17ad5489cd776",
+        "size": 3559
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public/concepts/execution-and-ownership/command.md",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "9564307e482d7cfc9627599ff39fb633428ffca12b6389fbac53352eba9f2955"
+}

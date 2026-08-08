@@ -31,7 +31,4 @@ CREATE TABLE `__command`
     KEY              `idx_expire_at` (`expire_at`),
     KEY              `idx_next_try_time` (`next_try_time`),
     KEY              `idx_command_claim` (`svc_name`, `command_state`, `next_try_time`, `lease_until`, `id`)
-    ) COMMENT ='命令 support by cap4k\n@I;'
-# partition by range(to_days(db_created_at))
-# (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
-;
+    ) COMMENT ='命令 support by cap4k\n@I;';

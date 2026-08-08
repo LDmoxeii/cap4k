@@ -4,6 +4,8 @@ import com.only4.cap4k.ddd.application.JpaOwnershipClaim
 import com.only4.cap4k.ddd.application.ReliableJpaOwnership
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
+import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
@@ -18,6 +20,22 @@ import java.time.LocalDateTime
 open class JpaCommandExecutionSubstrate(
     private val records: CommandRecordJpaRepository,
 ) {
+    /** Loads immutable execution input only while the supplied ownership is still live. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    open fun load(ownership: JpaOwnershipClaim, now: LocalDateTime): JpaClaimedCommand? {
+        val effectiveNow = ReliableJpaOwnership.normalize(now)
+        val record = records.findById(ownership.recordId).orElse(null) ?: return null
+        if (record.commandState != CommandRecordEntity.CommandState.EXECUTING) return null
+        if (record.deliveryToken?.contentEquals(ownership.token.toByteArray()) != true) return null
+        if (record.leaseUntil?.isAfter(effectiveNow) != true) return null
+        return JpaClaimedCommand(
+            command = requireNotNull(record.commandParam) {
+                "claimed Command record ${ownership.recordId} has no payload"
+            },
+            executionContext = JpaExecutionContextEnvelope.decode(record.executionContext),
+        )
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     open fun claim(
         serviceName: String,
@@ -195,3 +213,9 @@ open class JpaCommandExecutionSubstrate(
         )
     }
 }
+
+/** Immutable input exposed only to the private reliable Command worker. */
+data class JpaClaimedCommand(
+    val command: Command<*>,
+    val executionContext: List<EncodedExecutionContextElement>,
+)

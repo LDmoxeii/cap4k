@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-reliable-command-state",
+  "role": "original",
+  "hash": "fe217ecd9d8b54e89b887081c2639b53e862c83d855dfbda1ca74bf24ce34f95",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1125899908104994,
+    "birthtimeMs": 1786111990314.7556
+  }
+}

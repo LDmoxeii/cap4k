@@ -7,22 +7,10 @@ object ReliableCommandSupervisorSupport {
         "reliable-commands",
         "cap4k-ddd-command-jpa-starter",
     )
-    private val managerSlot = ProviderSlot<CommandManager>(
-        "command-manager",
-        "cap4k-ddd-command-jpa-starter",
-    )
-
     val instance: ReliableCommandSupervisor
         get() = supervisorSlot.get()
-
-    val manager: CommandManager
-        get() = managerSlot.get()
 
     fun configure(supervisor: ReliableCommandSupervisor) = supervisorSlot.configure(supervisor)
 
     fun release(supervisor: ReliableCommandSupervisor) = supervisorSlot.release(supervisor)
-
-    fun configure(manager: CommandManager) = managerSlot.configure(manager)
-
-    fun release(manager: CommandManager) = managerSlot.release(manager)
 }

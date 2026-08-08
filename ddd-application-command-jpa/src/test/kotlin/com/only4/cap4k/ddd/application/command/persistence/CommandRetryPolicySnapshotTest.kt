@@ -6,7 +6,6 @@ import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.LocalDateTime
@@ -42,11 +41,9 @@ class CommandRetryPolicySnapshotTest {
             tryTimes = original.tryTimes,
             retryPolicy = original.retryPolicy,
         )
-        val retryAt = createdAt.plusMinutes(10)
-
         assertEquals(original.retryPolicy, reloaded.retryPolicy)
-        assertTrue(reloaded.beginCommand(retryAt))
-        assertEquals(retryAt.plusMinutes(7), reloaded.nextTryTime)
+        val persistedPolicy = RuntimeJson.read(reloaded.retryPolicy, ReliableRetryPolicySnapshot::class.java)
+        assertEquals(7, persistedPolicy.delayMinutesFor(2))
     }
 
     @Retry(retryTimes = 4, retryIntervals = [2, 7], expireAfter = 30)

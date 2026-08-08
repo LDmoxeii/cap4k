@@ -6,6 +6,8 @@ import com.only4.cap4k.ddd.application.command.JpaCommandExecutionSubstrate
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
 import com.only4.cap4k.ddd.core.application.command.Command
+import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
+import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import com.only4.cap4k.ddd.core.share.retry.RetryDelayStep
@@ -500,8 +502,7 @@ class JpaCommandAtomicClaimIntegrationTest {
             retryPolicy = RuntimeJson.write(zeroDelayPolicy(1))
             tryTimes = 1
         }
-        assertTrue(record.beginCommand(firstAttemptAt))
-        record.occurredException(firstAttemptAt, IllegalStateException("business-secret"))
+        record.seedRetryableFailure(firstAttemptAt, attempt = 1)
         records.saveAndFlush(record)
 
         assertNull(substrate.claim(SERVICE, now, Duration.ofSeconds(30)))
@@ -519,8 +520,7 @@ class JpaCommandAtomicClaimIntegrationTest {
         val now = testTime()
         val attemptAt = now.minusMinutes(1)
         val record = command(now).apply {
-            assertTrue(beginCommand(attemptAt))
-            occurredException(attemptAt, IllegalStateException("business-secret"))
+            seedRetryableFailure(attemptAt, attempt = 1)
             expireAt = now.minusSeconds(1)
             nextTryTime = now.minusSeconds(1)
         }
@@ -544,9 +544,7 @@ class JpaCommandAtomicClaimIntegrationTest {
         val record = command(now).apply {
             retryPolicy = RuntimeJson.write(zeroDelayPolicy(3))
             tryTimes = 3
-            assertTrue(beginCommand(attemptAt))
-            occurredException(attemptAt, IllegalStateException("business-secret"))
-            triedTimes = 3
+            seedRetryableFailure(attemptAt, attempt = 3)
             nextTryTime = now.minusSeconds(1)
         }
         records.saveAndFlush(record)
@@ -563,7 +561,7 @@ class JpaCommandAtomicClaimIntegrationTest {
     }
 
     @Test
-    fun `production command path executes exactly the persisted retry budget`() {
+    fun `substrate enforces exactly the persisted retry budget`() {
         val now = testTime()
         val firstAttemptAt = now.minusMinutes(1)
         val record = CommandRecordEntity().init(
@@ -577,8 +575,7 @@ class JpaCommandAtomicClaimIntegrationTest {
             retryPolicy = RuntimeJson.write(zeroDelayPolicy(3))
             tryTimes = 3
         }
-        assertTrue(record.beginCommand(firstAttemptAt))
-        record.occurredException(firstAttemptAt, IllegalStateException("first-attempt"))
+        record.seedRetryableFailure(firstAttemptAt, attempt = 1, message = "first-attempt")
         records.saveAndFlush(record)
         assertEquals(1, record.triedTimes)
 
@@ -737,6 +734,29 @@ class JpaCommandAtomicClaimIntegrationTest {
         triedTimes = 0,
         tryTimes = 3,
     )
+
+    private fun CommandRecordEntity.seedRetryableFailure(
+        occurredAt: LocalDateTime,
+        attempt: Int,
+        message: String = "business-secret",
+    ) {
+        commandState = CommandRecordEntity.CommandState.EXCEPTION
+        triedTimes = attempt
+        lastTryTime = occurredAt
+        nextTryTime = occurredAt
+        deliveryToken = null
+        leaseUntil = null
+        failureFactsJson = RuntimeJson.write(
+            ReliableFailureFacts.capture(
+                operation = ReliableFailureOperation.COMMAND_EXECUTION,
+                throwable = IllegalStateException(message),
+                occurredAt = occurredAt,
+                attempt = attempt,
+                correlationId = commandUuid,
+                retryable = true,
+            ),
+        )
+    }
 
     private fun zeroDelayPolicy(retryLimit: Int): ReliableRetryPolicySnapshot = ReliableRetryPolicySnapshot(
         policyVersion = 1,

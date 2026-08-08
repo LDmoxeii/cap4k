@@ -8,7 +8,7 @@ Command 表达一次希望改变业务状态的应用层意图。它不是任意
 
 一次典型写入会从 Command 进入 application layer，通过 Repository 加载 Aggregate Root，调用 `ContentBehavior.kt` 这类领域行为，再由 Unit of Work 在提交边界内自动完成状态持久化。同步 Domain Event 在同一事务中按非重入因果 frontier 释放；可靠 Command 与 Integration Event 只在当前事务中登记，并在提交成功后唤醒后续处理。这样写入路径既能看见用例，也能保持领域规则集中。
 
-本地异步工作使用 `Mediator.commands.enqueue(command)`、`schedule(command, executeAt)` 或 `delay(command, duration)` 登记可靠 Command。登记必须发生在活跃的物理事务内：Command record 与当前写入一起提交或回滚，worker 只在 after-commit 被唤醒。worker 执行时会创建新的外层 Command、REQUIRED transaction 和 UoW，其后续失败不会回滚原事务。after-commit 唤醒失败也不会丢失已提交记录；provider 必须保留 polling/recovery。
+本地异步工作使用 `Mediator.commands.enqueue(command)`、`schedule(command, executeAt)` 或 `delay(command, duration)` 登记可靠 Command。登记必须发生在活跃的物理事务内：Command record 与当前写入一起提交或回滚，worker 只在 after-commit 获得一次扫描提示。真正的执行时间、重试时间和恢复资格以数据库中的 `nextTryTime`、claim token 与 lease 为准；周期 claim 会恢复进程重启、提示丢失和 lease 过期留下的工作，不需要公开 polling/result API，也不依赖分布式 Locker。worker claim 后通过同步 `CommandSupervisor.send` 创建新的外层 Command、REQUIRED transaction 和 UoW，成功或失败再以当前 token 完成 fenced acknowledgement；后续失败不会回滚原事务。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。可以从 `PublishContentCmd` 阅读内容发布意图，从 `StartMediaProcessingCmd` 阅读媒体处理启动意图，并观察 Command 如何把 Repository、Aggregate 行为、Domain Event 与外部 Capability 协作连接起来。
 
