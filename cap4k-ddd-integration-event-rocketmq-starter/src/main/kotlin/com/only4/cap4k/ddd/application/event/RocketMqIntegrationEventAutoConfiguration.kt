@@ -1,8 +1,12 @@
 package com.only4.cap4k.ddd.application.event
 
+import com.only4.cap4k.ddd.application.event.configure.RocketMqIntegrationEventAdapterProperties
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
+import com.only4.cap4k.ddd.core.application.event.RuntimeProviderStateRegistry
+import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -19,17 +23,17 @@ import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_ROCKETMQ_NAME_SERVE
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration
 import org.apache.rocketmq.spring.core.RocketMQTemplate
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
-import org.springframework.core.env.Environment
 
 @AutoConfiguration
 @ImportAutoConfiguration(RocketMQAutoConfiguration::class)
+@EnableConfigurationProperties(RocketMqIntegrationEventAdapterProperties::class)
 class RocketMqIntegrationEventAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(IntegrationEventSupervisor::class)
@@ -54,33 +58,54 @@ class RocketMqIntegrationEventAutoConfiguration {
     )
 
     @Bean
+    fun rocketMqIntegrationEventRouteResolver(
+        properties: RocketMqIntegrationEventAdapterProperties,
+    ): IntegrationEventRouteResolver<RocketMqIntegrationEventRoute> = StaticIntegrationEventRouteResolver(
+        routes = properties.routes.mapValues { (_, route) ->
+            RocketMqIntegrationEventRoute(route.topic, route.tag)
+        },
+        providerIdentity = "rocketmq",
+    )
+
+    @Bean
+    fun rocketMqConsumerGroupResolver(): RocketMqConsumerGroupResolver = RocketMqConsumerGroupResolver()
+
+    @Bean
     fun rocketMqIntegrationEventPublisher(
         rocketMQTemplate: RocketMQTemplate,
-        environment: Environment,
-    ): IntegrationEventPublisher = RocketMqIntegrationEventPublisher(rocketMQTemplate, environment)
+        routeResolver: IntegrationEventRouteResolver<RocketMqIntegrationEventRoute>,
+        providerStateRegistry: RuntimeProviderStateRegistry,
+    ): IntegrationEventPublisher = RocketMqIntegrationEventPublisher(
+        rocketMQTemplate = rocketMQTemplate,
+        routeResolver = routeResolver,
+        deliveryTimeoutMillis = rocketMQTemplate.producer.sendMsgTimeout.toLong(),
+        providerStateRegistry = providerStateRegistry,
+    )
 
     @Bean(destroyMethod = "shutdown")
     fun rocketMqIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher: EventHandlerDispatcher,
         eventMessageInterceptors: List<EventMessageInterceptor>,
-        configureProvider: ObjectProvider<RocketMqIntegrationEventConfigure>,
-        environment: Environment,
+        routeResolver: IntegrationEventRouteResolver<RocketMqIntegrationEventRoute>,
+        consumerGroupResolver: RocketMqConsumerGroupResolver,
         eventTypeCatalog: InboundIntegrationEventRegistrationView,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         executionContextScopeManager: ExecutionContextScopeManager,
         reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
+        providerStateRegistry: RuntimeProviderStateRegistry,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
         @Value(CONFIG_KEY_4_ROCKETMQ_NAME_SERVER) defaultNameServer: String,
         @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET) messageCharset: String,
     ): RocketMqIntegrationEventSubscriberAdapter = RocketMqIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher,
         eventMessageInterceptors,
-        configureProvider.getIfAvailable(),
-        environment,
+        routeResolver,
+        consumerGroupResolver,
         eventTypeCatalog,
         serviceName,
         defaultNameServer,
         messageCharset,
+        providerStateRegistry,
         executionContextCodecRegistry,
         executionContextScopeManager,
         reliableEventDeliveryContextScopeManager,

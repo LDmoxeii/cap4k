@@ -3,6 +3,9 @@ package com.only4.cap4k.ddd.application.event
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.application.event.InMemoryRuntimeProviderStateRegistry
+import com.only4.cap4k.ddd.core.application.event.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
@@ -21,7 +24,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
-import org.springframework.core.env.Environment
 import org.springframework.messaging.Message
 
 @DisplayName("RocketMQ集成事件订阅适配器测试")
@@ -37,10 +39,9 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     }
 
     private val eventHandlerDispatcher: EventHandlerDispatcher = mockk()
-    private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure = mockk()
-    private val environment: Environment = mockk()
     private val eventMessageInterceptor1: EventMessageInterceptor = mockk()
     private val eventMessageInterceptor2: EventMessageInterceptor = mockk()
+    private val consumerGroupResolver = RocketMqConsumerGroupResolver()
 
     private val applicationName = "test-app"
     private val defaultNameSrv = "localhost:9876"
@@ -50,22 +51,25 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     }
 
     private lateinit var adapter: RocketMqIntegrationEventSubscriberAdapter
+    private lateinit var stateRegistry: InMemoryRuntimeProviderStateRegistry
 
     @BeforeEach
     fun setup() {
         clearPlaceholderCache()
         clearAllMocks()
         installedDeliveryContext = null
+        stateRegistry = InMemoryRuntimeProviderStateRegistry()
 
         adapter = RocketMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = listOf(eventMessageInterceptor1, eventMessageInterceptor2),
-            rocketMqIntegrationEventConfigure = rocketMqIntegrationEventConfigure,
-            environment = environment,
+            routeResolver = routeResolver(),
+            consumerGroupResolver = consumerGroupResolver,
             eventTypeCatalog = eventTypeCatalog,
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset,
+            providerStateRegistry = stateRegistry,
             reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
     }
@@ -144,6 +148,10 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         assertEquals(java.time.Instant.ofEpochMilli(1_000), deliveryContext.publishedAt)
         assertEquals(2, deliveryContext.attempt)
         assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
+        assertEquals(
+            RuntimeProviderState.HEALTHY,
+            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
+        )
     }
 
     @Test
@@ -179,12 +187,13 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         val adapterWithoutInterceptors = RocketMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = eventHandlerDispatcher,
             eventMessageInterceptors = emptyList(),
-            rocketMqIntegrationEventConfigure = rocketMqIntegrationEventConfigure,
-            environment = environment,
+            routeResolver = routeResolver(),
+            consumerGroupResolver = consumerGroupResolver,
             eventTypeCatalog = eventTypeCatalog,
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset,
+            providerStateRegistry = stateRegistry,
             reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
 
@@ -238,6 +247,11 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
                 payloadJson = RuntimeJson.write(payload),
             )
         ).toByteArray()
+
+    private fun routeResolver() = StaticIntegrationEventRouteResolver(
+        mapOf("test-topic" to RocketMqIntegrationEventRoute("content", "published")),
+        "rocketmq",
+    )
 
     private fun clearPlaceholderCache() {
         val field = Class.forName("com.only4.cap4k.ddd.core.share.misc.TextUtils")

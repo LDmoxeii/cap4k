@@ -5,7 +5,9 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventDeliveryMetadata
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
+import com.only4.cap4k.ddd.core.application.event.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.event.RuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.core.application.event.deliveryContext
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
@@ -13,7 +15,6 @@ import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistration
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
-import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -23,19 +24,19 @@ import org.apache.rocketmq.common.message.MessageExt
 import org.slf4j.LoggerFactory
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
-import org.springframework.core.env.Environment
 import org.springframework.messaging.support.GenericMessage
 
 /** RocketMQ inbound adapter for the shared Integration Event envelope. */
 class RocketMqIntegrationEventSubscriberAdapter(
     private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
-    private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure?,
-    private val environment: Environment,
+    private val routeResolver: IntegrationEventRouteResolver<RocketMqIntegrationEventRoute>,
+    private val consumerGroupResolver: RocketMqConsumerGroupResolver,
     private val eventTypeCatalog: InboundIntegrationEventRegistrationView,
     private val applicationName: String,
     private val defaultNameSrv: String,
     private val msgCharset: String,
+    private val providerStateRegistry: RuntimeProviderStateRegistry,
     private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
@@ -43,32 +44,14 @@ class RocketMqIntegrationEventSubscriberAdapter(
     private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
     private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
 ) {
-    companion object {
-        private val log = LoggerFactory.getLogger(RocketMqIntegrationEventSubscriberAdapter::class.java)
-    }
+    private data class Subscription(
+        val eventName: String,
+        val payloadType: Class<*>,
+        val route: RocketMqIntegrationEventRoute,
+        val consumerGroup: String,
+    )
 
-    private val mqPushConsumers by lazy {
-        eventTypeCatalog.integrationEventTypesByName().values
-            .filter { cls ->
-                cls.isAnnotationPresent(com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent::class.java)
-            }
-            .mapNotNull { integrationEventClass ->
-                val consumer = rocketMqIntegrationEventConfigure?.get(integrationEventClass)
-                    ?: createDefaultConsumer(integrationEventClass)
-                try {
-                    if (consumer is DefaultMQPushConsumer && consumer.messageListener == null) {
-                        consumer.registerMessageListener { msgs: List<MessageExt>, context: ConsumeConcurrentlyContext ->
-                            onMessage(integrationEventClass, msgs, context)
-                        }
-                    }
-                    consumer.start()
-                    consumer
-                } catch (e: MQClientException) {
-                    log.error("集成事件消息监听启动失败", e)
-                    null
-                }
-            }
-    }
+    private val mqPushConsumers by lazy { enrollConsumers() }
 
     private val orderedEventMessageInterceptors by lazy {
         eventMessageInterceptors.sortedBy { interceptor ->
@@ -81,42 +64,75 @@ class RocketMqIntegrationEventSubscriberAdapter(
     }
 
     fun shutdown() {
-        log.info("集成事件消息监听退出...")
+        log.info("RocketMQ Integration Event consumers stopping")
         mqPushConsumers.forEach { consumer ->
             runCatching { consumer.shutdown() }
-                .onFailure { log.error("集成事件消息监听退出异常", it) }
+                .onFailure { log.error("RocketMQ Integration Event consumer shutdown failed", it) }
         }
     }
 
-    fun createDefaultConsumer(integrationEventClass: Class<*>): DefaultMQPushConsumer {
-        val annotation = integrationEventClass.getAnnotation(IntegrationEvent::class.java)
-        val target = resolvePlaceholderWithCache(annotation.value, environment)
-        val (topic, tag) = parseTarget(target)
-        return DefaultMQPushConsumer().apply {
-            consumerGroup = getTopicConsumerGroup(topic, applicationName)
-            consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET
-            instanceName = applicationName
-            namesrvAddr = getTopicNamesrvAddr(topic, defaultNameSrv)
-            unitName = integrationEventClass.simpleName
+    private fun enrollConsumers(): List<DefaultMQPushConsumer> {
+        val subscriptions = eventTypeCatalog.integrationEventTypesByName()
+            .map { (eventName, payloadType) ->
+                Subscription(
+                    eventName = eventName,
+                    payloadType = payloadType,
+                    route = routeResolver.resolve(eventName),
+                    consumerGroup = consumerGroupResolver.resolve(applicationName, eventName),
+                )
+            }
+
+        val consumers = subscriptions.map(::createConsumer)
+        return consumers.mapNotNull { (subscription, consumer) ->
             try {
-                subscribe(topic, tag)
-            } catch (e: MQClientException) {
-                log.error("集成事件消息监听订阅失败", e)
+                consumer.registerMessageListener { msgs: List<MessageExt>, context: ConsumeConcurrentlyContext ->
+                    onMessage(subscription.payloadType, msgs, context)
+                }
+                consumer.start()
+                consumer
+            } catch (ex: MQClientException) {
+                providerStateRegistry.report(
+                    RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY,
+                    RuntimeProviderState.DEGRADED,
+                    "consumer-start-failed",
+                )
+                log.error(
+                    "RocketMQ Integration Event consumer start failed: eventName={}, topic={}, group={}",
+                    subscription.eventName,
+                    subscription.route.topic,
+                    subscription.consumerGroup,
+                    ex,
+                )
+                runCatching { consumer.shutdown() }
+                null
             }
         }
     }
 
-    private fun parseTarget(target: String): Pair<String, String> = target.split(':', limit = 2).let { parts ->
-        if (parts.size == 2) parts[0] to parts[1] else target to ""
+    private fun createConsumer(subscription: Subscription): Pair<Subscription, DefaultMQPushConsumer> {
+        val consumer = DefaultMQPushConsumer(subscription.consumerGroup).apply {
+            consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET
+            instanceName = applicationName
+            if (defaultNameSrv.isNotBlank()) namesrvAddr = defaultNameSrv
+            unitName = subscription.payloadType.simpleName
+            subscribe(subscription.route.topic, subscription.route.tag)
+        }
+        return subscription to consumer
     }
 
+    @Suppress("UNUSED_PARAMETER")
     private fun onMessage(
         integrationEventClass: Class<*>,
         msgs: List<MessageExt>,
         context: ConsumeConcurrentlyContext,
     ): ConsumeConcurrentlyStatus = runCatching {
+        providerStateRegistry.report(
+            RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY,
+            RuntimeProviderState.HEALTHY,
+            "consumer-delivery",
+        )
         msgs.forEach { msg ->
-            log.info("集成事件消费，msgId=${msg.msgId}")
+            log.info("RocketMQ Integration Event received: msgId={}", msg.msgId)
             val envelope = envelopeCodec.decode(String(msg.body, charset(msgCharset)))
             val eventPayload = envelopeCodec.payloadJson(envelope, integrationEventClass)
             val deliveryContext = envelope.deliveryContext(
@@ -143,7 +159,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
         }
         ConsumeConcurrentlyStatus.CONSUME_SUCCESS
     }.getOrElse { ex ->
-        log.error("集成事件消息消费异常", ex)
+        log.error("RocketMQ Integration Event consumption failed", ex)
         ConsumeConcurrentlyStatus.RECONSUME_LATER
     }
 
@@ -154,9 +170,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
     ) {
         val message = GenericMessage(
             eventPayload,
-            com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor.ModifiableMessageHeaders(
-                msg.properties.toMutableMap()
-            ),
+            EventMessageInterceptor.ModifiableMessageHeaders(msg.properties.toMutableMap()),
         )
         reliableEventDeliveryContextScopeManager.suppress().use {
             orderedEventMessageInterceptors.forEach { it.preSubscribe(message) }
@@ -173,15 +187,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
         }
     }
 
-    private fun getTopicConsumerGroup(topic: String, defaultVal: String): String =
-        resolvePlaceholderWithCache(
-            "\${rocketmq.$topic.consumer.group:${defaultVal.takeIf { it.isNotBlank() } ?: "$topic-4-$applicationName"}}",
-            environment,
-        )
-
-    private fun getTopicNamesrvAddr(topic: String, defaultVal: String): String =
-        resolvePlaceholderWithCache(
-            "\${rocketmq.$topic.name-server:${defaultVal.takeIf { it.isNotBlank() } ?: defaultNameSrv}}",
-            environment,
-        )
+    companion object {
+        private val log = LoggerFactory.getLogger(RocketMqIntegrationEventSubscriberAdapter::class.java)
+    }
 }
