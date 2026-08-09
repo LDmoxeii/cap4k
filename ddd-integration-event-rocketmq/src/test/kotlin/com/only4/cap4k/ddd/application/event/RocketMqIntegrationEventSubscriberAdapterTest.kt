@@ -6,7 +6,7 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
@@ -45,7 +45,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     private val applicationName = "test-app"
     private val defaultNameSrv = "localhost:9876"
     private val msgCharset = "UTF-8"
-    private val eventTypeCatalog = object : EventTypeCatalog {
+    private val eventTypeCatalog = object : InboundIntegrationEventRegistrationView {
         override fun integrationEventTypes(): Set<Class<*>> = setOf(TestEventPayload::class.java)
     }
 
@@ -80,7 +80,6 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         // then - 验证注解存在且值正确
         assertNotNull(annotation)
         assertEquals("test-topic", annotation.value)
-        assertEquals("test-subscriber", annotation.subscriber)
     }
 
     @Test
@@ -221,14 +220,11 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     }
 
     // 测试用的集成事件类
-    @IntegrationEvent(value = "test-topic", subscriber = "test-subscriber")
+    @IntegrationEvent(value = "test-topic")
     private class TestIntegrationEvent
 
-    @IntegrationEvent(value = "test-topic", subscriber = IntegrationEvent.NONE_SUBSCRIBER)
-    private class NoneSubscriberEvent
-
     // 测试用的事件载荷类
-    @IntegrationEvent(value = "test-topic", subscriber = "")
+    @IntegrationEvent(value = "test-topic")
     private data class TestEventPayload(val name: String, val value: String)
 
     private fun canonicalBody(payload: TestEventPayload): ByteArray =

@@ -14,7 +14,7 @@ interface IntegrationEventPublisher {
      * Publishes the canonical transport-neutral Integration Event envelope.
      *
      * The provider must report the provider-level handoff through [publishCallback].
-     * A callback is not a global consumer acknowledgement; each destination/subscriber
+     * A callback is not a global consumer acknowledgement; each receiving application
      * owns its own acknowledgement boundary in the transport adapter.
      */
     fun publish(event: EventRecord, envelope: IntegrationEventEnvelope, publishCallback: PublishCallback)

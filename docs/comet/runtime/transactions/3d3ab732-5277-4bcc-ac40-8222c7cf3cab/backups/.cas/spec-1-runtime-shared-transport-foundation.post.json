@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-shared-transport-foundation",
+  "role": "post",
+  "hash": "7a7e43ffc9bcd47bd64872d36bde9e257d65053893b0eac0ee0c7c492b2e10d5",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1688849862031796,
+    "birthtimeMs": 1786282951126.6394
+  }
+}

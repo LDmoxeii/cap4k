@@ -14,7 +14,7 @@ import java.time.Instant
  * Jackson-backed codec for the one Integration Event wire representation.
  *
  * It owns envelope validation and payload safety only. Routing, acknowledgement, retry,
- * subscriber discovery, and provider-specific metadata remain outside this codec.
+ * topology discovery and provider-specific metadata remain outside this codec.
  */
 class IntegrationEventEnvelopeCodec {
     fun envelope(event: EventRecord): IntegrationEventEnvelope {

@@ -5,11 +5,11 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventDeliveryMetadata
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.deliveryContext
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.event.deliveryContext
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
@@ -36,7 +36,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     private val rabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory,
     private val connectionFactory: ConnectionFactory,
     private val environment: Environment,
-    private val eventTypeCatalog: EventTypeCatalog,
+    private val eventTypeCatalog: InboundIntegrationEventRegistrationView,
     private val applicationName: String,
     private val msgCharset: String = "UTF-8",
     private val autoDeclareQueue: Boolean = false,
@@ -52,11 +52,9 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     }
 
     private val simpleMessageListenerContainers by lazy {
-        eventTypeCatalog.integrationEventTypes()
+        eventTypeCatalog.integrationEventTypesByName().values
             .filter { cls ->
-                val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
-                integrationEvent != null && integrationEvent.value.isNotBlank() &&
-                    !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
+                cls.isAnnotationPresent(com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent::class.java)
             }
             .mapNotNull { integrationEventClass ->
                 val container = rabbitMqIntegrationEventConfigure?.get(integrationEventClass)
@@ -97,9 +95,8 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     fun createDefaultConsumer(integrationEventClass: Class<*>): SimpleMessageListenerContainer {
         val integrationEvent = integrationEventClass.getAnnotation(IntegrationEvent::class.java)
         val target = resolvePlaceholderWithCache(integrationEvent.value, environment)
-        val subscriber = resolvePlaceholderWithCache(integrationEvent.subscriber, environment)
         val (exchange, routingKey) = parseTarget(target)
-        val queue = getExchangeConsumerQueueName(exchange, subscriber)
+        val queue = getExchangeConsumerQueueName(exchange, applicationName)
         if (autoDeclareQueue) tryDeclareQueue(queue, exchange, routingKey)
         return rabbitListenerContainerFactory.createListenerContainer().apply {
             setQueueNames(queue)
@@ -170,13 +167,7 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         channel.basicReject(msg.messageProperties.deliveryTag, true)
     }
 
-    private fun subscriberIdentity(eventClass: Class<*>): String {
-        val configured = eventClass.getAnnotation(IntegrationEvent::class.java).subscriber
-        if (configured.isBlank()) return applicationName
-        return resolvePlaceholderWithCache(configured, environment)
-            .takeIf(String::isNotBlank)
-            ?: applicationName
-    }
+    private fun subscriberIdentity(@Suppress("UNUSED_PARAMETER") eventClass: Class<*>): String = applicationName
 
     private fun getExchangeConsumerQueueName(exchange: String, defaultVal: String?): String =
         resolvePlaceholderWithCache(

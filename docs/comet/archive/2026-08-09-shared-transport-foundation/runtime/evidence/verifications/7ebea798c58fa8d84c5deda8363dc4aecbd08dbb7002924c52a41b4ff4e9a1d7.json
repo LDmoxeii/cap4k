@@ -1,0 +1,93 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "shared-transport-foundation",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "bf89942c83c2a4dbd0cfc3b118ff8d660f4b4cd2f3cd13454a098c85c91dc80b",
+  "acceptanceCriteriaHash": "63b0b145bc3b0f25f6406d89fa2c8ef3df66ae5220b83d757acfdd58b5011abc",
+  "implementationScopeRef": "runtime/evidence/scopes/321dcd824878bfe5067602ac93c608971de13d9aec44b5c5c7893aafcc4d589c.json",
+  "implementationScopeHash": "321dcd824878bfe5067602ac93c608971de13d9aec44b5c5c7893aafcc4d589c",
+  "reportRef": "verification.md",
+  "reportHash": "d97ae7c8ed32cf971e2d6794d9176e4e365106e41f3ebc596cd53b271647371e",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "63b0b145bc3b0f25f6406d89fa2c8ef3df66ae5220b83d757acfdd58b5011abc",
+    "total": 6,
+    "evidenced": 6,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-01014d066a594988f4a6425fa023a679e51ef1ddeab77b93f66735eba53c6bf7",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/design/integration_event.kt.peb",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/annotation/IntegrationEvent.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-36cbc56cc67e8004fe7111e201a1dbb225dbbc81995da3f23ffebd1f5af8332f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-http-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfiguration.kt",
+          "docs/public/reference/runtime-database-schema.md",
+          "settings.gradle.kts"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7b8ae5b1544b2eb575bc7a460dd692a8e1b8a7ee1bf4af5f0b8624c8e7fce037",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventEnvelope.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventEnvelopeCodec.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletion.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-cda01a0ab72fda5955fc9cb696b9f61e052a1caf5505d432423e12c730de5d11",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/RuntimeProviderBinder.kt",
+          "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventTransportFoundationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d692f76d4f82994fcb2c360b0bdfdb84a665cf57194af0043a90a17a5ebdc550",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/SpringEventTypeCatalog.kt",
+          "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f0e0069f762b0d3d5f13c758e089968db4526b97de8b6ef830310f2769f9642c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/SpringEventTypeCatalog.kt",
+          "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "51f70e4421f108ee64847bb97f2d30c6e0484d39738ccc73d6cc2ba800a8c397"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/2aca6a60415dd7fdd1906e17c2dce3af9b2ec9a4ccd916fcbc6b7b0dcffaee3c.json",
+  "createdAt": "2026-08-09T11:38:20.923Z",
+  "envelopeHash": "7ebea798c58fa8d84c5deda8363dc4aecbd08dbb7002924c52a41b4ff4e9a1d7"
+}

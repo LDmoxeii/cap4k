@@ -8960,7 +8960,7 @@ class PebbleArtifactRendererTest {
         assertTrue(inboundContent.contains("@IntegrationEvent("))
         assertTrue(inboundContent.contains("value = \"order.created\""))
         assertFalse(inboundContent.contains("value = EVENT_NAME"))
-        assertTrue(inboundContent.contains("subscriber = \"\\\${spring.application.name:}\""))
+        assertFalse(inboundContent.contains("subscriber ="))
         assertTrue(inboundContent.contains("const val EVENT_NAME = \"order.created\""))
         assertTrue(inboundContent.contains("data class OrderCreatedIntegrationEvent("))
         assertTrue(inboundContent.contains("val orderId: UUID = UUID(0L, 0L)"))
@@ -8973,7 +8973,7 @@ class PebbleArtifactRendererTest {
         assertTrue(outboundContent.contains("value = \"invoice.\\\$paid\\\\completed\""))
         assertTrue(outboundContent.contains("const val EVENT_NAME = \"invoice.\\\$paid\\\\completed\""))
         assertTrue(outboundContent.contains("val invoiceId: UUID"))
-        assertTrue(outboundContent.contains("subscriber = IntegrationEvent.NONE_SUBSCRIBER"))
+        assertFalse(outboundContent.contains("subscriber ="))
     }
 
     @Test

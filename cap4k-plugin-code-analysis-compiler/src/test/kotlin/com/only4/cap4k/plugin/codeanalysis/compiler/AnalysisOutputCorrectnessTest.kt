@@ -76,62 +76,23 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
-    fun `integration event direction only defaults a missing subscriber argument to none`() {
-        listOf(
-            "subscriber = \"\"" to "BlankSubscriberIntegrationEvent",
-            "subscriber = \" [none] \"" to "WhitespaceNoneSubscriberIntegrationEvent",
-        ).forEach { (subscriberArgument, className) ->
-            val messages = compileWithCap4kPluginExpectingFailure(
-                eventContractSources(
-                    fileName = "$className.kt",
-                    declaration = """
-                        package demo.application.events
-
-                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
-                            tag = "integration_event",
-                            packageName = "orders.events",
-                            name = "$className",
-                            eventName = "order.exported",
-                            family = "integration-event",
-                            variant = "outbound",
-                        )
-                        @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
-                            value = "order.exported",
-                            $subscriberArgument,
-                        )
-                        data class $className(val orderId: Long)
-                    """.trimIndent(),
-                ),
-            )
-
-            assertTrue(
-                messages.contains("integration-event metadata/runtime direction conflict"),
-                messages,
-            )
-        }
-
-        val omittedSubscriberJson = compileDesignElements(
+    fun `integration event direction comes from design metadata while runtime annotation carries only event name`() {
+        val json = compileDesignElements(
             eventContractSources(
-                fileName = "OmittedSubscriberIntegrationEvent.kt",
+                fileName = "OutboundIntegrationEvent.kt",
                 declaration = """
                     package demo.application.events
-
                     @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
-                        tag = "integration_event",
-                        packageName = "orders.events",
-                        name = "OmittedSubscriberIntegrationEvent",
-                        eventName = "order.exported",
-                        family = "integration-event",
-                        variant = "outbound",
+                        tag = "integration_event", packageName = "orders.events",
+                        name = "OutboundIntegrationEvent", eventName = "order.exported",
+                        family = "integration-event", variant = "outbound",
                     )
-                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
-                        value = "order.exported",
-                    )
-                    data class OmittedSubscriberIntegrationEvent(val orderId: Long)
+                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent("order.exported")
+                    data class OutboundIntegrationEvent(val orderId: Long)
                 """.trimIndent(),
             ),
         )
-        assertTrue(omittedSubscriberJson.contains("\"variant\":\"outbound\""), omittedSubscriberJson)
+        assertTrue(json.contains("\"variant\":\"outbound\""), json)
     }
 
     @Test
@@ -942,7 +903,6 @@ class AnalysisOutputCorrectnessTest {
 
                 annotation class IntegrationEvent(
                     val value: String = "",
-                    val subscriber: String = "[none]",
                 )
             """.trimIndent(),
         ),

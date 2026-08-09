@@ -2,7 +2,7 @@
 
 ## Runtime 模块
 
-cap4k 的官方 Runtime 必须由以下独立 starter 组成：Core、JPA、Command JPA、Domain Event JPA、Locker JDBC、Integration Event HTTP、HTTP JPA、RabbitMQ、RocketMQ。每个 starter 只传递其能力所需依赖；旧聚合 starter、Request JPA 与 Saga JPA 不存在，也没有兼容 alias。
+cap4k 的官方 Runtime 必须由以下独立 starter 组成：Core、JPA、Command JPA、Domain Event JPA、Locker JDBC、Integration Event HTTP、RabbitMQ、RocketMQ。每个 starter 只传递其能力所需依赖；旧聚合 starter、Request JPA、Saga JPA 与 HTTP JPA 不存在，也没有兼容 alias。
 
 Core starter 提供 IoC、UUIDv7、Identifier strategy registry/generator、generated-own-ID registry、独立 Command/Query/Capability 同步分发、Domain Service、本地同步 Domain Event 和事件类型目录。UUIDv7 是唯一内置的 application-side Strong ID 分配策略；Core/JPA 默认组合不包含可靠 Command/Event、Locker 或 transport 实现。数据库分配的 identity 仍是 persistence policy，不是 application-side generator。
 
@@ -10,7 +10,7 @@ JPA starter 提供 Repository、Aggregate Factory、自动完成的 REQUIRED Com
 
 Command JPA 与 Domain Event JPA 分别拥有可靠记录、repository、scheduler 和归档任务，并显式要求 Locker provider；安装相应 starter 而没有 Locker 时，应用启动必须失败，而不是静默关闭调度。可靠 Command 必须在当前 Command 事务内登记，并且只能在提交成功后唤醒 worker。cap4k 不提供内置 Saga runtime、persistence、starter 或 generator。
 
-HTTP、RabbitMQ 与 RocketMQ starter 分别拥有 transport publisher/subscriber adapter。HTTP-JPA 只把 HTTP subscriber register 从内存实现替换为 JPA 实现。transport 需要可靠 event repository 时必须明确失败，不得回退到不可靠发送。
+HTTP、RabbitMQ 与 RocketMQ starter 分别拥有 transport publisher/subscriber adapter。HTTP 只使用显式静态 route 与固定接收端点，不提供动态 subscriber registry、管理端点或 JPA subscription carrier。transport 需要可靠 event repository 时必须明确失败，不得回退到不可靠发送。
 
 ## Mediator 与能力装配
 

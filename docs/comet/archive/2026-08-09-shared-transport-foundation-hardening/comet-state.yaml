@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: shared-transport-foundation-hardening
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 0d4428534ffde49752145558dd4a91e42e7d8b553db59ba3c1145951aca66763
+spec_changes:
+  - capability: runtime-shared-transport-foundation
+    operation: replace
+    source: specs/runtime-shared-transport-foundation/spec.md
+    base_hash: 4f6a349dbe4c0ab55ba61cb86ca90063a251c1e47ae2b058d8cdc87d93d2e65a
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/3578d935a6258fd07981940c81b49ae07b2c45f8d463d3b6664b7f66c8c667cd.json
+verification_evidence: runtime/evidence/verifications/05ec320b2ca55f5b8629df2afa73758053a2505d3f9c3f3bf9d44710bc7758ac.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: 1baae074-fdd8-4a46-8c3c-aa1e39c71e97

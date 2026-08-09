@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.core.application.event.impl
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventAttachedTransactionCommittedEvent
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPayloadValidator
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -18,7 +18,6 @@ import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.impl.EventAttachment
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeContext
 import com.only4.cap4k.ddd.core.domain.event.impl.EventRuntimeScopeType
-import com.only4.cap4k.ddd.core.share.DomainException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.transaction.event.TransactionalEventListener
 import java.time.Duration
@@ -162,8 +161,6 @@ open class DefaultIntegrationEventSupervisor(
     }
 
     private fun validateIntegrationEvent(eventPayload: Any) {
-        if (!eventPayload::class.java.isAnnotationPresent(IntegrationEvent::class.java)) {
-            throw DomainException("事件类型必须为集成事件")
-        }
+        IntegrationEventPayloadValidator.eventName(eventPayload)
     }
 }

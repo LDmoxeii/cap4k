@@ -1,12 +1,10 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpCallbackTriggerCapability
-import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpSubscribeCapability
-import com.only4.cap4k.ddd.application.event.capabilities.IntegrationEventHttpUnsubscribeCapability
 import com.only4.cap4k.ddd.application.event.configure.HttpIntegrationEventAdapterProperties
-import com.only4.cap4k.ddd.application.event.impl.DefaultHttpIntegrationEventSubscriberRegister
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
+import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
@@ -18,7 +16,7 @@ import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.slf4j.LoggerFactory
@@ -29,9 +27,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
-import org.springframework.core.env.Environment
 import org.springframework.web.HttpRequestHandler
-import org.springframework.web.client.RestTemplate
 import java.nio.charset.StandardCharsets
 
 @AutoConfiguration
@@ -40,14 +36,7 @@ class HttpIntegrationEventAutoConfiguration {
     companion object {
         private val log = LoggerFactory.getLogger(HttpIntegrationEventAutoConfiguration::class.java)
 
-        const val EVENT_PARAM = "event"
-        const val EVENT_ID_PARAM = "uuid"
-        const val SUBSCRIBER_PARAM = "subscriber"
-        const val CONSUME_PATH = "/cap4k/integration-event/http/consume"
-        const val SUBSCRIBE_PATH = "/cap4k/integration-event/http/subscribe"
-        const val UNSUBSCRIBE_PATH = "/cap4k/integration-event/http/unsubscribe"
-        const val EVENTS_PATH = "/cap4k/integration-event/http/events"
-        const val SUBSCRIBERS_PATH = "/cap4k/integration-event/http/subscribers"
+        const val CONSUME_PATH = "/cap4k/integration-events"
     }
 
     @Bean
@@ -73,158 +62,41 @@ class HttpIntegrationEventAutoConfiguration {
     )
 
     @Bean
-    fun httpIntegrationEventCallbackTriggerCapabilityHandler(): IntegrationEventHttpCallbackTriggerCapability.Handler =
-        IntegrationEventHttpCallbackTriggerCapability.Handler(RestTemplate(), EVENT_PARAM, EVENT_ID_PARAM)
-
-    @Bean
-    fun httpIntegrationEventSubscribeCapabilityHandler(): IntegrationEventHttpSubscribeCapability.Handler =
-        IntegrationEventHttpSubscribeCapability.Handler(RestTemplate(), EVENT_PARAM, SUBSCRIBER_PARAM)
-
-    @Bean
-    fun httpIntegrationEventUnsubscribeCapabilityHandler(): IntegrationEventHttpUnsubscribeCapability.Handler =
-        IntegrationEventHttpUnsubscribeCapability.Handler(RestTemplate(), EVENT_PARAM, SUBSCRIBER_PARAM)
-
-    @Bean
-    @ConditionalOnMissingBean(HttpIntegrationEventSubscriberRegister::class)
-    fun httpIntegrationEventSubscriberRegister(): HttpIntegrationEventSubscriberRegister =
-        DefaultHttpIntegrationEventSubscriberRegister()
+    fun httpIntegrationEventRouteResolver(
+        properties: HttpIntegrationEventAdapterProperties,
+    ): IntegrationEventRouteResolver<String> = StaticIntegrationEventRouteResolver(
+        routes = properties.routes,
+        providerIdentity = "http",
+    )
 
     @Bean
     fun httpIntegrationEventPublisher(
-        subscriberRegister: HttpIntegrationEventSubscriberRegister,
-        environment: Environment,
+        routeResolver: IntegrationEventRouteResolver<String>,
         properties: HttpIntegrationEventAdapterProperties,
     ): IntegrationEventPublisher = HttpIntegrationEventPublisher(
-        subscriberRegister,
-        environment,
+        routeResolver,
         properties.publishThreadPoolSize,
         properties.publishThreadFactoryClassName,
-    ).apply {
-        init()
-        log.info("集成事件适配类型：HTTP")
-    }
+    ).also { log.info("集成事件适配类型：HTTP") }
 
     @Bean
     fun httpIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher: EventHandlerDispatcher,
         eventMessageInterceptors: List<EventMessageInterceptor>,
-        subscriberRegister: HttpIntegrationEventSubscriberRegister,
-        environment: Environment,
-        eventTypeCatalog: EventTypeCatalog,
+        eventTypeCatalog: InboundIntegrationEventRegistrationView,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         executionContextScopeManager: ExecutionContextScopeManager,
         reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
-        @Value("\${server.port:80}") serverPort: String,
-        @Value("\${server.servlet.context-path:}") serverServletContextPath: String,
     ): HttpIntegrationEventSubscriberAdapter = HttpIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher,
         eventMessageInterceptors,
-        subscriberRegister,
-        environment,
         eventTypeCatalog,
         serviceName,
-        "http://localhost:$serverPort$serverServletContextPath",
-        SUBSCRIBE_PATH,
-        CONSUME_PATH,
         executionContextCodecRegistry,
         executionContextScopeManager,
         reliableEventDeliveryContextScopeManager,
-    ).apply { init() }
-
-    @Bean(name = [SUBSCRIBE_PATH])
-    @ConditionalOnWebApplication
-    fun httpIntegrationEventSubscribeHandler(
-        subscriberRegister: HttpIntegrationEventSubscriberRegister,
-    ): HttpRequestHandler = HttpRequestHandler { request, response ->
-        val event = request.getParameter(EVENT_PARAM).orEmpty()
-        val subscriber = request.getParameter(SUBSCRIBER_PARAM).orEmpty()
-        val callbackUrl = RuntimeJson.read(
-            request.inputStream.bufferedReader().use { it.readText() },
-            String::class.java,
-        )
-            .orEmpty()
-        val success = event.isNotBlank() && subscriber.isNotBlank() && callbackUrl.isNotBlank() &&
-            subscriberRegister.subscribe(event, subscriber, callbackUrl)
-        writeJson(
-            response,
-            HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
-                success = success,
-                message = if (success) "ok" else if (event.isBlank() || subscriber.isBlank() || callbackUrl.isBlank()) {
-                    "必要参数缺失"
-                } else {
-                    "fail"
-                },
-            ),
-        )
-    }
-
-    @Bean(name = [UNSUBSCRIBE_PATH])
-    @ConditionalOnWebApplication
-    fun httpIntegrationEventUnsubscribeHandler(
-        subscriberRegister: HttpIntegrationEventSubscriberRegister,
-    ): HttpRequestHandler = HttpRequestHandler { request, response ->
-        val success = subscriberRegister.unsubscribe(
-            request.getParameter(EVENT_PARAM).orEmpty(),
-            request.getParameter(SUBSCRIBER_PARAM).orEmpty(),
-        )
-        writeJson(
-            response,
-            HttpIntegrationEventSubscriberAdapter.OperationResponse<Any>(
-                success = success,
-                message = if (success) "ok" else "fail",
-            ),
-        )
-    }
-
-    @Bean(name = [EVENTS_PATH])
-    @ConditionalOnWebApplication
-    fun httpIntegrationEventEventsHandler(
-        subscriberRegister: HttpIntegrationEventSubscriberRegister,
-    ): HttpRequestHandler = HttpRequestHandler { _, response ->
-        val operationResponse = runCatching { subscriberRegister.events() }
-            .fold(
-                onSuccess = { events ->
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse(
-                        success = true,
-                        message = "ok",
-                        data = events,
-                    )
-                },
-                onFailure = { throwable ->
-                    HttpIntegrationEventSubscriberAdapter.OperationResponse<List<String>>(
-                        success = false,
-                        message = throwable.message,
-                    )
-                },
-            )
-        writeJson(response, operationResponse)
-    }
-
-    @Bean(name = [SUBSCRIBERS_PATH])
-    @ConditionalOnWebApplication
-    fun httpIntegrationEventSubscribersHandler(
-        subscriberRegister: HttpIntegrationEventSubscriberRegister,
-    ): HttpRequestHandler = HttpRequestHandler { request, response ->
-        val operationResponse = runCatching {
-            subscriberRegister.subscribers(request.getParameter(EVENT_PARAM).orEmpty())
-        }.fold(
-            onSuccess = { subscribers ->
-                HttpIntegrationEventSubscriberAdapter.OperationResponse(
-                    success = true,
-                    message = "ok",
-                    data = subscribers,
-                )
-            },
-            onFailure = { throwable ->
-                HttpIntegrationEventSubscriberAdapter.OperationResponse<List<HttpIntegrationEventSubscriberRegister.SubscriberInfo>>(
-                    success = false,
-                    message = throwable.message,
-                )
-            },
-        )
-        writeJson(response, operationResponse)
-    }
+    )
 
     @Bean(name = [CONSUME_PATH])
     @ConditionalOnWebApplication

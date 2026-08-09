@@ -5,11 +5,11 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventDeliveryMetadata
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.deliveryContext
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.event.deliveryContext
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
@@ -32,7 +32,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
     private val rocketMqIntegrationEventConfigure: RocketMqIntegrationEventConfigure?,
     private val environment: Environment,
-    private val eventTypeCatalog: EventTypeCatalog,
+    private val eventTypeCatalog: InboundIntegrationEventRegistrationView,
     private val applicationName: String,
     private val defaultNameSrv: String,
     private val msgCharset: String,
@@ -48,11 +48,9 @@ class RocketMqIntegrationEventSubscriberAdapter(
     }
 
     private val mqPushConsumers by lazy {
-        eventTypeCatalog.integrationEventTypes()
+        eventTypeCatalog.integrationEventTypesByName().values
             .filter { cls ->
-                val integrationEvent = cls.getAnnotation(IntegrationEvent::class.java)
-                integrationEvent.value.isNotBlank() &&
-                    !IntegrationEvent.NONE_SUBSCRIBER.equals(integrationEvent.subscriber, ignoreCase = true)
+                cls.isAnnotationPresent(com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent::class.java)
             }
             .mapNotNull { integrationEventClass ->
                 val consumer = rocketMqIntegrationEventConfigure?.get(integrationEventClass)
@@ -94,9 +92,8 @@ class RocketMqIntegrationEventSubscriberAdapter(
         val annotation = integrationEventClass.getAnnotation(IntegrationEvent::class.java)
         val target = resolvePlaceholderWithCache(annotation.value, environment)
         val (topic, tag) = parseTarget(target)
-        val subscriber = subscriberIdentity(integrationEventClass)
         return DefaultMQPushConsumer().apply {
-            consumerGroup = getTopicConsumerGroup(topic, subscriber)
+            consumerGroup = getTopicConsumerGroup(topic, applicationName)
             consumeFromWhere = ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET
             instanceName = applicationName
             namesrvAddr = getTopicNamesrvAddr(topic, defaultNameSrv)
@@ -177,13 +174,7 @@ class RocketMqIntegrationEventSubscriberAdapter(
         }
     }
 
-    private fun subscriberIdentity(eventClass: Class<*>): String {
-        val configured = eventClass.getAnnotation(IntegrationEvent::class.java).subscriber
-        if (configured.isBlank()) return applicationName
-        return resolvePlaceholderWithCache(configured, environment)
-            .takeIf(String::isNotBlank)
-            ?: applicationName
-    }
+    private fun subscriberIdentity(@Suppress("UNUSED_PARAMETER") eventClass: Class<*>): String = applicationName
 
     private fun getTopicConsumerGroup(topic: String, defaultVal: String): String =
         resolvePlaceholderWithCache(

@@ -1,0 +1,27 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "0f85d8f6-fc04-47ac-8c4a-7557b78b9176",
+  "kind": "archive",
+  "status": "committed",
+  "change": "shared-transport-foundation",
+  "createdAt": "2026-08-09T11:38:44.820Z",
+  "preflightHash": "04bdb2c608658353cbf46eda4beffa0f29a8a97a552729c54d7bfc987cdd4e58",
+  "operations": [
+    {
+      "id": "spec-1-runtime-shared-transport-foundation",
+      "type": "write",
+      "target": "specs/runtime-shared-transport-foundation/spec.md",
+      "staged": "runtime/transactions/0f85d8f6-fc04-47ac-8c4a-7557b78b9176/staged/specs/runtime-shared-transport-foundation/spec.md",
+      "expectedTargetHash": null,
+      "stagedHash": "4f6a349dbe4c0ab55ba61cb86ca90063a251c1e47ae2b058d8cdc87d93d2e65a"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/shared-transport-foundation",
+      "target": "archive/2026-08-09-shared-transport-foundation",
+      "expectedSourceHash": "85a63abc7fa95b055de7d555199bb7eb96c13d36b6f2ab135d55163dc1953c72",
+      "expectedTargetHash": null
+    }
+  ]
+}

@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextAccessor
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.springframework.core.env.Environment
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import java.time.Instant
@@ -33,8 +32,8 @@ class HttpIntegrationEventConsumeHandlerTest {
             publishedAt = publishedAt,
             payload = HttpEndpointEvent("payload"),
         ).apply {
-            addParameter(HttpIntegrationEventAutoConfiguration.EVENT_ID_PARAM, "legacy-query-event")
-            addParameter(HttpIntegrationEventAutoConfiguration.EVENT_PARAM, "legacy-query-type")
+            addParameter("eventId", "legacy-query-event")
+            addParameter("event", "legacy-query-type")
             addHeader("cap4k-timestamp", "1")
         }
         val response = MockHttpServletResponse()
@@ -47,7 +46,7 @@ class HttpIntegrationEventConsumeHandlerTest {
         assertEquals("http.endpoint.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
         assertNull(context.attempt)
-        assertEquals("test-subscriber", context.subscriberIdentity)
+        assertEquals("test-app", context.subscriberIdentity)
         assertEquals(
             com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN,
             context.redeliveryHint,
@@ -118,27 +117,15 @@ class HttpIntegrationEventConsumeHandlerTest {
         val deliveryManager = DefaultReliableEventDeliveryContextManager(executionContexts, executionContexts)
         var observed: ReliableEventDeliveryContext? = null
         val dispatcher = EventHandlerDispatcher { observed = deliveryManager.currentOrNull() }
-        val register = object : HttpIntegrationEventSubscriberRegister {
-            override fun subscribe(event: String, subscriber: String, callbackUrl: String): Boolean = true
-            override fun unsubscribe(event: String, subscriber: String): Boolean = true
-            override fun events(): List<String> = emptyList()
-            override fun subscribers(event: String): List<HttpIntegrationEventSubscriberRegister.SubscriberInfo> = emptyList()
-        }
-        val environment = object : Environment by org.springframework.mock.env.MockEnvironment() {}
         val adapter = HttpIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = dispatcher,
             eventMessageInterceptors = emptyList(),
-            httpIntegrationEventSubscriberRegister = register,
-            environment = environment,
             eventTypeCatalog = EndpointEventCatalog,
             applicationName = "test-app",
-            httpBaseUrl = "http://localhost",
-            httpSubscribePath = "/subscribe",
-            httpConsumePath = "/consume",
             executionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
             executionContextScopeManager = executionContexts,
             reliableEventDeliveryContextScopeManager = deliveryManager,
-        ).apply { init() }
+        )
         return Fixture(adapter, deliveryManager, deliveryManager, { observed })
     }
 
@@ -152,10 +139,10 @@ class HttpIntegrationEventConsumeHandlerTest {
             get() = observed()
     }
 
-    private object EndpointEventCatalog : EventTypeCatalog {
+    private object EndpointEventCatalog : InboundIntegrationEventRegistrationView {
         override fun integrationEventTypes(): Set<Class<*>> = setOf(HttpEndpointEvent::class.java)
     }
 }
 
-@IntegrationEvent("http.endpoint.event", subscriber = "test-subscriber")
+@IntegrationEvent("http.endpoint.event")
 private data class HttpEndpointEvent(val value: String)

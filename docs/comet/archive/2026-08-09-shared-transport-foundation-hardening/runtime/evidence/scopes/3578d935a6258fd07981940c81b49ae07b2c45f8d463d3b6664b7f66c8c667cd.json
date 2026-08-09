@@ -1,0 +1,212 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "0d4428534ffde49752145558dd4a91e42e7d8b553db59ba3c1145951aca66763",
+  "baselineProjectionRef": "runtime/evidence/snapshots/1e8d45ce7f0a915255c8e14d6d586a44f920e2ad5b01d3ca1516a8c749d46b91.json",
+  "baselineProjectionHash": "1e8d45ce7f0a915255c8e14d6d586a44f920e2ad5b01d3ca1516a8c749d46b91",
+  "currentProjectionRef": "runtime/evidence/snapshots/623fc12938abe46598198de939e67eac722ae3c29cec7d413df69846b0e3e2e4.json",
+  "currentProjectionHash": "623fc12938abe46598198de939e67eac722ae3c29cec7d413df69846b0e3e2e4",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfigurationTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPayloadValidator.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisor.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventRecordImplTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "842ccf42e66d0bf4e0375eda9d3b3493902ab8a67ec4899943e7f19251235f50",
+        "size": 16194
+      },
+      "after": {
+        "hash": "7ae5e8a0502d7fa1269ce0b26682b807dc1696eb9e06d0a1e4f623963d4e840e",
+        "size": 17558
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "48385d28c9de512c3bf335ff567dd0a87c4d69ead946eb4dd1b85f0d98de191c",
+        "size": 11062
+      },
+      "after": {
+        "hash": "619d0a4cc6f36d1c4073524a61ed9cc1ee0fba4b549df2aa187ac99936d708ba",
+        "size": 11887
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfigurationTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "f3b8f45ff476b0ab9dc84b945aaf6aeb1a5cd02a668b849bdec5bda18752a0de",
+        "size": 4969
+      },
+      "after": {
+        "hash": "abd8a0a5473facb0382d5b4de2deb67b6d31141534c863b741aa7c91d81d0699",
+        "size": 7191
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfigurationTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPayloadValidator.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "3fef2f703834febdf2f3d57a0e9be16940a4ff5e00f013d5a21fbe6331b996e9",
+        "size": 965
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPayloadValidator.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisor.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "31e32684f454acbc8add424d22a25058d49219b93cf6c9b8f628b362ba4a079a",
+        "size": 7301
+      },
+      "after": {
+        "hash": "2b402051cbcd483a917d9cb1f5335dfc1f4f30c4b28824a1eb1ab2fe2d88b061",
+        "size": 7142
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisor.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "fb5d25e1300695db906aaf0b32f3552490d36a7f7bd03cd85c91dd22d8cd05ad",
+        "size": 5157
+      },
+      "after": {
+        "hash": "b2c10b5d55623fb76768c7946bca7c3a70271e6357390f40eaaf093b82738092",
+        "size": 6328
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "7797011abfeea4e7677f104c52b1b9dd0556494beaa3016070b826ce94b8e955",
+        "size": 11438
+      },
+      "after": {
+        "hash": "0e868d093b8ed48b5475d00f7f17f2f121ccdc9b9bd72fc3487707b2660227b8",
+        "size": 11851
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventRecordImplTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "ffee10863d4eccaba04808554427acd87a1b3b33d09a29d7a0b9d236e8f27aaf",
+        "size": 4185
+      },
+      "after": {
+        "hash": "a64e85a867444f047e78bf512cb68d3cd62b0ebe27e684b9fb79625ed8e20291",
+        "size": 4744
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-event-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/event/EventRecordImplTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5a2d7eec7212e87128a129589d4c992c5d99a76dc8f869550de54ba8961a4b78",
+        "size": 5437
+      },
+      "after": {
+        "hash": "29b7878d8ffaad8bf60a56cffe3e0f2bf92677d46de59a5e48bf0344df9cb1fa",
+        "size": 5431
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "3578d935a6258fd07981940c81b49ae07b2c45f8d463d3b6664b7f66c8c667cd"
+}

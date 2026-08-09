@@ -729,11 +729,11 @@ $registeredPaths
         val inbound = annotations.integrationEvents.values.single { value ->
             value.contains("value=\"payment.received\"")
         }
-        assertTrue(inbound.contains("subscriber=\"\${spring.application.name:}\""), inbound)
+        assertFalse(inbound.contains("subscriber="), inbound)
         val outbound = annotations.integrationEvents.values.single { value ->
             value.contains("value=\"order.exported\"")
         }
-        assertTrue(outbound.contains("subscriber=IntegrationEvent.NONE_SUBSCRIBER"), outbound)
+        assertFalse(outbound.contains("subscriber="), outbound)
     }
 
     private fun Path.toGradlePath(): String = toAbsolutePath().normalize().toString().replace('\\', '/')

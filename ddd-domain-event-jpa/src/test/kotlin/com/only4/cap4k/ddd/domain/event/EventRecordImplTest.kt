@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.domain.event
 
+import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.share.Constants
+import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
@@ -64,6 +66,15 @@ class EventRecordImplTest {
     }
 
     @Test
+    fun `persistence initialization rejects a blank Integration Event name`() {
+        val failure = assertThrows(DomainException::class.java) {
+            newRecord(BlankNamedIntegrationEvent("invalid"))
+        }
+
+        assertTrue(failure.message.orEmpty().contains("non-blank event name"))
+    }
+
+    @Test
     fun `resume rebinds the carrier without changing persistence ownership`() {
         val record = EventRecordImpl().apply { markPersist(true) }
         val event = Event().init(
@@ -98,6 +109,9 @@ class EventRecordImplTest {
         assertEquals(facts, record.failure)
         assertFalse(record.event.failureFactsJson!!.contains("business-secret"))
     }
+
+    @IntegrationEvent("   ")
+    private data class BlankNamedIntegrationEvent(val value: String)
 
     private fun newRecord(payload: Any): EventRecordImpl = EventRecordImpl().apply {
         init(

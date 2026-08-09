@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: shared-transport-foundation
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: bf89942c83c2a4dbd0cfc3b118ff8d660f4b4cd2f3cd13454a098c85c91dc80b
+spec_changes:
+  - capability: runtime-shared-transport-foundation
+    operation: create
+    source: specs/runtime-shared-transport-foundation/spec.md
+    base_hash: null
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/321dcd824878bfe5067602ac93c608971de13d9aec44b5c5c7893aafcc4d589c.json
+verification_evidence: runtime/evidence/verifications/7ebea798c58fa8d84c5deda8363dc4aecbd08dbb7002924c52a41b4ff4e9a1d7.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: 0587baac-6f98-4b36-8845-1a2a35ef966b

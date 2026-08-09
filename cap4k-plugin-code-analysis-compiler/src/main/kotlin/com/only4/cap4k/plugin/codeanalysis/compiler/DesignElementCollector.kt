@@ -656,11 +656,6 @@ class DesignElementCollector(
                 "integration-event metadata carrier $className must declare runtime annotation ${integrationEventAnnFq.asString()}",
             )
         val runtimeEventName = annotation.getStringArg("value").orEmpty()
-        val subscriber = annotation.getStringArg("subscriber") ?: NONE_SUBSCRIBER
-        val runtimeVariant = if (subscriber.equals(NONE_SUBSCRIBER, ignoreCase = true)) "outbound" else "inbound"
-        require(variant == runtimeVariant) {
-            "integration-event metadata/runtime direction conflict on $className: metadata variant=$variant, runtime variant=$runtimeVariant"
-        }
         return RecoveredEventContract(
             eventName = reconcileRuntimeEventName(
                 className = className,
@@ -813,7 +808,6 @@ class DesignElementCollector(
     }
 
     private companion object {
-        const val NONE_SUBSCRIBER = "[none]"
         val PAGE_FIELD_DEFAULTS = linkedMapOf(
             "pageNum" to "1",
             "pageSize" to "10",

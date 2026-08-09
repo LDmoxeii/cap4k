@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "3d3ab732-5277-4bcc-ac40-8222c7cf3cab",
+  "kind": "archive",
+  "status": "committed",
+  "change": "shared-transport-foundation-hardening",
+  "createdAt": "2026-08-09T13:42:27.454Z",
+  "preflightHash": "b1d862c9ff659d539886223c0e8a8d9dce6c622b95c25f29632fada201bc57ff",
+  "operations": [
+    {
+      "id": "spec-1-runtime-shared-transport-foundation",
+      "type": "write",
+      "target": "specs/runtime-shared-transport-foundation/spec.md",
+      "staged": "runtime/transactions/3d3ab732-5277-4bcc-ac40-8222c7cf3cab/staged/specs/runtime-shared-transport-foundation/spec.md",
+      "backup": "runtime/transactions/3d3ab732-5277-4bcc-ac40-8222c7cf3cab/backups/specs/runtime-shared-transport-foundation/spec.md",
+      "expectedTargetHash": "4f6a349dbe4c0ab55ba61cb86ca90063a251c1e47ae2b058d8cdc87d93d2e65a",
+      "stagedHash": "7a7e43ffc9bcd47bd64872d36bde9e257d65053893b0eac0ee0c7c492b2e10d5"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/shared-transport-foundation-hardening",
+      "target": "archive/2026-08-09-shared-transport-foundation-hardening",
+      "expectedSourceHash": "47d583707a8b183a7b9ab7fa99801f386ab4071337b3d6ced5b55ec8ae9171be",
+      "expectedTargetHash": null
+    }
+  ]
+}

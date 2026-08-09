@@ -626,7 +626,7 @@ class DesignElementExtractionTest {
                 "IntegrationEvent.kt",
                 """
                     package com.only4.cap4k.ddd.core.application.event.annotation
-                    annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
+                    annotation class IntegrationEvent(val value: String = "")
                 """.trimIndent()
             ),
             SourceFile.kotlin(
@@ -637,7 +637,7 @@ class DesignElementExtractionTest {
                     import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
                     import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 
-                    @IntegrationEvent(value = "demo.payment.received", subscriber = "payment-service")
+                    @IntegrationEvent(value = "demo.payment.received")
                     @DesignBlockMetadata(
                         tag = "integration_event",
                         packageName = "payment.integration",
@@ -729,7 +729,7 @@ class DesignElementExtractionTest {
                 "IntegrationEvent.kt",
                 """
                     package com.only4.cap4k.ddd.core.application.event.annotation
-                    annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
+                    annotation class IntegrationEvent(val value: String = "")
                 """.trimIndent()
             ),
             SourceFile.kotlin(
@@ -853,7 +853,6 @@ class DesignElementExtractionTest {
 
                     @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
                         value = "cap4k.reference.contentstudio.media-processing.succeeded",
-                        subscriber = "\${'$'}{spring.application.name:}"
                     )
                     data class MediaProcessingCallbackIntegrationEvent(
                         val externalTaskId: String,
@@ -879,7 +878,6 @@ class DesignElementExtractionTest {
 
                     @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
                         value = "cap4k.reference.content.published",
-                        subscriber = "[none]"
                     )
                     data class ContentPublishedIntegrationEvent(val contentId: Long)
                 """.trimIndent()
@@ -1434,35 +1432,6 @@ class DesignElementExtractionTest {
                 ),
             ),
         )
-        val directionMessages = compileWithCap4kPluginExpectingFailure(
-            listOf(
-                annotationSource,
-                SourceFile.kotlin(
-                    "IntegrationEvent.kt",
-                    """
-                        package com.only4.cap4k.ddd.core.application.event.annotation
-                        annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
-                    """.trimIndent(),
-                ),
-                SourceFile.kotlin(
-                    "ConflictingIntegrationEvent.kt",
-                    """
-                        package demo.application.integration
-
-                        @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
-                            tag = "integration_event",
-                            packageName = "orders.events",
-                            name = "OrderExported",
-                            eventName = "order.exported",
-                            family = "integration-event",
-                            variant = "inbound",
-                        )
-                        @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent("order.exported")
-                        data class OrderExported(val orderId: Long)
-                    """.trimIndent(),
-                ),
-            ),
-        )
         val missingPersistedNameMessages = compileWithCap4kPluginExpectingFailure(
             listOf(
                 annotationSource,
@@ -1492,7 +1461,6 @@ class DesignElementExtractionTest {
         )
 
         assertTrue(domainMessages.contains("domain-event metadata/runtime eventName conflict"))
-        assertTrue(directionMessages.contains("integration-event metadata/runtime direction conflict"))
         assertTrue(
             missingPersistedNameMessages.contains("domain-event runtime annotation on demo.domain.events.UnnamedPersisted must declare a non-blank event name"),
         )
@@ -1505,7 +1473,7 @@ class DesignElementExtractionTest {
                 "IntegrationEvent.kt",
                 """
                     package com.only4.cap4k.ddd.core.application.event.annotation
-                    annotation class IntegrationEvent(val value: String = "", val subscriber: String = "[none]")
+                    annotation class IntegrationEvent(val value: String = "")
                 """.trimIndent()
             ),
             SourceFile.kotlin(

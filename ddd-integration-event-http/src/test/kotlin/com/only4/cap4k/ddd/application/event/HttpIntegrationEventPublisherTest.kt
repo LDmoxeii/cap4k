@@ -1,17 +1,18 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
-import org.springframework.core.env.Environment
 import java.time.Instant
 import java.util.concurrent.Executor
 
@@ -20,121 +21,81 @@ import java.util.concurrent.Executor
 class HttpIntegrationEventPublisherTest {
 
     @MockK
-    private lateinit var subscriberRegister: HttpIntegrationEventSubscriberRegister
-
-    @MockK
-    private lateinit var environment: Environment
-
-    @MockK
     private lateinit var publishCallback: IntegrationEventPublisher.PublishCallback
 
-    private lateinit var publisher: HttpIntegrationEventPublisher
 
     @BeforeEach
     fun setUp() {
         clearAllMocks()
-
-        publisher = HttpIntegrationEventPublisher(
-            subscriberRegister = subscriberRegister,
-            environment = environment,
-            threadPoolSize = 2,
-            executorOverride = Executor { command -> command.run() },
-            capabilityCaller = {},
-        )
-        publisher.init()
-    }
-
-    @Test
-    @DisplayName("初始化成功测试")
-    fun `should initialize successfully`() {
-        // Arrange & Act - 初始化在setUp中完成
-
-        // Assert - 没有异常抛出即为成功
-        assertTrue(true)
-    }
-
-    @Test
-    @DisplayName("没有订阅者时报告发布失败")
-    fun `should report publication failure when no subscribers exist`() {
-        // Arrange
-        val eventRecord = createMockEventRecord("test-event", "user.created")
-
-        // 模拟环境变量解析
-        every { environment.resolvePlaceholders("user.created") } returns "user.created"
-        every { subscriberRegister.subscribers("user.created") } returns emptyList()
         every { publishCallback.onSuccess(any()) } just runs
         every { publishCallback.onException(any(), any()) } just runs
+    }
 
-        // Act
+
+    @Test
+    @DisplayName("路由解析失败时只报告一次发布失败")
+    fun `should report route resolution failure exactly once`() {
+        val eventRecord = createMockEventRecord("test-event", "user.created")
+        val failure = IllegalStateException("missing route")
+        val publisher = publisher(
+            routeResolver = IntegrationEventRouteResolver { throw failure },
+            httpPoster = { _, _ -> error("HTTP must not be called") },
+        )
+
         publisher.publish(eventRecord, envelope(eventRecord), publishCallback)
 
-        // Assert - 没有任何发送目标意味着本次可靠投递没有发出，应进入重试
-        verify(exactly = 1) { subscriberRegister.subscribers("user.created") }
         verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        verify(exactly = 1) {
-            publishCallback.onException(
-                eventRecord,
-                match { it is IllegalStateException && it.message?.contains("user.created") == true },
-            )
-        }
+        verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
     }
 
     @Test
-    @DisplayName("有订阅者时应处理发布逻辑")
-    fun `should handle publish logic when subscribers exist`() {
-        // Arrange
+    @DisplayName("静态路由向固定端点执行一次 HTTP handoff")
+    fun `should perform one HTTP handoff to fixed endpoint`() {
         val eventRecord = createMockEventRecord("test-event", "user.created")
-        val subscribers = listOf(
-            HttpIntegrationEventSubscriberRegister.SubscriberInfo(
-                event = "user.created",
-                subscriber = "test-service",
-                callbackUrl = "http://localhost:8080/webhook"
-            )
+        val envelope = envelope(eventRecord)
+        var postedUrl: String? = null
+        var postedBody: String? = null
+        val publisher = publisher(
+            routeResolver = IntegrationEventRouteResolver { "http://localhost:8080/" },
+            httpPoster = { url, body ->
+                postedUrl = url
+                postedBody = body
+            },
         )
 
-        every { environment.resolvePlaceholders("user.created") } returns "user.created"
-        every { subscriberRegister.subscribers("user.created") } returns subscribers
-        every { publishCallback.onSuccess(any()) } just runs
-        every { publishCallback.onException(any(), any()) } just runs
+        publisher.publish(eventRecord, envelope, publishCallback)
 
-        // Act
-        publisher.publish(eventRecord, envelope(eventRecord), publishCallback)
-
-        // Assert
-        verify(exactly = 1) { subscriberRegister.subscribers("user.created") }
+        assertEquals("http://localhost:8080/cap4k/integration-events", postedUrl)
+        assertEquals(envelope, IntegrationEventEnvelopeCodec().decode(requireNotNull(postedBody)))
         verify(exactly = 1) { publishCallback.onSuccess(eventRecord) }
         verify(exactly = 0) { publishCallback.onException(any(), any()) }
     }
 
     @Test
-    @DisplayName("HTTP Capability 失败时只报告一次发布失败")
-    fun `should report exactly one failure when HTTP capability fails`() {
+    @DisplayName("HTTP handoff 失败时只报告一次发布失败")
+    fun `should report HTTP handoff failure exactly once`() {
         val eventRecord = createMockEventRecord("test-event", "user.created")
-        val failure = IllegalStateException("subscriber unavailable")
-        val subscribers = listOf(
-            HttpIntegrationEventSubscriberRegister.SubscriberInfo(
-                event = "user.created",
-                subscriber = "test-service",
-                callbackUrl = "http://localhost:8080/webhook",
-            )
-        )
-        val failingPublisher = HttpIntegrationEventPublisher(
-            subscriberRegister = subscriberRegister,
-            environment = environment,
-            executorOverride = Executor { command -> command.run() },
-            capabilityCaller = { throw failure },
+        val failure = IllegalStateException("receiver unavailable")
+        val publisher = publisher(
+            routeResolver = IntegrationEventRouteResolver { "http://localhost:8080" },
+            httpPoster = { _, _ -> throw failure },
         )
 
-        every { environment.resolvePlaceholders("user.created") } returns "user.created"
-        every { subscriberRegister.subscribers("user.created") } returns subscribers
-        every { publishCallback.onSuccess(any()) } just runs
-        every { publishCallback.onException(any(), any()) } just runs
-
-        failingPublisher.publish(eventRecord, envelope(eventRecord), publishCallback)
+        publisher.publish(eventRecord, envelope(eventRecord), publishCallback)
 
         verify(exactly = 0) { publishCallback.onSuccess(any()) }
         verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
     }
+
+    private fun publisher(
+        routeResolver: IntegrationEventRouteResolver<String>,
+        httpPoster: (String, String) -> Unit,
+    ) = HttpIntegrationEventPublisher(
+        routeResolver = routeResolver,
+        threadPoolSize = 2,
+        executorOverride = Executor { command -> command.run() },
+        httpPoster = httpPoster,
+    )
 
     private fun createMockEventRecord(id: String, type: String): EventRecord {
         return mockk<EventRecord>(relaxed = true) {

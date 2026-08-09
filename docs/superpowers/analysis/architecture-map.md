@@ -35,7 +35,6 @@
   - `cap4k-ddd-domain-event-jpa-starter`
   - `cap4k-ddd-locker-jdbc-starter`
   - `cap4k-ddd-integration-event-http-starter`
-  - `cap4k-ddd-integration-event-http-jpa-starter`
   - `cap4k-ddd-integration-event-rabbitmq-starter`
   - `cap4k-ddd-integration-event-rocketmq-starter`
   - `cap4k-plugin-code-analysis-compiler`
@@ -64,7 +63,6 @@
   - `ddd-domain-event-jpa`
   - `ddd-domain-repo-jpa`
   - `ddd-integration-event-http`
-  - `ddd-integration-event-http-jpa`
   - `ddd-integration-event-rabbitmq`
   - `ddd-integration-event-rocketmq`
 
