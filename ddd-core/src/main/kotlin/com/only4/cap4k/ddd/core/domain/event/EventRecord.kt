@@ -43,6 +43,9 @@ interface EventRecord {
      */
     val type: String
 
+    /** Stable sender service name retained by the reliable record. */
+    val originService: String
+
     /**
      * 获取事件消息体
      * @return

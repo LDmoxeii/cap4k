@@ -9,12 +9,13 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.rabbitmq.client.Channel
 import io.mockk.every
 import io.mockk.just
@@ -58,18 +59,30 @@ class RabbitMqIntegrationEventExecutionContextTest {
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = reliableContextManager,
         )
-        val envelope = IntegrationEventExecutionContextEnvelope.encode(
-            codecRegistry.encode(originSnapshot(), ExecutionContextBoundary.INTEGRATION_EVENT),
-        )
         val publishedAt = Instant.parse("2026-01-01T00:00:00.123Z")
         val properties = MessageProperties().apply {
             deliveryTag = 17L
             messageId = "message-17"
             timestamp = Date.from(publishedAt)
             redelivered = false
-            setHeader(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, envelope)
         }
-        val message = Message(RuntimeJson.write(ContextTransportEvent("payload")).toByteArray(), properties)
+        val message = Message(
+            IntegrationEventEnvelopeCodec().encode(
+                IntegrationEventEnvelope(
+                    eventId = "message-17",
+                    eventType = "context.transport.event",
+                    originService = "test-source",
+                    publishedAt = publishedAt,
+                    deliveryAttempt = null,
+                    executionContext = codecRegistry.encode(
+                        originSnapshot(),
+                        ExecutionContextBoundary.INTEGRATION_EVENT,
+                    ),
+                    payloadJson = RuntimeJson.write(ContextTransportEvent("payload")),
+                )
+            ).toByteArray(),
+            properties,
+        )
         val channel = mockk<Channel> {
             every { basicAck(17L, false) } just runs
         }
@@ -86,10 +99,11 @@ class RabbitMqIntegrationEventExecutionContextTest {
         assertEquals(
             ReliableEventDeliveryContext(
                 eventId = "message-17",
-                eventName = "ContextTransportEvent",
+                eventName = "context.transport.event",
                 publishedAt = publishedAt,
                 attempt = null,
                 redeliveryHint = ReliableEventRedeliveryHint.FIRST,
+                subscriberIdentity = "test-app",
             ),
             observedDeliveryContext,
         )
@@ -134,7 +148,20 @@ class RabbitMqIntegrationEventExecutionContextTest {
             timestamp = Date.from(Instant.EPOCH)
             redelivered = true
         }
-        val message = Message(RuntimeJson.write(ContextTransportEvent("payload")).toByteArray(), properties)
+        val message = Message(
+            IntegrationEventEnvelopeCodec().encode(
+                IntegrationEventEnvelope(
+                    eventId = "message-18",
+                    eventType = "context.transport.event",
+                    originService = "test-source",
+                    publishedAt = Instant.EPOCH,
+                    deliveryAttempt = null,
+                    executionContext = emptyList(),
+                    payloadJson = RuntimeJson.write(ContextTransportEvent("payload")),
+                )
+            ).toByteArray(),
+            properties,
+        )
         val channel = mockk<Channel> {
             every { basicReject(18L, true) } just runs
         }
@@ -162,6 +189,10 @@ class RabbitMqIntegrationEventExecutionContextTest {
         .build()
 }
 
+@com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+    value = "context.transport.event",
+    subscriber = "",
+)
 internal data class ContextTransportEvent(val value: String)
 
 private data class TransportContext(val value: String) : ExecutionContextElement

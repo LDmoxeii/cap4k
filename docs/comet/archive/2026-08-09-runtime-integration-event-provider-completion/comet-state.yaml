@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: runtime-integration-event-provider-completion
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 06b6429fbdf34ccc3dd083dc27f9c212336a6cd924c716c998fc2cc4f89a6678
+spec_changes:
+  - capability: runtime-integration-event-core
+    operation: replace
+    source: specs/runtime-integration-event-core/spec.md
+    base_hash: dcfa5a3b6609bce522de6e80d09a9436e0889041da9e87f86819cd9e070fe164
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/702b4e2f39e9429994af913d3187299e21280f5fffe7f94c18f68616d7de95e1.json
+verification_evidence: runtime/evidence/verifications/b9bef6666bd0cd0a5a4f407d260085c2b8f0a6f8aa3197ffd4be18674ad80989.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: 1bc0c0d5-5c8f-468f-8907-dfd3c960cab7

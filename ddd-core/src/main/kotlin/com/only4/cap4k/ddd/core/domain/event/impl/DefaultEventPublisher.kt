@@ -7,6 +7,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptorManager
@@ -34,6 +35,7 @@ open class DefaultEventPublisher(
     },
     private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
     private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
+    private val integrationEventEnvelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
 ) : EventPublisher {
 
     override fun publish(event: EventRecord, completion: EventPublisher.Completion) {
@@ -134,6 +136,7 @@ open class DefaultEventPublisher(
         }
 
         runCatching {
+            val envelope = integrationEventEnvelopeCodec.envelope(event)
             val provider = integrationEventPublishers.singleOrNull()
                 ?: throw ProviderUnavailableException(
                     "integration-event-publisher",
@@ -144,7 +147,7 @@ open class DefaultEventPublisher(
                     .forEach { interceptor -> interceptor.preRelease(event) }
                 eventMessageInterceptorManager.orderedEventMessageInterceptors
                     .forEach { interceptor -> interceptor.prePublish(event.message) }
-                provider.publish(event, providerCallback)
+                provider.publish(event, envelope, providerCallback)
             }
         }.onFailure { throwable -> providerCallback.onException(event, throwable) }
     }

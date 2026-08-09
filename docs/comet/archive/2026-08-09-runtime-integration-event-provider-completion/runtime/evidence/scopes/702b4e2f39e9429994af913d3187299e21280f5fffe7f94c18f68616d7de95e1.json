@@ -1,0 +1,171 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "06b6429fbdf34ccc3dd083dc27f9c212336a6cd924c716c998fc2cc4f89a6678",
+  "baselineProjectionRef": "runtime/evidence/snapshots/98db43ed8434d36883adc606f7e08abec28bd40baa66b417fb968e74bd51a38e.json",
+  "baselineProjectionHash": "98db43ed8434d36883adc606f7e08abec28bd40baa66b417fb968e74bd51a38e",
+  "currentProjectionRef": "runtime/evidence/snapshots/635799d11f4708a48608176bccd9a2ce756078cd3040eb526d63d6f3f3d6aa36.json",
+  "currentProjectionHash": "635799d11f4708a48608176bccd9a2ce756078cd3040eb526d63d6f3f3d6aa36",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "ddd-core",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-integration-event-http",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq",
+      "kind": "directory"
+    },
+    {
+      "path": "ddd-integration-event-rocketmq",
+      "kind": "directory"
+    }
+  ],
+  "changes": [
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletion.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "b347300582d48116c4c63444f8c50b8c872cfd3f8fc0067ec4429f737cd9599d",
+        "size": 1305
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "180c11d54625d547d5ed38b8aef00d4ddf9497a0a03bbac7f4708d6e7b08fdad",
+        "size": 2468
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisher.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "19da001f1b039852e2a47af472d9c291057f4f0ce89db3d241277c9c01215442",
+        "size": 3234
+      },
+      "after": {
+        "hash": "6db9e608fa8e76910da015d1c5427622055bfa0c6cdddc5646063591ee1064ff",
+        "size": 3930
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-http",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "307468b40c715da2c132731e8b2fa3532da585230013c5dc96059c9c26d2a601",
+        "size": 4899
+      },
+      "after": {
+        "hash": "15e7edf39ba8c97f345be771819bac37ce2b78647d3bd44bda4940afab510b89",
+        "size": 6395
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-http",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "56d9aa2199308c2cabf8379f76c13cd41a8af81fc4bb0f817e5a63fc40585b5a",
+        "size": 5155
+      },
+      "after": {
+        "hash": "dc3a50b3537327610174a9a9a950085efac4d13f75a489829af80f5a292fb4f8",
+        "size": 4934
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "fa58762dfbbf63f9eb7c757363ed678f6e649c629dc20bc7b19d48a9e99cd951",
+        "size": 13828
+      },
+      "after": {
+        "hash": "e3e53ed625fc6dff9e208b54b03519716603e3ee482f0bf95cde55a753190a04",
+        "size": 14616
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "46695f31307349fe2d8c93c49201ba9f7cf364cd2268016f000b09d18869e047",
+        "size": 3494
+      },
+      "after": {
+        "hash": "47007cee297a1391cf2a2d4059231df655cbf9021c07120919f4e6929ff7040c",
+        "size": 3398
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rocketmq",
+          "kind": "directory"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "2748c8d40aa5ff8a4461995c72507f607cf3643edbf5c471e4bcf2c75869ec81",
+        "size": 7786
+      },
+      "after": {
+        "hash": "bebace72ab492b77a9def6613f95bc68e6d20bd73774afa0672ad92967fa3378",
+        "size": 9132
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rocketmq",
+          "kind": "directory"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "702b4e2f39e9429994af913d3187299e21280f5fffe7f94c18f68616d7de95e1"
+}

@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
+import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
@@ -79,7 +80,7 @@ class DefaultEventPublisherTest {
         val completion = mockk<EventPublisher.Completion>(relaxed = true)
         var callback: IntegrationEventPublisher.PublishCallback? = null
         val provider = object : IntegrationEventPublisher {
-            override fun publish(event: EventRecord, publishCallback: IntegrationEventPublisher.PublishCallback) {
+            override fun publish(event: EventRecord, envelope: com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope, publishCallback: IntegrationEventPublisher.PublishCallback) {
                 assertEquals("event-1", deliveryScopes.current?.eventId)
                 callback = publishCallback
             }
@@ -101,7 +102,7 @@ class DefaultEventPublisherTest {
         val completion = mockk<EventPublisher.Completion>(relaxed = true)
         val failure = IllegalArgumentException("rejected")
         val provider = object : IntegrationEventPublisher {
-            override fun publish(event: EventRecord, publishCallback: IntegrationEventPublisher.PublishCallback) {
+            override fun publish(event: EventRecord, envelope: com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope, publishCallback: IntegrationEventPublisher.PublishCallback) {
                 publishCallback.onException(event, failure)
             }
         }
@@ -129,6 +130,7 @@ class DefaultEventPublisherTest {
         val record = mockk<EventRecord>()
         every { record.id } returns "event-1"
         every { record.type } returns "test.event"
+        every { record.originService } returns "test-service"
         every { record.payload } returns payload
         every { record.executionContext } returns emptyList()
         every { record.publishedAt } returns Instant.parse("2026-08-08T00:00:00Z")
@@ -155,5 +157,6 @@ class DefaultEventPublisherTest {
     }
 
     data class DomainPayload(val value: String)
+    @IntegrationEvent("test.event")
     data class IntegrationPayload(val value: String)
 }

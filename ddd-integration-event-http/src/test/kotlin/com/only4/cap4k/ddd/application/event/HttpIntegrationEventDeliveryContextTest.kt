@@ -3,6 +3,8 @@ package com.only4.cap4k.ddd.application.event
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
@@ -47,18 +49,16 @@ class HttpIntegrationEventDeliveryContextTest {
 
         assertTrue(
             fixture.adapter.consume(
-                eventId = "event-123",
-                eventName = "http.delivery.event",
-                publishedAt = publishedAt,
-                payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("payload")),
+                envelope("event-123", publishedAt, HttpDeliveryEvent("payload")),
             ),
         )
 
         val context = requireNotNull(observed.inDispatcher)
         assertEquals("event-123", context.eventId)
-        assertEquals(HttpDeliveryEvent::class.java.simpleName, context.eventName)
+        assertEquals("http.delivery.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
-        assertNull(context.attempt)
+        assertEquals(2, context.attempt)
+        assertEquals("test-subscriber", context.subscriberIdentity)
         assertEquals(com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN, context.redeliveryHint)
         assertNull(observed.inPreInterceptor)
         assertNull(observed.inPostInterceptor)
@@ -82,10 +82,11 @@ class HttpIntegrationEventDeliveryContextTest {
 
         assertFalse(
             fixture.adapter.consume(
-                eventId = "event-failure",
-                eventName = "http.delivery.event",
-                publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-                payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("payload")),
+                envelope(
+                    "event-failure",
+                    Instant.parse("2026-08-04T00:00:00Z"),
+                    HttpDeliveryEvent("payload"),
+                ),
             ),
         )
 
@@ -105,22 +106,16 @@ class HttpIntegrationEventDeliveryContextTest {
         }
 
         assertTrue(fixture.adapter.consume(
-            eventId = "first",
-            eventName = "http.delivery.event",
-            publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-            payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("first")),
+            envelope("first", Instant.parse("2026-08-04T00:00:00Z"), HttpDeliveryEvent("first")),
         ))
         assertNull(fixture.deliveryManager.currentOrNull())
         assertTrue(fixture.adapter.consume(
-            eventId = "second",
-            eventName = "http.delivery.event",
-            publishedAt = Instant.parse("2026-08-04T00:00:01Z"),
-            payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("second")),
+            envelope("second", Instant.parse("2026-08-04T00:00:01Z"), HttpDeliveryEvent("second")),
         ))
         assertNull(fixture.deliveryManager.currentOrNull())
 
         assertEquals(listOf("first", "second"), observed.map { it?.eventId })
-        assertEquals(listOf("HttpDeliveryEvent", "HttpDeliveryEvent"), observed.map { it?.eventName })
+        assertEquals(listOf("http.delivery.event", "http.delivery.event"), observed.map { it?.eventName })
     }
 
     @Test
@@ -144,10 +139,11 @@ class HttpIntegrationEventDeliveryContextTest {
             val fixture = adapter(DefaultEventHandlerDispatcher(registry))
             assertTrue(
                 fixture.adapter.consume(
-                    eventId = "condition-skip",
-                    eventName = "http.delivery.event",
-                    publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-                    payloadJsonStr = RuntimeJson.write(HttpDeliveryEvent("skip", enabled = false)),
+                    envelope(
+                        "condition-skip",
+                        Instant.parse("2026-08-04T00:00:00Z"),
+                        HttpDeliveryEvent("skip", enabled = false),
+                    ),
                 ),
             )
 
@@ -167,10 +163,24 @@ class HttpIntegrationEventDeliveryContextTest {
         every { postSubscribe(any()) } answers { observed.inPostInterceptor = accessor.currentOrNull() }
     }
 
+    private fun envelope(eventId: String, publishedAt: Instant, payload: HttpDeliveryEvent): String =
+        IntegrationEventEnvelopeCodec().encode(
+            IntegrationEventEnvelope(
+                eventId = eventId,
+                eventType = "http.delivery.event",
+                originService = "test-source",
+                publishedAt = publishedAt,
+                deliveryAttempt = 2,
+                executionContext = emptyList(),
+                payloadJson = RuntimeJson.write(payload),
+            )
+        )
+
     private fun adapter(
         dispatcher: EventHandlerDispatcher,
         interceptors: (ReliableEventDeliveryContextAccessor) -> List<EventMessageInterceptor> = { emptyList() },
     ): Fixture {
+        clearPlaceholderCache()
         val executionContexts = DefaultExecutionContextManager()
         val deliveryManager = DefaultReliableEventDeliveryContextManager(executionContexts, executionContexts)
         val subscriberRegister = mockk<HttpIntegrationEventSubscriberRegister>()
@@ -192,6 +202,13 @@ class HttpIntegrationEventDeliveryContextTest {
             reliableEventDeliveryContextScopeManager = deliveryManager,
         ).apply { init() }
         return Fixture(adapter, deliveryManager, deliveryManager)
+    }
+
+    private fun clearPlaceholderCache() {
+        val field = Class.forName("com.only4.cap4k.ddd.core.share.misc.TextUtils")
+            .getDeclaredField("resolvePlaceholderCache")
+        field.isAccessible = true
+        (field.get(null) as MutableMap<*, *>).clear()
     }
 
     private data class Fixture(

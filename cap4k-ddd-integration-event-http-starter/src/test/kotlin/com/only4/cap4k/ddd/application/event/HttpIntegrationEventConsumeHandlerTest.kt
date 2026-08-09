@@ -1,10 +1,10 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
-import com.only4.cap4k.ddd.application.event.HttpIntegrationEventAutoConfiguration.Companion.EVENT_ID_PARAM
-import com.only4.cap4k.ddd.application.event.HttpIntegrationEventAutoConfiguration.Companion.EVENT_PARAM
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
@@ -23,18 +23,19 @@ import java.time.Instant
 
 class HttpIntegrationEventConsumeHandlerTest {
     @Test
-    fun `consume endpoint passes strict independent parameters and payload class name`() {
+    fun `consume endpoint uses canonical envelope body and ignores legacy metadata`() {
         val fixture = fixture()
         val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
         val publishedAt = Instant.parse("2026-08-04T00:00:00.123Z")
         val request = request(
             eventId = "event-from-query",
             eventName = "http.endpoint.event",
-            timestamp = publishedAt.toEpochMilli().toString(),
+            publishedAt = publishedAt,
             payload = HttpEndpointEvent("payload"),
         ).apply {
-            addHeader(EVENT_ID_PARAM, "event-from-generic-header")
-            addHeader(EVENT_PARAM, "event-from-generic-header")
+            addParameter(HttpIntegrationEventAutoConfiguration.EVENT_ID_PARAM, "legacy-query-event")
+            addParameter(HttpIntegrationEventAutoConfiguration.EVENT_PARAM, "legacy-query-type")
+            addHeader("cap4k-timestamp", "1")
         }
         val response = MockHttpServletResponse()
 
@@ -43,9 +44,10 @@ class HttpIntegrationEventConsumeHandlerTest {
         assertTrue(response.contentAsString.contains("\"success\":true"), response.contentAsString)
         val context = requireNotNull(fixture.observedContext)
         assertEquals("event-from-query", context.eventId)
-        assertEquals(HttpEndpointEvent::class.java.simpleName, context.eventName)
+        assertEquals("http.endpoint.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
         assertNull(context.attempt)
+        assertEquals("test-subscriber", context.subscriberIdentity)
         assertEquals(
             com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN,
             context.redeliveryHint,
@@ -54,66 +56,61 @@ class HttpIntegrationEventConsumeHandlerTest {
     }
 
     @Test
-    fun `consume endpoint rejects malformed and duplicate timestamp without dispatch`() {
+    fun `consume endpoint rejects malformed envelope metadata without dispatch`() {
         val malformed = fixture()
         val malformedHandler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(malformed.adapter)
-        val malformedRequest = request(
-            eventId = "event-1",
-            eventName = "http.endpoint.event",
-            timestamp = "001",
-            payload = HttpEndpointEvent("payload"),
-        )
+        val malformedRequest = rawRequest("not-json")
         val malformedResponse = MockHttpServletResponse()
         malformedHandler.handleRequest(malformedRequest, malformedResponse)
         assertFalse(malformedResponse.contentAsString.contains("\"success\":true"))
         assertNull(malformed.observedContext)
         assertNull(malformed.deliveryAccessor.currentOrNull())
 
-        val duplicate = fixture()
-        val duplicateHandler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(duplicate.adapter)
-        val duplicateRequest = request(
-            eventId = "event-2",
-            eventName = "http.endpoint.event",
-            timestamp = "1000",
-            payload = HttpEndpointEvent("payload"),
-        ).apply {
-            addHeader("cap4k-timestamp", "1001")
-        }
-        val duplicateResponse = MockHttpServletResponse()
-        duplicateHandler.handleRequest(duplicateRequest, duplicateResponse)
-        assertFalse(duplicateResponse.contentAsString.contains("\"success\":true"))
-        assertNull(duplicate.observedContext)
-        assertNull(duplicate.deliveryAccessor.currentOrNull())
+        val invalidTime = fixture()
+        val invalidTimeHandler =
+            HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(invalidTime.adapter)
+        val invalidTimeRequest = rawRequest(
+            """{"eventId":"event-2","eventType":"http.endpoint.event","originService":"test-source","publishedAt":"001","deliveryAttempt":null,"executionContext":[],"payloadJson":"{\"value\":\"payload\"}"}"""
+        )
+        val invalidTimeResponse = MockHttpServletResponse()
+        invalidTimeHandler.handleRequest(invalidTimeRequest, invalidTimeResponse)
+        assertFalse(invalidTimeResponse.contentAsString.contains("\"success\":true"))
+        assertNull(invalidTime.observedContext)
+        assertNull(invalidTime.deliveryAccessor.currentOrNull())
 
-        val duplicateParameter = fixture()
-        val duplicateParameterHandler =
-            HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(duplicateParameter.adapter)
-        val duplicateParameterRequest = request(
-            eventId = "event-3",
-            eventName = "http.endpoint.event",
-            timestamp = "1000",
-            payload = HttpEndpointEvent("payload"),
-        ).apply {
-            addParameter(EVENT_ID_PARAM, "event-override")
-            addParameter(EVENT_PARAM, "http.endpoint.other")
-        }
-        val duplicateParameterResponse = MockHttpServletResponse()
-        duplicateParameterHandler.handleRequest(duplicateParameterRequest, duplicateParameterResponse)
-        assertFalse(duplicateParameterResponse.contentAsString.contains("\"success\":true"))
-        assertNull(duplicateParameter.observedContext)
-        assertNull(duplicateParameter.deliveryAccessor.currentOrNull())
+        val missingId = fixture()
+        val missingIdHandler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(missingId.adapter)
+        val missingIdRequest = rawRequest(
+            """{"eventType":"http.endpoint.event","originService":"test-source","publishedAt":"2026-08-04T00:00:00Z","deliveryAttempt":null,"executionContext":[],"payloadJson":"{\"value\":\"payload\"}"}"""
+        )
+        val missingIdResponse = MockHttpServletResponse()
+        missingIdHandler.handleRequest(missingIdRequest, missingIdResponse)
+        assertFalse(missingIdResponse.contentAsString.contains("\"success\":true"))
+        assertNull(missingId.observedContext)
+        assertNull(missingId.deliveryAccessor.currentOrNull())
     }
 
     private fun request(
         eventId: String,
         eventName: String,
-        timestamp: String,
+        publishedAt: Instant,
         payload: HttpEndpointEvent,
-    ) = MockHttpServletRequest().apply {
-        addParameter(EVENT_ID_PARAM, eventId)
-        addParameter(EVENT_PARAM, eventName)
-        addHeader("cap4k-timestamp", timestamp)
-        setContent(RuntimeJson.write(payload).toByteArray(Charsets.UTF_8))
+    ) = rawRequest(
+        IntegrationEventEnvelopeCodec().encode(
+            IntegrationEventEnvelope(
+                eventId = eventId,
+                eventType = eventName,
+                originService = "test-source",
+                publishedAt = publishedAt,
+                deliveryAttempt = null,
+                executionContext = emptyList(),
+                payloadJson = RuntimeJson.write(payload),
+            )
+        )
+    )
+
+    private fun rawRequest(body: String) = MockHttpServletRequest().apply {
+        setContent(body.toByteArray(Charsets.UTF_8))
     }
 
     private fun fixture(): Fixture {

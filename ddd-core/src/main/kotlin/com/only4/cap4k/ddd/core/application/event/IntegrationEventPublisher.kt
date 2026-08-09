@@ -11,12 +11,13 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecord
  */
 interface IntegrationEventPublisher {
     /**
-     * 发布集成事件
+     * Publishes the canonical transport-neutral Integration Event envelope.
      *
-     * @param event 要发布的事件记录
-     * @param publishCallback 发布回调，用于处理发布结果
+     * The provider must report the provider-level handoff through [publishCallback].
+     * A callback is not a global consumer acknowledgement; each destination/subscriber
+     * owns its own acknowledgement boundary in the transport adapter.
      */
-    fun publish(event: EventRecord, publishCallback: PublishCallback)
+    fun publish(event: EventRecord, envelope: IntegrationEventEnvelope, publishCallback: PublishCallback)
 
     /**
      * 事件发布回调接口

@@ -63,6 +63,9 @@ class EventRecordImpl : EventRecord {
     override val type: String
         get() = event.eventType
 
+    override val originService: String
+        get() = event.svcName
+
     override val payload: Any
         get() = event.payload!!
 
