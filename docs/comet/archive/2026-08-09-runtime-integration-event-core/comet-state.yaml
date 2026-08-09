@@ -1,6 +1,6 @@
 schema: comet.native.v3
 minimum_runtime_version: 3
-revision: 10
+revision: 11
 name: runtime-integration-event-core
 language: en
 phase: archive
@@ -17,6 +17,6 @@ verification_report: verification.md
 implementation_scope: runtime/evidence/scopes/6ad668c8db871ad125ab3a4bc0679e23b37a4fe72f76f2dc570d268081913cf8.json
 verification_evidence: runtime/evidence/verifications/4e9860e5fced6f62372d833f5075b0f00533b957efc3986cc3a33deff0059fe7.json
 partial_allowance: null
-archived: false
+archived: true
 created_at: 2026-08-09
 run_id: f48c698d-88b0-4f71-94f8-b7394664a47c

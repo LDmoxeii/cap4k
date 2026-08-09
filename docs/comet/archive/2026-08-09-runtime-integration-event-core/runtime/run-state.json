@@ -4,14 +4,14 @@
   "skillVersion": "3",
   "skillHash": "e97587222d94381f3798ff0cb5821f6557b2c3c5bc9c7df6653e86079364af96",
   "orchestration": "deterministic",
-  "currentStep": "archive",
-  "iteration": 9,
+  "currentStep": null,
+  "iteration": 10,
   "pending": null,
   "pendingRef": "runtime/pending-action.json",
   "trajectoryRef": "runtime/trajectory.jsonl",
   "contextRef": "runtime/context.md",
   "artifactsRef": "runtime/artifacts.json",
   "checkpointRef": "runtime/checkpoints/latest.json",
-  "status": "running",
+  "status": "completed",
   "retries": {}
 }
