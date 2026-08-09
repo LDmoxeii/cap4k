@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-manual-redrive",
+  "role": "original",
+  "hash": "9288faab77e5876313ed226f50e1675255d9a0e2dfe8630072d650d0fdb18ac6",
+  "identity": {
+    "dev": 950912656,
+    "ino": 844424931482764,
+    "birthtimeMs": 1786238522896.8894
+  }
+}

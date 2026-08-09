@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-manual-redrive
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: af4c14b24328872b2c23a6a1c62ae298ed1b2794b4fbc2763942aac4cd06cbe0
+spec_changes:
+  - capability: runtime-manual-redrive
+    operation: replace
+    source: specs/runtime-manual-redrive/spec.md
+    base_hash: 9288faab77e5876313ed226f50e1675255d9a0e2dfe8630072d650d0fdb18ac6
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/c360c2f74f29253b752993ace611c0eb32d984a3111e4b315ce9852eb8a2e294.json
+verification_evidence: runtime/evidence/verifications/734d9ade90495bd96643bf544975beb12530d893e61c281d2a2d6e32e6043bea.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: eaa36318-4025-498a-8ca3-41c7be440765

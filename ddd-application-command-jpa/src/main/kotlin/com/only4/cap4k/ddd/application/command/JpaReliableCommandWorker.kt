@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.application.command
 
 import com.only4.cap4k.ddd.application.JpaOwnershipClaim
+import com.only4.cap4k.ddd.application.JpaRedriveResult
+import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandWakeUp
@@ -78,6 +80,29 @@ class JpaReliableCommandWorker(
         // only prompts one immediate scan; future Commands are recovered by the
         // periodic sweep without mirroring every row into an unbounded timer queue.
         submitWorker()
+    }
+
+    /**
+     * Performs one explicit operator redrive and wakes the worker only after the
+     * durable CAS reset is accepted; duplicate replays do not schedule another wake.
+     */
+    fun redrive(
+        recordId: Long,
+        expectedVersion: Int,
+        expectedState: CommandRecordEntity.CommandState,
+        requestToken: String,
+        now: LocalDateTime = clock(),
+    ): JpaRedriveResult {
+        val result = substrate.redrive(
+            recordId = recordId,
+            serviceName = serviceName,
+            expectedVersion = expectedVersion,
+            expectedState = expectedState,
+            requestToken = requestToken,
+            now = now,
+        )
+        if (result == JpaRedriveResult.REDRIVEN) wakeUp(now)
+        return result
     }
 
     fun poll() {

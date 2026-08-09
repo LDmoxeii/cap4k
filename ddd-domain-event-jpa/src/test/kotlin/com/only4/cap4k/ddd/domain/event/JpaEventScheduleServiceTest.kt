@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.domain.event
 
+import com.only4.cap4k.ddd.application.JpaRedriveResult
 import com.only4.cap4k.ddd.application.JpaOwnershipClaim
 import com.only4.cap4k.ddd.application.JpaOwnershipToken
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -99,6 +100,38 @@ class JpaEventScheduleServiceTest {
     }
 
     @Test
+    fun `manual redrive wakes only after a new durable reset`() {
+        val substrate = this.substrate
+        every {
+            substrate.redrive(1, "test-service", 3, Event.EventState.EXHAUSTED, "operator", any())
+        } returnsMany listOf(
+            JpaRedriveResult.REJECTED,
+            JpaRedriveResult.REDRIVEN,
+            JpaRedriveResult.ALREADY_APPLIED,
+        )
+        every { substrate.claim("test-service", any(), leaseDuration, 1) } returns null
+        service = newService(batchSize = 1)
+
+        assertEquals(
+            JpaRedriveResult.REJECTED,
+            service.redrive(1, 3, Event.EventState.EXHAUSTED, "operator", LocalDateTime.of(2026, 8, 7, 10, 0)),
+        )
+        verify(exactly = 0) { substrate.claim("test-service", any(), leaseDuration, 1) }
+
+        assertEquals(
+            JpaRedriveResult.REDRIVEN,
+            service.redrive(1, 3, Event.EventState.EXHAUSTED, "operator", LocalDateTime.of(2026, 8, 7, 10, 0)),
+        )
+        verify(timeout = 1_000, exactly = 1) { substrate.claim("test-service", any(), leaseDuration, 1) }
+
+        assertEquals(
+            JpaRedriveResult.ALREADY_APPLIED,
+            service.redrive(1, 3, Event.EventState.EXHAUSTED, "operator", LocalDateTime.of(2026, 8, 7, 10, 0)),
+        )
+        verify(exactly = 1) { substrate.claim("test-service", any(), leaseDuration, 1) }
+    }
+
+    @Test
     fun `Integration Event may complete after publisher returns`() {
         val fixture = claimed(UserCreatedEvent("user-1", "name", "mail@example.com"))
         lateinit var completion: EventPublisher.Completion
@@ -121,7 +154,6 @@ class JpaEventScheduleServiceTest {
 
         verify(exactly = 1) { substrate.acknowledge(fixture.ownership, any()) }
     }
-
     @Test
     fun `Integration Event lease is renewed while provider callback is pending`() {
         val fixture = claimed(UserCreatedEvent("user-1", "name", "mail@example.com"))

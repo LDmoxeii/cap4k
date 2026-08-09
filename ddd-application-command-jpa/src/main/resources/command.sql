@@ -22,6 +22,7 @@ CREATE TABLE `__command`
     `lease_until`    datetime(3)  NULL COMMENT 'Private lease expiry',
     `db_created_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     `db_updated_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
+    `redrive_request_token` varchar(128) NULL COMMENT 'Private operator redrive idempotency marker',
     PRIMARY KEY (`id`),
     KEY              `idx_db_created_at` (`db_created_at`),
     KEY              `idx_db_updated_at` (`db_updated_at`),

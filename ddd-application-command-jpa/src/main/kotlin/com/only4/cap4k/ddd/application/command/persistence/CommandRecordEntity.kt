@@ -144,6 +144,10 @@ class CommandRecordEntity(
     @Column(name = "`lease_until`", columnDefinition = "datetime(3)")
     var leaseUntil: LocalDateTime? = null,
 
+    /** Durable idempotency marker for the last accepted operator redrive request. */
+    @Column(name = "`redrive_request_token`", length = 128)
+    var redriveRequestToken: String? = null,
+
     /** Database audit columns retained for schema/projection parity. */
     @Column(name = "`db_created_at`", insertable = false, updatable = false, columnDefinition = "datetime(3)")
     var dbCreatedAt: LocalDateTime? = null,
@@ -169,6 +173,7 @@ class CommandRecordEntity(
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
         const val F_NEXT_TRY_TIME = "nextTryTime"
+        const val F_REDRIVE_REQUEST_TOKEN = "redriveRequestToken"
         const val F_DELIVERY_TOKEN = "deliveryToken"
         const val F_LEASE_UNTIL = "leaseUntil"
     }

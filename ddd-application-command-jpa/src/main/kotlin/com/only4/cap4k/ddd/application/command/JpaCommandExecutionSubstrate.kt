@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.application.command
 
 import com.only4.cap4k.ddd.application.JpaOwnershipClaim
+import com.only4.cap4k.ddd.application.JpaRedriveResult
 import com.only4.cap4k.ddd.application.ReliableJpaOwnership
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
@@ -186,6 +187,53 @@ open class JpaCommandExecutionSubstrate(
         ) == 1
     }
 
+
+    /**
+     * Applies one explicit operator redrive request to a failed durable Command.
+     * The state, version, service, expiry and lease predicates are all fenced in
+     * the same database update. A repeated request token is idempotent.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    open fun redrive(
+        recordId: Long,
+        serviceName: String,
+        expectedVersion: Int,
+        expectedState: CommandRecordEntity.CommandState,
+        requestToken: String,
+        now: LocalDateTime,
+    ): JpaRedriveResult {
+        require(requestToken.isNotBlank()) { "redrive request token must not be blank" }
+        require(requestToken.length <= REDRIVE_REQUEST_TOKEN_MAX_LENGTH) {
+            "redrive request token must be at most $REDRIVE_REQUEST_TOKEN_MAX_LENGTH characters"
+        }
+        val effectiveNow = ReliableJpaOwnership.normalize(now)
+        val record = records.findById(recordId).orElse(null) ?: return JpaRedriveResult.REJECTED
+        if (record.svcName != serviceName) return JpaRedriveResult.REJECTED
+        if (record.redriveRequestToken == requestToken) return JpaRedriveResult.ALREADY_APPLIED
+        if (expectedState !in REDRIVE_STATES) return JpaRedriveResult.REJECTED
+        if (record.version != expectedVersion || record.commandState != expectedState) return JpaRedriveResult.REJECTED
+        if (!record.expireAt.isAfter(effectiveNow)) return JpaRedriveResult.REJECTED
+        if (record.leaseUntil?.isAfter(effectiveNow) == true) return JpaRedriveResult.REJECTED
+
+        if (records.redrive(
+                recordId = recordId,
+                version = expectedVersion,
+                serviceName = serviceName,
+                expectedState = expectedState,
+                readyState = CommandRecordEntity.CommandState.INIT,
+                now = effectiveNow,
+                requestToken = requestToken,
+            ) == 1
+        ) {
+            return JpaRedriveResult.REDRIVEN
+        }
+
+        // A concurrent request with the same token may have won the CAS.
+        return if (records.findById(recordId).orElse(null)?.let {
+                it.svcName == serviceName && it.redriveRequestToken == requestToken
+            } == true
+        ) JpaRedriveResult.ALREADY_APPLIED else JpaRedriveResult.REJECTED
+    }
     private fun terminalFailureFacts(
         existing: ReliableFailureFacts?,
         operation: ReliableFailureOperation,
@@ -207,6 +255,11 @@ open class JpaCommandExecutionSubstrate(
 
     private companion object {
         const val DEFAULT_CANDIDATE_LIMIT = 32
+        const val REDRIVE_REQUEST_TOKEN_MAX_LENGTH = 128
+        val REDRIVE_STATES = setOf(
+            CommandRecordEntity.CommandState.EXCEPTION,
+            CommandRecordEntity.CommandState.EXHAUSTED,
+        )
         val READY_STATES = setOf(
             CommandRecordEntity.CommandState.INIT,
             CommandRecordEntity.CommandState.EXCEPTION,

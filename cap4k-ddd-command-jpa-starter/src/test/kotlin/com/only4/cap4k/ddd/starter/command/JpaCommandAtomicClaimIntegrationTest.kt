@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.starter.command
 
 import com.only4.cap4k.ddd.application.JpaOwnershipToken
+import com.only4.cap4k.ddd.application.JpaRedriveResult
 import com.only4.cap4k.ddd.application.ReliableJpaOwnership
 import com.only4.cap4k.ddd.application.command.JpaCommandExecutionSubstrate
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
@@ -680,6 +681,110 @@ class JpaCommandAtomicClaimIntegrationTest {
         assertEquals(record.nextTryTime, stored.nextTryTime)
         assertNull(stored.deliveryToken)
         assertNull(stored.leaseUntil)
+    }
+
+    @Test
+    fun `manual redrive resets exhausted command and preserves the retry contract`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            command(now, state = CommandRecordEntity.CommandState.EXHAUSTED).apply {
+                triedTimes = 3
+                deliveryToken = "stale-owner".toByteArray(StandardCharsets.US_ASCII)
+                leaseUntil = now.minusSeconds(1)
+                failureFactsJson = RuntimeJson.write(
+                    ReliableFailureFacts(
+                        type = "test.failure",
+                        message = ReliableFailureOperation.COMMAND_EXECUTION.safeMessage,
+                        occurredAt = now.minusMinutes(1),
+                        attempt = 3,
+                        correlationId = commandUuid,
+                        retryable = false,
+                        terminal = true,
+                    ),
+                )
+            },
+        )
+        val version = record.version
+        val expireAt = record.expireAt
+        val retryPolicy = record.retryPolicy
+
+        assertEquals(
+            JpaRedriveResult.REDRIVEN,
+            substrate.redrive(
+                recordId = record.id!!,
+                serviceName = SERVICE,
+                expectedVersion = version,
+                expectedState = CommandRecordEntity.CommandState.EXHAUSTED,
+                requestToken = "operator-command-1",
+                now = now,
+            ),
+        )
+        val redriven = records.findById(record.id!!).orElseThrow()
+        assertEquals(CommandRecordEntity.CommandState.INIT, redriven.commandState)
+        assertEquals(0, redriven.triedTimes)
+        assertEquals(now, redriven.lastTryTime)
+        assertEquals(now, redriven.nextTryTime)
+        assertNull(redriven.deliveryToken)
+        assertNull(redriven.leaseUntil)
+        assertEquals(expireAt, redriven.expireAt)
+        assertEquals(retryPolicy, redriven.retryPolicy)
+        assertEquals(ReliableFailureOperation.COMMAND_EXECUTION.safeMessage, redriven.failureFacts?.message)
+        val redriveVersion = redriven.version
+
+        assertEquals(
+            JpaRedriveResult.ALREADY_APPLIED,
+            substrate.redrive(
+                recordId = record.id!!,
+                serviceName = SERVICE,
+                expectedVersion = version,
+                expectedState = CommandRecordEntity.CommandState.EXHAUSTED,
+                requestToken = "operator-command-1",
+                now = now,
+            ),
+        )
+        assertEquals(redriveVersion, records.findById(record.id!!).orElseThrow().version)
+        assertEquals(
+            JpaRedriveResult.REJECTED,
+            substrate.redrive(
+                recordId = record.id!!,
+                serviceName = SERVICE,
+                expectedVersion = version,
+                expectedState = CommandRecordEntity.CommandState.EXHAUSTED,
+                requestToken = "operator-command-2",
+                now = now,
+            ),
+        )
+
+        val ownership = requireNotNull(substrate.claim(SERVICE, now, Duration.ofSeconds(30)))
+        assertTrue(substrate.acknowledge(ownership, now.plusSeconds(1)))
+        assertEquals(
+            CommandRecordEntity.CommandState.EXECUTED,
+            records.findById(record.id!!).orElseThrow().commandState,
+        )
+    }
+
+    @Test
+    fun `manual redrive accepts retryable failure and rejects ineligible commands`() {
+        val now = testTime()
+        val retryable = records.saveAndFlush(command(now, state = CommandRecordEntity.CommandState.EXCEPTION))
+        val expired = records.saveAndFlush(command(now, state = CommandRecordEntity.CommandState.EXHAUSTED).apply {
+            expireAt = now
+        })
+        val active = records.saveAndFlush(command(now, state = CommandRecordEntity.CommandState.EXCEPTION).apply {
+            deliveryToken = "active-owner".toByteArray(StandardCharsets.US_ASCII)
+            leaseUntil = now.plusMinutes(1)
+        })
+        val successful = records.saveAndFlush(command(now, state = CommandRecordEntity.CommandState.EXECUTED))
+        val cancelled = records.saveAndFlush(command(now, state = CommandRecordEntity.CommandState.CANCEL))
+        val staleState = records.saveAndFlush(command(now, state = CommandRecordEntity.CommandState.EXHAUSTED))
+
+        assertEquals(JpaRedriveResult.REDRIVEN, substrate.redrive(retryable.id!!, SERVICE, retryable.version, retryable.commandState, "retryable", now))
+        assertEquals(CommandRecordEntity.CommandState.INIT, records.findById(retryable.id!!).orElseThrow().commandState)
+        assertEquals(JpaRedriveResult.REJECTED, substrate.redrive(expired.id!!, SERVICE, expired.version, expired.commandState, "expired", now))
+        assertEquals(JpaRedriveResult.REJECTED, substrate.redrive(active.id!!, SERVICE, active.version, active.commandState, "active", now))
+        assertEquals(JpaRedriveResult.REJECTED, substrate.redrive(successful.id!!, SERVICE, successful.version, successful.commandState, "success", now))
+        assertEquals(JpaRedriveResult.REJECTED, substrate.redrive(cancelled.id!!, SERVICE, cancelled.version, cancelled.commandState, "cancelled", now))
+        assertEquals(JpaRedriveResult.REJECTED, substrate.redrive(staleState.id!!, SERVICE, staleState.version, CommandRecordEntity.CommandState.EXCEPTION, "stale-state", now))
     }
 
     private fun assertStoredToken(expected: JpaOwnershipToken, actual: ByteArray?) {
