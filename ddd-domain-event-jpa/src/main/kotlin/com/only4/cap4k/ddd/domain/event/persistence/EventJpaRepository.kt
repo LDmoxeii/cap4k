@@ -234,4 +234,34 @@ interface EventJpaRepository :
         @Param("nextTryTime") nextTryTime: LocalDateTime,
         @Param("now") now: LocalDateTime,
     ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        update Event event
+           set event.eventState = :readyState,
+               event.lastTryTime = :now,
+               event.nextTryTime = :now,
+               event.triedTimes = 0,
+               event.deliveryToken = null,
+               event.leaseUntil = null,
+               event.redriveRequestToken = :requestToken,
+               event.version = event.version + 1
+         where event.id = :recordId
+           and event.version = :version
+           and event.svcName = :serviceName
+           and event.eventState = :expectedState
+           and event.expireAt > :now
+           and (event.leaseUntil is null or event.leaseUntil <= :now)
+        """
+    )
+    fun redrive(
+        @Param("recordId") recordId: Long,
+        @Param("version") version: Int,
+        @Param("serviceName") serviceName: String,
+        @Param("expectedState") expectedState: Event.EventState,
+        @Param("readyState") readyState: Event.EventState,
+        @Param("now") now: LocalDateTime,
+        @Param("requestToken") requestToken: String,
+    ): Int
 }

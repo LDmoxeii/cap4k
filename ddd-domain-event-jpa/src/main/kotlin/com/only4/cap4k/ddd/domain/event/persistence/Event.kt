@@ -152,6 +152,10 @@ class Event(
     @Column(name = "`lease_until`", columnDefinition = "datetime(3)")
     var leaseUntil: LocalDateTime? = null,
 
+    /** Durable idempotency marker for the last accepted operator redrive request. */
+    @Column(name = "`redrive_request_token`", length = 128)
+    var redriveRequestToken: String? = null,
+
     /** Database audit columns retained for schema/projection parity. */
     @Column(name = "`db_created_at`", insertable = false, updatable = false, columnDefinition = "datetime(3)")
     var dbCreatedAt: LocalDateTime? = null,
@@ -180,6 +184,7 @@ class Event(
         const val F_NEXT_TRY_TIME = "nextTryTime"
         const val F_DELIVERY_TOKEN = "deliveryToken"
         const val F_LEASE_UNTIL = "leaseUntil"
+        const val F_REDRIVE_REQUEST_TOKEN = "redriveRequestToken"
     }
 
     fun init(

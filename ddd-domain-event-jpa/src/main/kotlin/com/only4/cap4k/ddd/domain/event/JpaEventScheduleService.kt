@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.domain.event
 
 import com.only4.cap4k.ddd.application.JpaOwnershipClaim
+import com.only4.cap4k.ddd.application.JpaRedriveResult
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
@@ -55,6 +56,28 @@ class JpaEventScheduleService(
     override fun wake() {
         wakeRequested.set(true)
         startDrainIfNecessary()
+    }
+    /**
+     * Performs one explicit operator redrive and wakes the coordinator only
+     * after the durable CAS reset is accepted; duplicate replays do not schedule another wake.
+     */
+    fun redrive(
+        recordId: Long,
+        expectedVersion: Int,
+        expectedState: Event.EventState,
+        requestToken: String,
+        now: LocalDateTime = LocalDateTime.now(),
+    ): JpaRedriveResult {
+        val result = executionSubstrate.redrive(
+            recordId = recordId,
+            serviceName = serviceName,
+            expectedVersion = expectedVersion,
+            expectedState = expectedState,
+            requestToken = requestToken,
+            now = now,
+        )
+        if (result == JpaRedriveResult.REDRIVEN) wake()
+        return result
     }
 
     /** Scheduled recovery signal. Ownership remains database-coordinated. */

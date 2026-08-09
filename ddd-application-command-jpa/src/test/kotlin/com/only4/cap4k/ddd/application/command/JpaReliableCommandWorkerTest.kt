@@ -1,5 +1,7 @@
 package com.only4.cap4k.ddd.application.command
 
+import com.only4.cap4k.ddd.application.JpaRedriveResult
+import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.application.JpaOwnershipClaim
 import com.only4.cap4k.ddd.application.JpaOwnershipToken
 import com.only4.cap4k.ddd.core.application.command.Command
@@ -95,6 +97,39 @@ class JpaReliableCommandWorkerTest {
     }
 
     @Test
+    fun `manual redrive wakes only after a new durable reset`() {
+        val substrate = mockk<JpaCommandExecutionSubstrate>()
+        every {
+            substrate.redrive(7, "command-service", 3, CommandRecordEntity.CommandState.EXHAUSTED, "operator", now)
+        } returnsMany listOf(
+            JpaRedriveResult.REJECTED,
+            JpaRedriveResult.REDRIVEN,
+            JpaRedriveResult.ALREADY_APPLIED,
+        )
+        every { substrate.claim(any(), any(), any(), any()) } returns null
+
+        worker(substrate, RecordingCommandSupervisor()).use { worker ->
+            assertEquals(
+                JpaRedriveResult.REJECTED,
+                worker.redrive(7, 3, CommandRecordEntity.CommandState.EXHAUSTED, "operator", now),
+            )
+            verify(exactly = 0) { substrate.claim(any(), any(), any(), any()) }
+
+            assertEquals(
+                JpaRedriveResult.REDRIVEN,
+                worker.redrive(7, 3, CommandRecordEntity.CommandState.EXHAUSTED, "operator", now),
+            )
+            verify(timeout = 1_000, exactly = 1) { substrate.claim(any(), any(), any(), any()) }
+
+            assertEquals(
+                JpaRedriveResult.ALREADY_APPLIED,
+                worker.redrive(7, 3, CommandRecordEntity.CommandState.EXHAUSTED, "operator", now),
+            )
+            verify(exactly = 1) { substrate.claim(any(), any(), any(), any()) }
+        }
+    }
+
+    @Test
     fun `future schedule notification prompts a scan without creating a future timer`() {
         val substrate = mockk<JpaCommandExecutionSubstrate>()
         every { substrate.claim(any(), any(), any(), any()) } returns null
@@ -106,7 +141,6 @@ class JpaReliableCommandWorkerTest {
             worker.close()
         }
     }
-
     @Test
     fun `shutdown during a batch does not claim or fail another command`() {
         val substrate = mockk<JpaCommandExecutionSubstrate>()

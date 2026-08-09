@@ -234,4 +234,34 @@ interface CommandRecordJpaRepository :
         @Param("nextTryTime") nextTryTime: LocalDateTime,
         @Param("now") now: LocalDateTime,
     ): Int
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        update CommandRecordEntity command
+           set command.commandState = :readyState,
+               command.lastTryTime = :now,
+               command.nextTryTime = :now,
+               command.triedTimes = 0,
+               command.deliveryToken = null,
+               command.leaseUntil = null,
+               command.redriveRequestToken = :requestToken,
+               command.version = command.version + 1
+         where command.id = :recordId
+           and command.version = :version
+           and command.svcName = :serviceName
+           and command.commandState = :expectedState
+           and command.expireAt > :now
+           and (command.leaseUntil is null or command.leaseUntil <= :now)
+        """
+    )
+    fun redrive(
+        @Param("recordId") recordId: Long,
+        @Param("version") version: Int,
+        @Param("serviceName") serviceName: String,
+        @Param("expectedState") expectedState: CommandRecordEntity.CommandState,
+        @Param("readyState") readyState: CommandRecordEntity.CommandState,
+        @Param("now") now: LocalDateTime,
+        @Param("requestToken") requestToken: String,
+    ): Int
 }

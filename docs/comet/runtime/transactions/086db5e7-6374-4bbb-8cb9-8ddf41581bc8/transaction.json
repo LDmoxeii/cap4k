@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "086db5e7-6374-4bbb-8cb9-8ddf41581bc8",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-manual-redrive",
+  "createdAt": "2026-08-09T05:06:40.819Z",
+  "preflightHash": "0e83f0f72aa2997da2fbae4e5a13e1518401c7f46387e673ca9a00685774388f",
+  "operations": [
+    {
+      "id": "spec-1-runtime-manual-redrive",
+      "type": "write",
+      "target": "specs/runtime-manual-redrive/spec.md",
+      "staged": "runtime/transactions/086db5e7-6374-4bbb-8cb9-8ddf41581bc8/staged/specs/runtime-manual-redrive/spec.md",
+      "backup": "runtime/transactions/086db5e7-6374-4bbb-8cb9-8ddf41581bc8/backups/specs/runtime-manual-redrive/spec.md",
+      "expectedTargetHash": "9288faab77e5876313ed226f50e1675255d9a0e2dfe8630072d650d0fdb18ac6",
+      "stagedHash": "bbe5f9b8bcb31580a67774aec64aaa110fc73ee70b458ab12027fdc388b0e227"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-manual-redrive",
+      "target": "archive/2026-08-09-runtime-manual-redrive",
+      "expectedSourceHash": "9bc7137d5bbd59975204fd140035177c1fb08bfbc15a7992169ca2cee5b20456",
+      "expectedTargetHash": null
+    }
+  ]
+}

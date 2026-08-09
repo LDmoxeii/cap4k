@@ -1,0 +1,79 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-manual-redrive",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "af4c14b24328872b2c23a6a1c62ae298ed1b2794b4fbc2763942aac4cd06cbe0",
+  "acceptanceCriteriaHash": "3a929eb4e89d5820b762a87351a717f548f1ef1208207a5ff9d270c32bd6dec9",
+  "implementationScopeRef": "runtime/evidence/scopes/c360c2f74f29253b752993ace611c0eb32d984a3111e4b315ce9852eb8a2e294.json",
+  "implementationScopeHash": "c360c2f74f29253b752993ace611c0eb32d984a3111e4b315ce9852eb8a2e294",
+  "reportRef": "verification.md",
+  "reportHash": "f225ad601d16f3959bcd307938568e5102aee915855719b2f05c56cb98c9eee3",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "3a929eb4e89d5820b762a87351a717f548f1ef1208207a5ff9d270c32bd6dec9",
+    "total": 5,
+    "evidenced": 5,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-1f6b4aeaab2609f6730928906a15131ae038cd74636e0eaa11ef4b71ee28b05e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-2b535d4137120a31b55502cc63938c68329123f111aaf44d8ca1b5fd052d57ae",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-92253d190ad747a7da3fbe69d2d8d530b76f1a9021e3bea927bc3fd6d041911b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a036279ce6278f86f35ac4b54d57a9b5ee46575f9c26654d3a0b7dba1d675b6a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a0e1b9494231f8df468b29ac09efc897c1328649b1498e8e7ad58b489685f9a5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "6f0b812681c52196de46ca817da77abab522a47d0e24c8fc2b573ff487cd1752"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/2ad5e4a2ccd12f7e4c9827ee63b135291169c97f22f6b27f316e50aa36b3c106.json",
+  "createdAt": "2026-08-09T05:06:08.048Z",
+  "envelopeHash": "734d9ade90495bd96643bf544975beb12530d893e61c281d2a2d6e32e6043bea"
+}
