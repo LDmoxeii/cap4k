@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublishCompletion
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -30,14 +31,20 @@ class RocketMqIntegrationEventPublisher(
         envelope: IntegrationEventEnvelope,
         publishCallback: IntegrationEventPublisher.PublishCallback,
     ) {
-        val message: Message<Any> = GenericMessage(envelopeCodec.encode(envelope))
-        publishMessage(event, message, publishCallback)
+        val completion = IntegrationEventPublishCompletion(event, publishCallback)
+        try {
+            val message: Message<Any> = GenericMessage(envelopeCodec.encode(envelope))
+            publishMessage(event, message, completion)
+        } catch (throwable: Throwable) {
+            log.error("集成事件发布失败: ${event.id}", throwable)
+            completion.failure(throwable)
+        }
     }
 
     private fun publishMessage(
         event: EventRecord,
         message: Message<Any>,
-        publishCallback: IntegrationEventPublisher.PublishCallback,
+        completion: IntegrationEventPublishCompletion,
     ) {
         try {
             val destination = resolvePlaceholderWithCache(event.type, environment)
@@ -47,37 +54,30 @@ class RocketMqIntegrationEventPublisher(
             rocketMQTemplate.asyncSend(
                 destination,
                 message,
-                IntegrationEventSendCallback(event, publishCallback),
+                IntegrationEventSendCallback(event, completion),
             )
         } catch (ex: Exception) {
             log.error("集成事件发布失败: ${event.id}", ex)
-            publishCallback.onException(event, ex)
+            completion.failure(ex)
         }
     }
 
     class IntegrationEventSendCallback(
         private val event: EventRecord,
-        private val publishCallback: IntegrationEventPublisher.PublishCallback,
+        private val completion: IntegrationEventPublishCompletion,
     ) : SendCallback {
         companion object {
             private val log = LoggerFactory.getLogger(IntegrationEventSendCallback::class.java)
         }
 
         override fun onSuccess(sendResult: SendResult) {
-            try {
-                log.info("集成事件发送成功, ${event.id} msgId=${sendResult.msgId}")
-                publishCallback.onSuccess(event)
-            } catch (throwable: Throwable) {
-                log.error("回调失败（事件发送成功）", throwable)
-                publishCallback.onException(event, throwable)
-            }
+            log.info("集成事件发送成功, ${event.id} msgId=${sendResult.msgId}")
+            completion.success()
         }
 
         override fun onException(throwable: Throwable) {
-            runCatching {
-                log.error("集成事件发送失败, ${event.id}", throwable)
-                publishCallback.onException(event, throwable)
-            }.onFailure { log.error("回调失败（事件发送异常）", it) }
+            log.error("集成事件发送失败, ${event.id}", throwable)
+            completion.failure(throwable)
         }
     }
 }

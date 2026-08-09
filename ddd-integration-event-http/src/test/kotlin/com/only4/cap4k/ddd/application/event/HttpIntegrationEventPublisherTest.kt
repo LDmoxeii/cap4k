@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.core.env.Environment
 import java.time.Instant
+import java.util.concurrent.Executor
 
 @ExtendWith(MockKExtension::class)
 @DisplayName("HTTP集成事件发布器测试")
@@ -36,7 +37,9 @@ class HttpIntegrationEventPublisherTest {
         publisher = HttpIntegrationEventPublisher(
             subscriberRegister = subscriberRegister,
             environment = environment,
-            threadPoolSize = 2
+            threadPoolSize = 2,
+            executorOverride = Executor { command -> command.run() },
+            capabilityCaller = {},
         )
         publisher.init()
     }
@@ -97,10 +100,40 @@ class HttpIntegrationEventPublisherTest {
         // Act
         publisher.publish(eventRecord, envelope(eventRecord), publishCallback)
 
-        // Assert - 验证调用了订阅者查询
+        // Assert
         verify(exactly = 1) { subscriberRegister.subscribers("user.created") }
-        // 注意：由于异步执行和没有真实的Mediator，我们无法验证回调的调用
-        // 但至少验证了基本的订阅者查询逻辑
+        verify(exactly = 1) { publishCallback.onSuccess(eventRecord) }
+        verify(exactly = 0) { publishCallback.onException(any(), any()) }
+    }
+
+    @Test
+    @DisplayName("HTTP Capability 失败时只报告一次发布失败")
+    fun `should report exactly one failure when HTTP capability fails`() {
+        val eventRecord = createMockEventRecord("test-event", "user.created")
+        val failure = IllegalStateException("subscriber unavailable")
+        val subscribers = listOf(
+            HttpIntegrationEventSubscriberRegister.SubscriberInfo(
+                event = "user.created",
+                subscriber = "test-service",
+                callbackUrl = "http://localhost:8080/webhook",
+            )
+        )
+        val failingPublisher = HttpIntegrationEventPublisher(
+            subscriberRegister = subscriberRegister,
+            environment = environment,
+            executorOverride = Executor { command -> command.run() },
+            capabilityCaller = { throw failure },
+        )
+
+        every { environment.resolvePlaceholders("user.created") } returns "user.created"
+        every { subscriberRegister.subscribers("user.created") } returns subscribers
+        every { publishCallback.onSuccess(any()) } just runs
+        every { publishCallback.onException(any(), any()) } just runs
+
+        failingPublisher.publish(eventRecord, envelope(eventRecord), publishCallback)
+
+        verify(exactly = 0) { publishCallback.onSuccess(any()) }
+        verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
     }
 
     private fun createMockEventRecord(id: String, type: String): EventRecord {

@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublishCompletion
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.share.DomainException
@@ -14,7 +15,7 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.core.env.Environment
 import java.util.Date
-import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executor
 
 /** RabbitMQ adapter for the shared Integration Event envelope. */
 class RabbitMqIntegrationEventPublisher(
@@ -26,18 +27,19 @@ class RabbitMqIntegrationEventPublisher(
     private val autoDeclareExchange: Boolean = false,
     private val defaultExchangeType: String = "direct",
     private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
+    private val executorOverride: Executor? = null,
 ) : IntegrationEventPublisher {
 
     companion object {
         private val log = LoggerFactory.getLogger(RabbitMqIntegrationEventPublisher::class.java)
     }
 
-    private val executorService: ExecutorService by lazy {
-        createFixedThreadPool(threadPoolSize, threadFactoryClassName, this::class.java.classLoader)
+    private val executor: Executor by lazy {
+        executorOverride ?: createFixedThreadPool(threadPoolSize, threadFactoryClassName, this::class.java.classLoader)
     }
 
     fun init() {
-        executorService
+        executor
     }
 
     override fun publish(
@@ -45,17 +47,23 @@ class RabbitMqIntegrationEventPublisher(
         envelope: IntegrationEventEnvelope,
         publishCallback: IntegrationEventPublisher.PublishCallback,
     ) {
-        publishBody(
-            event = event,
-            body = envelopeCodec.encode(envelope),
-            publishCallback = publishCallback,
-        )
+        val completion = IntegrationEventPublishCompletion(event, publishCallback)
+        try {
+            publishBody(
+                event = event,
+                body = envelopeCodec.encode(envelope),
+                completion = completion,
+            )
+        } catch (throwable: Throwable) {
+            log.error("集成事件发布失败: ${event.id}", throwable)
+            completion.failure(throwable)
+        }
     }
 
     private fun publishBody(
         event: EventRecord,
         body: String,
-        publishCallback: IntegrationEventPublisher.PublishCallback,
+        completion: IntegrationEventPublishCompletion,
     ) {
         try {
             val destination = resolvePlaceholderWithCache(event.type, environment)
@@ -65,22 +73,23 @@ class RabbitMqIntegrationEventPublisher(
             val (exchange, tag) = parseDestination(destination)
             if (autoDeclareExchange) tryDeclareExchange(exchange, defaultExchangeType)
 
-            executorService.execute {
+            executor.execute {
                 runCatching {
                     rabbitTemplate.convertAndSend(
                         exchange,
                         tag,
                         body,
-                        IntegrationEventSendCallback(event, publishCallback),
+                        IntegrationEventSendCallback(event),
                     )
+                    completion.success()
                 }.onFailure { throwable ->
                     log.error("集成事件发布失败: ${event.id}", throwable)
-                    publishCallback.onException(event, throwable)
+                    completion.failure(throwable)
                 }
             }
         } catch (ex: Exception) {
             log.error("集成事件发布失败: ${event.id}", ex)
-            publishCallback.onException(event, ex)
+            completion.failure(ex)
         }
     }
 
@@ -104,22 +113,10 @@ class RabbitMqIntegrationEventPublisher(
 
     class IntegrationEventSendCallback(
         private val event: EventRecord,
-        private val publishCallback: IntegrationEventPublisher.PublishCallback,
     ) : MessagePostProcessor {
-        companion object {
-            private val log = LoggerFactory.getLogger(IntegrationEventSendCallback::class.java)
-        }
-
         override fun postProcessMessage(message: Message): Message {
-            log.info("集成事件发送成功, ${event.id}")
             message.messageProperties.messageId = event.id
             message.messageProperties.timestamp = Date.from(event.publishedAt)
-            try {
-                publishCallback.onSuccess(event)
-            } catch (throwable: Throwable) {
-                log.error("回调失败（事件发送成功）", throwable)
-                publishCallback.onException(event, throwable)
-            }
             return message
         }
     }

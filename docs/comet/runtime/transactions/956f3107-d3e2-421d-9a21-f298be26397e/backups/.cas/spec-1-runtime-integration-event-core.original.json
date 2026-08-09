@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-integration-event-core",
+  "role": "original",
+  "hash": "dcfa5a3b6609bce522de6e80d09a9436e0889041da9e87f86819cd9e070fe164",
+  "identity": {
+    "dev": 950912656,
+    "ino": 2533274791563802,
+    "birthtimeMs": 1786254726552.0144
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-integration-event-provider-completion",
+  "sourceRevision": 5,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "06b6429fbdf34ccc3dd083dc27f9c212336a6cd924c716c998fc2cc4f89a6678",
+  "acceptanceCriteriaHash": "0789a02922029eea5f412d62a984615fef939de2921aa649acb15bae3b04cf36",
+  "implementationScopeRef": "runtime/evidence/scopes/702b4e2f39e9429994af913d3187299e21280f5fffe7f94c18f68616d7de95e1.json",
+  "implementationScopeHash": "702b4e2f39e9429994af913d3187299e21280f5fffe7f94c18f68616d7de95e1",
+  "reportRef": "verification.md",
+  "reportHash": "12ab23ac0dc845f888fb8dceca80aec993072330f807245ecbde61b704879d31",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "0789a02922029eea5f412d62a984615fef939de2921aa649acb15bae3b04cf36",
+    "total": 8,
+    "evidenced": 8,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-10bc526de92d6e09130cf8d7ea374126fce848fb679032bf5a4c658b9cbba883",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-112a5a3fd5a6d3ac53d2f321edfc84726ec29ae8bf418d69b07291a5010c080e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-121a6deb90275fe1e89e5bea621603658aaad33f5a616289da5335e81447e559",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4208e209e9910b0d39b1bbc4d7abca11ba2997460a14ccd0d68105535fe15923",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ac23f17a2e9feb2a4570276080cffc200dd4b95ba0f3b15e3f33eac1dc17bfbf",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ae8ec00898bfdba0d7a7c2d6ea94104cefd1124dab41ecb6bb41b28a6fb18763",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d61839fd500b01948d973f5f03381ab8fb87a48c10aa43b41dd85942cd885f37",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-dc2487452d9b1f2f5a19ab0a9aaa66019ac493cd27db362c55e25dc7ff87d8b2",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisher.kt",
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "704b4d12d16777cae1410bb41bc5307e8f52a257151440c3b1b25d0ff42c91c4"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/0978f7524fca566f3a7a825fdce9cef3f8fbef48ce86feb7471b4f86c5a0c932.json",
+  "createdAt": "2026-08-09T06:37:28.109Z",
+  "envelopeHash": "b9bef6666bd0cd0a5a4f407d260085c2b8f0a6f8aa3197ffd4be18674ad80989"
+}

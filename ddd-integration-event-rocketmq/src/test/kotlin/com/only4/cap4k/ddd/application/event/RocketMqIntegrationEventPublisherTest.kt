@@ -2,6 +2,7 @@ package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublishCompletion
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import io.mockk.*
 import org.apache.rocketmq.client.producer.SendCallback
@@ -40,19 +41,19 @@ class RocketMqIntegrationEventPublisherTest {
         // given - 使用已解析的topic避免静态方法调用
         val eventId = "test-event-id"
         val eventType = "resolved-topic" // 直接使用已解析的topic
-        val eventMessage = mockk<Message<Any>>()
-
         every { eventRecord.id } returns eventId
         every { eventRecord.type } returns eventType
-        every { eventRecord.message } returns eventMessage
-        every { rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>()) } just Runs
+        every {
+            rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>())
+        } answers {
+            thirdArg<SendCallback>().onSuccess(mockk(relaxed = true))
+        }
 
         // when - 执行发布操作
         publisher.publish(eventRecord, envelope(), publishCallback)
 
-        // then - 验证方法正常执行不抛异常
-        // 由于resolvePlaceholderWithCache调用复杂，这里只验证方法能正常调用
-        assertTrue(true) // 如果到这里说明没有抛异常
+        verify(exactly = 1) { publishCallback.onSuccess(eventRecord) }
+        verify(exactly = 0) { publishCallback.onException(any(), any()) }
     }
 
     @Test
@@ -74,6 +75,29 @@ class RocketMqIntegrationEventPublisherTest {
 
         // then - 验证异常被处理，方法正常返回
         verify(exactly = 1) { publishCallback.onException(eventRecord, exception) }
+        verify(exactly = 0) { publishCallback.onSuccess(any()) }
+    }
+
+    @Test
+    @DisplayName("RocketMQ 异步发送失败时只报告一次发布失败")
+    fun `should report exactly one failure for asynchronous RocketMQ error`() {
+        val eventId = "test-event-id"
+        val eventType = "resolved-topic"
+        val failure = RuntimeException("异步发送失败")
+
+        every { eventRecord.id } returns eventId
+        every { eventRecord.type } returns eventType
+        every {
+            rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>())
+        } answers {
+            thirdArg<SendCallback>().onException(failure)
+            thirdArg<SendCallback>().onSuccess(mockk(relaxed = true))
+        }
+
+        publisher.publish(eventRecord, envelope(), publishCallback)
+
+        verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
+        verify(exactly = 0) { publishCallback.onSuccess(any()) }
     }
 
     @Test
@@ -88,7 +112,10 @@ class RocketMqIntegrationEventPublisherTest {
         every { sendResult.msgId } returns msgId
         every { publishCallback.onSuccess(eventRecord) } just Runs
 
-        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(eventRecord, publishCallback)
+        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(
+            eventRecord,
+            IntegrationEventPublishCompletion(eventRecord, publishCallback),
+        )
 
         // when
         callback.onSuccess(sendResult)
@@ -98,7 +125,7 @@ class RocketMqIntegrationEventPublisherTest {
     }
 
     @Test
-    @DisplayName("集成事件发送回调应该在成功回调异常时调用异常回调")
+    @DisplayName("成功回调异常不应改写为发布失败")
     fun `integration event send callback should call exception callback when success callback throws`() {
         // given
         val eventId = "test-event-id"
@@ -111,14 +138,17 @@ class RocketMqIntegrationEventPublisherTest {
         every { publishCallback.onSuccess(eventRecord) } throws exception
         every { publishCallback.onException(eventRecord, exception) } just Runs
 
-        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(eventRecord, publishCallback)
+        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(
+            eventRecord,
+            IntegrationEventPublishCompletion(eventRecord, publishCallback),
+        )
 
         // when
         callback.onSuccess(sendResult)
 
         // then
         verify { publishCallback.onSuccess(eventRecord) }
-        verify { publishCallback.onException(eventRecord, exception) }
+        verify(exactly = 0) { publishCallback.onException(any(), any()) }
     }
 
     @Test
@@ -133,7 +163,10 @@ class RocketMqIntegrationEventPublisherTest {
         every { eventRecord.payload } returns eventPayload
         every { publishCallback.onException(eventRecord, exception) } just Runs
 
-        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(eventRecord, publishCallback)
+        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(
+            eventRecord,
+            IntegrationEventPublishCompletion(eventRecord, publishCallback),
+        )
 
         // when
         callback.onException(exception)
@@ -155,7 +188,10 @@ class RocketMqIntegrationEventPublisherTest {
         every { eventRecord.payload } returns eventPayload
         every { publishCallback.onException(eventRecord, originalException) } throws callbackException
 
-        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(eventRecord, publishCallback)
+        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(
+            eventRecord,
+            IntegrationEventPublishCompletion(eventRecord, publishCallback),
+        )
 
         // when
         callback.onException(originalException)
@@ -168,7 +204,10 @@ class RocketMqIntegrationEventPublisherTest {
     @DisplayName("应该能够创建发送回调实例")
     fun `should be able to create send callback instance`() {
         // given & when
-        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(eventRecord, publishCallback)
+        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(
+            eventRecord,
+            IntegrationEventPublishCompletion(eventRecord, publishCallback),
+        )
 
         // then
         assertNotNull(callback)
