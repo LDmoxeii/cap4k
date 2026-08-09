@@ -1,0 +1,102 @@
+# Acceptance evidence
+
+<!-- comet-native:acceptance-evidence:start -->
+[
+  {
+    "acceptance_id": "acceptance-027bdfd6d2e7a55588b97946d76287d2f5fe8c3bbe79f9f5048489c708d0c73c",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSelfRouteTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventRealClientTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-315e557c9c84ca2625e502293f04a501aacbb87194295e81e8afa45c90177c79",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventConsumeHandlerTest.kt",
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSelfRouteTest.kt",
+      "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-43e87ff5da5718d93c362c140e7c23b2004a5c7770eb3a1be415e40ee4c4d4b0",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfigurationTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventRouteInterceptorTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventRouteResolverTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-4d138a4c6f4974052b4495a5dbf6813dc7572ed15d10827c39d5d453d69c05de",
+    "evidence_refs": [
+      "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventRealClientTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-4e3d6ee1ee25fbdb59aec1838df2acc61b103d75b5a21758f1fc1d27813078a4",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSelfRouteTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventRouteResolverTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-64e9cacdf2c696e47d76d3338ba92c6dc301ad1add0e96e1d5987f247d513a6d",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventConsumeHandlerTest.kt",
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSelfRouteTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventDeliveryContextTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventExecutionContextTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-909f5eb0c0683424fe1f9beae0ab00e3b1fd5e7a7644534dcd091fa033085335",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfiguration.kt",
+      "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisher.kt",
+      "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-929883012f228083dffae0f33b94a4e36888d5cb59b863338e4b232a657f8659",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventConsumeHandlerTest.kt",
+      "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventDeliveryContextTest.kt"
+    ]
+  }
+]
+<!-- comet-native:acceptance-evidence:end -->
+
+# Commands and results
+
+- Focused HTTP/Core tests passed: 32 tests across `ddd-core`, `ddd-integration-event-http`, and `cap4k-ddd-integration-event-http-starter`, including route validation, pre-persistence rejection, 2xx/non-2xx, connection refusal, response timeout, once-only failures, context cleanup, POST-only handling, duplicate delivery, real self-routing, and a real scoped asynchronous Query success/failure boundary.
+- `./gradlew.bat check --stacktrace` completed successfully on 2026-08-09 in 6 minutes 14 seconds after the JPA+HTTP composition fixture was updated to provide the new Runtime Provider State registry contract. The final run reported `BUILD SUCCESSFUL` with 202 actionable tasks (2 executed, 200 up-to-date).
+- `git diff --check` completed without whitespace errors. Git emitted only normal LF/CRLF normalization warnings for the Windows worktree.
+- `comet native check runtime-http-experience-reset --json` passed with receipt `runtime/evidence/check-receipts/11acd63fd1283b33409db2ad834822d5606277a192ae7a4f1d648d738832df67.json`; 20 scoped files scanned and 0 issues.
+- Static scans found no alternate route syntax, old HTTP property prefix, dynamic subscribe/unsubscribe or callback-registration surface, HTTP-JPA surface, HTTP-owned retry state machine, or raw payload/envelope values passed to HTTP production log calls.
+- Independent read-only review found no blocking correctness issue in route enrollment, fixed endpoint mapping, completion fencing, context cleanup, provider state transitions, or self-routing. The review also confirmed that the HTTP provider does not probe endpoints during startup and leaves reliable retry/lease ownership to Runtime.
+
+# Skipped checks
+
+- Remote PR CI was not run in this local verification phase. Pushing the branch and opening the normal PR into `master` will run the protected `check` workflow.
+- RabbitMQ and RocketMQ provider behavior remains outside this HTTP experience slice and is covered by their own Batch 4 branches/specifications.
+- This provider intentionally remains an experience transport: its executor queue is not a production broker buffer, shutdown does not drain external handoffs, and request-body size limits are not exposed as a second HTTP configuration model.
+
+# Spec consistency
+
+- HTTP keeps exactly one route map keyed by the stable `@IntegrationEvent.value`, with one fixed `POST /cap4k/integration-events` endpoint and no broadcast, discovery, dynamic subscription, loopback mode, or alternate syntax.
+- The provider sends the shared Jackson envelope and delegates attempt, lease, retry, acknowledgement, and durable state ownership to the existing Runtime Event coordinator.
+- Inbound delivery uses the shared Handler factory and InvocationScope contract. `Mediator`-managed async Query work is tracked inside the Handler scope; the HTTP response and publisher completion are emitted only after that scope succeeds.
+- `ReliableEventDeliveryContext` and execution context are installed only around local delivery and are cleared on both success and failure.
+- Provider state begins `UNKNOWN`, records `DEGRADED`/`RECOVERING` on observed handoff failures, and becomes `HEALTHY` only after an observed 2xx handoff.
+
+# Known limitations and risks
+
+- The HTTP experience publisher uses the existing fixed executor helper; its queue is intentionally not treated as a reliable delivery buffer. Reliable retry and lease recovery remain the source of truth.
+- Spring shutdown calls the publisher's close hook and stops new work; in-flight/queued handoffs are still subject to process-loss and at-least-once retry semantics.
+- The fixed receiver currently reads the request body into memory because the endpoint is intended for local experience use rather than public exposure.
+
+# Conclusion
+
+Pass. The confirmed HTTP experience contract is implemented, the focused and full repository checks are green, Comet's scoped safety check reports zero issues, and the implementation stays within the shared Runtime Transport boundaries.

@@ -16,6 +16,8 @@ import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
+import com.only4.cap4k.ddd.core.application.provider.InMemoryRuntimeProviderStateRegistry
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.domain.event.DomainEventJpaAutoConfiguration
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -86,6 +88,9 @@ class ReliableEventTransportCompositionTest {
 
         @Bean
         fun invocationScopeAccessor(): InvocationScopeAccessor = DefaultInvocationScopeManager()
+
+        @Bean
+        fun runtimeProviderStateRegistry(): RuntimeProviderStateRegistry = InMemoryRuntimeProviderStateRegistry()
 
         @Bean
         fun eventTypeCatalog(): EventTypeCatalog = object : EventTypeCatalog {

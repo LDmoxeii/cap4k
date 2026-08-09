@@ -49,7 +49,7 @@ class HttpIntegrationEventDeliveryContextTest {
         assertTrue(
             fixture.adapter.consume(
                 envelope("event-123", publishedAt, HttpDeliveryEvent("payload")),
-            ),
+            ).success,
         )
 
         val context = requireNotNull(observed.inDispatcher)
@@ -85,7 +85,7 @@ class HttpIntegrationEventDeliveryContextTest {
                     Instant.parse("2026-08-04T00:00:00Z"),
                     HttpDeliveryEvent("payload"),
                 ),
-            ),
+            ).success,
         )
 
         assertTrue(observed.inDispatcher != null)
@@ -105,11 +105,11 @@ class HttpIntegrationEventDeliveryContextTest {
 
         assertTrue(fixture.adapter.consume(
             envelope("first", Instant.parse("2026-08-04T00:00:00Z"), HttpDeliveryEvent("first")),
-        ))
+        ).success)
         assertNull(fixture.deliveryManager.currentOrNull())
         assertTrue(fixture.adapter.consume(
             envelope("second", Instant.parse("2026-08-04T00:00:01Z"), HttpDeliveryEvent("second")),
-        ))
+        ).success)
         assertNull(fixture.deliveryManager.currentOrNull())
 
         assertEquals(listOf("first", "second"), observed.map { it?.eventId })
@@ -142,7 +142,7 @@ class HttpIntegrationEventDeliveryContextTest {
                         Instant.parse("2026-08-04T00:00:00Z"),
                         HttpDeliveryEvent("skip", enabled = false),
                     ),
-                ),
+                ).success,
             )
 
             assertEquals(0, context.getBean(ConditionalHttpHandler::class.java).calls)
