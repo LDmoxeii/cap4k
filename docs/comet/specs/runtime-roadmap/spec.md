@@ -2,7 +2,8 @@
 
 ## Status and purpose
 
-Status: Proposed roadmap, based on the confirmed Runtime target contract.
+Status: Batch 4 specification closed; transport implementation is ready for independent dispatch,
+based on the confirmed Runtime target contract.
 
 This document is the durable index for the remaining Runtime implementation. It records the
 branch boundaries, dependency order, parallel batches, and acceptance evidence so that later
@@ -44,9 +45,15 @@ Merged before this roadmap:
 | Snowflake retirement | PR #162, `runtime-snowflake-retirement` |
 | Generated repository adapter boundary | PR #163, `generated-repository-adapter-boundary` |
 | Runtime Jackson core contract | PR #164, `runtime-jackson-only` |
+| Retired Runtime Agent descriptors | PR #166, `runtime-agent-retired-descriptors` |
+| Reliable retry-policy snapshot | PR #167, `reliable-retry-policy-snapshot` |
+| Single-provider composition | PR #168, `runtime-provider-composition` |
+| Safe failure facts and result-repository removal | PR #169, `runtime-safe-failure-result-repository` |
 
-The Runtime Jackson contract is complete. The remaining work starts from `origin/master` after
-PR #164 and must not re-open its codec decisions.
+The Runtime Jackson contract and the Batch 2 composition/fact slices are complete. The substrate,
+command, event, retention/redrive, and Integration Event core slices are also merged on the current
+`origin/master` through PRs #170–#175. Batch 4 transport branches must start from the latest
+`origin/master` and must not re-open the landed Jackson, reliable-state, or envelope decisions.
 
 ## Main Runtime dependency graph
 
@@ -144,19 +151,49 @@ These slices may be designed or implemented in parallel from updated `origin/mas
 4. **Post-retirement Runtime Agent descriptors** — remove Snowflake/Console capability claims and
    expose only current Runtime descriptors.
 
-### Batch 3: substrate and core event work
+### Batch 3: substrate and core event work — complete on current master
 
-1. JPA atomic claim/lease and token renewal.
-2. Manual redrive with explicit operator intent and bounded state transitions.
-3. Retention/cleanup policies for completed, failed, and expired reliable records.
-4. Integration Event core contract: one envelope/context/state boundary before broker-specific
-   behavior is added.
+1. JPA atomic claim/lease and token renewal — PR #170.
+2. Reliable Command state machine — PR #171.
+3. Reliable Event state machine and delivery context — PR #172.
+4. Manual redrive and bounded retention/cleanup — PRs #173 and #174.
+5. Integration Event core envelope and once-only provider completion — PR #175.
+
+Batch 3 is complete for planning purposes. Its verification evidence remains a prerequisite for
+transport implementation and later Runtime surface cleanup.
 
 ### Batch 4: transports
 
-1. HTTP experience reset: static routes, self-routing, local process demo, and no broker claim.
-2. RabbitMQ confirm/routes/subscription identity and acknowledgement boundary.
-3. RocketMQ routes/subscription identity and error boundary.
+The three provider slices are now fully specified and may be distributed independently from the
+latest `origin/master`:
+
+1. `fix/runtime-http-experience-reset` — static `routes[eventName] -> baseUrl`, fixed receive
+   endpoint, self-routing, one target, synchronous response acknowledgement, and no subscriber
+   registry/JPA surface. See `runtime-http-experience-reset/spec.md`.
+2. `feature/runtime-rabbitmq-transport` — explicit exchange/routing-key routes, stable
+   `applicationName + eventName` queues, actual publisher confirms, consumer ack after the local
+   Handler scope, reconnect state, and safe redelivery. See `runtime-rabbitmq-transport/spec.md`.
+3. `feature/runtime-rocketmq-transport` — explicit topic/tag routes, stable
+   `applicationName + eventName` consumer groups, SDK send-result confirmation, consumer success or
+   retry result after the local Handler scope, reconnect state, and safe diagnostics. See
+   `runtime-rocketmq-transport/spec.md`.
+
+All three branches share the umbrella contract in `runtime-integration-event-transport/spec.md`.
+There are no remaining product-level transport choices in Batch 4; provider SDK/API facts must be
+proven in focused adapter tests and must not be replaced by invented generic semantics.
+
+The semantic slices are parallelizable, but their implementation must assign one owner to the small
+shared Runtime surface before provider-specific edits are merged:
+
+- remove the public `IntegrationEvent.subscriber`/`NONE_SUBSCRIBER` contract;
+- remove HTTP dynamic subscriber registration, capabilities, JPA carrier, and table;
+- derive inbound subscriptions from actual `@EventListener` Integration Event methods;
+- install the common route/catalog/provider-selection boundary used by all three adapters.
+
+If that shared surface is extracted as a short common feature branch, the three provider branches
+start from it. If one provider branch owns it, the other two rebase from its merged commit before
+editing overlapping files. No provider branch may independently recreate or preserve a second
+subscriber/route model.
 
 ## Cross-branch non-goals
 
