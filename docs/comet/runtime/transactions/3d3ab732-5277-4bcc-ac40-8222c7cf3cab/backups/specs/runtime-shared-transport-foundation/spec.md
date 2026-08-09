@@ -15,14 +15,8 @@ acknowledgement remain provider-owned.
   provider route configuration.
 - Subscriber, destination, URL, exchange, routing key, topic, tag, queue, and
   consumer-group values do not appear on the annotation.
-- A blank value is invalid when a payload is registered, released, converted
-  into a reliable record, or persisted for Integration Event delivery.
-- Eager attachment rejects a blank event name before attachment. Lazy
-  attachment remains lazy, but the resolved payload is rejected before record
-  creation or repository save.
-- The durable JPA Event carrier rejects blank `eventType` values at its
-  persistence lifecycle boundary so lower-level paths cannot create a durable
-  invalid record.
+- A blank value is invalid when a payload is registered or persisted for
+  reliable Integration Event delivery.
 
 ## Canonical envelope and completion
 
@@ -50,12 +44,6 @@ acknowledgement remain provider-owned.
   no registry or per-handler transport state is created.
 - Provider adapters consume this view and derive their own queue/group/endpoint
   identity from application configuration and provider topology.
-- An active transport materializes and validates its registration view during
-  provider enrollment. Blank event names and one event name mapped to different
-  payload classes fail deterministically before message delivery begins.
-- Core applications without an active Integration Event transport do not
-  perform provider enrollment validation merely because the catalog/view beans
-  exist.
 
 ## Common provider boundary
 
@@ -99,17 +87,6 @@ static `routes[eventName] -> baseUrl` map.
   is cleared after the local synchronous Handler scope. Its identity is
   provider-supplied and stable across redelivery; provider topology is not
   exposed as shared business context.
-
-## Verification
-
-- Core tests prove eager and lazy blank-name Integration Events fail before
-  `EventRecordRepository.create()` or `save()`.
-- JPA tests prove payload conversion rejects blank names and direct persistence
-  cannot insert a record with blank `eventType`.
-- HTTP starter context tests prove active transport enrollment fails for blank
-  event names and duplicate names mapped to different payload classes.
-- Core-only context tests prove provider enrollment validation is not imposed
-  when no Integration Event transport is active.
 
 ## Non-goals
 

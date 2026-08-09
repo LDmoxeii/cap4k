@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.domain.event.persistence
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPayloadValidator
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventPayloadValidator
@@ -250,6 +251,7 @@ class Event(
     private fun loadPayload(payload: Any) {
         val integrationEvent = payload.javaClass.getAnnotation(IntegrationEvent::class.java)
         val domainEvent = payload.javaClass.getAnnotation(DomainEvent::class.java)
+        val integrationEventName = integrationEvent?.let { IntegrationEventPayloadValidator.eventName(payload) }
 
         if (integrationEvent == null && domainEvent == null) {
             throw DomainException("事件类型未指定: ${payload.javaClass.name}")
@@ -261,7 +263,7 @@ class Event(
         this.dataType = payload.javaClass.name
 
         this.eventType = when {
-            integrationEvent != null -> integrationEvent.value
+            integrationEventName != null -> integrationEventName
             domainEvent != null -> domainEvent.value
             else -> error("unreachable")
         }
@@ -272,6 +274,14 @@ class Event(
         this.tryTimes = policySnapshot.retryLimit
         if (retry != null) {
             this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
+        }
+    }
+
+    @PrePersist
+    @PreUpdate
+    fun validatePersistenceInvariants() {
+        if (eventType.isBlank()) {
+            throw DomainException("Reliable Event eventType must not be blank")
         }
     }
 

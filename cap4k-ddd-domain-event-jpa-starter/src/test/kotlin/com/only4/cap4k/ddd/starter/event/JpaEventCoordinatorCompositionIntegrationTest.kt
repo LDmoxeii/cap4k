@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -70,6 +71,29 @@ class JpaEventCoordinatorCompositionIntegrationTest {
     fun reset() {
         records.deleteAll()
         dispatcher.reset()
+    }
+
+    @Test
+    fun `persistence boundary rejects blank event type without a durable row`() {
+        val invalid = Event().init(
+            DomainTestEvent("invalid"),
+            SERVICE,
+            LocalDateTime.now(),
+            Duration.ofMinutes(1),
+            1,
+        ).apply {
+            eventType = "   "
+        }
+
+        val failure = assertThrows(RuntimeException::class.java) {
+            records.saveAndFlush(invalid)
+        }
+        val failureMessages = generateSequence<Throwable>(failure) { it.cause }
+            .mapNotNull(Throwable::message)
+            .joinToString("\n")
+
+        assertTrue(failureMessages.contains("eventType must not be blank"), failureMessages)
+        assertEquals(0, records.count())
     }
 
     @Test

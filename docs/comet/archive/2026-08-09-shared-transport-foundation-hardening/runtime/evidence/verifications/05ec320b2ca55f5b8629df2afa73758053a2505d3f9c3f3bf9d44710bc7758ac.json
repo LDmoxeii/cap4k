@@ -1,0 +1,90 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "shared-transport-foundation-hardening",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "0d4428534ffde49752145558dd4a91e42e7d8b553db59ba3c1145951aca66763",
+  "acceptanceCriteriaHash": "b02731c79e64f3e9304a73a9e22914f12127e1ef5d7fed46db147be467ef8dbe",
+  "implementationScopeRef": "runtime/evidence/scopes/3578d935a6258fd07981940c81b49ae07b2c45f8d463d3b6664b7f66c8c667cd.json",
+  "implementationScopeHash": "3578d935a6258fd07981940c81b49ae07b2c45f8d463d3b6664b7f66c8c667cd",
+  "reportRef": "verification.md",
+  "reportHash": "d1c331f349341565c34267727609866cd7d9c1e598438970f3df8b2e5b0daf8a",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "b02731c79e64f3e9304a73a9e22914f12127e1ef5d7fed46db147be467ef8dbe",
+    "total": 6,
+    "evidenced": 6,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-2344c398c375d6e0e25bdb5d073fca515f2ee454394ee8fa6ae089c17c1dbe1c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPayloadValidator.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisor.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7006f74b2e858c490a8cc6a7b4b75652ab15acbe90b146db3c8587d6da818c9e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7d6ec2161f3c2c896cc93b68a05cd06fae4c7a1f57bec62a0dd04e969b61fc22",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventCoordinatorCompositionIntegrationTest.kt",
+          "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a733a0fd44d62e680cfdfd4eabd6e8b710836e508e014245bfd9a00fe5dd4077",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfigurationTest.kt",
+          "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ad68c1d2ce57493bf9c9928475f73cca2c241922dd6e1bcaa57920fd62e4b8e8",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-http-starter/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfigurationTest.kt",
+          "ddd-integration-event-http/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventSubscriberAdapter.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-b5bb0fcde907a6dbafdbe083013efb3ce57e607516f49902726f133940c3aef2",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPayloadValidator.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisor.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/impl/DefaultIntegrationEventSupervisorTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "146fd521a72a34d8edbb220513a7b90a5d762b03ecb89f227b0d6b7ff9189079"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/f7a30637e1d93eb8df2e71bba6c735cc852864fc6db6a1cc35542251d1ff8071.json",
+  "createdAt": "2026-08-09T13:41:58.539Z",
+  "envelopeHash": "05ec320b2ca55f5b8629df2afa73758053a2505d3f9c3f3bf9d44710bc7758ac"
+}

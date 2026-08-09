@@ -18,6 +18,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.context.ApplicationEventPublisher
@@ -108,6 +109,34 @@ class DefaultIntegrationEventSupervisorTest {
     }
 
     @Test
+    fun `eager blank event name is rejected before repository creation`() {
+        val failure = assertThrows(DomainException::class.java) {
+            supervisor.enqueue(BlankNamedIntegrationEvent("eager"))
+        }
+
+        assertTrue(failure.message.orEmpty().contains("non-blank event name"))
+        verify(exactly = 0) { repository.create() }
+        verify(exactly = 0) { repository.save(any()) }
+    }
+
+    @Test
+    fun `lazy blank event name is rejected on release before repository creation`() {
+        var calls = 0
+        supervisor.enqueue {
+            calls += 1
+            BlankNamedIntegrationEvent("lazy")
+        }
+
+        assertEquals(0, calls)
+        val failure = assertThrows(DomainException::class.java) { supervisor.release() }
+
+        assertEquals(1, calls)
+        assertTrue(failure.message.orEmpty().contains("non-blank event name"))
+        verify(exactly = 0) { repository.create() }
+        verify(exactly = 0) { repository.save(any()) }
+    }
+
+    @Test
     fun `non integration payload and invalid invocation scope are rejected`() {
         assertThrows(DomainException::class.java) { supervisor.enqueue(RegularPayload("bad")) }
 
@@ -127,6 +156,9 @@ class DefaultIntegrationEventSupervisorTest {
 
     @IntegrationEvent("test.integration")
     data class TestIntegrationEvent(val value: String)
+
+    @IntegrationEvent("   ")
+    data class BlankNamedIntegrationEvent(val value: String)
 
     data class RegularPayload(val value: String)
 }

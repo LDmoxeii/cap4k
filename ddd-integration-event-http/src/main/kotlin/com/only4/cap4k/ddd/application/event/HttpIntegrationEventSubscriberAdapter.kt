@@ -32,7 +32,7 @@ class HttpIntegrationEventSubscriberAdapter(
     private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
 ) {
     private val log = LoggerFactory.getLogger(HttpIntegrationEventSubscriberAdapter::class.java)
-    private val eventPayloadClassMap by lazy(eventTypeCatalog::integrationEventTypesByName)
+    private val eventPayloadClassMap = eventTypeCatalog.integrationEventTypesByName()
 
     private val orderedEventMessageInterceptors by lazy {
         eventMessageInterceptors.sortedBy { interceptor ->

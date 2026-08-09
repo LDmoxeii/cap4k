@@ -174,6 +174,28 @@ class CoreStarterAutoConfigurationTest {
     }
 
     @Test
+    fun `core-only startup does not materialize transport enrollment`() {
+        var materializations = 0
+        contextRunner
+            .withBean(
+                EventTypeCatalog::class.java,
+                Supplier {
+                    object : EventTypeCatalog {
+                        override fun integrationEventTypes(): Set<Class<*>> {
+                            materializations += 1
+                            return setOf(BlankCoreIntegrationEvent::class.java)
+                        }
+                    }
+                },
+            )
+            .run { context ->
+                assertTrue(context.startupFailure == null, context.startupFailure?.stackTraceToString())
+                assertEquals(0, materializations)
+                assertEquals(1, context.getBeansOfType(InboundIntegrationEventRegistrationView::class.java).size)
+            }
+    }
+
+    @Test
     fun `optional integration event manager conflict fails instead of degrading to absent`() {
         contextRunner
             .withBean("integrationManagerB", TestIntegrationEventManager::class.java)
@@ -333,6 +355,8 @@ class CoreStarterAutoConfigurationTest {
     @IntegrationEvent("test.orphan")
     data class OrphanIntegrationEvent(val value: String)
 
+    @IntegrationEvent("   ")
+    data class BlankCoreIntegrationEvent(val value: String)
 
     class TestEventListener {
         val events = mutableListOf<TestEvent>()
