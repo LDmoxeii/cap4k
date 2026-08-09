@@ -1,12 +1,15 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.rabbitmq.client.Channel
 import io.mockk.*
 import org.junit.jupiter.api.AfterEach
@@ -29,8 +32,12 @@ import org.springframework.core.env.Environment
 @DisplayName("RabbitMQ集成事件订阅适配器测试")
 class RabbitMqIntegrationEventSubscriberAdapterTest {
 
-    private val noOpReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
-        override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
+    private var installedDeliveryContext: ReliableEventDeliveryContext? = null
+    private val observingReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
+        override fun install(context: ReliableEventDeliveryContext): AutoCloseable {
+            installedDeliveryContext = context
+            return AutoCloseable { }
+        }
         override fun suppress(): AutoCloseable = AutoCloseable { }
     }
 
@@ -41,16 +48,19 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     private lateinit var environment: Environment
     private lateinit var adapter: RabbitMqIntegrationEventSubscriberAdapter
     private val eventTypeCatalog = object : EventTypeCatalog {
-        override fun integrationEventTypes(): Set<Class<*>> = setOf(TestEventPayload::class.java)
+        override fun integrationEventTypes(): Set<Class<*>> = emptySet()
     }
 
     @BeforeEach
     fun setUp() {
+        clearPlaceholderCache()
         eventHandlerDispatcher = mockk()
         rabbitMqIntegrationEventConfigure = mockk()
         rabbitListenerContainerFactory = mockk()
         connectionFactory = mockk()
         environment = mockk()
+        installedDeliveryContext = null
+        every { environment.resolvePlaceholders(any()) } answers { firstArg() }
 
         adapter = RabbitMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = eventHandlerDispatcher,
@@ -63,7 +73,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             applicationName = "test-app",
             msgCharset = "UTF-8",
             autoDeclareQueue = false,
-            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
+            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
     }
 
@@ -144,7 +154,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             applicationName = "test-app",
             msgCharset = "UTF-8",
             autoDeclareQueue = true,
-            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
+            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
 
         val mockContainer = mockk<SimpleMessageListenerContainer>()
@@ -183,7 +193,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         val testPayload = TestEventPayload("test")
 
         every { message.messageProperties } returns messageProperties
-        every { message.body } returns RuntimeJson.write(testPayload).toByteArray()
+        every { message.body } returns canonicalBody(testPayload)
         every { messageProperties.deliveryTag } returns deliveryTag
         every { messageProperties.messageId } returns messageId
         every { messageProperties.headers } returns mutableMapOf()
@@ -206,6 +216,13 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         // Assert
         verify { eventHandlerDispatcher.dispatch(testPayload) }
         verify { channel.basicAck(deliveryTag, false) }
+        val deliveryContext = requireNotNull(installedDeliveryContext)
+        assertEquals("test-id", deliveryContext.eventId)
+        assertEquals("test.exchange:routing.key", deliveryContext.eventName)
+        assertEquals(java.time.Instant.ofEpochMilli(1_000), deliveryContext.publishedAt)
+        assertEquals(2, deliveryContext.attempt)
+        assertEquals("subscriber", deliveryContext.subscriberIdentity)
+        assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
     }
 
     @Test
@@ -265,7 +282,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             environment = environment,
             eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app",
-            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
+            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
 
         val message = mockk<Message>()
@@ -274,7 +291,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         val testPayload = TestEventPayload("test")
 
         every { message.messageProperties } returns messageProperties
-        every { message.body } returns RuntimeJson.write(testPayload).toByteArray()
+        every { message.body } returns canonicalBody(testPayload)
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
@@ -328,7 +345,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
             environment = environment,
             eventTypeCatalog = eventTypeCatalog,
             applicationName = "test-app",
-            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
+            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
 
         // 测试通过业务逻辑验证排序功能，而不是直接访问字段
@@ -338,7 +355,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         val testPayload = TestEventPayload("test")
 
         every { message.messageProperties } returns messageProperties
-        every { message.body } returns RuntimeJson.write(testPayload).toByteArray()
+        every { message.body } returns canonicalBody(testPayload)
         every { messageProperties.deliveryTag } returns 123L
         every { messageProperties.messageId } returns "test-id"
         every { messageProperties.headers } returns mutableMapOf()
@@ -410,5 +427,26 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     @IntegrationEvent("test.exchange:routing.key", IntegrationEvent.NONE_SUBSCRIBER)
     private class NoneSubscriberIntegrationEvent
 
+    @IntegrationEvent("test.exchange:routing.key", "subscriber")
     private data class TestEventPayload(val data: String)
+
+    private fun canonicalBody(payload: TestEventPayload): ByteArray =
+        IntegrationEventEnvelopeCodec().encode(
+            IntegrationEventEnvelope(
+                eventId = "test-id",
+                eventType = "test.exchange:routing.key",
+                originService = "test-source",
+                publishedAt = java.time.Instant.ofEpochMilli(1_000),
+                deliveryAttempt = 2,
+                executionContext = emptyList(),
+                payloadJson = RuntimeJson.write(payload),
+            )
+        ).toByteArray()
+
+    private fun clearPlaceholderCache() {
+        val field = Class.forName("com.only4.cap4k.ddd.core.share.misc.TextUtils")
+            .getDeclaredField("resolvePlaceholderCache")
+        field.isAccessible = true
+        (field.get(null) as MutableMap<*, *>).clear()
+    }
 }

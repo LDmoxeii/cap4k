@@ -32,7 +32,7 @@ object IntegrationEventHttpCallbackTriggerCapability {
 
             return runCatching {
                 val requestEntity = createRequestEntity(
-                    request.payload,
+                    request.envelopeJson ?: request.payload?.let { RuntimeJson.write(it) },
                     request.publishedAt,
                     request.executionContext,
                 )
@@ -62,8 +62,8 @@ object IntegrationEventHttpCallbackTriggerCapability {
             }
         }
 
-        private fun createRequestEntity(payload: Any?, publishedAt: Instant, executionContext: String) = HttpEntity(
-            payload?.let { RuntimeJson.write(it).toByteArray(StandardCharsets.UTF_8) },
+        private fun createRequestEntity(payloadJson: String?, publishedAt: Instant, executionContext: String) = HttpEntity(
+            payloadJson?.toByteArray(StandardCharsets.UTF_8),
             HttpHeaders().apply {
                 contentType = MediaType.APPLICATION_JSON
                 set(HEADER_KEY_CAP4K_TIMESTAMP, publishedAt.toEpochMilli().toString())
@@ -108,6 +108,8 @@ object IntegrationEventHttpCallbackTriggerCapability {
         val payload: Any?,
         val publishedAt: Instant,
         val executionContext: String = "[]",
+        /** Canonical transport-neutral envelope JSON; legacy payload fields remain for old direct callers. */
+        val envelopeJson: String? = null,
     ) : CapabilityCall<Response>
 
     data class Response(

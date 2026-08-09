@@ -8,11 +8,12 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -49,17 +50,22 @@ class HttpIntegrationEventExecutionContextTest {
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager),
         ).apply { init() }
-        val envelope = IntegrationEventExecutionContextEnvelope.encode(
-            codecRegistry.encode(originSnapshot(), ExecutionContextBoundary.INTEGRATION_EVENT),
+        val envelope = IntegrationEventEnvelopeCodec().encode(
+            IntegrationEventEnvelope(
+                eventId = "event-123",
+                eventType = "context.transport.event",
+                originService = "test-source",
+                publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+                deliveryAttempt = null,
+                executionContext = codecRegistry.encode(
+                    originSnapshot(),
+                    ExecutionContextBoundary.INTEGRATION_EVENT,
+                ),
+                payloadJson = RuntimeJson.write(ContextTransportEvent("payload")),
+            )
         )
 
-        val consumed = adapter.consume(
-            eventId = "event-123",
-            eventName = "context.transport.event",
-            publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
-            payloadJsonStr = RuntimeJson.write(ContextTransportEvent("payload")),
-            headers = mapOf(HEADER_KEY_CAP4K_EXECUTION_CONTEXT.uppercase() to envelope),
-        )
+        val consumed = adapter.consume(envelope)
 
         assertTrue(consumed)
         assertEquals(TransportContext("origin"), observedContext)

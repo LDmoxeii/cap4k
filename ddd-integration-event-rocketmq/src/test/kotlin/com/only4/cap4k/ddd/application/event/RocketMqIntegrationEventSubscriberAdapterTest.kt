@@ -1,11 +1,15 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import io.mockk.*
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
@@ -23,8 +27,12 @@ import org.springframework.messaging.Message
 @DisplayName("RocketMQ集成事件订阅适配器测试")
 class RocketMqIntegrationEventSubscriberAdapterTest {
 
-    private val noOpReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
-        override fun install(context: ReliableEventDeliveryContext): AutoCloseable = AutoCloseable { }
+    private var installedDeliveryContext: ReliableEventDeliveryContext? = null
+    private val observingReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
+        override fun install(context: ReliableEventDeliveryContext): AutoCloseable {
+            installedDeliveryContext = context
+            return AutoCloseable { }
+        }
         override fun suppress(): AutoCloseable = AutoCloseable { }
     }
 
@@ -45,7 +53,9 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
 
     @BeforeEach
     fun setup() {
+        clearPlaceholderCache()
         clearAllMocks()
+        installedDeliveryContext = null
 
         adapter = RocketMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = eventHandlerDispatcher,
@@ -56,7 +66,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset,
-            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
+            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
     }
 
@@ -79,11 +89,10 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         // given
         val messageExt = mockk<MessageExt>()
         val context = mockk<ConsumeConcurrentlyContext>()
-        val messageBody = """{"name":"test","value":"123"}"""
         val testEvent = TestEventPayload("test", "123")
 
         every { messageExt.msgId } returns "msg-123"
-        every { messageExt.body } returns messageBody.toByteArray()
+        every { messageExt.body } returns canonicalBody(testEvent)
         every { messageExt.properties } returns mapOf(
             "key" to "value",
             "cap4k-event-id" to "event-123",
@@ -130,6 +139,13 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         verify { eventMessageInterceptor1.postSubscribe(any<Message<*>>()) }
         verify { eventMessageInterceptor2.preSubscribe(any<Message<*>>()) }
         verify { eventMessageInterceptor2.postSubscribe(any<Message<*>>()) }
+        val deliveryContext = requireNotNull(installedDeliveryContext)
+        assertEquals("event-123", deliveryContext.eventId)
+        assertEquals("test-topic", deliveryContext.eventName)
+        assertEquals(java.time.Instant.ofEpochMilli(1_000), deliveryContext.publishedAt)
+        assertEquals(2, deliveryContext.attempt)
+        assertEquals(applicationName, deliveryContext.subscriberIdentity)
+        assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
     }
 
     @Test
@@ -171,16 +187,15 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset,
-            reliableEventDeliveryContextScopeManager = noOpReliableEventDeliveryContextScopeManager
+            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
 
         val messageExt = mockk<MessageExt>()
         val context = mockk<ConsumeConcurrentlyContext>()
-        val messageBody = """{"name":"test","value":"123"}"""
         val testEvent = TestEventPayload("test", "123")
 
         every { messageExt.msgId } returns "msg-123"
-        every { messageExt.body } returns messageBody.toByteArray()
+        every { messageExt.body } returns canonicalBody(testEvent)
         every { messageExt.properties } returns mapOf(
             "cap4k-event-id" to "event-123",
             "cap4k-timestamp" to "1000",
@@ -213,7 +228,28 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     private class NoneSubscriberEvent
 
     // 测试用的事件载荷类
+    @IntegrationEvent(value = "test-topic", subscriber = "")
     private data class TestEventPayload(val name: String, val value: String)
+
+    private fun canonicalBody(payload: TestEventPayload): ByteArray =
+        IntegrationEventEnvelopeCodec().encode(
+            IntegrationEventEnvelope(
+                eventId = "event-123",
+                eventType = "test-topic",
+                originService = "test-source",
+                publishedAt = java.time.Instant.ofEpochMilli(1_000),
+                deliveryAttempt = 2,
+                executionContext = emptyList(),
+                payloadJson = RuntimeJson.write(payload),
+            )
+        ).toByteArray()
+
+    private fun clearPlaceholderCache() {
+        val field = Class.forName("com.only4.cap4k.ddd.core.share.misc.TextUtils")
+            .getDeclaredField("resolvePlaceholderCache")
+        field.isAccessible = true
+        (field.get(null) as MutableMap<*, *>).clear()
+    }
 
     // 测试用的拦截器类
     @Order(1)

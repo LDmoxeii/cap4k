@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
@@ -50,8 +51,8 @@ class HttpIntegrationEventPublisherTest {
     }
 
     @Test
-    @DisplayName("没有订阅者时不调用命令发送")
-    fun `should not send commands when no subscribers exist`() {
+    @DisplayName("没有订阅者时报告发布失败")
+    fun `should report publication failure when no subscribers exist`() {
         // Arrange
         val eventRecord = createMockEventRecord("test-event", "user.created")
 
@@ -62,12 +63,17 @@ class HttpIntegrationEventPublisherTest {
         every { publishCallback.onException(any(), any()) } just runs
 
         // Act
-        publisher.publish(eventRecord, publishCallback)
+        publisher.publish(eventRecord, envelope(eventRecord), publishCallback)
 
-        // Assert - 验证没有调用订阅者相关操作
+        // Assert - 没有任何发送目标意味着本次可靠投递没有发出，应进入重试
         verify(exactly = 1) { subscriberRegister.subscribers("user.created") }
         verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        verify(exactly = 0) { publishCallback.onException(any(), any()) }
+        verify(exactly = 1) {
+            publishCallback.onException(
+                eventRecord,
+                match { it is IllegalStateException && it.message?.contains("user.created") == true },
+            )
+        }
     }
 
     @Test
@@ -89,7 +95,7 @@ class HttpIntegrationEventPublisherTest {
         every { publishCallback.onException(any(), any()) } just runs
 
         // Act
-        publisher.publish(eventRecord, publishCallback)
+        publisher.publish(eventRecord, envelope(eventRecord), publishCallback)
 
         // Assert - 验证调用了订阅者查询
         verify(exactly = 1) { subscriberRegister.subscribers("user.created") }
@@ -105,4 +111,14 @@ class HttpIntegrationEventPublisherTest {
             every { publishedAt } returns Instant.parse("2026-08-04T00:00:00Z")
         }
     }
+
+    private fun envelope(event: EventRecord): IntegrationEventEnvelope = IntegrationEventEnvelope(
+        eventId = event.id,
+        eventType = event.type,
+        originService = "test-service",
+        publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+        deliveryAttempt = null,
+        executionContext = emptyList(),
+        payloadJson = "{\"action\":\"created\",\"userId\":\"123\"}",
+    )
 }

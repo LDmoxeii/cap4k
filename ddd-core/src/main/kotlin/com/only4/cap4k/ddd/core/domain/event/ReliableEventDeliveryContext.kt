@@ -15,11 +15,16 @@ data class ReliableEventDeliveryContext(
     val publishedAt: Instant,
     val attempt: Int?,
     val redeliveryHint: ReliableEventRedeliveryHint,
+    /** Stable destination/subscription identity supplied by the inbound adapter. */
+    val subscriberIdentity: String? = null,
 ) : ExecutionContextElement {
     init {
         require(eventId.isNotBlank()) { "Reliable event ID must not be blank" }
         require(eventName.isNotBlank()) { "Reliable event name must not be blank" }
         require(attempt == null || attempt > 0) { "Reliable event delivery attempt must be positive when present" }
+        require(subscriberIdentity == null || subscriberIdentity.isNotBlank()) {
+            "Reliable event subscriber identity must not be blank when present"
+        }
     }
 }
 

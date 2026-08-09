@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
@@ -8,14 +7,14 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextElement
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextElementCodec
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_ID
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_TIMESTAMP
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -55,17 +54,15 @@ class RocketMqIntegrationEventExecutionContextTest {
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = reliableContextManager,
         )
-        val envelope = IntegrationEventExecutionContextEnvelope.encode(
-            codecRegistry.encode(originSnapshot(), ExecutionContextBoundary.INTEGRATION_EVENT),
-        )
         val message = mockk<MessageExt> {
             every { msgId } returns "message-23"
-            every { body } returns RuntimeJson.write(ContextTransportEvent("payload")).toByteArray()
-            every { properties } returns mapOf(
-                HEADER_KEY_CAP4K_EXECUTION_CONTEXT to envelope,
-                HEADER_KEY_CAP4K_EVENT_ID to "message-23",
-                HEADER_KEY_CAP4K_TIMESTAMP to "1767225600123",
+            every { body } returns canonicalBody(
+                id = "message-23",
+                payload = ContextTransportEvent("payload"),
+                publishedAt = java.time.Instant.ofEpochMilli(1767225600123L),
+                executionContext = codecRegistry.encode(originSnapshot(), ExecutionContextBoundary.INTEGRATION_EVENT),
             )
+            every { properties } returns emptyMap()
             every { reconsumeTimes } returns 2
         }
 
@@ -87,10 +84,11 @@ class RocketMqIntegrationEventExecutionContextTest {
         assertEquals(
             ReliableEventDeliveryContext(
                 eventId = "message-23",
-                eventName = "ContextTransportEvent",
+                eventName = "context.transport.event",
                 publishedAt = java.time.Instant.ofEpochMilli(1767225600123L),
                 attempt = 3,
                 redeliveryHint = ReliableEventRedeliveryHint.REDELIVERED,
+                subscriberIdentity = "test-app",
             ),
             observedDeliveryContext,
         )
@@ -121,11 +119,12 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         fun message(id: String, timestamp: String, reconsumeTimes: Int) = mockk<MessageExt> {
             every { msgId } returns id
-            every { body } returns RuntimeJson.write(ContextTransportEvent(id)).toByteArray()
-            every { properties } returns mapOf(
-                HEADER_KEY_CAP4K_EVENT_ID to id,
-                HEADER_KEY_CAP4K_TIMESTAMP to timestamp,
+            every { body } returns canonicalBody(
+                id = id,
+                payload = ContextTransportEvent(id),
+                publishedAt = java.time.Instant.ofEpochMilli(timestamp.toLong()),
             )
+            every { properties } returns emptyMap()
             every { this@mockk.reconsumeTimes } returns reconsumeTimes
         }
         val method = adapter.javaClass.getDeclaredMethod(
@@ -146,12 +145,12 @@ class RocketMqIntegrationEventExecutionContextTest {
         assertEquals(
             listOf(
                 ReliableEventDeliveryContext(
-                    "first", "ContextTransportEvent", java.time.Instant.ofEpochMilli(1000), 1,
-                    ReliableEventRedeliveryHint.FIRST,
+                    "first", "context.transport.event", java.time.Instant.ofEpochMilli(1000), 1,
+                    ReliableEventRedeliveryHint.FIRST, "test-app",
                 ),
                 ReliableEventDeliveryContext(
-                    "second", "ContextTransportEvent", java.time.Instant.ofEpochMilli(2000), 2,
-                    ReliableEventRedeliveryHint.REDELIVERED,
+                    "second", "context.transport.event", java.time.Instant.ofEpochMilli(2000), 2,
+                    ReliableEventRedeliveryHint.REDELIVERED, "test-app",
                 ),
             ),
             observed,
@@ -180,11 +179,12 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         val message = mockk<MessageExt> {
             every { msgId } returns "failed"
-            every { body } returns RuntimeJson.write(ContextTransportEvent("failed")).toByteArray()
-            every { properties } returns mapOf(
-                HEADER_KEY_CAP4K_EVENT_ID to "failed",
-                HEADER_KEY_CAP4K_TIMESTAMP to "1000",
+            every { body } returns canonicalBody(
+                id = "failed",
+                payload = ContextTransportEvent("failed"),
+                publishedAt = java.time.Instant.ofEpochMilli(1000),
             )
+            every { properties } returns emptyMap()
             every { reconsumeTimes } returns 4
         }
         val method = adapter.javaClass.getDeclaredMethod(
@@ -225,11 +225,12 @@ class RocketMqIntegrationEventExecutionContextTest {
         )
         val message = mockk<MessageExt> {
             every { msgId } returns "noncanonical"
-            every { body } returns RuntimeJson.write(ContextTransportEvent("payload")).toByteArray()
-            every { properties } returns mapOf(
-                HEADER_KEY_CAP4K_EVENT_ID to "noncanonical",
-                HEADER_KEY_CAP4K_TIMESTAMP to "01000",
-            )
+            every { body } returns """
+                {"eventId":"noncanonical","eventType":"context.transport.event","originService":"test-source",
+                 "publishedAt":"01000","deliveryAttempt":null,"executionContext":[],
+                 "payloadJson":"{\"value\":\"payload\"}"}
+            """.trimIndent().toByteArray()
+            every { properties } returns emptyMap()
             every { reconsumeTimes } returns 0
         }
         val method = adapter.javaClass.getDeclaredMethod(
@@ -259,8 +260,29 @@ class RocketMqIntegrationEventExecutionContextTest {
     private fun originSnapshot(): ExecutionContextSnapshot = ExecutionContextSnapshot.builder()
         .put(TransportContextKey, TransportContext("origin"))
         .build()
+
+    private fun canonicalBody(
+        id: String,
+        payload: ContextTransportEvent,
+        publishedAt: java.time.Instant,
+        executionContext: List<com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement> = emptyList(),
+    ): ByteArray = IntegrationEventEnvelopeCodec().encode(
+        IntegrationEventEnvelope(
+            eventId = id,
+            eventType = "context.transport.event",
+            originService = "test-source",
+            publishedAt = publishedAt,
+            deliveryAttempt = null,
+            executionContext = executionContext,
+            payloadJson = RuntimeJson.write(payload),
+        )
+    ).toByteArray()
 }
 
+@com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+    value = "context.transport.event",
+    subscriber = "",
+)
 internal data class ContextTransportEvent(val value: String)
 
 private data class TransportContext(val value: String) : ExecutionContextElement

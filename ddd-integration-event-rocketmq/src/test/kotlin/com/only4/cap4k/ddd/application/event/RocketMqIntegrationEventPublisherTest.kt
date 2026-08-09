@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import io.mockk.*
 import org.apache.rocketmq.client.producer.SendCallback
@@ -27,6 +28,9 @@ class RocketMqIntegrationEventPublisherTest {
     @BeforeEach
     fun setup() {
         clearAllMocks()
+        every { environment.resolvePlaceholders(any()) } answers { firstArg() }
+        every { publishCallback.onSuccess(any()) } just Runs
+        every { publishCallback.onException(any(), any()) } just Runs
         publisher = RocketMqIntegrationEventPublisher(rocketMQTemplate, environment)
     }
 
@@ -44,7 +48,7 @@ class RocketMqIntegrationEventPublisherTest {
         every { rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>()) } just Runs
 
         // when - 执行发布操作
-        publisher.publish(eventRecord, publishCallback)
+        publisher.publish(eventRecord, envelope(), publishCallback)
 
         // then - 验证方法正常执行不抛异常
         // 由于resolvePlaceholderWithCache调用复杂，这里只验证方法能正常调用
@@ -66,10 +70,10 @@ class RocketMqIntegrationEventPublisherTest {
         every { rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>()) } throws exception
 
         // when - 执行发布操作
-        publisher.publish(eventRecord, publishCallback)
+        publisher.publish(eventRecord, envelope(), publishCallback)
 
         // then - 验证异常被处理，方法正常返回
-        assertTrue(true) // 如果到这里说明异常被正确处理
+        verify(exactly = 1) { publishCallback.onException(eventRecord, exception) }
     }
 
     @Test
@@ -170,4 +174,14 @@ class RocketMqIntegrationEventPublisherTest {
         assertNotNull(callback)
         assertTrue(callback is SendCallback)
     }
+
+    private fun envelope(): IntegrationEventEnvelope = IntegrationEventEnvelope(
+        eventId = "test-event-id",
+        eventType = "resolved-topic",
+        originService = "test-service",
+        publishedAt = java.time.Instant.parse("2026-08-04T00:00:00Z"),
+        deliveryAttempt = null,
+        executionContext = emptyList(),
+        payloadJson = "{\"key\":\"value\"}",
+    )
 }

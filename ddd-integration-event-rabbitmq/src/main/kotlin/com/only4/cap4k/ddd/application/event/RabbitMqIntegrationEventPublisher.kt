@@ -1,12 +1,12 @@
 package com.only4.cap4k.ddd.application.event
 
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EXECUTION_CONTEXT
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.misc.createFixedThreadPool
 import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
-import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessagePostProcessor
@@ -16,12 +16,7 @@ import org.springframework.core.env.Environment
 import java.util.Date
 import java.util.concurrent.ExecutorService
 
-/**
- * 基于RabbitMq的集成事件发布器
- *
- * @author LD_moxeii
- * @date 2025/07/31
- */
+/** RabbitMQ adapter for the shared Integration Event envelope. */
 class RabbitMqIntegrationEventPublisher(
     private val rabbitTemplate: RabbitTemplate,
     private val connectionFactory: ConnectionFactory,
@@ -29,7 +24,8 @@ class RabbitMqIntegrationEventPublisher(
     private val threadPoolSize: Int,
     private val threadFactoryClassName: String = "",
     private val autoDeclareExchange: Boolean = false,
-    private val defaultExchangeType: String = "direct"
+    private val defaultExchangeType: String = "direct",
+    private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
 ) : IntegrationEventPublisher {
 
     companion object {
@@ -37,55 +33,60 @@ class RabbitMqIntegrationEventPublisher(
     }
 
     private val executorService: ExecutorService by lazy {
-        createFixedThreadPool(
-            threadPoolSize,
-            threadFactoryClassName,
-            this::class.java.classLoader
-        )
+        createFixedThreadPool(threadPoolSize, threadFactoryClassName, this::class.java.classLoader)
     }
 
     fun init() {
         executorService
     }
 
-    override fun publish(event: EventRecord, publishCallback: IntegrationEventPublisher.PublishCallback) {
-        try {
-            // 事件的主题
-            val destination = resolvePlaceholderWithCache(event.type, environment)
+    override fun publish(
+        event: EventRecord,
+        envelope: IntegrationEventEnvelope,
+        publishCallback: IntegrationEventPublisher.PublishCallback,
+    ) {
+        publishBody(
+            event = event,
+            body = envelopeCodec.encode(envelope),
+            publishCallback = publishCallback,
+        )
+    }
 
+    private fun publishBody(
+        event: EventRecord,
+        body: String,
+        publishCallback: IntegrationEventPublisher.PublishCallback,
+    ) {
+        try {
+            val destination = resolvePlaceholderWithCache(event.type, environment)
             if (destination.isBlank()) {
                 throw DomainException("集成事件发布失败: ${event.id} 缺失topic")
             }
-
             val (exchange, tag) = parseDestination(destination)
-            val message = RuntimeJson.write(event.payload)
-            val executionContext = IntegrationEventExecutionContextEnvelope.encode(event.executionContext)
+            if (autoDeclareExchange) tryDeclareExchange(exchange, defaultExchangeType)
 
-            if (autoDeclareExchange) {
-                tryDeclareExchange(exchange, defaultExchangeType)
-            }
-
-            // MQ消息通道
             executorService.execute {
-                rabbitTemplate.convertAndSend(
-                    exchange,
-                    tag,
-                    message,
-                    IntegrationEventSendCallback(event, publishCallback, executionContext)
-                )
+                runCatching {
+                    rabbitTemplate.convertAndSend(
+                        exchange,
+                        tag,
+                        body,
+                        IntegrationEventSendCallback(event, publishCallback),
+                    )
+                }.onFailure { throwable ->
+                    log.error("集成事件发布失败: ${event.id}", throwable)
+                    publishCallback.onException(event, throwable)
+                }
             }
         } catch (ex: Exception) {
             log.error("集成事件发布失败: ${event.id}", ex)
+            publishCallback.onException(event, ex)
         }
     }
 
     private fun parseDestination(destination: String): Pair<String, String> =
         destination.split(":", limit = 2).let { parts ->
-            if (parts.size == 2) {
-                parts[0] to parts[1]
-            } else {
-                destination to ""
-            }
+            if (parts.size == 2) parts[0] to parts[1] else destination to ""
         }
 
     private fun tryDeclareExchange(exchange: String, exchangeType: String) {
@@ -101,15 +102,10 @@ class RabbitMqIntegrationEventPublisher(
         }
     }
 
-    /**
-     * 集成事件发送回调处理器
-     */
     class IntegrationEventSendCallback(
         private val event: EventRecord,
         private val publishCallback: IntegrationEventPublisher.PublishCallback,
-        private val executionContext: String? = null,
     ) : MessagePostProcessor {
-
         companion object {
             private val log = LoggerFactory.getLogger(IntegrationEventSendCallback::class.java)
         }
@@ -118,17 +114,12 @@ class RabbitMqIntegrationEventPublisher(
             log.info("集成事件发送成功, ${event.id}")
             message.messageProperties.messageId = event.id
             message.messageProperties.timestamp = Date.from(event.publishedAt)
-            executionContext?.let {
-                message.messageProperties.setHeader(HEADER_KEY_CAP4K_EXECUTION_CONTEXT, it)
-            }
-
             try {
                 publishCallback.onSuccess(event)
             } catch (throwable: Throwable) {
                 log.error("回调失败（事件发送成功）", throwable)
                 publishCallback.onException(event, throwable)
             }
-
             return message
         }
     }
