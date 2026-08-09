@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "dada9a3c-704a-4076-acaf-85a97ad97ce8",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-rocketmq-transport",
+  "createdAt": "2026-08-09T16:28:24.033Z",
+  "preflightHash": "4bf09096ecebefbdd27661617283a85317f1dd1bbd14deaed6295d5577927cf9",
+  "operations": [
+    {
+      "id": "spec-1-runtime-rocketmq-transport",
+      "type": "write",
+      "target": "specs/runtime-rocketmq-transport/spec.md",
+      "staged": "runtime/transactions/dada9a3c-704a-4076-acaf-85a97ad97ce8/staged/specs/runtime-rocketmq-transport/spec.md",
+      "backup": "runtime/transactions/dada9a3c-704a-4076-acaf-85a97ad97ce8/backups/specs/runtime-rocketmq-transport/spec.md",
+      "expectedTargetHash": "25e3f0ed9b2b41d79b6d227917218e4463a03ecda2c7abd61b73153bfe1f751d",
+      "stagedHash": "5d78a4fff6d394cd7a348ce39f661d0e2840d5bb69c62ed92cc4b0891a5eec57"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-rocketmq-transport",
+      "target": "archive/2026-08-09-runtime-rocketmq-transport",
+      "expectedSourceHash": "13e3298b70bd797d2f667d186ef9411d9a6cdd7934a1040a1fee699f917c8dda",
+      "expectedTargetHash": null
+    }
+  ]
+}

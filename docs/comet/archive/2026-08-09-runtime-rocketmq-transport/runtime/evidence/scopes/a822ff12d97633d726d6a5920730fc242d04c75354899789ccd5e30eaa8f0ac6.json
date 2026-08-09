@@ -1,0 +1,524 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "ba5cbadc03de6b96ada0f0200f9c11f8eee9b6aee3c0267083771fa6c1d0bd37",
+  "baselineProjectionRef": "runtime/evidence/snapshots/bb1bea620698bb315ea0e45f45f0c6a872ac88f901a196e9a467d751afad9c66.json",
+  "baselineProjectionHash": "bb1bea620698bb315ea0e45f45f0c6a872ac88f901a196e9a467d751afad9c66",
+  "currentProjectionRef": "runtime/evidence/snapshots/bf7cfbe1f25083fb706eed23e4361c4464a32c2e8c863e8dc8af62c076f6e990.json",
+  "currentProjectionHash": "bf7cfbe1f25083fb706eed23e4361c4464a32c2e8c863e8dc8af62c076f6e990",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventAutoConfiguration.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistry.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapter.kt",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1f836ca95f9d79f2caa9387db1f3e6fddc64039dcfcb703f367dd00273c3bd99",
+        "size": 10996
+      },
+      "after": {
+        "hash": "b7b0916e23ede438e23efc370c26439ccf82a1c264e788000f0157ff86db2c94",
+        "size": 11347
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "7ae5e8a0502d7fa1269ce0b26682b807dc1696eb9e06d0a1e4f623963d4e840e",
+        "size": 17558
+      },
+      "after": {
+        "hash": "42fb4ff8546ea489cb6839f7ff15a95c46fc22c726721943b6dd2f071abbc90f",
+        "size": 17734
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "de8fb098c1591a2eeefe61de9abae97a45645bd7c63a95fe27d32aa2ac3acbf6",
+        "size": 4682
+      },
+      "after": {
+        "hash": "8ba5cf30e5dca885d3041dcbca871d064593359c4f1d3bca211007d272db73bb",
+        "size": 5998
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventAutoConfiguration.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/configure/RocketMqIntegrationEventAdapterProperties.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "086cf01bea1ec1460fd0791406af0ee0bcd89310f52fad662265ce341f48ab8a",
+        "size": 446
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RocketMqIntegrationEventPropertiesTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "2844cb5efb10c04d7ec9c1d20087d0de23d5041c48c63958fbe3a7b841a9e28f",
+        "size": 2211
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletion.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "d70cdb3c9e3c684a63b110d37f95f392a1433c3e9e6f32b13053f555fe94976a",
+        "size": 1340
+      },
+      "after": {
+        "hash": "af66f7a3218dac6bd22ce6b2e5b8f54470745f1d582149617e923e3e8493f260",
+        "size": 1399
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistry.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "37512c8d8e0e1996f01e57529e2b04326c3d7827741bc2b3db6379cb9aea8757",
+        "size": 2246
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistry.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1b0dbe0d40a351a4371dd7db1a7830fdf8324708a529a44eecde575da168ab9e",
+        "size": 2534
+      },
+      "after": {
+        "hash": "02bf51e9f0b9d422c0329a2653475462f8dc34ced3519eff407e5ba9d1c2b0b4",
+        "size": 2706
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistryTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "4794f143743d6a234a5a4edaee52310f8d5fd99e13899ce39749452c705e5b1d",
+        "size": 2191
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigure.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "833255e86db5c1d9288a6cf81fcd27b1527d14f70f07f025d3080453474b223a",
+        "size": 489
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "2fe7f45180a09e38bfa32898ee998ad553ddddb367bfdf0142e6703fa868a3ff",
+        "size": 3430
+      },
+      "after": {
+        "hash": "34b4c1d5743b3a5897ff214bb484ae02b79c9159196956e8720d8b097baa4c71",
+        "size": 5844
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRoute.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "006504799f881746e1d622fb4617865163aefeea0110067fa62175898e200461",
+        "size": 1841
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapter.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b3608dbea79b85cca577a260912205adae243fdb46408b8789cb265fe14cf84a",
+        "size": 9211
+      },
+      "after": {
+        "hash": "acb30893e3923046d686394561a013777d40b970ad8ece09d22921dffcbecb10",
+        "size": 9258
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapter.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigureTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "878819bae62d17e1321cfbd9e01c1faff9fa46e5fb244369ce494836fc5f6344",
+        "size": 3290
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventExecutionContextTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1232b9035be02193e83fb3974b0a9328543579d507535a75adb35dffc882a31c",
+        "size": 14120
+      },
+      "after": {
+        "hash": "c842946bafe4b40d245c873f4730ac0e41fe1ae0005af6ae3b5f2a4376c14850",
+        "size": 14995
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "8e54b73e55b57f73c81315e566c71cfb0e9396de2c3050cbc72635580a6debab",
+        "size": 9190
+      },
+      "after": {
+        "hash": "55654b5679f908b1046c53d4ef83ad44d894e9d03a01ee8a5069d105ed2ba6ed",
+        "size": 7864
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRouteTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "8f59d9dd63c9a9b162db4190c05df87892bdb88f1cd169de675252bb09615ed5",
+        "size": 2167
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "30c3898853530416febdede4183b57fd8af168ac701aa7b635832d7611a7740d",
+        "size": 12044
+      },
+      "after": {
+        "hash": "694c9d7ca8c2495c8019b15ef5a6a87ae544dde6c74a96e9d888d9b3bc3e0729",
+        "size": 12767
+      },
+      "attributedTo": []
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1f836ca95f9d79f2caa9387db1f3e6fddc64039dcfcb703f367dd00273c3bd99",
+        "size": 10996
+      },
+      "after": {
+        "hash": "b7b0916e23ede438e23efc370c26439ccf82a1c264e788000f0157ff86db2c94",
+        "size": 11347
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "7ae5e8a0502d7fa1269ce0b26682b807dc1696eb9e06d0a1e4f623963d4e840e",
+        "size": 17558
+      },
+      "after": {
+        "hash": "42fb4ff8546ea489cb6839f7ff15a95c46fc22c726721943b6dd2f071abbc90f",
+        "size": 17734
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/configure/RocketMqIntegrationEventAdapterProperties.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "086cf01bea1ec1460fd0791406af0ee0bcd89310f52fad662265ce341f48ab8a",
+        "size": 446
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RocketMqIntegrationEventPropertiesTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "2844cb5efb10c04d7ec9c1d20087d0de23d5041c48c63958fbe3a7b841a9e28f",
+        "size": 2211
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletion.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "d70cdb3c9e3c684a63b110d37f95f392a1433c3e9e6f32b13053f555fe94976a",
+        "size": 1340
+      },
+      "after": {
+        "hash": "af66f7a3218dac6bd22ce6b2e5b8f54470745f1d582149617e923e3e8493f260",
+        "size": 1399
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1b0dbe0d40a351a4371dd7db1a7830fdf8324708a529a44eecde575da168ab9e",
+        "size": 2534
+      },
+      "after": {
+        "hash": "02bf51e9f0b9d422c0329a2653475462f8dc34ced3519eff407e5ba9d1c2b0b4",
+        "size": 2706
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistryTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "4794f143743d6a234a5a4edaee52310f8d5fd99e13899ce39749452c705e5b1d",
+        "size": 2191
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigure.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "833255e86db5c1d9288a6cf81fcd27b1527d14f70f07f025d3080453474b223a",
+        "size": 489
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRoute.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "006504799f881746e1d622fb4617865163aefeea0110067fa62175898e200461",
+        "size": 1841
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigureTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "878819bae62d17e1321cfbd9e01c1faff9fa46e5fb244369ce494836fc5f6344",
+        "size": 3290
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventExecutionContextTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "1232b9035be02193e83fb3974b0a9328543579d507535a75adb35dffc882a31c",
+        "size": 14120
+      },
+      "after": {
+        "hash": "c842946bafe4b40d245c873f4730ac0e41fe1ae0005af6ae3b5f2a4376c14850",
+        "size": 14995
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "8e54b73e55b57f73c81315e566c71cfb0e9396de2c3050cbc72635580a6debab",
+        "size": 9190
+      },
+      "after": {
+        "hash": "55654b5679f908b1046c53d4ef83ad44d894e9d03a01ee8a5069d105ed2ba6ed",
+        "size": 7864
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRouteTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "8f59d9dd63c9a9b162db4190c05df87892bdb88f1cd169de675252bb09615ed5",
+        "size": 2167
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "30c3898853530416febdede4183b57fd8af168ac701aa7b635832d7611a7740d",
+        "size": 12044
+      },
+      "after": {
+        "hash": "694c9d7ca8c2495c8019b15ef5a6a87ae544dde6c74a96e9d888d9b3bc3e0729",
+        "size": 12767
+      },
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:c29611ee47ea0aae6e3c28ad26bb51f5a759a166776007f33c0fd88377f177b9",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-core-starter/src/main/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreRuntimeAutoConfiguration.kt"
+    },
+    {
+      "id": "scope:75af77b157f3690da48abda8fe32a66c2923151f638772f0fdfa9ba53c9c8cb7",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-core-starter/src/test/kotlin/com/only4/cap4k/ddd/core/autoconfigure/CoreStarterAutoConfigurationTest.kt"
+    },
+    {
+      "id": "scope:d2a593d155637691c112704c4268d13ecaa9e62754d38ba2a6e665168cec109c",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/configure/RocketMqIntegrationEventAdapterProperties.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-integration-event-rocketmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/configure/RocketMqIntegrationEventAdapterProperties.kt"
+    },
+    {
+      "id": "scope:243c466141fb0ef1c34fb81ea1b3a285b9d70f171aedb15b246a5d54a7dd7c03",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-integration-event-rocketmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RocketMqIntegrationEventPropertiesTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-integration-event-rocketmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RocketMqIntegrationEventPropertiesTest.kt"
+    },
+    {
+      "id": "scope:b51fc83d6e288c43f2c156b17c6b4850e27a248dcd16dd1deb46e37f01b40c60",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletion.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletion.kt"
+    },
+    {
+      "id": "scope:b339aabd359050135bb96ee5820635ceba1aab1c38d08b6b6b5822d0bdd659c8",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventPublishCompletionTest.kt"
+    },
+    {
+      "id": "scope:83026fe82dac44f4e79c07aaf8e11557ed5edaaa2cb1564a425169a8831ce021",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistryTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/event/RuntimeProviderStateRegistryTest.kt"
+    },
+    {
+      "id": "scope:e21de7de5d8bb4f0386c05bed798359fea491fa6eebeda31144abc633ce83c36",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigure.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigure.kt"
+    },
+    {
+      "id": "scope:75faf2bce20e2255e0f316817285af4cf49caf4a242e86826a8db588bc21a374",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRoute.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRoute.kt"
+    },
+    {
+      "id": "scope:f91b13420cf4f99096ed54d317a2e56ca837e8d4c45550b8cb6408708d1703cc",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigureTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventConfigureTest.kt"
+    },
+    {
+      "id": "scope:00f95cc37d02fcdea579521535788682f9d26a28cc0a9ee5c0aa173b7d543848",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventExecutionContextTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventExecutionContextTest.kt"
+    },
+    {
+      "id": "scope:a531628ef080993f3b6bcc4e9193cb6ec18d4e1dd60576043911ef4f291fc31c",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+    },
+    {
+      "id": "scope:08efdaa0f3a925819aad4181abfc7645d6d135cae1c6a79cf8c55686db7298f3",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRouteTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRouteTest.kt"
+    },
+    {
+      "id": "scope:f0b456ed5b762c863286be6dad48d28fd15fba2134625c39e3b5710ac00f6c23",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "a822ff12d97633d726d6a5920730fc242d04c75354899789ccd5e30eaa8f0ac6"
+}
