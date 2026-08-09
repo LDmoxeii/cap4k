@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.starter.command
 
+import com.only4.cap4k.ddd.application.JpaRedriveResult
 import com.only4.cap4k.ddd.application.command.JpaCommandExecutionSubstrate
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.application.command.persistence.CommandRecordJpaRepository
@@ -104,7 +105,10 @@ class JpaCommandRetentionCleanupIntegrationTest {
         val old = now.minusHours(2)
         val recordsToInsert = listOf(
             command(now, state = CommandRecordEntity.CommandState.EXECUTED).apply { terminalizedAt = old },
-            command(now, state = CommandRecordEntity.CommandState.EXHAUSTED).apply { terminalizedAt = old },
+            command(now, state = CommandRecordEntity.CommandState.EXHAUSTED).apply {
+                terminalizedAt = old
+                expireAt = now.minusSeconds(1)
+            },
             command(now, state = CommandRecordEntity.CommandState.EXPIRED).apply { terminalizedAt = old },
             command(now, state = CommandRecordEntity.CommandState.EXCEPTION).apply { terminalizedAt = old },
             command(now, state = CommandRecordEntity.CommandState.CANCEL).apply { terminalizedAt = old },
@@ -156,6 +160,7 @@ class JpaCommandRetentionCleanupIntegrationTest {
             successfulCutoff = now.minusHours(1),
             exhaustedCutoff = now.minusHours(1),
             expiredCutoff = now.minusHours(1),
+            now = now,
             pageable = PageRequest.of(0, 10),
         )
         assertEquals(listOf(record.id!!), ids)
@@ -174,12 +179,120 @@ class JpaCommandRetentionCleanupIntegrationTest {
                 successfulCutoff = now.minusHours(1),
                 exhaustedCutoff = now.minusHours(1),
                 expiredCutoff = now.minusHours(1),
+                now = now,
             )
         })
         assertTrue(records.existsById(record.id!!))
         assertNull(records.findById(record.id!!).orElseThrow().terminalizedAt)
     }
 
+    @Test
+    fun `future exhausted is retained and can be redriven`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            command(now, state = CommandRecordEntity.CommandState.EXHAUSTED).apply {
+                terminalizedAt = now.minusHours(2)
+                expireAt = now.plusHours(1)
+            },
+        )
+        val policy = ReliableRetentionPolicy(
+            successful = Duration.ofHours(1),
+            exhausted = Duration.ofHours(1),
+            expired = Duration.ofHours(1),
+            batchLimit = 10,
+        )
+
+        val cleanup = substrate.cleanup(SERVICE, now, policy)
+        assertEquals(0, cleanup.examined)
+        assertEquals(0, cleanup.deleted)
+        val retained = records.findById(record.id!!).orElseThrow()
+        assertEquals(CommandRecordEntity.CommandState.EXHAUSTED, retained.commandState)
+        assertEquals(
+            JpaRedriveResult.REDRIVEN,
+            substrate.redrive(record.id!!, SERVICE, retained.version, retained.commandState, "future-exhausted", now),
+        )
+        val redriven = records.findById(record.id!!).orElseThrow()
+        assertEquals(CommandRecordEntity.CommandState.INIT, redriven.commandState)
+        assertNull(redriven.terminalizedAt)
+        assertEquals("future-exhausted", redriven.redriveRequestToken)
+    }
+
+    @Test
+    fun `expired exhausted is removable after its retention cutoff`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            command(now, state = CommandRecordEntity.CommandState.EXHAUSTED).apply {
+                terminalizedAt = now.minusHours(2)
+                expireAt = now.minusSeconds(1)
+            },
+        )
+
+        val result = substrate.cleanup(
+            SERVICE,
+            now,
+            ReliableRetentionPolicy(
+                successful = Duration.ofHours(1),
+                exhausted = Duration.ofHours(1),
+                expired = Duration.ofHours(1),
+                batchLimit = 10,
+            ),
+        )
+
+        assertEquals(1, result.examined)
+        assertEquals(1, result.deleted)
+        assertFalse(records.existsById(record.id!!))
+    }
+
+    @Test
+    fun `stale cleanup candidate cannot delete after redrive wins`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            command(now, state = CommandRecordEntity.CommandState.EXECUTED).apply {
+                terminalizedAt = now.minusHours(2)
+            },
+        )
+        val candidateIds = records.findRetentionCandidateIds(
+            serviceName = SERVICE,
+            successState = CommandRecordEntity.CommandState.EXECUTED,
+            exhaustedState = CommandRecordEntity.CommandState.EXHAUSTED,
+            expiredState = CommandRecordEntity.CommandState.EXPIRED,
+            successfulCutoff = now.minusHours(1),
+            exhaustedCutoff = now.minusHours(1),
+            expiredCutoff = now.minusHours(1),
+            now = now,
+            pageable = PageRequest.of(0, 10),
+        )
+        assertEquals(listOf(record.id!!), candidateIds)
+
+        val exhausted = records.findById(record.id!!).orElseThrow().apply {
+            commandState = CommandRecordEntity.CommandState.EXHAUSTED
+            expireAt = now.plusHours(1)
+            terminalizedAt = now.minusHours(2)
+        }
+        records.saveAndFlush(exhausted)
+        val redriveVersion = records.findById(record.id!!).orElseThrow().version
+        assertEquals(
+            JpaRedriveResult.REDRIVEN,
+            substrate.redrive(record.id!!, SERVICE, redriveVersion, CommandRecordEntity.CommandState.EXHAUSTED, "race", now),
+        )
+
+        assertEquals(0, inTransaction {
+            records.deleteRetentionCandidates(
+                recordIds = candidateIds,
+                serviceName = SERVICE,
+                successState = CommandRecordEntity.CommandState.EXECUTED,
+                exhaustedState = CommandRecordEntity.CommandState.EXHAUSTED,
+                expiredState = CommandRecordEntity.CommandState.EXPIRED,
+                successfulCutoff = now.minusHours(1),
+                exhaustedCutoff = now.minusHours(1),
+                expiredCutoff = now.minusHours(1),
+                now = now,
+            )
+        })
+        val retained = records.findById(record.id!!).orElseThrow()
+        assertEquals(CommandRecordEntity.CommandState.INIT, retained.commandState)
+        assertEquals("race", retained.redriveRequestToken)
+    }
     private fun command(
         now: LocalDateTime,
         state: CommandRecordEntity.CommandState = CommandRecordEntity.CommandState.INIT,

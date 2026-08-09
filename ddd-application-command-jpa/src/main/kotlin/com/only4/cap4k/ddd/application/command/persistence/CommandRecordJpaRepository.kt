@@ -236,7 +236,7 @@ interface CommandRecordJpaRepository :
         @Param("failureState") failureState: CommandRecordEntity.CommandState,
         @Param("failureFacts") failureFacts: String,
         @Param("nextTryTime") nextTryTime: LocalDateTime,
-        @Param("terminalizedAt") terminalizedAt: LocalDateTime?,
+        @Param("terminalizedAt") terminalizedAt: LocalDateTime? = null,
         @Param("now") now: LocalDateTime,
     ): Int
 

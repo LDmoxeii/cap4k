@@ -1,5 +1,6 @@
 package com.only4.cap4k.ddd.starter.event
 
+import com.only4.cap4k.ddd.application.JpaRedriveResult
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.reliable.ReliableRetentionPolicy
@@ -104,7 +105,10 @@ class JpaEventRetentionCleanupIntegrationTest {
         val old = now.minusHours(2)
         val recordsToInsert = listOf(
             event(now, state = Event.EventState.DELIVERED).apply { terminalizedAt = old },
-            event(now, state = Event.EventState.EXHAUSTED).apply { terminalizedAt = old },
+            event(now, state = Event.EventState.EXHAUSTED).apply {
+                terminalizedAt = old
+                expireAt = now.minusSeconds(1)
+            },
             event(now, state = Event.EventState.EXPIRED).apply { terminalizedAt = old },
             event(now, state = Event.EventState.EXCEPTION).apply { terminalizedAt = old },
             event(now, state = Event.EventState.CANCEL).apply { terminalizedAt = old },
@@ -156,6 +160,7 @@ class JpaEventRetentionCleanupIntegrationTest {
             successfulCutoff = now.minusHours(1),
             exhaustedCutoff = now.minusHours(1),
             expiredCutoff = now.minusHours(1),
+            now = now,
             pageable = PageRequest.of(0, 10),
         )
         assertEquals(listOf(record.id!!), ids)
@@ -174,10 +179,119 @@ class JpaEventRetentionCleanupIntegrationTest {
                 successfulCutoff = now.minusHours(1),
                 exhaustedCutoff = now.minusHours(1),
                 expiredCutoff = now.minusHours(1),
+                now = now,
             )
         })
         assertTrue(records.existsById(record.id!!))
         assertNull(records.findById(record.id!!).orElseThrow().terminalizedAt)
+    }
+
+    @Test
+    fun `future exhausted is retained and can be redriven`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            event(now, state = Event.EventState.EXHAUSTED).apply {
+                terminalizedAt = now.minusHours(2)
+                expireAt = now.plusHours(1)
+            },
+        )
+        val policy = ReliableRetentionPolicy(
+            successful = Duration.ofHours(1),
+            exhausted = Duration.ofHours(1),
+            expired = Duration.ofHours(1),
+            batchLimit = 10,
+        )
+
+        val cleanup = substrate.cleanup(SERVICE, now, policy)
+        assertEquals(0, cleanup.examined)
+        assertEquals(0, cleanup.deleted)
+        val retained = records.findById(record.id!!).orElseThrow()
+        assertEquals(Event.EventState.EXHAUSTED, retained.eventState)
+        assertEquals(
+            JpaRedriveResult.REDRIVEN,
+            substrate.redrive(record.id!!, SERVICE, retained.version, retained.eventState, "future-exhausted", now),
+        )
+        val redriven = records.findById(record.id!!).orElseThrow()
+        assertEquals(Event.EventState.INIT, redriven.eventState)
+        assertNull(redriven.terminalizedAt)
+        assertEquals("future-exhausted", redriven.redriveRequestToken)
+    }
+
+    @Test
+    fun `expired exhausted is removable after its retention cutoff`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            event(now, state = Event.EventState.EXHAUSTED).apply {
+                terminalizedAt = now.minusHours(2)
+                expireAt = now.minusSeconds(1)
+            },
+        )
+
+        val result = substrate.cleanup(
+            SERVICE,
+            now,
+            ReliableRetentionPolicy(
+                successful = Duration.ofHours(1),
+                exhausted = Duration.ofHours(1),
+                expired = Duration.ofHours(1),
+                batchLimit = 10,
+            ),
+        )
+
+        assertEquals(1, result.examined)
+        assertEquals(1, result.deleted)
+        assertFalse(records.existsById(record.id!!))
+    }
+
+    @Test
+    fun `stale cleanup candidate cannot delete after redrive wins`() {
+        val now = testTime()
+        val record = records.saveAndFlush(
+            event(now, state = Event.EventState.DELIVERED).apply {
+                terminalizedAt = now.minusHours(2)
+            },
+        )
+        val candidateIds = records.findRetentionCandidateIds(
+            serviceName = SERVICE,
+            successState = Event.EventState.DELIVERED,
+            exhaustedState = Event.EventState.EXHAUSTED,
+            expiredState = Event.EventState.EXPIRED,
+            successfulCutoff = now.minusHours(1),
+            exhaustedCutoff = now.minusHours(1),
+            expiredCutoff = now.minusHours(1),
+            now = now,
+            pageable = PageRequest.of(0, 10),
+        )
+        assertEquals(listOf(record.id!!), candidateIds)
+
+        val exhausted = records.findById(record.id!!).orElseThrow().apply {
+            eventState = Event.EventState.EXHAUSTED
+            expireAt = now.plusHours(1)
+            terminalizedAt = now.minusHours(2)
+        }
+        records.saveAndFlush(exhausted)
+        val redriveVersion = records.findById(record.id!!).orElseThrow().version
+        assertEquals(
+            JpaRedriveResult.REDRIVEN,
+            substrate.redrive(record.id!!, SERVICE, redriveVersion, Event.EventState.EXHAUSTED, "race", now),
+        )
+
+        assertEquals(0, inTransaction {
+            records.deleteRetentionCandidates(
+                recordIds = candidateIds,
+                serviceName = SERVICE,
+                successState = Event.EventState.DELIVERED,
+                exhaustedState = Event.EventState.EXHAUSTED,
+                expiredState = Event.EventState.EXPIRED,
+                successfulCutoff = now.minusHours(1),
+                exhaustedCutoff = now.minusHours(1),
+                expiredCutoff = now.minusHours(1),
+                now = now,
+            )
+        })
+        val retained = records.findById(record.id!!).orElseThrow()
+        assertEquals(Event.EventState.INIT, retained.eventState)
+        assertEquals("race", retained.redriveRequestToken)
     }
 
     private fun event(
