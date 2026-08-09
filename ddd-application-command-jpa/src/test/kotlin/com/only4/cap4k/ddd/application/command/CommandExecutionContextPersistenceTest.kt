@@ -27,31 +27,28 @@ class CommandExecutionContextPersistenceTest {
             )
         }
 
-        assertEquals(context, record.executionContext)
+        assertEquals(context, JpaExecutionContextEnvelope.decode(record.entity.executionContext))
         assertNotEquals(record.entity.param, record.entity.executionContext)
 
     }
 
     @Test
     fun `legacy null context decodes as empty`() {
-        val record = CommandRecordImpl().apply {
-            resume(CommandRecordEntity(executionContext = null))
-        }
-
-        assertEquals(emptyList<EncodedExecutionContextElement>(), record.executionContext)
+        assertEquals(
+            emptyList<EncodedExecutionContextElement>(),
+            JpaExecutionContextEnvelope.decode(CommandRecordEntity(executionContext = null).executionContext),
+        )
     }
 
     @Test
     fun `duplicate persisted element fails before command execution`() {
-        val record = CommandRecordImpl().apply {
-            resume(
-                CommandRecordEntity(
-                    executionContext = """[{"name":"actor","version":1,"value":"a"},{"name":"actor","version":1,"value":"b"}]""",
-                ),
-            )
-        }
+        val persisted = CommandRecordEntity(
+            executionContext = """[{"name":"actor","version":1,"value":"a"},{"name":"actor","version":1,"value":"b"}]""",
+        )
 
-        assertThrows<ExecutionContextDecodingException> { record.executionContext }
+        assertThrows<ExecutionContextDecodingException> {
+            JpaExecutionContextEnvelope.decode(persisted.executionContext)
+        }
     }
 
     private data class TestCommand(val value: String) : Command<String>

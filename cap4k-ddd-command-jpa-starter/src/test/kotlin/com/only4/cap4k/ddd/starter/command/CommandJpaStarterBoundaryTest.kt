@@ -1,11 +1,12 @@
 package com.only4.cap4k.ddd.starter.command
 
 import com.only4.cap4k.ddd.application.command.CommandJpaAutoConfiguration
-import com.only4.cap4k.ddd.core.application.distributed.Locker
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.context.SmartLifecycle
 
 class CommandJpaStarterBoundaryTest {
     @Test
@@ -17,19 +18,29 @@ class CommandJpaStarterBoundaryTest {
     }
 
     @Test
-    fun `command scheduling requires an explicit Locker provider`() {
-        val parameterTypes = CommandJpaAutoConfiguration::class.java
-            .getDeclaredMethod(
-                "jpaCommandScheduleService",
-                com.only4.cap4k.ddd.core.application.command.CommandManager::class.java,
-                Locker::class.java,
-                String::class.java,
-                com.only4.cap4k.ddd.application.command.configure.CommandScheduleProperties::class.java,
-                org.springframework.jdbc.core.JdbcTemplate::class.java,
-            )
-            .parameterTypes
+    fun `command worker is wired to the private substrate without Locker`() {
+        val workerMethod = CommandJpaAutoConfiguration::class.java.declaredMethods
+            .single { it.name == "jpaReliableCommandWorker" }
+        val parameterTypeNames = workerMethod.parameterTypes.map(Class<*>::getName)
 
-        assertTrue(parameterTypes.contains(Locker::class.java))
+        assertTrue(parameterTypeNames.contains("com.only4.cap4k.ddd.application.command.JpaCommandExecutionSubstrate"))
+        assertTrue(parameterTypeNames.contains("com.only4.cap4k.ddd.core.application.command.CommandSupervisor"))
+        assertFalse(parameterTypeNames.contains("com.only4.cap4k.ddd.core.application.distributed.Locker"))
+
+        val lifecycleMethod = CommandJpaAutoConfiguration::class.java.declaredMethods
+            .single { it.name == "jpaReliableCommandWorkerLifecycle" }
+        assertEquals(SmartLifecycle::class.java, lifecycleMethod.returnType)
+    }
+
+    @Test
+    fun `legacy command manager and polling scheduler are absent`() {
+        listOf(
+            "com.only4.cap4k.ddd.core.application.command.CommandManager",
+            "com.only4.cap4k.ddd.application.command.JpaCommandScheduleService",
+            "com.only4.cap4k.ddd.application.command.configure.CommandScheduleProperties",
+        ).forEach { className ->
+            assertThrows(ClassNotFoundException::class.java) { Class.forName(className) }
+        }
     }
 
     @Test

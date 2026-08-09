@@ -3,7 +3,6 @@ import com.only4.cap4k.ddd.application.command.persistence.CommandRecordEntity
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
 import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandRecord
-import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import java.time.Duration
 import java.time.LocalDateTime
 
@@ -16,9 +15,6 @@ import java.time.LocalDateTime
 class CommandRecordImpl : CommandRecord {
     lateinit var entity: CommandRecordEntity
 
-    /**
-     * 恢复命令
-     */
     fun resume(command: CommandRecordEntity) {
         this.entity = command
     }
@@ -42,45 +38,4 @@ class CommandRecordImpl : CommandRecord {
     override val id: String
         get() = entity.commandUuid
 
-    override val type: String
-        get() = entity.commandType
-
-    override val command: Command<*>
-        get() = entity.commandParam!!
-
-    override val executionContext: List<EncodedExecutionContextElement>
-        get() = JpaExecutionContextEnvelope.decode(entity.executionContext)
-
-    override val failure: ReliableFailureFacts?
-        get() = entity.failureFacts
-
-    override val scheduleTime: LocalDateTime
-        get() = entity.lastTryTime
-
-    override val nextTryTime: LocalDateTime
-        get() = entity.nextTryTime
-
-    override val isValid: Boolean
-        get() = entity.isValid
-
-    override val isInvalid: Boolean
-        get() = entity.isInvalid
-
-    override val isExecuting: Boolean
-        get() = entity.isExecuting
-
-    override val isExecuted: Boolean
-        get() = entity.isExecuted
-
-    override fun beginCommand(now: LocalDateTime): Boolean = entity.beginCommand(now)
-
-    override fun cancelCommand(now: LocalDateTime): Boolean = entity.cancelCommand(now)
-
-    override fun endCommand(now: LocalDateTime) {
-        entity.endCommand(now)
-    }
-
-    override fun occurredException(now: LocalDateTime, throwable: Throwable) {
-        entity.occurredException(now, throwable)
-    }
 }
