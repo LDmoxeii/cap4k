@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-retention-cleanup
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: c220bf7b1c0f9edb29b459510e599db6d059d72d226d646ec1f378255dda5d0c
+spec_changes:
+  - capability: runtime-retention-cleanup
+    operation: replace
+    source: specs/runtime-retention-cleanup/spec.md
+    base_hash: 1bd5fab13048480c6ad6a04749e9e2cc6173a570858e2fc0c80c5850aa7375fd
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/a5fc8969cd95bc1579039545dc9af3b1cfc915392a93e3d51eaa1c5c3a85d7e9.json
+verification_evidence: runtime/evidence/verifications/9fa9a981b760f37320eaa78ea89990c7f8ceb04a7009d7babf641b5448bb3d84.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: fb960124-ed68-44d8-b941-93703836a360

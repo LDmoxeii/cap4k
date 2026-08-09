@@ -1,0 +1,64 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "6c866e70089c1348e1cc04ec707acec6c63697df113082d282e19d8106db3278",
+  "baselineProjectionRef": "runtime/evidence/snapshots/260c2f295dc475d33246f5fc933716f25dd62126b7d77a925c9be6f1099d6213.json",
+  "baselineProjectionHash": "260c2f295dc475d33246f5fc933716f25dd62126b7d77a925c9be6f1099d6213",
+  "currentProjectionRef": "runtime/evidence/snapshots/f9b3167206e926c5d70425a6357e355f208893275c7ebd4008077aade6fd47c9.json",
+  "currentProjectionHash": "f9b3167206e926c5d70425a6357e355f208893275c7ebd4008077aade6fd47c9",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandRetentionCleanupIntegrationTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventRetentionCleanupIntegrationTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/JpaCommandExecutionSubstrate.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordEntity.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRecordJpaRepository.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-application-command-jpa/src/main/resources/command.sql",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventExecutionSubstrate.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/Event.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/persistence/EventJpaRepository.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-event-jpa/src/main/resources/event.sql",
+      "kind": "file"
+    }
+  ],
+  "changes": [],
+  "unattributed": [],
+  "unresolvedScopes": [
+    {
+      "id": "scope:b3cd373344cf0613caeaf4f0000ee91ed4562bcc4a4a12d0c63acb154b27e0db",
+      "kind": "missing-no-code-reason",
+      "source": "implementation-scope",
+      "path": null,
+      "reason": "A non-empty no-code reason is required when the snapshots contain no changes"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "00b0119ce4eaeaaef3425af2cb4709281d26059bfce0e8e903416700d25fe992"
+}

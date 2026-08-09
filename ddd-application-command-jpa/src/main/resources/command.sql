@@ -20,6 +20,7 @@ CREATE TABLE `__command`
     `version`        int          NOT NULL DEFAULT '0',
     `delivery_token` varbinary(32) NULL COMMENT 'Private ownership token',
     `lease_until`    datetime(3)  NULL COMMENT 'Private lease expiry',
+    `terminalized_at` datetime(3) NULL COMMENT 'Runtime terminalization time for retention',
     `db_created_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     `db_updated_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     `redrive_request_token` varchar(128) NULL COMMENT 'Private operator redrive idempotency marker',
@@ -31,5 +32,6 @@ CREATE TABLE `__command`
     KEY              `idx_create_at` (`create_at`),
     KEY              `idx_expire_at` (`expire_at`),
     KEY              `idx_next_try_time` (`next_try_time`),
-    KEY              `idx_command_claim` (`svc_name`, `command_state`, `next_try_time`, `lease_until`, `id`)
+    KEY              `idx_command_claim` (`svc_name`, `command_state`, `next_try_time`, `lease_until`, `id`),
+    KEY              `idx_command_retention` (`svc_name`, `command_state`, `terminalized_at`, `lease_until`, `id`)
     ) COMMENT ='命令 support by cap4k\n@I;';

@@ -395,6 +395,10 @@ class JpaCommandAtomicClaimIntegrationTest {
                 .containsMatchIn(sql),
             "delivery_token must use fixed-width binary storage",
         )
+        assertTrue(
+            Regex("(?i)`redrive_request_token`\\s+varchar\\(128\\)").containsMatchIn(sql),
+            "redrive_request_token must retain the Manual Redrive idempotency contract",
+        )
         listOf(
             "expire_at",
             "create_at",
@@ -402,6 +406,7 @@ class JpaCommandAtomicClaimIntegrationTest {
             "next_try_time",
             "lease_until",
             "db_created_at",
+            "terminalized_at",
             "db_updated_at",
         ).forEach { column ->
             assertTrue(
@@ -420,6 +425,9 @@ class JpaCommandAtomicClaimIntegrationTest {
         assertEquals(32, tokenMapping.length)
         assertEquals("varbinary(32)", tokenMapping.columnDefinition.lowercase())
 
+        val redriveMapping = requireNotNull(mappedColumns["redrive_request_token"])
+        assertEquals(128, redriveMapping.length)
+
         val timestampColumns = listOf(
             "expire_at",
             "create_at",
@@ -427,6 +435,7 @@ class JpaCommandAtomicClaimIntegrationTest {
             "next_try_time",
             "lease_until",
             "db_created_at",
+            "terminalized_at",
             "db_updated_at",
         )
         timestampColumns.forEach { column ->
@@ -436,6 +445,9 @@ class JpaCommandAtomicClaimIntegrationTest {
         val tokenColumn = jdbcColumn("__command", "delivery_token")
         assertEquals(Types.VARBINARY, tokenColumn.dataType)
         assertEquals(32, tokenColumn.size)
+        val redriveColumn = jdbcColumn("__command", "redrive_request_token")
+        assertEquals(Types.VARCHAR, redriveColumn.dataType)
+        assertEquals(128, redriveColumn.size)
         timestampColumns.forEach { column ->
             val generated = jdbcColumn("__command", column)
             assertEquals(Types.TIMESTAMP, generated.dataType, column)

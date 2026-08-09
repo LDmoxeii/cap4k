@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-retention-cleanup",
+  "role": "original",
+  "hash": "38dae8e543f8e228d315e228c5f78cd065bb23871bf8b0c1a419002ee581100e",
+  "identity": {
+    "dev": 950912656,
+    "ino": 36591746973293260,
+    "birthtimeMs": 1786244420891.6604
+  }
+}

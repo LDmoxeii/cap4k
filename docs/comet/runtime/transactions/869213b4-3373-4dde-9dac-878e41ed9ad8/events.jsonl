@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-09T07:08:15.704Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-09T07:08:17.867Z","type":"operation-started","operationId":"spec-1-runtime-retention-cleanup"}
+{"sequence":3,"timestamp":"2026-08-09T07:08:18.155Z","type":"operation-completed","operationId":"spec-1-runtime-retention-cleanup"}
+{"sequence":4,"timestamp":"2026-08-09T07:08:18.178Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-09T07:08:18.612Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-09T07:08:18.863Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-09T07:08:18.954Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-09T07:08:19.045Z","type":"commit"}

@@ -359,6 +359,10 @@ class JpaEventAtomicClaimIntegrationTest {
                 .containsMatchIn(sql),
             "delivery_token must use fixed-width binary storage",
         )
+        assertTrue(
+            Regex("(?i)`redrive_request_token`\\s+varchar\\(128\\)").containsMatchIn(sql),
+            "redrive_request_token must retain the Manual Redrive idempotency contract",
+        )
         listOf(
             "expire_at",
             "create_at",
@@ -368,6 +372,7 @@ class JpaEventAtomicClaimIntegrationTest {
             "lease_until",
             "db_created_at",
             "db_updated_at",
+            "terminalized_at",
         ).forEach { column ->
             assertTrue(
                 Regex("(?i)`${Regex.escape(column)}`\\s+datetime\\(3\\)").containsMatchIn(sql),
@@ -385,6 +390,9 @@ class JpaEventAtomicClaimIntegrationTest {
         assertEquals(32, tokenMapping.length)
         assertEquals("varbinary(32)", tokenMapping.columnDefinition.lowercase())
 
+        val redriveMapping = requireNotNull(mappedColumns["redrive_request_token"])
+        assertEquals(128, redriveMapping.length)
+
         val timestampColumns = listOf(
             "expire_at",
             "create_at",
@@ -394,6 +402,7 @@ class JpaEventAtomicClaimIntegrationTest {
             "lease_until",
             "db_created_at",
             "db_updated_at",
+            "terminalized_at",
         )
         timestampColumns.forEach { column ->
             assertEquals("datetime(3)", requireNotNull(mappedColumns[column]).columnDefinition.lowercase(), column)
@@ -402,6 +411,9 @@ class JpaEventAtomicClaimIntegrationTest {
         val tokenColumn = jdbcColumn("__event", "delivery_token")
         assertEquals(Types.VARBINARY, tokenColumn.dataType)
         assertEquals(32, tokenColumn.size)
+        val redriveColumn = jdbcColumn("__event", "redrive_request_token")
+        assertEquals(Types.VARCHAR, redriveColumn.dataType)
+        assertEquals(128, redriveColumn.size)
         timestampColumns.forEach { column ->
             val generated = jdbcColumn("__event", column)
             assertEquals(Types.TIMESTAMP, generated.dataType, column)

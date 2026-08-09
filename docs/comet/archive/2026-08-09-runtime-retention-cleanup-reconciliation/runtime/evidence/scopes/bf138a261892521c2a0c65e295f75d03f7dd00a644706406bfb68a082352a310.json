@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "6c866e70089c1348e1cc04ec707acec6c63697df113082d282e19d8106db3278",
+  "baselineProjectionRef": "runtime/evidence/snapshots/260c2f295dc475d33246f5fc933716f25dd62126b7d77a925c9be6f1099d6213.json",
+  "baselineProjectionHash": "260c2f295dc475d33246f5fc933716f25dd62126b7d77a925c9be6f1099d6213",
+  "currentProjectionRef": "runtime/evidence/snapshots/f9b3167206e926c5d70425a6357e355f208893275c7ebd4008077aade6fd47c9.json",
+  "currentProjectionHash": "f9b3167206e926c5d70425a6357e355f208893275c7ebd4008077aade6fd47c9",
+  "complete": true,
+  "declaredArtifacts": [],
+  "changes": [],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": "Implementation and focused Command/Event JPA tests were applied while reconciling PR #173 before this new Native change was created, so the active change baseline already contains the repaired code. No additional production artifact is required for Build; Verify will execute against the existing repaired artifacts.",
+  "scopeHash": "bf138a261892521c2a0c65e295f75d03f7dd00a644706406bfb68a082352a310"
+}

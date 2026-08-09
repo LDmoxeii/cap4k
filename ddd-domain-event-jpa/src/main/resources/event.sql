@@ -20,6 +20,7 @@ CREATE TABLE `__event`
     `version`        int(11)      NOT NULL DEFAULT '0',
     `delivery_token` varbinary(32) NULL COMMENT 'Private ownership token',
     `lease_until`    datetime(3)  NULL COMMENT 'Private lease expiry',
+    `terminalized_at` datetime(3) NULL COMMENT 'Runtime terminalization time for retention',
     `db_created_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '创建时间',
     `db_updated_at`  datetime(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3) COMMENT '更新时间',
     `redrive_request_token` varchar(128) NULL COMMENT 'Private operator redrive idempotency marker',
@@ -30,7 +31,8 @@ CREATE TABLE `__event`
     KEY              `idx_expire_at` (`expire_at`),
     KEY              `idx_create_at` (`create_at`),
     KEY              `idx_db_created_at` (`db_created_at`),
-    KEY              `idx_db_updated_at` (`db_updated_at`)
+    KEY              `idx_db_updated_at` (`db_updated_at`),
+    KEY              `idx_event_retention` (`svc_name`, `event_state`, `terminalized_at`, `lease_until`, `id`)
     ) COMMENT='集成事件\n@I;'
 -- partition by range(to_days(db_created_at))
 -- (partition p202201 values less than (to_days('2022-02-01')) ENGINE=InnoDB)
