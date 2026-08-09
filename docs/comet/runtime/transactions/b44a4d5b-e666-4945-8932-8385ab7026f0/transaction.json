@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b44a4d5b-e666-4945-8932-8385ab7026f0",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-retention-cleanup",
+  "createdAt": "2026-08-09T03:00:17.109Z",
+  "preflightHash": "449da7f1f931e73dd88f09f2c2b2aa27bd7e7adae1f02d8265a940188e58afc6",
+  "operations": [
+    {
+      "id": "spec-1-runtime-retention-cleanup",
+      "type": "write",
+      "target": "specs/runtime-retention-cleanup/spec.md",
+      "staged": "runtime/transactions/b44a4d5b-e666-4945-8932-8385ab7026f0/staged/specs/runtime-retention-cleanup/spec.md",
+      "backup": "runtime/transactions/b44a4d5b-e666-4945-8932-8385ab7026f0/backups/specs/runtime-retention-cleanup/spec.md",
+      "expectedTargetHash": "1bd5fab13048480c6ad6a04749e9e2cc6173a570858e2fc0c80c5850aa7375fd",
+      "stagedHash": "bdeabd3aa1c6cca299406002d7546c90fbfdecf2fd54374e57bb16937189dab8"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-retention-cleanup",
+      "target": "archive/2026-08-09-runtime-retention-cleanup",
+      "expectedSourceHash": "cba87c08e9a62a9a5aca865af04572080c8959baf1f987348c9754ad8575ab2a",
+      "expectedTargetHash": null
+    }
+  ]
+}

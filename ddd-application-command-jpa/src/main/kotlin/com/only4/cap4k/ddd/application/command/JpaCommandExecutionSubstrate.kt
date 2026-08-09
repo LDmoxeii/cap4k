@@ -10,6 +10,8 @@ import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextEleme
 import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
 import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
+import com.only4.cap4k.ddd.core.share.reliable.ReliableCleanupResult
+import com.only4.cap4k.ddd.core.share.reliable.ReliableRetentionPolicy
 import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
 import org.springframework.data.domain.PageRequest
 import org.springframework.transaction.annotation.Propagation
@@ -152,6 +154,49 @@ open class JpaCommandExecutionSubstrate(
         now = ReliableJpaOwnership.normalize(now),
     ) == 1
 
+    /**
+     * Removes one bounded batch of cleanup-owned terminal Command records.
+     *
+     * Candidate ids are selected first and the final delete repeats every eligibility predicate,
+     * so a concurrent claim, redrive, or state transition wins over cleanup.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    open fun cleanup(
+        serviceName: String,
+        now: LocalDateTime,
+        policy: ReliableRetentionPolicy,
+    ): ReliableCleanupResult {
+        require(serviceName.isNotBlank()) { "Service name must not be blank" }
+        val effectiveNow = ReliableJpaOwnership.normalize(now)
+        val successfulCutoff = effectiveNow.minus(policy.successful)
+        val exhaustedCutoff = effectiveNow.minus(policy.exhausted)
+        val expiredCutoff = effectiveNow.minus(policy.expired)
+        val candidateIds = records.findRetentionCandidateIds(
+            serviceName = serviceName,
+            successState = CommandRecordEntity.CommandState.EXECUTED,
+            exhaustedState = CommandRecordEntity.CommandState.EXHAUSTED,
+            expiredState = CommandRecordEntity.CommandState.EXPIRED,
+            successfulCutoff = successfulCutoff,
+            exhaustedCutoff = exhaustedCutoff,
+            expiredCutoff = expiredCutoff,
+            now = effectiveNow,
+            pageable = PageRequest.of(0, policy.batchLimit),
+        )
+        if (candidateIds.isEmpty()) return ReliableCleanupResult(examined = 0, deleted = 0)
+        val deleted = records.deleteRetentionCandidates(
+            recordIds = candidateIds,
+            serviceName = serviceName,
+            successState = CommandRecordEntity.CommandState.EXECUTED,
+            exhaustedState = CommandRecordEntity.CommandState.EXHAUSTED,
+            expiredState = CommandRecordEntity.CommandState.EXPIRED,
+            successfulCutoff = successfulCutoff,
+            exhaustedCutoff = exhaustedCutoff,
+            expiredCutoff = expiredCutoff,
+            now = effectiveNow,
+        )
+        return ReliableCleanupResult(examined = candidateIds.size, deleted = deleted)
+    }
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     open fun fail(ownership: JpaOwnershipClaim, now: LocalDateTime, throwable: Throwable): Boolean {
         val effectiveNow = ReliableJpaOwnership.normalize(now)
@@ -183,6 +228,7 @@ open class JpaCommandExecutionSubstrate(
             failureState = failureState,
             failureFacts = RuntimeJson.write(facts),
             nextTryTime = nextTryTime,
+            terminalizedAt = if (retryable) null else effectiveNow,
             now = effectiveNow,
         ) == 1
     }

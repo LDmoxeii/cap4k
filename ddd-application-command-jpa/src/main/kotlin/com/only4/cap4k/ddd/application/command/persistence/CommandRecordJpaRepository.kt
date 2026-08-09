@@ -66,6 +66,7 @@ interface CommandRecordJpaRepository :
         """
         update CommandRecordEntity command
            set command.commandState = :expiredState,
+               command.terminalizedAt = :now,
                command.failureFactsJson = :failureFacts,
                command.deliveryToken = null,
                command.leaseUntil = null,
@@ -99,6 +100,7 @@ interface CommandRecordJpaRepository :
         update CommandRecordEntity command
            set command.commandState = :exhaustedState,
                command.failureFactsJson = :failureFacts,
+               command.terminalizedAt = :now,
                command.deliveryToken = null,
                command.leaseUntil = null,
                command.version = command.version + 1
@@ -192,6 +194,7 @@ interface CommandRecordJpaRepository :
         """
         update CommandRecordEntity command
            set command.commandState = :successState,
+               command.terminalizedAt = :now,
                command.deliveryToken = null,
                command.leaseUntil = null,
                command.version = command.version + 1
@@ -216,6 +219,7 @@ interface CommandRecordJpaRepository :
            set command.commandState = :failureState,
                command.failureFactsJson = :failureFacts,
                command.nextTryTime = :nextTryTime,
+               command.terminalizedAt = :terminalizedAt,
                command.deliveryToken = null,
                command.leaseUntil = null,
                command.version = command.version + 1
@@ -232,6 +236,7 @@ interface CommandRecordJpaRepository :
         @Param("failureState") failureState: CommandRecordEntity.CommandState,
         @Param("failureFacts") failureFacts: String,
         @Param("nextTryTime") nextTryTime: LocalDateTime,
+        @Param("terminalizedAt") terminalizedAt: LocalDateTime?,
         @Param("now") now: LocalDateTime,
     ): Int
 
@@ -246,6 +251,7 @@ interface CommandRecordJpaRepository :
                command.deliveryToken = null,
                command.leaseUntil = null,
                command.redriveRequestToken = :requestToken,
+               command.terminalizedAt = null,
                command.version = command.version + 1
          where command.id = :recordId
            and command.version = :version
@@ -263,5 +269,71 @@ interface CommandRecordJpaRepository :
         @Param("readyState") readyState: CommandRecordEntity.CommandState,
         @Param("now") now: LocalDateTime,
         @Param("requestToken") requestToken: String,
+    ): Int
+
+    /** Select a bounded retention batch without exposing command payloads. */
+    @Query(
+        """
+        select command.id
+          from CommandRecordEntity command
+         where command.svcName = :serviceName
+           and command.leaseUntil is null
+           and (
+                (command.commandState = :successState
+                    and command.terminalizedAt <= :successfulCutoff)
+                or
+                (command.commandState = :exhaustedState
+                    and command.expireAt <= :now
+                    and command.terminalizedAt <= :exhaustedCutoff)
+                or
+                (command.commandState = :expiredState
+                    and command.terminalizedAt <= :expiredCutoff)
+           )
+         order by command.terminalizedAt asc, command.id asc
+        """
+    )
+    fun findRetentionCandidateIds(
+        @Param("serviceName") serviceName: String,
+        @Param("successState") successState: CommandRecordEntity.CommandState,
+        @Param("exhaustedState") exhaustedState: CommandRecordEntity.CommandState,
+        @Param("expiredState") expiredState: CommandRecordEntity.CommandState,
+        @Param("successfulCutoff") successfulCutoff: LocalDateTime,
+        @Param("exhaustedCutoff") exhaustedCutoff: LocalDateTime,
+        @Param("expiredCutoff") expiredCutoff: LocalDateTime,
+        @Param("now") now: LocalDateTime,
+        pageable: Pageable,
+    ): List<Long>
+
+    /** Delete only the still-eligible ids from a previously selected bounded batch. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        delete from CommandRecordEntity command
+         where command.id in :recordIds
+           and command.svcName = :serviceName
+           and command.leaseUntil is null
+           and (
+                (command.commandState = :successState
+                    and command.terminalizedAt <= :successfulCutoff)
+                or
+                (command.commandState = :exhaustedState
+                    and command.expireAt <= :now
+                    and command.terminalizedAt <= :exhaustedCutoff)
+                or
+                (command.commandState = :expiredState
+                    and command.terminalizedAt <= :expiredCutoff)
+           )
+        """
+    )
+    fun deleteRetentionCandidates(
+        @Param("recordIds") recordIds: Collection<Long>,
+        @Param("serviceName") serviceName: String,
+        @Param("successState") successState: CommandRecordEntity.CommandState,
+        @Param("exhaustedState") exhaustedState: CommandRecordEntity.CommandState,
+        @Param("expiredState") expiredState: CommandRecordEntity.CommandState,
+        @Param("successfulCutoff") successfulCutoff: LocalDateTime,
+        @Param("exhaustedCutoff") exhaustedCutoff: LocalDateTime,
+        @Param("expiredCutoff") expiredCutoff: LocalDateTime,
+        @Param("now") now: LocalDateTime,
     ): Int
 }

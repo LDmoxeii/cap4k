@@ -148,6 +148,10 @@ class CommandRecordEntity(
     @Column(name = "`redrive_request_token`", length = 128)
     var redriveRequestToken: String? = null,
 
+    /** Runtime-owned timestamp at which the record entered a terminal state. */
+    @Column(name = "`terminalized_at`", columnDefinition = "datetime(3)")
+    var terminalizedAt: LocalDateTime? = null,
+
     /** Database audit columns retained for schema/projection parity. */
     @Column(name = "`db_created_at`", insertable = false, updatable = false, columnDefinition = "datetime(3)")
     var dbCreatedAt: LocalDateTime? = null,
@@ -172,6 +176,7 @@ class CommandRecordEntity(
         const val F_RETRY_POLICY = "retryPolicy"
         const val F_TRIED_TIMES = "triedTimes"
         const val F_LAST_TRY_TIME = "lastTryTime"
+        const val F_TERMINALIZED_AT = "terminalizedAt"
         const val F_NEXT_TRY_TIME = "nextTryTime"
         const val F_REDRIVE_REQUEST_TOKEN = "redriveRequestToken"
         const val F_DELIVERY_TOKEN = "deliveryToken"

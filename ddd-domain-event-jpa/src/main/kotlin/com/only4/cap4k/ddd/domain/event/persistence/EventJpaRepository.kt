@@ -67,6 +67,7 @@ interface EventJpaRepository :
         update Event event
            set event.eventState = :expiredState,
                event.failureFactsJson = :failureFacts,
+               event.terminalizedAt = :now,
                event.deliveryToken = null,
                event.leaseUntil = null,
                event.version = event.version + 1
@@ -99,6 +100,7 @@ interface EventJpaRepository :
         update Event event
            set event.eventState = :exhaustedState,
                event.failureFactsJson = :failureFacts,
+               event.terminalizedAt = :now,
                event.deliveryToken = null,
                event.leaseUntil = null,
                event.version = event.version + 1
@@ -192,6 +194,7 @@ interface EventJpaRepository :
         """
         update Event event
            set event.eventState = :successState,
+               event.terminalizedAt = :now,
                event.deliveryToken = null,
                event.leaseUntil = null,
                event.version = event.version + 1
@@ -216,6 +219,7 @@ interface EventJpaRepository :
            set event.eventState = :failureState,
                event.failureFactsJson = :failureFacts,
                event.nextTryTime = :nextTryTime,
+               event.terminalizedAt = :terminalizedAt,
                event.deliveryToken = null,
                event.leaseUntil = null,
                event.version = event.version + 1
@@ -232,6 +236,7 @@ interface EventJpaRepository :
         @Param("failureState") failureState: Event.EventState,
         @Param("failureFacts") failureFacts: String,
         @Param("nextTryTime") nextTryTime: LocalDateTime,
+        @Param("terminalizedAt") terminalizedAt: LocalDateTime?,
         @Param("now") now: LocalDateTime,
     ): Int
 
@@ -246,6 +251,7 @@ interface EventJpaRepository :
                event.deliveryToken = null,
                event.leaseUntil = null,
                event.redriveRequestToken = :requestToken,
+               event.terminalizedAt = null,
                event.version = event.version + 1
          where event.id = :recordId
            and event.version = :version
@@ -263,5 +269,71 @@ interface EventJpaRepository :
         @Param("readyState") readyState: Event.EventState,
         @Param("now") now: LocalDateTime,
         @Param("requestToken") requestToken: String,
+    ): Int
+
+    /** Select a bounded retention batch without exposing event payloads. */
+    @Query(
+        """
+        select event.id
+          from Event event
+         where event.svcName = :serviceName
+           and event.leaseUntil is null
+           and (
+                (event.eventState = :successState
+                    and event.terminalizedAt <= :successfulCutoff)
+                or
+                (event.eventState = :exhaustedState
+                    and event.expireAt <= :now
+                    and event.terminalizedAt <= :exhaustedCutoff)
+                or
+                (event.eventState = :expiredState
+                    and event.terminalizedAt <= :expiredCutoff)
+           )
+         order by event.terminalizedAt asc, event.id asc
+        """
+    )
+    fun findRetentionCandidateIds(
+        @Param("serviceName") serviceName: String,
+        @Param("successState") successState: Event.EventState,
+        @Param("exhaustedState") exhaustedState: Event.EventState,
+        @Param("expiredState") expiredState: Event.EventState,
+        @Param("successfulCutoff") successfulCutoff: LocalDateTime,
+        @Param("exhaustedCutoff") exhaustedCutoff: LocalDateTime,
+        @Param("expiredCutoff") expiredCutoff: LocalDateTime,
+        @Param("now") now: LocalDateTime,
+        pageable: Pageable,
+    ): List<Long>
+
+    /** Delete only the still-eligible ids from a previously selected bounded batch. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        delete from Event event
+         where event.id in :recordIds
+           and event.svcName = :serviceName
+           and event.leaseUntil is null
+           and (
+                (event.eventState = :successState
+                    and event.terminalizedAt <= :successfulCutoff)
+                or
+                (event.eventState = :exhaustedState
+                    and event.expireAt <= :now
+                    and event.terminalizedAt <= :exhaustedCutoff)
+                or
+                (event.eventState = :expiredState
+                    and event.terminalizedAt <= :expiredCutoff)
+           )
+        """
+    )
+    fun deleteRetentionCandidates(
+        @Param("recordIds") recordIds: Collection<Long>,
+        @Param("serviceName") serviceName: String,
+        @Param("successState") successState: Event.EventState,
+        @Param("exhaustedState") exhaustedState: Event.EventState,
+        @Param("expiredState") expiredState: Event.EventState,
+        @Param("successfulCutoff") successfulCutoff: LocalDateTime,
+        @Param("exhaustedCutoff") exhaustedCutoff: LocalDateTime,
+        @Param("expiredCutoff") expiredCutoff: LocalDateTime,
+        @Param("now") now: LocalDateTime,
     ): Int
 }
