@@ -8,6 +8,7 @@ import com.only4.cap4k.ddd.core.application.command.CommandSupervisorSupport
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.query.QuerySupervisor
@@ -59,6 +60,7 @@ class RuntimeProviderBinder(
         val repositorySupervisor = optional(RepositorySupervisor::class.java, "repositories")
         val integrationEventSupervisor = optional(IntegrationEventSupervisor::class.java, "integration-events")
         val integrationEventManager = optional(IntegrationEventManager::class.java, "integration-event-manager")
+        optional(IntegrationEventPublisher::class.java, "integration-event-transport")
         optional(ReliableDomainEventProvider::class.java, "reliable-domain-events")
 
         try {

@@ -31,6 +31,7 @@ import com.only4.cap4k.ddd.core.domain.managed.DefaultManagedEntityAdmissionCoor
 import com.only4.cap4k.ddd.core.domain.managed.ManagedEntityAdmissionCoordinator
 import com.only4.cap4k.ddd.core.domain.managed.ManagedFieldRegistry
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerDescriptorResolver
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerRegistry
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
@@ -189,6 +190,15 @@ class CoreRuntimeAutoConfiguration {
         beanFactory: ListableBeanFactory,
         descriptorResolver: Cap4kEventHandlerDescriptorResolver,
     ): EventTypeCatalog = SpringEventTypeCatalog(beanFactory, descriptorResolver)
+
+    @Bean
+    fun inboundIntegrationEventRegistrationView(
+        eventTypeCatalog: EventTypeCatalog,
+        beanFactory: ListableBeanFactory,
+        descriptorResolver: Cap4kEventHandlerDescriptorResolver,
+    ): InboundIntegrationEventRegistrationView = CatalogDerivedInboundIntegrationEventRegistrationView(
+        eventTypeCatalog, beanFactory, descriptorResolver,
+    )
 
     @Bean
     fun mediatorCapabilityBinder(

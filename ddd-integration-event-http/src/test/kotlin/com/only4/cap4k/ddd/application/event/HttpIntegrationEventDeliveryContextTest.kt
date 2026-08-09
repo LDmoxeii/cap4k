@@ -9,7 +9,7 @@ import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextAccessor
 import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerDescriptorResolver
@@ -30,7 +30,6 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.BeanDefinitionBuilder
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.event.EventListener
-import org.springframework.core.env.Environment
 import java.time.Instant
 
 class HttpIntegrationEventDeliveryContextTest {
@@ -58,7 +57,7 @@ class HttpIntegrationEventDeliveryContextTest {
         assertEquals("http.delivery.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
         assertEquals(2, context.attempt)
-        assertEquals("test-subscriber", context.subscriberIdentity)
+        assertEquals("test-app", context.subscriberIdentity)
         assertEquals(com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN, context.redeliveryHint)
         assertNull(observed.inPreInterceptor)
         assertNull(observed.inPostInterceptor)
@@ -180,36 +179,20 @@ class HttpIntegrationEventDeliveryContextTest {
         dispatcher: EventHandlerDispatcher,
         interceptors: (ReliableEventDeliveryContextAccessor) -> List<EventMessageInterceptor> = { emptyList() },
     ): Fixture {
-        clearPlaceholderCache()
         val executionContexts = DefaultExecutionContextManager()
         val deliveryManager = DefaultReliableEventDeliveryContextManager(executionContexts, executionContexts)
-        val subscriberRegister = mockk<HttpIntegrationEventSubscriberRegister>()
-        every { subscriberRegister.subscribe(any(), any(), any()) } returns true
-        val environment = mockk<Environment>()
-        every { environment.resolvePlaceholders(any()) } answers { firstArg() }
         val adapter = HttpIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = dispatcher,
             eventMessageInterceptors = interceptors(deliveryManager),
-            httpIntegrationEventSubscriberRegister = subscriberRegister,
-            environment = environment,
             eventTypeCatalog = SingleHttpEventCatalog,
             applicationName = "test-app",
-            httpBaseUrl = "http://localhost",
-            httpSubscribePath = "/subscribe",
-            httpConsumePath = "/consume",
             executionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
             executionContextScopeManager = executionContexts,
             reliableEventDeliveryContextScopeManager = deliveryManager,
-        ).apply { init() }
+        )
         return Fixture(adapter, deliveryManager, deliveryManager)
     }
 
-    private fun clearPlaceholderCache() {
-        val field = Class.forName("com.only4.cap4k.ddd.core.share.misc.TextUtils")
-            .getDeclaredField("resolvePlaceholderCache")
-        field.isAccessible = true
-        (field.get(null) as MutableMap<*, *>).clear()
-    }
 
     private data class Fixture(
         val adapter: HttpIntegrationEventSubscriberAdapter,
@@ -223,13 +206,13 @@ class HttpIntegrationEventDeliveryContextTest {
         var inPostInterceptor: ReliableEventDeliveryContext? = null
     }
 
-    private object SingleHttpEventCatalog : EventTypeCatalog {
+    private object SingleHttpEventCatalog : InboundIntegrationEventRegistrationView {
         override fun integrationEventTypes(): Set<Class<*>> = setOf(HttpDeliveryEvent::class.java)
     }
 
 }
 
-@IntegrationEvent("http.delivery.event", subscriber = "test-subscriber")
+@IntegrationEvent("http.delivery.event")
 internal data class HttpDeliveryEvent(
     val value: String,
     val enabled: Boolean = true,

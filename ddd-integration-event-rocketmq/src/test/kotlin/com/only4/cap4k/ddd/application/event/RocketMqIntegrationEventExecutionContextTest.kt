@@ -10,7 +10,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
@@ -253,7 +253,7 @@ class RocketMqIntegrationEventExecutionContextTest {
         assertTrue(contextManager.current().isEmpty)
     }
 
-    private object EmptyEventCatalog : EventTypeCatalog {
+    private object EmptyEventCatalog : InboundIntegrationEventRegistrationView {
         override fun integrationEventTypes(): Set<Class<*>> = emptySet()
     }
 
@@ -279,10 +279,7 @@ class RocketMqIntegrationEventExecutionContextTest {
     ).toByteArray()
 }
 
-@com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
-    value = "context.transport.event",
-    subscriber = "",
-)
+@com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent("context.transport.event")
 internal data class ContextTransportEvent(val value: String)
 
 private data class TransportContext(val value: String) : ExecutionContextElement

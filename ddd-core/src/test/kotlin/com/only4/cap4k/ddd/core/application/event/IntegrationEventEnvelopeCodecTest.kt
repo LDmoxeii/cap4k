@@ -110,7 +110,7 @@ class IntegrationEventEnvelopeCodecTest {
         every { deliveryAttempt } returns 2
     }
 
-    @IntegrationEvent("user.created", subscriber = "media-service")
+    @IntegrationEvent("user.created")
     data class TestIntegrationEvent(
         val id: TestStrongId,
         val nested: NestedPayload,

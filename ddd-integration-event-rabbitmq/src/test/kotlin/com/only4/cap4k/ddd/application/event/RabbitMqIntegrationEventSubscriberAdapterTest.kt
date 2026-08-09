@@ -6,7 +6,7 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
@@ -47,7 +47,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     private lateinit var connectionFactory: ConnectionFactory
     private lateinit var environment: Environment
     private lateinit var adapter: RabbitMqIntegrationEventSubscriberAdapter
-    private val eventTypeCatalog = object : EventTypeCatalog {
+    private val eventTypeCatalog = object : InboundIntegrationEventRegistrationView {
         override fun integrationEventTypes(): Set<Class<*>> = emptySet()
     }
 
@@ -90,14 +90,15 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { rabbitListenerContainerFactory.createListenerContainer() } returns mockContainer
         every { mockContainer.setQueueNames(any<String>()) } just runs
         every { mockContainer.acknowledgeMode = any() } just runs
-        every { environment.resolvePlaceholders(any()) } returns "test.exchange:routing.key"
+        every { environment.resolvePlaceholders("test.exchange:routing.key") } returns "test.exchange:routing.key"
+        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.consumer.queue:test-app}") } returns "test-app"
 
         // Act
         val result = adapter.createDefaultConsumer(TestIntegrationEvent::class.java)
 
         // Assert
         assertEquals(mockContainer, result)
-        verify { mockContainer.setQueueNames(any<String>()) }
+        verify { mockContainer.setQueueNames("test-app") }
         verify { mockContainer.acknowledgeMode = AcknowledgeMode.MANUAL }
     }
 
@@ -110,14 +111,13 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { mockContainer.setQueueNames(any<String>()) } just runs
         every { mockContainer.acknowledgeMode = any() } just runs
         every { environment.resolvePlaceholders("test.exchange:routing.key") } returns "test.exchange:routing.key"
-        every { environment.resolvePlaceholders("subscriber") } returns "subscriber"
-        every { environment.resolvePlaceholders(match { it.contains("test.exchange.consumer.queue") || it.contains("test.exchange-4-test-app") }) } returns "test-queue"
+        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.consumer.queue:test-app}") } returns "test-queue"
 
         // Act
         val result = adapter.createDefaultConsumer(TestIntegrationEvent::class.java)
 
         // Assert - 验证方法执行没有异常
-        verify(atLeast = 0) { mockContainer.setQueueNames(any<String>()) }
+        verify { mockContainer.setQueueNames("test-queue") }
     }
 
     @Test
@@ -129,8 +129,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { mockContainer.setQueueNames(any<String>()) } just runs
         every { mockContainer.acknowledgeMode = any() } just runs
         every { environment.resolvePlaceholders("exchange") } returns "exchange"
-        every { environment.resolvePlaceholders("subscriber") } returns "subscriber"
-        every { environment.resolvePlaceholders(match { it.contains("exchange.consumer.queue") }) } returns "test-queue"
+        every { environment.resolvePlaceholders("\${rabbitmq.exchange.consumer.queue:test-app}") } returns "test-queue"
 
         // Act
         val result = adapter.createDefaultConsumer(NoColonIntegrationEvent::class.java)
@@ -164,10 +163,9 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         every { rabbitListenerContainerFactory.createListenerContainer() } returns mockContainer
         every { mockContainer.setQueueNames(any<String>()) } just runs
         every { mockContainer.acknowledgeMode = any() } just runs
-        every { environment.resolvePlaceholders(any<String>()) } returns "test.exchange:routing.key"
-        every { environment.resolvePlaceholders("subscriber") } returns "subscriber"
-        every { environment.resolvePlaceholders(match { it.contains("consumer.queue") }) } returns "test-queue"
-        every { environment.resolvePlaceholders(match { it.contains("type:direct") }) } returns "direct"
+        every { environment.resolvePlaceholders("test.exchange:routing.key") } returns "test.exchange:routing.key"
+        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.consumer.queue:test-app}") } returns "test-queue"
+        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.type:direct}") } returns "direct"
         every { connectionFactory.createConnection() } returns connection
         every { connection.createChannel(false) } returns channel
 
@@ -221,7 +219,7 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         assertEquals("test.exchange:routing.key", deliveryContext.eventName)
         assertEquals(java.time.Instant.ofEpochMilli(1_000), deliveryContext.publishedAt)
         assertEquals(2, deliveryContext.attempt)
-        assertEquals("subscriber", deliveryContext.subscriberIdentity)
+        assertEquals("test-app", deliveryContext.subscriberIdentity)
         assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
     }
 
@@ -413,21 +411,18 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     }
 
     // 测试用的事件类和注解
-    @IntegrationEvent("test.exchange:routing.key", "subscriber")
+    @IntegrationEvent("test.exchange:routing.key")
     private class TestIntegrationEvent
 
-    @IntegrationEvent("exchange", "subscriber")
+    @IntegrationEvent("exchange")
     private class NoColonIntegrationEvent
 
     private class NonIntegrationEvent
 
-    @IntegrationEvent("", "subscriber")
+    @IntegrationEvent("")
     private class EmptyValueIntegrationEvent
 
-    @IntegrationEvent("test.exchange:routing.key", IntegrationEvent.NONE_SUBSCRIBER)
-    private class NoneSubscriberIntegrationEvent
-
-    @IntegrationEvent("test.exchange:routing.key", "subscriber")
+    @IntegrationEvent("test.exchange:routing.key")
     private data class TestEventPayload(val data: String)
 
     private fun canonicalBody(payload: TestEventPayload): ByteArray =

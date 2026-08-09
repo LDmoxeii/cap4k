@@ -11,6 +11,7 @@ import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultDomainEventInterceptorManager
@@ -90,5 +91,11 @@ class ReliableEventTransportCompositionTest {
         fun eventTypeCatalog(): EventTypeCatalog = object : EventTypeCatalog {
             override fun integrationEventTypes(): Set<Class<*>> = emptySet()
         }
+
+        @Bean
+        fun inboundIntegrationEventRegistrationView(): InboundIntegrationEventRegistrationView =
+            object : InboundIntegrationEventRegistrationView {
+                override fun integrationEventTypes(): Set<Class<*>> = emptySet()
+            }
     }
 }

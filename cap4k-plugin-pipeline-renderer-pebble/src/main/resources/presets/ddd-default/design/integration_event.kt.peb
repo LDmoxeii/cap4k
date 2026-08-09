@@ -12,8 +12,7 @@ import {{ import }}
  * {{ descriptionCommentText | raw }}
  */
 @IntegrationEvent(
-    value = {{ eventNameKotlinStringLiteral | raw }},
-    subscriber = {% if inbound %}"\${spring.application.name:}"{% else %}IntegrationEvent.NONE_SUBSCRIBER{% endif %}
+    value = {{ eventNameKotlinStringLiteral | raw }}
 )
 {% if buildingBlock is defined -%}
 @DesignBlockMetadata(

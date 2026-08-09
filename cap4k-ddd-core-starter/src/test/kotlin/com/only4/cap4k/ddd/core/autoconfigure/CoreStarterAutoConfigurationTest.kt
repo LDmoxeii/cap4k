@@ -10,11 +10,14 @@ import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
+import com.only4.cap4k.ddd.core.domain.event.impl.Cap4kEventHandlerRegistry
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextAccessor
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableDomainEventProvider
@@ -41,6 +44,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.event.EventListener
 import java.time.LocalDateTime
 
+import java.util.function.Supplier
 class CoreStarterAutoConfigurationTest {
     private val contextRunner = ApplicationContextRunner()
         .withConfiguration(
@@ -138,6 +142,38 @@ class CoreStarterAutoConfigurationTest {
     }
 
     @Test
+    fun `inbound integration event view intersects catalog with real local handler descriptors`() {
+        contextRunner
+            .withBean(
+                EventTypeCatalog::class.java,
+                Supplier {
+                    object : EventTypeCatalog {
+                        override fun integrationEventTypes(): Set<Class<*>> = setOf(
+                            TestIntegrationEvent::class.java,
+                            OrphanIntegrationEvent::class.java,
+                        )
+                    }
+                },
+            )
+            .run { context ->
+                assertTrue(context.startupFailure == null)
+                assertEquals(
+                    setOf(TestIntegrationEvent::class.java),
+                    context.getBean(InboundIntegrationEventRegistrationView::class.java).integrationEventTypes(),
+                )
+                val handlers = context.getBean(Cap4kEventHandlerRegistry::class.java)
+                    .handlersFor(TestIntegrationEvent::class.java)
+                assertEquals(
+                    setOf("onIntegration", "onIntegrationSecond"),
+                    handlers.map { it.descriptor.method.name }.toSet(),
+                )
+                assertTrue(context.getBean(Cap4kEventHandlerRegistry::class.java)
+                    .handlersFor(OrphanIntegrationEvent::class.java)
+                    .isEmpty())
+            }
+    }
+
+    @Test
     fun `optional integration event manager conflict fails instead of degrading to absent`() {
         contextRunner
             .withBean("integrationManagerB", TestIntegrationEventManager::class.java)
@@ -146,6 +182,22 @@ class CoreStarterAutoConfigurationTest {
                 val failure = requireNotNull(context.startupFailure).stackTraceToString()
                 assertTrue(failure.contains("cap4k provider 'integration-event-manager' allows at most one implementation"))
                 assertTrue(failure.contains("found [integrationManagerA, integrationManagerB]"))
+            }
+    }
+
+    @Test
+    fun `optional integration event publisher conflict reports sorted bean identities`() {
+        contextRunner
+            .withInitializer { context ->
+                context.beanFactory.registerSingleton("publisherB", mock(IntegrationEventPublisher::class.java))
+                context.beanFactory.registerSingleton("publisherA", mock(IntegrationEventPublisher::class.java))
+            }
+            .run { context ->
+                val failure = requireNotNull(context.startupFailure).stackTraceToString()
+                assertTrue(
+                    failure.contains("cap4k provider 'integration-event-transport' allows at most one implementation")
+                )
+                assertTrue(failure.contains("found [publisherA, publisherB]"))
             }
     }
 
@@ -278,6 +330,9 @@ class CoreStarterAutoConfigurationTest {
 
     @IntegrationEvent("test.integration")
     data class TestIntegrationEvent(val value: String)
+    @IntegrationEvent("test.orphan")
+    data class OrphanIntegrationEvent(val value: String)
+
 
     class TestEventListener {
         val events = mutableListOf<TestEvent>()
@@ -289,6 +344,9 @@ class CoreStarterAutoConfigurationTest {
 
         @EventListener
         fun onIntegration(event: TestIntegrationEvent) = Unit
+
+        @EventListener
+        fun onIntegrationSecond(event: TestIntegrationEvent) = Unit
     }
 
     @Configuration(proxyBeanMethods = false)

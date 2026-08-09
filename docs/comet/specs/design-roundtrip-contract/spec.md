@@ -66,7 +66,7 @@ An Integration Event MUST have a non-blank `eventName`. A Domain Event with `per
 
 When a Domain Event name is present, Generator MUST emit it in runtime `@DomainEvent(value = ..., persist = ...)` as well as compile-time analysis metadata. Analyzer MUST compare the canonical metadata name with the unmodified runtime annotation literal and fail unless both are exactly equal. It MUST NOT trim a runtime literal or fill missing metadata from runtime. Only a transient Domain Event with both names absent may use an empty name. Persisted Domain Events MUST NOT produce an empty runtime event type.
 
-Integration Event direction, event name, and subscriber semantics MUST likewise agree between metadata and runtime annotations. Runtime subscriber direction follows the runtime contract exactly: only the unmodified subscriber literal equal to `IntegrationEvent.NONE_SUBSCRIBER` under runtime case-insensitive comparison is outbound. Explicit blank or whitespace-wrapped subscriber values are not normalized to outbound. Analyzer MUST fail on contradictory views rather than choosing one.
+Integration Event `eventName` MUST agree between metadata and the unmodified runtime `@IntegrationEvent.value` literal. Direction remains explicit Design/Analyzer metadata only: the runtime annotation does not encode inbound/outbound direction, and Analyzer MUST NOT infer or contradict direction from runtime annotation fields.
 
 The identifier `entity` is not a reserved payload field name. Canonical assembly and Analyzer MUST retain it. Reliable-event payload rejection MUST depend only on the resolved recursive semantic type graph: actual Entity/Aggregate types remain invalid at any nested container position, preserving PR #152's runtime history boundary.
 

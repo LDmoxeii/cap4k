@@ -13,13 +13,12 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
-import com.only4.cap4k.ddd.core.domain.event.EventTypeCatalog
+import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.springframework.core.env.Environment
 import java.time.Instant
 
 class HttpIntegrationEventExecutionContextTest {
@@ -28,28 +27,19 @@ class HttpIntegrationEventExecutionContextTest {
         val contextManager = DefaultExecutionContextManager()
         val codecRegistry = ExecutionContextCodecRegistry(listOf(TransportContextCodec))
         val subscriberManager = mockk<EventHandlerDispatcher>()
-        val subscriberRegister = mockk<HttpIntegrationEventSubscriberRegister>()
-        val environment = mockk<Environment>()
         var observedContext: TransportContext? = null
         every { subscriberManager.dispatch(any()) } answers {
             observedContext = contextManager.current()[TransportContextKey]
         }
-        every { subscriberRegister.subscribe(any(), any(), any()) } returns true
-        every { environment.resolvePlaceholders(any()) } answers { firstArg() }
         val adapter = HttpIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = subscriberManager,
             eventMessageInterceptors = emptyList(),
-            httpIntegrationEventSubscriberRegister = subscriberRegister,
-            environment = environment,
             eventTypeCatalog = SingleEventCatalog,
             applicationName = "test-app",
-            httpBaseUrl = "http://localhost",
-            httpSubscribePath = "/subscribe",
-            httpConsumePath = "/consume",
             executionContextCodecRegistry = codecRegistry,
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager),
-        ).apply { init() }
+        )
         val envelope = IntegrationEventEnvelopeCodec().encode(
             IntegrationEventEnvelope(
                 eventId = "event-123",
@@ -72,7 +62,7 @@ class HttpIntegrationEventExecutionContextTest {
         assertTrue(contextManager.current().isEmpty)
     }
 
-    private object SingleEventCatalog : EventTypeCatalog {
+    private object SingleEventCatalog : InboundIntegrationEventRegistrationView {
         override fun integrationEventTypes(): Set<Class<*>> = setOf(ContextTransportEvent::class.java)
     }
 
@@ -81,7 +71,7 @@ class HttpIntegrationEventExecutionContextTest {
         .build()
 }
 
-@IntegrationEvent("context.transport.event", subscriber = "test-subscriber")
+@IntegrationEvent("context.transport.event")
 internal data class ContextTransportEvent(val value: String)
 
 private data class TransportContext(val value: String) : ExecutionContextElement
