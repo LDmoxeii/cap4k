@@ -1,414 +1,84 @@
 package com.only4.cap4k.ddd.domain.event
 
 import com.only4.cap4k.ddd.core.share.DomainException
-import com.only4.cap4k.ddd.domain.event.persistence.*
-import io.mockk.*
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
+import com.only4.cap4k.ddd.domain.event.persistence.Event
+import com.only4.cap4k.ddd.domain.event.persistence.EventJpaRepository
+import com.only4.cap4k.ddd.domain.event.persistence.TestEvent
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotSame
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
 import java.time.Duration
 import java.time.LocalDateTime
-import java.util.*
+import java.util.Optional
 
-@DisplayName("JpaEventRecordRepository仓储实现测试")
 class JpaEventRecordRepositoryTest {
+    private val records = mockk<EventJpaRepository>()
+    private val repository = JpaEventRecordRepository(records)
+    private val scheduleAt = LocalDateTime.of(2026, 8, 8, 10, 30)
 
-    private lateinit var repository: JpaEventRecordRepository
-    private lateinit var eventJpaRepository: EventJpaRepository
-    private val testTime: LocalDateTime = LocalDateTime.of(2025, 1, 15, 10, 30, 0)
+    @Test
+    fun `create returns a fresh JPA carrier`() {
+        val first = repository.create()
+        val second = repository.create()
 
-    @BeforeEach
-    fun setUp() {
-        eventJpaRepository = mockk()
-        repository = JpaEventRecordRepository(eventJpaRepository)
+        assertTrue(first is EventRecordImpl)
+        assertTrue(second is EventRecordImpl)
+        assertNotSame(first, second)
     }
 
-    @Nested
-    @DisplayName("创建EventRecord测试")
-    inner class CreateEventRecordTest {
-
-        @Test
-        @DisplayName("应该创建新的EventRecordImpl实例")
-        fun `should create new EventRecordImpl instance`() {
-            // When
-            val eventRecord = repository.create()
-
-            // Then
-            assertNotNull(eventRecord)
-            assertTrue(eventRecord is EventRecordImpl)
-        }
-
-        @Test
-        @DisplayName("每次调用create应该返回新的实例")
-        fun `should return new instance on each create call`() {
-            // When
-            val eventRecord1 = repository.create()
-            val eventRecord2 = repository.create()
-
-            // Then
-            assertNotSame(eventRecord1, eventRecord2)
-        }
-    }
-
-    @Nested
-    @DisplayName("保存EventRecord测试")
-    inner class SaveEventRecordTest {
-
-        @Test
-        @DisplayName("应该保存EventRecord并更新实例")
-        fun `should save event record and update instance`() {
-            // Given
-            val eventRecord = EventRecordImpl()
-            val payload = TestEvent("test", 12345)
-            eventRecord.init(payload, "test-service", testTime, Duration.ofMinutes(10), 3)
-
-            val savedEvent = mockk<Event> {
-                every { eventUuid } returns "saved-uuid"
-                every { svcName } returns "test-service"
-            }
-
-            every { eventJpaRepository.save(any()) } returns savedEvent
-
-            // When
-            repository.save(eventRecord)
-
-            // Then
-            verify { eventJpaRepository.save(any()) }
-            assertEquals(savedEvent, eventRecord.event)
-        }
-
-        @Test
-        @DisplayName("应该能够保存复杂的EventRecord")
-        fun `should save complex event record`() {
-            // Given
-            val eventRecord = EventRecordImpl()
-            val location = InventoryUpdatedEvent.Location("warehouse-a", "zone-1", "shelf-100")
-            val details = mapOf("operator" to "admin", "reason" to "stock adjustment")
-            val payload = InventoryUpdatedEvent("product123", 50, location, details)
-            eventRecord.init(payload, "inventory-service", testTime, Duration.ofMinutes(15), 3)
-            eventRecord.markPersist(true)
-
-            val savedEvent = mockk<Event>()
-            every { eventJpaRepository.save(any()) } returns savedEvent
-
-            // When
-            repository.save(eventRecord)
-
-            // Then
-            verify { eventJpaRepository.save(any()) }
-        }
-    }
-
-    @Nested
-    @DisplayName("根据ID获取EventRecord测试")
-    inner class GetByIdTest {
-
-        @Test
-        @DisplayName("应该根据ID成功获取EventRecord")
-        fun `should get event record by id successfully`() {
-            // Given
-            val eventId = "test-event-id"
-            val mockEvent = mockk<Event> {
-                every { eventUuid } returns eventId
-                every { eventType } returns "test.event"
-                every { svcName } returns "test-service"
-                every { createAt } returns testTime
-                every { payload } returns TestEvent("test", 12345)
-            }
-
-            every {
-                eventJpaRepository.findOne(any<Specification<Event>>())
-            } returns Optional.of(mockEvent)
-
-            // When
-            val eventRecord = repository.getById(eventId)
-
-            // Then
-            assertNotNull(eventRecord)
-            assertTrue(eventRecord is EventRecordImpl)
-            val impl = eventRecord as EventRecordImpl
-            assertEquals(mockEvent, impl.event)
-
-            verify {
-                eventJpaRepository.findOne(any<Specification<Event>>())
-            }
-        }
-
-        @Test
-        @DisplayName("当事件不存在时应该抛出DomainException")
-        fun `should throw DomainException when event not found`() {
-            // Given
-            val eventId = "non-existent-id"
-            every {
-                eventJpaRepository.findOne(any<Specification<Event>>())
-            } returns Optional.empty()
-
-            // When & Then
-            val exception = assertThrows<DomainException> {
-                repository.getById(eventId)
-            }
-            assertEquals("EventRecord not found", exception.message)
-        }
-
-        @Test
-        @DisplayName("应该使用正确的查询条件")
-        fun `should use correct query specification`() {
-            // Given
-            val eventId = "test-event-id"
-            val mockEvent = mockk<Event>()
-            val specificationSlot = slot<Specification<Event>>()
-
-            every {
-                eventJpaRepository.findOne(capture(specificationSlot))
-            } returns Optional.of(mockEvent)
-
-            // When
-            repository.getById(eventId)
-
-            // Then
-            verify {
-                eventJpaRepository.findOne(any<Specification<Event>>())
-            }
-        }
-    }
-
-    @Nested
-    @DisplayName("根据下次尝试时间获取EventRecord测试")
-    inner class GetByNextTryTimeTest {
-
-        @Test
-        @DisplayName("应该获取需要重试的事件记录")
-        fun `should get event records for retry`() {
-            // Given
-            val svcName = "test-service"
-            val maxNextTryTime = testTime.plusMinutes(30)
-            val limit = 10
-
-            val mockEvents = listOf(
-                createMockEvent("event1", Event.EventState.INIT),
-                createMockEvent("event2", Event.EventState.DELIVERING),
-                createMockEvent("event3", Event.EventState.EXCEPTION)
+    @Test
+    fun `save persists and rebinds the returned entity`() {
+        val record = EventRecordImpl().apply {
+            init(
+                payload = TestEvent("test", 12345),
+                svcName = "test-service",
+                scheduleAt = scheduleAt,
+                expireAfter = Duration.ofHours(1),
+                retryTimes = 3,
+                executionContext = emptyList(),
             )
-            val mockPage = PageImpl(mockEvents)
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            // When
-            val eventRecords = repository.getByNextTryTime(svcName, maxNextTryTime, limit)
-
-            // Then
-            assertEquals(3, eventRecords.size)
-            eventRecords.forEach { eventRecord ->
-                assertTrue(eventRecord is EventRecordImpl)
-            }
-
-            verify {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, Event.F_NEXT_TRY_TIME))
-                )
-            }
         }
+        val original = record.event
+        val saved = Event().apply { eventUuid = "saved-event" }
+        every { records.save(original) } returns saved
 
-        @Test
-        @DisplayName("应该返回空列表当没有符合条件的事件时")
-        fun `should return empty list when no events match criteria`() {
-            // Given
-            val svcName = "test-service"
-            val maxNextTryTime = testTime.plusMinutes(30)
-            val limit = 10
-            val emptyPage = PageImpl<Event>(emptyList())
+        repository.save(record)
 
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns emptyPage
-
-            // When
-            val eventRecords = repository.getByNextTryTime(svcName, maxNextTryTime, limit)
-
-            // Then
-            assertTrue(eventRecords.isEmpty())
-        }
-
-        @Test
-        @DisplayName("应该使用正确的分页参数")
-        fun `should use correct pagination parameters`() {
-            // Given
-            val svcName = "test-service"
-            val maxNextTryTime = testTime.plusMinutes(30)
-            val limit = 5
-            val emptyPage = PageImpl<Event>(emptyList())
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns emptyPage
-
-            // When
-            repository.getByNextTryTime(svcName, maxNextTryTime, limit)
-
-            // Then
-            verify {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    PageRequest.of(0, limit, Sort.by(Sort.Direction.ASC, Event.F_NEXT_TRY_TIME))
-                )
-            }
-        }
+        verify(exactly = 1) { records.save(original) }
+        assertSame(saved, record.event)
     }
 
-    @Nested
-    @DisplayName("集成测试")
-    inner class IntegrationTest {
+    @Test
+    fun `getById hydrates the persisted carrier`() {
+        val stored = Event().init(
+            payload = TestEvent("stored", 1),
+            svcName = "test-service",
+            scheduleAt = scheduleAt,
+            expireAfter = Duration.ofHours(1),
+            retryTimes = 3,
+        )
+        every { records.findOne(any<Specification<Event>>()) } returns Optional.of(stored)
 
-        @Test
-        @DisplayName("完整的事件生命周期测试")
-        fun `should handle complete event lifecycle`() {
-            // Given - 创建事件
-            val eventRecord = repository.create()
-            val eventPayload = UserCreatedEvent("user123", "john", "john@test.com")
-            eventRecord.init(eventPayload, "user-service", testTime, Duration.ofHours(1), 3)
+        val result = repository.getById(stored.eventUuid)
 
-            val savedEvent = mockk<Event> {
-                every { id } returns 1L
-                every { eventUuid } returns "saved-event-id"
-                every { svcName } returns "user-service"
-                every { eventType } returns "user.created"
-                every { createAt } returns testTime
-                every { payload } returns eventPayload
-                every { nextTryTime } returns testTime.plusMinutes(1)
-                every { eventState } returns Event.EventState.INIT
-                every { data } returns """{"userId":"user123","name":"john","email":"john@test.com"}"""
-                every { dataType } returns "UserCreatedEvent"
-                every { expireAt } returns testTime.plusHours(1)
-                every { tryTimes } returns 3
-                every { triedTimes } returns 0
-                every { lastTryTime } returns testTime.minusHours(1)
-                every { version } returns 1
-            }
-
-            every { eventJpaRepository.save(any()) } returns savedEvent
-            every {
-                eventJpaRepository.findOne(any<Specification<Event>>())
-            } returns Optional.of(savedEvent)
-
-            // When - 保存事件
-            repository.save(eventRecord)
-
-            // Then - 验证能够重新获取
-            val retrievedRecord = repository.getById("saved-event-id")
-            assertNotNull(retrievedRecord)
-            assertEquals("user.created", retrievedRecord.type)
-        }
-
-        @Test
-        @DisplayName("批量处理事件测试")
-        fun `should handle batch processing of events`() {
-            // Given
-            val svcName = "batch-service"
-            val maxNextTryTime = testTime.plusMinutes(30)
-            val limit = 5
-
-            val mockEvents = (1..3).map { i ->
-                createMockEvent("batch-event-$i", Event.EventState.INIT)
-            }
-            val mockPage = PageImpl(mockEvents)
-
-            every {
-                eventJpaRepository.findAll(
-                    any<Specification<Event>>(),
-                    any<PageRequest>()
-                )
-            } returns mockPage
-
-            // When
-            val eventRecords = repository.getByNextTryTime(svcName, maxNextTryTime, limit)
-
-            // Then
-            assertEquals(3, eventRecords.size)
-            eventRecords.forEachIndexed { index, eventRecord ->
-                assertTrue(eventRecord is EventRecordImpl)
-                val impl = eventRecord as EventRecordImpl
-                assertEquals(mockEvents[index], impl.event)
-            }
-        }
+        assertTrue(result is EventRecordImpl)
+        assertSame(stored, (result as EventRecordImpl).event)
+        assertEquals(stored.eventUuid, result.id)
     }
 
-    @Nested
-    @DisplayName("错误处理测试")
-    inner class ErrorHandlingTest {
+    @Test
+    fun `getById reports an absent record`() {
+        every { records.findOne(any<Specification<Event>>()) } returns Optional.empty()
 
-        @Test
-        @DisplayName("应该处理数据库连接错误")
-        fun `should handle database connection errors`() {
-            // Given
-            every {
-                eventJpaRepository.save(any())
-            } throws RuntimeException("Database connection failed")
+        val failure = assertThrows<DomainException> { repository.getById("missing") }
 
-            val eventRecord = EventRecordImpl()
-            val payload = TestEvent("test", 12345)
-            eventRecord.init(payload, "test-service", testTime, Duration.ofMinutes(10), 3)
-
-            // When & Then
-            assertThrows<RuntimeException> {
-                repository.save(eventRecord)
-            }
-        }
-
-        @Test
-        @DisplayName("应该处理查询超时")
-        fun `should handle query timeout`() {
-            // Given
-            every {
-                eventJpaRepository.findOne(any<Specification<Event>>())
-            } throws RuntimeException("Query timeout")
-
-            // When & Then
-            assertThrows<RuntimeException> {
-                repository.getById("any-id")
-            }
-        }
-
-    }
-
-    private fun createMockEvent(eventId: String, state: Event.EventState): Event {
-        return mockk<Event> {
-            every { id } returns 1L
-            every { eventUuid } returns eventId
-            every { eventState } returns state
-            every { svcName } returns "test-service"
-            every { createAt } returns testTime
-            every { publishedAt } returns testTime.minusDays(2)
-            every { nextTryTime } returns testTime.plusMinutes(1)
-            every { eventType } returns "test.event"
-            every { payload } returns TestEvent("test", 12345)
-            every { data } returns """{"value":"test","number":12345}"""
-            every { dataType } returns "TestEvent"
-            every { executionContext } returns null
-            every { expireAt } returns testTime.plusHours(1)
-            every { tryTimes } returns 3
-            every { retryPolicy } returns "{}"
-            every { triedTimes } returns 0
-            every { lastTryTime } returns testTime.minusHours(1)
-            every { version } returns 1
-        }
+        assertEquals("EventRecord not found", failure.message)
     }
 }

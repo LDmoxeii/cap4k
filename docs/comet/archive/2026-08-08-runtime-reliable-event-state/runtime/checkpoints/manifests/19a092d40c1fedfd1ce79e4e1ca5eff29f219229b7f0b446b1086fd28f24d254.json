@@ -1,0 +1,12 @@
+{
+  "schema": "comet.native.checkpoint-manifest.v1",
+  "change": "runtime-reliable-event-state",
+  "artifacts": [
+    {
+      "path": "ddd-domain-event-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/event/JpaEventScheduleService.kt",
+      "hash": "09cb9bbab27a8fe2edc29136ff66907e2191bfbf0ed0dc453ac2b01cd5978c4e",
+      "size": 7822
+    }
+  ],
+  "totalBytes": 7822
+}

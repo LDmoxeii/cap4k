@@ -1,6 +1,5 @@
 package com.only4.cap4k.ddd.starter.event
 
-import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.domain.event.DomainEventJpaAutoConfiguration
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -17,17 +16,16 @@ class DomainEventJpaStarterBoundaryTest {
     }
 
     @Test
-    fun `reliable event infrastructure requires an explicit EventRecordRepository provider`() {
+    fun `reliable event infrastructure keeps the coordinator provider boundary`() {
         val parameterTypes = DomainEventJpaAutoConfiguration::class.java
             .getDeclaredMethod(
                 "reliableEventInfrastructure",
                 List::class.java,
                 List::class.java,
-                EventRecordRepository::class.java,
             )
             .parameterTypes
 
-        assertTrue(parameterTypes.contains(EventRecordRepository::class.java))
+        assertEquals(2, parameterTypes.size)
     }
 
     @Test

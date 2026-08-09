@@ -1,43 +1,34 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.ProviderUnavailableException
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextBoundary
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
-import com.only4.cap4k.ddd.core.domain.event.*
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
+import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptorManager
+import com.only4.cap4k.ddd.core.domain.event.EventPublisher
+import com.only4.cap4k.ddd.core.domain.event.EventRecord
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_EVENT_TYPE
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_PERSIST
-import com.only4.cap4k.ddd.core.share.Constants.HEADER_KEY_CAP4K_SCHEDULE
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN
 import com.only4.cap4k.ddd.core.share.Constants.HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION
-import com.only4.cap4k.ddd.core.share.DomainException
 import org.slf4j.LoggerFactory
-import java.time.Duration
-import java.time.LocalDateTime
-import java.time.ZoneOffset
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * 默认事件发布器
- *
- * @author LD_moxeii
- * @date 2025/07/24
- */
+/** Executes one reliable Event attempt that is already owned by the persistence coordinator. */
 open class DefaultEventPublisher(
     private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val integrationEventPublishers: List<IntegrationEventPublisher>,
-    private val eventRecordRepository: EventRecordRepository,
     private val eventMessageInterceptorManager: EventMessageInterceptorManager,
     private val domainEventInterceptorManager: DomainEventInterceptorManager,
     private val integrationEventInterceptorManager: IntegrationEventInterceptorManager,
     private val integrationEventManager: IntegrationEventManager? = null,
-    private val integrationEventPublisherCallback: IntegrationEventPublisher.PublishCallback,
-    private val threadPoolSize: Int,
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
     },
@@ -45,160 +36,57 @@ open class DefaultEventPublisher(
     private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
 ) : EventPublisher {
 
-    companion object {
-        private val log = LoggerFactory.getLogger(DefaultEventPublisher::class.java)
-
-        private fun delayMillis(delay: Duration): Long {
-            val millis = delay.toMillis()
-            return if (delay == Duration.ofMillis(millis)) {
-                millis.coerceAtLeast(1)
-            } else {
-                (millis + 1).coerceAtLeast(1)
-            }
-        }
-    }
-
-    private val executor: ScheduledExecutorService by lazy {
-        Executors.newScheduledThreadPool(threadPoolSize)
-    }
-
-    fun init() {
-        executor
-    }
-
-    /**
-     * 发布事件
-     */
-    override fun publish(event: EventRecord) {
+    override fun publish(event: EventRecord, completion: EventPublisher.Completion) {
         val message = event.message
-        // 事件消息拦截器 - 初始化
         eventMessageInterceptorManager.orderedEventMessageInterceptors
             .forEach { interceptor -> interceptor.initPublish(message) }
 
-        // 填入消息头
-        val eventType = message.headers[HEADER_KEY_CAP4K_EVENT_TYPE] as? String
-        var delay = Duration.ZERO
-
-        if (message.headers.containsKey(HEADER_KEY_CAP4K_SCHEDULE)) {
-            val scheduleAt = LocalDateTime.ofEpochSecond(
-                message.headers[HEADER_KEY_CAP4K_SCHEDULE] as Long,
-                0,
-                ZoneOffset.UTC
+        when (message.headers[HEADER_KEY_CAP4K_EVENT_TYPE] as? String) {
+            HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION -> publishIntegrationEvent(event, completion)
+            HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, null -> publishDomainEvent(event, completion)
+            else -> completion.onFailure(
+                event,
+                IllegalArgumentException("Unsupported reliable Event type: ${message.headers[HEADER_KEY_CAP4K_EVENT_TYPE]}"),
             )
-            if (scheduleAt != null) {
-                delay = Duration.between(now(), scheduleAt)
-            }
-        }
-
-        // 根据事件类型，选择不同的发布方式
-        when (eventType) {
-            HEADER_VALUE_CAP4K_EVENT_TYPE_INTEGRATION -> {
-                if (delay.isNegative || delay.isZero) {
-                    internalPublish4IntegrationEvent(event)
-                } else {
-                    schedule({
-                        internalPublish4IntegrationEvent(event)
-                    }, delayMillis(delay), TimeUnit.MILLISECONDS)
-                }
-            }
-
-            HEADER_VALUE_CAP4K_EVENT_TYPE_DOMAIN, null -> {
-                if (delay.isNegative || delay.isZero) {
-                    val persist = message.headers[HEADER_KEY_CAP4K_PERSIST] as? Boolean ?: false
-                    if (persist) {
-                        executor.submit {
-                            internalPublish4DomainEvent(event)
-                        }
-                    } else {
-                        internalPublish4DomainEvent(event)
-                    }
-                } else {
-                    schedule({
-                        internalPublish4DomainEvent(event)
-                    }, delayMillis(delay), TimeUnit.MILLISECONDS)
-                }
-            }
         }
     }
 
-    protected open fun schedule(command: Runnable, delay: Long, unit: TimeUnit) {
-        executor.schedule(command, delay, unit)
-    }
-
-    protected open fun now(): LocalDateTime = LocalDateTime.now()
-
-    override fun resume(eventRecord: EventRecord, minNextTryTime: LocalDateTime) {
-        val now = LocalDateTime.now()
-        val deliverTime = if (eventRecord.nextTryTime.isAfter(now)) {
-            eventRecord.nextTryTime
-        } else {
-            now
-        }
-
-        eventRecord.beginDelivery(deliverTime)
-
-        var maxTry = 65535
-        while (eventRecord.nextTryTime.isBefore(minNextTryTime) && eventRecord.isValid) {
-            eventRecord.beginDelivery(eventRecord.nextTryTime)
-            if (maxTry-- <= 0) {
-                throw DomainException("疑似死循环")
-            }
-        }
-
-        eventRecordRepository.save(eventRecord)
-        if (eventRecord.isDelivering) {
-            eventRecord.markPersist(true)
-            publish(eventRecord)
-        }
-    }
-
-    override fun retry(uuid: String) {
-        val eventRecord = eventRecordRepository.getById(uuid)
-        eventRecord.markPersist(true)
-        publish(eventRecord)
-    }
-
-    /**
-     * 内部发布实现 - 领域事件
-     */
-    protected open fun internalPublish4DomainEvent(event: EventRecord) {
+    private fun publishDomainEvent(event: EventRecord, completion: EventPublisher.Completion) {
         val executionContext = executionContextCodecRegistry.decodeReliable(
             event.executionContext,
             ExecutionContextBoundary.RELIABLE_DOMAIN_EVENT,
         )
-        executionContextScopeManager.install(executionContext).use {
-            publishDomainEvent(event)
+        val result = runCatching {
+            executionContextScopeManager.install(executionContext).use {
+                publishDomainEventInScope(event)
+            }
         }
+        result.fold(
+            onSuccess = { completion.onSuccess(event) },
+            onFailure = { throwable ->
+                domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
+                    .forEach { interceptor -> interceptor.onException(throwable, event) }
+                log.error(
+                    "Reliable Domain Event delivery failed: eventId={}, failureType={}",
+                    event.id,
+                    throwable.javaClass.name,
+                )
+                completion.onFailure(event, throwable)
+            },
+        )
     }
 
-    private fun publishDomainEvent(event: EventRecord) {
-        var scope: EventRuntimeScope? = null
+    private fun publishDomainEventInScope(event: EventRecord) {
+        val message = event.message
+        domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
+            .forEach { interceptor -> interceptor.preRelease(event) }
+        eventMessageInterceptorManager.orderedEventMessageInterceptors
+            .forEach { interceptor -> interceptor.prePublish(message) }
+
+        val dispatchScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
+        var completed = false
         try {
-            val message = event.message
-            val persist = message.headers[HEADER_KEY_CAP4K_PERSIST] as? Boolean ?: false
-
-            domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
-                .forEach { interceptor -> interceptor.preRelease(event) }
-            eventMessageInterceptorManager.orderedEventMessageInterceptors
-                .forEach { interceptor -> interceptor.prePublish(message) }
-
-            // 进程内消息
-            val now = LocalDateTime.now()
-            val dispatchScope = EventRuntimeContext.push(EventRuntimeScopeType.DOMAIN_DISPATCH)
-            scope = dispatchScope
-            val attempt = event.deliveryAttempt
-            val deliveryContext = ReliableEventDeliveryContext(
-                eventId = event.id,
-                eventName = event.type,
-                publishedAt = event.publishedAt,
-                attempt = attempt,
-                redeliveryHint = when (attempt) {
-                    null -> ReliableEventRedeliveryHint.UNKNOWN
-                    1 -> ReliableEventRedeliveryHint.FIRST
-                    else -> ReliableEventRedeliveryHint.REDELIVERED
-                },
-            )
-            reliableEventDeliveryContextScopeManager.install(deliveryContext).use {
+            reliableEventDeliveryContextScopeManager.install(deliveryContext(event)).use {
                 eventHandlerDispatcher.dispatch(event.payload)
             }
             if (dispatchScope.integrationAttachments.isNotEmpty()) {
@@ -208,60 +96,87 @@ open class DefaultEventPublisher(
                         "a cap4k Integration Event transport starter",
                     )).release()
             }
-            event.endDelivery(now)
-
-            if (persist) {
-                domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
-                    .forEach { interceptor -> interceptor.prePersist(event) }
-                eventRecordRepository.save(event)
-                domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
-                    .forEach { interceptor -> interceptor.postPersist(event) }
-            }
-
             eventMessageInterceptorManager.orderedEventMessageInterceptors
                 .forEach { interceptor -> interceptor.postPublish(message) }
             domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
                 .forEach { interceptor -> interceptor.postRelease(event) }
-
-        } catch (ex: Exception) {
-            scope?.let(EventRuntimeContext::discard)
-            domainEventInterceptorManager.orderedEventInterceptors4DomainEvent
-                .forEach { interceptor -> interceptor.onException(ex, event) }
-            val failureType = ex.javaClass.name
-            log.error("领域事件发布失败: eventId={}, failureType={}", event.id, failureType)
-            throw DomainException("领域事件发布失败: eventId=${event.id}, failureType=$failureType")
+            completed = true
         } finally {
-            scope?.let {
-                if (EventRuntimeContext.currentOrNull() === it) {
-                    EventRuntimeContext.pop(it)
-                }
+            if (!completed) EventRuntimeContext.discard(dispatchScope)
+            if (EventRuntimeContext.currentOrNull() === dispatchScope) {
+                EventRuntimeContext.pop(dispatchScope)
             }
         }
     }
 
-    /**
-     * 内部发布实现 - 集成事件
-     */
-    protected open fun internalPublish4IntegrationEvent(event: EventRecord) {
-        try {
-            integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
-                .forEach { interceptor -> interceptor.preRelease(event) }
-            eventMessageInterceptorManager.orderedEventMessageInterceptors
-                .forEach { interceptor -> interceptor.prePublish(event.message) }
-
-            integrationEventPublishers.forEach { integrationEventPublisher ->
-                integrationEventPublisher.publish(
-                    event,
-                    integrationEventPublisherCallback
-                )
+    private fun publishIntegrationEvent(event: EventRecord, completion: EventPublisher.Completion) {
+        val resolved = AtomicBoolean(false)
+        val providerCallback = object : IntegrationEventPublisher.PublishCallback {
+            override fun onSuccess(event: EventRecord) {
+                if (!resolved.compareAndSet(false, true)) return
+                withIntegrationContext(event) {
+                    eventMessageInterceptorManager.orderedEventMessageInterceptors
+                        .forEach { interceptor -> interceptor.postPublish(event.message) }
+                    integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
+                        .forEach { interceptor -> interceptor.postRelease(event) }
+                }
+                completion.onSuccess(event)
             }
 
-        } catch (ex: Exception) {
-            integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
-                .forEach { interceptor -> interceptor.onException(ex, event) }
-            val failureType = ex.javaClass.name
-            log.error("集成事件发布失败: eventId={}, failureType={}", event.id, failureType)
-            throw DomainException("集成事件发布失败: eventId=${event.id}, failureType=$failureType")
+            override fun onException(event: EventRecord, throwable: Throwable) {
+                if (!resolved.compareAndSet(false, true)) return
+                withIntegrationContext(event) {
+                    integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
+                        .forEach { interceptor -> interceptor.onException(throwable, event) }
+                }
+                completion.onFailure(event, throwable)
+            }
         }
+
+        runCatching {
+            val provider = integrationEventPublishers.singleOrNull()
+                ?: throw ProviderUnavailableException(
+                    "integration-event-publisher",
+                    "exactly one cap4k Integration Event transport starter",
+                )
+            withIntegrationContext(event) {
+                integrationEventInterceptorManager.orderedEventInterceptors4IntegrationEvent
+                    .forEach { interceptor -> interceptor.preRelease(event) }
+                eventMessageInterceptorManager.orderedEventMessageInterceptors
+                    .forEach { interceptor -> interceptor.prePublish(event.message) }
+                provider.publish(event, providerCallback)
+            }
+        }.onFailure { throwable -> providerCallback.onException(event, throwable) }
+    }
+
+    private fun <T> withIntegrationContext(event: EventRecord, block: () -> T): T {
+        val executionContext = executionContextCodecRegistry.decodeReliable(
+            event.executionContext,
+            ExecutionContextBoundary.INTEGRATION_EVENT,
+        )
+        return executionContextScopeManager.install(executionContext).use {
+            reliableEventDeliveryContextScopeManager.install(deliveryContext(event)).use {
+                block()
+            }
+        }
+    }
+
+    private fun deliveryContext(event: EventRecord): ReliableEventDeliveryContext {
+        val attempt = event.deliveryAttempt
+        return ReliableEventDeliveryContext(
+            eventId = event.id,
+            eventName = event.type,
+            publishedAt = event.publishedAt,
+            attempt = attempt,
+            redeliveryHint = when (attempt) {
+                null -> ReliableEventRedeliveryHint.UNKNOWN
+                1 -> ReliableEventRedeliveryHint.FIRST
+                else -> ReliableEventRedeliveryHint.REDELIVERED
+            },
+        )
+    }
+
+    private companion object {
+        val log = LoggerFactory.getLogger(DefaultEventPublisher::class.java)
     }
 }

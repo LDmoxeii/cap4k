@@ -6,7 +6,6 @@ import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventPayloadValidator
 import com.only4.cap4k.ddd.core.share.DomainException
 import com.only4.cap4k.ddd.core.share.ReliableFailureFacts
-import com.only4.cap4k.ddd.core.share.ReliableFailureOperation
 import com.only4.cap4k.ddd.core.share.annotation.Retry
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.share.retry.ReliableRetryPolicySnapshot
@@ -197,12 +196,12 @@ class Event(
         this.expireAt = scheduleAt.plusSeconds(expireAfter.seconds)
         this.eventState = EventState.INIT
         this.tryTimes = retryTimes
-        this.triedTimes = 1
+        this.triedTimes = 0
         this.lastTryTime = scheduleAt
 
         loadPayload(payload)
 
-        this.nextTryTime = calculateNextTryTime(scheduleAt)
+        this.nextTryTime = scheduleAt
     }
 
     @Transient
@@ -238,17 +237,6 @@ class Event(
         }
         private set
 
-    private fun recordFailure(facts: ReliableFailureFacts) {
-        failureFacts = facts
-        failureFactsJson = RuntimeJson.write(facts)
-    }
-
-    private fun markFailureTerminal() {
-        val current = failureFacts ?: return
-        if (current.terminal) return
-        recordFailure(current.copy(retryable = false, terminal = true))
-    }
-
     private fun loadPayload(payload: Any) {
         val integrationEvent = payload.javaClass.getAnnotation(IntegrationEvent::class.java)
         val domainEvent = payload.javaClass.getAnnotation(DomainEvent::class.java)
@@ -275,78 +263,6 @@ class Event(
         if (retry != null) {
             this.expireAt = this.createAt.plusMinutes(retry.expireAfter.toLong())
         }
-    }
-
-    val isValid: Boolean
-        get() = this.eventState in setOf(EventState.INIT, EventState.DELIVERING, EventState.EXCEPTION)
-
-    val isInvalid: Boolean
-        get() = this.eventState in setOf(EventState.CANCEL, EventState.EXPIRED, EventState.EXHAUSTED)
-
-    val isDelivering: Boolean
-        get() = EventState.DELIVERING == this.eventState
-
-    val isDelivered: Boolean
-        get() = EventState.DELIVERED == this.eventState
-
-    fun beginDelivery(now: LocalDateTime): Boolean = apply {
-        when {
-            // 初始状态或者确认中或者异常
-            !isValid -> return false
-            // 超过重试次数
-            this.triedTimes >= this.tryTimes -> {
-                this.eventState = EventState.EXHAUSTED
-                markFailureTerminal()
-                return false
-            }
-            // 事件过期
-            now.isAfter(this.expireAt) -> {
-                this.eventState = EventState.EXPIRED
-                markFailureTerminal()
-                return false
-            }
-            // 未到下次重试时间
-            this.lastTryTime != now && this.nextTryTime.isAfter(now) -> return false
-        }
-
-        this.eventState = EventState.DELIVERING
-        this.lastTryTime = now
-        this.triedTimes += 1
-        this.nextTryTime = calculateNextTryTime(now)
-    }.let { true }
-
-    fun endDelivery(now: LocalDateTime): Event = apply {
-        this.eventState = EventState.DELIVERED
-    }
-
-    fun cancelDelivery(now: LocalDateTime): Boolean = apply {
-        if (isDelivered || isInvalid) {
-            return false
-        }
-        this.eventState = EventState.CANCEL
-    }.let { true }
-
-    fun occurredException(now: LocalDateTime, ex: Throwable): Event = apply {
-        if (isDelivered) {
-            return@apply
-        }
-        this.eventState = EventState.EXCEPTION
-        val retryable = this.triedTimes < this.tryTimes && !now.isAfter(this.expireAt)
-        recordFailure(
-            ReliableFailureFacts.capture(
-                operation = ReliableFailureOperation.EVENT_DELIVERY,
-                throwable = ex,
-                occurredAt = now,
-                attempt = this.triedTimes.coerceAtLeast(1),
-                correlationId = this.eventUuid,
-                retryable = retryable,
-            )
-        )
-    }
-
-    private fun calculateNextTryTime(now: LocalDateTime): LocalDateTime {
-        val policySnapshot = RuntimeJson.read(retryPolicy, ReliableRetryPolicySnapshot::class.java)
-        return now.plusMinutes(policySnapshot.delayMinutesFor(this.triedTimes))
     }
 
     override fun toString(): String =
