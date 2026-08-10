@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "b9fbb3fe-1287-43fa-bc5b-ac82faf2492f",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-rabbitmq-transport-review-fixes",
+  "createdAt": "2026-08-10T05:09:54.513Z",
+  "preflightHash": "efd40fd71be287d8991cfb416325959cc4acf818a6bbae3eecc49ed3595c394a",
+  "operations": [
+    {
+      "id": "spec-1-runtime-rabbitmq-transport",
+      "type": "write",
+      "target": "specs/runtime-rabbitmq-transport/spec.md",
+      "staged": "runtime/transactions/b9fbb3fe-1287-43fa-bc5b-ac82faf2492f/staged/specs/runtime-rabbitmq-transport/spec.md",
+      "backup": "runtime/transactions/b9fbb3fe-1287-43fa-bc5b-ac82faf2492f/backups/specs/runtime-rabbitmq-transport/spec.md",
+      "expectedTargetHash": "db70064c179eff793cec57025e005a15ec9886decbcd6ecd37732c2ad4debdb8",
+      "stagedHash": "e27b5f9ecd5e37e8cea904e87d3df80a920057b2917e0841ad426e83eef7ce82"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-rabbitmq-transport-review-fixes",
+      "target": "archive/2026-08-10-runtime-rabbitmq-transport-review-fixes",
+      "expectedSourceHash": "a7d42f010d4a13d396728d916a29f56f3ede04d4930bbedc7f2c4e26e6f5be4b",
+      "expectedTargetHash": null
+    }
+  ]
+}

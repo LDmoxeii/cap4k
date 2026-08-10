@@ -121,7 +121,6 @@ class RocketMqIntegrationEventSubscriberAdapter(
             val eventPayload = envelopeCodec.payloadJson(envelope, integrationEventClass)
             val deliveryContext = envelope.deliveryContext(
                 IntegrationEventDeliveryMetadata(
-                    subscriberIdentity = subscriberIdentity(integrationEventClass),
                     providerDeliveryAttempt = msg.reconsumeTimes + 1,
                     redeliveryHint = if (msg.reconsumeTimes == 0) {
                         ReliableEventRedeliveryHint.FIRST
@@ -173,8 +172,6 @@ class RocketMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher.dispatch(eventPayload)
         }
     }
-
-    private fun subscriberIdentity(@Suppress("UNUSED_PARAMETER") eventClass: Class<*>): String = applicationName
 
     private fun getTopicConsumerGroup(topic: String, defaultVal: String): String =
         resolvePlaceholderWithCache(

@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 7
+name: runtime-rabbitmq-transport-review-fixes
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772
+spec_changes:
+  - capability: runtime-rabbitmq-transport
+    operation: replace
+    source: specs/runtime-rabbitmq-transport/spec.md
+    base_hash: db70064c179eff793cec57025e005a15ec9886decbcd6ecd37732c2ad4debdb8
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/3cfcfb07ef09142993b99606504357d38b076bb347225ed253b6bd5707c394c5.json
+verification_evidence: runtime/evidence/verifications/3cc3ad8bc6a0bbd621a3009b469d442f237d05d44ea18cd379cc74374ac4c636.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-10
+run_id: eb65db5b-dad6-463b-a738-98190e31c004

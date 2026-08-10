@@ -23,7 +23,6 @@ class HttpIntegrationEventSubscriberAdapter(
     private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
     private val eventTypeCatalog: InboundIntegrationEventRegistrationView,
-    private val applicationName: String,
     private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
@@ -57,7 +56,6 @@ class HttpIntegrationEventSubscriberAdapter(
         val eventPayload = envelopeCodec.payloadJson(envelope, integrationEventClass)
         val deliveryContext = envelope.deliveryContext(
             IntegrationEventDeliveryMetadata(
-                subscriberIdentity = applicationName,
                 redeliveryHint = ReliableEventRedeliveryHint.UNKNOWN,
             )
         )

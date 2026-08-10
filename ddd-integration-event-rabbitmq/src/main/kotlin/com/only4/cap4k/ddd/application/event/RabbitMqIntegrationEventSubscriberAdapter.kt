@@ -5,41 +5,48 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistr
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventDeliveryMetadata
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.deliveryContext
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
-import com.only4.cap4k.ddd.core.share.misc.resolvePlaceholderWithCache
 import com.rabbitmq.client.Channel
+import com.rabbitmq.client.ShutdownSignalException
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.AmqpException
 import org.springframework.amqp.core.AcknowledgeMode
+import org.springframework.amqp.core.AmqpAdmin
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory
+import org.springframework.amqp.rabbit.connection.Connection
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
+import org.springframework.amqp.rabbit.connection.ConnectionListener
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer
 import org.springframework.amqp.rabbit.listener.api.ChannelAwareMessageListener
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.OrderUtils
-import org.springframework.core.env.Environment
 import org.springframework.messaging.Message
 import org.springframework.messaging.support.GenericMessage
+import java.time.Duration
 
 /** RabbitMQ inbound adapter for the shared Integration Event envelope. */
 class RabbitMqIntegrationEventSubscriberAdapter(
     private val eventHandlerDispatcher: EventHandlerDispatcher,
     private val eventMessageInterceptors: List<EventMessageInterceptor>,
-    private val rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure?,
     private val rabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory,
     private val connectionFactory: ConnectionFactory,
-    private val environment: Environment,
+    private val amqpAdmin: AmqpAdmin,
+    private val routeResolver: IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute>,
+    private val topologyManager: RabbitMqTopologyManager,
+    private val stateReporter: RuntimeProviderStateReporter,
     private val eventTypeCatalog: InboundIntegrationEventRegistrationView,
     private val applicationName: String,
     private val msgCharset: String = "UTF-8",
-    private val autoDeclareQueue: Boolean = false,
+    private val recoveryInterval: Duration = Duration.ofSeconds(5),
     private val executionContextCodecRegistry: ExecutionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
     private val executionContextScopeManager: ExecutionContextScopeManager = ExecutionContextScopeManager {
         AutoCloseable { }
@@ -47,30 +54,39 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     private val reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
     private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
 ) {
-    companion object {
-        private val log = LoggerFactory.getLogger(RabbitMqIntegrationEventSubscriberAdapter::class.java)
+    private val connectionListener = object : ConnectionListener {
+        override fun onCreate(connection: Connection) {
+            stateReporter.report(RuntimeProviderState.RECOVERING, "connection-created")
+            topologyManager.declareAll()
+            val listenersReady = simpleMessageListenerContainers
+                .filterNot(SimpleMessageListenerContainer::isRunning)
+                .map(::start)
+                .all { it }
+            if (listenersReady) {
+                stateReporter.report(RuntimeProviderState.HEALTHY, "connection-ready")
+            }
+        }
+
+        override fun onClose(connection: Connection) {
+            stateReporter.report(RuntimeProviderState.RECOVERING, "connection-closed")
+        }
+
+        override fun onShutDown(signal: ShutdownSignalException) {
+            stateReporter.report(RuntimeProviderState.DEGRADED, "connection-shutdown")
+        }
+
+        override fun onFailed(exception: Exception) {
+            stateReporter.report(RuntimeProviderState.DEGRADED, "connection-failed")
+        }
     }
 
     private val simpleMessageListenerContainers by lazy {
-        eventTypeCatalog.integrationEventTypesByName().values
-            .filter { cls ->
-                cls.isAnnotationPresent(com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent::class.java)
-            }
-            .mapNotNull { integrationEventClass ->
-                val container = rabbitMqIntegrationEventConfigure?.get(integrationEventClass)
-                    ?: createDefaultConsumer(integrationEventClass)
-                try {
-                    if (container.messageListener == null) {
-                        container.messageListener = ChannelAwareMessageListener { message, channel ->
-                            onMessage(integrationEventClass, message, channel!!)
-                        }
-                    }
-                    container.start()
-                    container
-                } catch (e: AmqpException) {
-                    log.error("集成事件消息监听启动失败", e)
-                    null
-                }
+        eventTypeCatalog.integrationEventTypesByName()
+            .map { (eventName, integrationEventClass) ->
+                val route = routeResolver.resolve(eventName)
+                val queue = RabbitMqQueueIdentity.derive(applicationName, eventName)
+                topologyManager.register(route, queue)
+                createDefaultConsumer(integrationEventClass, queue)
             }
     }
 
@@ -81,31 +97,65 @@ class RabbitMqIntegrationEventSubscriberAdapter(
     }
 
     fun init() {
-        simpleMessageListenerContainers
+        require(applicationName.isNotBlank()) { "RabbitMQ application name must not be blank" }
+        require(!recoveryInterval.isNegative && !recoveryInterval.isZero) {
+            "RabbitMQ listener recovery interval must be positive"
+        }
+        val containers = simpleMessageListenerContainers
+        connectionFactory.addConnectionListener(connectionListener)
+        stateReporter.report(RuntimeProviderState.RECOVERING, "subscriber-enrolled")
+        if (containers.isEmpty()) {
+            stateReporter.report(RuntimeProviderState.HEALTHY, "no-inbound-subscriptions")
+        } else {
+            containers.forEach(::start)
+        }
     }
 
     fun shutdown() {
-        log.info("集成事件消息监听退出...")
+        connectionFactory.removeConnectionListener(connectionListener)
         simpleMessageListenerContainers.forEach { container ->
             runCatching { container.shutdown() }
-                .onFailure { log.error("集成事件消息监听退出异常", it) }
+                .onFailure {
+                    log.warn(
+                        "RabbitMQ Integration Event listener shutdown failed: exceptionType={}",
+                        it::class.java.name,
+                    )
+                }
         }
     }
 
-    fun createDefaultConsumer(integrationEventClass: Class<*>): SimpleMessageListenerContainer {
-        val integrationEvent = integrationEventClass.getAnnotation(IntegrationEvent::class.java)
-        val target = resolvePlaceholderWithCache(integrationEvent.value, environment)
-        val (exchange, routingKey) = parseTarget(target)
-        val queue = getExchangeConsumerQueueName(exchange, applicationName)
-        if (autoDeclareQueue) tryDeclareQueue(queue, exchange, routingKey)
-        return rabbitListenerContainerFactory.createListenerContainer().apply {
-            setQueueNames(queue)
-            acknowledgeMode = AcknowledgeMode.MANUAL
+    fun createDefaultConsumer(
+        integrationEventClass: Class<*>,
+        queue: String,
+    ): SimpleMessageListenerContainer = rabbitListenerContainerFactory.createListenerContainer().apply {
+        setQueueNames(queue)
+        acknowledgeMode = AcknowledgeMode.MANUAL
+        setAmqpAdmin(amqpAdmin)
+        setAutoDeclare(true)
+        setMissingQueuesFatal(false)
+        setMismatchedQueuesFatal(true)
+        setRecoveryInterval(recoveryInterval.toMillis())
+        setFailedDeclarationRetryInterval(recoveryInterval.toMillis())
+        messageListener = ChannelAwareMessageListener { message, channel ->
+            onMessage(integrationEventClass, message, requireNotNull(channel))
         }
     }
 
-    private fun parseTarget(target: String): Pair<String, String> = target.split(':', limit = 2).let { parts ->
-        if (parts.size == 2) parts[0] to parts[1] else target to ""
+    private fun start(container: SimpleMessageListenerContainer): Boolean {
+        if (container.isRunning) return true
+        try {
+            container.start()
+            return true
+        } catch (failure: AmqpException) {
+            if (!RabbitMqFailureClassifier.isTemporaryUnavailability(failure)) throw failure
+            stateReporter.report(RuntimeProviderState.DEGRADED, "listener-start-failed")
+            log.debug(
+                "RabbitMQ Integration Event listener start deferred: queues={}, exceptionType={}",
+                container.queueNames.toList(),
+                failure::class.java.name,
+            )
+            return false
+        }
     }
 
     private fun processWithInterceptors(
@@ -137,12 +187,10 @@ class RabbitMqIntegrationEventSubscriberAdapter(
         msg: org.springframework.amqp.core.Message,
         channel: Channel,
     ) = runCatching {
-        log.info("集成事件消费，messageId=${msg.messageProperties.messageId}")
         val envelope = envelopeCodec.decode(String(msg.body, charset(msgCharset)))
         val eventPayload = envelopeCodec.payloadJson(envelope, integrationEventClass)
         val deliveryContext = envelope.deliveryContext(
             IntegrationEventDeliveryMetadata(
-                subscriberIdentity = subscriberIdentity(integrationEventClass),
                 redeliveryHint = when (msg.messageProperties.redelivered) {
                     true -> ReliableEventRedeliveryHint.REDELIVERED
                     false -> ReliableEventRedeliveryHint.FIRST
@@ -162,29 +210,18 @@ class RabbitMqIntegrationEventSubscriberAdapter(
             }
         }
         channel.basicAck(msg.messageProperties.deliveryTag, false)
-    }.getOrElse { ex ->
-        log.error("集成事件消息消费失败", ex)
+        stateReporter.report(RuntimeProviderState.HEALTHY, "consumer-ack")
+    }.getOrElse { failure ->
+        stateReporter.report(RuntimeProviderState.DEGRADED, "consumer-delivery-failed")
+        log.warn(
+            "RabbitMQ Integration Event consume failed: messageId={}, exceptionType={}",
+            msg.messageProperties.messageId,
+            failure::class.java.name,
+        )
         channel.basicReject(msg.messageProperties.deliveryTag, true)
     }
 
-    private fun subscriberIdentity(@Suppress("UNUSED_PARAMETER") eventClass: Class<*>): String = applicationName
-
-    private fun getExchangeConsumerQueueName(exchange: String, defaultVal: String?): String =
-        resolvePlaceholderWithCache(
-            "\${rabbitmq.$exchange.consumer.queue:${defaultVal.takeIf { !it.isNullOrBlank() } ?: "$exchange-4-$applicationName"}}",
-            environment,
-        )
-
-    private fun tryDeclareQueue(queue: String, exchange: String, routingKey: String) = runCatching {
-        val exchangeType = resolvePlaceholderWithCache("\${rabbitmq.$exchange.type:direct}", environment)
-        connectionFactory.createConnection().use { connection ->
-            connection.createChannel(false).use { channel ->
-                channel.queueDeclare(queue, true, false, false, null)
-                channel.queueBind(queue, exchange, routingKey)
-            }
-        }
-    }.getOrElse { e ->
-        log.error("创建消息队列失败", e)
-        throw RuntimeException(e)
+    private companion object {
+        private val log = LoggerFactory.getLogger(RabbitMqIntegrationEventSubscriberAdapter::class.java)
     }
 }

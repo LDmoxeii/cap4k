@@ -21,6 +21,8 @@ import com.only4.cap4k.ddd.core.application.query.QueryExecution
 import com.only4.cap4k.ddd.core.application.query.QueryInterceptor
 import com.only4.cap4k.ddd.core.application.query.QuerySupervisor
 import com.only4.cap4k.ddd.core.application.query.impl.DefaultQuerySupervisor
+import com.only4.cap4k.ddd.core.application.provider.InMemoryRuntimeProviderStateRegistry
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.core.application.async.ApplicationAsyncExecutor
 import com.only4.cap4k.ddd.core.application.async.BoundedApplicationAsyncExecutor
 import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
@@ -50,6 +52,10 @@ import org.springframework.beans.factory.annotation.Qualifier
 @AutoConfiguration(after = [CoreIdAutoConfiguration::class])
 @EnableConfigurationProperties(ApplicationExecutionProperties::class)
 class CoreRuntimeAutoConfiguration {
+    @Bean
+    @ConditionalOnMissingBean(RuntimeProviderStateRegistry::class)
+    fun runtimeProviderStateRegistry(): RuntimeProviderStateRegistry = InMemoryRuntimeProviderStateRegistry()
+
     @Bean
     @ConditionalOnMissingBean(ExecutionContextAccessor::class)
     fun executionContextManager(): DefaultExecutionContextManager = DefaultExecutionContextManager()

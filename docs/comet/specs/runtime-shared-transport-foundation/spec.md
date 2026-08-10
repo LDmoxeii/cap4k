@@ -96,9 +96,11 @@ static `routes[eventName] -> baseUrl` map.
 - The sender does not know all consumers and does not maintain a per-consumer
   delivery table.
 - Inbound reliable delivery context is installed by the selected provider and
-  is cleared after the local synchronous Handler scope. Its identity is
-  provider-supplied and stable across redelivery; provider topology is not
-  exposed as shared business context.
+  is cleared after the local synchronous Handler scope. Event identity, logical
+  event name, and publication time come from the canonical envelope; the
+  provider may supply only its exact attempt and non-authoritative redelivery
+  hint. Subscriber identity and provider topology are not exposed as shared
+  business context.
 
 ## Verification
 

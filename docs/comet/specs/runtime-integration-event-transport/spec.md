@@ -96,12 +96,14 @@ decode envelope
 ## Reliable delivery context and safety
 
 Inbound and reliable local Event delivery install the shared `ReliableEventDeliveryContext` for the
-current scope. It may expose stable event identity, event name, origin, published time, an exact
-attempt when the provider can supply one, and a non-authoritative `UNKNOWN`/`FIRST`/`REDELIVERED`
-hint.
+current scope. Its complete public data is stable event identity, stable logical event name,
+published time, an exact attempt when the envelope or provider can supply one, and a
+non-authoritative `UNKNOWN`/`FIRST`/`REDELIVERED` hint. Origin attribution remains encoded execution
+context rather than an additional delivery-context field.
 
 It must not expose provider topology such as exchange, routing key, topic, queue, consumer group,
-HTTP URL, transport message objects, or an assertion that a delivery is definitely a duplicate.
+HTTP URL, subscriber identity, transport message objects, or an assertion that a delivery is
+definitely a duplicate.
 
 The canonical Jackson envelope rejects persisted `Aggregate`, `Entity`, and other
 persistence-bound instances before serialization or durable reliable handoff. Failure diagnostics

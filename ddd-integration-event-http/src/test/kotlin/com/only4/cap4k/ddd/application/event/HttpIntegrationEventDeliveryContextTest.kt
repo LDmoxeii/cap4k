@@ -57,7 +57,6 @@ class HttpIntegrationEventDeliveryContextTest {
         assertEquals("http.delivery.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
         assertEquals(2, context.attempt)
-        assertEquals("test-app", context.subscriberIdentity)
         assertEquals(com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN, context.redeliveryHint)
         assertNull(observed.inPreInterceptor)
         assertNull(observed.inPostInterceptor)
@@ -185,7 +184,6 @@ class HttpIntegrationEventDeliveryContextTest {
             eventHandlerDispatcher = dispatcher,
             eventMessageInterceptors = interceptors(deliveryManager),
             eventTypeCatalog = SingleHttpEventCatalog,
-            applicationName = "test-app",
             executionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
             executionContextScopeManager = executionContexts,
             reliableEventDeliveryContextScopeManager = deliveryManager,

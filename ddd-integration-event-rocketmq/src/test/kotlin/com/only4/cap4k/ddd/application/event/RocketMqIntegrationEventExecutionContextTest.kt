@@ -88,7 +88,6 @@ class RocketMqIntegrationEventExecutionContextTest {
                 publishedAt = java.time.Instant.ofEpochMilli(1767225600123L),
                 attempt = 3,
                 redeliveryHint = ReliableEventRedeliveryHint.REDELIVERED,
-                subscriberIdentity = "test-app",
             ),
             observedDeliveryContext,
         )
@@ -146,11 +145,11 @@ class RocketMqIntegrationEventExecutionContextTest {
             listOf(
                 ReliableEventDeliveryContext(
                     "first", "context.transport.event", java.time.Instant.ofEpochMilli(1000), 1,
-                    ReliableEventRedeliveryHint.FIRST, "test-app",
+                    ReliableEventRedeliveryHint.FIRST,
                 ),
                 ReliableEventDeliveryContext(
                     "second", "context.transport.event", java.time.Instant.ofEpochMilli(2000), 2,
-                    ReliableEventRedeliveryHint.REDELIVERED, "test-app",
+                    ReliableEventRedeliveryHint.REDELIVERED,
                 ),
             ),
             observed,

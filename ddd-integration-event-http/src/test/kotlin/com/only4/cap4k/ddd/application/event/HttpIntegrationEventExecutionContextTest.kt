@@ -35,7 +35,6 @@ class HttpIntegrationEventExecutionContextTest {
             eventHandlerDispatcher = subscriberManager,
             eventMessageInterceptors = emptyList(),
             eventTypeCatalog = SingleEventCatalog,
-            applicationName = "test-app",
             executionContextCodecRegistry = codecRegistry,
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = DefaultReliableEventDeliveryContextManager(contextManager, contextManager),

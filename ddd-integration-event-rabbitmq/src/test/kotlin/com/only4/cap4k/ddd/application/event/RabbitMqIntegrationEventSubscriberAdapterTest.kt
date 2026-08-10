@@ -1,447 +1,307 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
-import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.rabbitmq.client.Channel
-import io.mockk.*
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.runs
+import io.mockk.slot
+import io.mockk.verify
+import io.mockk.verifyOrder
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.amqp.AmqpConnectException
+import org.springframework.amqp.AmqpException
 import org.springframework.amqp.core.AcknowledgeMode
+import org.springframework.amqp.core.AmqpAdmin
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessageProperties
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory
-import org.springframework.amqp.rabbit.connection.Connection
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
+import org.springframework.amqp.rabbit.connection.ConnectionListener
 import org.springframework.amqp.rabbit.listener.SimpleMessageListenerContainer
-import org.springframework.core.Ordered
-import org.springframework.core.annotation.OrderUtils
-import org.springframework.core.env.Environment
+import java.time.Duration
+import java.time.Instant
+import java.net.ConnectException
 
-@DisplayName("RabbitMQ集成事件订阅适配器测试")
 class RabbitMqIntegrationEventSubscriberAdapterTest {
-
-    private var installedDeliveryContext: ReliableEventDeliveryContext? = null
-    private val observingReliableEventDeliveryContextScopeManager = object : ReliableEventDeliveryContextScopeManager {
+    private val dispatcher = mockk<EventHandlerDispatcher>()
+    private val containerFactory = mockk<SimpleRabbitListenerContainerFactory>()
+    private val connectionFactory = mockk<ConnectionFactory>(relaxed = true)
+    private val amqpAdmin = mockk<AmqpAdmin>(relaxed = true)
+    private val topologyManager = mockk<RabbitMqTopologyManager>(relaxed = true)
+    private val stateReporter = mockk<RuntimeProviderStateReporter>(relaxed = true)
+    private val route = RabbitMqIntegrationEventRoute("content", "published")
+    private var installedContext: ReliableEventDeliveryContext? = null
+    private val deliveryContexts = object : ReliableEventDeliveryContextScopeManager {
         override fun install(context: ReliableEventDeliveryContext): AutoCloseable {
-            installedDeliveryContext = context
+            installedContext = context
             return AutoCloseable { }
         }
-        override fun suppress(): AutoCloseable = AutoCloseable { }
-    }
 
-    private lateinit var eventHandlerDispatcher: EventHandlerDispatcher
-    private lateinit var rabbitMqIntegrationEventConfigure: RabbitMqIntegrationEventConfigure
-    private lateinit var rabbitListenerContainerFactory: SimpleRabbitListenerContainerFactory
-    private lateinit var connectionFactory: ConnectionFactory
-    private lateinit var environment: Environment
-    private lateinit var adapter: RabbitMqIntegrationEventSubscriberAdapter
-    private val eventTypeCatalog = object : InboundIntegrationEventRegistrationView {
-        override fun integrationEventTypes(): Set<Class<*>> = emptySet()
+        override fun suppress(): AutoCloseable = AutoCloseable { }
     }
 
     @BeforeEach
     fun setUp() {
-        clearPlaceholderCache()
-        eventHandlerDispatcher = mockk()
-        rabbitMqIntegrationEventConfigure = mockk()
-        rabbitListenerContainerFactory = mockk()
-        connectionFactory = mockk()
-        environment = mockk()
-        installedDeliveryContext = null
-        every { environment.resolvePlaceholders(any()) } answers { firstArg() }
-
-        adapter = RabbitMqIntegrationEventSubscriberAdapter(
-            eventHandlerDispatcher = eventHandlerDispatcher,
-            eventMessageInterceptors = emptyList(),
-            rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
-            rabbitListenerContainerFactory = rabbitListenerContainerFactory,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            eventTypeCatalog = eventTypeCatalog,
-            applicationName = "test-app",
-            msgCharset = "UTF-8",
-            autoDeclareQueue = false,
-            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
-        )
+        installedContext = null
     }
 
     @AfterEach
-    fun tearDown() {
-        clearAllMocks()
-    }
+    fun tearDown() = clearAllMocks()
 
     @Test
-    @DisplayName("创建默认消费者容器")
-    fun shouldCreateDefaultConsumer() {
-        // Arrange
-        val mockContainer = mockk<SimpleMessageListenerContainer>()
-        every { rabbitListenerContainerFactory.createListenerContainer() } returns mockContainer
-        every { mockContainer.setQueueNames(any<String>()) } just runs
-        every { mockContainer.acknowledgeMode = any() } just runs
-        every { environment.resolvePlaceholders("test.exchange:routing.key") } returns "test.exchange:routing.key"
-        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.consumer.queue:test-app}") } returns "test-app"
+    fun `enrollment resolves explicit route and owns one stable queue`() {
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        every { container.isRunning } returns false
+        every { containerFactory.createListenerContainer() } returns container
+        val adapter = adapter(SingleEventCatalog)
+        val expectedQueue = RabbitMqQueueIdentity.derive("media-worker", "content.published")
 
-        // Act
-        val result = adapter.createDefaultConsumer(TestIntegrationEvent::class.java)
+        adapter.init()
 
-        // Assert
-        assertEquals(mockContainer, result)
-        verify { mockContainer.setQueueNames("test-app") }
-        verify { mockContainer.acknowledgeMode = AcknowledgeMode.MANUAL }
-    }
-
-    @Test
-    @DisplayName("解析目标地址包含冒号")
-    fun shouldParseTargetWithColon() {
-        // Arrange
-        val mockContainer = mockk<SimpleMessageListenerContainer>()
-        every { rabbitListenerContainerFactory.createListenerContainer() } returns mockContainer
-        every { mockContainer.setQueueNames(any<String>()) } just runs
-        every { mockContainer.acknowledgeMode = any() } just runs
-        every { environment.resolvePlaceholders("test.exchange:routing.key") } returns "test.exchange:routing.key"
-        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.consumer.queue:test-app}") } returns "test-queue"
-
-        // Act
-        val result = adapter.createDefaultConsumer(TestIntegrationEvent::class.java)
-
-        // Assert - 验证方法执行没有异常
-        verify { mockContainer.setQueueNames("test-queue") }
-    }
-
-    @Test
-    @DisplayName("解析目标地址不包含冒号")
-    fun shouldParseTargetWithoutColon() {
-        // Arrange
-        val mockContainer = mockk<SimpleMessageListenerContainer>()
-        every { rabbitListenerContainerFactory.createListenerContainer() } returns mockContainer
-        every { mockContainer.setQueueNames(any<String>()) } just runs
-        every { mockContainer.acknowledgeMode = any() } just runs
-        every { environment.resolvePlaceholders("exchange") } returns "exchange"
-        every { environment.resolvePlaceholders("\${rabbitmq.exchange.consumer.queue:test-app}") } returns "test-queue"
-
-        // Act
-        val result = adapter.createDefaultConsumer(NoColonIntegrationEvent::class.java)
-
-        // Assert
-        verify { mockContainer.setQueueNames("test-queue") }
-    }
-
-    @Test
-    @DisplayName("自动声明队列")
-    fun shouldAutoDeclareQueue() {
-        // Arrange - 简化测试，只验证没有异常抛出
-        val autoDeclareAdapter = RabbitMqIntegrationEventSubscriberAdapter(
-            eventHandlerDispatcher = eventHandlerDispatcher,
-            eventMessageInterceptors = emptyList(),
-            rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
-            rabbitListenerContainerFactory = rabbitListenerContainerFactory,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            eventTypeCatalog = eventTypeCatalog,
-            applicationName = "test-app",
-            msgCharset = "UTF-8",
-            autoDeclareQueue = true,
-            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
-        )
-
-        val mockContainer = mockk<SimpleMessageListenerContainer>()
-        val connection = mockk<Connection>(relaxed = true)
-        val channel = mockk<com.rabbitmq.client.Channel>(relaxed = true)
-
-        every { rabbitListenerContainerFactory.createListenerContainer() } returns mockContainer
-        every { mockContainer.setQueueNames(any<String>()) } just runs
-        every { mockContainer.acknowledgeMode = any() } just runs
-        every { environment.resolvePlaceholders("test.exchange:routing.key") } returns "test.exchange:routing.key"
-        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.consumer.queue:test-app}") } returns "test-queue"
-        every { environment.resolvePlaceholders("\${rabbitmq.test.exchange.type:direct}") } returns "direct"
-        every { connectionFactory.createConnection() } returns connection
-        every { connection.createChannel(false) } returns channel
-
-        // Act & Assert - 验证方法调用不抛异常
-        try {
-            val result = autoDeclareAdapter.createDefaultConsumer(TestIntegrationEvent::class.java)
-            // 测试通过，说明自动声明队列功能工作正常
-        } catch (e: Exception) {
-            // 如果出现异常，验证不是致命错误
-            assertTrue(e !is NullPointerException)
+        verify(exactly = 1) { topologyManager.register(route, expectedQueue) }
+        verify(exactly = 1) { container.setQueueNames(expectedQueue) }
+        verify(exactly = 1) { container.acknowledgeMode = AcknowledgeMode.MANUAL }
+        verify(exactly = 1) { container.start() }
+        verifyOrder {
+            topologyManager.register(route, expectedQueue)
+            connectionFactory.addConnectionListener(any())
+            container.start()
         }
     }
 
     @Test
-    @DisplayName("消息消费成功确认")
-    fun shouldAckMessageOnSuccessfulConsumption() {
-        // Arrange
-        val message = mockk<Message>()
-        val messageProperties = mockk<MessageProperties>()
-        val channel = mockk<Channel>()
-        val deliveryTag = 123L
-        val messageId = "test-message-id"
-        val testPayload = TestEventPayload("test")
+    fun `temporary listener connection failure degrades without failing enrollment`() {
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        every { container.isRunning } returns false
+        every { container.start() } throws AmqpConnectException(ConnectException("offline"))
+        every { containerFactory.createListenerContainer() } returns container
 
-        every { message.messageProperties } returns messageProperties
-        every { message.body } returns canonicalBody(testPayload)
-        every { messageProperties.deliveryTag } returns deliveryTag
-        every { messageProperties.messageId } returns messageId
-        every { messageProperties.headers } returns mutableMapOf()
-        every { messageProperties.timestamp } returns java.util.Date(1000L)
-        every { messageProperties.redelivered } returns false
-        every { eventHandlerDispatcher.dispatch(any()) } just runs
-        every { channel.basicAck(deliveryTag, false) } just runs
-        // 使用反射调用私有方法
-        val onMessageMethod = adapter::class.java.getDeclaredMethod(
-            "onMessage",
-            Class::class.java,
-            Message::class.java,
-            Channel::class.java
-        )
-        onMessageMethod.isAccessible = true
+        assertDoesNotThrow { adapter(SingleEventCatalog).init() }
 
-        // Act
-        onMessageMethod.invoke(adapter, TestEventPayload::class.java, message, channel)
-
-        // Assert
-        verify { eventHandlerDispatcher.dispatch(testPayload) }
-        verify { channel.basicAck(deliveryTag, false) }
-        val deliveryContext = requireNotNull(installedDeliveryContext)
-        assertEquals("test-id", deliveryContext.eventId)
-        assertEquals("test.exchange:routing.key", deliveryContext.eventName)
-        assertEquals(java.time.Instant.ofEpochMilli(1_000), deliveryContext.publishedAt)
-        assertEquals(2, deliveryContext.attempt)
-        assertEquals("test-app", deliveryContext.subscriberIdentity)
-        assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
+        verify { stateReporter.report(RuntimeProviderState.DEGRADED, "listener-start-failed", any()) }
     }
 
     @Test
-    @DisplayName("消息消费失败拒绝")
-    fun shouldRejectMessageOnConsumptionFailure() {
-        // Arrange
-        val message = mockk<Message>()
-        val messageProperties = mockk<MessageProperties>()
-        val channel = mockk<Channel>()
-        val deliveryTag = 123L
-
-        every { message.messageProperties } returns messageProperties
-        every { message.body } returns "invalid json".toByteArray()
-        every { messageProperties.deliveryTag } returns deliveryTag
-        every { messageProperties.messageId } returns "test-id"
-        every { channel.basicReject(deliveryTag, true) } just runs
-
-        // 使用反射调用私有方法
-        val onMessageMethod = adapter::class.java.getDeclaredMethod(
-            "onMessage",
-            Class::class.java,
-            Message::class.java,
-            Channel::class.java
-        )
-        onMessageMethod.isAccessible = true
-
-        // Act
-        onMessageMethod.invoke(adapter, TestEventPayload::class.java, message, channel)
-
-        // Assert
-        verify { channel.basicReject(deliveryTag, true) }
-    }
-
-    @Test
-    @DisplayName("使用事件消息拦截器")
-    fun shouldUseEventMessageInterceptors() {
-        // Arrange
-        val interceptor1 = mockk<EventMessageInterceptor>()
-        val interceptor2 = mockk<EventMessageInterceptor>()
-
-        // 使用mockk的relaxed模式避免注解mock问题
-        mockkStatic(OrderUtils::class)
-        every { OrderUtils.getOrder(interceptor1::class.java, any<Int>()) } returns Ordered.HIGHEST_PRECEDENCE
-        every { OrderUtils.getOrder(interceptor2::class.java, any<Int>()) } returns Ordered.LOWEST_PRECEDENCE
-
-        every { interceptor1.preSubscribe(any()) } just runs
-        every { interceptor1.postSubscribe(any()) } just runs
-        every { interceptor2.preSubscribe(any()) } just runs
-        every { interceptor2.postSubscribe(any()) } just runs
-
-        val adapterWithInterceptors = RabbitMqIntegrationEventSubscriberAdapter(
-            eventHandlerDispatcher = eventHandlerDispatcher,
-            eventMessageInterceptors = listOf(interceptor1, interceptor2),
-            rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
-            rabbitListenerContainerFactory = rabbitListenerContainerFactory,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            eventTypeCatalog = eventTypeCatalog,
-            applicationName = "test-app",
-            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
-        )
-
-        val message = mockk<Message>()
-        val messageProperties = mockk<MessageProperties>()
-        val channel = mockk<Channel>()
-        val testPayload = TestEventPayload("test")
-
-        every { message.messageProperties } returns messageProperties
-        every { message.body } returns canonicalBody(testPayload)
-        every { messageProperties.deliveryTag } returns 123L
-        every { messageProperties.messageId } returns "test-id"
-        every { messageProperties.headers } returns mutableMapOf()
-        every { messageProperties.timestamp } returns java.util.Date(1000L)
-        every { messageProperties.redelivered } returns false
-        every { eventHandlerDispatcher.dispatch(any()) } just runs
-        every { channel.basicAck(any(), any()) } just runs
-        // 使用反射调用私有方法
-        val onMessageMethod = adapterWithInterceptors::class.java.getDeclaredMethod(
-            "onMessage",
-            Class::class.java,
-            Message::class.java,
-            Channel::class.java
-        )
-        onMessageMethod.isAccessible = true
-
-        // Act
-        onMessageMethod.invoke(adapterWithInterceptors, TestEventPayload::class.java, message, channel)
-
-        // Assert
-        verify { interceptor1.preSubscribe(any()) }
-        verify { interceptor1.postSubscribe(any()) }
-        verify { interceptor2.preSubscribe(any()) }
-        verify { interceptor2.postSubscribe(any()) }
-        verify { eventHandlerDispatcher.dispatch(testPayload) }
-        unmockkStatic(OrderUtils::class)
-    }
-
-    @Test
-    @DisplayName("获取排序后的事件消息拦截器")
-    fun shouldGetOrderedEventMessageInterceptors() {
-        // Arrange
-        val highPriorityInterceptor = mockk<EventMessageInterceptor>()
-        val lowPriorityInterceptor = mockk<EventMessageInterceptor>()
-
-        // Mock OrderUtils to return specific order values
-        mockkStatic(OrderUtils::class)
-        every { OrderUtils.getOrder(highPriorityInterceptor::class.java, any<Int>()) } returns 1
-        every { OrderUtils.getOrder(lowPriorityInterceptor::class.java, any<Int>()) } returns 10
-        every { highPriorityInterceptor.preSubscribe(any()) } just runs
-        every { highPriorityInterceptor.postSubscribe(any()) } just runs
-        every { lowPriorityInterceptor.preSubscribe(any()) } just runs
-        every { lowPriorityInterceptor.postSubscribe(any()) } just runs
-
-        val adapterWithOrderedInterceptors = RabbitMqIntegrationEventSubscriberAdapter(
-            eventHandlerDispatcher = eventHandlerDispatcher,
-            eventMessageInterceptors = listOf(lowPriorityInterceptor, highPriorityInterceptor),
-            rabbitMqIntegrationEventConfigure = rabbitMqIntegrationEventConfigure,
-            rabbitListenerContainerFactory = rabbitListenerContainerFactory,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            eventTypeCatalog = eventTypeCatalog,
-            applicationName = "test-app",
-            reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
-        )
-
-        // 测试通过业务逻辑验证排序功能，而不是直接访问字段
-        val message = mockk<org.springframework.amqp.core.Message>()
-        val messageProperties = mockk<MessageProperties>()
-        val channel = mockk<Channel>()
-        val testPayload = TestEventPayload("test")
-
-        every { message.messageProperties } returns messageProperties
-        every { message.body } returns canonicalBody(testPayload)
-        every { messageProperties.deliveryTag } returns 123L
-        every { messageProperties.messageId } returns "test-id"
-        every { messageProperties.headers } returns mutableMapOf()
-        every { messageProperties.timestamp } returns java.util.Date(1000L)
-        every { messageProperties.redelivered } returns false
-        every { eventHandlerDispatcher.dispatch(any()) } just runs
-        every { channel.basicAck(any(), any()) } just runs
-        // 使用反射调用私有方法测试拦截器排序
-        val onMessageMethod = adapterWithOrderedInterceptors::class.java.getDeclaredMethod(
-            "onMessage",
-            Class::class.java,
-            org.springframework.amqp.core.Message::class.java,
-            Channel::class.java
-        )
-        onMessageMethod.isAccessible = true
-
-        // Act
-        onMessageMethod.invoke(adapterWithOrderedInterceptors, TestEventPayload::class.java, message, channel)
-
-        // Assert - 验证拦截器都被调用了（排序通过OrderUtils mock控制）
-        verify { highPriorityInterceptor.preSubscribe(any()) }
-        verify { highPriorityInterceptor.postSubscribe(any()) }
-        verify { lowPriorityInterceptor.preSubscribe(any()) }
-        verify { lowPriorityInterceptor.postSubscribe(any()) }
-        unmockkStatic(OrderUtils::class)
-    }
-
-    @Test
-    @DisplayName("关闭所有消息监听器容器")
-    fun shouldShutdownAllContainers() {
-        // Act & Assert - 验证shutdown方法不会抛出异常
-        try {
-            adapter.shutdown()
-            // 测试通过，说明shutdown方法工作正常
-        } catch (e: Exception) {
-            throw AssertionError("shutdown方法不应该抛出异常", e)
+    fun `connection recovery redeclares topology and starts a previously unavailable listener`() {
+        val connectionListener = slot<ConnectionListener>()
+        every { connectionFactory.addConnectionListener(capture(connectionListener)) } just runs
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        var running = false
+        var starts = 0
+        val recoveryOrder = mutableListOf<String>()
+        every { container.isRunning } answers { running }
+        every { container.start() } answers {
+            starts += 1
+            recoveryOrder += "start-$starts"
+            if (starts == 1) {
+                throw AmqpConnectException(ConnectException("offline"))
+            }
+            running = true
         }
+        every { containerFactory.createListenerContainer() } returns container
+        val delegate = RecordingReporter()
+        val coordinator = RabbitMqProviderStateCoordinator(delegate)
+        coordinator.publisher.report(RuntimeProviderState.HEALTHY, "publisher-ready")
+        val expectedQueue = RabbitMqQueueIdentity.derive("media-worker", "content.published")
+        every { topologyManager.register(route, expectedQueue) } answers {
+            coordinator.topology.report(RuntimeProviderState.HEALTHY, "topology-declared")
+        }
+        every { topologyManager.declareAll() } answers {
+            recoveryOrder += "declare-all"
+            coordinator.topology.report(RuntimeProviderState.HEALTHY, "topology-redeclared")
+        }
+        val adapter = adapter(
+            catalog = SingleEventCatalog,
+            topologyManager = topologyManager,
+            stateReporter = coordinator.subscriber,
+        )
+
+        adapter.init()
+        assertEquals(RuntimeProviderState.DEGRADED, delegate.lastState)
+
+        connectionListener.captured.onCreate(mockk())
+
+        assertEquals(listOf("start-1", "declare-all", "start-2"), recoveryOrder)
+        assertEquals(RuntimeProviderState.HEALTHY, delegate.lastState)
+        assertEquals("subscriber:connection-ready", delegate.lastCategory)
+        verify(exactly = 1) { topologyManager.declareAll() }
+        verify(exactly = 2) { container.start() }
     }
 
     @Test
-    @DisplayName("关闭时处理异常")
-    fun shouldHandleExceptionDuringShutdown() {
-        // Arrange - 创建一个会抛异常的容器
-        val container = mockk<SimpleMessageListenerContainer>()
-        every { container.shutdown() } throws RuntimeException("Shutdown error")
+    fun `connection recovery leaves an already running listener to Spring AMQP`() {
+        val connectionListener = slot<ConnectionListener>()
+        every { connectionFactory.addConnectionListener(capture(connectionListener)) } just runs
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        every { container.isRunning } returns true
+        every { containerFactory.createListenerContainer() } returns container
+        val adapter = adapter(SingleEventCatalog)
 
-        // Act & Assert - 验证shutdown方法不会抛出异常，即使容器关闭失败
-        try {
-            adapter.shutdown()
-            // 测试通过，说明异常被正确处理
-        } catch (e: Exception) {
-            // 不应该抛出异常
-            throw AssertionError("shutdown方法不应该抛出异常", e)
+        adapter.init()
+        connectionListener.captured.onCreate(mockk())
+
+        verify(exactly = 1) { topologyManager.declareAll() }
+        verify(exactly = 0) { container.start() }
+        verify { stateReporter.report(RuntimeProviderState.HEALTHY, "connection-ready", any()) }
+    }
+
+    @Test
+    fun `deterministic listener startup failure is not swallowed`() {
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        val failure = AmqpException("mismatched queue")
+        every { container.isRunning } returns false
+        every { container.start() } throws failure
+        every { containerFactory.createListenerContainer() } returns container
+
+        assertEquals(failure, assertThrows<AmqpException> { adapter(SingleEventCatalog).init() })
+    }
+
+    @Test
+    fun `successful local completion acknowledges after dispatch`() {
+        every { dispatcher.dispatch(any()) } just runs
+        val channel = mockk<Channel>()
+        every { channel.basicAck(17L, false) } just runs
+
+        invokeOnMessage(adapter(), message(deliveryTag = 17L, redelivered = false), channel)
+
+        verifyOrder {
+            dispatcher.dispatch(TestEventPayload("payload"))
+            channel.basicAck(17L, false)
         }
+        assertEquals("event-1", installedContext?.eventId)
+        assertEquals("content.published", installedContext?.eventName)
+        assertEquals(2, installedContext?.attempt)
+        assertEquals(ReliableEventRedeliveryHint.FIRST, installedContext?.redeliveryHint)
     }
 
-    // 测试用的事件类和注解
-    @IntegrationEvent("test.exchange:routing.key")
-    private class TestIntegrationEvent
+    @Test
+    fun `handler failure rejects for requeue and never acknowledges`() {
+        every { dispatcher.dispatch(any()) } throws IllegalStateException("handler failed")
+        val channel = mockk<Channel>()
+        every { channel.basicReject(18L, true) } just runs
 
-    @IntegrationEvent("exchange")
-    private class NoColonIntegrationEvent
+        invokeOnMessage(adapter(), message(deliveryTag = 18L, redelivered = true), channel)
 
-    private class NonIntegrationEvent
-
-    @IntegrationEvent("")
-    private class EmptyValueIntegrationEvent
-
-    @IntegrationEvent("test.exchange:routing.key")
-    private data class TestEventPayload(val data: String)
-
-    private fun canonicalBody(payload: TestEventPayload): ByteArray =
-        IntegrationEventEnvelopeCodec().encode(
-            IntegrationEventEnvelope(
-                eventId = "test-id",
-                eventType = "test.exchange:routing.key",
-                originService = "test-source",
-                publishedAt = java.time.Instant.ofEpochMilli(1_000),
-                deliveryAttempt = 2,
-                executionContext = emptyList(),
-                payloadJson = RuntimeJson.write(payload),
-            )
-        ).toByteArray()
-
-    private fun clearPlaceholderCache() {
-        val field = Class.forName("com.only4.cap4k.ddd.core.share.misc.TextUtils")
-            .getDeclaredField("resolvePlaceholderCache")
-        field.isAccessible = true
-        (field.get(null) as MutableMap<*, *>).clear()
+        verify(exactly = 0) { channel.basicAck(any(), any()) }
+        verify(exactly = 1) { channel.basicReject(18L, true) }
+        assertEquals(ReliableEventRedeliveryHint.REDELIVERED, installedContext?.redeliveryHint)
     }
+
+    @Test
+    fun `malformed envelope rejects without dispatch`() {
+        val channel = mockk<Channel>()
+        every { channel.basicReject(19L, true) } just runs
+        val properties = MessageProperties().apply {
+            deliveryTag = 19L
+            messageId = "event-1"
+        }
+
+        invokeOnMessage(adapter(), Message("secret malformed body".toByteArray(), properties), channel)
+
+        verify(exactly = 0) { dispatcher.dispatch(any()) }
+        verify(exactly = 1) { channel.basicReject(19L, true) }
+    }
+
+    @Test
+    fun `connection lifecycle reports recovering and degraded facts`() {
+        val listener = slot<ConnectionListener>()
+        every { connectionFactory.addConnectionListener(capture(listener)) } just runs
+        adapter().init()
+
+        listener.captured.onFailed(IllegalStateException("offline"))
+        listener.captured.onClose(mockk())
+
+        verify { stateReporter.report(RuntimeProviderState.DEGRADED, "connection-failed", any()) }
+        verify { stateReporter.report(RuntimeProviderState.RECOVERING, "connection-closed", any()) }
+    }
+
+    private fun adapter(
+        catalog: InboundIntegrationEventRegistrationView = EmptyEventCatalog,
+        topologyManager: RabbitMqTopologyManager = this.topologyManager,
+        stateReporter: RuntimeProviderStateReporter = this.stateReporter,
+    ): RabbitMqIntegrationEventSubscriberAdapter = RabbitMqIntegrationEventSubscriberAdapter(
+        eventHandlerDispatcher = dispatcher,
+        eventMessageInterceptors = emptyList(),
+        rabbitListenerContainerFactory = containerFactory,
+        connectionFactory = connectionFactory,
+        amqpAdmin = amqpAdmin,
+        routeResolver = IntegrationEventRouteResolver { route },
+        topologyManager = topologyManager,
+        stateReporter = stateReporter,
+        eventTypeCatalog = catalog,
+        applicationName = "media-worker",
+        recoveryInterval = Duration.ofMillis(10),
+        reliableEventDeliveryContextScopeManager = deliveryContexts,
+    )
+
+    private class RecordingReporter : RuntimeProviderStateReporter {
+        override val providerId: String = "integration-event-transport.rabbitmq"
+        var lastState: RuntimeProviderState? = null
+        var lastCategory: String? = null
+
+        override fun report(state: RuntimeProviderState, category: String?, observedAt: Instant) {
+            lastState = state
+            lastCategory = category
+        }
+
+        override fun close() = Unit
+    }
+
+    private fun invokeOnMessage(adapter: RabbitMqIntegrationEventSubscriberAdapter, message: Message, channel: Channel) {
+        adapter.javaClass.getDeclaredMethod(
+            "onMessage",
+            Class::class.java,
+            Message::class.java,
+            Channel::class.java,
+        ).apply { isAccessible = true }
+            .invoke(adapter, TestEventPayload::class.java, message, channel)
+    }
+
+    private fun message(deliveryTag: Long, redelivered: Boolean): Message {
+        val properties = MessageProperties().apply {
+            this.deliveryTag = deliveryTag
+            messageId = "event-1"
+            this.redelivered = redelivered
+        }
+        val envelope = IntegrationEventEnvelope(
+            eventId = "event-1",
+            eventType = "content.published",
+            originService = "content-service",
+            publishedAt = Instant.parse("2026-08-10T00:00:00Z"),
+            deliveryAttempt = 2,
+            executionContext = emptyList(),
+            payloadJson = RuntimeJson.write(TestEventPayload("payload")),
+        )
+        return Message(IntegrationEventEnvelopeCodec().encode(envelope).toByteArray(), properties)
+    }
+
+    private object EmptyEventCatalog : InboundIntegrationEventRegistrationView {
+        override fun integrationEventTypes(): Set<Class<*>> = emptySet()
+    }
+
+    private object SingleEventCatalog : InboundIntegrationEventRegistrationView {
+        override fun integrationEventTypes(): Set<Class<*>> = setOf(TestEventPayload::class.java)
+    }
+
+    @IntegrationEvent("content.published")
+    private data class TestEventPayload(val value: String)
 }

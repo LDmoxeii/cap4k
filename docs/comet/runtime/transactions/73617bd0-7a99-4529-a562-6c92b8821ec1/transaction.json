@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "73617bd0-7a99-4529-a562-6c92b8821ec1",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-rabbitmq-transport",
+  "createdAt": "2026-08-10T03:07:45.439Z",
+  "preflightHash": "3107fba6e1dff17a77b9de09cd7c54e97b8601b2b943fc653e4756105007c55d",
+  "operations": [
+    {
+      "id": "spec-1-runtime-rabbitmq-transport",
+      "type": "write",
+      "target": "specs/runtime-rabbitmq-transport/spec.md",
+      "staged": "runtime/transactions/73617bd0-7a99-4529-a562-6c92b8821ec1/staged/specs/runtime-rabbitmq-transport/spec.md",
+      "backup": "runtime/transactions/73617bd0-7a99-4529-a562-6c92b8821ec1/backups/specs/runtime-rabbitmq-transport/spec.md",
+      "expectedTargetHash": "92b6c9b0e421031824369341f33cbb1b4583378b282d22a353335080aac6ca4a",
+      "stagedHash": "db70064c179eff793cec57025e005a15ec9886decbcd6ecd37732c2ad4debdb8"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-rabbitmq-transport",
+      "target": "archive/2026-08-10-runtime-rabbitmq-transport",
+      "expectedSourceHash": "5619bc88c7b77e8e919d192898d6869d16244c71ec423322dadeda237d076c8f",
+      "expectedTargetHash": null
+    }
+  ]
+}
