@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Configuration
+import org.springframework.context.annotation.Bean
 
 class RabbitMqIntegrationEventStarterBoundaryTest {
     private val propertyContext = ApplicationContextRunner()
@@ -52,6 +53,15 @@ class RabbitMqIntegrationEventStarterBoundaryTest {
         assertThrows(ClassNotFoundException::class.java) {
             Class.forName("com.only4.cap4k.ddd.application.distributed.locker.JdbcLocker")
         }
+    }
+
+    @Test
+    fun `publisher bean closes its owned executor when the context shuts down`() {
+        val publisherBean = RabbitMqIntegrationEventAutoConfiguration::class.java.declaredMethods
+            .single { method -> method.name == "rabbitMqIntegrationEventPublisher" }
+            .getAnnotation(Bean::class.java)
+
+        assertEquals("close", publisherBean.destroyMethod)
     }
 
     @Test

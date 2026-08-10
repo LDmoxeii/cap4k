@@ -1,0 +1,53 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "runtime-rabbitmq-transport-review-fixes",
+  "sourceRevision": 3,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "3c3196898fa494afd89d4e4d3ebc63c350619f81cc1850f715968c7c4244f6ad",
+  "status": "failed",
+  "startedAt": "2026-08-10T05:06:55.676Z",
+  "endedAt": "2026-08-10T05:06:57.168Z",
+  "contract": {
+    "expectedHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772",
+    "beforeHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772",
+    "afterHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772"
+  },
+  "implementation": {
+    "scopeHash": "5e31ba70bc4109d0f631746ddaf4cc276bcddea0561024a8632a3fdf7e197aa6",
+    "expectedSnapshotHash": "eb75d6c681feb6ad9b670c93bac7cda39e6a6c440aef77a612020978400bc761",
+    "beforeSnapshotHash": "2e6dc6b90a2bed3510e61c6d3f6453438f6aef65094c16e03d9215e495f6c3e2",
+    "afterSnapshotHash": "2e6dc6b90a2bed3510e61c6d3f6453438f6aef65094c16e03d9215e495f6c3e2"
+  },
+  "counts": {
+    "filesSelected": 7,
+    "filesScanned": 6,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 42818,
+    "issueCount": 1,
+    "recordedIssueCount": 1
+  },
+  "issues": [
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt",
+      "line": 1,
+      "kind": "scope-mismatch"
+    }
+  ],
+  "issuesTruncated": false,
+  "stale": true,
+  "staleReasons": [
+    "implementation-before-does-not-match-scope",
+    "implementation-after-does-not-match-scope"
+  ],
+  "receiptHash": "26b73f907e5f97cae467600635a19d27e10bdd7ed1991708f8bb725f9d4e2361"
+}

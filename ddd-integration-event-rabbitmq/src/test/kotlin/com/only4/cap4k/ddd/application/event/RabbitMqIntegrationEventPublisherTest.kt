@@ -15,6 +15,9 @@ import io.mockk.slot
 import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -28,8 +31,12 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate
 import java.time.Duration
 import java.time.Instant
 import java.util.Date
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.TimeUnit
 
 class RabbitMqIntegrationEventPublisherTest {
     private val rabbitTemplate = mockk<RabbitTemplate>(relaxed = true)
@@ -177,6 +184,116 @@ class RabbitMqIntegrationEventPublisherTest {
     }
 
     @Test
+    fun `failure completion survives provider state reporting failure`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val rejected = RejectedExecutionException("saturated")
+        every {
+            stateReporter.report(
+                com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState.DEGRADED,
+                "publisher-executor-rejected",
+                any(),
+            )
+        } throws IllegalStateException("reporter unavailable")
+
+        assertDoesNotThrow {
+            publisher(executorOverride = Executor { throw rejected })
+                .apply { init() }
+                .publish(event, envelope(event), callback)
+        }
+
+        verify(exactly = 1) { callback.onException(event, rejected) }
+    }
+
+    @Test
+    fun `confirmed handoff survives provider state reporting failure`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } answers {
+            correlation.captured.future.complete(CorrelationData.Confirm(true, null))
+        }
+        every {
+            stateReporter.report(
+                com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState.HEALTHY,
+                "publisher-confirm-ack",
+                any(),
+            )
+        } throws IllegalStateException("reporter unavailable")
+
+        assertDoesNotThrow {
+            publisher().apply { init() }.publish(event, envelope(event), callback)
+        }
+
+        verify(exactly = 1) { callback.onSuccess(event) }
+        verify(exactly = 0) { callback.onException(any(), any()) }
+    }
+
+    @Test
+    fun `close shuts down only the owned executor and remains idempotent`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val completed = CountDownLatch(1)
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } answers {
+            correlation.captured.future.complete(CorrelationData.Confirm(true, null))
+        }
+        every { callback.onSuccess(event) } answers { completed.countDown() }
+        val publisher = publisher(executorOverride = null).apply { init() }
+
+        publisher.publish(event, envelope(event), callback)
+        assertTrue(completed.await(1, TimeUnit.SECONDS))
+        val ownedExecutor = ownedExecutor(publisher)
+
+        publisher.close()
+        publisher.close()
+
+        assertTrue(ownedExecutor.isShutdown)
+        verify(exactly = 1) { callback.onSuccess(event) }
+    }
+
+    @Test
+    fun `close does not initialize an unused owned executor and rejects later publishes`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val publisher = publisher(executorOverride = null).apply { init() }
+        val ownedExecutor = ownedExecutorLazy(publisher)
+        assertFalse(ownedExecutor.isInitialized())
+
+        publisher.close()
+        publisher.close()
+        publisher.publish(event, envelope(event), callback)
+
+        assertFalse(ownedExecutor.isInitialized())
+        verify(exactly = 0) { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), any<CorrelationData>()) }
+        verify(exactly = 1) { callback.onException(event, any<RejectedExecutionException>()) }
+    }
+
+    @Test
+    fun `close never shuts down an externally supplied executor`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val externalExecutor = Executors.newSingleThreadExecutor()
+        try {
+            val publisher = publisher(executorOverride = externalExecutor).apply { init() }
+
+            publisher.close()
+            publisher.close()
+
+            val accepted = CountDownLatch(1)
+            externalExecutor.execute { accepted.countDown() }
+            assertTrue(accepted.await(1, TimeUnit.SECONDS))
+            assertFalse(externalExecutor.isShutdown)
+
+            publisher.publish(event, envelope(event), callback)
+            verify(exactly = 0) { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), any<CorrelationData>()) }
+            verify(exactly = 1) { callback.onException(event, any<RejectedExecutionException>()) }
+        } finally {
+            externalExecutor.shutdownNow()
+        }
+    }
+
+    @Test
     fun `missing explicit route fails before Rabbit publish`() {
         val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
         val event = eventRecord()
@@ -203,7 +320,7 @@ class RabbitMqIntegrationEventPublisherTest {
     private fun publisher(
         timeout: Duration = Duration.ofSeconds(1),
         routeResolver: IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute> = IntegrationEventRouteResolver { route },
-        executorOverride: Executor = Executor(Runnable::run),
+        executorOverride: Executor? = Executor(Runnable::run),
     ): RabbitMqIntegrationEventPublisher = RabbitMqIntegrationEventPublisher(
         rabbitTemplate = rabbitTemplate,
         connectionFactory = connectionFactory,
@@ -214,6 +331,15 @@ class RabbitMqIntegrationEventPublisherTest {
         confirmTimeout = timeout,
         executorOverride = executorOverride,
     )
+
+    private fun ownedExecutor(publisher: RabbitMqIntegrationEventPublisher): ExecutorService =
+        ownedExecutorLazy(publisher).value
+
+    @Suppress("UNCHECKED_CAST")
+    private fun ownedExecutorLazy(publisher: RabbitMqIntegrationEventPublisher): Lazy<ExecutorService> =
+        publisher.javaClass.getDeclaredField("ownedExecutor")
+            .apply { isAccessible = true }
+            .get(publisher) as Lazy<ExecutorService>
 
     private fun eventRecord(): EventRecord = mockk {
         every { id } returns "event-1"

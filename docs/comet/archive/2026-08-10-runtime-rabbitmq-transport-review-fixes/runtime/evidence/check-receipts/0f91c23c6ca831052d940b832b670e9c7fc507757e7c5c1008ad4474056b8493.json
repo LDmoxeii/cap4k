@@ -1,0 +1,44 @@
+{
+  "schema": "comet.native.check-receipt.v1",
+  "change": "runtime-rabbitmq-transport-review-fixes",
+  "sourceRevision": 5,
+  "checker": {
+    "policy": "scoped-text-safety",
+    "version": 1,
+    "hash": "0b8e0e9570269a64123ba2794f1f5125cf454695e1d7fda8f0acddf87ec4912f",
+    "limits": {
+      "maxFiles": 256,
+      "maxFileBytes": 1048576,
+      "maxTotalBytes": 8388608,
+      "maxIssues": 128
+    }
+  },
+  "inputHash": "671a116a1d53b13456728bc4ab8411263219e89c8a2ed94901b9b94f08fb17d2",
+  "status": "passed",
+  "startedAt": "2026-08-10T05:08:36.502Z",
+  "endedAt": "2026-08-10T05:08:38.000Z",
+  "contract": {
+    "expectedHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772",
+    "beforeHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772",
+    "afterHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772"
+  },
+  "implementation": {
+    "scopeHash": "3cfcfb07ef09142993b99606504357d38b076bb347225ed253b6bd5707c394c5",
+    "expectedSnapshotHash": "2e6dc6b90a2bed3510e61c6d3f6453438f6aef65094c16e03d9215e495f6c3e2",
+    "beforeSnapshotHash": "2e6dc6b90a2bed3510e61c6d3f6453438f6aef65094c16e03d9215e495f6c3e2",
+    "afterSnapshotHash": "2e6dc6b90a2bed3510e61c6d3f6453438f6aef65094c16e03d9215e495f6c3e2"
+  },
+  "counts": {
+    "filesSelected": 7,
+    "filesScanned": 7,
+    "binaryFilesSkipped": 0,
+    "bytesScanned": 56520,
+    "issueCount": 0,
+    "recordedIssueCount": 0
+  },
+  "issues": [],
+  "issuesTruncated": false,
+  "stale": false,
+  "staleReasons": [],
+  "receiptHash": "0f91c23c6ca831052d940b832b670e9c7fc507757e7c5c1008ad4474056b8493"
+}

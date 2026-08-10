@@ -1,0 +1,165 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772",
+  "baselineProjectionRef": "runtime/evidence/snapshots/06a0eaa90c1fc3c61623dba461df5b20c42bc163c4fd6c8a9eeebc8d6a46e750.json",
+  "baselineProjectionHash": "06a0eaa90c1fc3c61623dba461df5b20c42bc163c4fd6c8a9eeebc8d6a46e750",
+  "currentProjectionRef": "runtime/evidence/snapshots/eb75d6c681feb6ad9b670c93bac7cda39e6a6c440aef77a612020978400bc761.json",
+  "currentProjectionHash": "eb75d6c681feb6ad9b670c93bac7cda39e6a6c440aef77a612020978400bc761",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rabbitmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RabbitMqIntegrationEventStarterBoundaryTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "28a24be63c6d822193dd01022772bbca56d557ce0a0db2ea229d5ed6213a41d7",
+        "size": 7503
+      },
+      "after": {
+        "hash": "ba279fd043ecf51e262987d3ea5c8c590fc494be2d1d59ed2ea68822abde3cb2",
+        "size": 7844
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-integration-event-rabbitmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RabbitMqIntegrationEventStarterBoundaryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "24839820a7077003d5d1b107bb0276166d3bc2b584385393b923c5ce7d2bd781",
+        "size": 4890
+      },
+      "after": {
+        "hash": "dba5ce4b99fd883147d1715808be09d5e89c84fe47526c1dbb3c04ef97ed45bf",
+        "size": 5329
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-integration-event-rabbitmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RabbitMqIntegrationEventStarterBoundaryTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "2899d72fc56184fc6ee9e788572f0605a268e6bb71835c1e96af5dd41f6518f9",
+        "size": 6467
+      },
+      "after": {
+        "hash": "2ac569dbf52e3276c13f46d247fbd3ce0719f6f239db9887d74211af99a6a1f4",
+        "size": 8020
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "74230488756d0ae768a2c6b8714ad14d9bbcf91bb17e5d18520fbfcc36597e9b",
+        "size": 1348
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "28dd50b3f0ac44b8e9e226c10633efeb8fb02843809fefbd5e9c3baa5437c108",
+        "size": 10948
+      },
+      "after": {
+        "hash": "d1f2bf78840c766cd7844495628adf4307f15396d43dc5ac595854be285de515",
+        "size": 16535
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "ee12105a8c7c1a1961689b7b5d4a912bfb2d2f36de5253c479754da2f3627f7d",
+        "size": 3742
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "e092ec86c399b475e93b1877ef4c84a5c6a6423162bff85efbb01036ba641a9f",
+        "size": 10086
+      },
+      "after": {
+        "hash": "0902460c62b4518b9b0a0b65e7464ec83abf96edd481f619b2dccb6bebede079",
+        "size": 12899
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "5e31ba70bc4109d0f631746ddaf4cc276bcddea0561024a8632a3fdf7e197aa6"
+}

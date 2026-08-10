@@ -4,9 +4,8 @@
 
 RabbitMQ is a broker-backed Integration Event provider. It contributes explicit exchange/routing
 configuration, stable per-application subscriptions, actual publisher confirmation, broker consumer
-acknowledgement, bounded publisher lifecycle, pre-persistence route validation, and Runtime-visible
-health facts. Reliable ownership, retry, lease, canonical envelope, synchronous Handler completion,
-and delivery context remain shared Runtime contracts.
+acknowledgement, and Runtime-visible health facts. Reliable ownership, retry, lease, canonical
+envelope, synchronous Handler completion, and delivery context remain shared Runtime contracts.
 
 ## Configuration and routes
 
@@ -26,14 +25,8 @@ cap4k:
 - The route is provider topology and is never parsed from `@IntegrationEvent.value`.
 - There is no route default, annotation fallback, placeholder topology syntax, or compatibility alias.
 - The provider validates route keys and route values before delivery/enrollment. Missing, blank,
-  duplicate, or contradictory static facts fail deterministically. A route cannot be rediscovered
+  duplicate, or contradictory static facts fail application startup. A route cannot be rediscovered
   from an annotation, placeholder, legacy destination string, or alternate provider surface.
-- Eager Integration Event attachment resolves the static route before the attachment is accepted.
-- Lazy Integration Event attachment resolves the static route at `prePersist`; a missing route fails
-  before `EventRecordRepository.save` and therefore cannot create a durable reliable Event record.
-- The publisher independently resolves the route again before RabbitMQ delivery. This defensive
-  boundary covers historical records, non-standard persistence paths, and configuration drift and
-  is not removed when attach/pre-persist validation exists.
 - Exactly one outbound Integration Event Transport may own an application. Deterministic zero/many
   provider composition errors required by enabled capabilities fail application startup rather than
   selecting or broadcasting among providers.
@@ -79,21 +72,7 @@ unroutable. The provider publishes with mandatory routing enabled. An unroutable
 shared completion and leaves the reliable Event retryable; it is never converted into a false
 successful handoff.
 
-## Publisher lifecycle
-
-- `RabbitMqIntegrationEventPublisher` exposes an explicit close lifecycle.
-- An executor created internally by the publisher is publisher-owned and is shut down when the
-  publisher closes or the Spring application context destroys the publisher bean.
-- An executor supplied to the publisher is borrowed. Publisher closure never shuts down, interrupts,
-  or otherwise takes ownership of that external executor.
-- Close is idempotent.
-- Publisher closure and task submission form one lifecycle boundary. After close returns, no new
-  publish task is accepted and no Rabbit send is performed for that rejected submission.
-- A rejected post-close publish resolves the shared publish completion as failure exactly once.
-- Closing a publisher that never created its internal executor does not create an executor merely to
-  shut it down.
-
-## Inbound acknowledgement and recovery
+## Inbound acknowledgement
 
 - The consumer decodes the canonical envelope and resolves payload type through the shared inbound
   registration view.
@@ -107,18 +86,12 @@ successful handoff.
   RabbitMQ requeue/redelivery path. Later Handlers are not invoked after failure.
 - Rabbit redelivery metadata maps only to the non-authoritative delivery hint. It never proves that
   business processing is a duplicate.
-- Spring AMQP remains responsible for normal recovery of listener containers that are already
-  running. The provider does not add a second recovery scheduler.
-- When an initial temporary broker failure leaves a container not running, a later connection-created
-  signal replays the remembered topology and starts only non-running containers.
-- Recovery reports `DEGRADED` or `RECOVERING` until positive topology, connection, and subscriber
-  evidence allow the aggregated RabbitMQ provider state to return to `HEALTHY`.
 
 ## Provider health
 
 - Runtime supplies a transport-neutral provider-state registry with stable provider identity,
-  registration ownership, duplicate-provider rejection, reporter close/deregister semantics,
-  thread-safe state updates, and readable snapshots.
+  thread-safe state updates, and readable snapshots. This is the missing implementation of the
+  already-approved shared Transport contract, not a RabbitMQ-specific health store.
 - Positive provider evidence may report `HEALTHY`.
 - Connection or confirmation loss reports `DEGRADED`; active recovery/reconnection reports
   `RECOVERING` where Spring AMQP exposes that state.
@@ -128,43 +101,33 @@ successful handoff.
   reliable Event incomplete so the shared Runtime retry policy continues execution.
 - Static Agent facts remain declared capability facts and do not probe the broker.
 
-## Delivery context and safety
+## Safety
 
-- `ReliableEventDeliveryContext` and `IntegrationEventDeliveryMetadata` contain only
-  transport-neutral reliable-delivery facts.
-- They contain no subscriber identity, exchange, routing key, queue, consumer identity, channel,
-  connection, AMQP message, or raw payload facts.
 - Diagnostics may contain event ID, stable event name, safe route identity, queue identity, and a
   stable provider failure category.
 - Diagnostics and failure facts never contain raw envelope/payload JSON, AMQP body bytes,
   persistence-bound entities, channels, connections, or arbitrary broker message `toString()` data.
+- Delivery context never exposes exchange, routing key, queue, channel, connection, or AMQP message.
 
 ## Non-goals
 
 - Sender-side knowledge of all consumers or downstream acknowledgement collection.
 - Exactly-once delivery, global order, inbox/deduplication, framework DLQ, or per-Handler progress.
-- A RabbitMQ-specific reliable Event state machine, public scheduler, transport retry repository, or
-  second listener recovery scheduler.
-- Compatibility with historical annotation topology, inferred destination strings, or legacy APIs.
-- HTTP or RocketMQ Provider State migration.
+- A RabbitMQ-specific reliable Event state machine, public scheduler, or transport retry repository.
+- Compatibility with historical annotation topology or inferred destination strings.
+- HTTP or RocketMQ behavior changes.
 
 ## Acceptance
 
-- Internally owned executors close on publisher/context shutdown; borrowed executors remain usable by
-  their owner; close is idempotent; and post-close publish is rejected before Rabbit delivery.
-- Missing routes are rejected at eager attach and lazy `prePersist`, and the lazy failure path proves
-  `EventRecordRepository.save` was not called.
-- Publisher route resolution remains as a defensive second check.
 - Explicit routes resolve one event name to one exchange/routing key and reject every invalid or
-  conflicting configuration before durable reliable persistence or delivery.
+  conflicting configuration before delivery.
 - Queue identities are stable for equal application/event pairs and distinct for different
   application names or event names.
 - Publisher success occurs only at the confirmed provider handoff boundary; negative, timeout,
-  unroutable, exceptional, synchronous, duplicate, late, and post-close paths terminate exactly once.
+  unroutable, exceptional, synchronous, duplicate, and late result paths terminate exactly once.
 - Consumer `basicAck` follows complete local Handler success; failures use requeue/redelivery and
   preserve context cleanup.
-- A temporary initial listener start failure is followed by topology replay and restart of only the
-  non-running container when the connection returns, with aggregated provider state returning to
-  healthy after positive evidence.
-- Focused tests and static scans prove canonical envelope usage, safe diagnostics, transport-neutral
-  delivery context, and absence of a second reliable or recovery state machine.
+- Broker loss produces truthful degraded/recovering facts without killing the application or
+  introducing a second reliable state machine.
+- Focused tests and static scans prove canonical envelope usage, safe diagnostics, and absence of raw
+  payload or provider topology in shared context.

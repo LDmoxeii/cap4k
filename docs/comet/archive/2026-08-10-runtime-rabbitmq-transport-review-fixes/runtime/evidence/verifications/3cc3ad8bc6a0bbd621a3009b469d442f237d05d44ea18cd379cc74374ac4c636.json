@@ -1,0 +1,110 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-rabbitmq-transport-review-fixes",
+  "sourceRevision": 5,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "7ff4ce460a3b3e892cea9b4668382699094a1e464d54a332f6dbc199d6b77772",
+  "acceptanceCriteriaHash": "6c71c450673d1e16a777781016eebf3e2015d729393a020558670c542fb19ba8",
+  "implementationScopeRef": "runtime/evidence/scopes/3cfcfb07ef09142993b99606504357d38b076bb347225ed253b6bd5707c394c5.json",
+  "implementationScopeHash": "3cfcfb07ef09142993b99606504357d38b076bb347225ed253b6bd5707c394c5",
+  "reportRef": "verification.md",
+  "reportHash": "1830faee422ba8edd105fe4d699e3b852953b145fbf799fcbdfc901f49ce083a",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "6c71c450673d1e16a777781016eebf3e2015d729393a020558670c542fb19ba8",
+    "total": 8,
+    "evidenced": 8,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-282cdb168f03f7658ea7d3dd16270798707e5eed58cb4b33050f931468e8922f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-39caf4f2378a5ddb13fa9f90629228491bf33475fa530368bcf32cd0b2b4bf35",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+          "cap4k-ddd-integration-event-rabbitmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RabbitMqIntegrationEventStarterBoundaryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-5585d0f699471cbfa7a2ea911622dc1d0101a2b9c64d7945372fde64b1ae0a13",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-743837dd7690149e746ae4a0f20ed1f4dade8712c3f2c5396b4b2949e99bafd0",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7f5f4967d567b981b9e7e58fddb27b459ccb5a268da331e152017acfb74fc763",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqProviderStateCoordinator.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-a2d0f90332fdc692c283217d969d8d43685c68b1da82aa845394d3eefad97243",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-b1661cd4edee835c9cce04357303f9b0a6a28a0e77fa036d9eba0330d896d0cb",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d61e47e33cbae250ed7d57a2ce450ed62fe75638e7dead770edc80f1fc8e11ef",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "19575363d20b09eb03838bed7fa822b2274bf8dd721143a107174f53cc1f8a9d"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/0f91c23c6ca831052d940b832b670e9c7fc507757e7c5c1008ad4474056b8493.json",
+  "createdAt": "2026-08-10T05:09:07.216Z",
+  "envelopeHash": "3cc3ad8bc6a0bbd621a3009b469d442f237d05d44ea18cd379cc74374ac4c636"
+}

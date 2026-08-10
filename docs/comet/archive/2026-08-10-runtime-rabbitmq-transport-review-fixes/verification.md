@@ -1,0 +1,96 @@
+# Acceptance evidence
+
+<!-- comet-native:acceptance-evidence:start -->
+[
+  {
+    "acceptance_id": "acceptance-282cdb168f03f7658ea7d3dd16270798707e5eed58cb4b33050f931468e8922f",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-39caf4f2378a5ddb13fa9f90629228491bf33475fa530368bcf32cd0b2b4bf35",
+    "evidence_refs": [
+      "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+      "cap4k-ddd-integration-event-rabbitmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RabbitMqIntegrationEventStarterBoundaryTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-5585d0f699471cbfa7a2ea911622dc1d0101a2b9c64d7945372fde64b1ae0a13",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-743837dd7690149e746ae4a0f20ed1f4dade8712c3f2c5396b4b2949e99bafd0",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-7f5f4967d567b981b9e7e58fddb27b459ccb5a268da331e152017acfb74fc763",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqProviderStateCoordinator.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-a2d0f90332fdc692c283217d969d8d43685c68b1da82aa845394d3eefad97243",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-b1661cd4edee835c9cce04357303f9b0a6a28a0e77fa036d9eba0330d896d0cb",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+    ]
+  },
+  {
+    "acceptance_id": "acceptance-d61e47e33cbae250ed7d57a2ce450ed62fe75638e7dead770edc80f1fc8e11ef",
+    "evidence_refs": [
+      "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+      "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+    ]
+  }
+]
+<!-- comet-native:acceptance-evidence:end -->
+
+# Commands and results
+
+- `.\gradlew.bat :ddd-integration-event-rabbitmq:test :cap4k-ddd-integration-event-rabbitmq-starter:test`: PASS. The final focused suite covered owned and borrowed executor lifecycle, idempotent close, post-close rejection, provider-state reporting failures, eager and lazy route guards, durable-save prevention, listener recovery, already-running container ownership, publisher confirms, manual acknowledgement, requeue, and Provider State aggregation.
+- `.\gradlew.bat check`: PASS after the final test change on August 10, 2026. `BUILD SUCCESSFUL in 6m 12s`; 202 actionable tasks (1 executed, 201 up-to-date).
+- `comet native check runtime-rabbitmq-transport-review-fixes --json`: PASS. Seven scoped files were scanned with zero issues; receipt `runtime/evidence/check-receipts/0f91c23c6ca831052d940b832b670e9c7fc507757e7c5c1008ad4474056b8493.json`.
+- `git diff --check`: PASS. Git emitted line-ending conversion warnings only and reported no whitespace errors.
+- Independent static reviews found no blocking issue in route-before-save or listener recovery. A review-discovered terminal callback gap was fixed by making completion independent of diagnostic provider-state reporting, and the regression tests passed.
+
+# Skipped checks
+
+- No live RabbitMQ broker or Testcontainers fixture was run. Real wire-level correlated confirm, mandatory return, broker restart, topology redeclaration, consumer recovery, redelivery metadata, and manual acknowledgement timing remain unexecuted in this environment.
+- The repository-wide Gradle check skipped the existing PostgreSQL soft-delete integration test because its external database fixture was not configured. That test is unrelated to the RabbitMQ transport change.
+
+# Spec consistency
+
+- The publisher now owns only the executor it creates. `close()` is idempotent, does not initialize an unused pool, uses graceful `shutdown()` for accepted work, never closes an injected executor, and rejects later publishes before Rabbit send.
+- The starter explicitly declares `destroyMethod = "close"`; the starter boundary test verifies that production bean lifecycle contract, while the publisher module tests verify the close behavior it invokes.
+- RabbitMQ static route resolution now runs at eager `onAttach` and defensive `prePersist`. Lazy payloads may create an in-memory record object, but a missing route prevents `EventRecordRepository.save`.
+- The publisher retains its own defensive route resolve for historical records, non-standard creation paths, and later configuration drift.
+- Connection creation replays topology and starts only non-running containers. Already-running containers remain owned by Spring AMQP recovery; Provider State returns to healthy only after positive component evidence.
+- No HTTP or RocketMQ Provider State migration, compatibility surface, subscriber identity, or Rabbit topology was added to the transport-neutral delivery context.
+
+# Known limitations and risks
+
+- Delivery remains at least once. Process loss after broker handoff but before durable Runtime acknowledgement can produce duplicates.
+- `close()` establishes a no-new-submission boundary and initiates graceful executor drain; it does not block until every accepted confirm wait completes.
+- The recovery test invokes the registered Spring `ConnectionListener` deterministically with mocked broker APIs. It proves adapter ordering and state transitions, not a real broker reconnect.
+- The Spring lifecycle evidence verifies the production `@Bean(destroyMethod = "close")` declaration together with the publisher's close behavior; a full application-context shutdown against a live RabbitMQ connection was not executed.
+
+# Conclusion
+
+PASS. The PR #180 review fixes satisfy the confirmed bounded contract with direct tests for executor ownership and shutdown, pre-persist route rejection, recovery without a second scheduler, defensive publisher validation, and exactly-once terminal completion despite diagnostic reporting failure. Full repository verification passes, and the absent live-broker evidence is explicitly disclosed.

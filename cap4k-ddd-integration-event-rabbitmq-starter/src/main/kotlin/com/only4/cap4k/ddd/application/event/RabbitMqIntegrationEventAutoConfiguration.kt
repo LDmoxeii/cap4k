@@ -1,6 +1,7 @@
 package com.only4.cap4k.ddd.application.event
 
 import com.only4.cap4k.ddd.application.event.configure.RabbitMqIntegrationEventAdapterProperties
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
@@ -66,6 +67,11 @@ class RabbitMqIntegrationEventAutoConfiguration {
         providerIdentity = "rabbitmq",
     )
 
+    @Bean
+    fun rabbitMqIntegrationEventRouteInterceptor(
+        routeResolver: IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute>,
+    ): IntegrationEventInterceptor = RabbitMqIntegrationEventRouteInterceptor(routeResolver)
+
     @Bean(destroyMethod = "close")
     fun rabbitMqIntegrationEventProviderState(
         registry: RuntimeProviderStateRegistry,
@@ -96,7 +102,7 @@ class RabbitMqIntegrationEventAutoConfiguration {
         return RabbitMqTopologyManager(amqpAdmin, properties.exchangeType, stateCoordinator.topology)
     }
 
-    @Bean
+    @Bean(destroyMethod = "close")
     fun rabbitMqIntegrationEventPublisher(
         rabbitTemplate: RabbitTemplate,
         connectionFactory: ConnectionFactory,

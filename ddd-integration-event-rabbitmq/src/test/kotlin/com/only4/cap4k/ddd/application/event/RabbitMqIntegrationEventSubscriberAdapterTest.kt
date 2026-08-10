@@ -101,6 +101,70 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
     }
 
     @Test
+    fun `connection recovery redeclares topology and starts a previously unavailable listener`() {
+        val connectionListener = slot<ConnectionListener>()
+        every { connectionFactory.addConnectionListener(capture(connectionListener)) } just runs
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        var running = false
+        var starts = 0
+        val recoveryOrder = mutableListOf<String>()
+        every { container.isRunning } answers { running }
+        every { container.start() } answers {
+            starts += 1
+            recoveryOrder += "start-$starts"
+            if (starts == 1) {
+                throw AmqpConnectException(ConnectException("offline"))
+            }
+            running = true
+        }
+        every { containerFactory.createListenerContainer() } returns container
+        val delegate = RecordingReporter()
+        val coordinator = RabbitMqProviderStateCoordinator(delegate)
+        coordinator.publisher.report(RuntimeProviderState.HEALTHY, "publisher-ready")
+        val expectedQueue = RabbitMqQueueIdentity.derive("media-worker", "content.published")
+        every { topologyManager.register(route, expectedQueue) } answers {
+            coordinator.topology.report(RuntimeProviderState.HEALTHY, "topology-declared")
+        }
+        every { topologyManager.declareAll() } answers {
+            recoveryOrder += "declare-all"
+            coordinator.topology.report(RuntimeProviderState.HEALTHY, "topology-redeclared")
+        }
+        val adapter = adapter(
+            catalog = SingleEventCatalog,
+            topologyManager = topologyManager,
+            stateReporter = coordinator.subscriber,
+        )
+
+        adapter.init()
+        assertEquals(RuntimeProviderState.DEGRADED, delegate.lastState)
+
+        connectionListener.captured.onCreate(mockk())
+
+        assertEquals(listOf("start-1", "declare-all", "start-2"), recoveryOrder)
+        assertEquals(RuntimeProviderState.HEALTHY, delegate.lastState)
+        assertEquals("subscriber:connection-ready", delegate.lastCategory)
+        verify(exactly = 1) { topologyManager.declareAll() }
+        verify(exactly = 2) { container.start() }
+    }
+
+    @Test
+    fun `connection recovery leaves an already running listener to Spring AMQP`() {
+        val connectionListener = slot<ConnectionListener>()
+        every { connectionFactory.addConnectionListener(capture(connectionListener)) } just runs
+        val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
+        every { container.isRunning } returns true
+        every { containerFactory.createListenerContainer() } returns container
+        val adapter = adapter(SingleEventCatalog)
+
+        adapter.init()
+        connectionListener.captured.onCreate(mockk())
+
+        verify(exactly = 1) { topologyManager.declareAll() }
+        verify(exactly = 0) { container.start() }
+        verify { stateReporter.report(RuntimeProviderState.HEALTHY, "connection-ready", any()) }
+    }
+
+    @Test
     fun `deterministic listener startup failure is not swallowed`() {
         val container = mockk<SimpleMessageListenerContainer>(relaxed = true)
         val failure = AmqpException("mismatched queue")
@@ -172,6 +236,8 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
 
     private fun adapter(
         catalog: InboundIntegrationEventRegistrationView = EmptyEventCatalog,
+        topologyManager: RabbitMqTopologyManager = this.topologyManager,
+        stateReporter: RuntimeProviderStateReporter = this.stateReporter,
     ): RabbitMqIntegrationEventSubscriberAdapter = RabbitMqIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher = dispatcher,
         eventMessageInterceptors = emptyList(),
@@ -186,6 +252,19 @@ class RabbitMqIntegrationEventSubscriberAdapterTest {
         recoveryInterval = Duration.ofMillis(10),
         reliableEventDeliveryContextScopeManager = deliveryContexts,
     )
+
+    private class RecordingReporter : RuntimeProviderStateReporter {
+        override val providerId: String = "integration-event-transport.rabbitmq"
+        var lastState: RuntimeProviderState? = null
+        var lastCategory: String? = null
+
+        override fun report(state: RuntimeProviderState, category: String?, observedAt: Instant) {
+            lastState = state
+            lastCategory = category
+        }
+
+        override fun close() = Unit
+    }
 
     private fun invokeOnMessage(adapter: RabbitMqIntegrationEventSubscriberAdapter, message: Message, channel: Channel) {
         adapter.javaClass.getDeclaredMethod(

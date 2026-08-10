@@ -19,6 +19,8 @@ import java.time.Duration
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.Executor
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 
 /** RabbitMQ adapter for the shared Integration Event envelope. */
@@ -33,9 +35,11 @@ class RabbitMqIntegrationEventPublisher(
     private val threadFactoryClassName: String = "",
     private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
     private val executorOverride: Executor? = null,
-) : IntegrationEventPublisher {
-    private val executor: Executor by lazy {
-        executorOverride ?: createFixedThreadPool(threadPoolSize, threadFactoryClassName, this::class.java.classLoader)
+) : IntegrationEventPublisher, AutoCloseable {
+    private val lifecycleMonitor = Any()
+    private var closed = false
+    private val ownedExecutor: Lazy<ExecutorService> = lazy {
+        createFixedThreadPool(threadPoolSize, threadFactoryClassName, this::class.java.classLoader)
     }
 
     fun init() {
@@ -53,7 +57,6 @@ class RabbitMqIntegrationEventPublisher(
             "RabbitMQ Integration Event transport requires publisher returns"
         }
         rabbitTemplate.setMandatory(true)
-        executor
         stateReporter.report(RuntimeProviderState.RECOVERING, "publisher-enrolled")
     }
 
@@ -64,13 +67,43 @@ class RabbitMqIntegrationEventPublisher(
     ) {
         val completion = IntegrationEventPublishCompletion(event, publishCallback)
         try {
+            ensureOpen()
             val route = routeResolver.resolve(event.type)
             topologyManager.registerExchange(route)
             val body = envelopeCodec.encode(envelope)
-            executor.execute { publishConfirmed(event, route, body, completion) }
+            submit { publishConfirmed(event, route, body, completion) }
         } catch (failure: Throwable) {
             fail(event, completion, failure, category(failure))
         }
+    }
+
+    private fun ensureOpen() {
+        synchronized(lifecycleMonitor) {
+            if (closed) {
+                throw RejectedExecutionException("RabbitMQ Integration Event publisher is closed")
+            }
+        }
+    }
+
+    private fun submit(task: () -> Unit) {
+        synchronized(lifecycleMonitor) {
+            if (closed) {
+                throw RejectedExecutionException("RabbitMQ Integration Event publisher is closed")
+            }
+            (executorOverride ?: ownedExecutor.value).execute(task)
+        }
+    }
+
+    override fun close() {
+        var executorToClose: ExecutorService? = null
+        synchronized(lifecycleMonitor) {
+            if (closed) return
+            closed = true
+            if (executorOverride == null && ownedExecutor.isInitialized()) {
+                executorToClose = ownedExecutor.value
+            }
+        }
+        executorToClose?.shutdown()
     }
 
     private fun publishConfirmed(
@@ -95,8 +128,8 @@ class RabbitMqIntegrationEventPublisher(
             if (correlation.returned != null) {
                 throw RabbitMqPublishFailure("unroutable-return", event.id)
             }
-            stateReporter.report(RuntimeProviderState.HEALTHY, "publisher-confirm-ack")
             completion.success()
+            reportSafely(RuntimeProviderState.HEALTHY, "publisher-confirm-ack")
         } catch (failure: Throwable) {
             fail(event, completion, failure, category(failure))
         }
@@ -108,7 +141,8 @@ class RabbitMqIntegrationEventPublisher(
         failure: Throwable,
         category: String,
     ) {
-        stateReporter.report(RuntimeProviderState.DEGRADED, category)
+        completion.failure(failure)
+        reportSafely(RuntimeProviderState.DEGRADED, category)
         log.warn(
             "RabbitMQ Integration Event publish failed: eventId={}, eventName={}, category={}, exceptionType={}",
             event.id,
@@ -116,7 +150,18 @@ class RabbitMqIntegrationEventPublisher(
             category,
             failure::class.java.name,
         )
-        completion.failure(failure)
+    }
+
+    private fun reportSafely(state: RuntimeProviderState, category: String) {
+        runCatching { stateReporter.report(state, category) }
+            .onFailure { reportFailure ->
+                log.warn(
+                    "RabbitMQ Integration Event provider state report failed: state={}, category={}, exceptionType={}",
+                    state,
+                    category,
+                    reportFailure::class.java.name,
+                )
+            }
     }
 
     private fun category(failure: Throwable): String = when (failure) {
