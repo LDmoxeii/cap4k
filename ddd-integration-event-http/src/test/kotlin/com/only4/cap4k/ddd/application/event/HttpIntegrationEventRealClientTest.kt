@@ -110,7 +110,7 @@ class HttpIntegrationEventRealClientTest {
         val callback = CapturingCallback()
         val stateRegistry = InMemoryRuntimeProviderStateRegistry()
         val stateReporter = stateRegistry.register(HTTP_PROVIDER_ID)
-        val publisher = HttpIntegrationEventPublisher(
+        val refusalPublisher = HttpIntegrationEventPublisher(
             routeResolver = IntegrationEventRouteResolver { URI("http://127.0.0.1:$unusedPort") },
             executorOverride = Executor { it.run() },
             connectTimeout = Duration.ofMillis(100),
@@ -118,7 +118,7 @@ class HttpIntegrationEventRealClientTest {
             providerState = stateReporter,
         )
 
-        publisher.publish(event, envelope(event), callback)
+        refusalPublisher.publish(event, envelope(event), callback)
 
         assertEquals(0, callback.successCount)
         assertEquals(1, callback.failureCount)
@@ -141,8 +141,15 @@ class HttpIntegrationEventRealClientTest {
             }
             server.start()
             val recovery = CapturingCallback()
+            val recoveryPublisher = HttpIntegrationEventPublisher(
+                routeResolver = IntegrationEventRouteResolver { URI("http://127.0.0.1:$unusedPort") },
+                executorOverride = Executor { it.run() },
+                connectTimeout = Duration.ofSeconds(1),
+                responseTimeout = Duration.ofSeconds(1),
+                providerState = stateReporter,
+            )
 
-            publisher.publish(event, envelope(event), recovery)
+            recoveryPublisher.publish(event, envelope(event), recovery)
 
             assertEquals(1, recovery.successCount)
             assertEquals(0, recovery.failureCount)
