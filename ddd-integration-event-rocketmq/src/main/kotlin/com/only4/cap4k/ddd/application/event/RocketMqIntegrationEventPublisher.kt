@@ -5,8 +5,8 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublishCompletion
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
-import com.only4.cap4k.ddd.core.application.event.RuntimeProviderState
-import com.only4.cap4k.ddd.core.application.event.RuntimeProviderStateRegistry
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import org.apache.rocketmq.client.producer.SendCallback
 import org.apache.rocketmq.client.producer.SendResult
@@ -15,18 +15,21 @@ import org.apache.rocketmq.spring.core.RocketMQTemplate
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.Message
 import org.springframework.messaging.support.GenericMessage
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** RocketMQ adapter for the shared Integration Event envelope. */
 class RocketMqIntegrationEventPublisher(
     private val rocketMQTemplate: RocketMQTemplate,
     private val routeResolver: IntegrationEventRouteResolver<RocketMqIntegrationEventRoute>,
     private val deliveryTimeoutMillis: Long,
-    private val providerStateRegistry: RuntimeProviderStateRegistry,
+    private val stateReporter: RuntimeProviderStateReporter,
     private val envelopeCodec: IntegrationEventEnvelopeCodec = IntegrationEventEnvelopeCodec(),
 ) : IntegrationEventPublisher {
-    init {
+    private val degraded = AtomicBoolean(false)
+
+    fun init() {
         require(deliveryTimeoutMillis > 0) { "RocketMQ delivery timeout must be positive" }
-        providerStateRegistry.report(PROVIDER_IDENTITY, RuntimeProviderState.RECOVERING, "awaiting-evidence")
+        reportSafely(RuntimeProviderState.RECOVERING, "publisher-enrolled")
     }
 
     override fun publish(
@@ -39,9 +42,15 @@ class RocketMqIntegrationEventPublisher(
             val route = routeResolver.resolve(envelope.eventType)
             val message: Message<Any> = GenericMessage(envelopeCodec.encode(envelope))
             publishMessage(event, route, message, completion)
-        } catch (throwable: Throwable) {
-            log.error("Integration Event publish preparation failed: eventId={}", event.id, throwable)
-            completion.failure(throwable)
+        } catch (failure: Throwable) {
+            completion.failure(failure)
+            log.warn(
+                "RocketMQ Integration Event publish preparation failed: eventId={}, eventName={}, category={}, exceptionType={}",
+                event.id,
+                envelope.eventType,
+                "publish-preparation-failed",
+                failure::class.java.name,
+            )
         }
     }
 
@@ -51,84 +60,104 @@ class RocketMqIntegrationEventPublisher(
         message: Message<Any>,
         completion: IntegrationEventPublishCompletion,
     ) {
-        if (providerStateRegistry.state(PROVIDER_IDENTITY)?.state == RuntimeProviderState.DEGRADED) {
-            providerStateRegistry.report(PROVIDER_IDENTITY, RuntimeProviderState.RECOVERING, "publish-attempt")
+        if (degraded.get()) {
+            reportSafely(RuntimeProviderState.RECOVERING, "publisher-recovery-attempt")
         }
         try {
             rocketMQTemplate.asyncSend(
                 route.destination,
                 message,
-                IntegrationEventSendCallback(event, route, completion, providerStateRegistry),
+                IntegrationEventSendCallback(event, completion, this),
                 deliveryTimeoutMillis,
             )
-        } catch (throwable: Throwable) {
-            terminalFailure(event, throwable, "send-exception", completion, providerStateRegistry)
+        } catch (failure: Throwable) {
+            terminalFailure(event, failure, "send-exception", completion, this)
         }
     }
 
     class IntegrationEventSendCallback(
         private val event: EventRecord,
-        private val route: RocketMqIntegrationEventRoute,
         private val completion: IntegrationEventPublishCompletion,
-        private val providerStateRegistry: RuntimeProviderStateRegistry,
+        private val publisher: RocketMqIntegrationEventPublisher,
     ) : SendCallback {
+        private val terminal = AtomicBoolean(false)
+
         override fun onSuccess(sendResult: SendResult?) {
+            if (!terminal.compareAndSet(false, true)) return
             val status = sendResult?.sendStatus
             if (status == SendStatus.SEND_OK) {
-                if (completion.success()) {
-                    providerStateRegistry.report(PROVIDER_IDENTITY, RuntimeProviderState.HEALTHY, "send-ok")
-                    log.info(
-                        "Integration Event handed to RocketMQ: eventId={}, topic={}, tag={}, msgId={}",
-                        event.id,
-                        route.topic,
-                        route.tag,
-                        sendResult.msgId,
-                    )
-                }
+                completion.success()
+                publisher.degraded.set(false)
+                publisher.reportSafely(RuntimeProviderState.HEALTHY, "publisher-confirm-ack")
+                log.info(
+                    "RocketMQ Integration Event handed off: eventId={}, eventName={}",
+                    event.id,
+                    event.type,
+                )
                 return
             }
 
             terminalFailure(
                 event,
-                RocketMqPublishResultException(route, status),
+                RocketMqPublishResultException(status),
                 "send-status-${status?.name ?: "MISSING"}",
                 completion,
-                providerStateRegistry,
+                publisher,
             )
         }
 
-        override fun onException(throwable: Throwable?) {
+        override fun onException(failure: Throwable?) {
+            if (!terminal.compareAndSet(false, true)) return
             terminalFailure(
                 event,
-                throwable ?: IllegalStateException("RocketMQ send callback reported a missing failure"),
+                failure ?: IllegalStateException("RocketMQ send callback reported a missing failure"),
                 "send-exception",
                 completion,
-                providerStateRegistry,
+                publisher,
             )
         }
     }
 
     companion object {
-        const val PROVIDER_IDENTITY = "integration-event:rocketmq"
+        const val PROVIDER_IDENTITY = "integration-event-transport.rocketmq"
         private val log = LoggerFactory.getLogger(RocketMqIntegrationEventPublisher::class.java)
 
         private fun terminalFailure(
             event: EventRecord,
-            throwable: Throwable,
+            failure: Throwable,
             category: String,
             completion: IntegrationEventPublishCompletion,
-            providerStateRegistry: RuntimeProviderStateRegistry,
+            publisher: RocketMqIntegrationEventPublisher,
         ) {
-            if (!completion.failure(throwable)) return
-            providerStateRegistry.report(PROVIDER_IDENTITY, RuntimeProviderState.DEGRADED, category)
-            log.error("RocketMQ Integration Event handoff failed: eventId={}, category={}", event.id, category, throwable)
+            completion.failure(failure)
+            publisher.degraded.set(true)
+            publisher.reportSafely(RuntimeProviderState.DEGRADED, category)
+            log.warn(
+                "RocketMQ Integration Event handoff failed: eventId={}, eventName={}, category={}, exceptionType={}",
+                event.id,
+                event.type,
+                category,
+                failure::class.java.name,
+            )
         }
+    }
+
+    private fun reportSafely(state: RuntimeProviderState, category: String) {
+        runCatching { stateReporter.report(state, category) }
+            .onFailure { failure ->
+                log.warn(
+                    "RocketMQ Integration Event provider state report failed: providerId={}, state={}, category={}, exceptionType={}",
+                    PROVIDER_IDENTITY,
+                    state,
+                    category,
+                    failure::class.java.name,
+                )
+            }
     }
 }
 
 class RocketMqPublishResultException(
-    route: RocketMqIntegrationEventRoute,
     status: SendStatus?,
 ) : IllegalStateException(
-    "RocketMQ did not confirm handoff for topic=${route.topic}, tag=${route.tag}, status=${status?.name ?: "MISSING"}",
+    "RocketMQ did not confirm Integration Event handoff: status=${status?.name ?: "MISSING"}",
 )

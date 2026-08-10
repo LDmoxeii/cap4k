@@ -1,0 +1,99 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-rocketmq-mainline-alignment",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "3db4e2d6b3bffd44d56bc2c2836a98e8223c3c245044682b810fcb322a73ec3f",
+  "acceptanceCriteriaHash": "c26ca3eed1daa5fdc6b1fc4b4fc02df72207b3ab4b7a5532476cf159cb7d3056",
+  "implementationScopeRef": "runtime/evidence/scopes/7049f352fd12c82b9ae19aa4c921b028f5bc10da54e17941e91c34e5edcb7458.json",
+  "implementationScopeHash": "7049f352fd12c82b9ae19aa4c921b028f5bc10da54e17941e91c34e5edcb7458",
+  "reportRef": "verification.md",
+  "reportHash": "c542943ae54a72d8fc711263128f23a5a3075407b9cda93901ba6f8b6b25ac4f",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "c26ca3eed1daa5fdc6b1fc4b4fc02df72207b3ab4b7a5532476cf159cb7d3056",
+    "total": 7,
+    "evidenced": 7,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-48b824da998a2b1ea92a208954f0408704467e7b42020afb88859d7e76c6ff89",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-rocketmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RocketMqIntegrationEventStarterBoundaryTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberRecoveryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4a32d431dc41a97d80d6ce7cd5c314630dbc5683020f9c6e3ac15d4c612df157",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberRecoveryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4faf2893e70fc2e06abaf82b272505ace7cd05326b5889dffa34b0cfb29fcd02",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqProviderStateCoordinatorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-5ff70f87507b36d6f133a9d5210003be12c232167f5d15f003a5be657670810b",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/LogCapture.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberRecoveryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-8f92e46927e9577d739913a4f5ba6d53a106b19ab6f47b1df331ad68afc22e6c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberRecoveryTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-913892a222cc2490a3530e63219556043dbe0bef5f014a1aca205df38d4af229",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventExecutionContextTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventSubscriberAdapterTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-bc29981dc2f5bcde8f54661ba11cd224969a7af7be460c2fe3680ebc354461e6",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRouteInterceptor.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventRouteInterceptorTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "b01bc32fa2e4e1663d2dd036509efd5aec02eff0a2b6a259dd6805e886c58cf2"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/d6a5e3791cb0cd37beea328e1a87f7b967b2133e4a03d7afb78ced2ee24183cf.json",
+  "createdAt": "2026-08-10T13:38:44.243Z",
+  "envelopeHash": "110ec1ffe335fa39a445183e5ce6715bf4fd460c6c1d9ac4d5ef573e54fc02f8"
+}

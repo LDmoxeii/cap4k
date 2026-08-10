@@ -3,8 +3,8 @@ package com.only4.cap4k.ddd.application.event
 import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.InMemoryRuntimeProviderStateRegistry
-import com.only4.cap4k.ddd.core.application.event.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor
@@ -18,6 +18,7 @@ import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus
 import org.apache.rocketmq.common.message.MessageExt
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.core.Ordered
 import org.springframework.core.annotation.Order
 import org.springframework.messaging.Message
+import java.time.Instant
 
 @DisplayName("RocketMQ集成事件订阅适配器测试")
 class RocketMqIntegrationEventSubscriberAdapterTest {
@@ -51,14 +53,14 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
     }
 
     private lateinit var adapter: RocketMqIntegrationEventSubscriberAdapter
-    private lateinit var stateRegistry: InMemoryRuntimeProviderStateRegistry
+    private lateinit var stateReporter: RecordingReporter
 
     @BeforeEach
     fun setup() {
         clearPlaceholderCache()
         clearAllMocks()
         installedDeliveryContext = null
-        stateRegistry = InMemoryRuntimeProviderStateRegistry()
+        stateReporter = RecordingReporter()
 
         adapter = RocketMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = eventHandlerDispatcher,
@@ -69,7 +71,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset,
-            providerStateRegistry = stateRegistry,
+            stateReporter = stateReporter,
             reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
     }
@@ -150,7 +152,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
         assertEquals(
             RuntimeProviderState.HEALTHY,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
+            stateReporter.lastState,
         )
     }
 
@@ -174,10 +176,16 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         method.isAccessible = true
 
         // when
-        val result = method.invoke(adapter, TestEventPayload::class.java, listOf(messageExt), context)
+        var result: Any? = null
+        val logs = captureFormattedLogs(RocketMqIntegrationEventSubscriberAdapter::class.java) {
+            result = method.invoke(adapter, TestEventPayload::class.java, listOf(messageExt), context)
+        }.joinToString("\n")
 
         // then
         assertEquals(ConsumeConcurrentlyStatus.RECONSUME_LATER, result)
+        assertFalse(logs.contains("invalid-json"))
+        assertFalse(logs.contains(defaultNameSrv))
+        assertFalse(logs.contains("content:published"))
     }
 
     @Test
@@ -193,7 +201,7 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             applicationName = applicationName,
             defaultNameSrv = defaultNameSrv,
             msgCharset = msgCharset,
-            providerStateRegistry = stateRegistry,
+            stateReporter = stateReporter,
             reliableEventDeliveryContextScopeManager = observingReliableEventDeliveryContextScopeManager
         )
 
@@ -258,6 +266,17 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
             .getDeclaredField("resolvePlaceholderCache")
         field.isAccessible = true
         (field.get(null) as MutableMap<*, *>).clear()
+    }
+
+    private class RecordingReporter : RuntimeProviderStateReporter {
+        override val providerId: String = RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY
+        var lastState: RuntimeProviderState? = null
+
+        override fun report(state: RuntimeProviderState, category: String?, observedAt: Instant) {
+            lastState = state
+        }
+
+        override fun close() = Unit
     }
 
     // 测试用的拦截器类

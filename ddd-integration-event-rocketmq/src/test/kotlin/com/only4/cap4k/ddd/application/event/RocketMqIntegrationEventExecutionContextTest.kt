@@ -9,8 +9,8 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.InMemoryRuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
+import com.only4.cap4k.ddd.core.application.provider.InMemoryRuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
@@ -51,7 +51,7 @@ class RocketMqIntegrationEventExecutionContextTest {
             applicationName = "test-app",
             defaultNameSrv = "localhost:9876",
             msgCharset = "UTF-8",
-            providerStateRegistry = InMemoryRuntimeProviderStateRegistry(),
+            stateReporter = InMemoryRuntimeProviderStateRegistry().register(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY),
             executionContextCodecRegistry = codecRegistry,
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = reliableContextManager,
@@ -115,7 +115,7 @@ class RocketMqIntegrationEventExecutionContextTest {
             applicationName = "test-app",
             defaultNameSrv = "localhost:9876",
             msgCharset = "UTF-8",
-            providerStateRegistry = InMemoryRuntimeProviderStateRegistry(),
+            stateReporter = InMemoryRuntimeProviderStateRegistry().register(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY),
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = reliableContextManager,
         )
@@ -176,7 +176,7 @@ class RocketMqIntegrationEventExecutionContextTest {
             applicationName = "test-app",
             defaultNameSrv = "localhost:9876",
             msgCharset = "UTF-8",
-            providerStateRegistry = InMemoryRuntimeProviderStateRegistry(),
+            stateReporter = InMemoryRuntimeProviderStateRegistry().register(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY),
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = reliableContextManager,
         )
@@ -223,7 +223,7 @@ class RocketMqIntegrationEventExecutionContextTest {
             applicationName = "test-app",
             defaultNameSrv = "localhost:9876",
             msgCharset = "UTF-8",
-            providerStateRegistry = InMemoryRuntimeProviderStateRegistry(),
+            stateReporter = InMemoryRuntimeProviderStateRegistry().register(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY),
             executionContextScopeManager = contextManager,
             reliableEventDeliveryContextScopeManager = reliableContextManager,
         )

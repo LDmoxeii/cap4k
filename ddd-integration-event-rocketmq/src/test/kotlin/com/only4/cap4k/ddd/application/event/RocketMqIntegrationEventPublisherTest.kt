@@ -1,42 +1,47 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.application.event.InMemoryRuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
-import com.only4.cap4k.ddd.core.application.event.RuntimeProviderState
 import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.slot
 import io.mockk.verify
 import org.apache.rocketmq.client.producer.SendCallback
 import org.apache.rocketmq.client.producer.SendResult
 import org.apache.rocketmq.client.producer.SendStatus
 import org.apache.rocketmq.spring.core.RocketMQTemplate
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.EnumSource
 import org.springframework.messaging.Message
+import java.time.Instant
 
 class RocketMqIntegrationEventPublisherTest {
     private val rocketMQTemplate = mockk<RocketMQTemplate>()
     private val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>()
     private val eventRecord = mockk<EventRecord>()
-    private lateinit var stateRegistry: InMemoryRuntimeProviderStateRegistry
+    private lateinit var stateReporter: RecordingReporter
     private lateinit var publisher: RocketMqIntegrationEventPublisher
 
     @BeforeEach
     fun setup() {
         clearAllMocks()
         every { eventRecord.id } returns "event-123"
+        every { eventRecord.type } returns EVENT_NAME
         every { publishCallback.onSuccess(eventRecord) } just runs
         every { publishCallback.onException(eventRecord, any()) } just runs
-        stateRegistry = InMemoryRuntimeProviderStateRegistry()
+        stateReporter = RecordingReporter()
         publisher = RocketMqIntegrationEventPublisher(
             rocketMQTemplate,
             StaticIntegrationEventRouteResolver(
@@ -44,8 +49,8 @@ class RocketMqIntegrationEventPublisherTest {
                 "rocketmq",
             ),
             DELIVERY_TIMEOUT,
-            stateRegistry,
-        )
+            stateReporter,
+        ).apply { init() }
     }
 
     @Test
@@ -63,10 +68,7 @@ class RocketMqIntegrationEventPublisherTest {
         }
         verify(exactly = 1) { publishCallback.onSuccess(eventRecord) }
         verify(exactly = 0) { publishCallback.onException(any(), any()) }
-        assertEquals(
-            RuntimeProviderState.HEALTHY,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
-        )
+        assertEquals(RuntimeProviderState.HEALTHY, stateReporter.lastState)
     }
 
     @ParameterizedTest
@@ -82,39 +84,44 @@ class RocketMqIntegrationEventPublisherTest {
 
         verify(exactly = 0) { publishCallback.onSuccess(any()) }
         verify(exactly = 1) { publishCallback.onException(eventRecord, any<RocketMqPublishResultException>()) }
-        assertEquals(
-            RuntimeProviderState.DEGRADED,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
-        )
+        assertEquals(RuntimeProviderState.DEGRADED, stateReporter.lastState)
     }
 
     @Test
-    fun `missing or malformed SDK result is a provider failure`() {
-        val completion = com.only4.cap4k.ddd.core.application.event.IntegrationEventPublishCompletion(
-            eventRecord,
-            publishCallback,
-        )
-        val callback = RocketMqIntegrationEventPublisher.IntegrationEventSendCallback(
-            eventRecord,
-            RocketMqIntegrationEventRoute("content", "published"),
-            completion,
-            stateRegistry,
-        )
+    fun `missing SDK result is terminal and late success cannot invert it`() {
+        val callback = slot<SendCallback>()
+        every {
+            rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), capture(callback), any<Long>())
+        } just runs
 
-        callback.onSuccess(null)
-        callback.onSuccess(sendResult(SendStatus.SEND_OK))
+        publisher.publish(eventRecord, envelope(), publishCallback)
+        callback.captured.onSuccess(null)
+        callback.captured.onSuccess(sendResult(SendStatus.SEND_OK))
 
         verify(exactly = 1) { publishCallback.onException(eventRecord, any<RocketMqPublishResultException>()) }
         verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        assertEquals(
-            RuntimeProviderState.DEGRADED,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
-        )
+        assertEquals(RuntimeProviderState.DEGRADED, stateReporter.lastState)
     }
 
     @Test
-    fun `synchronous SDK exception remains retryable and degrades provider`() {
-        val failure = IllegalStateException("broker unavailable")
+    fun `asynchronous SDK failure remains retryable and degrades publisher component`() {
+        val failure = IllegalStateException("secret broker response")
+        every {
+            rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>(), any<Long>())
+        } answers {
+            thirdArg<SendCallback>().onException(failure)
+        }
+
+        publisher.publish(eventRecord, envelope(), publishCallback)
+
+        verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
+        verify(exactly = 0) { publishCallback.onSuccess(any()) }
+        assertEquals(RuntimeProviderState.DEGRADED, stateReporter.lastState)
+    }
+
+    @Test
+    fun `synchronous SDK exception remains retryable and degrades publisher component`() {
+        val failure = IllegalStateException("secret broker response")
         every {
             rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>(), any<Long>())
         } throws failure
@@ -123,30 +130,26 @@ class RocketMqIntegrationEventPublisherTest {
 
         verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
         verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        assertEquals(
-            RuntimeProviderState.DEGRADED,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
-        )
+        assertEquals(RuntimeProviderState.DEGRADED, stateReporter.lastState)
     }
 
     @Test
-    fun `late duplicate callback cannot invert completion or provider state`() {
-        val failure = IllegalStateException("timeout")
+    fun `publisher diagnostics expose only safe failure facts`() {
+        val secret = "secret broker response and payload"
         every {
             rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>(), any<Long>())
-        } answers {
-            thirdArg<SendCallback>().onException(failure)
-            thirdArg<SendCallback>().onSuccess(sendResult(SendStatus.SEND_OK))
-        }
+        } throws IllegalStateException(secret)
 
-        publisher.publish(eventRecord, envelope(), publishCallback)
+        val logs = captureFormattedLogs(RocketMqIntegrationEventPublisher::class.java) {
+            publisher.publish(eventRecord, envelope(), publishCallback)
+        }.joinToString("\n")
 
-        verify(exactly = 1) { publishCallback.onException(eventRecord, failure) }
-        verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        assertEquals(
-            RuntimeProviderState.DEGRADED,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
-        )
+        assertTrue(logs.contains("event-123"))
+        assertTrue(logs.contains(EVENT_NAME))
+        assertTrue(logs.contains(IllegalStateException::class.java.name))
+        assertFalse(logs.contains(secret))
+        assertFalse(logs.contains("content:published"))
+        assertFalse(logs.contains("{\"value\":\"safe\"}"))
     }
 
     @Test
@@ -155,8 +158,8 @@ class RocketMqIntegrationEventPublisherTest {
             rocketMQTemplate,
             StaticIntegrationEventRouteResolver(emptyMap(), "rocketmq"),
             DELIVERY_TIMEOUT,
-            stateRegistry,
-        )
+            stateReporter,
+        ).apply { init() }
 
         publisher.publish(eventRecord, envelope(), publishCallback)
 
@@ -164,29 +167,44 @@ class RocketMqIntegrationEventPublisherTest {
             rocketMQTemplate.asyncSend(any<String>(), any<Message<Any>>(), any<SendCallback>(), any<Long>())
         }
         verify(exactly = 1) { publishCallback.onException(eventRecord, any()) }
-        assertEquals(
-            RuntimeProviderState.RECOVERING,
-            stateRegistry.state(RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY)?.state,
-        )
+        assertEquals(RuntimeProviderState.RECOVERING, stateReporter.lastState)
+    }
+
+    @Test
+    fun `publish result failure text does not expose route topology`() {
+        val failure = RocketMqPublishResultException(SendStatus.FLUSH_DISK_TIMEOUT)
+
+        assertFalse(failure.message.orEmpty().contains("content"))
+        assertFalse(failure.message.orEmpty().contains("published"))
     }
 
     private fun sendResult(status: SendStatus): SendResult = mockk {
         every { sendStatus } returns status
-        every { msgId } returns "msg-123"
     }
 
     private fun envelope(): IntegrationEventEnvelope = IntegrationEventEnvelope(
         eventId = "event-123",
         eventType = EVENT_NAME,
         originService = "content-service",
-        publishedAt = java.time.Instant.parse("2026-08-09T00:00:00Z"),
+        publishedAt = Instant.parse("2026-08-09T00:00:00Z"),
         deliveryAttempt = null,
         executionContext = emptyList(),
         payloadJson = "{\"value\":\"safe\"}",
     )
 
-    companion object {
-        private const val EVENT_NAME = "content.published"
-        private const val DELIVERY_TIMEOUT = 4_321L
+    private class RecordingReporter : RuntimeProviderStateReporter {
+        override val providerId: String = RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY
+        var lastState: RuntimeProviderState? = null
+
+        override fun report(state: RuntimeProviderState, category: String?, observedAt: Instant) {
+            lastState = state
+        }
+
+        override fun close() = Unit
+    }
+
+    private companion object {
+        const val EVENT_NAME = "content.published"
+        const val DELIVERY_TIMEOUT = 4_321L
     }
 }

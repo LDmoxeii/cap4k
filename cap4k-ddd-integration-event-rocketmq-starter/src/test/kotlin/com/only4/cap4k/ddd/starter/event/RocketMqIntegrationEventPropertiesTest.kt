@@ -17,6 +17,7 @@ class RocketMqIntegrationEventPropertiesTest {
             mapOf(
                 "cap4k.ddd.integration-event.rocketmq.routes[content.published].topic" to "content",
                 "cap4k.ddd.integration-event.rocketmq.routes[content.published].tag" to "published",
+                "cap4k.ddd.integration-event.rocketmq.recovery-interval" to "2s",
             )
         )
         val properties = Binder(source)
@@ -33,6 +34,7 @@ class RocketMqIntegrationEventPropertiesTest {
         assertEquals("content", route.topic)
         assertEquals("published", route.tag)
         assertEquals("content:published", route.destination)
+        assertEquals(java.time.Duration.ofSeconds(2), properties.recoveryInterval)
     }
 
     @Test

@@ -12,7 +12,7 @@ data class RocketMqIntegrationEventRoute(
         require(topic.isNotBlank()) { "RocketMQ route topic must not be blank" }
         require(tag.isNotBlank()) { "RocketMQ route tag must not be blank" }
         runCatching { Validators.checkTopic(topic) }
-            .getOrElse { throw IllegalArgumentException("Invalid RocketMQ route topic '$topic'", it) }
+            .getOrElse { throw IllegalArgumentException("Invalid RocketMQ route topic", it) }
     }
 
     val destination: String get() = "$topic:$tag"
