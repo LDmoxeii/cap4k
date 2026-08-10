@@ -1,0 +1,109 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-rabbitmq-transport",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "48d22b906c96e00a5aba206b948a92ed6434ff909e8fa240b49f62bf38065c3f",
+  "acceptanceCriteriaHash": "0727125dc6b02a3cff80834c9879b957257ea2dd3a6191f5161fd7a9cc4bd379",
+  "implementationScopeRef": "runtime/evidence/scopes/75439e833b8ee0d5eb635f1124863e2e9be40d15e1e2cb0d4a148a5a18f72275.json",
+  "implementationScopeHash": "75439e833b8ee0d5eb635f1124863e2e9be40d15e1e2cb0d4a148a5a18f72275",
+  "reportRef": "verification.md",
+  "reportHash": "92304f8f6007b2267cb0e68041cc0df1cf14aed72b8f5a03fdfa71115f614115",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "0727125dc6b02a3cff80834c9879b957257ea2dd3a6191f5161fd7a9cc4bd379",
+    "total": 7,
+    "evidenced": 7,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-0fe04cc6bff98acff51368f90673789c704e3fe71decc5cc82fa1a4fcd9f34e0",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-4ee1c3504d31cc4654bf87c4f8ff5b9303a6351ffc898b26f15780784df95e9e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqQueueIdentity.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqQueueIdentityTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-93170b64820544d831ed8ae5d3ca29783255d0017e754e94f9778b9dcb68dbbf",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-rabbitmq-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/RabbitMqIntegrationEventStarterBoundaryTest.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRoute.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqTopologyManager.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqTopologyManagerTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-9370c1ab078447a6600ee89a0647bbbf09ae5e5a0ef868206b2ddc7c90c1ed6d",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt",
+          "cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/configure/RabbitMqIntegrationEventAdapterProperties.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisher.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-93f0abebe844d57d143748a2d67589418c015a7e565770a46d6c4dfc839739ea",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/provider/RuntimeProviderState.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/provider/RuntimeProviderStateTest.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqProviderStateCoordinator.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqProviderStateCoordinatorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d18b084f946790f0d93710d717262bb8c4c41f1e3201e52c8e8c0cb4f1338b44",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/impl/Cap4kApplicationListenerMethodAdapter.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/invocation/InvocationScopeTest.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-e3bfa8de83a923568774a5fdd7d508860b9b89f25f323dd1fe6a93fc7ff02ff3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventEnvelope.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/ReliableEventDeliveryContext.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapter.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventSubscriberAdapterTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "827aa959145cecaa1d79fb076b3408dd1f5a33207ff478ed72d30ac69f5f2f18"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/82ec10e1f6b61c7496b3da1c154890478b7778e8fcef1248a6ddc0ba75905bb6.json",
+  "createdAt": "2026-08-10T03:07:15.327Z",
+  "envelopeHash": "9a65f91557145ce4ccda8e5b2bc844d5867e1044252c601ca928922794ecd650"
+}

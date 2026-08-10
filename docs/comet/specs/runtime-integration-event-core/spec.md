@@ -44,9 +44,16 @@ The core owns only the transport-neutral terminal callback boundary:
   assume a subscriber registry, a client send-method return, or a particular broker callback as
   universal success.
 
-## Origin context and subscriber identity
+## Origin context and delivery metadata
 
-Origin attribution uses the existing encoded execution-context elements and the shared Runtime execution-context JSON helper. Each inbound adapter supplies an explicit stable `subscriberIdentity` in delivery metadata. This is provider-supplied delivery metadata, not an `IntegrationEvent` annotation field or a dynamic subscriber registry key. The identity is scoped to the configured destination/subscription and remains stable across redelivery; broker delivery tags, offsets, and callback URLs are not used as subscriber identity.
+Origin attribution uses the existing encoded execution-context elements and the shared Runtime
+execution-context JSON helper. The canonical envelope supplies stable event identity, logical event
+name, and publication time. An inbound provider may add only an exact positive delivery attempt when
+it actually owns one and the non-authoritative `UNKNOWN`/`FIRST`/`REDELIVERED` hint.
+
+Delivery metadata contains no subscriber identity, destination identity, topology, broker delivery
+tag, offset, or callback URL. Queue/group identity remains provider-owned deployment topology and is
+not exposed as shared application context.
 
 The sender does not enumerate consumers and there is no global acknowledgement. Every destination or
 consumer application retains its own provider acknowledgement and retry boundary; the sender only

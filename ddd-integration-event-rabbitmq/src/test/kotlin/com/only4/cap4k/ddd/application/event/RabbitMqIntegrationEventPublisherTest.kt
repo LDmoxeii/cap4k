@@ -1,377 +1,233 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteNotFoundException
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
-import com.only4.cap4k.ddd.core.share.DomainException
-import io.mockk.*
+import io.mockk.clearAllMocks
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.runs
+import io.mockk.slot
+import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.amqp.core.Message
-import org.springframework.amqp.rabbit.connection.Connection
+import org.springframework.amqp.core.MessagePostProcessor
+import org.springframework.amqp.core.MessageProperties
+import org.springframework.amqp.core.ReturnedMessage
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
+import org.springframework.amqp.rabbit.connection.CorrelationData
 import org.springframework.amqp.rabbit.core.RabbitTemplate
-import org.springframework.core.env.Environment
+import java.time.Duration
 import java.time.Instant
 import java.util.Date
 import java.util.concurrent.Executor
+import java.util.concurrent.RejectedExecutionException
 
-@DisplayName("RabbitMQ集成事件发布器测试")
 class RabbitMqIntegrationEventPublisherTest {
-
-    private lateinit var rabbitTemplate: RabbitTemplate
-    private lateinit var connectionFactory: ConnectionFactory
-    private lateinit var environment: Environment
-    private lateinit var publisher: RabbitMqIntegrationEventPublisher
+    private val rabbitTemplate = mockk<RabbitTemplate>(relaxed = true)
+    private val connectionFactory = mockk<ConnectionFactory>()
+    private val publisherConnectionFactory = mockk<ConnectionFactory>()
+    private val topologyManager = mockk<RabbitMqTopologyManager>(relaxed = true)
+    private val stateReporter = mockk<RuntimeProviderStateReporter>(relaxed = true)
+    private val route = RabbitMqIntegrationEventRoute("content", "published")
 
     @BeforeEach
     fun setUp() {
-        rabbitTemplate = mockk()
-        connectionFactory = mockk()
-        environment = mockk()
-        publisher = RabbitMqIntegrationEventPublisher(
-            rabbitTemplate = rabbitTemplate,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            threadPoolSize = 5,
-            threadFactoryClassName = "",
-            autoDeclareExchange = false,
-            defaultExchangeType = "direct",
-            executorOverride = Executor { command -> command.run() },
-        )
+        every { connectionFactory.publisherConnectionFactory } returns publisherConnectionFactory
+        every { publisherConnectionFactory.isPublisherConfirms } returns true
+        every { publisherConnectionFactory.isSimplePublisherConfirms } returns false
+        every { publisherConnectionFactory.isPublisherReturns } returns true
     }
 
     @AfterEach
-    fun tearDown() {
-        clearAllMocks()
+    fun tearDown() = clearAllMocks()
+
+    @Test
+    fun `initialization requires correlated confirms and publisher returns`() {
+        every { publisherConnectionFactory.isPublisherConfirms } returns false
+        assertThrows<IllegalStateException> { publisher().init() }
+
+        every { publisherConnectionFactory.isPublisherConfirms } returns true
+        every { publisherConnectionFactory.isSimplePublisherConfirms } returns true
+        assertThrows<IllegalStateException> { publisher().init() }
+
+        every { publisherConnectionFactory.isSimplePublisherConfirms } returns false
+        every { publisherConnectionFactory.isPublisherReturns } returns false
+        assertThrows<IllegalStateException> { publisher().init() }
+
+        every { publisherConnectionFactory.isPublisherReturns } returns true
+        publisher().init()
+        verify(exactly = 1) { rabbitTemplate.setMandatory(true) }
     }
 
     @Test
-    @DisplayName("初始化应该创建线程池")
-    fun shouldCreateThreadPoolOnInit() {
-        // Arrange
-        val event = createTestEventRecord("test.exchange:routing.key")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
-
-        every { environment.resolvePlaceholders(any<String>()) } returns "test.exchange:routing.key"
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        } just runs
-
-        // Act - 调用publish方法会触发lazy初始化
-        publisher.publish(event, envelope(event), publishCallback)
-
-        // Assert - 验证没有抛出异常，说明线程池初始化成功
-        // 使用timeout等待异步执行完成
-        Thread.sleep(100)
-        verify(atLeast = 0) {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
+    fun `positive confirm without return completes provider handoff`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } answers {
+            correlation.captured.future.complete(CorrelationData.Confirm(true, null))
         }
+
+        publisher().apply { init() }.publish(event, envelope(event), callback)
+
+        verify(exactly = 1) { rabbitTemplate.convertAndSend("content", "published", any<String>(), any<MessagePostProcessor>(), any<CorrelationData>()) }
+        verify(exactly = 1) { callback.onSuccess(event) }
+        verify(exactly = 0) { callback.onException(any(), any()) }
     }
 
     @Test
-    @DisplayName("使用自定义线程工厂创建线程池")
-    fun shouldCreateThreadPoolWithCustomThreadFactory() {
-        // Arrange
-        val customPublisher = RabbitMqIntegrationEventPublisher(
-            rabbitTemplate = rabbitTemplate,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            threadPoolSize = 5,
-            threadFactoryClassName = "java.util.concurrent.Executors\$DefaultThreadFactory",
-            autoDeclareExchange = false,
-            defaultExchangeType = "direct"
-        )
-
-        val event = createTestEventRecord("test.exchange:routing.key")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
-
-        every { environment.resolvePlaceholders(any<String>()) } returns "test.exchange:routing.key"
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        } just runs
-
-        // Act - 通过业务逻辑触发初始化
-        customPublisher.publish(event, envelope(event), publishCallback)
-
-        // Assert - 验证没有异常，说明初始化成功
-        Thread.sleep(100)
-        verify(atLeast = 0) {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
+    fun `negative confirm fails provider handoff`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } answers {
+            correlation.captured.future.complete(CorrelationData.Confirm(false, "broker-nack"))
         }
+
+        publisher().apply { init() }.publish(event, envelope(event), callback)
+
+        verify(exactly = 0) { callback.onSuccess(any()) }
+        verify(exactly = 1) { callback.onException(event, any()) }
     }
 
     @Test
-    @DisplayName("发布事件成功")
-    fun shouldPublishEventSuccessfully() {
-        // Arrange
-        val event = createTestEventRecord("test.exchange:routing.key")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
-
-        every { environment.resolvePlaceholders(any<String>()) } returns "test.exchange:routing.key"
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
+    fun `mandatory return fails even when confirm acknowledges`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } answers {
+            correlation.captured.returned = ReturnedMessage(
+                Message(ByteArray(0), MessageProperties()),
+                312,
+                "NO_ROUTE",
+                "content",
+                "published",
             )
-        } just runs
-
-        // Act
-        publisher.publish(event, envelope(event), publishCallback)
-
-        // Assert
-        verify(exactly = 1) {
-            rabbitTemplate.convertAndSend(
-                "test.exchange",
-                "routing.key",
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
+            correlation.captured.future.complete(CorrelationData.Confirm(true, null))
         }
-        verify(exactly = 1) { publishCallback.onSuccess(event) }
-        verify(exactly = 0) { publishCallback.onException(any(), any()) }
+
+        publisher().apply { init() }.publish(event, envelope(event), callback)
+
+        verify(exactly = 0) { callback.onSuccess(any()) }
+        verify(exactly = 1) { callback.onException(event, any()) }
     }
 
     @Test
-    @DisplayName("RabbitMQ 发送失败时只报告一次发布失败")
-    fun shouldReportExactlyOneFailureWhenSendFails() {
-        val event = createTestEventRecord("test.exchange:routing.key")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+    fun `confirm timeout fails once and ignores a late acknowledgement`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } just runs
+
+        publisher(Duration.ofMillis(5)).apply { init() }.publish(event, envelope(event), callback)
+        correlation.captured.future.complete(CorrelationData.Confirm(true, null))
+
+        verify(exactly = 0) { callback.onSuccess(any()) }
+        verify(exactly = 1) { callback.onException(event, any()) }
+    }
+
+    @Test
+    fun `synchronous send failure fails once`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
         val failure = IllegalStateException("send failed")
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), any<CorrelationData>()) } throws failure
 
-        every { environment.resolvePlaceholders(any<String>()) } returns "test.exchange:routing.key"
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>(),
-            )
-        } throws failure
+        publisher().apply { init() }.publish(event, envelope(event), callback)
 
-        publisher.publish(event, envelope(event), publishCallback)
-
-        verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        verify(exactly = 1) { publishCallback.onException(event, failure) }
+        verify(exactly = 0) { callback.onSuccess(any()) }
+        verify(exactly = 1) { callback.onException(event, failure) }
     }
 
     @Test
-    @DisplayName("当目标为空时应该抛出异常")
-    fun shouldThrowExceptionWhenDestinationIsEmpty() {
-        // Arrange
-        val event = createTestEventRecord("empty.destination")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
-
-        every { environment.resolvePlaceholders("empty.destination") } returns ""
-
-        publisher.publish(event, envelope(event), publishCallback)
-
-        verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        verify(exactly = 1) {
-            publishCallback.onException(
-                event,
-                match { it is DomainException && it.message?.contains("缺失topic") == true },
-            )
+    fun `exceptional confirm future fails provider handoff`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val correlation = slot<CorrelationData>()
+        every { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), capture(correlation)) } answers {
+            correlation.captured.future.completeExceptionally(IllegalStateException("confirm failed"))
         }
+
+        publisher().apply { init() }.publish(event, envelope(event), callback)
+
+        verify(exactly = 0) { callback.onSuccess(any()) }
+        verify(exactly = 1) { callback.onException(event, any()) }
     }
 
     @Test
-    @DisplayName("解析目标地址 - 包含冒号")
-    fun shouldParseDestinationWithColon() {
-        // Arrange
-        val event = createTestEventRecord("exchange.name:routing.key")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+    fun `executor rejection fails before Rabbit publish`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val rejected = RejectedExecutionException("saturated")
+        val executor = Executor { throw rejected }
 
-        every { environment.resolvePlaceholders(any<String>()) } returns "exchange.name:routing.key"
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        } just runs
+        publisher(executorOverride = executor).apply { init() }.publish(event, envelope(event), callback)
 
-        // Act
-        publisher.publish(event, envelope(event), publishCallback)
-
-        // Assert
-        Thread.sleep(100)
-        verify(atLeast = 0) {
-            rabbitTemplate.convertAndSend(
-                "exchange.name",
-                "routing.key",
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        }
+        verify(exactly = 0) { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), any<CorrelationData>()) }
+        verify(exactly = 1) { callback.onException(event, rejected) }
     }
 
     @Test
-    @DisplayName("解析目标地址 - 不包含冒号")
-    fun shouldParseDestinationWithoutColon() {
-        // Arrange
-        val event = createTestEventRecord("exchange.name")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+    fun `missing explicit route fails before Rabbit publish`() {
+        val callback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
+        val event = eventRecord()
+        val missing = IntegrationEventRouteNotFoundException("rabbitmq", event.type)
+        val publisher = publisher(routeResolver = IntegrationEventRouteResolver { throw missing })
 
-        every { environment.resolvePlaceholders(any<String>()) } returns "exchange.name"
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        } just runs
+        publisher.apply { init() }.publish(event, envelope(event), callback)
 
-        // Act
-        publisher.publish(event, envelope(event), publishCallback)
-
-        // Assert
-        Thread.sleep(100)
-        verify(atLeast = 0) {
-            rabbitTemplate.convertAndSend(
-                "exchange.name",
-                "",
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        }
+        verify(exactly = 0) { rabbitTemplate.convertAndSend(any<String>(), any<String>(), any<String>(), any<MessagePostProcessor>(), any<CorrelationData>()) }
+        verify(exactly = 1) { callback.onException(event, missing) }
     }
 
     @Test
-    @DisplayName("自动声明交换机")
-    fun shouldAutoDeclareExchange() {
-        // Arrange
-        val autoPublisher = RabbitMqIntegrationEventPublisher(
-            rabbitTemplate = rabbitTemplate,
-            connectionFactory = connectionFactory,
-            environment = environment,
-            threadPoolSize = 5,
-            autoDeclareExchange = true,
-            defaultExchangeType = "topic"
-        )
+    fun `message post processor writes stable event metadata only`() {
+        val event = eventRecord()
+        val properties = MessageProperties()
+        val message = Message(ByteArray(0), properties)
 
-        val event = createTestEventRecord("test.exchange:routing.key")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>(relaxed = true)
-        val connection = mockk<Connection>()
-        val channel = mockk<com.rabbitmq.client.Channel>()
-
-        every { environment.resolvePlaceholders(any<String>()) } returns "test.exchange:routing.key"
-        every { connectionFactory.createConnection() } returns connection
-        every { connection.createChannel(false) } returns channel
-        justRun { connection.close() }
-        justRun { channel.close() }
-        justRun { channel.exchangeDeclare("test.exchange", "topic", true, false, null) }
-        every {
-            rabbitTemplate.convertAndSend(
-                any<String>(),
-                any<String>(),
-                any<String>(),
-                any<RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback>()
-            )
-        } just runs
-
-        // Act
-        autoPublisher.publish(event, envelope(event), publishCallback)
-
-        // Assert
-        Thread.sleep(100)
-        verify(atLeast = 0) { channel.exchangeDeclare("test.exchange", "topic", true, false, null) }
+        assertEquals(message, RabbitMqIntegrationEventPublisher.IntegrationEventMessagePostProcessor(event).postProcessMessage(message))
+        assertEquals(event.id, properties.messageId)
+        assertEquals(Date.from(event.publishedAt), properties.timestamp)
     }
 
-    @Test
-    @DisplayName("集成事件发送回调处理器测试")
-    fun shouldHandleIntegrationEventSendCallback() {
-        // Arrange
-        val event = createTestEventRecord("test.type")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>()
-        val message = mockk<Message>()
-        val messageProperties = mockk<org.springframework.amqp.core.MessageProperties>()
-        val timestamp = slot<Date>()
+    private fun publisher(
+        timeout: Duration = Duration.ofSeconds(1),
+        routeResolver: IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute> = IntegrationEventRouteResolver { route },
+        executorOverride: Executor = Executor(Runnable::run),
+    ): RabbitMqIntegrationEventPublisher = RabbitMqIntegrationEventPublisher(
+        rabbitTemplate = rabbitTemplate,
+        connectionFactory = connectionFactory,
+        routeResolver = routeResolver,
+        topologyManager = topologyManager,
+        stateReporter = stateReporter,
+        threadPoolSize = 1,
+        confirmTimeout = timeout,
+        executorOverride = executorOverride,
+    )
 
-        every { message.messageProperties } returns messageProperties
-        every { messageProperties.messageId = any<String>() } just runs
-        every { messageProperties.timestamp = capture(timestamp) } just runs
-        val callback = RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback(event)
-
-        // Act
-        val result = callback.postProcessMessage(message)
-
-        // Assert
-        assertEquals(message, result)
-        assertEquals(event.publishedAt, timestamp.captured.toInstant())
-        verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        verify(exactly = 0) { publishCallback.onException(any(), any()) }
-    }
-
-    @Test
-    @DisplayName("集成事件消息后处理不负责终结发布回调")
-    fun shouldNotResolvePublishCallbackFromMessagePostProcessor() {
-        // Arrange
-        val event = createTestEventRecord("test.type")
-        val publishCallback = mockk<IntegrationEventPublisher.PublishCallback>()
-        val message = mockk<Message>()
-        val messageProperties = mockk<org.springframework.amqp.core.MessageProperties>()
-
-        every { message.messageProperties } returns messageProperties
-        every { messageProperties.messageId = any<String>() } just runs
-        every { messageProperties.timestamp = any() } just runs
-        val callback = RabbitMqIntegrationEventPublisher.IntegrationEventSendCallback(event)
-
-        // Act
-        val result = callback.postProcessMessage(message)
-
-        // Assert
-        assertEquals(message, result)
-        verify(exactly = 0) { publishCallback.onSuccess(any()) }
-        verify(exactly = 0) { publishCallback.onException(any(), any()) }
-    }
-
-    private fun createTestEventRecord(type: String): EventRecord {
-        return mockk<EventRecord> {
-            every { id } returns "test-id"
-            every { publishedAt } returns Instant.parse("2026-01-01T00:00:00.123Z")
-            every { this@mockk.type } returns type
-            every { executionContext } returns emptyList()
-            every { message } returns mockk {
-                every { payload } returns mapOf("test" to "data")
-            }
-        }
+    private fun eventRecord(): EventRecord = mockk {
+        every { id } returns "event-1"
+        every { type } returns "content.published"
+        every { publishedAt } returns Instant.parse("2026-08-10T00:00:00Z")
     }
 
     private fun envelope(event: EventRecord): IntegrationEventEnvelope = IntegrationEventEnvelope(
         eventId = event.id,
         eventType = event.type,
-        originService = "test-service",
+        originService = "content-service",
         publishedAt = event.publishedAt,
-        deliveryAttempt = null,
+        deliveryAttempt = 1,
         executionContext = emptyList(),
-        payloadJson = "{\"test\":\"data\"}",
+        payloadJson = "{\"id\":\"content-1\"}",
     )
 }

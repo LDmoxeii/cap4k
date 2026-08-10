@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-rabbitmq-transport",
+  "role": "original",
+  "hash": "92b6c9b0e421031824369341f33cbb1b4583378b282d22a353335080aac6ca4a",
+  "identity": {
+    "dev": 950912656,
+    "ino": 844424931958928,
+    "birthtimeMs": 1786285615418.7112
+  }
+}

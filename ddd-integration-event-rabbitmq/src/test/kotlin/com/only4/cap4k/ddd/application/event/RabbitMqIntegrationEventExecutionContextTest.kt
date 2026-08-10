@@ -11,6 +11,8 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextKey
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
@@ -27,9 +29,9 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.amqp.core.Message
 import org.springframework.amqp.core.MessageProperties
+import org.springframework.amqp.core.AmqpAdmin
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
-import org.springframework.core.env.Environment
 import java.time.Instant
 import java.util.Date
 
@@ -49,10 +51,12 @@ class RabbitMqIntegrationEventExecutionContextTest {
         val adapter = RabbitMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = subscriberManager,
             eventMessageInterceptors = emptyList(),
-            rabbitMqIntegrationEventConfigure = null,
             rabbitListenerContainerFactory = mockk<SimpleRabbitListenerContainerFactory>(),
             connectionFactory = mockk<ConnectionFactory>(),
-            environment = mockk<Environment>(),
+            amqpAdmin = mockk<AmqpAdmin>(),
+            routeResolver = IntegrationEventRouteResolver { RabbitMqIntegrationEventRoute("context", "event") },
+            topologyManager = mockk<RabbitMqTopologyManager>(relaxed = true),
+            stateReporter = mockk<RuntimeProviderStateReporter>(relaxed = true),
             eventTypeCatalog = EmptyEventCatalog,
             applicationName = "test-app",
             executionContextCodecRegistry = codecRegistry,
@@ -103,7 +107,6 @@ class RabbitMqIntegrationEventExecutionContextTest {
                 publishedAt = publishedAt,
                 attempt = null,
                 redeliveryHint = ReliableEventRedeliveryHint.FIRST,
-                subscriberIdentity = "test-app",
             ),
             observedDeliveryContext,
         )
@@ -133,10 +136,12 @@ class RabbitMqIntegrationEventExecutionContextTest {
         val adapter = RabbitMqIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = subscriberManager,
             eventMessageInterceptors = listOf(interceptor),
-            rabbitMqIntegrationEventConfigure = null,
             rabbitListenerContainerFactory = mockk<SimpleRabbitListenerContainerFactory>(),
             connectionFactory = mockk<ConnectionFactory>(),
-            environment = mockk<Environment>(),
+            amqpAdmin = mockk<AmqpAdmin>(),
+            routeResolver = IntegrationEventRouteResolver { RabbitMqIntegrationEventRoute("context", "event") },
+            topologyManager = mockk<RabbitMqTopologyManager>(relaxed = true),
+            stateReporter = mockk<RuntimeProviderStateReporter>(relaxed = true),
             eventTypeCatalog = EmptyEventCatalog,
             applicationName = "test-app",
             executionContextScopeManager = contextManager,

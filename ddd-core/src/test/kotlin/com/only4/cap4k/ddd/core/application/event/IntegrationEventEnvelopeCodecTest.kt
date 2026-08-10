@@ -45,7 +45,7 @@ class IntegrationEventEnvelopeCodecTest {
     }
 
     @Test
-    fun `delivery metadata preserves the sender attempt and stable subscriber context`() {
+    fun `delivery metadata preserves the sender attempt and redelivery hint`() {
         val envelope = codec.decode(codec.encode(eventRecord(TestIntegrationEvent(
             TestStrongId.create("id-2"),
             NestedPayload(listOf("one")),
@@ -53,7 +53,6 @@ class IntegrationEventEnvelopeCodecTest {
 
         val context = envelope.deliveryContext(
             IntegrationEventDeliveryMetadata(
-                subscriberIdentity = "media-service",
                 redeliveryHint = ReliableEventRedeliveryHint.REDELIVERED,
             )
         )
@@ -61,7 +60,6 @@ class IntegrationEventEnvelopeCodecTest {
         assertEquals("event-1", context.eventId)
         assertEquals("user.created", context.eventName)
         assertEquals(2, context.attempt)
-        assertEquals("media-service", context.subscriberIdentity)
         assertEquals(ReliableEventRedeliveryHint.REDELIVERED, context.redeliveryHint)
     }
 
@@ -74,7 +72,6 @@ class IntegrationEventEnvelopeCodecTest {
 
         val context = envelope.deliveryContext(
             IntegrationEventDeliveryMetadata(
-                subscriberIdentity = "media-service",
                 providerDeliveryAttempt = 3,
             )
         )

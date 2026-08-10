@@ -46,7 +46,6 @@ class HttpIntegrationEventConsumeHandlerTest {
         assertEquals("http.endpoint.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
         assertNull(context.attempt)
-        assertEquals("test-app", context.subscriberIdentity)
         assertEquals(
             com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN,
             context.redeliveryHint,
@@ -121,7 +120,6 @@ class HttpIntegrationEventConsumeHandlerTest {
             eventHandlerDispatcher = dispatcher,
             eventMessageInterceptors = emptyList(),
             eventTypeCatalog = EndpointEventCatalog,
-            applicationName = "test-app",
             executionContextCodecRegistry = ExecutionContextCodecRegistry(emptyList()),
             executionContextScopeManager = executionContexts,
             reliableEventDeliveryContextScopeManager = deliveryManager,

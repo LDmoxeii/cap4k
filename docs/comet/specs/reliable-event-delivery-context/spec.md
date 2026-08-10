@@ -63,9 +63,11 @@ Persisted/deferred Domain Event delivery shall expose the JPA reliable record's
 owned positive attempt counter as exact. FIRST means exact attempt 1 and
 REDELIVERED means exact attempt greater than 1.
 
-For inbound HTTP, RabbitMQ, and RocketMQ, `eventName` shall be the resolved
-payload type's simple class name. This isolated slice shall not derive it from an
-Integration Event route, topic, endpoint, or subscriber-registry key.
+For inbound HTTP, RabbitMQ, and RocketMQ, `eventName` shall be the canonical
+envelope's stable logical Integration Event name, which is the unique
+`@IntegrationEvent.value` resolved by the local catalog. It shall not be a
+payload simple class name and shall not be derived from a provider route, topic,
+endpoint, queue, consumer group, or subscriber-registry key.
 
 Inbound HTTP shall expose no exact attempt and UNKNOWN because the transport has
 no authoritative delivery counter or redelivery signal.
@@ -81,7 +83,7 @@ REDELIVERED.
 
 This capability shall not expose exchange, routing key, topic, queue, consumer
 group, HTTP URL, transport message objects, subscriber registry objects, or
-publisher configuration. It shall not add authoritative inbox/deduplication
+subscriber identity, publisher configuration. It shall not add authoritative inbox/deduplication
 state or claim exactly-once handling.
 
 This change shall not modify Integration Event routes, attach/detach behavior,

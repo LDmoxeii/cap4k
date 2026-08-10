@@ -87,12 +87,10 @@ class HttpIntegrationEventAutoConfiguration {
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         executionContextScopeManager: ExecutionContextScopeManager,
         reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
-        @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
     ): HttpIntegrationEventSubscriberAdapter = HttpIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher,
         eventMessageInterceptors,
         eventTypeCatalog,
-        serviceName,
         executionContextCodecRegistry,
         executionContextScopeManager,
         reliableEventDeliveryContextScopeManager,

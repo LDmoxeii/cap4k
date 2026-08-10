@@ -3,8 +3,12 @@ package com.only4.cap4k.ddd.application.event
 import com.only4.cap4k.ddd.application.event.configure.RabbitMqIntegrationEventAdapterProperties
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
+import com.only4.cap4k.ddd.core.application.event.StaticIntegrationEventRouteResolver
 import com.only4.cap4k.ddd.core.application.event.impl.DefaultIntegrationEventSupervisor
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateRegistry
+import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderStateReporter
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextScopeManager
@@ -15,19 +19,19 @@ import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextScopeManager
-import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET
 import com.only4.cap4k.ddd.core.share.Constants.CONFIG_KEY_4_SVC_NAME
+import org.springframework.amqp.core.AmqpAdmin
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory
 import org.springframework.amqp.rabbit.connection.ConnectionFactory
+import org.springframework.amqp.rabbit.core.RabbitAdmin
 import org.springframework.amqp.rabbit.core.RabbitTemplate
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
-import org.springframework.core.env.Environment
 
 @AutoConfiguration
 @EnableConfigurationProperties(RabbitMqIntegrationEventAdapterProperties::class)
@@ -55,49 +59,98 @@ class RabbitMqIntegrationEventAutoConfiguration {
     )
 
     @Bean
+    fun rabbitMqIntegrationEventRouteResolver(
+        properties: RabbitMqIntegrationEventAdapterProperties,
+    ): IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute> = StaticIntegrationEventRouteResolver(
+        routes = properties.routes.toMap(),
+        providerIdentity = "rabbitmq",
+    )
+
+    @Bean(destroyMethod = "close")
+    fun rabbitMqIntegrationEventProviderState(
+        registry: RuntimeProviderStateRegistry,
+    ): RuntimeProviderStateReporter = registry.register(PROVIDER_ID)
+
+    @Bean
+    fun rabbitMqProviderStateCoordinator(
+        @Qualifier(PROVIDER_STATE_BEAN) stateReporter: RuntimeProviderStateReporter,
+    ): RabbitMqProviderStateCoordinator = RabbitMqProviderStateCoordinator(stateReporter)
+
+    @Bean
+    @ConditionalOnMissingBean(AmqpAdmin::class)
+    fun rabbitMqIntegrationEventAmqpAdmin(
+        connectionFactory: ConnectionFactory,
+    ): AmqpAdmin = RabbitAdmin(connectionFactory).apply {
+        setRedeclareManualDeclarations(true)
+    }
+
+    @Bean
+    fun rabbitMqTopologyManager(
+        amqpAdmin: AmqpAdmin,
+        stateCoordinator: RabbitMqProviderStateCoordinator,
+        properties: RabbitMqIntegrationEventAdapterProperties,
+    ): RabbitMqTopologyManager {
+        if (amqpAdmin is RabbitAdmin) {
+            amqpAdmin.setRedeclareManualDeclarations(true)
+        }
+        return RabbitMqTopologyManager(amqpAdmin, properties.exchangeType, stateCoordinator.topology)
+    }
+
+    @Bean
     fun rabbitMqIntegrationEventPublisher(
         rabbitTemplate: RabbitTemplate,
         connectionFactory: ConnectionFactory,
-        environment: Environment,
+        routeResolver: IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute>,
+        topologyManager: RabbitMqTopologyManager,
+        stateCoordinator: RabbitMqProviderStateCoordinator,
         properties: RabbitMqIntegrationEventAdapterProperties,
     ): IntegrationEventPublisher = RabbitMqIntegrationEventPublisher(
         rabbitTemplate,
         connectionFactory,
-        environment,
+        routeResolver,
+        topologyManager,
+        stateCoordinator.publisher,
         properties.publishThreadPoolSize,
+        properties.confirmTimeout,
         properties.publishThreadFactoryClassName,
-        properties.autoDeclareExchange,
-        properties.defaultExchangeType,
     ).apply { init() }
 
     @Bean(destroyMethod = "shutdown")
     fun rabbitMqIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher: EventHandlerDispatcher,
         eventMessageInterceptors: List<EventMessageInterceptor>,
-        configureProvider: ObjectProvider<RabbitMqIntegrationEventConfigure>,
         listenerContainerFactory: SimpleRabbitListenerContainerFactory,
         connectionFactory: ConnectionFactory,
-        environment: Environment,
+        amqpAdmin: AmqpAdmin,
+        routeResolver: IntegrationEventRouteResolver<RabbitMqIntegrationEventRoute>,
+        topologyManager: RabbitMqTopologyManager,
+        stateCoordinator: RabbitMqProviderStateCoordinator,
         eventTypeCatalog: InboundIntegrationEventRegistrationView,
         executionContextCodecRegistry: ExecutionContextCodecRegistry,
         executionContextScopeManager: ExecutionContextScopeManager,
         reliableEventDeliveryContextScopeManager: ReliableEventDeliveryContextScopeManager,
         @Value(CONFIG_KEY_4_SVC_NAME) serviceName: String,
-        @Value(CONFIG_KEY_4_ROCKETMQ_MSG_CHARSET) messageCharset: String,
         properties: RabbitMqIntegrationEventAdapterProperties,
     ): RabbitMqIntegrationEventSubscriberAdapter = RabbitMqIntegrationEventSubscriberAdapter(
         eventHandlerDispatcher,
         eventMessageInterceptors,
-        configureProvider.getIfAvailable(),
         listenerContainerFactory,
         connectionFactory,
-        environment,
+        amqpAdmin,
+        routeResolver,
+        topologyManager,
+        stateCoordinator.subscriber,
         eventTypeCatalog,
         serviceName,
-        messageCharset,
-        properties.autoDeclareQueue,
+        properties.messageCharset,
+        properties.recoveryInterval,
         executionContextCodecRegistry,
         executionContextScopeManager,
         reliableEventDeliveryContextScopeManager,
     ).apply { init() }
+
+    private companion object {
+        const val PROVIDER_ID = "integration-event-transport.rabbitmq"
+        const val PROVIDER_STATE_BEAN = "rabbitMqIntegrationEventProviderState"
+    }
 }

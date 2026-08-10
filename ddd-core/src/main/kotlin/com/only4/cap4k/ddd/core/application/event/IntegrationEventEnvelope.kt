@@ -35,15 +35,11 @@ data class IntegrationEventEnvelope(
 
 /** Provider-owned metadata that accompanies an inbound envelope. */
 data class IntegrationEventDeliveryMetadata(
-    val subscriberIdentity: String,
     /** Exact provider attempt, used only when the sender envelope has no reliable attempt. */
     val providerDeliveryAttempt: Int? = null,
     val redeliveryHint: ReliableEventRedeliveryHint = ReliableEventRedeliveryHint.UNKNOWN,
 ) {
     init {
-        require(subscriberIdentity.isNotBlank()) {
-            "Integration Event subscriber identity must not be blank"
-        }
         require(providerDeliveryAttempt == null || providerDeliveryAttempt > 0) {
             "Integration Event providerDeliveryAttempt must be positive when present"
         }
@@ -59,5 +55,4 @@ fun IntegrationEventEnvelope.deliveryContext(
     publishedAt = publishedAt,
     attempt = deliveryAttempt ?: metadata.providerDeliveryAttempt,
     redeliveryHint = metadata.redeliveryHint,
-    subscriberIdentity = metadata.subscriberIdentity,
 )

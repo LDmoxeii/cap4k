@@ -143,7 +143,6 @@ class RocketMqIntegrationEventSubscriberAdapterTest {
         assertEquals("test-topic", deliveryContext.eventName)
         assertEquals(java.time.Instant.ofEpochMilli(1_000), deliveryContext.publishedAt)
         assertEquals(2, deliveryContext.attempt)
-        assertEquals(applicationName, deliveryContext.subscriberIdentity)
         assertEquals(ReliableEventRedeliveryHint.FIRST, deliveryContext.redeliveryHint)
     }
 
