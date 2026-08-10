@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-rocketmq-mainline-alignment
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 3db4e2d6b3bffd44d56bc2c2836a98e8223c3c245044682b810fcb322a73ec3f
+spec_changes:
+  - capability: runtime-rocketmq-transport
+    operation: replace
+    source: specs/runtime-rocketmq-transport/spec.md
+    base_hash: b851c76fd90d465888559b7e98b4bce13edac448af112624c8c018e8f0f75d49
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/7049f352fd12c82b9ae19aa4c921b028f5bc10da54e17941e91c34e5edcb7458.json
+verification_evidence: runtime/evidence/verifications/110ec1ffe335fa39a445183e5ce6715bf4fd460c6c1d9ac4d5ef573e54fc02f8.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-10
+run_id: 4c837cdb-3591-48d8-b2fa-67d10db2eaf7

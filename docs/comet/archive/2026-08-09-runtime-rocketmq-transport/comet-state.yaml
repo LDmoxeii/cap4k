@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-rocketmq-transport
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: ba5cbadc03de6b96ada0f0200f9c11f8eee9b6aee3c0267083771fa6c1d0bd37
+spec_changes:
+  - capability: runtime-rocketmq-transport
+    operation: replace
+    source: specs/runtime-rocketmq-transport/spec.md
+    base_hash: 25e3f0ed9b2b41d79b6d227917218e4463a03ecda2c7abd61b73153bfe1f751d
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/85b749e4f73701afe89ddf56784d871ccbae14bfe50e057f8564dd6ead4602d8.json
+verification_evidence: runtime/evidence/verifications/2cd10cf68e1bb804cad48101740076d1cc8fa41f02875528b6e33551c02f852b.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: 836e27f3-6e4f-4754-b3a8-62ef129968e8

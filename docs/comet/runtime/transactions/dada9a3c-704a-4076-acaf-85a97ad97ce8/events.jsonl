@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-09T16:28:25.748Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-09T16:28:27.435Z","type":"operation-started","operationId":"spec-1-runtime-rocketmq-transport"}
+{"sequence":3,"timestamp":"2026-08-09T16:28:27.668Z","type":"operation-completed","operationId":"spec-1-runtime-rocketmq-transport"}
+{"sequence":4,"timestamp":"2026-08-09T16:28:27.690Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-09T16:28:28.005Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-09T16:28:28.181Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-09T16:28:28.260Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-09T16:28:28.331Z","type":"commit"}

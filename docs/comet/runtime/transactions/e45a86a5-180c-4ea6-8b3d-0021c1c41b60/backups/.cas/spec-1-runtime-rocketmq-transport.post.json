@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-rocketmq-transport",
+  "role": "post",
+  "hash": "b31defdbd6875360609095435c6ef07022b2418095f5f9c2ea6a4c48f1e1bb43",
+  "identity": {
+    "dev": 950912656,
+    "ino": 844424932114102,
+    "birthtimeMs": 1786369177342.6057
+  }
+}
