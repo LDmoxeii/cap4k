@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 6
+name: runtime-http-mainline-contract-alignment
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 66d89876fdec2625aaa876573ff4b4000d8794c797d85bd53f61850f6d417554
+spec_changes:
+  - capability: runtime-http-experience-reset
+    operation: replace
+    source: specs/runtime-http-experience-reset/spec.md
+    base_hash: 92300f69adfb5cbf569c72cc3e3c36ddf791920d96d78a86f5fe5e46afb8de58
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/9c421fa4dcca45e98e84d98c7cede4c8d522454948867890d18ad94b426a1dea.json
+verification_evidence: runtime/evidence/verifications/54deaa83b393cfeb4d763370c55a090d93a17ff06ff0e4e2e829d93576a3c4a3.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-10
+run_id: 5b75ce34-d57c-4471-b0c6-26183a325a60
