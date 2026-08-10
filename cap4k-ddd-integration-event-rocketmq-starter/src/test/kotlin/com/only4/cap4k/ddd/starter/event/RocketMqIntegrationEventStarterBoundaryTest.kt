@@ -1,6 +1,8 @@
 package com.only4.cap4k.ddd.starter.event
 
 import com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventAutoConfiguration
+import com.only4.cap4k.ddd.application.event.RocketMqIntegrationEventPublisher
+import com.only4.cap4k.ddd.core.application.provider.InMemoryRuntimeProviderStateRegistry
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -45,6 +47,22 @@ class RocketMqIntegrationEventStarterBoundaryTest {
         assertThrows(ClassNotFoundException::class.java) {
             Class.forName("com.only4.cap4k.ddd.application.distributed.locker.JdbcLocker")
         }
+    }
+
+    @Test
+    fun `provider state uses stable identity and close unregisters it`() {
+        val registry = InMemoryRuntimeProviderStateRegistry()
+        val reporter = RocketMqIntegrationEventAutoConfiguration()
+            .rocketMqIntegrationEventProviderState(registry)
+
+        assertEquals(
+            RocketMqIntegrationEventPublisher.PROVIDER_IDENTITY,
+            registry.snapshot().single().providerId,
+        )
+
+        reporter.close()
+
+        assertTrue(registry.snapshot().isEmpty())
     }
 
     private fun ownAutoConfigurationImports(marker: String): Set<String> =

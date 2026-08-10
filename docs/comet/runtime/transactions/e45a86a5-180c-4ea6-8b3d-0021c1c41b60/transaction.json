@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "e45a86a5-180c-4ea6-8b3d-0021c1c41b60",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-rocketmq-mainline-alignment",
+  "createdAt": "2026-08-10T13:39:33.170Z",
+  "preflightHash": "6ee2a911d02b2105c8a60e6b45399284d579af86ad597f3d5edd599e7baa78ff",
+  "operations": [
+    {
+      "id": "spec-1-runtime-rocketmq-transport",
+      "type": "write",
+      "target": "specs/runtime-rocketmq-transport/spec.md",
+      "staged": "runtime/transactions/e45a86a5-180c-4ea6-8b3d-0021c1c41b60/staged/specs/runtime-rocketmq-transport/spec.md",
+      "backup": "runtime/transactions/e45a86a5-180c-4ea6-8b3d-0021c1c41b60/backups/specs/runtime-rocketmq-transport/spec.md",
+      "expectedTargetHash": "b851c76fd90d465888559b7e98b4bce13edac448af112624c8c018e8f0f75d49",
+      "stagedHash": "b31defdbd6875360609095435c6ef07022b2418095f5f9c2ea6a4c48f1e1bb43"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-rocketmq-mainline-alignment",
+      "target": "archive/2026-08-10-runtime-rocketmq-mainline-alignment",
+      "expectedSourceHash": "78ed2faed519fb9cf94b34b04e0cd10483a082bf5c57728f3543a71087d66000",
+      "expectedTargetHash": null
+    }
+  ]
+}
