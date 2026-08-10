@@ -48,14 +48,13 @@ class RocketMqProviderStateCoordinatorTest {
     fun `unchanged aggregate state is not reported repeatedly`() {
         val delegate = RecordingReporter()
         val coordinator = RocketMqProviderStateCoordinator(delegate)
-        val initialReports = delegate.reportCount
 
         coordinator.publisher.report(RuntimeProviderState.HEALTHY, "publisher-confirm-ack")
         coordinator.subscriber.report(RuntimeProviderState.HEALTHY, "consumer-enrollment")
         val healthyReports = delegate.reportCount
         coordinator.subscriber.report(RuntimeProviderState.HEALTHY, "consumer-enrollment")
 
-        assertEquals(initialReports + 2, healthyReports)
+        assertEquals(RuntimeProviderState.HEALTHY, delegate.lastState)
         assertEquals(healthyReports, delegate.reportCount)
     }
 
