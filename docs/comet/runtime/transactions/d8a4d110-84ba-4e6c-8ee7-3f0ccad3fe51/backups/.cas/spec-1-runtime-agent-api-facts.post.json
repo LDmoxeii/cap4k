@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-agent-api-facts",
+  "role": "post",
+  "hash": "a1e009e8dabca9d2bdf850ad3d6ed27a45c47b2edd31c9ab9489c169766cb51c",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1125899909021391,
+    "birthtimeMs": 1786439542120.9255
+  }
+}

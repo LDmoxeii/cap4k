@@ -21,6 +21,8 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityMetadataLevel
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityProvenance
 import com.only4.cap4k.plugin.pipeline.api.PipelineExecutionLane
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
+import java.nio.charset.StandardCharsets.UTF_8
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -156,6 +158,93 @@ class AgentSnapshotServiceTest {
             first.diagnostics.diagnostics.map { diagnostic -> diagnostic.id },
             reordered.diagnostics.diagnostics.map { diagnostic -> diagnostic.id },
         )
+    }
+
+    @Test
+    fun `mixed duplicate runtime providers are order independent through encoded snapshot`() {
+        val capabilityA = AgentRuntimeCapabilityFact(
+            capabilityId = "runtime.a",
+            displayName = "Runtime A",
+            ownership = AgentRuntimeOwnership(contractModule = "test"),
+            providerIds = listOf("provider.shared"),
+        )
+        val capabilityB = AgentRuntimeCapabilityFact(
+            capabilityId = "runtime.b",
+            displayName = "Runtime B",
+            ownership = AgentRuntimeOwnership(contractModule = "test"),
+            providerIds = listOf("provider.shared"),
+        )
+        val providerA = AgentRuntimeProviderFact(
+            providerId = "provider.shared",
+            capabilityId = capabilityA.capabilityId,
+            displayName = "Provider A",
+            ownership = AgentRuntimeOwnership(contractModule = "test"),
+        )
+        val providerB = AgentRuntimeProviderFact(
+            providerId = " PROVIDER.SHARED ",
+            capabilityId = capabilityB.capabilityId,
+            displayName = "Provider B",
+            ownership = AgentRuntimeOwnership(contractModule = "test"),
+        )
+        val runtime = AgentRuntimeSection(
+            status = AgentSnapshotStatus.OK,
+            reason = "Existing Runtime context.",
+            capabilities = listOf(capabilityA, capabilityB),
+            providers = listOf(providerA, providerB),
+        )
+
+        val first = service.assemble(request(capabilityDescriptors = emptyList(), runtime = runtime))
+        val reordered = service.assemble(
+            request(
+                capabilityDescriptors = emptyList(),
+                runtime = runtime.copy(
+                    capabilities = runtime.capabilities.reversed(),
+                    providers = runtime.providers.reversed(),
+                ),
+            )
+        )
+
+        val expectedReason =
+            "The static Runtime fact catalog is invalid. Previous Runtime reason: Existing Runtime context."
+        val firstDiagnostics = first.diagnostics.diagnostics
+        val reorderedDiagnostics = reordered.diagnostics.diagnostics
+        assertEquals(AgentSnapshotStatus.INVALID, first.runtime.status)
+        assertEquals(AgentSnapshotStatus.INVALID, reordered.runtime.status)
+        assertEquals(expectedReason, first.runtime.reason)
+        assertEquals(expectedReason, reordered.runtime.reason)
+        assertEquals(AgentSnapshotStatus.INVALID, first.diagnostics.status)
+        assertEquals(AgentSnapshotStatus.INVALID, reordered.diagnostics.status)
+        assertEquals(3, firstDiagnostics.size)
+        assertEquals(
+            firstDiagnostics.map { diagnostic -> diagnostic.id to diagnostic.message },
+            reorderedDiagnostics.map { diagnostic -> diagnostic.id to diagnostic.message },
+        )
+        assertEquals(
+            mapOf(
+                "Multiple Runtime provider facts declared one normalized identity." to 1,
+                "A Runtime capability fact references an absent or mismatched provider identity." to 2,
+            ),
+            firstDiagnostics.groupingBy(AgentDiagnostic::message).eachCount(),
+        )
+
+        val codec = AgentSnapshotCodec()
+        val firstEncoded = codec.encode(cap4kVersion = "test", sections = first)
+        val reorderedEncoded = codec.encode(cap4kVersion = "test", sections = reordered)
+        listOf("runtime.json", "diagnostics.json").forEach { path ->
+            assertArrayEquals(
+                firstEncoded.sectionJsonByPath.getValue(path).toByteArray(UTF_8),
+                reorderedEncoded.sectionJsonByPath.getValue(path).toByteArray(UTF_8),
+                "$path must not depend on fact input order",
+            )
+        }
+        assertArrayEquals(
+            firstEncoded.manifestJson.toByteArray(UTF_8),
+            reorderedEncoded.manifestJson.toByteArray(UTF_8),
+            "manifest.json must not depend on fact input order",
+        )
+        assertEquals(firstEncoded.manifest.snapshotId, reorderedEncoded.manifest.snapshotId)
+        assertEquals(firstEncoded.manifest.diagnosticCounts, reorderedEncoded.manifest.diagnosticCounts)
+        assertEquals(3, firstEncoded.manifest.diagnosticCounts.error)
     }
 
     @Test

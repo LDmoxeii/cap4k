@@ -40,8 +40,7 @@ class AgentSnapshotService {
         val runtimeDiagnostics = RuntimeAgentFactsPolicy.diagnostics(request.runtime)
         val runtime = request.runtime.copy(
             status = if (runtimeDiagnostics.isEmpty()) request.runtime.status else AgentSnapshotStatus.INVALID,
-            reason = request.runtime.reason ?: runtimeDiagnostics.takeIf { it.isNotEmpty() }
-                ?.let { "The static Runtime fact catalog is invalid." },
+            reason = runtimeSectionReason(request.runtime.reason, runtimeDiagnostics),
         )
         val diagnostics = normalizeDiagnostics(request.diagnostics + runtimeDiagnostics)
         val capabilities = AgentCapabilitiesSection(
@@ -135,6 +134,21 @@ class AgentSnapshotService {
             compareBy<AgentDiagnostic> { diagnosticLevelOrder(it.level) }
                 .thenBy(AgentDiagnostic::id)
         )
+    }
+
+    private fun runtimeSectionReason(
+        originalReason: String?,
+        diagnostics: List<AgentDiagnostic>,
+    ): String? {
+        if (diagnostics.isEmpty()) return originalReason
+
+        val invalidCatalogReason = "The static Runtime fact catalog is invalid."
+        val supplementalReason = originalReason
+            ?.trim()
+            ?.takeIf { reason -> reason.isNotEmpty() && reason != invalidCatalogReason }
+        return supplementalReason
+            ?.let { reason -> "$invalidCatalogReason Previous Runtime reason: $reason" }
+            ?: invalidCatalogReason
     }
 
     private fun supportedCapability(descriptor: PipelineCapabilityDescriptor) =

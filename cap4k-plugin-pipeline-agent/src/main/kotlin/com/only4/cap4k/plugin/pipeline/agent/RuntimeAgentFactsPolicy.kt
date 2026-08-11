@@ -23,7 +23,7 @@ internal object RuntimeAgentFactsPolicy {
         }
 
         val capabilityIds = section.capabilities.map { fact -> normalize(fact.capabilityId) }.toSet()
-        val providerFacts = section.providers.associateBy { fact -> normalize(fact.providerId) }
+        val providerCandidatesById = section.providers.groupBy { fact -> normalize(fact.providerId) }
         section.providers
             .filter { fact -> normalize(fact.capabilityId) !in capabilityIds }
             .map { fact -> "provider-capability:${normalize(fact.providerId)}" }
@@ -35,8 +35,10 @@ internal object RuntimeAgentFactsPolicy {
         section.capabilities.flatMap { capability ->
             capability.providerIds.map { providerId -> capability to providerId }
         }.filter { (capability, providerId) ->
-            val provider = providerFacts[normalize(providerId)]
-            provider == null || normalize(provider.capabilityId) != normalize(capability.capabilityId)
+            val providerCandidates = providerCandidatesById[normalize(providerId)].orEmpty()
+            providerCandidates.isEmpty() || providerCandidates.any { provider ->
+                normalize(provider.capabilityId) != normalize(capability.capabilityId)
+            }
         }.map { (capability, providerId) ->
             "capability-provider:${normalize(capability.capabilityId)}:${normalize(providerId)}"
         }.distinct().sorted().forEach { key ->

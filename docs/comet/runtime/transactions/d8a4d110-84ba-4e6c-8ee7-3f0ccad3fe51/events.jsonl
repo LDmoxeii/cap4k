@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-11T09:12:19.440Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-11T09:12:21.937Z","type":"operation-started","operationId":"spec-1-runtime-agent-api-facts"}
+{"sequence":3,"timestamp":"2026-08-11T09:12:22.267Z","type":"operation-completed","operationId":"spec-1-runtime-agent-api-facts"}
+{"sequence":4,"timestamp":"2026-08-11T09:12:22.295Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-11T09:12:22.743Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-11T09:12:22.992Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-11T09:12:23.092Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-11T09:12:23.184Z","type":"commit"}
