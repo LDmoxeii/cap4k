@@ -8,7 +8,6 @@
 | --- | --- | --- |
 | `ddd-domain-event-jpa/src/main/resources/event.sql` | `__event` | reliable integration/domain event delivery state and safe failure facts。 |
 | `ddd-application-command-jpa/src/main/resources/command.sql` | `__command` | reliable Command execution、retry state and safe failure facts。 |
-| `ddd-distributed-locker-jdbc/src/main/resources/locker.sql` | `__locker` | distributed lock rows，key 为 `name`。 |
 
 ## Table Purposes
 
@@ -16,7 +15,6 @@
 | --- | --- |
 | `__event` | reliable event delivery record with safe structured failure facts。 |
 | `__command` | reliable Command execution/retry record with safe structured failure facts。 |
-| `__locker` | distributed lock，key 为 `name`。 |
 
 ## Boundaries
 

@@ -6,19 +6,19 @@
 
 ## Current Facts
 
-- `ddd-core` 定义持久化中立的 tactical API、静态 `Mediator` namespace、Command/Query/Capability、ExecutionContext、InvocationScope、本地 Domain Event、capability slots、Identifier 与 generated-own-ID 契约。其生产依赖中没有 JPA、Hibernate、Spring Data、JDBC Locker 或消息 transport。
+- `ddd-core` 定义持久化中立的 tactical API、静态 `Mediator` namespace、Command/Query/Capability、ExecutionContext、InvocationScope、本地 Domain Event、capability slots、Identifier 与 generated-own-ID 契约。其生产依赖中没有 JPA、Hibernate、Spring Data、分布式协调实现或消息 transport。
 - `Mediator` 不再是继承所有 supervisor 的接口，也没有 bean/instance 实现。正式静态入口为 `commands`、`queries`、`capabilities`、`repositories`、`factories`、`services`、`events`、`ioc` 和 `identifiers`；没有 generic `requests` 或公共 `uow` 入口。`events` 表示 Integration Event，正式方法是 `attach/detach`。
 - Core starter 通过 `CoreIdAutoConfiguration`、`CoreRuntimeAutoConfiguration` 和 `CoreDomainEventAutoConfiguration` 提供 UUIDv7、ID registries、Command/Query/Capability supervisors、ExecutionContext/InvocationScope、本地事件、统一 Event Handler descriptor/registry/dispatcher、EventTypeCatalog 与静态 facade binder。
 - capability 默认 provider 独立使用 `@ConditionalOnMissingBean`。Core binder 在 Context 初始化完成时要求 required capability 恰好一个、optional capability 至多一个；缺失 optional capability 保持未配置并在调用点抛出 `CapabilityUnavailableException`。
 - `ddd-domain-repo-jpa` 实现 JPA Repository、Hibernate-backed `JpaUnitOfWork`、Query read-only execution、generated-own-ID completion、聚合变化识别、审计 enrich、soft-delete 与 provider-assigned identity/version 生命周期。Repository 按需保留 managed lazy navigation，不再展开完整对象图或接受 `AggregateLoadPlan`。
-- JPA starter 只装配 Repository、Aggregate Factory、聚合根目录、JPA 持久化协调和 Web domain-context cleanup；不传递 Command/Event/Locker/transport。Command JPA starter在它之上提供外层 REQUIRED 事务和自动 UoW 完成。
-- 同步 Command 直接执行，不创建可靠记录。可靠 `send()` 由 `DefaultReliableCommandSupervisor` 登记，Command JPA starter装配 JPA repository、可靠 supervisor、补偿/归档任务，并显式要求 `Locker`。可靠记录独立保存 origin ExecutionContext。
-- 默认本地 Domain Event 在 Command UoW 的同步 frontier 中 release，并直接进入统一 `EventHandlerDispatcher`。Spring `ApplicationEventPublisher` 仅用于可靠 Domain Event / Integration Event 的事务提交后唤醒信号，不是业务事件 Handler 的分发路径。`@DomainEvent(persist = true)` 或未来 schedule 的事件通过 `ReliableDomainEventProvider`；Domain Event JPA starter提供 EventRecord repository、publisher、可靠 provider、补偿/归档任务，并显式要求 `Locker`。可靠记录独立保存 origin ExecutionContext。
+- JPA starter 只装配 Repository、Aggregate Factory、聚合根目录、JPA 持久化协调和 Web domain-context cleanup；不传递 Command/Event/transport。Command JPA starter 在它之上提供外层 REQUIRED 事务和自动 UoW 完成。
+- 同步 Command 直接执行，不创建可靠记录。可靠 `send()` 由 `DefaultReliableCommandSupervisor` 登记，Command JPA starter 装配 JPA repository、可靠 supervisor，以及 Runtime-owned 的原子 claim、lease、delivery token、retry、manual redrive 和 retention/cleanup。可靠记录独立保存 origin ExecutionContext，不依赖公共分布式锁 capability。
+- 默认本地 Domain Event 在 Command UoW 的同步 frontier 中 release，并直接进入统一 `EventHandlerDispatcher`。Spring `ApplicationEventPublisher` 仅用于可靠 Domain Event / Integration Event 的事务提交后唤醒信号，不是业务事件 Handler 的分发路径。`@DomainEvent(persist = true)` 或未来 schedule 的事件通过 `ReliableDomainEventProvider`；Domain Event JPA starter 提供 EventRecord repository、publisher、可靠 provider，以及同一套 Runtime-owned claim/lease/token/retry/redrive/retention 状态机。可靠记录独立保存 origin ExecutionContext，不依赖公共分布式锁 capability。
 - 本地 Domain Event 与入站 Integration Event 共用方法级 `@EventListener` authoring surface，以及同步、串行、fail-fast dispatcher。不同方法级 `@Order` 值按数值从小到大执行，相同值不承诺次序。Handler 返回后等待其 InvocationScope 内登记的 `askAsync()` / `callAsync()`；失败传播到本地事务或 transport delivery。
 - 事件类型不再从业务 package/classpath 扫描。Core `SpringEventTypeCatalog` 从 Spring `@EventListener` 方法的显式类型签名构建 integration-event 类型集合；共享 inbound registration view 将 active catalog 与合法本地同步 Handler descriptor 取交集。
 - Integration Event transport starter 分别装配 HTTP、RabbitMQ 或 RocketMQ publisher/subscriber adapter，并要求用户显式提供 `EventRecordRepository`。transport starter 不传递 Domain Event JPA starter；HTTP 只保留静态 route 与固定接收端点，不存在 subscriber registry 或 HTTP-JPA carrier。
 - Cap4k 不提供内建 Saga runtime、持久化、starter 或 generator family。超过可靠 Command 与 Integration Event 组合能力的长流程，由应用显式编排或接入外部 provider。
-- JDBC Locker 拥有独立 starter。UUID7 是唯一内置的 application-side Strong ID 分配策略；数据库 identity 仍是 persistence policy。
+- Cap4k 不再提供公共 Locker API、分布式锁 Runtime 模块、starter 或数据库表。UUID7 是唯一内置的 application-side Strong ID 分配策略；数据库 identity 仍是 persistence policy。
 - 旧 `cap4k-ddd-starter` 已删除，没有 alias、deprecated 或兼容保留合同。关键 JPA Runtime tests 已迁到 `cap4k-ddd-jpa-starter`。
 
 ## Starter Ownership
@@ -27,9 +27,8 @@
 | --- | --- | --- | --- |
 | `cap4k-ddd-core-starter` | UUIDv7、Command/Query/Capability、ExecutionContext、Domain Service、本地 Event、IoC/capability binder | `ddd-core` | 无 |
 | `cap4k-ddd-jpa-starter` | Repository、Factory、Hibernate UoW、Query read-only transaction、audit lifecycle | Core | DataSource/JPA |
-| `cap4k-ddd-command-jpa-starter` | Command REQUIRED transaction、automatic UoW、reliable Command persistence/schedule | JPA | `Locker` |
-| `cap4k-ddd-domain-event-jpa-starter` | reliable Event persistence/schedule | JPA | `Locker` |
-| `cap4k-ddd-locker-jdbc-starter` | JDBC `Locker` | Core | locker table |
+| `cap4k-ddd-command-jpa-starter` | Command REQUIRED transaction、automatic UoW、reliable Command persistence/schedule/claim/retry/redrive/retention | JPA | DataSource/JPA |
+| `cap4k-ddd-domain-event-jpa-starter` | reliable Event persistence/schedule/claim/retry/redrive/retention | JPA | DataSource/JPA |
 | `cap4k-ddd-integration-event-http-starter` | HTTP transport | Core | `EventRecordRepository` |
 | `cap4k-ddd-integration-event-rabbitmq-starter` | RabbitMQ transport | Core | broker + `EventRecordRepository` |
 | `cap4k-ddd-integration-event-rocketmq-starter` | RocketMQ transport | Core | broker + `EventRecordRepository` |

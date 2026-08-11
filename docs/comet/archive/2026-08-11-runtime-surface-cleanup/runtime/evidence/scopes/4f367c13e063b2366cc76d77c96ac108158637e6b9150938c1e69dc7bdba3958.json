@@ -1,0 +1,421 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "f822777e80e41d663e31537b137913d1fd566eaa09b449c4449d25dc7f140300",
+  "baselineProjectionRef": "runtime/evidence/snapshots/a678f0ccde6fd5f9b3667d192b1b59d88aa3c7c58530969ccf450456b01cd156.json",
+  "baselineProjectionHash": "a678f0ccde6fd5f9b3667d192b1b59d88aa3c7c58530969ccf450456b01cd156",
+  "currentProjectionRef": "runtime/evidence/snapshots/ddc6b5445a27dc89d55779022de19ac0aa80c837aa041f4fbe5e78dfd3cef73e.json",
+  "currentProjectionHash": "ddc6b5445a27dc89d55779022de19ac0aa80c837aa041f4fbe5e78dfd3cef73e",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "AGENTS.md",
+      "kind": "file"
+    },
+    {
+      "path": "docs/public/reference/runtime-database-schema.md",
+      "kind": "file"
+    },
+    {
+      "path": "docs/superpowers/analysis/architecture-map.md",
+      "kind": "file"
+    },
+    {
+      "path": "docs/superpowers/analysis/runtime-and-integration-map.md",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "file"
+    },
+    {
+      "path": "settings.gradle.kts",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "AGENTS.md",
+      "kind": "modified",
+      "before": {
+        "hash": "a74d379179ccc0bcaa9e532f54e81cc763fa6b80fcac46549f00c9cd06401014",
+        "size": 11723
+      },
+      "after": {
+        "hash": "6c47f4a7b15df2a966518a495a3e129384d101b1c210d1e29eb436ca9242ec77",
+        "size": 11727
+      },
+      "attributedTo": [
+        {
+          "path": "AGENTS.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/build.gradle.kts",
+      "kind": "removed",
+      "before": {
+        "hash": "c445a9851c2ab5002f21f5a4861edf28df4cc73b6b9d299da5f583c11ccfb895",
+        "size": 644
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/JdbcLockerAutoConfiguration.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "b7b302c4888bef06837eef1529b7e6c2d1e99c8f1d4717e16a6c3ab67349daed",
+        "size": 1483
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/configure/JdbcLockerProperties.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "163a73bda511f4897c48013ca10ef7d5c9b4ff929c7fe17bfd632d2de3d66628",
+        "size": 435
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports",
+      "kind": "removed",
+      "before": {
+        "hash": "7578054bb05c8e1a62809a83f0ff4a498418bded6f4e12164d86eb0b68e0cd1e",
+        "size": 73
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/locker/JdbcLockerStarterTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "e8bdbeb64f55fda73bce3151db6cccf45b9684f527e46d4f4e39f774ebd3650d",
+        "size": 2595
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/distributed/Locker.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "6524fe4f6a92a60c5413377177c4ae24323c447d664906218bf5db815086b051",
+        "size": 996
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/build.gradle.kts",
+      "kind": "removed",
+      "before": {
+        "hash": "cf965a242a7ed3a299a2e9d99e74351365f08e4fadc3892f66b83f647643cfea",
+        "size": 769
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLocker.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "9656ca4419e53020a13fe486253362fdc5b9c8f400d113ea5cf8453c11ebd10d",
+        "size": 3316
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/src/main/resources/locker.sql",
+      "kind": "removed",
+      "before": {
+        "hash": "be4272a29751f5e444b9c3035634027f551aa573ea3e8408ad03dc13fcd17f3a",
+        "size": 840
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/src/test/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLockerTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "d1876a7cb2faa948c31d9a84b50db8e62b91478847af3ca4caf257faa43d787f",
+        "size": 16402
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "docs/public/reference/runtime-database-schema.md",
+      "kind": "modified",
+      "before": {
+        "hash": "3db268bbd636c165716d27edba8aac711b6dc64c27eb83a97824eaacccac2ce9",
+        "size": 1503
+      },
+      "after": {
+        "hash": "6dcaeaea361ac284e86eb11f24ecdebf9ed4518af52e606dfd5837dd5e50833e",
+        "size": 1320
+      },
+      "attributedTo": [
+        {
+          "path": "docs/public/reference/runtime-database-schema.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "docs/superpowers/analysis/architecture-map.md",
+      "kind": "modified",
+      "before": {
+        "hash": "c0b65c3090d51b25da439c9836afcf61893da7553628883fcbf2187ad9dd2a9a",
+        "size": 9536
+      },
+      "after": {
+        "hash": "2710ecbfa5cd029a8dbb7d74411d8e75588f40c2040bae1391498518fd69e8de",
+        "size": 9450
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/analysis/architecture-map.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "docs/superpowers/analysis/runtime-and-integration-map.md",
+      "kind": "modified",
+      "before": {
+        "hash": "be3296363df8134f9a140ce7aa1c402e8ad0624d038211ad9f4d4d9c91fb38e4",
+        "size": 9829
+      },
+      "after": {
+        "hash": "4c4e2935cb551444ce3eb8a023df2c5eecce6c947e5c4225f18ca9c19da4f329",
+        "size": 10062
+      },
+      "attributedTo": [
+        {
+          "path": "docs/superpowers/analysis/runtime-and-integration-map.md",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "e526944c3a0e82685f2129bcf58d0f6f02c650483c189d12a79b80ab2ba38799",
+        "size": 6221
+      },
+      "after": {
+        "hash": "4d13e02c8ecfd0f7c828b7c359237f0a9fd049923d9ccc4057f26b5c94769745",
+        "size": 9544
+      },
+      "attributedTo": [
+        {
+          "path": "scripts/validate-current-runtime-facts.ps1",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "settings.gradle.kts",
+      "kind": "modified",
+      "before": {
+        "hash": "560007238ebb6004de8af672d60775c2f0fcdfa03e8367f8725f980934987f88",
+        "size": 2384
+      },
+      "after": {
+        "hash": "2a144a306a0c2450fc6ee918675a7d9c029ec227895837e46bc07aebe3b54f44",
+        "size": 2299
+      },
+      "attributedTo": [
+        {
+          "path": "settings.gradle.kts",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/build.gradle.kts",
+      "kind": "removed",
+      "before": {
+        "hash": "c445a9851c2ab5002f21f5a4861edf28df4cc73b6b9d299da5f583c11ccfb895",
+        "size": 644
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/JdbcLockerAutoConfiguration.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "b7b302c4888bef06837eef1529b7e6c2d1e99c8f1d4717e16a6c3ab67349daed",
+        "size": 1483
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/configure/JdbcLockerProperties.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "163a73bda511f4897c48013ca10ef7d5c9b4ff929c7fe17bfd632d2de3d66628",
+        "size": 435
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports",
+      "kind": "removed",
+      "before": {
+        "hash": "7578054bb05c8e1a62809a83f0ff4a498418bded6f4e12164d86eb0b68e0cd1e",
+        "size": 73
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-ddd-locker-jdbc-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/locker/JdbcLockerStarterTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "e8bdbeb64f55fda73bce3151db6cccf45b9684f527e46d4f4e39f774ebd3650d",
+        "size": 2595
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/distributed/Locker.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "6524fe4f6a92a60c5413377177c4ae24323c447d664906218bf5db815086b051",
+        "size": 996
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/build.gradle.kts",
+      "kind": "removed",
+      "before": {
+        "hash": "cf965a242a7ed3a299a2e9d99e74351365f08e4fadc3892f66b83f647643cfea",
+        "size": 769
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLocker.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "9656ca4419e53020a13fe486253362fdc5b9c8f400d113ea5cf8453c11ebd10d",
+        "size": 3316
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/src/main/resources/locker.sql",
+      "kind": "removed",
+      "before": {
+        "hash": "be4272a29751f5e444b9c3035634027f551aa573ea3e8408ad03dc13fcd17f3a",
+        "size": 840
+      },
+      "after": null,
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-distributed-locker-jdbc/src/test/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLockerTest.kt",
+      "kind": "removed",
+      "before": {
+        "hash": "d1876a7cb2faa948c31d9a84b50db8e62b91478847af3ca4caf257faa43d787f",
+        "size": 16402
+      },
+      "after": null,
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:619417d41b070336c22db7292c2fb112ed83b181a1fcc0b2446231a4d77a213c",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-locker-jdbc-starter/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-locker-jdbc-starter/build.gradle.kts"
+    },
+    {
+      "id": "scope:b5458c75d17a8f4d87054ed642407899c1d31b5fa54ec0a9df53c88a4961ae84",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/JdbcLockerAutoConfiguration.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/JdbcLockerAutoConfiguration.kt"
+    },
+    {
+      "id": "scope:7495db8b838d531ec458311371b0414610713f1d7102ba90ee9400febca2d8c7",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/configure/JdbcLockerProperties.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-locker-jdbc-starter/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/configure/JdbcLockerProperties.kt"
+    },
+    {
+      "id": "scope:aee65d68c0a9418e85010d7a846778c40412425db4faad8926fefb935195b08b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-locker-jdbc-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-locker-jdbc-starter/src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"
+    },
+    {
+      "id": "scope:6f7b1341d279a3697085d04459476347cb14084e95e213a7f67a7cb1b0816419",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-ddd-locker-jdbc-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/locker/JdbcLockerStarterTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-ddd-locker-jdbc-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/locker/JdbcLockerStarterTest.kt"
+    },
+    {
+      "id": "scope:8eb445e3d7fefa16f4ba77d69cf351df0761bbc216b1183a13c208cba34a95b1",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/distributed/Locker.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/distributed/Locker.kt"
+    },
+    {
+      "id": "scope:74690f68a15a79df1747212aadbc1961d5f4be050a386e66cdd0c6793c5c4f9d",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-distributed-locker-jdbc/build.gradle.kts",
+      "reason": "Changed path is not covered by a declared artifact: ddd-distributed-locker-jdbc/build.gradle.kts"
+    },
+    {
+      "id": "scope:e1529bd107b90e66d084a2f806a6b79dd37870fd1042ac3c58651820e610960d",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-distributed-locker-jdbc/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLocker.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-distributed-locker-jdbc/src/main/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLocker.kt"
+    },
+    {
+      "id": "scope:06c314e36cf520d2d3b81fc4f7837e47741f19d7a28bcb2cc6de357d559cc877",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-distributed-locker-jdbc/src/main/resources/locker.sql",
+      "reason": "Changed path is not covered by a declared artifact: ddd-distributed-locker-jdbc/src/main/resources/locker.sql"
+    },
+    {
+      "id": "scope:f46ea9c9cf16a295b7182f5df0459cc315a9a9212527f325e092b48b94aa33f0",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-distributed-locker-jdbc/src/test/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLockerTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-distributed-locker-jdbc/src/test/kotlin/com/only4/cap4k/ddd/application/distributed/locker/JdbcLockerTest.kt"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "4f367c13e063b2366cc76d77c96ac108158637e6b9150938c1e69dc7bdba3958"
+}

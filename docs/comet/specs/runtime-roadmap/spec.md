@@ -2,8 +2,8 @@
 
 ## Status and purpose
 
-Status: Batch 4 specification closed; transport implementation is ready for independent dispatch,
-based on the confirmed Runtime target contract.
+Status: Batch 4 transport implementation is complete on `master`. Runtime Repository Contract and
+Runtime Surface Cleanup may proceed independently; Runtime Agent API facts wait for both.
 
 This document is the durable index for the remaining Runtime implementation. It records the
 branch boundaries, dependency order, parallel batches, and acceptance evidence so that later
@@ -51,9 +51,10 @@ Merged before this roadmap:
 | Safe failure facts and result-repository removal | PR #169, `runtime-safe-failure-result-repository` |
 
 The Runtime Jackson contract and the Batch 2 composition/fact slices are complete. The substrate,
-command, event, retention/redrive, and Integration Event core slices are also merged on the current
-`origin/master` through PRs #170–#175. Batch 4 transport branches must start from the latest
-`origin/master` and must not re-open the landed Jackson, reliable-state, or envelope decisions.
+command, event, retention/redrive, and Integration Event core slices are merged through PRs
+#170–#175. The shared transport foundation and all three transport providers are merged through
+PRs #177–#180. Remaining Runtime implementation must not re-open the landed Jackson,
+reliable-state, envelope, or transport decisions.
 
 ## Main Runtime dependency graph
 
@@ -162,38 +163,34 @@ These slices may be designed or implemented in parallel from updated `origin/mas
 Batch 3 is complete for planning purposes. Its verification evidence remains a prerequisite for
 transport implementation and later Runtime surface cleanup.
 
-### Batch 4: transports
+### Batch 4: transports — complete on current master
 
-The three provider slices are now fully specified and may be distributed independently from the
-latest `origin/master`:
+The shared foundation and three provider slices are merged:
 
-1. `fix/runtime-http-experience-reset` — static `routes[eventName] -> baseUrl`, fixed receive
+1. Shared transport foundation — PR #177.
+2. `fix/runtime-http-experience-reset` — PR #179; static `routes[eventName] -> baseUrl`, fixed receive
    endpoint, self-routing, one target, synchronous response acknowledgement, and no subscriber
    registry/JPA surface. See `runtime-http-experience-reset/spec.md`.
-2. `feature/runtime-rabbitmq-transport` — explicit exchange/routing-key routes, stable
+3. `feature/runtime-rabbitmq-transport` — PR #180; explicit exchange/routing-key routes, stable
    `applicationName + eventName` queues, actual publisher confirms, consumer ack after the local
    Handler scope, reconnect state, and safe redelivery. See `runtime-rabbitmq-transport/spec.md`.
-3. `feature/runtime-rocketmq-transport` — explicit topic/tag routes, stable
+4. `feature/runtime-rocketmq-transport` — PR #178; explicit topic/tag routes, stable
    `applicationName + eventName` consumer groups, SDK send-result confirmation, consumer success or
    retry result after the local Handler scope, reconnect state, and safe diagnostics. See
    `runtime-rocketmq-transport/spec.md`.
 
-All three branches share the umbrella contract in `runtime-integration-event-transport/spec.md`.
-There are no remaining product-level transport choices in Batch 4; provider SDK/API facts must be
-proven in focused adapter tests and must not be replaced by invented generic semantics.
+All providers share the umbrella contract in `runtime-integration-event-transport/spec.md`.
+There are no remaining product-level transport choices in Batch 4; future maintenance must preserve
+the provider SDK/API facts proven in focused adapter tests rather than inventing generic semantics.
 
-The semantic slices are parallelizable, but their implementation must assign one owner to the small
-shared Runtime surface before provider-specific edits are merged:
+The merged shared Runtime surface establishes these facts:
 
 - remove the public `IntegrationEvent.subscriber`/`NONE_SUBSCRIBER` contract;
 - remove HTTP dynamic subscriber registration, capabilities, JPA carrier, and table;
 - derive inbound subscriptions from actual `@EventListener` Integration Event methods;
 - install the common route/catalog/provider-selection boundary used by all three adapters.
 
-If that shared surface is extracted as a short common feature branch, the three provider branches
-start from it. If one provider branch owns it, the other two rebase from its merged commit before
-editing overlapping files. No provider branch may independently recreate or preserve a second
-subscriber/route model.
+No provider may recreate or preserve a second subscriber/route model.
 
 ## Cross-branch non-goals
 

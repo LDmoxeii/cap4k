@@ -1,0 +1,8 @@
+{"sequence":1,"timestamp":"2026-08-11T03:15:50.579Z","type":"prepared"}
+{"sequence":2,"timestamp":"2026-08-11T03:15:52.479Z","type":"operation-started","operationId":"spec-1-runtime-surface-cleanup"}
+{"sequence":3,"timestamp":"2026-08-11T03:15:52.688Z","type":"operation-completed","operationId":"spec-1-runtime-surface-cleanup"}
+{"sequence":4,"timestamp":"2026-08-11T03:15:52.706Z","type":"operation-started","operationId":"archive-change"}
+{"sequence":5,"timestamp":"2026-08-11T03:15:53.093Z","type":"operation-completed","operationId":"archive-change"}
+{"sequence":6,"timestamp":"2026-08-11T03:15:53.332Z","type":"archive-finalization-started"}
+{"sequence":7,"timestamp":"2026-08-11T03:15:53.422Z","type":"archive-finalized"}
+{"sequence":8,"timestamp":"2026-08-11T03:15:54.134Z","type":"commit"}

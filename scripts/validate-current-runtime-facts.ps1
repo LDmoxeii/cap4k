@@ -26,6 +26,10 @@ $retiredTerms = [ordered]@{
     'Snowflake starter' = '\bcap4k-ddd-snowflake-starter\b'
     'Snowflake policy' = '\bidentifier\.snowflake\b'
     'Worker-ID capability' = '\bWorker-?ID\b|\b__worker_id\b|\bworker_id\.sql\b'
+    'Locker Runtime module' = '\bddd-distributed-locker-jdbc\b'
+    'Locker starter' = '\bcap4k-ddd-locker-jdbc-starter\b'
+    'Locker auto-configuration' = '\bJdbcLockerAutoConfiguration\b'
+    'Locker SQL' = '\b__locker\b|\blocker\.sql\b'
 }
 $allowedRetiredTermsByPath = @{
     # These active Runtime contract specs intentionally name the retired boundary they define.
@@ -35,7 +39,28 @@ $allowedRetiredTermsByPath = @{
     'docs/comet/specs/runtime-agent-retired-descriptors/spec.md' = @('Snowflake capability')
     'docs/comet/specs/runtime-handler-contract/spec.md' = @('EventSubscriber<T>')
     'docs/comet/specs/runtime-roadmap/spec.md' = @('EventSubscriber<T>', 'Snowflake capability')
-    'docs/comet/specs/runtime-surface-cleanup/spec.md' = @('Snowflake capability')
+    'docs/comet/specs/runtime-surface-cleanup/spec.md' = @(
+        'Snowflake capability',
+        'Locker Runtime module',
+        'Locker starter',
+        'Locker auto-configuration',
+        'Locker SQL'
+    )
+}
+
+$activeRuntimePatterns = [ordered]@{
+    'Locker public SPI' = '\binterface\s+Locker\b|\bcom\.only4\.cap4k\.ddd\.core\.application\.distributed\.Locker\b'
+    'Locker implementation' = '\bJdbcLocker(?:AutoConfiguration|Properties)?\b'
+    'Locker configuration prefix' = '\bcap4k\.ddd\.distributed\.locker\.jdbc\b'
+    'Locker Runtime module' = '\bddd-distributed-locker-jdbc\b'
+    'Locker starter' = '\bcap4k-ddd-locker-jdbc-starter\b'
+    'Locker SQL' = '\b__locker\b|\blocker\.sql\b'
+    'Console active surface' = '\bcap4k-ddd-console(?:-starter)?\b|\bDDDConsoleAutoConfiguration\b|\bcom\.only4\.cap4k\.ddd\.console\b'
+    'Snowflake active surface' = '\bddd-distributed-snowflake\b|\bcap4k-ddd-snowflake-starter\b|\bcom\.only4\.cap4k\.ddd\.application\.distributed\.snowflake\b'
+    'Saga active surface' = '\bddd-(?:application-)?saga(?:-jpa)?\b|\bcap4k-ddd-saga(?:-jpa)?-starter\b|\bcom\.only4\.cap4k\.ddd\.application\.saga\b'
+    'HTTP-JPA active surface' = '\bddd-integration-event-http-jpa\b|\bcap4k-ddd-integration-event-http-jpa-starter\b|\bHttpJpa\w*\b'
+    'FastJSON active stack' = '\bcom\.alibaba\.fastjson\w*\b|\bfastjson\d?\b'
+    'Gson active stack' = '\bcom\.google\.gson\b|\bGsonBuilder\b|\bnew\s+Gson\b'
 }
 
 $expectedRetiredDescriptorIdentities = @('console', 'locker', 'saga', 'snowflake')
@@ -48,14 +73,6 @@ $declaredRetiredDescriptorIdentities = [regex]::Matches(
 if (Compare-Object $expectedRetiredDescriptorIdentities $declaredRetiredDescriptorIdentities) {
     throw ('Retired Runtime descriptor policy must declare exactly: ' + ($expectedRetiredDescriptorIdentities -join ', ') + '.')
 }
-
-$descriptorSourceFiles = Get-ChildItem -LiteralPath $repoRoot -Directory |
-    ForEach-Object {
-        $sourceRoot = Join-Path $_.FullName 'src/main/kotlin'
-        if (Test-Path -LiteralPath $sourceRoot -PathType Container) {
-            Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.kt'
-        }
-    }
 
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
 foreach ($relativeDirectory in $currentDirectories) {
@@ -72,6 +89,51 @@ foreach ($relativeFile in $currentFiles) {
         $files.Add((Get-Item -LiteralPath $file))
     }
 }
+
+$activeRuntimeFiles = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
+$activeRuntimeExtensions = @(
+    '.gradle',
+    '.imports',
+    '.java',
+    '.json',
+    '.kt',
+    '.kts',
+    '.properties',
+    '.sql',
+    '.toml',
+    '.xml',
+    '.yaml',
+    '.yml'
+)
+foreach ($relativeRootFile in @('settings.gradle.kts', 'build.gradle.kts', 'gradle.properties')) {
+    $rootFile = Join-Path $repoRoot $relativeRootFile
+    if (Test-Path -LiteralPath $rootFile -PathType Leaf) {
+        $activeRuntimeFiles.Add((Get-Item -LiteralPath $rootFile))
+    }
+}
+foreach ($relativeBuildRoot in @('buildSrc/src/main', 'gradle')) {
+    $buildRoot = Join-Path $repoRoot $relativeBuildRoot
+    if (Test-Path -LiteralPath $buildRoot -PathType Container) {
+        Get-ChildItem -LiteralPath $buildRoot -Recurse -File |
+            Where-Object { $_.Extension -in $activeRuntimeExtensions } |
+            ForEach-Object { $activeRuntimeFiles.Add($_) }
+    }
+}
+Get-ChildItem -LiteralPath $repoRoot -Directory |
+    Where-Object { -not $_.Name.StartsWith('.') } |
+    ForEach-Object {
+        $moduleBuild = Join-Path $_.FullName 'build.gradle.kts'
+        if (Test-Path -LiteralPath $moduleBuild -PathType Leaf) {
+            $activeRuntimeFiles.Add((Get-Item -LiteralPath $moduleBuild))
+        }
+
+        $sourceRoot = Join-Path $_.FullName 'src/main'
+        if (Test-Path -LiteralPath $sourceRoot -PathType Container) {
+            Get-ChildItem -LiteralPath $sourceRoot -Recurse -File |
+                Where-Object { $_.Extension -in $activeRuntimeExtensions } |
+                ForEach-Object { $activeRuntimeFiles.Add($_) }
+        }
+    }
 
 $violations = [System.Collections.Generic.List[string]]::new()
 foreach ($file in $files) {
@@ -111,7 +173,7 @@ foreach ($file in $files) {
     }
 }
 
-foreach ($file in $descriptorSourceFiles) {
+foreach ($file in $activeRuntimeFiles) {
     $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
     $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
     foreach ($identity in $expectedRetiredDescriptorIdentities) {
@@ -122,6 +184,16 @@ foreach ($file in $descriptorSourceFiles) {
         )
         if ($descriptorPatterns | Where-Object { $text -match $_ }) {
             $violations.Add("${relativePath}: retired Runtime descriptor identity '$identity'")
+        }
+    }
+}
+
+foreach ($file in $activeRuntimeFiles) {
+    $text = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8
+    $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName).Replace('\', '/')
+    foreach ($entry in $activeRuntimePatterns.GetEnumerator()) {
+        if ($text -match $entry.Value) {
+            $violations.Add("${relativePath}: active retired Runtime surface '$($entry.Key)'")
         }
     }
 }
