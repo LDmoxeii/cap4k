@@ -1,0 +1,73 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-canonical-contract-closure",
+  "createdAt": "2026-08-11T11:36:24.687Z",
+  "preflightHash": "32681913a84c59a65ed4e6afb91c22ac127ef472806d3b2d22beb8e5a4126958",
+  "operations": [
+    {
+      "id": "spec-1-application-execution-uow-stabilization",
+      "type": "write",
+      "target": "specs/application-execution-uow-stabilization/spec.md",
+      "staged": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/staged/specs/application-execution-uow-stabilization/spec.md",
+      "backup": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/backups/specs/application-execution-uow-stabilization/spec.md",
+      "expectedTargetHash": "e31a513028c8525e2119442181183c1e1e8b30e3dacdde97322e73e7ef41fc8a",
+      "stagedHash": "08d131f5bba2e0002c6f8c17d142fbe49abb54242b130ec17632f2be7a79f3bf"
+    },
+    {
+      "id": "spec-2-reliable-event-delivery-context",
+      "type": "write",
+      "target": "specs/reliable-event-delivery-context/spec.md",
+      "staged": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/staged/specs/reliable-event-delivery-context/spec.md",
+      "backup": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/backups/specs/reliable-event-delivery-context/spec.md",
+      "expectedTargetHash": "b242d05bd9e8dfd538e15674d1925a4b12518ba51e6c995f58e2c93f0bccb603",
+      "stagedHash": "131f496894a599e6da3ed9f948013507e24d952091fc33766da43a1491c6501a"
+    },
+    {
+      "id": "spec-3-runtime-integration-event-transport",
+      "type": "write",
+      "target": "specs/runtime-integration-event-transport/spec.md",
+      "staged": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/staged/specs/runtime-integration-event-transport/spec.md",
+      "backup": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/backups/specs/runtime-integration-event-transport/spec.md",
+      "expectedTargetHash": "7ebe7d87d0c5f1236d1a6dc10b5412b257f720cf0f09a12fe3db0c26e58edca5",
+      "stagedHash": "93631fe0389b476a437464af9ce3b73801fa01e703540d076bfdbd0569b6557a"
+    },
+    {
+      "id": "spec-4-runtime-jackson-only",
+      "type": "write",
+      "target": "specs/runtime-jackson-only/spec.md",
+      "staged": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/staged/specs/runtime-jackson-only/spec.md",
+      "backup": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/backups/specs/runtime-jackson-only/spec.md",
+      "expectedTargetHash": "cbce90d7af5e21c097f6d09177a89808653c76695f4a4b98c55885823e89c0dd",
+      "stagedHash": "786b64f0ffa5242e47e2877b2672c82ec816d3273f28afe46dc430425e7acb04"
+    },
+    {
+      "id": "spec-5-runtime-retry-policy-snapshot",
+      "type": "write",
+      "target": "specs/runtime-retry-policy-snapshot/spec.md",
+      "staged": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/staged/specs/runtime-retry-policy-snapshot/spec.md",
+      "backup": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/backups/specs/runtime-retry-policy-snapshot/spec.md",
+      "expectedTargetHash": "9fc0cde4ca19706e404407eefb6141983fb19c05c85037f66ca86470401931d0",
+      "stagedHash": "afdb79885d220f851b44963aa0ebcc54b293abf7f005100191954b024f7d9bb6"
+    },
+    {
+      "id": "spec-6-runtime-roadmap",
+      "type": "write",
+      "target": "specs/runtime-roadmap/spec.md",
+      "staged": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/staged/specs/runtime-roadmap/spec.md",
+      "backup": "runtime/transactions/fc870cc3-7fa4-4d02-a4fc-1761e9c0e24f/backups/specs/runtime-roadmap/spec.md",
+      "expectedTargetHash": "71b81400030655bd99e0ef2cd051b3d1393a70206f9826c6537255349d85e959",
+      "stagedHash": "c7887f7209c6ceb15e7f379af98fcdf7737b3833f559d2f9f4c7cbdde5cf48fe"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-canonical-contract-closure",
+      "target": "archive/2026-08-11-runtime-canonical-contract-closure",
+      "expectedSourceHash": "bd8a0b4af83d15bf3f3635012b914b13a3414c8cbcebc2fc5956b8329bc6d34b",
+      "expectedTargetHash": null
+    }
+  ]
+}

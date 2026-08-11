@@ -67,7 +67,7 @@ For inbound HTTP, RabbitMQ, and RocketMQ, `eventName` shall be the canonical
 envelope's stable logical Integration Event name, which is the unique
 `@IntegrationEvent.value` resolved by the local catalog. It shall not be a
 payload simple class name and shall not be derived from a provider route, topic,
-endpoint, queue, consumer group, or retired subscriber-registry key.
+endpoint, queue, consumer group, or subscriber-registry key.
 
 Inbound HTTP shall expose no exact attempt and UNKNOWN because the transport has
 no authoritative delivery counter or redelivery signal.
@@ -79,39 +79,18 @@ Inbound RocketMQ shall expose `reconsumeTimes + 1` as the exact positive attempt
 Zero reconsumes produces FIRST and a positive reconsume count produces
 REDELIVERED.
 
-## Ownership and terminology boundaries
-
-The PR #161 delivery-context slice did not own Integration Event route/provider
-topology or public registration APIs. Later PRs #169, #177, and #179 removed the
-reliable archive surface and HTTP subscriber registry. Current Runtime therefore
-has neither an archive path nor an HTTP subscriber registry.
-
-The remaining attachment terms have separate owners:
-
-- `DomainEventSupervisor.attach/detach` belongs to the Domain Event/UoW model and
-  remains a valid public capability for entity-associated local Domain Events;
-- public outbound Integration Event registration is only
-  `IntegrationEventSupervisor` / `Mediator.events` enqueue, schedule, and delay;
-- transport-internal `EventAttachment`, interceptor `onAttach`, and `prePersist`
-  hooks are eager/defensive route registration and validation details, not a
-  public Integration Event attach API.
-
-This classification must not be used to remove the Domain Event/UoW contract or
-to restore a retired Integration Event subscriber/attach surface.
-
 ## Explicit exclusions
 
 This capability shall not expose exchange, routing key, topic, queue, consumer
-group, HTTP URL, transport message objects, subscriber registry objects,
-subscriber identity, or publisher configuration. It shall not add authoritative
-inbox/deduplication state or claim exactly-once handling.
+group, HTTP URL, transport message objects, subscriber registry objects, or
+subscriber identity, publisher configuration. It shall not add authoritative inbox/deduplication
+state or claim exactly-once handling.
 
-The delivery-context capability itself does not modify Integration Event routes,
-provider selection, the reliable-record state machine, retention/redrive policy,
-or transport topology. It does not include aliases, deprecated APIs, dual
+This change shall not modify Integration Event routes, attach/detach behavior,
+publisher selection, the reliable-record state machine, archive policy, or the
+HTTP subscriber registry. It shall not include aliases, deprecated APIs, dual
 implementations, fallback timestamp codecs, compatibility bridges, or repairs
-for unrelated Runtime audit findings. These scope statements describe context
-ownership and do not preserve surfaces retired by later Runtime slices.
+for unrelated Runtime audit findings.
 
 ## Verification contract
 

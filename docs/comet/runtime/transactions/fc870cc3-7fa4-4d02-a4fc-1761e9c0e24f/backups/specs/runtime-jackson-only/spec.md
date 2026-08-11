@@ -26,14 +26,12 @@ Pipeline/source/renderer/Gradle plugin JSON 路径不属于本 spec；它们由�
 
 ## Envelope contract
 
-Command/Event reliable record 与 HTTP/RabbitMQ/RocketMQ Integration Event envelope 保持既有字段和语义。PR #164 的迁移只替换 serializer/deserializer 实现，当时不负责改变 transport topology。以下事实由该切片保持：
+Command/Event reliable record 与 HTTP/RabbitMQ/RocketMQ Integration Event envelope 保持既有字段和语义。迁移只替换 serializer/deserializer 实现；以下事实必须原样保留：
 
-- routes、publisher/provider selection 和 HTTP self-routing；
+- routes、publisher/provider selection、HTTP self-routing 和 subscriber registry；
 - at-least-once delivery、retry、claim、lease、redrive、retention、outbox state machine；
 - origin ExecutionContext / reliable delivery context 的现有归属；
 - handler 同步、顺序/失败传播和 Mediator enqueue/schedule/delay 调度边界。
-
-后续 PR #177 和 PR #179 完成 transport reset，删除 HTTP dynamic subscriber registry、subscriber capabilities、JPA carrier 和 table。当前 Runtime 不存在 HTTP subscriber registry；本 spec 中的历史迁移边界不能被解读为保留或恢复该 registry。
 
 每个 envelope 必须有 round-trip tests，覆盖 metadata、payload、null/default、嵌套和 Strong ID 字段。
 
@@ -54,9 +52,9 @@ Command/Event reliable record 与 HTTP/RabbitMQ/RocketMQ Integration Event envel
 | Transport | HTTP/RabbitMQ/RocketMQ envelope round-trip |
 | Determinism | stable field and map-key output |
 | Safety | decode/encode failure diagnostics omit raw payload |
-| Removal | Runtime source/dependency graph has no active FastJSON/Gson codec or HTTP subscriber registry |
+| Removal | Runtime source/dependency graph has no active FastJSON/Gson codec |
 | Regression | owner focused tests, current-runtime-facts validation, full `check` |
 
 ## Explicit non-goals
 
-This change did not restore retired Console, Snowflake, or public Spring Data Repository surfaces; did not change `Mediator.repositories`; did not introduce public `EventSubscriber<T>`; did not make handlers asynchronous; and did not alter routes, provider selection, HTTP self-routing, at-least-once semantics, or any reliable-record state machine. Later transport changes may and did remove obsolete topology surfaces without changing this codec contract.
+This change does not restore retired Console, Snowflake, or public Spring Data Repository surfaces; does not change `Mediator.repositories`; does not introduce public `EventSubscriber<T>`; does not make handlers asynchronous; and does not alter routes, provider selection, HTTP self-routing, at-least-once semantics, or any reliable-record state machine.

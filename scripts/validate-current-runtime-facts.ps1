@@ -1,6 +1,113 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+
+function Get-EffectiveRuntimeSpecText {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Capability
+    )
+
+    $canonicalFile = Join-Path $repoRoot "docs/comet/specs/$Capability/spec.md"
+    $selectionFile = Join-Path $repoRoot '.comet/current-change.json'
+    if (Test-Path -LiteralPath $selectionFile -PathType Leaf) {
+        try {
+            $selection = Get-Content -LiteralPath $selectionFile -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($selection.workflow -eq 'native' -and -not [string]::IsNullOrWhiteSpace($selection.change)) {
+                $proposedFile = Join-Path $repoRoot "docs/comet/changes/$($selection.change)/specs/$Capability/spec.md"
+                if (Test-Path -LiteralPath $proposedFile -PathType Leaf) {
+                    return Get-Content -LiteralPath $proposedFile -Raw -Encoding UTF8
+                }
+            }
+        }
+        catch {
+            throw "Unable to read the selected Comet Native change while validating Runtime contracts: $($_.Exception.Message)"
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $canonicalFile -PathType Leaf)) {
+        throw "Missing canonical Runtime spec: docs/comet/specs/$Capability/spec.md"
+    }
+    return Get-Content -LiteralPath $canonicalFile -Raw -Encoding UTF8
+}
+
+function Assert-ContainsRuntimeFact {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Text,
+        [Parameter(Mandatory = $true)]
+        [string]$Pattern,
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
+
+    if ($Text -notmatch $Pattern) {
+        throw $Message
+    }
+}
+$roadmapContractText = Get-EffectiveRuntimeSpecText -Capability 'runtime-roadmap'
+if ($roadmapContractText -match '(?s)Runtime Repository Contract and\s+Runtime Surface Cleanup may proceed independently') {
+    throw 'Runtime roadmap must not describe Repository Contract or Surface Cleanup as pending.'
+}
+Assert-ContainsRuntimeFact $roadmapContractText 'complete on `master` through PR #183' 'Runtime roadmap must record completion through PR #183.'
+Assert-ContainsRuntimeFact $roadmapContractText 'No Actuator endpoint\s+currently exists' 'Runtime roadmap must state that no Actuator endpoint currently exists.'
+Assert-ContainsRuntimeFact $roadmapContractText 'future optional endpoint' 'Runtime roadmap must limit Actuator projection to a future optional endpoint.'
+
+$jacksonContractText = Get-EffectiveRuntimeSpecText -Capability 'runtime-jackson-only'
+if ($jacksonContractText -match 'HTTP self-routing 和 subscriber registry') {
+    throw 'Runtime Jackson-only contract must not preserve the retired HTTP subscriber registry.'
+}
+Assert-ContainsRuntimeFact $jacksonContractText '当前 Runtime 不存在 HTTP subscriber registry' 'Runtime Jackson-only contract must state that the HTTP subscriber registry is absent.'
+
+$deliveryContextContractText = Get-EffectiveRuntimeSpecText -Capability 'reliable-event-delivery-context'
+if ($deliveryContextContractText -match '(?s)shall not modify Integration Event routes, attach/detach behavior,.*HTTP subscriber registry') {
+    throw 'Reliable delivery context contract must not preserve retired Integration Event attach/registry wording.'
+}
+Assert-ContainsRuntimeFact $deliveryContextContractText 'DomainEventSupervisor\.attach/detach' 'Reliable delivery context contract must preserve the Domain Event/UoW attach boundary.'
+Assert-ContainsRuntimeFact $deliveryContextContractText 'IntegrationEventSupervisor.*enqueue, schedule, and delay' 'Reliable delivery context contract must identify the public Integration Event operations.'
+Assert-ContainsRuntimeFact $deliveryContextContractText 'EventAttachment' 'Reliable delivery context contract must classify transport-internal attachment hooks.'
+Assert-ContainsRuntimeFact $deliveryContextContractText 'neither an archive path nor an HTTP subscriber registry' 'Reliable delivery context contract must record the retired archive and HTTP registry surfaces.'
+
+$transportContractText = Get-EffectiveRuntimeSpecText -Capability 'runtime-integration-event-transport'
+if ($transportContractText -match 'with\s+optional Actuator projection') {
+    throw 'Integration Event transport contract must not imply that an Actuator projection currently exists.'
+}
+Assert-ContainsRuntimeFact $transportContractText 'No Actuator endpoint\s+currently exists' 'Integration Event transport contract must state that no Actuator endpoint currently exists.'
+Assert-ContainsRuntimeFact $transportContractText 'RuntimeProviderStateRegistry\.snapshot\(\)' 'Integration Event transport contract must bind any future projection to the live registry snapshot.'
+
+$uowContractText = Get-EffectiveRuntimeSpecText -Capability 'application-execution-uow-stabilization'
+if ($uowContractText -match 'retry/archive') {
+    throw 'Application execution/UoW contract must not reference the retired archive path.'
+}
+Assert-ContainsRuntimeFact $uowContractText 'persistence, claim, retry, redrive, and the final terminal transition' 'Application execution/UoW contract must describe current origin-context propagation.'
+Assert-ContainsRuntimeFact $uowContractText 'there is no current archive path' 'Application execution/UoW contract must state that no archive path currently exists.'
+
+$retryContractText = Get-EffectiveRuntimeSpecText -Capability 'runtime-retry-policy-snapshot'
+$requiredRetryFacts = [ordered]@{
+    'policy version 1' = 'policy version is `1`'
+    'ANY_EXCEPTION classification' = 'classification is `ANY_EXCEPTION`'
+    '@Retry overrides' = '`@Retry` overrides `retryTimes` and `retryIntervals`'
+    'attempts 1-10 delay' = 'attempts 1-10 wait 1 minute'
+    'attempts 11-20 delay' = 'attempts 11-20 wait 5'
+    'attempts 21+ delay' = 'attempts 21 and later wait 10'
+    'custom interval repetition' = 'repeat the final configured interval'
+    'carrier-specific fallback limits' = 'does\s+not unify or change those different fallback limits'
+}
+foreach ($entry in $requiredRetryFacts.GetEnumerator()) {
+    if ($retryContractText -notmatch $entry.Value) {
+        throw "Reliable retry-policy snapshot contract is missing $($entry.Key)."
+    }
+}
+
+$integrationEventSupervisorFile = Join-Path $repoRoot 'ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventSupervisor.kt'
+$integrationEventSupervisorText = Get-Content -LiteralPath $integrationEventSupervisorFile -Raw -Encoding UTF8
+if ($integrationEventSupervisorText -match '附加和解除附加') {
+    throw 'IntegrationEventSupervisor KDoc must not describe retired public attach/detach semantics.'
+}
+if ($integrationEventSupervisorText -notmatch '可靠登记、计划与延迟发布') {
+    throw 'IntegrationEventSupervisor KDoc must describe reliable registration, scheduling, and delayed publication.'
+}
+
 $currentDirectories = @(
     'docs/public',
     'docs/comet/specs',

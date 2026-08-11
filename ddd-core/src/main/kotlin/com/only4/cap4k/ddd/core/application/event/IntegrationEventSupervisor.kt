@@ -5,7 +5,7 @@ import java.time.LocalDateTime
 
 /**
  * 集成事件监督者接口
- * 负责管理和控制集成事件的生命周期，包括事件的附加和解除附加
+ * 负责可靠登记、计划与延迟发布集成事件
  *
  * @author LD_moxeii
  * @date 2025/07/20

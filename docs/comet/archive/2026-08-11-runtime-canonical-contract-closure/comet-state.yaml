@@ -1,0 +1,42 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-canonical-contract-closure
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 472252ef3754e0db9033a87dad4a5f43a5ba60a938b7f8b84617b583e640b2ef
+spec_changes:
+  - capability: application-execution-uow-stabilization
+    operation: replace
+    source: specs/application-execution-uow-stabilization/spec.md
+    base_hash: e31a513028c8525e2119442181183c1e1e8b30e3dacdde97322e73e7ef41fc8a
+  - capability: reliable-event-delivery-context
+    operation: replace
+    source: specs/reliable-event-delivery-context/spec.md
+    base_hash: b242d05bd9e8dfd538e15674d1925a4b12518ba51e6c995f58e2c93f0bccb603
+  - capability: runtime-integration-event-transport
+    operation: replace
+    source: specs/runtime-integration-event-transport/spec.md
+    base_hash: 7ebe7d87d0c5f1236d1a6dc10b5412b257f720cf0f09a12fe3db0c26e58edca5
+  - capability: runtime-jackson-only
+    operation: replace
+    source: specs/runtime-jackson-only/spec.md
+    base_hash: cbce90d7af5e21c097f6d09177a89808653c76695f4a4b98c55885823e89c0dd
+  - capability: runtime-retry-policy-snapshot
+    operation: replace
+    source: specs/runtime-retry-policy-snapshot/spec.md
+    base_hash: 9fc0cde4ca19706e404407eefb6141983fb19c05c85037f66ca86470401931d0
+  - capability: runtime-roadmap
+    operation: replace
+    source: specs/runtime-roadmap/spec.md
+    base_hash: 71b81400030655bd99e0ef2cd051b3d1393a70206f9826c6537255349d85e959
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/aa335c79807e00ecb239314d13290eaf28649522ab0e6db9ebb9f07fc0688b71.json
+verification_evidence: runtime/evidence/verifications/d1b282d55ef62f59d019cbfad975bfe0181a90f845fbe935cf9648ef3854a57b.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-11
+run_id: 67f6cfe9-657a-4481-98fe-e158c69e1012

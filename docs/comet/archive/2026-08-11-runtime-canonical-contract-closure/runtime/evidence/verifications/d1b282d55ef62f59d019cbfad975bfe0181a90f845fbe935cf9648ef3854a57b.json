@@ -1,0 +1,85 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-canonical-contract-closure",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "472252ef3754e0db9033a87dad4a5f43a5ba60a938b7f8b84617b583e640b2ef",
+  "acceptanceCriteriaHash": "1e43e9b40a2490d0c0b3e957eafc059114984beaf533f4911908a3ac3a115e5c",
+  "implementationScopeRef": "runtime/evidence/scopes/aa335c79807e00ecb239314d13290eaf28649522ab0e6db9ebb9f07fc0688b71.json",
+  "implementationScopeHash": "aa335c79807e00ecb239314d13290eaf28649522ab0e6db9ebb9f07fc0688b71",
+  "reportRef": "verification.md",
+  "reportHash": "e70accbeaa09f895071ab6f5b023fb7836d2c064b3c2cffae3dd2d4e42050c6a",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "1e43e9b40a2490d0c0b3e957eafc059114984beaf533f4911908a3ac3a115e5c",
+    "total": 5,
+    "evidenced": 5,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-3e7d5440132aee13775cb91b54bf599e451e69a5b77b4080667a53fc78ed9d22",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/test/kotlin/com/only4/cap4k/ddd/application/command/persistence/CommandRetryPolicySnapshotTest.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshot.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/retry/ReliableRetryPolicySnapshotTest.kt",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-45793ae4a3390a072e343287095bde7fceef14c64e559460e583112c6869f6a3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalog.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/provider/RuntimeProviderState.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/application/provider/RuntimeProviderStateTest.kt",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-d5d3f625eff462a1271c3100eee5a30b98e8e2cc7ebb028dd7c31306baec99b3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventSupervisor.kt",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-df1734857d71bd365bc4f50f227d38cf5abc006f2e1430fd0f30dec0d4b8c94f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f44b6af6ea79d486c838a4ae97e5e5396fff7e0beff87369b9ad65fa2e09aaff",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventSupervisor.kt",
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/domain/event/DomainEventSupervisor.kt",
+          "ddd-integration-event-rabbitmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptor.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventRouteInterceptorTest.kt",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "c48f546559c26cc51f02ca23bee5139c92a9436bd220db8f1d291aff7ebaca7e"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/2663bd23114b84369bbc96f262ad3faf33259f6bada5e39e37e53ca36a74ed2a.json",
+  "createdAt": "2026-08-11T11:35:54.821Z",
+  "envelopeHash": "d1b282d55ef62f59d019cbfad975bfe0181a90f845fbe935cf9648ef3854a57b"
+}

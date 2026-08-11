@@ -31,11 +31,8 @@ Event state machine.
   provider reports `DEGRADED` or `RECOVERING`, reliable records remain retryable, and subscribers
   continue reconnecting where the provider supports it.
 - Static Agent API facts describe declared capabilities only. They do not probe a broker, database,
-  route, or endpoint.
-- `RuntimeProviderStateRegistry` is the sole current live provider-state source. No Actuator endpoint
-  currently exists. A future optional Actuator endpoint may only provide a read-only projection by
-  delegating every read directly to `RuntimeProviderStateRegistry.snapshot()`; it must not cache,
-  merge, derive, or become a second source of provider state.
+  route, or endpoint. Live provider status belongs to the Runtime provider-state registry, with
+  optional Actuator projection.
 
 ## Event identity and routing
 
@@ -119,9 +116,7 @@ or persisted as failure data.
 - Inbox persistence, framework DLQ, per-Handler progress, or a framework deduplication store.
 - A generic task/scheduler framework or provider-specific public scheduling API.
 - HTTP broadcast, discovery, dynamic subscription, or production message-bus guarantees.
-- A second envelope, delivery context, retry loop, provider-owned reliable Event state machine, or
-  provider-state source.
-- A current Actuator Runtime endpoint.
+- A second envelope, delivery context, retry loop, or provider-owned reliable Event state machine.
 
 ## Acceptance
 
@@ -139,7 +134,7 @@ Focused provider and Runtime tests must prove:
   complete;
 - failure/no-ack or non-2xx, duplicate delivery, context installation/cleanup, and safe diagnostics;
 - static scans showing no dynamic subscriber registry, no provider-specific delivery state machine,
-  no second provider-state source, and no raw payload in transport failure logs.
+  and no raw payload in transport failure logs.
 
 Provider-specific confirmation and failure evidence is defined by:
 
