@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-6-runtime-roadmap",
+  "role": "original",
+  "hash": "71b81400030655bd99e0ef2cd051b3d1393a70206f9826c6537255349d85e959",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1125899909048886,
+    "birthtimeMs": 1786446066112.1604
+  }
+}

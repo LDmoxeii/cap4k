@@ -1,0 +1,61 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "472252ef3754e0db9033a87dad4a5f43a5ba60a938b7f8b84617b583e640b2ef",
+  "baselineProjectionRef": "runtime/evidence/snapshots/d37ded51539b52e712ad267f80b15d0589eda21b4cd414e9a01bb8efa3856276.json",
+  "baselineProjectionHash": "d37ded51539b52e712ad267f80b15d0589eda21b4cd414e9a01bb8efa3856276",
+  "currentProjectionRef": "runtime/evidence/snapshots/61f92b5cb2601b45eba732ce16e62c50aa91f5b40d25e676b5333e42264826c0.json",
+  "currentProjectionHash": "61f92b5cb2601b45eba732ce16e62c50aa91f5b40d25e676b5333e42264826c0",
+  "complete": true,
+  "declaredArtifacts": [
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventSupervisor.kt",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventSupervisor.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "abe7fd3c6e2484057f78da7cba649a6f2f8841537d18d4e7f9c5d822f9562622",
+        "size": 1482
+      },
+      "after": {
+        "hash": "2dada3194b6b50712aed554d28623f3502b9ea612b0f272ba03a1c9a10bfdb2b",
+        "size": 1449
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/application/event/IntegrationEventSupervisor.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "76f94e85c96f017cc6572ceeb3fd3cb4a4b6ca36f0b4ce2aed1522243a40ea18",
+        "size": 12516
+      },
+      "after": {
+        "hash": "1e9d94058bd1550449bbd670958e63f0bec75489572b1a92f29d6e0b994ac498",
+        "size": 19290
+      },
+      "attributedTo": [
+        {
+          "path": "scripts/validate-current-runtime-facts.ps1",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [],
+  "unresolvedScopes": [],
+  "noCodeReason": null,
+  "scopeHash": "aa335c79807e00ecb239314d13290eaf28649522ab0e6db9ebb9f07fc0688b71"
+}

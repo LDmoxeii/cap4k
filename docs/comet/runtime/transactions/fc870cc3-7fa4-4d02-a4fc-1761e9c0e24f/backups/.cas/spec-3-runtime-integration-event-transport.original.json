@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-3-runtime-integration-event-transport",
+  "role": "original",
+  "hash": "7ebe7d87d0c5f1236d1a6dc10b5412b257f720cf0f09a12fe3db0c26e58edca5",
+  "identity": {
+    "dev": 950912656,
+    "ino": 1407374885759518,
+    "birthtimeMs": 1786446066093.9788
+  }
+}
