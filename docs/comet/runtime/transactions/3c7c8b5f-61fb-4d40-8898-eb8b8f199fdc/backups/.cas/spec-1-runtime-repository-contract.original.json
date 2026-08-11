@@ -1,0 +1,11 @@
+{
+  "schema": "comet.native.archive-cas.v1",
+  "operationId": "spec-1-runtime-repository-contract",
+  "role": "original",
+  "hash": "318fbce8f919134017b0429a53973b3f504266e284ffb256e1ed80c277cfa205",
+  "identity": {
+    "dev": 950912656,
+    "ino": 2251799815715893,
+    "birthtimeMs": 1786414903389.0872
+  }
+}

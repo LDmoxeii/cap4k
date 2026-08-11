@@ -22,7 +22,7 @@ class JpaPredicate<ENTITY : Any>(
 
         @JvmStatic
         fun <ENTITY : Any> byIds(entityClass: Class<ENTITY>, ids: Iterable<Any>): JpaPredicate<ENTITY> =
-            JpaPredicate(entityClass, ids = ids)
+            JpaPredicate(entityClass, ids = ids.toList().distinct())
 
         @JvmStatic
         fun <ENTITY : Any> bySpecification(

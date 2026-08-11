@@ -1,0 +1,340 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "5c703fd8623c9e4be86b4b1df37a7a5d30f7e29ccf2d8636ce6d3ee13b84b6d9",
+  "baselineProjectionRef": "runtime/evidence/snapshots/a678f0ccde6fd5f9b3667d192b1b59d88aa3c7c58530969ccf450456b01cd156.json",
+  "baselineProjectionHash": "a678f0ccde6fd5f9b3667d192b1b59d88aa3c7c58530969ccf450456b01cd156",
+  "currentProjectionRef": "runtime/evidence/snapshots/0a3d05b20a4da438ee5d6d73ee552d3daa4db6536d755bcf8cffef34b5a0c8b7.json",
+  "currentProjectionHash": "0a3d05b20a4da438ee5d6d73ee552d3daa4db6536d755bcf8cffef34b5a0c8b7",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/repository/AbstractJpaRepositoryH2RuntimeTest.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/PageData.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepository.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryProvider.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt",
+      "kind": "file"
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/repository/AbstractJpaRepositoryH2RuntimeTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "ed2adac1270dda2531c845b76decd7e149989453a2dfa7521d97b6d2936f26fb",
+        "size": 10057
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/repository/AbstractJpaRepositoryH2RuntimeTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/PageData.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5ac1934c2e25bf4907da94f062c1c4e37f636b08f9c9bf6f121457ef5bfe3a68",
+        "size": 1638
+      },
+      "after": {
+        "hash": "50d03afb438d8092eb49f46173bc3e046b45ef1a1ff373bc8a47f7abb1b11240",
+        "size": 1638
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/PageData.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/PageDataTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "1a71b4b90ea07a39f5cf27dfdee871342991f21021f14f90782ce16f356bd070",
+        "size": 710
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepository.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "9995c1ddf5a36bf20c282234b97ee046147d70a8986d82c964a308ee8b2a960b",
+        "size": 7769
+      },
+      "after": {
+        "hash": "5ac19604aed215b66c33528a00c4f234f82eaf7978f18fdf739b0e867841d146",
+        "size": 5338
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepository.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicate.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "c693c20c5491d5775c214bee115ddc62b01df07d7c9107c4812bdc54189a4a5a",
+        "size": 1039
+      },
+      "after": {
+        "hash": "b4601b9d748f20456f4037fd9f142abe16c344996e60de6627e788434b20caff",
+        "size": 1059
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryProvider.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "a2a80820fbd3e70a2ecc685217904addd1bb300f272e3d3d68291bb0bbed9b03",
+        "size": 2256
+      },
+      "after": {
+        "hash": "e259ebfd5bed3f6c10d44e8a613e2527d729e31e694b200f01db98eb570d2b5a",
+        "size": 5524
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryProvider.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5d249d9ac6503b895849be7fd5592515f5e64b76f0e827162299a2e8fc61caec",
+        "size": 8455
+      },
+      "after": {
+        "hash": "d55704aabc7616d4758ceb524ef0cdc4b81827ff53b01281db4a7bb385c922ec",
+        "size": 9646
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "179c29f45dcdba08784ecb590d212e9d77469152e66f5caa966901c22f8267a8",
+        "size": 23131
+      },
+      "after": {
+        "hash": "e72726742ce0ac3b62b441d032c619ab72220b572a6524da28d403d0b1a4cbc8",
+        "size": 8855
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicateTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "eebe2b4c93fa9ea3a7d5e272f8f27702f4bebba5059b745bdb8bb64fb0259bce",
+        "size": 3444
+      },
+      "after": {
+        "hash": "51bf389f42e9a534e01d7ef5c11de99b9be0103e27f3a4872b7929e046cc42e2",
+        "size": 3524
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "985020010a614f1b0e3936ede90b309cd9e52662c992dbe3a402a8f1a2c3aa83",
+        "size": 8871
+      },
+      "after": {
+        "hash": "9892532b540bb257ed1685349466decad99589f70d8433893aff6f7edc3bc968",
+        "size": 10841
+      },
+      "attributedTo": [
+        {
+          "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/FieldTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "60698f82cbcf4688e64917051a00e382dbb6177abc91d4f3f0606c7992110e9b",
+        "size": 1266
+      },
+      "after": {
+        "hash": "4f367388be5819f2cff6068ba4734a6c1aa8159fb64d3912a6c2e068bf371125",
+        "size": 1933
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/PredicatesTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5e89eb5368a2236d19f80dfbb115b0bede043c4df84df81a9b1c15d022c10a10",
+        "size": 644
+      },
+      "after": {
+        "hash": "0463ce799c8e14c43e637088731d2faa29397254bee1405a8d32ef0abb9e83ac",
+        "size": 1952
+      },
+      "attributedTo": []
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/PageDataTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "1a71b4b90ea07a39f5cf27dfdee871342991f21021f14f90782ce16f356bd070",
+        "size": 710
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicate.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "c693c20c5491d5775c214bee115ddc62b01df07d7c9107c4812bdc54189a4a5a",
+        "size": 1039
+      },
+      "after": {
+        "hash": "b4601b9d748f20456f4037fd9f142abe16c344996e60de6627e788434b20caff",
+        "size": 1059
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepositoryTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "179c29f45dcdba08784ecb590d212e9d77469152e66f5caa966901c22f8267a8",
+        "size": 23131
+      },
+      "after": {
+        "hash": "e72726742ce0ac3b62b441d032c619ab72220b572a6524da28d403d0b1a4cbc8",
+        "size": 8855
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicateTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "eebe2b4c93fa9ea3a7d5e272f8f27702f4bebba5059b745bdb8bb64fb0259bce",
+        "size": 3444
+      },
+      "after": {
+        "hash": "51bf389f42e9a534e01d7ef5c11de99b9be0103e27f3a4872b7929e046cc42e2",
+        "size": 3524
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/FieldTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "60698f82cbcf4688e64917051a00e382dbb6177abc91d4f3f0606c7992110e9b",
+        "size": 1266
+      },
+      "after": {
+        "hash": "4f367388be5819f2cff6068ba4734a6c1aa8159fb64d3912a6c2e068bf371125",
+        "size": 1933
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/PredicatesTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "5e89eb5368a2236d19f80dfbb115b0bede043c4df84df81a9b1c15d022c10a10",
+        "size": 644
+      },
+      "after": {
+        "hash": "0463ce799c8e14c43e637088731d2faa29397254bee1405a8d32ef0abb9e83ac",
+        "size": 1952
+      },
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:13bf4e7503f4c4a15ad109533bc7446faff5d0f7e34f1f2fe3e6c7c8bae34236",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/PageDataTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/PageDataTest.kt"
+    },
+    {
+      "id": "scope:6afdfc5dea6d9f18ccedfe3b5c0a36053c488170bf2cc044900668fb85f4205c",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicate.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicate.kt"
+    },
+    {
+      "id": "scope:21932656e5c21448ba8d21c1b0708dad14dbe1bedae17023031364199ddc7a58",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepositoryTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepositoryTest.kt"
+    },
+    {
+      "id": "scope:8e7e66bd42f865330986d654e51ec002a532f43edb4882571b17b4229bcc1e6b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicateTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/JpaPredicateTest.kt"
+    },
+    {
+      "id": "scope:e38a3562cc5a7c9900c6ed11c1617633bef236b99e78553910fb2be7d282b04f",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/FieldTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/FieldTest.kt"
+    },
+    {
+      "id": "scope:4862a713ba35fc83044ce542c5615d9c38e77457743851b1686e84a754ad51a5",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/PredicatesTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/PredicatesTest.kt"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "bc1fdc377b0aabfb220d15cd708fcaa9c61337f80ad5efed95198580ded1dd44"
+}

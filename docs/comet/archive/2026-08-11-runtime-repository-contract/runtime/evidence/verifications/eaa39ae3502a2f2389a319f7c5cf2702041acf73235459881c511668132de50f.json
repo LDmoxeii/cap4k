@@ -1,0 +1,111 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-repository-contract",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "5c703fd8623c9e4be86b4b1df37a7a5d30f7e29ccf2d8636ce6d3ee13b84b6d9",
+  "acceptanceCriteriaHash": "d38c89416d2cb0c46954c5bc5987720a8c74d2eb3e9ff64df5bc0e7f50bc753d",
+  "implementationScopeRef": "runtime/evidence/scopes/cf489334e475b40020b055d705a3a027c820f106fc3d88ce8881f2d7bf919bee.json",
+  "implementationScopeHash": "cf489334e475b40020b055d705a3a027c820f106fc3d88ce8881f2d7bf919bee",
+  "reportRef": "verification.md",
+  "reportHash": "29f707350853b79d646c049f531293809bd061d641ed98e7acf5bf15f3c08040",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "d38c89416d2cb0c46954c5bc5987720a8c74d2eb3e9ff64df5bc0e7f50bc753d",
+    "total": 8,
+    "evidenced": 8,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-0765c56c8418203f23f1fde88b31ca4ef3060de3565d08ef5d51d8c640b1bc1c",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-28c50651e5b6fe2be26548ada9af4c6408764c9111d19c3eaba21539387dbe54",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-renderer-pebble/src/main/resources/presets/ddd-default/aggregate/repository.kt.peb",
+          "cap4k-plugin-pipeline-renderer-pebble/src/test/kotlin/com/only4/cap4k/plugin/pipeline/renderer/pebble/PebbleArtifactRendererTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-308fdd26d83e03c9f0b6053af95f79d9869d5b92f905cab41c19b1079839e10e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/repository/AbstractJpaRepositoryH2RuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/FieldTest.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/schema/PredicatesTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-859bfc49e8e036f0af72f69d144648eb2a36f36e38ab9d0608bf0b025694119f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-core/src/main/kotlin/com/only4/cap4k/ddd/core/share/PageData.kt",
+          "ddd-core/src/test/kotlin/com/only4/cap4k/ddd/core/share/PageDataTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-aaabca3e39ca8a8862a18f79d6ac5a2debb05df099f3cacbbd8b8bfd97253c5a",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/repository/AbstractJpaRepositoryH2RuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/AbstractJpaRepository.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/JpaRepositoryProvider.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-c8a3512d670443f9f88b6755cc04a2620f1ee5e573eeb4dffecbba60dfb67ff3",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-f7446c7ded0ad2f0be6de8f6ea866c973925c92a23f301643c047f62cd752160",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/strongid/StrongIdUowRuntimeTest.kt",
+          "ddd-domain-repo-jpa/src/main/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisor.kt",
+          "ddd-domain-repo-jpa/src/test/kotlin/com/only4/cap4k/ddd/domain/repo/impl/DefaultRepositorySupervisorTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ffeaaa69fcb556906cedeeb9db90f3dd71c8b42ad9d8a921a345b22332163c24",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/runtime/repository/AbstractJpaRepositoryH2RuntimeTest.kt"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "4e3af0ddbab0bac53316c6545078a1e710c4382b6c8fbf3e1102c590afb7ae2c"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/e59397b9920d22dfe22dd4dbd66b24513901466262724121caf295fdbf837373.json",
+  "createdAt": "2026-08-11T03:51:04.812Z",
+  "envelopeHash": "eaa39ae3502a2f2389a319f7c5cf2702041acf73235459881c511668132de50f"
+}

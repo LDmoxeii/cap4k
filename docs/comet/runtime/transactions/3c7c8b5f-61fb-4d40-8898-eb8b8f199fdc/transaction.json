@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "3c7c8b5f-61fb-4d40-8898-eb8b8f199fdc",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-repository-contract",
+  "createdAt": "2026-08-11T03:51:34.314Z",
+  "preflightHash": "b264e6ce0be9bf365fe9601b0e8a1e295dd751c80ba00b4b622ade927f9d2bc9",
+  "operations": [
+    {
+      "id": "spec-1-runtime-repository-contract",
+      "type": "write",
+      "target": "specs/runtime-repository-contract/spec.md",
+      "staged": "runtime/transactions/3c7c8b5f-61fb-4d40-8898-eb8b8f199fdc/staged/specs/runtime-repository-contract/spec.md",
+      "backup": "runtime/transactions/3c7c8b5f-61fb-4d40-8898-eb8b8f199fdc/backups/specs/runtime-repository-contract/spec.md",
+      "expectedTargetHash": "318fbce8f919134017b0429a53973b3f504266e284ffb256e1ed80c277cfa205",
+      "stagedHash": "ea3a4048b3eb1f54ecde1325b3910547810e9695d2ace4c2fe40c4447ab54fdb"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-repository-contract",
+      "target": "archive/2026-08-11-runtime-repository-contract",
+      "expectedSourceHash": "6f698ae2397f7a8171e6626ae711022b16762db6655f7106db4419f45b01381b",
+      "expectedTargetHash": null
+    }
+  ]
+}

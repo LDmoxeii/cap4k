@@ -45,27 +45,13 @@ open class AbstractJpaRepository<ENTITY : Any, ID : Any> internal constructor(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
     ): List<ENTITY> {
-        val entities = when {
-            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
-                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
-                if (ids.iterator().hasNext()) {
-                    provider.findAllById(ids)
-                } else {
-                    emptyList()
-                }
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                provider.findAll(
-                    JpaPredicateSupport.resumeSpecification(predicate)!!,
-                    toSpringData(orders)
-                )
-            }
-
+        val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
+        return when {
+            ids != null -> provider.findAllById(ids, toSpringData(orders))
+            specification != null -> provider.findAll(specification, toSpringData(orders))
             else -> emptyList()
         }
-
-        return entities
     }
 
     @Transactional(readOnly = true)
@@ -73,47 +59,26 @@ open class AbstractJpaRepository<ENTITY : Any, ID : Any> internal constructor(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
     ): List<ENTITY> {
-        val entities = when {
-            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
-                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
-                if (ids.iterator().hasNext()) {
-                    provider.findAllById(ids)
-                } else {
-                    emptyList()
-                }
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                val page = provider.findAll(
-                    JpaPredicateSupport.resumeSpecification(predicate)!!,
-                    toSpringData(pageParam)
-                )
-                page.content
-            }
-
+        val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
+        return when {
+            ids != null -> provider.findAllById(ids, toSpringData(pageParam)).content
+            specification != null -> provider.findAll(specification, toSpringData(pageParam)).content
             else -> emptyList()
         }
-
-        return entities
     }
 
     @Transactional(readOnly = true)
     override fun findOne(
         predicate: Predicate<ENTITY>,
     ): ENTITY? {
-        val entity = when {
-            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                provider.findById(JpaPredicateSupport.resumeId(predicate)!!).orElse(null)
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                provider.findOne(JpaPredicateSupport.resumeSpecification(predicate)!!).orElse(null)
-            }
-
+        val id = JpaPredicateSupport.resumeId<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
+        return when {
+            id != null -> provider.findById(id).orElse(null)
+            specification != null -> provider.findOne(specification).orElse(null)
             else -> null
         }
-
-        return entity
     }
 
     @Transactional(readOnly = true)
@@ -121,25 +86,16 @@ open class AbstractJpaRepository<ENTITY : Any, ID : Any> internal constructor(
         predicate: Predicate<ENTITY>,
         orders: Collection<OrderInfo>,
     ): ENTITY? {
-        val entity = when {
-            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                provider.findById(JpaPredicateSupport.resumeId(predicate)!!).orElse(null)
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                val page = PageParam.limit(1).apply {
-                    orders.forEach { orderBy(it.field, it.desc) }
-                }
-                provider.findAll(
-                    JpaPredicateSupport.resumeSpecification(predicate)!!,
-                    toSpringData(page)
-                ).content.firstOrNull()
-            }
-
+        val page = PageParam.limit(1).apply {
+            orders.forEach { orderBy(it.field, it.desc) }
+        }
+        val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
+        return when {
+            ids != null -> provider.findAllById(ids, toSpringData(page)).content.firstOrNull()
+            specification != null -> provider.findAll(specification, toSpringData(page)).content.firstOrNull()
             else -> null
         }
-
-        return entity
     }
 
     @Transactional(readOnly = true)
@@ -147,74 +103,34 @@ open class AbstractJpaRepository<ENTITY : Any, ID : Any> internal constructor(
         predicate: Predicate<ENTITY>,
         pageParam: PageParam,
     ): PageData<ENTITY> {
-        val pageData = when {
-            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
-                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
-                if (ids.iterator().hasNext()) {
-                    val entities = provider.findAllById(ids)
-                        .drop((pageParam.pageNum - 1) * pageParam.pageSize)
-                        .take(pageParam.pageSize)
-                    PageData.create(pageParam, entities.size.toLong(), entities)
-                } else {
-                    PageData.empty(pageParam.pageSize)
-                }
-            }
-
-            JpaPredicateSupport.resumeSpecification(predicate) != null -> {
-                val page = provider.findAll(
-                    JpaPredicateSupport.resumeSpecification(predicate)!!,
-                    toSpringData(pageParam)
-                )
-                fromSpringData(page)
-            }
-
-            else -> PageData.empty(pageParam.pageSize)
+        val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
+        return when {
+            ids != null -> fromSpringData(provider.findAllById(ids, toSpringData(pageParam)))
+            specification != null -> fromSpringData(provider.findAll(specification, toSpringData(pageParam)))
+            else -> PageData.empty(pageParam.pageSize, pageParam.pageNum)
         }
-
-        return pageData
     }
 
     @Transactional(readOnly = true)
     override fun count(predicate: Predicate<ENTITY>): Long {
+        val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
         return when {
-            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                if (provider.findById(JpaPredicateSupport.resumeId(predicate)!!).isPresent) 1L else 0L
-            }
-
-            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
-                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
-                if (!ids.iterator().hasNext()) {
-                    0L
-                } else {
-                    provider.findAllById(ids).size.toLong()
-                }
-            }
-
-            else -> {
-                provider.count(JpaPredicateSupport.resumeSpecification(predicate)!!)
-            }
+            ids != null -> provider.countByIds(ids)
+            specification != null -> provider.count(specification)
+            else -> 0
         }
     }
 
     @Transactional(readOnly = true)
     override fun exists(predicate: Predicate<ENTITY>): Boolean {
+        val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)
+        val specification = JpaPredicateSupport.resumeSpecification(predicate)
         return when {
-            JpaPredicateSupport.resumeId<ENTITY, ID>(predicate) != null -> {
-                provider.findById(JpaPredicateSupport.resumeId(predicate)!!).isPresent
-            }
-
-            JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate) != null -> {
-                val ids = JpaPredicateSupport.resumeIds<ENTITY, ID>(predicate)!!
-                if (!ids.iterator().hasNext()) {
-                    false
-                } else {
-                    provider.findAllById(ids).isNotEmpty()
-                }
-            }
-
-            else -> {
-                provider.exists(JpaPredicateSupport.resumeSpecification(predicate)!!)
-            }
+            ids != null -> provider.existsByIds(ids)
+            specification != null -> provider.exists(specification)
+            else -> false
         }
     }
 }
