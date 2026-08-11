@@ -1,18 +1,121 @@
-schema: comet.native.v3
-minimum_runtime_version: 3
-revision: 27
+schema: comet.native.v4
 name: framework-capability-audit
 language: en
 phase: shape
+status: active
+state_version: 1
 brief: brief.md
-approval: null
-approved_contract_hash: null
 spec_changes: []
+workspace:
+  isolation: current
+  change_branch: null
+  target_branch: null
+  finish: null
+loop:
+  stage: shape
+  goal_cycle: 1
+  iteration: 0
+  attempt: 0
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: Continue clarification and confirm acceptance
+acceptance:
+  - id: A1
+    source: brief.md
+    text: Given a Generator contract advertised by descriptors, documentation, or
+      Agent API facts, the audit identifies the actual source, canonical model,
+      planner/template, output ownership, conflict policy, and proportionate
+      tests, or records a specific discrepancy.
+    result: pending
+    reason: null
+  - id: A2
+    source: brief.md
+    text: Given a Runtime boundary such as reliable event payload persistence, the
+      audit treats the current runtime semantic boundary as authoritative and
+      identifies generator or documentation drift without weakening that runtime
+      boundary.
+    result: pending
+    reason: null
+  - id: A3
+    source: brief.md
+    text: Given an Analyzer observation, the audit distinguishes structural evidence
+      from business truth and identifies freshness, coverage, and transport
+      limitations.
+    result: pending
+    reason: null
+  - id: A4
+    source: brief.md
+    text: Given a supported Design JSON entry, generation produces a structurally
+      complete skeleton, Analyzer recovers the same tactical design, and the
+      resulting Drawing Board can regenerate an equivalent skeleton without
+      silently losing or inventing design semantics.
+    result: pending
+    reason: null
+  - id: A5
+    source: brief.md
+    text: Given a generated handler, subscriber, domain service, or other behavior
+      surface, business policy may remain handwritten, but compilation shape,
+      declared types, annotations, artifact selection, wiring contracts, and
+      other framework-owned structure do not require manual completion caused by
+      a generator omission.
+    result: pending
+    reason: null
+  - id: A6
+    source: brief.md
+    text: Given a finding that requires implementation, the audit records the
+      decision and expected acceptance evidence while leaving the code unchanged
+      on this branch.
+    result: pending
+    reason: null
+  - id: A7
+    source: brief.md
+    text: Given a fix merged independently to `master`, the audit refreshes from
+      that mainline fact and re-runs the affected gate before changing its
+      conclusion.
+    result: pending
+    reason: null
+  - id: A8
+    source: brief.md
+    text: Downstream validation is not opened while any unresolved missing-core or
+      cross-block drift finding remains.
+    result: pending
+    reason: null
+builder_handoff: null
+blockers: []
+verification: null
+history:
+  - goal_cycle: 1
+    iteration: 0
+    attempt: 0
+    outcome: recovery
+    unresolved_ids:
+      - A1
+      - A2
+      - A3
+      - A4
+      - A5
+      - A6
+      - A7
+      - A8
+    summary:
+      text: Recovered from legacy comet.native.v3 shape state; prior Loop,
+        verification results, and execution records were not inherited.
+      truncated: false
+    completed_at: 2026-08-02T00:00:00.000Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
 verification_result: pending
 verification_report: null
-implementation_scope: null
-verification_evidence: null
-partial_allowance: null
 archived: false
-created_at: 2026-08-02
-run_id: null
+created_at: 2026-08-02T00:00:00.000Z
