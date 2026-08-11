@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-repository-contract
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 5c703fd8623c9e4be86b4b1df37a7a5d30f7e29ccf2d8636ce6d3ee13b84b6d9
+spec_changes:
+  - capability: runtime-repository-contract
+    operation: replace
+    source: specs/runtime-repository-contract/spec.md
+    base_hash: 318fbce8f919134017b0429a53973b3f504266e284ffb256e1ed80c277cfa205
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/cf489334e475b40020b055d705a3a027c820f106fc3d88ce8881f2d7bf919bee.json
+verification_evidence: runtime/evidence/verifications/eaa39ae3502a2f2389a319f7c5cf2702041acf73235459881c511668132de50f.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-11
+run_id: 04da74f6-5450-4d99-ad16-23be84bf55b8
