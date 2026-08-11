@@ -1,0 +1,15 @@
+{
+  "schema": "comet.native.progress-checkpoint.v1",
+  "id": "d87bae0c-4605-4e54-b5b2-be97698f1d09",
+  "change": "runtime-agent-api-facts",
+  "phase": "shape",
+  "previousRevision": 3,
+  "stateRevision": 4,
+  "summary": "Shape confirmed: seven Runtime capability IDs, ownership granularity, static/live status boundaries, provider identities, and retired guards are closed.",
+  "nextAction": "Advance the confirmed Shape into Build and implement the final Runtime Agent API facts.",
+  "inputHash": "f6227a0b919d825ff93d6f7a8ab6a598bcf8af89ede1e2be8f5fa6278f063a7b",
+  "manifestHash": "d8cb1337030a82799fc2374cb6198fe4c56464a88e90c61a9a44fcdbb8ca2089",
+  "manifestRef": "runtime/checkpoints/manifests/d8cb1337030a82799fc2374cb6198fe4c56464a88e90c61a9a44fcdbb8ca2089.json",
+  "artifactCount": 0,
+  "createdAt": "2026-08-11T07:06:00.083Z"
+}

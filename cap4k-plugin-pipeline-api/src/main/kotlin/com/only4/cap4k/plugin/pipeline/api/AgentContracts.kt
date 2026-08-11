@@ -1,12 +1,12 @@
 package com.only4.cap4k.plugin.pipeline.api
 
-const val CAP4K_AGENT_CONTRACT_VERSION: Int = 2
+const val CAP4K_AGENT_CONTRACT_VERSION: Int = 3
 const val CAP4K_AGENT_MANIFEST_SCHEMA: String = "cap4k.agent.manifest.v1"
 const val CAP4K_AGENT_PROJECT_SCHEMA: String = "cap4k.agent.project.v1"
 const val CAP4K_AGENT_CAPABILITIES_SCHEMA: String = "cap4k.agent.capabilities.v1"
 const val CAP4K_AGENT_INPUTS_SCHEMA: String = "cap4k.agent.inputs.v1"
 const val CAP4K_AGENT_OWNERSHIP_SCHEMA: String = "cap4k.agent.ownership.v1"
-const val CAP4K_AGENT_RUNTIME_SCHEMA: String = "cap4k.agent.runtime.v2"
+const val CAP4K_AGENT_RUNTIME_SCHEMA: String = "cap4k.agent.runtime.v3"
 const val CAP4K_AGENT_ANALYSIS_SCHEMA: String = "cap4k.agent.analysis.v1"
 const val CAP4K_AGENT_DIAGNOSTICS_SCHEMA: String = "cap4k.agent.diagnostics.v1"
 const val CAP4K_PLAN_EVIDENCE_SCHEMA: String = "cap4k.plan-evidence.v1"
@@ -280,9 +280,66 @@ data class AgentEventHandlerContract(
     val managedAsyncCompletion: AgentEventHandlerManagedAsyncContract = AgentEventHandlerManagedAsyncContract(),
 )
 
+enum class AgentRuntimeFrameworkSupport {
+    SUPPORTED,
+}
+
+enum class AgentRuntimeApplicationAssembly {
+    UNKNOWN,
+}
+
+enum class AgentRuntimeObservation {
+    NOT_PERFORMED,
+}
+
+enum class AgentRuntimeOperationalState {
+    UNKNOWN,
+}
+
+enum class AgentRuntimeVerification {
+    NOT_PERFORMED,
+}
+
+enum class AgentRuntimeLiveStateSource {
+    RUNTIME_PROVIDER_STATE_REGISTRY,
+}
+
+data class AgentRuntimeOwnership(
+    val contractModule: String,
+    val implementationModule: String? = null,
+    val starterModule: String? = null,
+)
+
+data class AgentRuntimeCapabilityFact(
+    val capabilityId: String,
+    val displayName: String,
+    val ownership: AgentRuntimeOwnership,
+    val frameworkSupport: AgentRuntimeFrameworkSupport = AgentRuntimeFrameworkSupport.SUPPORTED,
+    val applicationAssembly: AgentRuntimeApplicationAssembly = AgentRuntimeApplicationAssembly.UNKNOWN,
+    val runtimeObservation: AgentRuntimeObservation = AgentRuntimeObservation.NOT_PERFORMED,
+    val verification: AgentRuntimeVerification = AgentRuntimeVerification.NOT_PERFORMED,
+    val providerIds: List<String> = emptyList(),
+)
+
+data class AgentRuntimeProviderFact(
+    val providerId: String,
+    val capabilityId: String,
+    val displayName: String,
+    val ownership: AgentRuntimeOwnership,
+    val frameworkSupport: AgentRuntimeFrameworkSupport = AgentRuntimeFrameworkSupport.SUPPORTED,
+    val applicationAssembly: AgentRuntimeApplicationAssembly = AgentRuntimeApplicationAssembly.UNKNOWN,
+    val runtimeObservation: AgentRuntimeObservation = AgentRuntimeObservation.NOT_PERFORMED,
+    val operationalState: AgentRuntimeOperationalState = AgentRuntimeOperationalState.UNKNOWN,
+    val verification: AgentRuntimeVerification = AgentRuntimeVerification.NOT_PERFORMED,
+    val liveStateSource: AgentRuntimeLiveStateSource =
+        AgentRuntimeLiveStateSource.RUNTIME_PROVIDER_STATE_REGISTRY,
+)
+
 data class AgentRuntimeSection(
     val schema: String = CAP4K_AGENT_RUNTIME_SCHEMA,
     val status: AgentSnapshotStatus,
+    val capabilities: List<AgentRuntimeCapabilityFact> = emptyList(),
+    val providers: List<AgentRuntimeProviderFact> = emptyList(),
     val eventHandler: AgentEventHandlerContract = AgentEventHandlerContract(),
     val extensions: List<AgentRuntimeExtension> = emptyList(),
     val boundaries: Map<String, List<PipelineCapabilityBoundary>> = emptyMap(),

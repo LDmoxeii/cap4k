@@ -206,6 +206,13 @@ class AgentSnapshotCodec(
     )
 
     private fun normalizeRuntime(section: AgentRuntimeSection): AgentRuntimeSection = section.copy(
+        capabilities = section.capabilities
+            .map { capability ->
+                capability.copy(providerIds = capability.providerIds.distinct().sorted())
+            }
+            .sortedBy { capability -> capability.capabilityId },
+        providers = section.providers
+            .sortedWith(compareBy({ provider -> provider.providerId }, { provider -> provider.capabilityId })),
         eventHandler = section.eventHandler.copy(
             eventKinds = section.eventHandler.eventKinds.distinct().sorted(),
             forbidden = section.eventHandler.forbidden.distinct().sorted(),
@@ -299,6 +306,8 @@ class AgentSnapshotCodec(
             schema = sections.runtime.schema,
             status = sections.runtime.status,
             counts = linkedMapOf(
+                "capabilities" to sections.runtime.capabilities.size,
+                "providers" to sections.runtime.providers.size,
                 "extensions" to sections.runtime.extensions.size,
                 "boundaries" to sections.runtime.boundaries.values.sumOf(List<*>::size),
             ),

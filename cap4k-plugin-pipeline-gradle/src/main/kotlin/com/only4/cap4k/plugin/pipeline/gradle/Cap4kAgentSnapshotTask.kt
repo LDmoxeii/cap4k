@@ -10,6 +10,7 @@ import com.only4.cap4k.plugin.pipeline.agent.AgentIdentity
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotCodec
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotRequest
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotService
+import com.only4.cap4k.plugin.pipeline.agent.RuntimeAgentFactsCatalog
 import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityObservation
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnostic
@@ -719,6 +720,8 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
         extensionInspection: ExtensionInspection,
     ): AgentRuntimeSection = AgentRuntimeSection(
         status = extensionInspection.status,
+        capabilities = RuntimeAgentFactsCatalog.capabilities(),
+        providers = RuntimeAgentFactsCatalog.providers(),
         extensions = extensionInspection.runtimeExtensions,
         boundaries = descriptors.associate { it.capabilityId to it.boundaries },
         externalIoSafe = extensionInspection.externalIoSafe,

@@ -13,7 +13,7 @@
 | `capabilities.json` | provider descriptor 派生的 supported catalog 与当前 project effective view。 |
 | `inputs.json` | configured input、local path/readability、external-I/O safety、脱敏 identity 与显式 plan task。 |
 | `ownership.json` | 既有 plan 中的 output kind、conflict policy、managed roots 与 freshness。 |
-| `runtime.json` | 版本化 Event Handler authoring/execution contract、runtime/provider boundaries 与已加载 extension contribution 概要。 |
+| `runtime.json` | v3 静态 Runtime capability/provider facts、Event Handler contract、runtime/provider boundaries 与已加载 extension contribution 概要。 |
 | `analysis.json` | analysis 配置、IR node/edge/design-element counts、计划输出、当前可用输出、既有 evidence 与可证明范围。 |
 | `diagnostics.json` | 稳定 diagnostic identity、level、stage、path、message 与 actionable hint。 |
 
@@ -47,6 +47,32 @@ Agent task 可以读取既有 `build/cap4k/plan.json` 和 `build/cap4k/analysis-
 Pipeline Extension discovery 只读取本地 resolved classpath metadata。Extension SPI 要求 provider 构造、descriptor 和 contribution discovery 保持确定、无副作用，不得连接网络、数据库或其他 live source，也不得修改文件或启动进程；真正的 contribution work 只能在显式 pipeline operation 中执行。若 extension inspection 失败，`runtime.externalIoSafe` 为 `false`，snapshot 同时以 structured diagnostic 报告失败，不能对该次检查作安全性声明。
 
 `runtime.json` 的 `eventHandler` 是当前 cap4k 版本的静态 Runtime 作者契约，不是对业务代码做 classpath scan 的观察结果。它说明方法级 `@EventListener` 是唯一作者入口，Domain Event 与 Integration Event 共用同步、串行、fail-fast 执行模型，方法级 `@Order` 只为不同数值建立顺序、相同值不承诺次序，以及 Handler 返回时如何等待当前 scope 的 `askAsync()` / `callAsync()`。`forbidden` 列表用于在写代码前避开启动时会被 Runtime 拒绝的 Handler shape。
+
+## Runtime Facts
+
+Agent contract version 3 将 `runtime.json` 升级为 `cap4k.agent.runtime.v3`。该文件仍是静态、只读的框架事实，不启动 Spring application，不检查 classpath 是否装配 provider，也不读取 broker 或 live registry。
+
+当前 Runtime capability catalog 固定为：
+
+| Capability ID | Contract / implementation owner | Starter owner |
+| --- | --- | --- |
+| `runtime.core-dispatch` | `ddd-core` | `cap4k-ddd-core-starter` |
+| `runtime.identifier-allocation` | `ddd-core` | `cap4k-ddd-core-starter` |
+| `runtime.local-domain-event` | `ddd-core` | `cap4k-ddd-core-starter` |
+| `runtime.jpa-persistence` | `ddd-domain-repo-jpa` | `cap4k-ddd-jpa-starter` |
+| `runtime.reliable-command` | `ddd-application-command-jpa` | `cap4k-ddd-command-jpa-starter` |
+| `runtime.reliable-event` | `ddd-domain-event-jpa` | `cap4k-ddd-domain-event-jpa-starter` |
+| `runtime.integration-event-transport` | shared contract: `ddd-core` | concrete provider owns implementation/starter |
+
+Integration Event transport provider facts 使用与 Runtime registry 注册完全相同的 identity：
+
+- `integration-event-transport.http`；
+- `integration-event-transport.rabbitmq`；
+- `integration-event-transport.rocketmq`。
+
+静态字段严格区分证据来源：`frameworkSupport=SUPPORTED` 只说明当前 cap4k 版本实现了该能力；`applicationAssembly=UNKNOWN` 表示 Gradle snapshot 没有启动应用、无法证明当前应用已装配；`runtimeObservation=NOT_PERFORMED` 表示本次任务没有执行 live observation；provider 的 `operationalState=UNKNOWN` 表示静态文件不能证明健康状态；`verification=NOT_PERFORMED` 表示本次 snapshot 没有执行该能力的运行验收。类、依赖、配置或说明文字存在都不会把这些字段提升为可用、健康或成功。
+
+Live provider state 的唯一来源是当前应用中的 `RuntimeProviderStateRegistry.snapshot()`。其安全字段为 `providerId`、`state`、`observedAt` 和 `category`；只有实际读取 registry snapshot 才能证明当时的注册与观测状态。`runtime.json` 只声明该 live source，不复制、缓存或推断 registry 内容，也不包含 payload、凭据、URI、broker topology 或异常详情。
 
 ## Credential Boundary
 

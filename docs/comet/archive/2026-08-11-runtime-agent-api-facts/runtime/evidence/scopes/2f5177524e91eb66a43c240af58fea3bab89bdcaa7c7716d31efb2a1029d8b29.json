@@ -1,0 +1,400 @@
+{
+  "schema": "comet.native.implementation-scope.v2",
+  "contractHash": "28a798c71cd580267bf22b9ebdb2a739f31131177e1979d1506c0d23b12cefbb",
+  "baselineProjectionRef": "runtime/evidence/snapshots/b7b4f19ca6d230b9028a571d4c8e96216d45fdc3fd9ae1081e98c07ffc97b6e1.json",
+  "baselineProjectionHash": "b7b4f19ca6d230b9028a571d4c8e96216d45fdc3fd9ae1081e98c07ffc97b6e1",
+  "currentProjectionRef": "runtime/evidence/snapshots/63d300da620910882090de929850fb64661d32e10704d65e84a9987e26f9aa3d.json",
+  "currentProjectionHash": "63d300da620910882090de929850fb64661d32e10704d65e84a9987e26f9aa3d",
+  "complete": false,
+  "declaredArtifacts": [
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalog.kt",
+      "kind": "file"
+    },
+    {
+      "path": "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/AgentContracts.kt",
+      "kind": "file"
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "file"
+    }
+  ],
+  "changes": [
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodec.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "39a8997b326fe018f9e55546372b8db22f437b5d5f10ff8860094ad80fd12bdc",
+        "size": 17073
+      },
+      "after": {
+        "hash": "4ce87052a2151131d9cb222880ebc60c3ada423a677c48b9e4b245176926c928",
+        "size": 17229
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b44de614e0fe199de2f61118cc5f0bddbf560d6d3cc3cfabba25f9d6cb9f121b",
+        "size": 10326
+      },
+      "after": {
+        "hash": "5a78841fad9bda644e6c55f14cf8c685bf372ba8fadbf05e1dd8d545c35c5438",
+        "size": 10655
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "75a695d6cea5b17ec4538e296a1afeb6a3a59f8de70ee019da2f54610d422757",
+        "size": 1322
+      },
+      "after": {
+        "hash": "8266718b8c7d5d273d3f12bc88013a5ab29bf23b7a6476d78522595cf880a18b",
+        "size": 2632
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalog.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "da3ad62b6a3d758cdade54b75d2ba371a34e09c06690176fa80e4b7b293cea83",
+        "size": 4427
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalog.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsPolicy.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "4c751ce1afeecdbffaee4f877df837585caca737928ef8d83aa6e10847419a73",
+        "size": 3273
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "64ca03c9faf3c9d38855b37ca2bffa81e9aab415574b0a6ff99be5f774f25ba7",
+        "size": 14619
+      },
+      "after": {
+        "hash": "2a4bcd7b5223a832eeb8907efe10ba1153e6a1e2585efcd09680742e130e843b",
+        "size": 15799
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "6d3f5982bc365d3a1b322af1463d1934afd3e8aef64d7e6cf1110fbcc798e00a",
+        "size": 10481
+      },
+      "after": {
+        "hash": "3406fea6f10c58fc71a8e842efa2e058b04e3ddbca8586088592e2958df59a8d",
+        "size": 13612
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalogTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "d8b75cfddae40b8a1e2026caf61d64ed66a3271f18307e28ca5e8625040c5610",
+        "size": 5929
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/AgentContracts.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "48402a231774d95694a5601d454a27e45a8f753602795f86f30fc23072b3001a",
+        "size": 11062
+      },
+      "after": {
+        "hash": "e15784453cf2815031d52730932594f745d84e35fa39af8caccb9b1f95118621",
+        "size": 12740
+      },
+      "attributedTo": [
+        {
+          "path": "cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/AgentContracts.kt",
+          "kind": "file"
+        }
+      ]
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b3c1908b7bf7344ab8c5415f20586e3a7da45bc09aa6a742ef194475300af460",
+        "size": 58160
+      },
+      "after": {
+        "hash": "6634a30042ec65fab6fdb9c049157f76430fa747813f64664781ce3b93a17355",
+        "size": 57117
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "be2bc76178788ff74961f88095fb37608e9c983c78845e470ebcd82b95d65560",
+        "size": 18821
+      },
+      "after": {
+        "hash": "f620d6c48909152a16f8a98fdc6b13e4d05048afa0dc0d5903a7e8c97dea824d",
+        "size": 19680
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/public/reference/agent-api.md",
+      "kind": "modified",
+      "before": {
+        "hash": "6ba84c4792f91e9cbca4d11d80da3b122307b9129aba3f2424b4f14d101bbe5c",
+        "size": 5981
+      },
+      "after": {
+        "hash": "9d9745924ab1c48fffab3c4e5b20be1f8ed39f8f8bfaa02bb5ce825f0ed41f3e",
+        "size": 8192
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "scripts/validate-current-runtime-facts.ps1",
+      "kind": "modified",
+      "before": {
+        "hash": "c2bab235f922a4d3dee8ad55890e90be749dfc51591fc9055127b0926c303a90",
+        "size": 9641
+      },
+      "after": {
+        "hash": "49ba7f34bde6bdd6b4cef959e4a27e73d41ff4cd47cf9fac94f187de4a354c85",
+        "size": 12259
+      },
+      "attributedTo": [
+        {
+          "path": "scripts/validate-current-runtime-facts.ps1",
+          "kind": "file"
+        }
+      ]
+    }
+  ],
+  "unattributed": [
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodec.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "39a8997b326fe018f9e55546372b8db22f437b5d5f10ff8860094ad80fd12bdc",
+        "size": 17073
+      },
+      "after": {
+        "hash": "4ce87052a2151131d9cb222880ebc60c3ada423a677c48b9e4b245176926c928",
+        "size": 17229
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b44de614e0fe199de2f61118cc5f0bddbf560d6d3cc3cfabba25f9d6cb9f121b",
+        "size": 10326
+      },
+      "after": {
+        "hash": "5a78841fad9bda644e6c55f14cf8c685bf372ba8fadbf05e1dd8d545c35c5438",
+        "size": 10655
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "75a695d6cea5b17ec4538e296a1afeb6a3a59f8de70ee019da2f54610d422757",
+        "size": 1322
+      },
+      "after": {
+        "hash": "8266718b8c7d5d273d3f12bc88013a5ab29bf23b7a6476d78522595cf880a18b",
+        "size": 2632
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsPolicy.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "4c751ce1afeecdbffaee4f877df837585caca737928ef8d83aa6e10847419a73",
+        "size": 3273
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "64ca03c9faf3c9d38855b37ca2bffa81e9aab415574b0a6ff99be5f774f25ba7",
+        "size": 14619
+      },
+      "after": {
+        "hash": "2a4bcd7b5223a832eeb8907efe10ba1153e6a1e2585efcd09680742e130e843b",
+        "size": 15799
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "6d3f5982bc365d3a1b322af1463d1934afd3e8aef64d7e6cf1110fbcc798e00a",
+        "size": 10481
+      },
+      "after": {
+        "hash": "3406fea6f10c58fc71a8e842efa2e058b04e3ddbca8586088592e2958df59a8d",
+        "size": 13612
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalogTest.kt",
+      "kind": "added",
+      "before": null,
+      "after": {
+        "hash": "d8b75cfddae40b8a1e2026caf61d64ed66a3271f18307e28ca5e8625040c5610",
+        "size": 5929
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "b3c1908b7bf7344ab8c5415f20586e3a7da45bc09aa6a742ef194475300af460",
+        "size": 58160
+      },
+      "after": {
+        "hash": "6634a30042ec65fab6fdb9c049157f76430fa747813f64664781ce3b93a17355",
+        "size": 57117
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt",
+      "kind": "modified",
+      "before": {
+        "hash": "be2bc76178788ff74961f88095fb37608e9c983c78845e470ebcd82b95d65560",
+        "size": 18821
+      },
+      "after": {
+        "hash": "f620d6c48909152a16f8a98fdc6b13e4d05048afa0dc0d5903a7e8c97dea824d",
+        "size": 19680
+      },
+      "attributedTo": []
+    },
+    {
+      "path": "docs/public/reference/agent-api.md",
+      "kind": "modified",
+      "before": {
+        "hash": "6ba84c4792f91e9cbca4d11d80da3b122307b9129aba3f2424b4f14d101bbe5c",
+        "size": 5981
+      },
+      "after": {
+        "hash": "9d9745924ab1c48fffab3c4e5b20be1f8ed39f8f8bfaa02bb5ce825f0ed41f3e",
+        "size": 8192
+      },
+      "attributedTo": []
+    }
+  ],
+  "unresolvedScopes": [
+    {
+      "id": "scope:64e5454efd85068ffb5a087b01d28c34b6dd1f9d477245d983da090fd1a0639b",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodec.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodec.kt"
+    },
+    {
+      "id": "scope:6d50cf569a1fea6b22791e9b1790ddcec9d95195efcdb97b430b5285eadf4acd",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotService.kt"
+    },
+    {
+      "id": "scope:ab6eea596f6c8bbc6c2eeaa0fe140592760fb1a279b8dd8496744d173295faf6",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt"
+    },
+    {
+      "id": "scope:10712b27638c67b061ddfa452a17c934da01310f7e4971f88280b3fd36a93ead",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsPolicy.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsPolicy.kt"
+    },
+    {
+      "id": "scope:0aba48673f71fccfeba0d64d9bdd03b987ae9f2f0934474ddb027d79e78f5ab4",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotCodecTest.kt"
+    },
+    {
+      "id": "scope:b01e5f2af832bf7a5d70bf0629f3dfff41aa41e3f51dbd2b8a66f9d00d4707d1",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/AgentSnapshotServiceTest.kt"
+    },
+    {
+      "id": "scope:46ba920cea0b98c742b1ca274af89fc2f266d8cc924720b117e812c16333fb29",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalogTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalogTest.kt"
+    },
+    {
+      "id": "scope:ba18acb9259170e4469d265c55ddcd0f61c1a3f75145f071157fe794c524d4ff",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/main/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTask.kt"
+    },
+    {
+      "id": "scope:377f37f97271589582356886c3140b41c2db4ee0e728504d0b48790b6d7df407",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt",
+      "reason": "Changed path is not covered by a declared artifact: cap4k-plugin-pipeline-gradle/src/test/kotlin/com/only4/cap4k/plugin/pipeline/gradle/Cap4kAgentSnapshotTaskTest.kt"
+    },
+    {
+      "id": "scope:09e06ea9df19cd01c5f730bedeb12bf9f0c332d39ac661307af7c629fbea5fa9",
+      "kind": "unattributed-change",
+      "source": "implementation-scope",
+      "path": "docs/public/reference/agent-api.md",
+      "reason": "Changed path is not covered by a declared artifact: docs/public/reference/agent-api.md"
+    }
+  ],
+  "noCodeReason": null,
+  "scopeHash": "2f5177524e91eb66a43c240af58fea3bab89bdcaa7c7716d31efb2a1029d8b29"
+}

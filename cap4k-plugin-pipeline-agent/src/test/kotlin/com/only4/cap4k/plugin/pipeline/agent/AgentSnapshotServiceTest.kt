@@ -9,6 +9,9 @@ import com.only4.cap4k.plugin.pipeline.api.AgentInputsSection
 import com.only4.cap4k.plugin.pipeline.api.AgentOwnershipSection
 import com.only4.cap4k.plugin.pipeline.api.AgentProjectSection
 import com.only4.cap4k.plugin.pipeline.api.AgentProjectSummary
+import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeCapabilityFact
+import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeOwnership
+import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeProviderFact
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeSection
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentValidationStatus
@@ -116,6 +119,46 @@ class AgentSnapshotServiceTest {
     }
 
     @Test
+    fun `runtime fact duplicates produce deterministic diagnostics and invalidate the snapshot`() {
+        val capability = AgentRuntimeCapabilityFact(
+            capabilityId = "runtime.test",
+            displayName = "Test",
+            ownership = AgentRuntimeOwnership(contractModule = "test"),
+        )
+        val provider = AgentRuntimeProviderFact(
+            providerId = "provider.test",
+            capabilityId = capability.capabilityId,
+            displayName = "Test Provider",
+            ownership = AgentRuntimeOwnership(contractModule = "test"),
+        )
+        val runtime = AgentRuntimeSection(
+            status = AgentSnapshotStatus.OK,
+            capabilities = listOf(capability, capability.copy(capabilityId = " RUNTIME.TEST ")),
+            providers = listOf(provider, provider.copy(providerId = " PROVIDER.TEST ")),
+        )
+
+        val first = service.assemble(request(capabilityDescriptors = emptyList(), runtime = runtime))
+        val reordered = service.assemble(
+            request(
+                capabilityDescriptors = emptyList(),
+                runtime = runtime.copy(
+                    capabilities = runtime.capabilities.reversed(),
+                    providers = runtime.providers.reversed(),
+                ),
+            )
+        )
+
+        assertEquals(AgentSnapshotStatus.INVALID, first.runtime.status)
+        assertEquals(AgentSnapshotStatus.INVALID, first.diagnostics.status)
+        assertEquals(2, first.diagnostics.diagnostics.size)
+        assertTrue(first.diagnostics.diagnostics.all { diagnostic -> diagnostic.stage == "runtime-facts" })
+        assertEquals(
+            first.diagnostics.diagnostics.map { diagnostic -> diagnostic.id },
+            reordered.diagnostics.diagnostics.map { diagnostic -> diagnostic.id },
+        )
+    }
+
+    @Test
     fun `retired runtime descriptor identities fail fast`() {
         val retiredIdentities = listOf("console", "locker", "saga", "snowflake")
 
@@ -162,6 +205,36 @@ class AgentSnapshotServiceTest {
     }
 
     @Test
+    fun `runtime fact retirement keeps capability segment and provider exact matching`() {
+        val activeProvider = AgentRuntimeProviderFact(
+            providerId = "integration-event-transport.console",
+            capabilityId = "runtime.integration-event-transport",
+            displayName = "Console-named Transport",
+            ownership = AgentRuntimeOwnership(contractModule = "ddd-core"),
+        )
+        RetiredRuntimeDescriptorPolicy.requireActive(emptyList(), listOf(activeProvider))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            RetiredRuntimeDescriptorPolicy.requireActive(
+                capabilities = listOf(
+                    AgentRuntimeCapabilityFact(
+                        capabilityId = "runtime.console",
+                        displayName = "Retired",
+                        ownership = AgentRuntimeOwnership(contractModule = "test"),
+                    )
+                ),
+                providers = emptyList(),
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            RetiredRuntimeDescriptorPolicy.requireActive(
+                capabilities = emptyList(),
+                providers = listOf(activeProvider.copy(providerId = "console")),
+            )
+        }
+    }
+
+    @Test
     fun `observations correlate by capability identity when provider ids are shared`() {
         val source = descriptor("pipeline.source.shared", "shared").copy(
             kind = PipelineCapabilityKind.SOURCE,
@@ -202,6 +275,7 @@ class AgentSnapshotServiceTest {
         capabilityDescriptors: List<PipelineCapabilityDescriptor>,
         observations: List<AgentCapabilityObservation> = emptyList(),
         diagnostics: List<AgentDiagnostic> = emptyList(),
+        runtime: AgentRuntimeSection = AgentRuntimeSection(status = AgentSnapshotStatus.OK),
     ) = AgentSnapshotRequest(
         project = AgentProjectSection(
             status = AgentSnapshotStatus.OK,
@@ -211,7 +285,7 @@ class AgentSnapshotServiceTest {
         capabilityObservations = observations,
         inputs = AgentInputsSection(status = AgentSnapshotStatus.OK, inputs = emptyList()),
         ownership = AgentOwnershipSection(status = AgentSnapshotStatus.OK, items = emptyList()),
-        runtime = AgentRuntimeSection(status = AgentSnapshotStatus.OK),
+        runtime = runtime,
         analysis = AgentAnalysisSection(
             status = AgentSnapshotStatus.UNAVAILABLE,
             configured = false,
