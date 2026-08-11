@@ -33,4 +33,22 @@ class FieldTest {
         assertSame(path, field.path())
         assertNull(field.`eq?`(null))
     }
+    @Test
+    fun `nullable DSL operations skip absent values and empty collections`() {
+        val text = Field<String>("name")
+        val number = Field<Int>("rank")
+
+        assertNull(text.`eq?`(null))
+        assertNull(text.`neq?`(null))
+        assertNull(text.`like?`(null))
+        assertNull(text.`notLike?`(null))
+        assertNull(number.`gt?`(null))
+        assertNull(number.`ge?`(null))
+        assertNull(number.`lt?`(null))
+        assertNull(number.`le?`(null))
+        assertNull(text.`in?`(null))
+        assertNull(text.`in?`(emptyList<Any>()))
+        assertNull(text.`notIn?`(null))
+        assertNull(text.`notIn?`(emptyList<Any>()))
+    }
 }

@@ -43,7 +43,7 @@ open class PageData<T : Any> protected constructor(
      * 转换分页结果类型
      */
     fun <D : Any> transform(map: (T) -> D): PageData<D> =
-        PageData(pageSize, pageNum, totalCount, list.map(map))
+        PageData(pageNum, pageSize, totalCount, list.map(map))
 
     companion object {
         /**

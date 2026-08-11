@@ -85,12 +85,13 @@ class JpaPredicateTest {
     }
 
     @Test
-    @DisplayName("使用多个ID时应该保持ID的顺序")
-    fun `byIds should preserve order of ids`() {
-        val ids = listOf(3L, 1L, 4L, 1L, 5L) // 包含重复和无序
-        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
+    @DisplayName("使用多个ID时应该快照并按首次出现顺序去重")
+    fun `byIds should snapshot distinct ids in first occurrence order`() {
+        val mutableIds = mutableListOf(3L, 1L, 4L, 1L, 5L)
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, mutableIds)
+        mutableIds.clear()
 
-        assertEquals(ids, predicate.ids?.toList())
+        assertEquals(listOf(3L, 1L, 4L, 5L), predicate.ids?.toList())
     }
 
 }

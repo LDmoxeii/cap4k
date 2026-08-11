@@ -1,539 +1,218 @@
 package com.only4.cap4k.ddd.domain.repo
 
-import com.only4.cap4k.ddd.core.domain.repo.Predicate
 import com.only4.cap4k.ddd.core.share.OrderInfo
 import com.only4.cap4k.ddd.core.share.PageData
 import com.only4.cap4k.ddd.core.share.PageParam
-import com.only4.cap4k.ddd.domain.repo.impl.DefaultRepositorySupervisor
-import io.mockk.*
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.DisplayName
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Sort
 import org.springframework.data.jpa.domain.Specification
-import java.util.*
+import java.util.Optional
 
 class AbstractJpaRepositoryTest {
-
-    private lateinit var mockProvider: JpaRepositoryProvider<TestEntity, Long>
-    private lateinit var repository: AbstractJpaRepository<TestEntity, Long>
+    private val provider = mockk<JpaRepositoryProvider<TestEntity, Long>>()
+    private val repository = AbstractJpaRepository(provider)
 
     private data class TestEntity(val id: Long, val name: String)
 
-    @BeforeEach
-    fun setup() {
-        mockProvider = mockk<JpaRepositoryProvider<TestEntity, Long>>(relaxed = true)
-        repository = AbstractJpaRepository(mockProvider)
-
-        // Mock static methods
-        mockkStatic("com.only4.cap4k.ddd.core.share.misc.ClassUtils")
-        every {
-            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(any(), 0, AbstractJpaRepository::class.java)
-        } returns TestEntity::class.java
-
-        mockkObject(JpaPredicateSupport)
-        mockkStatic("com.only4.cap4k.ddd.domain.repo.JpaPageUtils")
-        mockkStatic("com.only4.cap4k.ddd.domain.repo.JpaSortUtils")
-    }
-
-    @AfterEach
-    fun teardown() {
-        unmockkStatic("com.only4.cap4k.ddd.core.share.misc.ClassUtils")
-        unmockkObject(JpaPredicateSupport)
-        unmockkStatic("com.only4.cap4k.ddd.domain.repo.JpaPageUtils")
-        unmockkStatic("com.only4.cap4k.ddd.domain.repo.JpaSortUtils")
+    @Test
+    fun `supports JpaPredicate`() {
+        assertEquals(JpaPredicate::class.java, repository.supportPredicateClass())
     }
 
     @Test
-    @DisplayName("初始化应该正确注册反射器")
-    fun `init should register reflectors correctly`() {
-        val mockSupervisor = mockkObject(DefaultRepositorySupervisor)
-
-        repository.init()
-
-        verify {
-            DefaultRepositorySupervisor.registerPredicateEntityClassReflector(
-                JpaPredicate::class.java,
-                any()
-            )
-        }
-        verify {
-            DefaultRepositorySupervisor.registerRepositoryEntityClassReflector(
-                AbstractJpaRepository::class.java,
-                any()
-            )
-        }
-
-        unmockkObject(DefaultRepositorySupervisor)
-    }
-
-    @Test
-    @DisplayName("支持谓词类应该返回JpaPredicate类")
-    fun `supportPredicateClass should return JpaPredicate class`() {
-        val result = repository.supportPredicateClass()
-        assertEquals(JpaPredicate::class.java, result)
-    }
-
-    @Test
-    @DisplayName("使用ID谓词显式持久化查找单个实体时应该保持已附着")
-    fun `findOne with ID predicate should keep entity attached when persist is true`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val entity = TestEntity(1L, "test")
-        val optional = Optional.of(entity)
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockProvider.findById(1L) } returns optional
-
-        val result = repository.findOne(predicate)
-
-        assertEquals(entity, result)
-        verify { mockProvider.findById(1L) }
-    }
-
-    @Test
-    @DisplayName("使用ID谓词查找单个实体时应该保持事务内托管")
-    fun `findOne with ID predicate should keep entity managed`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val entity = TestEntity(1L, "test")
-        val optional = Optional.of(entity)
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockProvider.findById(1L) } returns optional
-
-        val result = repository.findOne(predicate)
-
-        assertEquals(entity, result)
-        verify { mockProvider.findById(1L) }
-    }
-
-    @Test
-    @DisplayName("使用Specification谓词查找单个实体应该使用规范执行器")
-    fun `findOne with Specification predicate should use specification executor`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val specification = mockk<Specification<TestEntity>>()
-        val entity = TestEntity(1L, "test")
-        val optional = Optional.of(entity)
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { mockProvider.findOne(specification) } returns optional
-
-        val result = repository.findOne(predicate)
-
-        assertEquals(entity, result)
-        verify { mockProvider.findOne(specification) }
-    }
-
-    @Test
-    @DisplayName("使用未知谓词查找单个实体应该返回null")
-    fun `findOne with unknown predicate should return null`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-
-        val result = repository.findOne(predicate)
-
-        assertNull(result)
-    }
-
-    @Test
-    @DisplayName("使用ID谓词查找第一个实体应该返回实体")
-    fun `findFirst with ID predicate should return entity`() {
-        val predicate = mockk<Predicate<TestEntity>>()
+    fun `ID queries use the same explicit sort contract as specifications`() {
+        val ids = listOf(3L, 1L, 2L)
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
         val orders = listOf(OrderInfo.asc("name"))
-        val entity = TestEntity(1L, "test")
-        val optional = Optional.of(entity)
+        val sort = toSpringData(orders)
+        val entities = listOf(TestEntity(1, "a"), TestEntity(2, "b"), TestEntity(3, "c"))
+        every { provider.findAllById(ids, sort) } returns entities
 
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockProvider.findById(1L) } returns optional
+        assertEquals(entities, repository.find(predicate, orders))
 
-        val result = repository.findFirst(predicate, orders)
-
-        assertEquals(entity, result)
-        verify { mockProvider.findById(1L) }
+        verify(exactly = 1) { provider.findAllById(ids, sort) }
     }
 
     @Test
-    @DisplayName("使用Specification谓词查找第一个实体应该使用带分页的规范执行器")
-    fun `findFirst with Specification predicate should use specification executor with pagination`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val orders = listOf(OrderInfo.desc("name"))
+    fun `Specification queries retain the explicit sort contract`() {
         val specification = mockk<Specification<TestEntity>>()
-        val entity = TestEntity(1L, "test")
-        val page = PageImpl(listOf(entity))
+        val predicate = JpaPredicate.bySpecification(TestEntity::class.java, specification)
+        val orders = listOf(OrderInfo.desc("name"))
+        val sort = toSpringData(orders)
+        val entities = listOf(TestEntity(2, "b"), TestEntity(1, "a"))
+        every { provider.findAll(specification, sort) } returns entities
 
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { toSpringData(any<PageParam>()) } returns PageRequest.of(
-            0,
-            1,
-            Sort.by(Sort.Direction.DESC, "name")
-        )
-        every { mockProvider.findAll(specification, any<PageRequest>()) } returns page
+        assertEquals(entities, repository.find(predicate, orders))
 
-        val result = repository.findFirst(predicate, orders)
-
-        assertEquals(entity, result)
-        verify { mockProvider.findAll(specification, any<PageRequest>()) }
+        verify(exactly = 1) { provider.findAll(specification, sort) }
     }
 
     @Test
-    @DisplayName("使用多个ID谓词查找分页应该正确处理分页")
-    fun `findPage with IDs predicate should handle pagination correctly`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val pageParam = PageParam.of(2, 2)
+    fun `ID list query honors page offset and limit`() {
         val ids = listOf(1L, 2L, 3L, 4L, 5L)
-        val entities = listOf(
-            TestEntity(1L, "test1"),
-            TestEntity(2L, "test2"),
-            TestEntity(3L, "test3"),
-            TestEntity(4L, "test4"),
-            TestEntity(5L, "test5")
-        )
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
+        val pageParam = PageParam.of(2, 2).orderByAsc("name")
+        val pageable = toSpringData(pageParam)
+        val expected = listOf(TestEntity(3, "c"), TestEntity(4, "d"))
+        every { provider.findAllById(ids, pageable) } returns PageImpl(expected, pageable, 5)
 
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockProvider.findAllById(ids) } returns entities
+        assertEquals(expected, repository.find(predicate, pageParam))
 
-        val result = repository.findPage(predicate, pageParam)
-
-        assertEquals(2, result.list.size)
-        assertEquals(TestEntity(3L, "test3"), result.list[0])
-        assertEquals(TestEntity(4L, "test4"), result.list[1])
+        verify(exactly = 1) { provider.findAllById(ids, pageable) }
     }
 
     @Test
-    @DisplayName("使用空ID列表查找分页应该返回空页面")
-    fun `findPage with empty IDs should return empty page`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val pageParam = PageParam.of(1, 10)
-        val emptyIds = emptyList<Long>()
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns emptyIds
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-
-        val result = repository.findPage(predicate, pageParam)
-
-        assertTrue(result.list.isEmpty())
-        assertEquals(0L, result.list.size.toLong())
-    }
-
-    @Test
-    @DisplayName("使用Specification谓词查找分页应该使用规范执行器")
-    fun `findPage with Specification predicate should use specification executor`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val pageParam = PageParam.of(1, 10)
+    fun `Specification list query honors page offset and limit`() {
         val specification = mockk<Specification<TestEntity>>()
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val springPage = PageImpl(entities, PageRequest.of(0, 10), 2L)
-        val expectedPageData = PageData.create(pageParam, 2L, entities)
+        val predicate = JpaPredicate.bySpecification(TestEntity::class.java, specification)
+        val pageParam = PageParam.of(2, 2).orderByAsc("name")
+        val pageable = toSpringData(pageParam)
+        val expected = listOf(TestEntity(3, "c"), TestEntity(4, "d"))
+        every { provider.findAll(specification, pageable) } returns PageImpl(expected, pageable, 5)
 
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
-        every { mockProvider.findAll(specification, any<PageRequest>()) } returns springPage
-        every { fromSpringData(springPage) } returns expectedPageData
+        assertEquals(expected, repository.find(predicate, pageParam))
 
-        val result = repository.findPage(predicate, pageParam)
-
-        assertEquals(expectedPageData, result)
-        verify { mockProvider.findAll(specification, any<PageRequest>()) }
+        verify(exactly = 1) { provider.findAll(specification, pageable) }
     }
 
     @Test
-    @DisplayName("查找分页时持久化为false应该分离所有实体")
-    fun `findPage should keep all entities managed`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val pageParam = PageParam.of(1, 10)
-        val specification = mockk<Specification<TestEntity>>()
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val springPage = PageImpl(entities, PageRequest.of(0, 10), 2L)
-        val expectedPageData = PageData.create(pageParam, 2L, entities)
+    fun `findOne by ID uses the exact identifier`() {
+        val entity = TestEntity(7, "seven")
+        every { provider.findById(7L) } returns Optional.of(entity)
 
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
-        every { mockProvider.findAll(specification, any<PageRequest>()) } returns springPage
-        every { fromSpringData(springPage) } returns expectedPageData
+        assertEquals(entity, repository.findOne(JpaPredicate.byId(TestEntity::class.java, 7L)))
 
-        val result = repository.findPage(predicate, pageParam)
-
-        assertEquals(expectedPageData, result)
+        verify(exactly = 1) { provider.findById(7L) }
     }
 
     @Test
-    @DisplayName("使用排序查找多个ID谓词应该正确处理")
-    fun `find with orders should handle IDs predicate correctly`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val orders = listOf(OrderInfo.asc("name"))
-        val ids = listOf(1L, 2L)
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockProvider.findAllById(ids) } returns entities
-
-        val result = repository.find(predicate, orders)
-
-        assertEquals(entities, result)
-        verify { mockProvider.findAllById(ids) }
-    }
-
-    @Test
-    @DisplayName("使用排序查找空ID列表应该正确处理")
-    fun `find with orders should handle empty IDs correctly`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val orders = listOf(OrderInfo.asc("name"))
-        val emptyIds = emptyList<Long>()
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns emptyIds
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-
-        val result = repository.find(predicate, orders)
-
-        assertTrue(result.isEmpty())
-    }
-
-    @Test
-    @DisplayName("使用排序查找Specification谓词应该正确处理")
-    fun `find with orders should handle Specification predicate correctly`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val orders = listOf(OrderInfo.desc("name"))
-        val specification = mockk<Specification<TestEntity>>()
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val sort = Sort.by(Sort.Direction.DESC, "name")
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { toSpringData(orders) } returns sort
-        every { mockProvider.findAll(specification, sort) } returns entities
-
-        val result = repository.find(predicate, orders)
-
-        assertEquals(entities, result)
-        verify { mockProvider.findAll(specification, sort) }
-    }
-
-    @Test
-    @DisplayName("使用排序查找且持久化为false应该分离实体")
-    fun `find with orders should keep entities managed`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val orders = listOf(OrderInfo.asc("name"))
-        val specification = mockk<Specification<TestEntity>>()
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val sort = Sort.by(Sort.Direction.ASC, "name")
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { toSpringData(orders) } returns sort
-        every { mockProvider.findAll(specification, sort) } returns entities
-
-        val result = repository.find(predicate, orders)
-
-        assertEquals(entities, result)
-    }
-
-    @Test
-    @DisplayName("使用分页参数查找多个ID谓词应该正确处理")
-    fun `find with pageParam should handle IDs predicate correctly`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val pageParam = PageParam.of(1, 10)
-        val ids = listOf(1L, 2L)
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns null
-        every { mockProvider.findAllById(ids) } returns entities
-
-        val result = repository.find(predicate, pageParam)
-
-        assertEquals(entities, result)
-        verify { mockProvider.findAllById(ids) }
-    }
-
-    @Test
-    @DisplayName("使用分页参数查找Specification谓词应该正确处理")
-    fun `find with pageParam should handle Specification predicate correctly`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val pageParam = PageParam.of(1, 10)
-        val specification = mockk<Specification<TestEntity>>()
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
-        val springPage = PageImpl(entities, PageRequest.of(0, 10), 2L)
-
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { toSpringData(pageParam) } returns PageRequest.of(0, 10)
-        every { mockProvider.findAll(specification, any<PageRequest>()) } returns springPage
-
-        val result = repository.find(predicate, pageParam)
-
-        assertEquals(entities, result)
-        verify { mockProvider.findAll(specification, any<PageRequest>()) }
-    }
-
-    @Test
-    @DisplayName("使用ID谓词计数，如果实体存在应该返回1")
-    fun `count with ID predicate should return 1 if entity exists`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val entity = TestEntity(1L, "test")
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockProvider.findById(1L) } returns Optional.of(entity)
-
-        val result = repository.count(predicate)
-
-        assertEquals(1L, result)
-        verify { mockProvider.findById(1L) }
-    }
-
-    @Test
-    @DisplayName("使用ID谓词计数，如果实体不存在应该返回0")
-    fun `count with ID predicate should return 0 if entity does not exist`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockProvider.findById(1L) } returns Optional.empty()
-
-        val result = repository.count(predicate)
-
-        assertEquals(0L, result)
-        verify { mockProvider.findById(1L) }
-    }
-
-    @Test
-    @DisplayName("使用多个ID谓词计数应该返回找到的实体数量")
-    fun `count with IDs predicate should return count of found entities`() {
-        val predicate = mockk<Predicate<TestEntity>>()
+    fun `findFirst by IDs applies ordering and limit`() {
         val ids = listOf(1L, 2L, 3L)
-        val entities = listOf(TestEntity(1L, "test1"), TestEntity(2L, "test2"))
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
+        val pageParam = PageParam.limit(1).orderByDesc("name")
+        val pageable = toSpringData(pageParam)
+        val expected = TestEntity(3, "c")
+        every { provider.findAllById(ids, pageable) } returns PageImpl(listOf(expected), pageable, 3)
 
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { mockProvider.findAllById(ids) } returns entities
+        assertEquals(expected, repository.findFirst(predicate, listOf(OrderInfo.desc("name"))))
 
-        val result = repository.count(predicate)
-
-        assertEquals(2L, result)
-        verify { mockProvider.findAllById(ids) }
+        verify(exactly = 1) { provider.findAllById(ids, pageable) }
     }
 
     @Test
-    @DisplayName("使用空ID列表计数应该返回0")
-    fun `count with empty IDs should return 0`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val emptyIds = emptyList<Long>()
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns emptyIds
-
-        val result = repository.count(predicate)
-
-        assertEquals(0L, result)
-    }
-
-    @Test
-    @DisplayName("使用Specification谓词计数应该使用规范执行器")
-    fun `count with Specification predicate should use specification executor`() {
-        val predicate = mockk<Predicate<TestEntity>>()
+    fun `findFirst by Specification applies ordering and limit`() {
         val specification = mockk<Specification<TestEntity>>()
+        val predicate = JpaPredicate.bySpecification(TestEntity::class.java, specification)
+        val pageParam = PageParam.limit(1).orderByDesc("name")
+        val pageable = toSpringData(pageParam)
+        val expected = TestEntity(3, "c")
+        every { provider.findAll(specification, pageable) } returns PageImpl(listOf(expected), pageable, 3)
 
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { mockProvider.count(specification) } returns 5L
+        assertEquals(expected, repository.findFirst(predicate, listOf(OrderInfo.desc("name"))))
 
-        val result = repository.count(predicate)
-
-        assertEquals(5L, result)
-        verify { mockProvider.count(specification) }
+        verify(exactly = 1) { provider.findAll(specification, pageable) }
     }
 
     @Test
-    @DisplayName("使用ID谓词检查存在性，如果实体存在应该返回true")
-    fun `exists with ID predicate should return true if entity exists`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val entity = TestEntity(1L, "test")
+    fun `ID PageData preserves requested page and total before slicing`() {
+        val ids = listOf(1L, 2L, 3L, 4L, 5L)
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
+        val pageParam = PageParam.of(2, 2).orderByAsc("name")
+        val pageable = toSpringData(pageParam)
+        val items = listOf(TestEntity(3, "c"), TestEntity(4, "d"))
+        every { provider.findAllById(ids, pageable) } returns PageImpl(items, pageable, 5)
 
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockProvider.findById(1L) } returns Optional.of(entity)
+        val result = repository.findPage(predicate, pageParam)
 
-        val result = repository.exists(predicate)
-
-        assertTrue(result)
-        verify { mockProvider.findById(1L) }
+        assertPage(result, pageNum = 2, pageSize = 2, totalCount = 5, items = items)
     }
 
     @Test
-    @DisplayName("使用ID谓词检查存在性，如果实体不存在应该返回false")
-    fun `exists with ID predicate should return false if entity does not exist`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns 1L
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { mockProvider.findById(1L) } returns Optional.empty()
-
-        val result = repository.exists(predicate)
-
-        assertFalse(result)
-        verify { mockProvider.findById(1L) }
-    }
-
-    @Test
-    @DisplayName("使用多个ID谓词检查存在性，如果任何实体存在应该返回true")
-    fun `exists with IDs predicate should return true if any entities exist`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val ids = listOf(1L, 2L)
-        val entities = listOf(TestEntity(1L, "test1"))
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns ids
-        every { mockProvider.findAllById(ids) } returns entities
-
-        val result = repository.exists(predicate)
-
-        assertTrue(result)
-        verify { mockProvider.findAllById(ids) }
-    }
-
-    @Test
-    @DisplayName("使用空ID列表检查存在性应该返回false")
-    fun `exists with empty IDs should return false`() {
-        val predicate = mockk<Predicate<TestEntity>>()
-        val emptyIds = emptyList<Long>()
-
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns emptyIds
-
-        val result = repository.exists(predicate)
-
-        assertFalse(result)
-    }
-
-    @Test
-    @DisplayName("使用Specification谓词检查存在性应该使用规范执行器")
-    fun `exists with Specification predicate should use specification executor`() {
-        val predicate = mockk<Predicate<TestEntity>>()
+    fun `Specification PageData preserves out of range page and total`() {
         val specification = mockk<Specification<TestEntity>>()
+        val predicate = JpaPredicate.bySpecification(TestEntity::class.java, specification)
+        val pageParam = PageParam.of(4, 2).orderByAsc("name")
+        val pageable = toSpringData(pageParam)
+        every { provider.findAll(specification, pageable) } returns PageImpl(emptyList(), pageable, 5)
 
-        every { JpaPredicateSupport.resumeId<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeIds<TestEntity, Long>(predicate) } returns null
-        every { JpaPredicateSupport.resumeSpecification(predicate) } returns specification
-        every { mockProvider.exists(specification) } returns true
+        val result = repository.findPage(predicate, pageParam)
 
-        val result = repository.exists(predicate)
+        assertPage(result, pageNum = 4, pageSize = 2, totalCount = 5, items = emptyList())
+    }
 
-        assertTrue(result)
-        verify { mockProvider.exists(specification) }
+    @Test
+    fun `empty unresolved predicate preserves requested PageData metadata`() {
+        val pageParam = PageParam.of(3, 7)
+
+        val result = repository.findPage(JpaPredicate(TestEntity::class.java), pageParam)
+
+        assertPage(result, pageNum = 3, pageSize = 7, totalCount = 0, items = emptyList())
+    }
+
+    @Test
+    fun `count and exists for IDs use database predicates`() {
+        val ids = listOf(1L, 2L, 3L)
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
+        every { provider.countByIds(ids) } returns 2
+        every { provider.existsByIds(ids) } returns true
+
+        assertEquals(2, repository.count(predicate))
+        assertTrue(repository.exists(predicate))
+
+        verify(exactly = 1) { provider.countByIds(ids) }
+        verify(exactly = 1) { provider.existsByIds(ids) }
+    }
+
+    @Test
+    fun `empty IDs have zero count and do not exist`() {
+        val ids = emptyList<Long>()
+        val predicate = JpaPredicate.byIds(TestEntity::class.java, ids)
+        every { provider.countByIds(ids) } returns 0
+        every { provider.existsByIds(ids) } returns false
+
+        assertEquals(0, repository.count(predicate))
+        assertFalse(repository.exists(predicate))
+    }
+
+    @Test
+    fun `count and exists for Specification retain Specification semantics`() {
+        val specification = mockk<Specification<TestEntity>>()
+        val predicate = JpaPredicate.bySpecification(TestEntity::class.java, specification)
+        every { provider.count(specification) } returns 4
+        every { provider.exists(specification) } returns true
+
+        assertEquals(4, repository.count(predicate))
+        assertTrue(repository.exists(predicate))
+    }
+
+    @Test
+    fun `unresolved predicate returns empty query results`() {
+        val predicate = JpaPredicate(TestEntity::class.java)
+
+        assertEquals(emptyList<TestEntity>(), repository.find(predicate, emptyList()))
+        assertNull(repository.findOne(predicate))
+        assertNull(repository.findFirst(predicate, emptyList()))
+        assertEquals(0, repository.count(predicate))
+        assertFalse(repository.exists(predicate))
+    }
+
+    private fun assertPage(
+        actual: PageData<TestEntity>,
+        pageNum: Int,
+        pageSize: Int,
+        totalCount: Long,
+        items: List<TestEntity>,
+    ) {
+        assertEquals(pageNum, actual.pageNum)
+        assertEquals(pageSize, actual.pageSize)
+        assertEquals(totalCount, actual.totalCount)
+        assertEquals(items, actual.list)
     }
 }

@@ -180,6 +180,44 @@ class DefaultRepositorySupervisorTest {
         assertEquals(true, reflectors.containsKey(ErasedRepository::class.java))
     }
 
+    @Test
+    fun `duplicate entity and predicate route fails deterministically during init`() {
+        val duplicate = mockk<Repository<TestEntity>>(relaxed = true)
+        every { duplicate.supportPredicateClass() } returns TestPredicate::class.java
+        every {
+            com.only4.cap4k.ddd.core.share.misc.resolveGenericTypeClass(duplicate, 0, Repository::class.java)
+        } returns TestEntity::class.java
+
+        val failure = assertThrows(IllegalStateException::class.java) {
+            DefaultRepositorySupervisor(
+                repositories = listOf(repository, childRepository, duplicate),
+                persistenceIntents = persistenceIntents,
+                invocationScopeAccessor = scopes,
+                aggregateRootCatalog = aggregateRoots,
+                observationRecorder = observationRecorder,
+            ).init()
+        }
+
+        assertEquals(true, failure.message!!.contains("Duplicate Repository registrations"))
+        assertEquals(true, failure.message!!.contains("entityClass=${TestEntity::class.java.name}"))
+        assertEquals(true, failure.message!!.contains("predicateClass=${TestPredicate::class.java.name}"))
+        assertEquals(true, failure.message!!.contains("index=0"))
+        assertEquals(true, failure.message!!.contains("index=2"))
+    }
+
+    @Test
+    fun `count and exists neither observe entities nor register persistence intent`() {
+        val predicate = TestPredicate()
+        every { repository.count(predicate) } returns 2
+        every { repository.exists(predicate) } returns true
+
+        assertEquals(2, inScope(InvocationKind.QUERY) { supervisor.count(predicate) })
+        assertEquals(true, inScope(InvocationKind.QUERY) { supervisor.exists(predicate) })
+
+        verify(exactly = 0) { observationRecorder.observeRepositoryLoad(any()) }
+        verify(exactly = 0) { persistenceIntents.registerNew(any()) }
+        verify(exactly = 0) { persistenceIntents.registerDelete(any()) }
+    }
     private fun <T> inScope(kind: InvocationKind, block: () -> T): T {
         val scope = scopes.enter(kind)
         return try {

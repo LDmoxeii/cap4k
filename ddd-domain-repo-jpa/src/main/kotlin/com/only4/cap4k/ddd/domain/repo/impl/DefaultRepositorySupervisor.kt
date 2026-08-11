@@ -30,24 +30,57 @@ class DefaultRepositorySupervisor(
         persistenceIntents as? JpaRepositoryObservationRecorder,
 ) : RepositorySupervisor {
 
+    private data class ResolvedRepository(
+        val index: Int,
+        val entityClass: Class<*>,
+        val predicateClass: Class<*>,
+        val repository: Repository<*>,
+    )
+
     private val repositoryMap: Map<Class<*>, Map<Class<*>, Repository<*>>> by lazy {
-        buildMap<Class<*>, MutableMap<Class<*>, Repository<*>>> {
-            repositories.forEach { repository ->
-                var entityClass = resolveGenericTypeClass(repository, 0, Repository::class.java)
-                if (Any::class.java == entityClass) {
-                    for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
-                        if (repositoryClass.isAssignableFrom(repository.javaClass)) {
-                            val reflectedClass = reflector(repository)
-                            if (Any::class.java != reflectedClass) {
-                                entityClass = reflectedClass
-                                break
-                            }
+        val resolved = repositories.mapIndexed { index, repository ->
+            var entityClass = resolveGenericTypeClass(repository, 0, Repository::class.java)
+            if (Any::class.java == entityClass) {
+                for ((repositoryClass, reflector) in repositoryClass2EntityClassReflector) {
+                    if (repositoryClass.isAssignableFrom(repository.javaClass)) {
+                        val reflectedClass = reflector(repository)
+                        if (Any::class.java != reflectedClass) {
+                            entityClass = reflectedClass
+                            break
                         }
                     }
                 }
-                computeIfAbsent(entityClass) { mutableMapOf() }[repository.supportPredicateClass()] = repository
             }
-        }.toMap()
+            ResolvedRepository(
+                index = index,
+                entityClass = entityClass,
+                predicateClass = repository.supportPredicateClass(),
+                repository = repository,
+            )
+        }
+
+        val conflicts = resolved
+            .groupBy { it.entityClass to it.predicateClass }
+            .filterValues { it.size > 1 }
+            .entries
+            .sortedWith(compareBy({ it.key.first.name }, { it.key.second.name }))
+        check(conflicts.isEmpty()) {
+            conflicts.joinToString(
+                prefix = "Duplicate Repository registrations: ",
+                separator = "; ",
+            ) { (route, registrations) ->
+                val contributors = registrations
+                    .sortedWith(compareBy({ it.repository.javaClass.name }, { it.index }))
+                    .joinToString { "${it.repository.javaClass.name}[index=${it.index}]" }
+                "entityClass=${route.first.name}, predicateClass=${route.second.name}, contributors=[$contributors]"
+            }
+        }
+
+        resolved
+            .groupBy { it.entityClass }
+            .mapValues { (_, registrations) ->
+                registrations.associate { it.predicateClass to it.repository }
+            }
     }
 
     fun init() {
