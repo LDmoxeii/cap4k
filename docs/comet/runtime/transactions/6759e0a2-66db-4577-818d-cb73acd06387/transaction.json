@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "6759e0a2-66db-4577-818d-cb73acd06387",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-http-mainline-contract-alignment",
+  "createdAt": "2026-08-10T14:43:18.868Z",
+  "preflightHash": "cf9716e0eeaeeaabe8c4b6fbd1194eaa3ff8bf340c7502cef36fe0f85d8e161d",
+  "operations": [
+    {
+      "id": "spec-1-runtime-http-experience-reset",
+      "type": "write",
+      "target": "specs/runtime-http-experience-reset/spec.md",
+      "staged": "runtime/transactions/6759e0a2-66db-4577-818d-cb73acd06387/staged/specs/runtime-http-experience-reset/spec.md",
+      "backup": "runtime/transactions/6759e0a2-66db-4577-818d-cb73acd06387/backups/specs/runtime-http-experience-reset/spec.md",
+      "expectedTargetHash": "92300f69adfb5cbf569c72cc3e3c36ddf791920d96d78a86f5fe5e46afb8de58",
+      "stagedHash": "2fe81d32f84959d4f7113a8eb68e5763d08026f46f8490efe1ac4474a5ac2edd"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-http-mainline-contract-alignment",
+      "target": "archive/2026-08-10-runtime-http-mainline-contract-alignment",
+      "expectedSourceHash": "8ef3bbe1291ae5bd5ae977e5e01e1ff123ec5b107ad434ecef1e911b61258b19",
+      "expectedTargetHash": null
+    }
+  ]
+}

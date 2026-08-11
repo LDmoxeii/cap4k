@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-http-experience-reset
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 35c90430b4e0d703f40f52a7c134daff4a7d53822f57b4cf4123f49cc6eeb396
+spec_changes:
+  - capability: runtime-http-experience-reset
+    operation: replace
+    source: specs/runtime-http-experience-reset/spec.md
+    base_hash: ff09432a5cbcb8769ca0cef0da42680432ea159722f5dbec301c9df5229197b6
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/a5b5012c95b3679dafa3b67e0234df05d769366bca381a3face3e2e0c9421843.json
+verification_evidence: runtime/evidence/verifications/b82cbee3e35fc7b90626f7361a119475091865a45492133cfe9a0a1b8d9fbf07.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-09
+run_id: 1c62f9aa-df07-48f3-8690-a86f3f04a183

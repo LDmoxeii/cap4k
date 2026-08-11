@@ -1,7 +1,7 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
+import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
@@ -10,24 +10,28 @@ import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContext
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventDeliveryContextAccessor
+import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
+import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import java.time.Instant
 
 class HttpIntegrationEventConsumeHandlerTest {
     @Test
-    fun `consume endpoint uses canonical envelope body and ignores legacy metadata`() {
+    fun `POST endpoint uses canonical envelope identity and clears delivery context`() {
         val fixture = fixture()
         val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
         val publishedAt = Instant.parse("2026-08-04T00:00:00.123Z")
         val request = request(
-            eventId = "event-from-query",
+            eventId = "event-from-envelope",
             eventName = "http.endpoint.event",
             publishedAt = publishedAt,
             payload = HttpEndpointEvent("payload"),
@@ -40,52 +44,123 @@ class HttpIntegrationEventConsumeHandlerTest {
 
         handler.handleRequest(request, response)
 
+        assertEquals(HttpStatus.OK.value(), response.status)
         assertTrue(response.contentAsString.contains("\"success\":true"), response.contentAsString)
+        assertEquals(1, fixture.dispatchCount)
         val context = requireNotNull(fixture.observedContext)
-        assertEquals("event-from-query", context.eventId)
+        assertEquals("event-from-envelope", context.eventId)
         assertEquals("http.endpoint.event", context.eventName)
         assertEquals(publishedAt, context.publishedAt)
         assertNull(context.attempt)
-        assertEquals(
-            com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint.UNKNOWN,
-            context.redeliveryHint,
+        assertEquals(ReliableEventRedeliveryHint.UNKNOWN, context.redeliveryHint)
+        assertNull(fixture.deliveryAccessor.currentOrNull())
+        assertTrue(fixture.executionContextAccessor.current().isEmpty)
+    }
+
+    @Test
+    fun `non POST request is rejected before decode or dispatch`() {
+        val fixture = fixture()
+        val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
+        val request = request(
+            eventId = "event-1",
+            eventName = "http.endpoint.event",
+            publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+            payload = HttpEndpointEvent("payload"),
+            method = HttpMethod.GET,
         )
+        val response = MockHttpServletResponse()
+
+        handler.handleRequest(request, response)
+
+        assertEquals(HttpStatus.METHOD_NOT_ALLOWED.value(), response.status)
+        assertEquals(HttpMethod.POST.name(), response.getHeader("Allow"))
+        assertEquals(0, fixture.dispatchCount)
+        assertNull(fixture.observedContext)
+    }
+
+    @Test
+    fun `malformed envelope metadata returns non 2xx without dispatch`() {
+        listOf(
+            "not-json",
+            """{"eventId":"event-2","eventType":"http.endpoint.event","originService":"test-source","publishedAt":"001","deliveryAttempt":null,"executionContext":[],"payloadJson":"{\"value\":\"payload\"}"}""",
+            """{"eventType":"http.endpoint.event","originService":"test-source","publishedAt":"2026-08-04T00:00:00Z","deliveryAttempt":null,"executionContext":[],"payloadJson":"{\"value\":\"payload\"}"}""",
+        ).forEach { body ->
+            val fixture = fixture()
+            val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
+            val response = MockHttpServletResponse()
+
+            handler.handleRequest(rawRequest(body), response)
+
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.status)
+            assertFalse(response.contentAsString.contains("\"success\":true"))
+            assertEquals(0, fixture.dispatchCount)
+            assertNull(fixture.deliveryAccessor.currentOrNull())
+        }
+    }
+
+    @Test
+    fun `unknown event without a local Handler returns non 2xx`() {
+        val fixture = fixture()
+        val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
+        val response = MockHttpServletResponse()
+
+        handler.handleRequest(
+            request(
+                eventId = "event-unknown",
+                eventName = "http.unknown",
+                publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+                payload = HttpEndpointEvent("payload"),
+            ),
+            response,
+        )
+
+        assertEquals(HttpStatus.UNPROCESSABLE_ENTITY.value(), response.status)
+        assertEquals(0, fixture.dispatchCount)
         assertNull(fixture.deliveryAccessor.currentOrNull())
     }
 
     @Test
-    fun `consume endpoint rejects malformed envelope metadata without dispatch`() {
-        val malformed = fixture()
-        val malformedHandler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(malformed.adapter)
-        val malformedRequest = rawRequest("not-json")
-        val malformedResponse = MockHttpServletResponse()
-        malformedHandler.handleRequest(malformedRequest, malformedResponse)
-        assertFalse(malformedResponse.contentAsString.contains("\"success\":true"))
-        assertNull(malformed.observedContext)
-        assertNull(malformed.deliveryAccessor.currentOrNull())
+    fun `Handler failure returns non 2xx and clears installed contexts`() {
+        val fixture = fixture(failDispatch = true)
+        val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
+        val response = MockHttpServletResponse()
 
-        val invalidTime = fixture()
-        val invalidTimeHandler =
-            HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(invalidTime.adapter)
-        val invalidTimeRequest = rawRequest(
-            """{"eventId":"event-2","eventType":"http.endpoint.event","originService":"test-source","publishedAt":"001","deliveryAttempt":null,"executionContext":[],"payloadJson":"{\"value\":\"payload\"}"}"""
+        handler.handleRequest(
+            request(
+                eventId = "event-failed",
+                eventName = "http.endpoint.event",
+                publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+                payload = HttpEndpointEvent("business-secret"),
+            ),
+            response,
         )
-        val invalidTimeResponse = MockHttpServletResponse()
-        invalidTimeHandler.handleRequest(invalidTimeRequest, invalidTimeResponse)
-        assertFalse(invalidTimeResponse.contentAsString.contains("\"success\":true"))
-        assertNull(invalidTime.observedContext)
-        assertNull(invalidTime.deliveryAccessor.currentOrNull())
 
-        val missingId = fixture()
-        val missingIdHandler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(missingId.adapter)
-        val missingIdRequest = rawRequest(
-            """{"eventType":"http.endpoint.event","originService":"test-source","publishedAt":"2026-08-04T00:00:00Z","deliveryAttempt":null,"executionContext":[],"payloadJson":"{\"value\":\"payload\"}"}"""
-        )
-        val missingIdResponse = MockHttpServletResponse()
-        missingIdHandler.handleRequest(missingIdRequest, missingIdResponse)
-        assertFalse(missingIdResponse.contentAsString.contains("\"success\":true"))
-        assertNull(missingId.observedContext)
-        assertNull(missingId.deliveryAccessor.currentOrNull())
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR.value(), response.status)
+        assertEquals(1, fixture.dispatchCount)
+        assertEquals("event-failed", fixture.observedContext?.eventId)
+        assertNull(fixture.deliveryAccessor.currentOrNull())
+        assertTrue(fixture.executionContextAccessor.current().isEmpty)
+        assertFalse(response.contentAsString.contains("business-secret"))
+    }
+
+    @Test
+    fun `duplicate envelope is dispatched again`() {
+        val fixture = fixture()
+        val handler = HttpIntegrationEventAutoConfiguration().httpIntegrationEventConsumeHandler(fixture.adapter)
+        val requestBody = requireNotNull(request(
+            eventId = "event-duplicate",
+            eventName = "http.endpoint.event",
+            publishedAt = Instant.parse("2026-08-04T00:00:00Z"),
+            payload = HttpEndpointEvent("payload"),
+        ).contentAsByteArray)
+
+        repeat(2) {
+            val response = MockHttpServletResponse()
+            handler.handleRequest(rawRequest(requestBody.toString(Charsets.UTF_8)), response)
+            assertEquals(HttpStatus.OK.value(), response.status)
+        }
+
+        assertEquals(2, fixture.dispatchCount)
     }
 
     private fun request(
@@ -93,6 +168,7 @@ class HttpIntegrationEventConsumeHandlerTest {
         eventName: String,
         publishedAt: Instant,
         payload: HttpEndpointEvent,
+        method: HttpMethod = HttpMethod.POST,
     ) = rawRequest(
         IntegrationEventEnvelopeCodec().encode(
             IntegrationEventEnvelope(
@@ -104,18 +180,27 @@ class HttpIntegrationEventConsumeHandlerTest {
                 executionContext = emptyList(),
                 payloadJson = RuntimeJson.write(payload),
             )
-        )
+        ),
+        method,
     )
 
-    private fun rawRequest(body: String) = MockHttpServletRequest().apply {
+    private fun rawRequest(
+        body: String,
+        method: HttpMethod = HttpMethod.POST,
+    ) = MockHttpServletRequest(method.name(), HttpIntegrationEventAutoConfiguration.CONSUME_PATH).apply {
         setContent(body.toByteArray(Charsets.UTF_8))
     }
 
-    private fun fixture(): Fixture {
+    private fun fixture(failDispatch: Boolean = false): Fixture {
         val executionContexts = DefaultExecutionContextManager()
         val deliveryManager = DefaultReliableEventDeliveryContextManager(executionContexts, executionContexts)
         var observed: ReliableEventDeliveryContext? = null
-        val dispatcher = EventHandlerDispatcher { observed = deliveryManager.currentOrNull() }
+        var dispatchCount = 0
+        val dispatcher = EventHandlerDispatcher {
+            dispatchCount += 1
+            observed = deliveryManager.currentOrNull()
+            if (failDispatch) error("business-secret")
+        }
         val adapter = HttpIntegrationEventSubscriberAdapter(
             eventHandlerDispatcher = dispatcher,
             eventMessageInterceptors = emptyList(),
@@ -124,17 +209,20 @@ class HttpIntegrationEventConsumeHandlerTest {
             executionContextScopeManager = executionContexts,
             reliableEventDeliveryContextScopeManager = deliveryManager,
         )
-        return Fixture(adapter, deliveryManager, deliveryManager, { observed })
+        return Fixture(adapter, deliveryManager, executionContexts, { observed }, { dispatchCount })
     }
 
     private data class Fixture(
         val adapter: HttpIntegrationEventSubscriberAdapter,
-        val deliveryManager: DefaultReliableEventDeliveryContextManager,
         val deliveryAccessor: ReliableEventDeliveryContextAccessor,
+        val executionContextAccessor: ExecutionContextAccessor,
         val observed: () -> ReliableEventDeliveryContext?,
+        val dispatches: () -> Int,
     ) {
         val observedContext: ReliableEventDeliveryContext?
             get() = observed()
+        val dispatchCount: Int
+            get() = dispatches()
     }
 
     private object EndpointEventCatalog : InboundIntegrationEventRegistrationView {

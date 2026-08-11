@@ -56,7 +56,7 @@ class HttpIntegrationEventExecutionContextTest {
 
         val consumed = adapter.consume(envelope)
 
-        assertTrue(consumed)
+        assertTrue(consumed.success)
         assertEquals(TransportContext("origin"), observedContext)
         assertTrue(contextManager.current().isEmpty)
     }

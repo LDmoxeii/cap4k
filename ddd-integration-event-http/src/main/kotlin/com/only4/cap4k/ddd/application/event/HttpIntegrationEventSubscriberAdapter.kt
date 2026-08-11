@@ -43,35 +43,53 @@ class HttpIntegrationEventSubscriberAdapter(
     fun consume(
         envelopeJson: String,
         headers: Map<String, Any> = emptyMap(),
-    ): Boolean = runCatching {
-        val envelope = envelopeCodec.decode(envelopeJson)
-        consumeDecoded(envelope, headers)
-    }.onFailure { ex ->
-        log.error("集成事件消费失败", ex)
-    }.getOrDefault(false)
-
-    private fun consumeDecoded(envelope: IntegrationEventEnvelope, headers: Map<String, Any>): Boolean {
-        val integrationEventClass = eventPayloadClassMap[envelope.eventType]
-            ?: return logAndReturnFailure("未找到事件类型映射", envelope.eventType)
-        val eventPayload = envelopeCodec.payloadJson(envelope, integrationEventClass)
-        val deliveryContext = envelope.deliveryContext(
-            IntegrationEventDeliveryMetadata(
-                redeliveryHint = ReliableEventRedeliveryHint.UNKNOWN,
-            )
-        )
-        val executionContext = executionContextCodecRegistry.decodeExternal(
-            envelope.executionContext,
-            ExecutionContextBoundary.INTEGRATION_EVENT,
-        )
-        executionContextScopeManager.install(executionContext).use {
-            processEventWithInterceptors(eventPayload, headers, deliveryContext)
+    ): HttpIntegrationEventConsumeResult {
+        val envelope = try {
+            envelopeCodec.decode(envelopeJson)
+        } catch (failure: Throwable) {
+            return failed(HttpIntegrationEventConsumeCategory.MALFORMED_ENVELOPE, failure = failure)
         }
-        return true
+        return consumeDecoded(envelope, headers)
     }
 
-    private fun logAndReturnFailure(reason: String, eventName: String): Boolean {
-        log.error("集成事件消费失败 - $reason, event: $eventName")
-        return false
+    private fun consumeDecoded(
+        envelope: IntegrationEventEnvelope,
+        headers: Map<String, Any>,
+    ): HttpIntegrationEventConsumeResult {
+        val integrationEventClass = eventPayloadClassMap[envelope.eventType]
+            ?: return failed(HttpIntegrationEventConsumeCategory.UNKNOWN_EVENT, envelope.eventType)
+        return try {
+            val eventPayload = envelopeCodec.payloadJson(envelope, integrationEventClass)
+            val deliveryContext = envelope.deliveryContext(
+                IntegrationEventDeliveryMetadata(
+                    redeliveryHint = ReliableEventRedeliveryHint.UNKNOWN,
+                )
+            )
+            val executionContext = executionContextCodecRegistry.decodeExternal(
+                envelope.executionContext,
+                ExecutionContextBoundary.INTEGRATION_EVENT,
+            )
+            executionContextScopeManager.install(executionContext).use {
+                processEventWithInterceptors(eventPayload, headers, deliveryContext)
+            }
+            HttpIntegrationEventConsumeResult(HttpIntegrationEventConsumeCategory.SUCCESS)
+        } catch (failure: Throwable) {
+            failed(HttpIntegrationEventConsumeCategory.DELIVERY_FAILED, envelope.eventType, failure)
+        }
+    }
+
+    private fun failed(
+        category: HttpIntegrationEventConsumeCategory,
+        eventName: String? = null,
+        failure: Throwable? = null,
+    ): HttpIntegrationEventConsumeResult {
+        log.error(
+            "Integration Event HTTP consume failed: category={}, eventName={}, failureType={}",
+            category,
+            eventName ?: "unknown",
+            failure?.javaClass?.name ?: "none",
+        )
+        return HttpIntegrationEventConsumeResult(category)
     }
 
     private fun processEventWithInterceptors(
@@ -110,4 +128,18 @@ class HttpIntegrationEventSubscriberAdapter(
         val message: String? = null,
         val data: T? = null,
     )
+}
+
+data class HttpIntegrationEventConsumeResult(
+    val category: HttpIntegrationEventConsumeCategory,
+) {
+    val success: Boolean
+        get() = category == HttpIntegrationEventConsumeCategory.SUCCESS
+}
+
+enum class HttpIntegrationEventConsumeCategory {
+    SUCCESS,
+    MALFORMED_ENVELOPE,
+    UNKNOWN_EVENT,
+    DELIVERY_FAILED,
 }

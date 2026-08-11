@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "be7f012f-e19b-4b1e-939e-c278b4f773b3",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-http-experience-reset",
+  "createdAt": "2026-08-09T17:15:20.230Z",
+  "preflightHash": "7d5a82a913b0ce5ef089a6e3c0931de3d4d0280825a07a1742c88bf3d9e9afd5",
+  "operations": [
+    {
+      "id": "spec-1-runtime-http-experience-reset",
+      "type": "write",
+      "target": "specs/runtime-http-experience-reset/spec.md",
+      "staged": "runtime/transactions/be7f012f-e19b-4b1e-939e-c278b4f773b3/staged/specs/runtime-http-experience-reset/spec.md",
+      "backup": "runtime/transactions/be7f012f-e19b-4b1e-939e-c278b4f773b3/backups/specs/runtime-http-experience-reset/spec.md",
+      "expectedTargetHash": "ff09432a5cbcb8769ca0cef0da42680432ea159722f5dbec301c9df5229197b6",
+      "stagedHash": "21e623849ab480bc3a464a2627c22c943fe464ec253206c38989592eeb1af93d"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-http-experience-reset",
+      "target": "archive/2026-08-09-runtime-http-experience-reset",
+      "expectedSourceHash": "6ad8534e4d717d84a9f8788bb3a222e17b57a9d781c0f76c0aec7ae96629fcd4",
+      "expectedTargetHash": null
+    }
+  ]
+}
