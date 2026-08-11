@@ -36,7 +36,13 @@ class AgentSnapshotService {
     fun assemble(request: AgentSnapshotRequest): AgentSnapshotSections {
         val descriptors = normalizeDescriptors(request.capabilityDescriptors)
         val observations = normalizeObservations(request.capabilityObservations, descriptors)
-        val diagnostics = normalizeDiagnostics(request.diagnostics)
+        RetiredRuntimeDescriptorPolicy.requireActive(request.runtime.capabilities, request.runtime.providers)
+        val runtimeDiagnostics = RuntimeAgentFactsPolicy.diagnostics(request.runtime)
+        val runtime = request.runtime.copy(
+            status = if (runtimeDiagnostics.isEmpty()) request.runtime.status else AgentSnapshotStatus.INVALID,
+            reason = runtimeSectionReason(request.runtime.reason, runtimeDiagnostics),
+        )
+        val diagnostics = normalizeDiagnostics(request.diagnostics + runtimeDiagnostics)
         val capabilities = AgentCapabilitiesSection(
             status = capabilitySectionStatus(descriptors, observations),
             supported = descriptors.map(::supportedCapability),
@@ -55,7 +61,7 @@ class AgentSnapshotService {
             capabilities = capabilities,
             inputs = request.inputs,
             ownership = request.ownership,
-            runtime = request.runtime,
+            runtime = runtime,
             analysis = request.analysis,
             diagnostics = diagnosticsSection,
         )
@@ -128,6 +134,21 @@ class AgentSnapshotService {
             compareBy<AgentDiagnostic> { diagnosticLevelOrder(it.level) }
                 .thenBy(AgentDiagnostic::id)
         )
+    }
+
+    private fun runtimeSectionReason(
+        originalReason: String?,
+        diagnostics: List<AgentDiagnostic>,
+    ): String? {
+        if (diagnostics.isEmpty()) return originalReason
+
+        val invalidCatalogReason = "The static Runtime fact catalog is invalid."
+        val supplementalReason = originalReason
+            ?.trim()
+            ?.takeIf { reason -> reason.isNotEmpty() && reason != invalidCatalogReason }
+        return supplementalReason
+            ?.let { reason -> "$invalidCatalogReason Previous Runtime reason: $reason" }
+            ?: invalidCatalogReason
     }
 
     private fun supportedCapability(descriptor: PipelineCapabilityDescriptor) =

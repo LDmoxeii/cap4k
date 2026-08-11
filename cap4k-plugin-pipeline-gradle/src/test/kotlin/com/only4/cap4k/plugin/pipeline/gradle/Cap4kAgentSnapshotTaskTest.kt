@@ -49,6 +49,7 @@ class Cap4kAgentSnapshotTaskTest {
         assertFalse(output.resolve("old").exists())
         val manifest = readManifest(output)
         assertEquals(AgentSnapshotStatus.PARTIAL, manifest.status)
+        assertEquals(3, manifest.contractVersion)
         assertEquals(EXPECTED_SECTION_IDS, manifest.sections.map { it.id }.toSet())
         assertTrue(PipelinePublicTasks.AGENT_SNAPSHOT in manifest.project.publicTasks)
         assertFalse(manifest.project.publicTasks.any { it.startsWith("cap4kBootstrap") })
@@ -84,6 +85,31 @@ class Cap4kAgentSnapshotTaskTest {
             setOf("Mediator.queries.askAsync", "Mediator.capabilities.callAsync"),
             runtime.eventHandler.managedAsyncCompletion.trackedOperations.toSet(),
         )
+        assertEquals("cap4k.agent.runtime.v3", runtime.schema)
+        assertEquals(
+            listOf(
+                "runtime.core-dispatch",
+                "runtime.identifier-allocation",
+                "runtime.integration-event-transport",
+                "runtime.jpa-persistence",
+                "runtime.local-domain-event",
+                "runtime.reliable-command",
+                "runtime.reliable-event",
+            ),
+            runtime.capabilities.map { fact -> fact.capabilityId },
+        )
+        assertEquals(
+            listOf(
+                "integration-event-transport.http",
+                "integration-event-transport.rabbitmq",
+                "integration-event-transport.rocketmq",
+            ),
+            runtime.providers.map { fact -> fact.providerId },
+        )
+        assertTrue(runtime.capabilities.all { fact -> fact.applicationAssembly.name == "UNKNOWN" })
+        assertTrue(runtime.capabilities.all { fact -> fact.runtimeObservation.name == "NOT_PERFORMED" })
+        assertTrue(runtime.providers.all { fact -> fact.operationalState.name == "UNKNOWN" })
+        assertTrue(runtime.providers.all { fact -> fact.verification.name == "NOT_PERFORMED" })
     }
 
     @Test

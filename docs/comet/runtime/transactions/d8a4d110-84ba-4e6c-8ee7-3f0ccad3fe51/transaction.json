@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "d8a4d110-84ba-4e6c-8ee7-3f0ccad3fe51",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-agent-provider-duplicate-determinism",
+  "createdAt": "2026-08-11T09:12:17.039Z",
+  "preflightHash": "20f5157e7d80a23a75b11f2c16ece2692632c69d73c2eade77ee93ec976c4da4",
+  "operations": [
+    {
+      "id": "spec-1-runtime-agent-api-facts",
+      "type": "write",
+      "target": "specs/runtime-agent-api-facts/spec.md",
+      "staged": "runtime/transactions/d8a4d110-84ba-4e6c-8ee7-3f0ccad3fe51/staged/specs/runtime-agent-api-facts/spec.md",
+      "backup": "runtime/transactions/d8a4d110-84ba-4e6c-8ee7-3f0ccad3fe51/backups/specs/runtime-agent-api-facts/spec.md",
+      "expectedTargetHash": "b232c480e2f7c5ee07b99d5a413b424c8bf8e7cceffd7842ceae4d0fef78cfc2",
+      "stagedHash": "a1e009e8dabca9d2bdf850ad3d6ed27a45c47b2edd31c9ab9489c169766cb51c"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-agent-provider-duplicate-determinism",
+      "target": "archive/2026-08-11-runtime-agent-provider-duplicate-determinism",
+      "expectedSourceHash": "f77b8d4dd8f071fe89be57a4ed86f77e97f911debf6f823b272ce13faa8c2195",
+      "expectedTargetHash": null
+    }
+  ]
+}

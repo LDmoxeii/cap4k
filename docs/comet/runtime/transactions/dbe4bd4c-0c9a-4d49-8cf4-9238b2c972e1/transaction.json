@@ -1,0 +1,28 @@
+{
+  "schema": "comet.native.transaction.v2",
+  "id": "dbe4bd4c-0c9a-4d49-8cf4-9238b2c972e1",
+  "kind": "archive",
+  "status": "committed",
+  "change": "runtime-agent-api-facts",
+  "createdAt": "2026-08-11T08:17:11.746Z",
+  "preflightHash": "fd3d03a0e9472b175b312b3064a5dda236f68528d4fffbb453d5c022b64718c3",
+  "operations": [
+    {
+      "id": "spec-1-runtime-agent-api-facts",
+      "type": "write",
+      "target": "specs/runtime-agent-api-facts/spec.md",
+      "staged": "runtime/transactions/dbe4bd4c-0c9a-4d49-8cf4-9238b2c972e1/staged/specs/runtime-agent-api-facts/spec.md",
+      "backup": "runtime/transactions/dbe4bd4c-0c9a-4d49-8cf4-9238b2c972e1/backups/specs/runtime-agent-api-facts/spec.md",
+      "expectedTargetHash": "84ab45b2314886793096efd7ee7abe2afa2d914561ecfb779efe35e629cdbf08",
+      "stagedHash": "b232c480e2f7c5ee07b99d5a413b424c8bf8e7cceffd7842ceae4d0fef78cfc2"
+    },
+    {
+      "id": "archive-change",
+      "type": "move",
+      "source": "changes/runtime-agent-api-facts",
+      "target": "archive/2026-08-11-runtime-agent-api-facts",
+      "expectedSourceHash": "144c98306ca11afaa10932280d279b6d2a75188d1cbead080463dd032c05c8b4",
+      "expectedTargetHash": null
+    }
+  ]
+}

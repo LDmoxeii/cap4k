@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 8
+name: runtime-agent-api-facts
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: 28a798c71cd580267bf22b9ebdb2a739f31131177e1979d1506c0d23b12cefbb
+spec_changes:
+  - capability: runtime-agent-api-facts
+    operation: replace
+    source: specs/runtime-agent-api-facts/spec.md
+    base_hash: 84ab45b2314886793096efd7ee7abe2afa2d914561ecfb779efe35e629cdbf08
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/ce5a1b5614b7cb6b4aeb121011ee9ccbbf901509d631d05462f445c98fd990ee.json
+verification_evidence: runtime/evidence/verifications/dc4879af95c0a2b59ef4bf56e2aa4c7addcd1e02937af3fc55e6d8c3901777c9.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-11
+run_id: d9698606-36be-487a-9046-3edd055acf53

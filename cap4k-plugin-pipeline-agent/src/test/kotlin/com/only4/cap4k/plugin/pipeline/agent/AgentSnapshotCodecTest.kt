@@ -68,6 +68,10 @@ class AgentSnapshotCodecTest {
         )
         assertEquals(encoded.sectionsByPath.size + 1, encoded.filesByPath.size)
         assertEquals(AgentSnapshotStatus.PARTIAL, encoded.manifest.status)
+        assertEquals(3, encoded.manifest.contractVersion)
+        val runtimeReference = encoded.manifest.sections.single { section -> section.id == "runtime" }
+        assertEquals(7, runtimeReference.counts["capabilities"])
+        assertEquals(3, runtimeReference.counts["providers"])
         assertEquals(1, encoded.manifest.diagnosticCounts.warning)
         assertEquals(listOf("analysis", "diagnostics"), encoded.manifest.recommendedSections)
         assertTrue(encoded.manifest.snapshotId.matches(Regex("[0-9a-f]{64}")))
@@ -119,6 +123,21 @@ class AgentSnapshotCodecTest {
             runtime.eventHandler.managedAsyncCompletion.trackedOperations,
         )
         assertTrue("transactional_event_listener" in runtime.eventHandler.forbidden)
+        assertEquals("cap4k.agent.runtime.v3", runtime.schema)
+        assertEquals(
+            RuntimeAgentFactsCatalog.capabilities().map { fact -> fact.capabilityId }.sorted(),
+            runtime.capabilities.map { fact -> fact.capabilityId },
+        )
+        assertEquals(
+            RuntimeAgentFactsCatalog.providers().map { fact -> fact.providerId },
+            runtime.providers.map { fact -> fact.providerId },
+        )
+        assertTrue(runtime.providers.all { provider -> provider.applicationAssembly.name == "UNKNOWN" })
+        assertTrue(runtime.providers.all { provider -> provider.runtimeObservation.name == "NOT_PERFORMED" })
+        assertTrue(runtime.providers.all { provider -> provider.operationalState.name == "UNKNOWN" })
+        assertTrue(runtime.providers.all { provider -> provider.verification.name == "NOT_PERFORMED" })
+        assertFalse(runtimeJson.contains("healthy", ignoreCase = true))
+        assertFalse(runtimeJson.contains("success", ignoreCase = true))
 
         val decodedProject = codec.fromJson(
             encoded.sectionJsonByPath.getValue("project.json"),
@@ -255,6 +274,8 @@ class AgentSnapshotCodecTest {
             ),
             runtime = AgentRuntimeSection(
                 status = AgentSnapshotStatus.OK,
+                capabilities = RuntimeAgentFactsCatalog.capabilities().ordered(reversed),
+                providers = RuntimeAgentFactsCatalog.providers().ordered(reversed),
                 extensions = listOf(
                     AgentRuntimeExtension(
                         id = "sample-extension",

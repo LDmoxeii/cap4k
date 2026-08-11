@@ -52,11 +52,8 @@ No Actuator endpoint is added. A future optional endpoint must delegate each rea
 ### Identity, duplicate, and retirement rules
 
 Normalized capability and provider identities are unique. Duplicates produce deterministic diagnostics
-and prevent a valid snapshot. Provider association validation uses the complete candidate set for each
-normalized provider identity; it never selects one duplicate by encounter order. When duplicate
-provider facts target different capabilities, every referencing capability is validated against all
-candidates and receives stable mismatch diagnostics when the complete set cannot belong to it. Static
-provider IDs exactly match the IDs registered by the three transport starters.
+and prevent a valid snapshot. Static provider IDs exactly match the IDs registered by the three
+transport starters.
 
 `RetiredRuntimeDescriptorPolicy` continues to reject capability identity segments and exact provider
 identities `console`, `snowflake`, `locker`, and `saga`. They are never emitted as placeholders.
@@ -79,9 +76,7 @@ strategic DDD quality, or Analyzer business truth.
 - Static assembly/state fields remain `UNKNOWN`; observation/verification remain `NOT_PERFORMED`.
 - Registry tests prove sorted snapshots, duplicate rejection, reporter fencing, close/re-register, and
   exact transport identities.
-- Duplicate capability/provider identities fail deterministically, including mixed duplicates that
-  share one normalized provider identity while targeting different capabilities; reversed inputs keep
-  diagnostics, section reasons, encoded files, and snapshot hashes byte-identical.
+- Duplicate capability/provider identities fail deterministically.
 - Reordered inputs produce byte-identical `runtime.json` and snapshot hashes.
 - JSON round-trip uses the shared Jackson codec only.
 - Retired tests and `scripts/validate-current-runtime-facts.ps1` prove no active retired facts.

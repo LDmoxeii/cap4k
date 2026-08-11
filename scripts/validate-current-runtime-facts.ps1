@@ -74,6 +74,58 @@ if (Compare-Object $expectedRetiredDescriptorIdentities $declaredRetiredDescript
     throw ('Retired Runtime descriptor policy must declare exactly: ' + ($expectedRetiredDescriptorIdentities -join ', ') + '.')
 }
 
+$runtimeCatalogFile = Join-Path $repoRoot 'cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalog.kt'
+$runtimeCatalogText = Get-Content -LiteralPath $runtimeCatalogFile -Raw -Encoding UTF8
+$expectedRuntimeCapabilityIds = @(
+    'runtime.core-dispatch',
+    'runtime.identifier-allocation',
+    'runtime.integration-event-transport',
+    'runtime.jpa-persistence',
+    'runtime.local-domain-event',
+    'runtime.reliable-command',
+    'runtime.reliable-event'
+)
+$declaredRuntimeCapabilityIds = [regex]::Matches(
+    $runtimeCatalogText,
+    '"(runtime\.[a-z0-9-]+)"'
+) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if (Compare-Object $expectedRuntimeCapabilityIds $declaredRuntimeCapabilityIds) {
+    throw ('Runtime Agent capability catalog must declare exactly: ' + ($expectedRuntimeCapabilityIds -join ', ') + '.')
+}
+
+$expectedRuntimeProviderIds = @(
+    'integration-event-transport.http',
+    'integration-event-transport.rabbitmq',
+    'integration-event-transport.rocketmq'
+)
+$declaredRuntimeProviderIds = [regex]::Matches(
+    $runtimeCatalogText,
+    '"(integration-event-transport\.[a-z0-9-]+)"'
+) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if (Compare-Object $expectedRuntimeProviderIds $declaredRuntimeProviderIds) {
+    throw ('Runtime Agent provider catalog must declare exactly: ' + ($expectedRuntimeProviderIds -join ', ') + '.')
+}
+$forbiddenStaticRuntimeStatesPattern = '\b(?:HEALTHY|DEGRADED|RECOVERING|SUCCESS)\b'
+if ('catalog state HEALTHY' -notmatch $forbiddenStaticRuntimeStatesPattern) {
+    throw 'Static Runtime Agent state guard must reject live provider or execution-success states.'
+}
+if ($runtimeCatalogText -match $forbiddenStaticRuntimeStatesPattern) {
+    throw 'Static Runtime Agent facts must not embed live provider or execution-success states.'
+}
+
+$providerIdentitySources = [ordered]@{
+    'integration-event-transport.http' = 'cap4k-ddd-integration-event-http-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfiguration.kt'
+    'integration-event-transport.rabbitmq' = 'cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt'
+    'integration-event-transport.rocketmq' = 'ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt'
+}
+foreach ($entry in $providerIdentitySources.GetEnumerator()) {
+    $sourceFile = Join-Path $repoRoot $entry.Value
+    $sourceText = Get-Content -LiteralPath $sourceFile -Raw -Encoding UTF8
+    if ($sourceText -notmatch [regex]::Escape('"' + $entry.Key + '"')) {
+        throw ("Runtime provider identity '" + $entry.Key + "' does not match " + $entry.Value + '.')
+    }
+}
+
 $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
 foreach ($relativeDirectory in $currentDirectories) {
     $directory = Join-Path $repoRoot $relativeDirectory
