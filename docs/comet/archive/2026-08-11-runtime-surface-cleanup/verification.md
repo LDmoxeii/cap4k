@@ -74,7 +74,7 @@
 - `.\gradlew.bat :ddd-core:test :cap4k-ddd-command-jpa-starter:test :cap4k-ddd-jpa-starter:test :cap4k-ddd-integration-event-http-starter:test :cap4k-ddd-integration-event-rabbitmq-starter:test :cap4k-ddd-integration-event-rocketmq-starter:test :cap4k-plugin-pipeline-agent:test --console=plain` passed in 1m 44s. This covers required-provider boundaries, reliable state, transport composition, and retired descriptor rejection.
 - `.\gradlew.bat check --console=plain` passed on August 11, 2026: `BUILD SUCCESSFUL in 10m 19s`, 197 actionable tasks, with the environment-guarded PostgreSQL soft-delete fixture skipped.
 - `pwsh -NoProfile -File scripts/validate-current-runtime-facts.ps1` passed after scanning current public/spec/analysis facts plus active build, source, Spring imports, version catalogs, and common descriptor resource formats.
-- `git diff --name-only origin/master -- docs/comet/archive docs/comet/runtime docs/superpowers/specs docs/superpowers/plans` returned no changed historical evidence paths.
+- `git diff --name-status "$(git merge-base origin/master HEAD)"..HEAD -- docs/comet/archive docs/comet/runtime docs/superpowers/specs docs/superpowers/plans` returned only `A` records for this change's own `docs/comet/archive/2026-08-11-runtime-surface-cleanup/**` and `docs/comet/runtime/transactions/83addc72-e2cd-448a-a684-fcb02933e0dc/**` evidence. It returned no `M`, `D`, or `R` operation against a historical file that already existed at the merge-base.
 - `git diff --check origin/master` passed. Git emitted line-ending conversion warnings only and no whitespace errors.
 - `comet native check runtime-surface-cleanup --json` passed with zero findings; the immutable receipt is supplied separately to the Verify transition to avoid a self-referential report hash.
 
@@ -88,7 +88,7 @@
 - The implementation removes the public Locker SPI, JDBC implementation module, starter, auto-configuration, properties, Spring import, SQL schema, tests, and Gradle project entries without adding a compatibility alias or replacement coordination abstraction.
 - Reliable Command/Event state-machine source was not changed. Existing atomic claim, lease, token fencing, retry snapshot, manual redrive, retention, acknowledgement, and transport composition tests all remained green.
 - HTTP remains the lightweight experience transport; HTTP, RabbitMQ, and RocketMQ modules and starters remain active and verified.
-- Current public and maintenance facts no longer present Locker as supported. Historical Comet archives, Comet transaction evidence, and Superpowers specifications/plans were intentionally left unchanged.
+- Current public and maintenance facts no longer present Locker as supported. This change adds its own Comet archive and transaction evidence; historical files that already existed at the merge-base were not modified, deleted, or renamed, and no Superpowers specification or plan was changed.
 - `RetiredRuntimeDescriptorPolicy` continues to reject `console`, `locker`, `saga`, and `snowflake`; negative retirement evidence remains part of the current boundary.
 
 # Known limitations and risks
