@@ -2,13 +2,13 @@
 
 ## Runtime 模块
 
-cap4k 的官方 Runtime 必须由以下独立 starter 组成：Core、JPA、Command JPA、Domain Event JPA、Locker JDBC、Integration Event HTTP、RabbitMQ、RocketMQ。每个 starter 只传递其能力所需依赖；旧聚合 starter、Request JPA、Saga JPA 与 HTTP JPA 不存在，也没有兼容 alias。
+cap4k 的官方 Runtime 必须由以下独立 starter 组成：Core、JPA、Command JPA、Domain Event JPA、Integration Event HTTP、RabbitMQ、RocketMQ。每个 starter 只传递其能力所需依赖；旧聚合 starter、Request JPA、Saga JPA、Locker JDBC 与 HTTP JPA 不存在，也没有兼容 alias。
 
-Core starter 提供 IoC、UUIDv7、Identifier strategy registry/generator、generated-own-ID registry、独立 Command/Query/Capability 同步分发、Domain Service、本地同步 Domain Event 和事件类型目录。UUIDv7 是唯一内置的 application-side Strong ID 分配策略；Core/JPA 默认组合不包含可靠 Command/Event、Locker 或 transport 实现。数据库分配的 identity 仍是 persistence policy，不是 application-side generator。
+Core starter 提供 IoC、UUIDv7、Identifier strategy registry/generator、generated-own-ID registry、独立 Command/Query/Capability 同步分发、Domain Service、本地同步 Domain Event 和事件类型目录。UUIDv7 是唯一内置的 application-side Strong ID 分配策略；Core/JPA 默认组合不包含可靠 Command/Event 或 transport 实现。数据库分配的 identity 仍是 persistence policy，不是 application-side generator。
 
 JPA starter 提供 Repository、Aggregate Factory、自动完成的 REQUIRED Command UnitOfWork、候选变化识别、审计 enrich、最终变化识别、持久化同步和 JPA 所需配置。它保持 CREATE/EXISTING、generated-own-ID completion、pending owned child reconciliation、root-only final entry、soft-delete 和 provider-assigned identity/version 的已批准行为。应用代码不需要调用 completion-oriented `save()`；高级 `flush()` 只同步数据库，不提交事务或释放 Domain Event。
 
-Command JPA 与 Domain Event JPA 分别拥有可靠记录、repository、scheduler 和归档任务，并显式要求 Locker provider；安装相应 starter 而没有 Locker 时，应用启动必须失败，而不是静默关闭调度。可靠 Command 必须在当前 Command 事务内登记，并且只能在提交成功后唤醒 worker。cap4k 不提供内置 Saga runtime、persistence、starter 或 generator。
+Command JPA 与 Domain Event JPA 分别拥有可靠记录、内部 execution substrate、claim/lease/token、retry-policy snapshot、redrive 和 retention。它们不依赖公开 Locker provider，状态转换和 fenced acknowledgement 始终由 Runtime 自身拥有。可靠 Command 必须在当前 Command 事务内登记，并且只能在提交成功后唤醒 worker。cap4k 不提供内置 Saga runtime、persistence、starter 或 generator。
 
 HTTP、RabbitMQ 与 RocketMQ starter 分别拥有 transport publisher/subscriber adapter。HTTP 只使用显式静态 route 与固定接收端点，不提供动态 subscriber registry、管理端点或 JPA subscription carrier。transport 需要可靠 event repository 时必须明确失败，不得回退到不可靠发送。
 
@@ -38,7 +38,7 @@ Aggregate Factory 始终生成，不再有 factory 开关。Aggregate Specificat
 
 ## 删除面
 
-旧聚合 starter、generic Request API、Request JPA、Saga runtime/starter/generator、旧 Mediator API、runtime enable 开关、event scan package、Reentrant annotation/aspect、Aggregate Specification 和生成主线 Unique 能力都不存在。公共文档、capability matrix、分析文档和 contributor-facing skills 不得继续把这些内容描述为可用能力。
+旧聚合 starter、generic Request API、Request JPA、Saga runtime/starter/generator、Locker API/runtime/starter/schema、旧 Mediator API、runtime enable 开关、event scan package、Reentrant annotation/aspect、Aggregate Specification 和生成主线 Unique 能力都不存在。公共文档、capability matrix、分析文档和 contributor-facing skills 不得继续把这些内容描述为可用能力。
 
 ## 验收
 

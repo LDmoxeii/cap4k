@@ -156,7 +156,7 @@ Current ownership evidence:
 
 - Core starter tests cover UUID7, ID registries, static Mediator binding, synchronous Request, local Domain Event, missing reliable capability, and provider conflict failure.
 - JPA starter owns the migrated Strong ID, soft-delete, OwnedEntityList, aggregate graph, provider-assigned field, and UoW runtime fixtures.
-- Request/Event/Saga/Locker and each Integration Event transport starter own focused auto-configuration tests.
+- Command JPA, Domain Event JPA, and each Integration Event transport starter own focused auto-configuration tests.
 - event package scanning and capability enable properties are removed; a new failure involving them is a stale reference, not expected fixture debt.
 
 Do not dismiss a fresh failure as known debt. Reproduce it in the capability owner and distinguish framework behavior from test-context isolation with current evidence.

@@ -21,7 +21,7 @@ Cap4k shall not ship an operations console, administrative UI, or framework-owne
 
 - Existing programmatic reliable Command/Event recovery APIs remain owned by their current Runtime modules and continue to enforce their existing state-machine eligibility and transition rules.
 - This retirement does not change reliable Command/Event persistence, claim, retry, lease, terminal-state, or redrive semantics.
-- Locker Runtime modules, starters, schemas, APIs, and behavior remain available; only their Console-facing operations are removed.
+- Locker was retired by the Runtime surface cleanup; Console retirement does not restore a Locker module, API, schema, or administrative operation.
 - A consuming application that exposes operational recovery owns authentication, authorization, redaction, operator audit, and network policy at its own boundary.
 
 ## Documentation and Agent facts
@@ -40,6 +40,6 @@ Cap4k shall not ship an operations console, administrative UI, or framework-owne
 ## Non-goals
 
 - Reliable Command/Event state-machine redesign.
-- Locker Runtime retirement or redesign.
+- Replacement Locker APIs, compatibility bridges, or distributed coordination redesign.
 - Any other finding from the broader Runtime capability reset.
 - Compatibility aliases, deprecated APIs, dual implementations, fallback codecs, or migration bridges.

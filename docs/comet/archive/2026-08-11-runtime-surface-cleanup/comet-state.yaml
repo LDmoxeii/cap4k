@@ -1,0 +1,22 @@
+schema: comet.native.v3
+minimum_runtime_version: 3
+revision: 5
+name: runtime-surface-cleanup
+language: en
+phase: archive
+brief: brief.md
+approval: confirmed
+approved_contract_hash: f822777e80e41d663e31537b137913d1fd566eaa09b449c4449d25dc7f140300
+spec_changes:
+  - capability: runtime-surface-cleanup
+    operation: replace
+    source: specs/runtime-surface-cleanup/spec.md
+    base_hash: 68a3af51c5be2a1ab620a37efcb02df5a7eb63a3de4a6975bcfc7cd779d3e612
+verification_result: pass
+verification_report: verification.md
+implementation_scope: runtime/evidence/scopes/f690f1f99ecacc24fdc0800ba4916ebd13fb6f271dd91035f15ca640f5cdd6d4.json
+verification_evidence: runtime/evidence/verifications/d6976b7569a6e355fa32dd6b7745541b7e6c871062f9643b1011a0141f07693d.json
+partial_allowance: null
+archived: true
+created_at: 2026-08-11
+run_id: 8a6295cc-447d-499a-b1f1-9f53cd3c6dbc

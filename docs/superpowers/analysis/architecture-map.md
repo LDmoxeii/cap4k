@@ -9,7 +9,7 @@
 ## Current Facts
 
 - Gradle root project name 是 `cap4k`，当前 `settings.gradle.kts` 显式 include 了运行时、pipeline、code analysis、starter 等子项目。
-- 运行时 tactical framework 行为主要在 `ddd-*` 模块中维护，包括 `ddd-core`、`ddd-domain-*`、`ddd-application-*`、`ddd-distributed-*`、`ddd-integration-*`。这些模块承载运行期 DDD tactical behavior、repository、Command、Query、Capability、event、locker、execution context 和 integration adapter 等能力；仓库不再提供 generic Request 或内建 Saga runtime。
+- 运行时 tactical framework 行为主要在 `ddd-*` 模块中维护，包括 `ddd-core`、`ddd-domain-*`、`ddd-application-*` 和 `ddd-integration-*`。这些模块承载运行期 DDD tactical behavior、repository、Command、Query、Capability、event、execution context 和 integration adapter 等能力；仓库不再提供 generic Request、公共 Locker 或内建 Saga runtime。
 - `cap4k-ddd-*-starter` 是按 capability 拆分的运行时装配模块。每个 starter 通过自己的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 暴露且只暴露其所有能力；仓库不保留聚合 starter。
 - `cap4k-plugin-pipeline-*` 是 compile-time generation pipeline 相关模块。它们覆盖 API、Agent API snapshot service、core runner、renderer、source providers、generators 和 Gradle plugin，不属于运行时 tactical framework。
 - `cap4k-plugin-pipeline-agent` 负责稳定 JSON、凭据安全脱敏、identity/freshness、snapshot 状态聚合与 manifest/section 编码；`cap4k-plugin-pipeline-gradle` 的 `cap4kAgentSnapshot` task 负责从 Gradle project/config、provider descriptors、plan evidence 和本地 analysis files 适配出 `build/cap4k/agent/` 下的八个文件。
@@ -33,7 +33,6 @@
   - `cap4k-ddd-jpa-starter`
   - `cap4k-ddd-command-jpa-starter`
   - `cap4k-ddd-domain-event-jpa-starter`
-  - `cap4k-ddd-locker-jdbc-starter`
   - `cap4k-ddd-integration-event-http-starter`
   - `cap4k-ddd-integration-event-rabbitmq-starter`
   - `cap4k-ddd-integration-event-rocketmq-starter`
@@ -59,7 +58,6 @@
 - Representative runtime roots visible from root directory scan:
   - `ddd-core`
   - `ddd-application-command-jpa`
-  - `ddd-distributed-locker-jdbc`
   - `ddd-domain-event-jpa`
   - `ddd-domain-repo-jpa`
   - `ddd-integration-event-http`

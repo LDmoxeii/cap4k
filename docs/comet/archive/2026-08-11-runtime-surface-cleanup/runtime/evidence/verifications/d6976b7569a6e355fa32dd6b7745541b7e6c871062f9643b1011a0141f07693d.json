@@ -1,0 +1,115 @@
+{
+  "schema": "comet.native.verification-evidence.v1",
+  "change": "runtime-surface-cleanup",
+  "sourceRevision": 3,
+  "result": "pass",
+  "freshness": "complete",
+  "contractHash": "f822777e80e41d663e31537b137913d1fd566eaa09b449c4449d25dc7f140300",
+  "acceptanceCriteriaHash": "01096d41bf311572d0ec356fd0c13ea8eeb3c3174e2680d6bf355419f9517ab8",
+  "implementationScopeRef": "runtime/evidence/scopes/f690f1f99ecacc24fdc0800ba4916ebd13fb6f271dd91035f15ca640f5cdd6d4.json",
+  "implementationScopeHash": "f690f1f99ecacc24fdc0800ba4916ebd13fb6f271dd91035f15ca640f5cdd6d4",
+  "reportRef": "verification.md",
+  "reportHash": "026011710cabfafb0f81da0a29d489952e715d138935527dc308c5874cff4c8e",
+  "acceptanceTrace": {
+    "schema": "comet.native.acceptance-trace.v1",
+    "nativeRootRef": "docs/comet",
+    "criteriaHash": "01096d41bf311572d0ec356fd0c13ea8eeb3c3174e2680d6bf355419f9517ab8",
+    "total": 8,
+    "evidenced": 8,
+    "skipped": 0,
+    "entries": [
+      {
+        "acceptanceId": "acceptance-1e7f0756ec626a5df05ee4ee116fd2d2cfdd14dd26b8ba97102fcafe7d91f8fc",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "scripts/validate-current-runtime-facts.ps1",
+          "settings.gradle.kts"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-24c591b997b0d927f361996844c7f99bba1a3a8ee8619419f675f54ec59f8ebc",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-integration-event-http/src/test/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rabbitmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventPublisherTest.kt",
+          "ddd-integration-event-rocketmq/src/test/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisherTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-32dbf4a11a4fa43e25a9439c25925546e5a715b39c8d4338b505fa12d711d982",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/analysis/architecture-map.md",
+          "docs/superpowers/analysis/runtime-and-integration-map.md",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-6cec1ff3458df0444afffde9a4fe4f99fde6c679e246790557c96e03b2a5e8d5",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-77f4bf74211d47d8feffd95b364cc06f376d492919e65d40a5a9c205aea09f4e",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicy.kt",
+          "cap4k-plugin-pipeline-agent/src/test/kotlin/com/only4/cap4k/plugin/pipeline/agent/RetiredRuntimeDescriptorPolicyTest.kt",
+          "scripts/validate-current-runtime-facts.ps1"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7d16745967b25d7810b3065996de12953fe93416f0d109ea1bd31d022af935af",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-command-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/command/JpaCommandRetentionCleanupIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventAtomicClaimIntegrationTest.kt",
+          "cap4k-ddd-domain-event-jpa-starter/src/test/kotlin/com/only4/cap4k/ddd/starter/event/JpaEventRetentionCleanupIntegrationTest.kt"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-7ed1722854b90419ec9f8ddb0acc32be76940c1b587d1de15b5c596dba2eba7f",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "ddd-application-command-jpa/src/main/resources/command.sql",
+          "ddd-domain-event-jpa/src/main/resources/event.sql",
+          "docs/public/reference/runtime-database-schema.md"
+        ],
+        "skippedReason": null
+      },
+      {
+        "acceptanceId": "acceptance-ad58d34b0701816e3a2e8ed206898812237120325f6caf98233c994bda64afa1",
+        "kind": "brief-example",
+        "source": "brief.md",
+        "evidenceRefs": [
+          "docs/superpowers/analysis/runtime-and-integration-map.md",
+          "scripts/validate-current-runtime-facts.ps1",
+          "settings.gradle.kts"
+        ],
+        "skippedReason": null
+      }
+    ],
+    "traceHash": "5ab310e9b6192828f5128f43e082c2f8f48058565b80e831267ebdcc5e015f79"
+  },
+  "partialAllowanceRef": null,
+  "partialAllowanceHash": null,
+  "receiptRef": "runtime/evidence/check-receipts/46d1acbd7655835e72dd2d4a4ee88156eaeb1aabd7cdf344b37e15d92279192b.json",
+  "createdAt": "2026-08-11T03:15:15.245Z",
+  "envelopeHash": "d6976b7569a6e355fa32dd6b7745541b7e6c871062f9643b1011a0141f07693d"
+}
