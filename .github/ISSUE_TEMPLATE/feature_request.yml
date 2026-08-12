@@ -2,7 +2,9 @@ name: Feature request
 description: Propose a cap4k capability or behavior change.
 title: "[Feature]: "
 labels:
-  - enhancement
+  - type:feature
+  - area:framework
+  - priority:p2
 body:
   - type: textarea
     id: problem

@@ -13,12 +13,3 @@ cap4k 当前不生成 Scheduled Reaction 或 Job。Job 是项目手写的 applic
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。`MediaProcessingPollingFallbackJob` 是时间触发 reaction 的直接锚点；它可以和 `StartMediaProcessingCmd`、`GetMediaProcessingStatus` 及媒体处理 callback 相关入口一起阅读，理解 callback 不可靠时如何用 polling fallback 补足恢复能力。
 
 Scheduled Reaction 的设计边界是时间触发的可靠检查和推进。常见误用包括把 Job 写成所有业务规则的集合，把轮询结果直接改成内部状态，忽略重复执行，或者让 scheduled path 与 callback path 推进出不同语义。审查时可以看触发条件是否清楚，幂等和恢复是否可解释，状态改变是否委托给 Command/application boundary，以及 Job 是否只作为实现 surface 出现。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 Scheduled Reaction 如何用 Job 承载时间触发、轮询和恢复推进。
-Type: workflow diagram
-Prompt: Draw a cap4k scheduled reaction workflow for MediaProcessingPollingFallbackJob. Show 时间触发, 查询待处理记录, 调用 external capability, 幂等检查, delegating to Command or application behavior, and recovery path. Use Chinese labels and preserve English identifiers.
-Must show: Scheduled Reaction, Job implementation surface, polling, recovery, idempotency, external capability, Command delegation
-Must avoid: presenting Job as a standalone domain concept page, implying polling bypasses application write boundary, implying generator chooses business recovery rules automatically
-Alt text after insertion: MediaProcessingPollingFallbackJob 工作流，展示时间触发、轮询外部状态、幂等检查、恢复路径和 Command 委托。
--->

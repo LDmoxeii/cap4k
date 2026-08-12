@@ -2,7 +2,9 @@ name: Workflow or repository config
 description: Request a GitHub Actions, branch protection, or repository governance change.
 title: "[Config]: "
 labels:
-  - ci
+  - type:cleanup
+  - area:framework
+  - priority:p2
 body:
   - type: textarea
     id: scope

@@ -255,8 +255,8 @@ class AgentSnapshotCodec(
 
     private fun sectionDefinitions(sections: AgentSnapshotSections): List<SectionDefinition> = listOf(
         SectionDefinition(
-            id = "project",
-            path = "project.json",
+            id = AgentContractCatalog.PROJECT.id,
+            path = AgentContractCatalog.PROJECT.path,
             schema = sections.project.schema,
             status = sections.project.status,
             counts = linkedMapOf(
@@ -267,8 +267,8 @@ class AgentSnapshotCodec(
             value = sections.project,
         ),
         SectionDefinition(
-            id = "capabilities",
-            path = "capabilities.json",
+            id = AgentContractCatalog.CAPABILITIES.id,
+            path = AgentContractCatalog.CAPABILITIES.path,
             schema = sections.capabilities.schema,
             status = sections.capabilities.status,
             counts = linkedMapOf(
@@ -279,8 +279,8 @@ class AgentSnapshotCodec(
             value = sections.capabilities,
         ),
         SectionDefinition(
-            id = "inputs",
-            path = "inputs.json",
+            id = AgentContractCatalog.INPUTS.id,
+            path = AgentContractCatalog.INPUTS.path,
             schema = sections.inputs.schema,
             status = sections.inputs.status,
             counts = mapOf("inputs" to sections.inputs.inputs.size),
@@ -288,8 +288,8 @@ class AgentSnapshotCodec(
             value = sections.inputs,
         ),
         SectionDefinition(
-            id = "ownership",
-            path = "ownership.json",
+            id = AgentContractCatalog.OWNERSHIP.id,
+            path = AgentContractCatalog.OWNERSHIP.path,
             schema = sections.ownership.schema,
             status = sections.ownership.status,
             counts = linkedMapOf(
@@ -301,8 +301,8 @@ class AgentSnapshotCodec(
             value = sections.ownership,
         ),
         SectionDefinition(
-            id = "runtime",
-            path = "runtime.json",
+            id = AgentContractCatalog.RUNTIME.id,
+            path = AgentContractCatalog.RUNTIME.path,
             schema = sections.runtime.schema,
             status = sections.runtime.status,
             counts = linkedMapOf(
@@ -315,8 +315,8 @@ class AgentSnapshotCodec(
             value = sections.runtime,
         ),
         SectionDefinition(
-            id = "analysis",
-            path = "analysis.json",
+            id = AgentContractCatalog.ANALYSIS.id,
+            path = AgentContractCatalog.ANALYSIS.path,
             schema = sections.analysis.schema,
             status = sections.analysis.status,
             counts = buildMap {
@@ -331,8 +331,8 @@ class AgentSnapshotCodec(
             value = sections.analysis,
         ),
         SectionDefinition(
-            id = "diagnostics",
-            path = "diagnostics.json",
+            id = AgentContractCatalog.DIAGNOSTICS.id,
+            path = AgentContractCatalog.DIAGNOSTICS.path,
             schema = sections.diagnostics.schema,
             status = sections.diagnostics.status,
             counts = linkedMapOf<String, Int>().apply {

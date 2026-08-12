@@ -13,12 +13,3 @@ public docs 中提到的 skeleton 有两类 ownership。第一类是 checked-in 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。可以把 `PublishContentCmd`、`GetContentDetailQry`、`ContentPublicationReadyDomainEventSubscriber`、作为手写 Job surface 的 `MediaProcessingPollingFallbackJob`、`TriggerMediaProcessing`、`GetMediaProcessingStatus` 和对应 Capability Handlers 放在一起阅读，观察 skeleton 如何提供入口，而业务判断如何落在手写实现中。
 
 Generated Skeleton And Handwritten Logic 的设计边界是 ownership。常见误用包括在 build-owned generated source 中写业务规则，把 skeleton 当成已经完成的业务实现，绕过 skeleton 后丢失命名边界，或者把 generator 输出和手写代码反复覆盖。审查时可以看业务逻辑是否位于可维护位置，生成文件是否没有被长期手改，fallback 是否仍保持 application/domain/adapter/start 模块边界，以及读者是否能从文件名判断职责。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 cap4k 生成骨架、构建期生成源和手写业务逻辑的 ownership 边界。
-Type: architecture diagram
-Prompt: Draw a cap4k generated skeleton ownership architecture diagram. Show design tags creating checked-in skeletons and build-owned generated source, then handwritten logic filling Command Handler, Query Handler, Subscriber, and Capability Handler. Use Chinese labels and preserve English identifiers.
-Must show: checked-in skeletons, build-owned generated source, handwritten logic locations, design tags, fallback rule when bypassing skeletons, generator as organization tool
-Must avoid: implying generator writes business decisions automatically, showing build-owned generated source as a handwritten business area, arrows that mix adapter protocol into domain model
-Alt text after insertion: cap4k 生成与手写 ownership 图，展示 design tags、checked-in skeletons、build-owned generated source、手写逻辑位置和绕过 skeleton 时的 fallback rule。
--->

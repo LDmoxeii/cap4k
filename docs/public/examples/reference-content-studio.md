@@ -86,12 +86,3 @@
 运行 README analysis 命令后，本地 `build/cap4k/analysis-plan.json` 可作为 analysis generation plan 证据面。
 
 下一步可以按目标进入 [Run The Reference Project](run-the-reference-project.md)、[Default Publication Flow](default-publication-flow.md)、[Value Object And Type Inputs](value-object-and-type-inputs.md) 或 [Generation And Analysis Evidence](generation-and-analysis-evidence.md)。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者把 cap4k-reference-content-studio 的项目结构、输入文件、生成计划、运行入口和分析证据放在一张图里理解。
-Type: architecture diagram
-Prompt: Draw a cap4k project structure diagram for cap4k-reference-content-studio. Show four modules as layered boxes: cap4k-reference-content-studio-domain, cap4k-reference-content-studio-application, cap4k-reference-content-studio-adapter, cap4k-reference-content-studio-start. Around them show design/design.json, design/value-objects.json, design/enums.json, db schema, build/cap4k/plan.json, .http files, tests, analysis/flows, and analysis/drawing-board. Use Chinese labels and preserve English identifiers.
-Must show: four modules, design inputs, schema input, generated plan, .http operation files, tests, analysis flows, drawing-board evidence
-Must avoid: introducing another project, implying generator writes business decisions automatically, showing adapter or start as domain owners
-Alt text after insertion: cap4k-reference-content-studio 项目结构图，展示四个模块、设计输入、生成计划、HTTP 操作文件、测试和分析证据面。
--->

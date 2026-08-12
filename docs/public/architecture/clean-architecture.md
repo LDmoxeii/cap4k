@@ -25,12 +25,3 @@ cap4k generation 支持这套 layer model 的方式，是把 design tags 转换�
 ## Review Shape
 
 审查 Clean Architecture 时，先确认 domain layer 是否可以脱离 adapter/start 阅读；再确认 application layer 是否只组织用例而不接收 HTTP payload details；接着确认 adapter layer 是否只做 protocol conversion 和技术边界处理；最后确认 start layer 是否只负责 assembly、config 和 smoke path。若某段代码同时承担业务不变量、HTTP 字段转换、外部调用和 runtime config，它通常应该被拆回对应层。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 cap4k 项目的 Clean Architecture 四层 mental model。
-Type: architecture diagram
-Prompt: Draw a Clean Architecture diagram for a cap4k project. Show four concentric or stacked layers from inner to outer: domain, application, adapter, start. Use Chinese labels while preserving English identifiers. Show dependency arrows pointing inward only, with generated skeletons as stable entry shapes and handwritten logic as business behavior locations.
-Must show: domain layer as business facts and invariants, application layer as use case orchestration, adapter layer as protocol conversion, start layer as Spring Boot runtime assembly, generated skeleton versus handwritten logic boundary, reference project module names
-Must avoid: arrows from domain to adapter or start, HTTP payload inside domain, application depending on start, generator writing business decisions automatically, runtime config becoming business truth
-Alt text after insertion: cap4k Clean Architecture 四层图，domain 在内层，application 组织用例，adapter 转换协议，start 装配 Spring Boot runtime，依赖方向向内。
--->

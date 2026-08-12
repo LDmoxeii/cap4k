@@ -6,19 +6,10 @@ Value Object 是不可变的值语义对象。它没有独立身份，相等性�
 
 在 cap4k 中，Value Object 位于 domain layer，通常被 Aggregate 或 Entity 持有。`types.valueObjectManifest` 是 Value Object 生成入口，可表达 shared 或 aggregate-owned 的值对象、字段、包路径，以及可选的 persistence projection。Value Object class 始终保持纯值，不携带 Jackson/JPA；显式选择 JSON projection 时，generator 另行生成 build-owned converter。值对象的业务命名、字段语义、校验规则、默认值取舍和使用边界仍需要人工设计。
 
-Value semantics 与 query projection 是两个问题。JSON-backed Value Object 可以作为一个完整 attribute 持久化和读取，但其内部成员不会自动成为独立的关系列或 portable Criteria path；需要稳定参与查询的内部维度目前应显式建模为列或关联。后续 relational/embedded projection 可以扩展这条边界，但不能继续用“Value Object 默认就是 JSON”来掩盖查询模型。
+Value semantics 与 query projection 是两个问题。JSON-backed Value Object 可以作为一个完整 attribute 持久化和读取，但其内部成员不会自动成为独立的关系列或 portable Criteria path；需要稳定参与查询的内部维度目前应显式建模为列或关联。当前合同只支持显式 JSON projection；需要关系查询的内部维度必须显式建模为列或关联。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`MediaProcessingResultSnapshot` 由 `types.valueObjectManifest` 生成，是一个 JSON-backed 值对象，并通过 `media_processing_task.result_snapshot` 持久化。它是阅读“复合结果快照如何成为一个领域值”的推荐锚点。
 
 设计边界是值语义。Value Object 不应承担跨聚合流程，不应持有 Repository，不应调用外部能力，也不应为了复用而包含无关字段。常见误用包括继续在 command 和 entity 中散落裸字符串标识、把可变生命周期对象误建成 Value Object、把 adapter payload 当作领域值直接复用、或把 generated building-block metadata 误认为 normal `design.json` input tag。
 
 判断 Value Object 是否用对时，可以看它是否不可变、是否按值比较、字段是否构成一个业务概念。Strong ID 应消除裸 ID 漂移；Business Enum 应通过 `types.enumManifest` 走相邻类型输入路径；JSON-backed converter 只承担持久化转换，生成代码和手写语义边界保持清晰。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者区分 Value Object、Strong ID、Business Enum 类型输入和 JSON-backed composite value 的关系。
-Type: concept map
-Prompt: Draw a cap4k value type concept map. Put Value Object in the center, with Composite Value Object and JSON-backed Value Object as implementations. Show Strong ID as a specialized value type / value-object style, and Business Enum as a related type input path through types.enumManifest, not a Value Object implementation. Show Aggregate or Entity holding these values, and types.valueObjectManifest / types.enumManifest as generator inputs. Use Chinese labels and preserve English identifiers.
-Must show: immutable value semantics, equality by value, Strong ID typed identifiers, Business Enum as related enum input, JSON-backed converter, MediaProcessingResultSnapshot anchor
-Must avoid: implying Value Object has independent lifecycle, implying generated building-block metadata belongs in normal design.json input, implying generated metadata is handwritten business logic
-Alt text after insertion: Value Object 概念地图，展示 Strong ID、Business Enum 类型输入、复合值对象和 JSON-backed 值对象的关系。
--->

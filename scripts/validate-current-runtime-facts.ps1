@@ -1,6 +1,18 @@
+[CmdletBinding()]
+param(
+    [string] $FactsFile
+)
+
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$ownsFactsFile = $false
+if ([string]::IsNullOrWhiteSpace($FactsFile)) {
+    $FactsFile = Join-Path ([System.IO.Path]::GetTempPath()) ("cap4k-runtime-contract-" + [System.Guid]::NewGuid() + '.json')
+    & (Join-Path $PSScriptRoot 'export-capability-contract-facts.ps1') -OutputFile $FactsFile | Out-Null
+    $ownsFactsFile = $true
+}
+$capabilityContractFacts = Get-Content -LiteralPath (Resolve-Path -LiteralPath $FactsFile) -Raw -Encoding UTF8 | ConvertFrom-Json
 
 function Get-EffectiveRuntimeSpecText {
     param(
@@ -183,34 +195,10 @@ if (Compare-Object $expectedRetiredDescriptorIdentities $declaredRetiredDescript
 
 $runtimeCatalogFile = Join-Path $repoRoot 'cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/RuntimeAgentFactsCatalog.kt'
 $runtimeCatalogText = Get-Content -LiteralPath $runtimeCatalogFile -Raw -Encoding UTF8
-$expectedRuntimeCapabilityIds = @(
-    'runtime.core-dispatch',
-    'runtime.identifier-allocation',
-    'runtime.integration-event-transport',
-    'runtime.jpa-persistence',
-    'runtime.local-domain-event',
-    'runtime.reliable-command',
-    'runtime.reliable-event'
-)
-$declaredRuntimeCapabilityIds = [regex]::Matches(
-    $runtimeCatalogText,
-    '"(runtime\.[a-z0-9-]+)"'
-) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-if (Compare-Object $expectedRuntimeCapabilityIds $declaredRuntimeCapabilityIds) {
-    throw ('Runtime Agent capability catalog must declare exactly: ' + ($expectedRuntimeCapabilityIds -join ', ') + '.')
-}
-
-$expectedRuntimeProviderIds = @(
-    'integration-event-transport.http',
-    'integration-event-transport.rabbitmq',
-    'integration-event-transport.rocketmq'
-)
-$declaredRuntimeProviderIds = [regex]::Matches(
-    $runtimeCatalogText,
-    '"(integration-event-transport\.[a-z0-9-]+)"'
-) | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
-if (Compare-Object $expectedRuntimeProviderIds $declaredRuntimeProviderIds) {
-    throw ('Runtime Agent provider catalog must declare exactly: ' + ($expectedRuntimeProviderIds -join ', ') + '.')
+$runtimeCapabilityIds = @($capabilityContractFacts.runtimeCapabilities | ForEach-Object capabilityId)
+$runtimeProviderIds = @($capabilityContractFacts.runtimeProviders | ForEach-Object providerId)
+if ($runtimeCapabilityIds.Count -eq 0 -or $runtimeProviderIds.Count -eq 0) {
+    throw 'Code-derived capability facts must include Runtime capabilities and providers.'
 }
 $forbiddenStaticRuntimeStatesPattern = '\b(?:HEALTHY|DEGRADED|RECOVERING|SUCCESS)\b'
 if ('catalog state HEALTHY' -notmatch $forbiddenStaticRuntimeStatesPattern) {
@@ -224,6 +212,9 @@ $providerIdentitySources = [ordered]@{
     'integration-event-transport.http' = 'cap4k-ddd-integration-event-http-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/HttpIntegrationEventAutoConfiguration.kt'
     'integration-event-transport.rabbitmq' = 'cap4k-ddd-integration-event-rabbitmq-starter/src/main/kotlin/com/only4/cap4k/ddd/application/event/RabbitMqIntegrationEventAutoConfiguration.kt'
     'integration-event-transport.rocketmq' = 'ddd-integration-event-rocketmq/src/main/kotlin/com/only4/cap4k/ddd/application/event/RocketMqIntegrationEventPublisher.kt'
+}
+if (Compare-Object @($runtimeProviderIds | Sort-Object) @($providerIdentitySources.Keys | Sort-Object)) {
+    throw "Runtime provider implementation checks do not cover code-derived provider identities: $($runtimeProviderIds -join ', ')."
 }
 foreach ($entry in $providerIdentitySources.GetEnumerator()) {
     $sourceFile = Join-Path $repoRoot $entry.Value
@@ -359,6 +350,10 @@ foreach ($file in $activeRuntimeFiles) {
 
 if ($violations.Count -gt 0) {
     throw "Current runtime facts contain retired Runtime surfaces:`n$($violations -join "`n")"
+}
+
+if ($ownsFactsFile -and (Test-Path -LiteralPath $FactsFile)) {
+    Remove-Item -LiteralPath $FactsFile -Force
 }
 
 Write-Output "OK: current runtime facts contain no retired Runtime surfaces."

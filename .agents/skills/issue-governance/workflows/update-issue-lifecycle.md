@@ -1,20 +1,9 @@
 # Update Issue Lifecycle Workflow
 
-Use this workflow after spec, plan, implementation, release, or downstream verification milestones.
+1. Identify the completed milestone and update the applicable checklist.
+2. Add a concise evidence comment with stable spec, plan, PR, merge, release, or verification links.
+3. For a child, update its parent and any dependency/sibling status that changed.
+4. For a parent, keep the child inventory, acceptance delegation, blockers, and composition status current.
+5. Re-evaluate closure under `rules/lifecycle-policy.md` without auto-closing the parent from a child merge.
 
-## Steps
-
-1. Identify the milestone that completed.
-2. Update the issue body checklist to reflect the completed milestone.
-3. Add a short issue comment with:
-   - what completed
-   - link to the relevant spec, plan, commit, merge, release, or verification evidence
-   - any remaining blockers
-4. If the work split into additional issues, link them explicitly.
-5. Re-evaluate whether the issue is now closable under `rules/lifecycle-policy.md`.
-
-## Completion Check
-
-- checklist reflects reality
-- comment contains evidence links
-- remaining work is explicit
+Completion requires accurate checklist state, stable evidence, explicit remaining work, and synchronized hierarchy links.

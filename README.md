@@ -1,4 +1,4 @@
-﻿# cap4k
+# cap4k
 
 [![CI](https://github.com/LDmoxeii/cap4k/actions/workflows/ci.yml/badge.svg)](https://github.com/LDmoxeii/cap4k/actions/workflows/ci.yml)
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.ldmoxeii/ddd-core)](https://central.sonatype.com/artifact/io.github.ldmoxeii/ddd-core)
@@ -11,15 +11,6 @@
 点击上方按钮，基于 cap4k 官方模板创建你自己的项目仓库。创建完成后，将新仓库克隆到本地，就可以开始设计领域模型。
 
 cap4k 是面向后端业务系统的 DDD 战术框架与生成器协作工具，用 Clean Architecture、明确的生成/手写边界和可审阅证据帮助团队把业务模型落成代码。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助首次读者快速理解 cap4k 的心智模型：业务建模、分层实现、生成器、人工审阅和证据输出如何协作。
-Type: concept map
-Prompt: Create a clean concept map for cap4k as a backend DDD tactical framework. Show a central cap4k node connected to business model, Clean Architecture layers, generator-backed authoring, handwritten business logic, reviewable plan output, analysis evidence, and the cap4k-reference-content-studio example project. Use a restrained technical documentation style.
-Must show: business model, aggregate/command/query/events, domain/application/adapter/start layers, generator plan, generated skeletons, handwritten logic, analysis evidence, cap4k-reference-content-studio
-Must avoid: 不要暗示 cap4k 会自动写业务决策；不要暗示 cap4k 内置长期流程编排器；不要把生成器画成会替代业务建模和 ownership review；不要暗示当前核心能力超出后端 DDD authoring 范围；不要画出违反 Clean Architecture 依赖方向的箭头
-Alt text after insertion: cap4k 心智模型图，展示业务模型、分层架构、生成器、手写逻辑、审阅计划、分析证据和参考项目之间的关系。
--->
 
 ## 它解决什么问题
 
@@ -52,7 +43,7 @@ Creating new project:
 official GitHub Template -> architecture -> authoring -> generator inputs/plan/generation
 ```
 
-先通过页面顶部的官方 GitHub Template 创建四层项目，再确认 [architecture](docs/public/architecture/index.md) 的分层边界，随后进入 [authoring](docs/public/authoring/index.md)，按 generator inputs、plan review、generation 的顺序推进。团队也可以按同一架构合同手工建立项目；cap4k plugin 不再提供项目初始化能力。
+先通过页面顶部的官方 GitHub Template 创建四层项目，再确认 [architecture](docs/public/architecture/index.md) 的分层边界，随后进入 [authoring](docs/public/authoring/index.md)，按 generator inputs、plan review、generation 的顺序推进。团队也可以按同一架构合同手工建立项目；项目初始化由官方 GitHub Template 或手工结构负责，pipeline plugin 只提供已声明的 pipeline 任务。
 
 ## 文档地图
 
@@ -88,6 +79,7 @@ plugins {
 }
 ```
 
+<!-- CAPABILITY_CONTRACT:PUBLIC_TASKS -->
 常用任务：
 
 - `cap4kAgentSnapshot`：生成 `build/cap4k/agent/` 下的只读、分区化项目快照，供 agent 按需检查能力、输入、所有权、运行时、分析和诊断。
@@ -96,6 +88,7 @@ plugins {
 - `cap4kGenerateSources`：生成参与源码集的 generated source。
 - `cap4kAnalysisPlan`：生成 `build/cap4k/analysis-plan.json`。
 - `cap4kAnalysisGenerate`：生成代码分析、流程和 drawing-board 等证据。
+<!-- /CAPABILITY_CONTRACT:PUBLIC_TASKS -->
 
 精确字段、输出路径和任务关系见 [Gradle plugin reference](docs/public/reference/gradle-plugin.md)。
 

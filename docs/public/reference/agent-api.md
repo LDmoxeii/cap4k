@@ -6,6 +6,7 @@
 
 默认输出目录是 `build/cap4k/agent/`：
 
+<!-- CAPABILITY_CONTRACT:AGENT_SECTIONS -->
 | File | Purpose |
 | --- | --- |
 | `manifest.json` | 小型入口，包含 contract/cap4k version、snapshot identity、project summary、section status/hash/count 和推荐读取分区。 |
@@ -16,21 +17,30 @@
 | `runtime.json` | v3 静态 Runtime capability/provider facts、Event Handler contract、runtime/provider boundaries 与已加载 extension contribution 概要。 |
 | `analysis.json` | analysis 配置、IR node/edge/design-element counts、计划输出、当前可用输出、既有 evidence 与可证明范围。 |
 | `diagnostics.json` | 稳定 diagnostic identity、level、stage、path、message 与 actionable hint。 |
+<!-- /CAPABILITY_CONTRACT:AGENT_SECTIONS -->
 
 读取方先读 `manifest.json`，再按当前操作选择分区。一次 task execution 产生的所有文件共享同一个 snapshot identity；不要跨两次执行拼接分区。
 
 ## Status
 
+<!-- CAPABILITY_CONTRACT:AGENT_SNAPSHOT_STATUS -->
 - `ok`：分区完整且当前检查未发现阻塞。
 - `partial`：project 有效，但非必需分区不适用、不可用，或 extension 仅提供 identity-level metadata；task 可以成功。
 - `invalid`：cap4k configuration、必需 input 或 provider validation 无效；task 尽量写完可获得分区与 diagnostics，然后非零退出。
 - `unavailable`：必需 project state 无法取得；task 尽量留下原因与 diagnostics，然后非零退出。
+<!-- /CAPABILITY_CONTRACT:AGENT_SNAPSHOT_STATUS -->
 
 只有 Gradle 在 task 注册或启动前已经灾难性失败时，才可能完全没有 snapshot。此时读取普通 Gradle failure，不要声称已读取 Agent API。
 
 ## Capability Views
 
-`capabilities.json` 的 `supported` 描述当前 plugin 版本内建 provider 和本次 inspection 成功加载的 extension contribution。`effective` 描述同一 stable capability identity 在当前 project 中是 `configured`、`ready`、`blocked` 还是 `not-applicable`。未配置不等于当前版本不支持；已支持也不等于当前项目立即可运行。
+<!-- CAPABILITY_CONTRACT:AGENT_CAPABILITY_VIEWS -->
+`capabilities.json` 的 `supported` 描述当前 plugin 版本内建 provider 和本次 inspection 成功加载的 extension contribution。`effective` 描述同一 stable capability identity 在当前 project 中的状态。
+<!-- /CAPABILITY_CONTRACT:AGENT_CAPABILITY_VIEWS -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_EFFECTIVE_STATUS -->
+`effective` 状态闭集是 `configured`、`ready`、`blocked`、`not_applicable`。未配置不等于当前版本不支持；已支持也不等于当前项目立即可运行。
+<!-- /CAPABILITY_CONTRACT:AGENT_EFFECTIVE_STATUS -->
 
 Capability category、input requirement、相关 Gradle tasks、output ownership、tactical carrier 与 runtime/provider/analyzer boundary 来自 provider descriptor。Gradle adapter 不维护第二套 provider catalog。
 
@@ -38,7 +48,17 @@ Supported capability 还会披露 activation：`explicit_configuration` 表示�
 
 ## Evidence Freshness
 
-Agent task 可以读取既有 `build/cap4k/plan.json` 和 `build/cap4k/analysis-plan.json`，但不会主动刷新它们。只有 evidence 中的 configuration/local-input identity 与当前 snapshot 一致，且不依赖无法证明当前状态的 live external input 时，才可标为 `fresh`。其余情况必须报告 `stale`、`unknown` 或 `missing`，并建议显式运行对应 plan task。
+<!-- CAPABILITY_CONTRACT:AGENT_EVIDENCE_FRESHNESS -->
+Agent task 可以读取既有 `build/cap4k/plan.json` 和 `build/cap4k/analysis-plan.json`，但不会主动刷新它们。只有 evidence 中的 configuration/local-input identity 与当前 snapshot 一致，且不依赖无法证明当前状态的 live external input 时，才可标为 `fresh`。其余状态是 `stale`、`unknown` 或 `missing`，并建议显式运行对应 plan task。
+<!-- /CAPABILITY_CONTRACT:AGENT_EVIDENCE_FRESHNESS -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_VALIDATION_STATUS -->
+Agent validation 的状态闭集是 `verified`、`unknown`、`failed`。它只表达当前 snapshot 中相应 validation evidence 的结论。
+<!-- /CAPABILITY_CONTRACT:AGENT_VALIDATION_STATUS -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_DIAGNOSTIC_LEVEL -->
+`diagnostics.json` 的 level 闭集是 `error`、`warning`、`info`。
+<!-- /CAPABILITY_CONTRACT:AGENT_DIAGNOSTIC_LEVEL -->
 
 配置了 DB source 时，Agent task 只报告 source 已配置、所需 task 与脱敏 identity；它不连接数据库，也不声称 live schema 已验证为最新。
 
@@ -52,6 +72,7 @@ Pipeline Extension discovery 只读取本地 resolved classpath metadata。Exten
 
 Agent contract version 3 将 `runtime.json` 升级为 `cap4k.agent.runtime.v3`。该文件仍是静态、只读的框架事实，不启动 Spring application，不检查 classpath 是否装配 provider，也不读取 broker 或 live registry。
 
+<!-- CAPABILITY_CONTRACT:RUNTIME_CAPABILITIES -->
 当前 Runtime capability catalog 固定为：
 
 | Capability ID | Contract / implementation owner | Starter owner |
@@ -63,16 +84,41 @@ Agent contract version 3 将 `runtime.json` 升级为 `cap4k.agent.runtime.v3`�
 | `runtime.reliable-command` | `ddd-application-command-jpa` | `cap4k-ddd-command-jpa-starter` |
 | `runtime.reliable-event` | `ddd-domain-event-jpa` | `cap4k-ddd-domain-event-jpa-starter` |
 | `runtime.integration-event-transport` | shared contract: `ddd-core` | concrete provider owns implementation/starter |
+<!-- /CAPABILITY_CONTRACT:RUNTIME_CAPABILITIES -->
 
+<!-- CAPABILITY_CONTRACT:RUNTIME_PROVIDERS -->
 Integration Event transport provider facts 使用与 Runtime registry 注册完全相同的 identity：
 
 - `integration-event-transport.http`；
 - `integration-event-transport.rabbitmq`；
 - `integration-event-transport.rocketmq`。
+<!-- /CAPABILITY_CONTRACT:RUNTIME_PROVIDERS -->
 
-静态字段严格区分证据来源：`frameworkSupport=SUPPORTED` 只说明当前 cap4k 版本实现了该能力；`applicationAssembly=UNKNOWN` 表示 Gradle snapshot 没有启动应用、无法证明当前应用已装配；`runtimeObservation=NOT_PERFORMED` 表示本次任务没有执行 live observation；provider 的 `operationalState=UNKNOWN` 表示静态文件不能证明健康状态；`verification=NOT_PERFORMED` 表示本次 snapshot 没有执行该能力的运行验收。类、依赖、配置或说明文字存在都不会把这些字段提升为可用、健康或成功。
+<!-- CAPABILITY_CONTRACT:AGENT_RUNTIME_FRAMEWORK_SUPPORT -->
+`frameworkSupport` 的状态闭集是 `supported`，只说明当前 cap4k 版本实现了该能力。
+<!-- /CAPABILITY_CONTRACT:AGENT_RUNTIME_FRAMEWORK_SUPPORT -->
 
-Live provider state 的唯一来源是当前应用中的 `RuntimeProviderStateRegistry.snapshot()`。其安全字段为 `providerId`、`state`、`observedAt` 和 `category`；只有实际读取 registry snapshot 才能证明当时的注册与观测状态。`runtime.json` 只声明该 live source，不复制、缓存或推断 registry 内容，也不包含 payload、凭据、URI、broker topology 或异常详情。
+<!-- CAPABILITY_CONTRACT:AGENT_RUNTIME_APPLICATION_ASSEMBLY -->
+`applicationAssembly` 的状态闭集是 `unknown`，表示 Gradle snapshot 没有启动应用、无法证明当前应用已装配。
+<!-- /CAPABILITY_CONTRACT:AGENT_RUNTIME_APPLICATION_ASSEMBLY -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_RUNTIME_OBSERVATION -->
+`runtimeObservation` 的状态闭集是 `not_performed`，表示本次 task 没有执行 live observation。
+<!-- /CAPABILITY_CONTRACT:AGENT_RUNTIME_OBSERVATION -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_RUNTIME_OPERATIONAL_STATE -->
+Provider `operationalState` 的状态闭集是 `unknown`，表示静态文件不能证明健康状态。
+<!-- /CAPABILITY_CONTRACT:AGENT_RUNTIME_OPERATIONAL_STATE -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_RUNTIME_VERIFICATION -->
+verification 的状态闭集是 `not_performed`，表示本次 snapshot 没有执行该能力的运行验收。类、依赖、配置或说明文字存在都不会把这些字段提升为可用、健康或成功。
+<!-- /CAPABILITY_CONTRACT:AGENT_RUNTIME_VERIFICATION -->
+
+<!-- CAPABILITY_CONTRACT:AGENT_RUNTIME_LIVE_STATE_SOURCE -->
+Provider `liveStateSource` 的闭集是 `runtime_provider_state_registry`。
+<!-- /CAPABILITY_CONTRACT:AGENT_RUNTIME_LIVE_STATE_SOURCE -->
+
+Live provider state 的唯一来源是当前应用中的 `RuntimeProviderStateRegistry.snapshot()`；其安全字段为 `providerId`、`state`、`observedAt` 和 `category`。只有实际读取 registry snapshot 才能证明当时的注册与观测状态。`runtime.json` 只声明该 live source，不复制、缓存或推断 registry 内容，也不包含 payload、凭据、URI、broker topology 或异常详情。
 
 ## Credential Boundary
 

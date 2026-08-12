@@ -1,26 +1,10 @@
 # Create Issue Workflow
 
-Use this workflow when creating a new GitHub issue from a roadmap item, backlog item, or direct user request.
+1. Determine the primary repair code location and repository.
+2. Decide whether the request is a standalone issue or belongs under a parent using `rules/issue-hierarchy.md`.
+3. Choose title and labels from `rules/title-label-priority.md`.
+4. Include background, current problem, expected result, non-goals, acceptance criteria, capability surfaces/shared contracts, and stable references.
+5. Add the lifecycle checklist when design, implementation, release, or downstream verification applies.
+6. For a child, link the parent with native sub-issue relation or the explicit fallback backlink.
 
-## Steps
-
-1. Determine the primary repair code location.
-2. Choose the repository using `rules/repository-ownership.md`.
-3. Decide whether one issue is enough or whether cross-repository independent work requires multiple issues.
-4. Choose title format using `rules/title-label-priority.md`.
-5. Assign `type:*`, `area:*`, and `priority:*` labels. Add `source:*` when relevant.
-6. Write a concise body that includes:
-   - background
-   - current problem
-   - expected result
-   - non-goals
-   - acceptance criteria
-   - links to related spec, plan, files, or dogfood evidence
-7. Add the lifecycle checklist when the issue is expected to go through spec, plan, and implementation stages.
-
-## Completion Check
-
-- repository assignment matches repair code location
-- labels match the issue type and area
-- body is actionable
-- lifecycle checklist exists when needed
+Completion requires actionable scope, correct ownership, applicable labels, evidence expectations, and hierarchy linkage.

@@ -2,7 +2,9 @@ name: Documentation
 description: Request or propose a documentation-only change.
 title: "[Docs]: "
 labels:
-  - documentation
+  - type:docs
+  - area:docs
+  - priority:p3
 body:
   - type: textarea
     id: page

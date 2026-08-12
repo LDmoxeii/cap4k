@@ -1,0 +1,62 @@
+name: Design parent
+description: Track one overall capability intent with multiple independently mergeable implementation slices.
+title: "[Parent]: "
+labels:
+  - type:feature
+  - area:framework
+  - priority:p1
+body:
+  - type:markdown
+    attributes:
+      value: Implementation pull requests close child issues, not this parent. Close the parent only after a one-lineage composition audit.
+  - type:textarea
+    id: outcome
+    attributes:
+      label: Intended outcome
+      description: State the complete user-visible or framework outcome.
+    validations:
+      required: true
+  - type:textarea
+    id: contracts
+    attributes:
+      label: Canonical spec and shared contracts
+      description: Link the canonical spec/plan and name the shared contracts that all slices must preserve.
+    validations:
+      required: true
+  - type:textarea
+    id: acceptance
+    attributes:
+      label: Acceptance IDs
+      description: Define stable acceptance IDs that can be delegated to child issues and PRs.
+      placeholder: |
+        - A1: ...
+        - A2: ...
+    validations:
+      required: true
+  - type:textarea
+    id: capability_impact
+    attributes:
+      label: Capability impact matrix
+      description: Cover Runtime, Generator, Analyzer, AgentFacts, Public Docs, and Skill with intended impact or a reasoned no-change conclusion.
+    validations:
+      required: true
+  - type:textarea
+    id: children
+    attributes:
+      label: Required child slices
+      description: List independently mergeable slices, dependencies, and delegated acceptance IDs. Convert them to native sub-issues after creation.
+    validations:
+      required: true
+  - type:textarea
+    id: composition
+    attributes:
+      label: Composition and closure evidence
+      description: Define the master-lineage checks, cross-slice tests, release, and downstream evidence required before parent closure.
+    validations:
+      required: true
+  - type:textarea
+    id: non_goals
+    attributes:
+      label: Non-goals and invariants
+    validations:
+      required: true

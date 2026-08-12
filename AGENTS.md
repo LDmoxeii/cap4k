@@ -63,6 +63,27 @@ There are three kinds of work in this repo now:
 1. Mainline design-generator quality work
 2. Real-project integration boundary work
 
+## Capability Contract Governance
+
+Runtime, Generator, and Analyzer are product capability surfaces. AgentFacts, Public Docs, and the authoring Skill are downstream projections and operation surfaces. A capability-contract change is complete only after its declared direct and transitive dependencies have been audited.
+
+Contribution rules:
+
+- derive enumerable facts from production descriptors, registries, task registration, artifact/output contracts, and Agent section definitions; do not add a second handwritten task/provider/section/output catalog
+- use `scripts/export-capability-contract-facts.ps1` and `scripts/validate-capability-contract.ps1` to inspect the current dependency graph and projection alignment
+- for every PR, record Runtime, Generator, Analyzer, AgentFacts, Public Docs, and Skill as `modified`, `verified-no-change`, or `not-applicable`, with concrete evidence or a reason
+- a Runtime contract change must evaluate the complete propagation closure, not only Generator and Analyzer; the same closure rule applies from any changed contract node
+- Public Docs and Skill describe only current supported behavior and boundaries; history belongs in Git, releases, changelogs, migration surfaces, GitHub issues, and archived internal design assets
+- AgentFacts remain generated from production contracts and current project observation; Public Docs and Skill never become reverse inputs to the facts catalog
+- docs-only pull requests may skip the full Gradle `check`, but they must still export code-derived facts and run capability, Skill, Runtime, PR-template, and workflow validation
+
+Governance objects have separate roles:
+
+- a GitHub Parent Issue fixes overall intent, acceptance IDs, child inventory, dependencies, and composition status
+- Child Issues own independently reviewable and mergeable slices; implementation PRs close Child/Standalone Issues only and reference the Parent without a closing keyword
+- Parent closure requires all required children plus composition evidence on one accepted `origin/master` lineage
+- Comet stores the formal goal, complete specification, acceptance loop, and evidence for one change unit; it is not a live multi-PR dependency graph
+
 ## Branch And Release Policy
 
 `cap4k` has one long-lived source branch: `master`.
@@ -145,7 +166,7 @@ Recent durable decisions to preserve:
 - CLI/distributed-client requests currently lack a dedicated marker, so avoid accidental command-policy inclusion
 - aggregate JPA runtime problems should be reproduced in focused fixtures before replacing repository or unit-of-work backends
 - frontend TypeScript generation is currently not planned as a cap4k core slice unless a first-class endpoint tactical model or stable API-contract projection exists
-- public README and AI-collaboration rules should be written only after the capability audit clarifies what remains supported, optimized, or deleted
+- public README and AI-collaboration rules describe current production contracts and are validated against code-derived capability facts; they do not depend on a historical capability-audit branch.
 - Application-side entity IDs are generated Strong IDs. `uuid7` is the only built-in application-side allocation strategy. The backing type follows JDBC storage; generated typed accessors allocate IDs, and generated catalogs feed the runtime registry. Database-assigned identity remains a persistence policy, not an application-side generator.
 
 ## Known Test Fixture Debt
