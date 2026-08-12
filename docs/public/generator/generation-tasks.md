@@ -1,5 +1,6 @@
 # Generation Tasks
 
+<!-- CAPABILITY_CONTRACT:PUBLIC_TASKS -->
 cap4k public pipeline plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`。公开 Gradle tasks 包括：
 
 - `cap4kAgentSnapshot`
@@ -8,6 +9,7 @@ cap4k public pipeline plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`。公开
 - `cap4kGenerateSources`
 - `cap4kAnalysisPlan`
 - `cap4kAnalysisGenerate`
+<!-- /CAPABILITY_CONTRACT:PUBLIC_TASKS -->
 
 本页只解释任务职责和边界，不要求读者在阅读文档时运行它们。实际项目中应先阅读 plan evidence，再决定是否 generation。
 

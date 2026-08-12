@@ -40,8 +40,9 @@
 
 字段名是 review contract；实际 item 可能包含更多 context。`outputPath` 始终是完整的 repo-relative 目标路径，不要再把它和 `resolvedOutputRoot` 重新拼接。`resolvedOutputRoot` 是可选的 root metadata：checked-in source 可以为空，也可以由 planner 提供 source root；Gradle 对 generated source rebase 后会更新为实际 generated root。
 
-当前内建 design generator ids 使用 `command`、`query`、`domain-service` 这类稳定短 id，不保留 `design-*` 旧名。
+当前内建 design generator ids 使用 `command`、`query`、`domain-service` 这类稳定短 id。
 
+<!-- CAPABILITY_CONTRACT:OUTPUT_KINDS -->
 ## Output Kind Values
 
 | `outputKind` | 含义 |
@@ -49,6 +50,7 @@
 | `CHECKED_IN_SOURCE` | first-materialized committed source skeleton or type source，通常位于 `<module>/src/main/kotlin`；existing file 固定 SKIP。 |
 | `GENERATED_SOURCE` | build-owned generated source，位于 `<module>/build/generated/cap4k/main/kotlin`。 |
 | `OUTPUT_ARTIFACT` | non-source evidence output；内置 flow 与 drawing-board planner 使用此 ownership。 |
+<!-- /CAPABILITY_CONTRACT:OUTPUT_KINDS -->
 
 ## Conflict Policy Reading
 

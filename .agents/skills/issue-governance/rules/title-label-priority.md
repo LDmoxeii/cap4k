@@ -22,6 +22,12 @@ Each issue should normally include:
 
 Add one `source:*` label when relevant.
 
+For a governed Parent/Child set:
+
+- Parent issues normally use `type:feature` (or `type:investigation` while intent is being established), the owning `area:*`, and `priority:p1` or `priority:p0` when the contract blocks release.
+- Child issues use the narrowest owning `area:*` and their own priority; they must link the Parent in the issue body and must not invent a second parent contract.
+- Do not add `state:*` labels for hierarchy or lifecycle; use GitHub issue relationships, checklists, and comments.
+
 ## Label Groups
 
 ### `type:*`

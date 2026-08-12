@@ -88,3 +88,16 @@ tasks.named<Test>("test") {
 tasks.named<Jar>("jar") {
     manifest.attributes["Implementation-Version"] = project.version.toString()
 }
+val capabilityContractFactsOutput = providers.gradleProperty("capabilityContractFactsOutput")
+    .map { project.file(it) }
+    .orElse(rootProject.layout.buildDirectory.file("cap4k/capability-contract-facts.json").map { it.asFile })
+    .get()
+
+tasks.register<JavaExec>("exportCapabilityContractFacts") {
+    group = "verification"
+    description = "Exports code-derived Cap4k capability contract facts for repository validation."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("com.only4.cap4k.plugin.pipeline.gradle.CapabilityContractFactsExporter")
+    outputs.file(capabilityContractFactsOutput)
+    args(capabilityContractFactsOutput.absolutePath)
+}

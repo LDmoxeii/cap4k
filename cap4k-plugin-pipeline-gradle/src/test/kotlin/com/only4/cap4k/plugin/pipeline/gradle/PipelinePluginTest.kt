@@ -11,6 +11,8 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineContributionConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineResult
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
+import com.only4.cap4k.plugin.pipeline.api.PipelineTaskMutationBoundary
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -53,6 +55,31 @@ class PipelinePluginTest {
         assertNotNull(extension)
         assertInstanceOf(Cap4kExtension::class.java, extension)
         assertNull(project.extensions.findByName("cap4kPipeline"))
+    }
+
+    @Test
+    fun `plugin registers exactly the public cap4k task contract`() {
+        val project = ProjectBuilder.builder().build()
+
+        project.pluginManager.apply(PipelinePlugin::class.java)
+
+        val registered = project.tasks
+            .filter { it.group == "cap4k" }
+            .map { it.name }
+            .sorted()
+
+        assertEquals(PipelinePublicTasks.all.sorted(), registered)
+        assertEquals(
+            mapOf(
+                PipelinePublicTasks.PLAN to PipelineTaskMutationBoundary.BUILD_EVIDENCE_ONLY,
+                PipelinePublicTasks.GENERATE to PipelineTaskMutationBoundary.MANAGED_OUTPUTS,
+                PipelinePublicTasks.GENERATE_SOURCES to PipelineTaskMutationBoundary.MANAGED_OUTPUTS,
+                PipelinePublicTasks.ANALYSIS_PLAN to PipelineTaskMutationBoundary.BUILD_EVIDENCE_ONLY,
+                PipelinePublicTasks.ANALYSIS_GENERATE to PipelineTaskMutationBoundary.MANAGED_OUTPUTS,
+                PipelinePublicTasks.AGENT_SNAPSHOT to PipelineTaskMutationBoundary.BUILD_EVIDENCE_ONLY,
+            ),
+            PipelinePublicTasks.contracts.associate { it.name to it.mutationBoundary },
+        )
     }
 
     @Test
@@ -445,6 +472,21 @@ class PipelinePluginTest {
 
         assertEquals(setOf("db", "enum-manifest", "value-object-manifest"), generatedConfig.sources.keys)
         assertEquals(setOf("aggregate", "aggregate-projection", "types-value-object"), generatedConfig.generators.keys)
+    }
+
+    @Test
+    fun `analysis task config follows built in analysis providers`() {
+        val expectedSources = builtInAnalysisSourceProviders().mapTo(linkedSetOf()) { it.id }
+        val expectedGenerators = builtInAnalysisGeneratorProviders().mapTo(linkedSetOf()) { it.id }
+        val config = projectConfig(
+            sources = (expectedSources + "design-json").associateWith { SourceConfig() },
+            generators = (expectedGenerators + "query").associateWith { GeneratorConfig() },
+        )
+
+        val analysisConfig = analysisTaskConfig(config)
+
+        assertEquals(expectedSources, analysisConfig.sources.keys)
+        assertEquals(expectedGenerators, analysisConfig.generators.keys)
     }
 
     @Test

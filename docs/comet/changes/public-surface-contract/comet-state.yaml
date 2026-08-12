@@ -1,0 +1,1440 @@
+schema: comet.native.v4
+name: public-surface-contract
+language: zh-CN
+phase: archive
+status: active
+state_version: 26
+brief: brief.md
+spec_changes:
+  - capability: capability-contract-governance
+    operation: create
+    source: specs/capability-contract-governance/spec.md
+workspace:
+  isolation: worktree
+  change_branch: feature/public-surface-contract
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: archive-ready
+  goal_cycle: 2
+  iteration: 5
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 3
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: archive
+acceptance:
+  - id: A1
+    source: brief.md
+    text: A1：当 Runtime、Generator 或 Analyzer 的能力契约发生变化时，PR 和校验必须沿已声明的直接及传递依赖边覆盖
+      Runtime、Generator、Analyzer、AgentFacts、Public
+      Docs、Skill；每一面都具有“已修改”“已验证无需修改”或“明确不适用及理由”的可审计结论。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: A2：当生产代码新增、删除或重命名 Agent snapshot section，而 Public Docs 的文件表或 Skill route
+      仍引用旧集合时，capability contract 校验以明确的 expected/actual 差异失败。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: A3：当公开 Gradle task、provider/capability identity、Runtime contract 或
+      Analyzer artifact/output 的代码事实发生变化，而受管生成器、分析器或公开投影没有同步时，CI
+      在合并前失败；未被声明为完整闭集的普通示例不会被误判。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: A4：当仅修改 `README.md`、`docs/public/**` 或 `skills/**` 时，GitHub required
+      `check` 仍运行结构、链接、当前态内容和代码契约对齐校验，不因 docs-only 分类而跳过。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: A5：`validate-cap4k-skills.ps1` 的职责和边界清晰可见：它能发现 Skill 结构、体积、链接、退休术语及 Skill
+      对代码契约的漂移，但不会被描述为 Public Docs 与 AgentFacts 全局一致性的唯一入口。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: A6：Public Docs 不要求读者理解 Bootstrap 等已退休能力、旧 task/DSL、Issue
+      背景或框架迭代过程；必须保留的升级信息位于 Changelog、Release 或明确的 migration surface，而不是 current
+      reference 正文。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: A7：Skill 通过 `routing.yaml` 和 Agent snapshot 渐进读取当前项目能力，不复制完整
+      provider/capability catalog；路由引用的 Agent section 与生产 Agent contract 对齐。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: A8：AgentFacts 继续由生产 contract、provider descriptor 和当前项目状态确定性生成，不从 Public
+      Docs、Skill 或 committed 手写 JSON 反向读取事实。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A9
+    source: brief.md
+    text: A9：Canonical Spec、AGENTS、Public Docs 和 Skill
+      各自只承载其职责内的信息；自动化测试证明权威链和失败诊断，仓库没有新增第二套手写机器事实目录。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A10
+    source: brief.md
+    text: A10：给定一个总体设计 Parent Issue，所有实现 Child Issue 使用原生 sub-issue 或显式 fallback
+      关系回链；Child PR 只关闭 Child/Standalone，Parent 只有在所有必需 Child 已完成且组合证据位于同一
+      `origin/master` lineage 后才允许关闭。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A11
+    source: brief.md
+    text: A11：PR 模板和校验要求声明 Parent/Child、Acceptance
+      IDs、受影响能力面、共享契约、传播闭包结果、组合证据、兄弟切片责任和审计重点；空标题或无理由的 `N/A` 不能通过。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A12
+    source: brief.md
+    text: A12：本 change 的实现、测试和文档全部位于 `feature/public-surface-contract` 独立
+      worktree，`framework-capability-audit` 的状态和文件保持不变。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A13
+    source: specs/capability-contract-governance/spec.md
+    text: cap4k 必须以一套可验证的能力契约图维护产品能力及其知识投影。Runtime、Generator、Analyzer 的语义、authoring
+      projection 与 observation projection，以及 AgentFacts、Public Docs、Skill
+      的机器/人类/Agent 投影，必须在同一次契约变化中完成直接和传递依赖闭包检查。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A14
+    source: specs/capability-contract-governance/spec.md
+    text: 本契约覆盖：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A15
+    source: specs/capability-contract-governance/spec.md
+    text: "`README.md` 与 `docs/public/**`；"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A16
+    source: specs/capability-contract-governance/spec.md
+    text: "`skills/cap4k-authoring/**` 及其验证脚本；"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A17
+    source: specs/capability-contract-governance/spec.md
+    text: "`build/cap4k/agent/**` AgentFacts；"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A18
+    source: specs/capability-contract-governance/spec.md
+    text: 支撑上述表面的代码事实投影、仓库校验、CI 与贡献规则。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A19
+    source: specs/capability-contract-governance/spec.md
+    text: Canonical capability contract 是语义根。Runtime、Generator、Analyzer
+      是产品能力节点；AgentFacts、Public Docs、Skill
+      是知识和操作投影节点。节点之间的边表示某一表面消费、表达、观察或解释另一表面的契约。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A20
+    source: specs/capability-contract-governance/spec.md
+    text: 任何节点变化都必须计算影响传播闭包。对闭包中的每个节点和边，变更记录必须给出三种结论之一：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A21
+    source: specs/capability-contract-governance/spec.md
+    text: 已修改，并给出实现与验证证据；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A22
+    source: specs/capability-contract-governance/spec.md
+    text: 已验证无需修改，并给出保持兼容的证据；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A23
+    source: specs/capability-contract-governance/spec.md
+    text: 明确不适用，并说明契约关系为何不存在。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A24
+    source: specs/capability-contract-governance/spec.md
+    text: 传播闭包不得由修改目录、固定的单向三段规则或提交者记忆替代。Runtime 变化通常需要检查
+      Generator、Analyzer、AgentFacts、Public Docs 和 Skill；实际是否修改由契约边和证据决定。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A25
+    source: specs/capability-contract-governance/spec.md
+    text: cap4k 的产品能力按职责划分为：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A26
+    source: specs/capability-contract-governance/spec.md
+    text: Runtime：执行请求、事件、持久化与 provider composition 等运行时语义；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A27
+    source: specs/capability-contract-governance/spec.md
+    text: Generator：读取受支持输入，经 canonical model 规划和渲染受管产物；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A28
+    source: specs/capability-contract-governance/spec.md
+    text: Analyzer：从代码、IR 和生成证据中提取结构观察与可视化产物。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A29
+    source: specs/capability-contract-governance/spec.md
+    text: 以下表面是产品能力的投影，不是与 Runtime、Generator、Analyzer 并列的业务实现：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A30
+    source: specs/capability-contract-governance/spec.md
+    text: AgentFacts：机器可读的已安装版本和当前项目事实；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A31
+    source: specs/capability-contract-governance/spec.md
+    text: Public Docs：人类用户理解和使用当前 cap4k 的说明；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A32
+    source: specs/capability-contract-governance/spec.md
+    text: Skill：业务项目 Agent 选择操作、读取事实和遵守稳定边界的薄路由。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A33
+    source: specs/capability-contract-governance/spec.md
+    text: 不同表面可以根据受众采用不同措辞和粒度，但不得维护相互冲突的事实闭集。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A34
+    source: specs/capability-contract-governance/spec.md
+    text: Canonical Spec 必须定义长期稳定的能力职责、用户可见语义、输入输出所有权、公开面受众以及验证义务。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A35
+    source: specs/capability-contract-governance/spec.md
+    text: Canonical Spec 不得复制会随代码频繁变化的 task 名、provider/capability 完整列表、Agent section
+      完整列表、JSON 字段枚举或 Analyzer 输出完整列表。此类枚举必须来自生产代码的结构化事实源。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A36
+    source: specs/capability-contract-governance/spec.md
+    text: 当前版本的可枚举事实必须由生产代码中的结构化 contract、descriptor、registry、task
+      registration、planner 或 artifact catalog 持有，并由可执行测试保护。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A37
+    source: specs/capability-contract-governance/spec.md
+    text: 如果说明材料与生产代码冲突，当前运行行为先以生产代码和测试证据为准；代码若违反已确认的 Canonical
+      Spec，必须修复代码；说明材料若违反代码与 Canonical Spec，必须修复说明材料。不得通过新增另一份手写完整清单来解决冲突。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A38
+    source: specs/capability-contract-governance/spec.md
+    text: AgentFacts 必须从生产 contract、provider descriptor、extension contribution
+      和当前项目状态确定性生成。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A39
+    source: specs/capability-contract-governance/spec.md
+    text: AgentFacts 必须：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A40
+    source: specs/capability-contract-governance/spec.md
+    text: 先提供稳定 manifest，再提供按 section 分区的事实；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A41
+    source: specs/capability-contract-governance/spec.md
+    text: 区分 installed/supported capability 与当前 project effective state；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A42
+    source: specs/capability-contract-governance/spec.md
+    text: 区分计划证据、可用产物和 freshness；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A43
+    source: specs/capability-contract-governance/spec.md
+    text: 对敏感配置脱敏；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A44
+    source: specs/capability-contract-governance/spec.md
+    text: 保持稳定排序、schema identity 和 snapshot identity；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A45
+    source: specs/capability-contract-governance/spec.md
+    text: 只描述当前版本和当前项目，不描述框架演进历史。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A46
+    source: specs/capability-contract-governance/spec.md
+    text: AgentFacts 不得从 Public Docs、Skill、手写 committed snapshot 或历史 spec/plan
+      反向读取能力事实。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A47
+    source: specs/capability-contract-governance/spec.md
+    text: Public Docs 必须面向当前框架用户，以自包含方式解释 cap4k
+      当前是什么、当前使用路径、Runtime/Generator/Analyzer 协作方式，以及输入、生成、手写逻辑、测试和分析证据的边界。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A48
+    source: specs/capability-contract-governance/spec.md
+    text: Public Docs 必须采用正向当前态表达。普通 reference、concept、authoring 和 example
+      页面不得用迭代日志、Issue 背景、旧能力对照或历史 spec 解释当前行为。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A49
+    source: specs/capability-contract-governance/spec.md
+    text: 必须提供升级信息时，应放入 Changelog、Release notes 或明确的 migration surface；它们不得成为理解
+      current reference 的前置条件。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A50
+    source: specs/capability-contract-governance/spec.md
+    text: 解释性正文和示例继续人工维护。精确闭集、高风险枚举和表格必须由代码事实生成，或由自动化校验与代码事实做精确对照。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A51
+    source: specs/capability-contract-governance/spec.md
+    text: "`skills/cap4k-authoring/SKILL.md` 必须保持薄入口，`routing.yaml` 必须保持唯一 route
+      table。"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A52
+    source: specs/capability-contract-governance/spec.md
+    text: Skill 必须先生成或刷新 Agent snapshot，先读 manifest，再按 route 渐进读取所需 section；根据
+      supported catalog 与 effective state 选择当前项目可执行操作；只内置无法从 AgentFacts 直接获得、但执行
+      authoring 必须遵守的稳定规则。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A53
+    source: specs/capability-contract-governance/spec.md
+    text: Skill 不得复制完整 provider/capability catalog、公开 task 全表、Agent section schema 或
+      Analyzer output 全表。Skill 提到的闭集或 identifier 必须可由 capability contract
+      validator 与代码事实对照。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A54
+    source: specs/capability-contract-governance/spec.md
+    text: "`README.md`、`docs/public/**`、`skills/cap4k-authoring/**` 和 AgentFacts
+      普通输出必须只承载当前态。"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A55
+    source: specs/capability-contract-governance/spec.md
+    text: 以下内容不属于这些 current surfaces：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A56
+    source: specs/capability-contract-governance/spec.md
+    text: 某能力过去如何实现或为何被重写；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A57
+    source: specs/capability-contract-governance/spec.md
+    text: 已关闭 Issue 的调查过程；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A58
+    source: specs/capability-contract-governance/spec.md
+    text: 历史分支、旧 task、旧 DSL 和旧模块的兼容说明；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A59
+    source: specs/capability-contract-governance/spec.md
+    text: 未来计划或尚未确认的能力；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A60
+    source: specs/capability-contract-governance/spec.md
+    text: 维护 Agent 的实现口号和阶段记录。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A61
+    source: specs/capability-contract-governance/spec.md
+    text: 当前边界允许直接说明“不支持什么”或“应使用什么”，但不得要求读者先理解已退休实现。例如应写“项目初始化使用官方 GitHub Template
+      或显式手工结构”，而不是把 Bootstrap 的删除过程写进普通用户路径。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A62
+    source: specs/capability-contract-governance/spec.md
+    text: 仓库必须提供一份由代码权威源产生的确定性 capability facts 投影，供跨能力校验、AgentFacts、文档、Skill 与 CI
+      使用。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A63
+    source: specs/capability-contract-governance/spec.md
+    text: 该投影至少覆盖：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A64
+    source: specs/capability-contract-governance/spec.md
+    text: Runtime contract identity、Generator carrier/artifact identity 与 Analyzer
+      observation/artifact identity；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A65
+    source: specs/capability-contract-governance/spec.md
+    text: 跨能力依赖边及其适用条件；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A66
+    source: specs/capability-contract-governance/spec.md
+    text: Agent snapshot 文件、section identity 与状态 vocabulary；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A67
+    source: specs/capability-contract-governance/spec.md
+    text: 公开 Gradle task identity 和只读/变更边界；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A68
+    source: specs/capability-contract-governance/spec.md
+    text: 被公开引用的 source/generator/provider/capability identity；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A69
+    source: specs/capability-contract-governance/spec.md
+    text: Analyzer 计划输出和公开 artifact identity；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A70
+    source: specs/capability-contract-governance/spec.md
+    text: 其他在 Public Docs 或 Skill 中被声明为完整闭集的高风险事实。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A71
+    source: specs/capability-contract-governance/spec.md
+    text: 投影实现不得把 Gradle adapter、PowerShell regex、Markdown 表格或 committed 手写 JSON
+      变成第二权威源。实现可以选择生产 API、focused export task 或测试支持入口，但必须直接消费生产
+      contract/descriptor/registry，并以测试证明确定性。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A72
+    source: specs/capability-contract-governance/spec.md
+    text: 仓库必须有一个统一的 capability contract validation 入口，负责协调：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A73
+    source: specs/capability-contract-governance/spec.md
+    text: Skill 结构和 route 唯一性；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A74
+    source: specs/capability-contract-governance/spec.md
+    text: 薄入口预算；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A75
+    source: specs/capability-contract-governance/spec.md
+    text: Public Docs 与 Skill 的本地链接；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A76
+    source: specs/capability-contract-governance/spec.md
+    text: 已退休 active term 和已知历史污染；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A77
+    source: specs/capability-contract-governance/spec.md
+    text: Runtime / Generator / Analyzer 的共享契约和组合证据；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A78
+    source: specs/capability-contract-governance/spec.md
+    text: Public Docs / Skill 引用与 capability facts 的精确对齐；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A79
+    source: specs/capability-contract-governance/spec.md
+    text: PR 声明的影响传播闭包与变更事实的对齐；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A80
+    source: specs/capability-contract-governance/spec.md
+    text: current-only 表面的结构和内容约束；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A81
+    source: specs/capability-contract-governance/spec.md
+    text: 可读、稳定、可修复的失败诊断。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A82
+    source: specs/capability-contract-governance/spec.md
+    text: "`skills/scripts/validate-cap4k-skills.ps1` 保留为 Skill 专属检查调度器。它必须检查 Skill
+      自身的结构、预算、链接、current-only 规则以及 Skill 所引用代码事实的契约对齐，但它不是 Public Docs 与
+      AgentFacts 全局一致性的唯一入口。"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A83
+    source: specs/capability-contract-governance/spec.md
+    text: 关键词扫描只能捕获明确的退休 identifier 和高置信历史污染，不得作为语义一致性的唯一证据。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A84
+    source: specs/capability-contract-governance/spec.md
+    text: 当受管事实不一致时，校验必须非零退出，并至少报告事实类别、代码权威来源或投影 section、声明文件或 route、expected、actual
+      和推荐修复方向。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A85
+    source: specs/capability-contract-governance/spec.md
+    text: 校验必须区分“页面声称这是完整闭集”和“页面只举例说明”。普通示例不因为未列出所有 capability 而失败；完整表、route
+      vocabulary、schema 文件表和公开 task reference 必须精确对齐。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A86
+    source: specs/capability-contract-governance/spec.md
+    text: 当一项总体设计需要多个可独立实现、验证和合并的切片时，治理使用以下职责分工：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A87
+    source: specs/capability-contract-governance/spec.md
+    text: Canonical Spec 保存系统最终必须成立的总体语义、不变量、能力契约边和总体验收；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A88
+    source: specs/capability-contract-governance/spec.md
+    text: GitHub Parent Issue 保存实时切片、依赖、进度和最终关闭状态，并优先使用原生 sub-issue 关系；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A89
+    source: specs/capability-contract-governance/spec.md
+    text: Child Issue 保存单个可验收实现切片的范围、非目标、依赖和 acceptance IDs；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A90
+    source: specs/capability-contract-governance/spec.md
+    text: 每个 Child 可以使用独立 Comet change 保存正式目标、验收和验证证据；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A91
+    source: specs/capability-contract-governance/spec.md
+    text: PR 是交付单元，只能自动关闭其直接负责的 Child 或 Standalone Issue，不得自动关闭总体 Parent；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A92
+    source: specs/capability-contract-governance/spec.md
+    text: Parent 只有在全部必需 Child 完成、相关 merge commit 均属于同一被接受的 `origin/master`
+      lineage、并在该基线上完成总体组合验收后才允许关闭。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A93
+    source: specs/capability-contract-governance/spec.md
+    text: Comet 不承担多个 PR 的实时依赖图。Parent Issue 不复制高频代码事实；它只记录总体意图、切片关系、acceptance
+      coverage 和证据状态。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A94
+    source: specs/capability-contract-governance/spec.md
+    text: "`.agents/skills/issue-governance` 必须支持 Parent、Child 和 Standalone
+      三种角色，允许同仓库总体设计拆分为独立 Child，规定原生 sub-issue 优先、fallback backlink、closing
+      keyword、master containment 和 Parent closure audit。"
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A95
+    source: specs/capability-contract-governance/spec.md
+    text: cap4k Issue forms 必须提供维护者可用的总体设计 Parent 与实现切片 Child 入口，同时保留普通外部
+      bug/docs/release 的 Standalone 路径。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A96
+    source: specs/capability-contract-governance/spec.md
+    text: PR 模板必须要求作者提供：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A97
+    source: specs/capability-contract-governance/spec.md
+    text: Parent Issue、直接负责的 Child/Standalone Issue、Canonical Spec 和 acceptance IDs；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A98
+    source: specs/capability-contract-governance/spec.md
+    text: Runtime、Generator、Analyzer、AgentFacts、Public Docs、Skill 的受影响面；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A99
+    source: specs/capability-contract-governance/spec.md
+    text: 修改或消费的共享契约；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A100
+    source: specs/capability-contract-governance/spec.md
+    text: 对传播闭包中各面的“已修改 / 已验证无需修改 / 不适用及理由”；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A101
+    source: specs/capability-contract-governance/spec.md
+    text: 跨能力组合验证；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A102
+    source: specs/capability-contract-governance/spec.md
+    text: 本切片责任、兄弟切片责任、已知风险和 reviewer audit focus。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A103
+    source: specs/capability-contract-governance/spec.md
+    text: PR body validator 必须校验承重内容，不只校验标题存在。Parent 与 `Closes` 不得指向同一 Issue；存在
+      Parent 时必须有直接 Child；无理由的空内容或 `N/A` 不得通过。无需总体设计的 Standalone 变更允许明确声明 Parent
+      为 `N/A`。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A104
+    source: specs/capability-contract-governance/spec.md
+    text: Agent Review 是确定性门禁之外的动态增强，用于发现静态闭集和测试未覆盖的架构遗漏、传播边遗漏和总体设计偏离。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A105
+    source: specs/capability-contract-governance/spec.md
+    text: Agent Review 不得替代 capability contract validator、组合测试、PR body validation
+      或人类审批。实现只有在以下条件同时满足时才应接入自动 Agent Review：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A106
+    source: specs/capability-contract-governance/spec.md
+    text: reviewer 能读取仓库治理指令、Canonical Spec、Parent/Child Issue 和 PR 审计字段；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A107
+    source: specs/capability-contract-governance/spec.md
+    text: workflow 对 fork PR、secret、提示注入、写权限和第三方代码执行有明确安全边界；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A108
+    source: specs/capability-contract-governance/spec.md
+    text: 费用、配额和失败模式可接受；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A109
+    source: specs/capability-contract-governance/spec.md
+    text: Agent 失败不会错误地覆盖确定性检查结论。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A110
+    source: specs/capability-contract-governance/spec.md
+    text: 若当前 GitHub/凭据环境无法可靠满足上述条件，本 change 可以只交付完整审计上下文和可接入设计，并明确记录未启用原因；这不阻塞
+      capability contract governance 的完成。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A111
+    source: specs/capability-contract-governance/spec.md
+    text: GitHub required `check` 必须在所有 pull request 上执行 capability contract
+      validation。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A112
+    source: specs/capability-contract-governance/spec.md
+    text: 非 docs-only PR：capability contract validation 与现有 Gradle checks 一起运行；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A113
+    source: specs/capability-contract-governance/spec.md
+    text: docs-only PR：可以继续跳过完整 Gradle `check`，但必须运行 capability contract
+      validation，并获得足够的代码事实投影来做语义比较；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A114
+    source: specs/capability-contract-governance/spec.md
+    text: validation 失败必须阻止合并；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A115
+    source: specs/capability-contract-governance/spec.md
+    text: CI 不得依赖外部数据库、网络服务、发布凭据或业务项目仓库。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A116
+    source: specs/capability-contract-governance/spec.md
+    text: 根 `AGENTS.md` 必须只写简短治理规则和命令路由：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A117
+    source: specs/capability-contract-governance/spec.md
+    text: Public Docs、Skill、AgentFacts 只描述当前版本；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A118
+    source: specs/capability-contract-governance/spec.md
+    text: 历史进入 Git/Issue/Release/Changelog/migration/Comet archive 或内部历史 spec/plan；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A119
+    source: specs/capability-contract-governance/spec.md
+    text: 修改生产 task、contract、descriptor、registry、Agent schema 或 Analyzer artifact
+      时必须更新受影响的公开解释并运行统一 validator；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A120
+    source: specs/capability-contract-governance/spec.md
+    text: Skill 必须通过 AgentFacts 获取动态 capability/project facts；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A121
+    source: specs/capability-contract-governance/spec.md
+    text: 不在 AGENTS 中复制事实枚举。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A122
+    source: specs/capability-contract-governance/spec.md
+    text: 实现必须提供自动化证据，至少证明：
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A123
+    source: specs/capability-contract-governance/spec.md
+    text: capability contract facts 从生产权威源确定性产生；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A124
+    source: specs/capability-contract-governance/spec.md
+    text: Agent section 增删或改名会使过时 Public Docs/Skill fixture 失败；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A125
+    source: specs/capability-contract-governance/spec.md
+    text: 公开 task、provider/capability 或 Analyzer artifact 漂移会被捕获；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A126
+    source: specs/capability-contract-governance/spec.md
+    text: Skill 基础结构、薄入口、链接和退休术语检查继续有效；
+    result: passed
+    reason:
+      text: Independent verifier ran scripts/test-pr-workflow.ps1 successfully both
+        from the change worktree and from the main repository root via the
+        absolute worktree script path, proving the working-directory
+        nondeterminism is resolved.
+      truncated: false
+  - id: A127
+    source: specs/capability-contract-governance/spec.md
+    text: docs-only 与非 docs-only CI 路径都执行统一 validator；
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+  - id: A128
+    source: specs/capability-contract-governance/spec.md
+    text: 当前仓库全部 Public Docs、Skill 和 AgentFacts 合同通过；
+    result: passed
+    reason:
+      text: Independent verifier ran scripts/test-pr-workflow.ps1 successfully both
+        from the change worktree and from the main repository root via the
+        absolute worktree script path, proving the working-directory
+        nondeterminism is resolved.
+      truncated: false
+  - id: A129
+    source: specs/capability-contract-governance/spec.md
+    text: 现有 Runtime facts guard 与 Agent snapshot focused tests 不被削弱。
+    result: passed
+    reason:
+      text: Independent verifier reviewed the implementation and Runtime-owned checks
+        and found this acceptance satisfied without regression.
+      truncated: false
+builder_handoff:
+  candidate_id: 48fe88bc-1491-4f7e-8ae9-a978c4797383
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:390fcbeb-953e-4700-b145-1f9cb05eb7d0
+  iteration: 5
+  summary:
+    text: Fixed PR workflow test determinism by making Invoke-ScriptProcess execute
+      from the change worktree repository root unless a test explicitly supplies
+      another working directory. This prevents validate-pr-body.ps1 from
+      resolving its default PR template against the caller repository while
+      preserving the detached-worktree override test.
+    truncated: false
+  addressed_acceptance_ids:
+    - A126
+    - A128
+  checks:
+    - name:
+        text: PR workflow from change worktree
+        truncated: false
+      result: passed
+      note:
+        text: scripts/test-pr-workflow.ps1 passed from feature/public-surface-contract.
+        truncated: false
+    - name:
+        text: PR workflow from external repository root
+        truncated: false
+      result: passed
+      note:
+        text: The same absolute test script passed when invoked from the main cap4k
+          repository root, reproducing and eliminating the verifier environment
+          mismatch.
+        truncated: false
+    - name:
+        text: Capability governance validation
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check, capability facts export, capability contract validation,
+          Skill validation, and current Runtime facts validation passed.
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: GitHub Agent Review remains optional; deterministic and independent
+        validation remain the required evidence.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-12T11:16:52.359Z
+blockers: []
+verification:
+  candidate_id: 48fe88bc-1491-4f7e-8ae9-a978c4797383
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:e5870e14-b0d7-4c52-96df-9fd749662819
+  iteration: 5
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: diff-contract
+      name:
+        text: Git diff contract
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 112
+    - id: export-capability-facts
+      name:
+        text: Export code-derived capability facts
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/export-capability-contract-facts.ps1
+          truncated: false
+        - text: -OutputFile
+          truncated: false
+        - text: build/cap4k/comet-runtime-facts.json
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 2003
+    - id: validate-capability-contract
+      name:
+        text: Validate Public Docs Skill and Runtime facts
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: "& ./scripts/validate-capability-contract.ps1 -FactsFile
+            build/cap4k/comet-runtime-facts.json; if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE }; & ./skills/scripts/validate-cap4k-skills.ps1
+            -FactsFile build/cap4k/comet-runtime-facts.json; if ($LASTEXITCODE
+            -ne 0) { exit $LASTEXITCODE }; &
+            ./scripts/validate-current-runtime-facts.ps1 -FactsFile
+            build/cap4k/comet-runtime-facts.json"
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 942
+    - id: test-governance-scripts
+      name:
+        text: Test capability and PR governance scripts
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: "& ./scripts/test-capability-contract.ps1 -FactsFile
+            build/cap4k/comet-runtime-facts.json; if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE }; & ./scripts/test-pr-workflow.ps1"
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 57748
+    - id: focused-contract-tests
+      name:
+        text: Focused AgentFacts Analyzer and Gradle tests
+        truncated: false
+      argv_display:
+        - text: /d
+          truncated: false
+        - text: /s
+          truncated: false
+        - text: /c
+          truncated: false
+        - text: gradlew.bat :cap4k-plugin-pipeline-agent:test --tests
+            *CapabilityContractFactsTest --tests *AgentSnapshotServiceTest
+            --tests *AgentSnapshotCodecTest --tests
+            *RuntimeAgentFactsCatalogTest :cap4k-plugin-pipeline-gradle:test
+            --tests *PipelinePluginTest --tests *Cap4kAgentSnapshotTaskTest
+            --tests *Cap4kAgentSnapshotFunctionalTest --no-daemon
+            --console=plain
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 20210
+    - id: full-gradle-check
+      name:
+        text: Full Gradle check
+        truncated: false
+      argv_display:
+        - text: /d
+          truncated: false
+        - text: /s
+          truncated: false
+        - text: /c
+          truncated: false
+        - text: gradlew.bat check --no-daemon --console=plain
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 401767
+  summary:
+    text: Independent verification passed A1-A129. The iteration-5 PR workflow fix
+      now resolves default template paths from the change worktree repository
+      root regardless of caller cwd, passes from both caller roots, preserves
+      explicit detached-worktree overrides, and all six Runtime checks remain
+      green.
+    truncated: false
+  risks: []
+  risks_truncated: false
+  completed_at: 2026-08-12T11:33:56.891Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-08-12T08:19:30.246Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: "Native Verifier response was invalid: Native verification cannot pass
+        before every required check succeeds"
+      truncated: false
+    completed_at: 2026-08-12T08:38:35.766Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Corrected the capability validator test script to reset LASTEXITCODE after
+        expected negative fixtures, so the already-resolved combined Runtime
+        check accurately reflects success in its caller process.
+      truncated: false
+    completed_at: 2026-08-12T08:42:12.090Z
+  - goal_cycle: 2
+    iteration: 2
+    attempt: 1
+    outcome: fail
+    unresolved_ids:
+      - A65
+      - A66
+      - A67
+      - A79
+      - A84
+    summary:
+      text: 独立核验确认工作区隔离、六项 Runtime checks、PowerShell 退出码修复、docs-only
+        CI、代码事实、公开闭集、Skill/AgentFacts、Issue/PR 基础治理和可选 Agent Review 边界大体成立；但
+        A65、A66、A67、A79、A84 未满足，本轮失败并返回 Build。
+      truncated: false
+    completed_at: 2026-08-12T08:58:13.028Z
+  - goal_cycle: 2
+    iteration: 3
+    attempt: 1
+    outcome: fail
+    unresolved_ids:
+      - A66
+      - A78
+    summary:
+      text: Iteration 3 fixed conditional dependency edges, typed task boundaries,
+        diff-aware propagation closure, and structured diagnostics. A66 and A78
+        remain unresolved because all public Runtime Agent status vocabularies
+        are not yet under exact marked-set validation.
+      truncated: false
+    completed_at: 2026-08-12T10:16:48.240Z
+  - goal_cycle: 2
+    iteration: 4
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: Independent verification passed A1-A129. All 11 production-derived Agent
+        status vocabularies have exact managed Public Docs comparison and
+        independent negative drift fixtures; prior conditional-edge, typed-task,
+        diff-aware closure, diagnostic, CI, Issue/PR, current-only,
+        Skill/AgentFacts, and isolation requirements remain satisfied.
+      truncated: false
+    completed_at: 2026-08-12T10:40:19.111Z
+  - goal_cycle: 2
+    iteration: 4
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Local Runtime was unavailable at Archive ready; the synchronized
+        implementation must be verified again.
+      truncated: false
+    completed_at: 2026-08-12T10:54:05.347Z
+  - goal_cycle: 2
+    iteration: 4
+    attempt: 2
+    outcome: fail
+    unresolved_ids:
+      - A126
+      - A128
+    summary:
+      text: Independent verification passed 127 of 129 acceptance items but failed
+        A126 and A128 because the PR workflow guard produced an
+        environment-dependent template-heading mismatch. Return to Build to
+        remove the nondeterminism and rerun verification.
+      truncated: false
+    completed_at: 2026-08-12T11:13:27.590Z
+  - goal_cycle: 2
+    iteration: 5
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: Independent verification passed A1-A129. The iteration-5 PR workflow fix
+        now resolves default template paths from the change worktree repository
+        root regardless of caller cwd, passes from both caller roots, preserves
+        explicit detached-worktree overrides, and all six Runtime checks remain
+        green.
+      truncated: false
+    completed_at: 2026-08-12T11:33:56.891Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-12T02:17:51.030Z

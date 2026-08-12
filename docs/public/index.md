@@ -1,13 +1,4 @@
-﻿# cap4k Public Documentation
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者从入口页按目标选择阅读路径，理解学习、建项、编写业务功能和查精确字段之间的顺序关系。
-Type: workflow diagram
-Prompt: Create a reader journey workflow diagram for cap4k public documentation. Start with docs/public/index.md, branch into four reader goals: first-time learning, creating a new project, writing business features, and looking up exact fields. Show each branch moving through concepts, architecture, examples, authoring, generator, and reference as appropriate. Use a clear documentation navigation style.
-Must show: docs/public/index.md, first-time learning, creating a new project, writing business features, exact field lookup, concepts, architecture, examples, authoring, generator, reference, cap4k-reference-content-studio
-Must avoid: 不要暗示读者必须先读 issue history、internal specs、Phase 1 maps 或 skills；不要把生成器画成会自动完成业务决策；不要把参考页画成学习入口的唯一前置；不要画出违反 Clean Architecture 依赖方向的箭头
-Alt text after insertion: cap4k 文档阅读路径图，展示首次学习、创建新项目、编写业务功能和查精确字段四类目标如何进入各章节。
--->
+# cap4k Public Documentation
 
 ## 先选你的目标
 
@@ -72,6 +63,6 @@ reference/index.md -> gradle-plugin.md | generator-dsl.md | design-json.md | val
 
 ## 不需要先读什么
 
-理解这些公开文档不需要先阅读 issue history、internal specs、Phase 1 maps 或 skills。那些材料只服务于维护和实现过程，不是读者学习 cap4k 的前置条件。
+公开文档独立说明当前支持能力、使用方式和边界；读者可按本页路径直接进入架构、建模、生成和参考内容。
 
 你也不需要先读完整 reference 章节。reference 用来查精确字段；第一次学习时，先按 concepts、architecture、examples 的顺序建立模型会更稳。

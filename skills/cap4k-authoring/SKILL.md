@@ -25,6 +25,6 @@ If Gradle fails before the Agent API task starts, use the ordinary Gradle failur
 - Treat analyzer output as observation, not business truth or automatic generator input. A current-contract Drawing Board file may be explicitly registered as Design JSON after reviewing context ownership and any event-direction decision.
 - Keep Domain Events as explicit immutable historical facts; never relax the Aggregate/Entity payload boundary.
 - Do not assume a provider or tactical carrier exists. Read the machine catalog and report unsupported/provider-owned boundaries honestly.
-- Bootstrap is retired. Do not use or recreate bootstrap tasks, DSL, markers, guards, slots, aliases, or migration workflows.
+- Use only public tasks and inputs reported by the installed Agent snapshot; project initialization stays outside the pipeline task surface.
 
 `routing.yaml` is the only route table. Do not require strategic workspaces, fixed design dossiers, phase chains, rollback workflows, or cap4k-specific approval gates.

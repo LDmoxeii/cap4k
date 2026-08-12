@@ -13,12 +13,3 @@ Aggregate Root 是领域模型的事务一致性边界。它负责保护一组�
 设计边界要围绕“一次事务必须一致”的问题来划定。跨聚合协作不应该靠一个 Aggregate 直接修改另一个 Aggregate；可以通过 Domain Event、Integration Event、可靠 Command、应用层编排，或在确有跨时间进度时选择 provider-owned orchestration。常见误用包括把 Aggregate 做成贫血数据容器、让内部 Entity 暴露独立保存入口、把外部 HTTP 协议字段放进 Aggregate、或为了代码复用把多个业务生命周期塞进一个 Root。
 
 判断 Aggregate 是否用对时，可以看不变量是否集中在 Root 行为中，Command 是否只通过 Root 进入写入，Repository 是否只承担聚合级读取，外层 Command 是否自动完成 Unit of Work，领域事件是否发生在状态变化之后，以及生成骨架与手写业务逻辑的边界是否清晰。Root behavior 可选提供 `onCreate()` 和 `onDeleted()` 登记相应领域事实；空回调可删除，不提供泛化的更新回调生命周期。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 Aggregate Root 是事务一致性边界和命令写入口。
-Type: concept map
-Prompt: Draw a concept map for an Aggregate Root in cap4k. Put Aggregate Root at the center, internal Entity and Value Object inside its boundary, Command and Repository outside the boundary, Domain Event emitted after state change, and Unit of Work around persistence. Use Chinese labels and preserve English identifiers.
-Must show: Aggregate Root boundary, invariants, transaction consistency, Repository load/access boundary, Command entry, Unit of Work persistence boundary, Domain Event after state change
-Must avoid: showing internal Entity as an independent write entry, making Repository responsible for aggregate persistence, arrows that violate Clean Architecture dependency rules
-Alt text after insertion: Aggregate Root 作为事务一致性边界，Command 进入 Root，Repository 按聚合读取，外层 Unit of Work 自动稳定并提交状态变化，状态变化后产生 Domain Event。
--->

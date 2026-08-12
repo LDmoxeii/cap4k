@@ -62,12 +62,3 @@
 - `analysis/flows/*.mmd`
 
 这些 evidence surfaces 用来交叉检查 HTTP path、controller flow、integration-event subscriber flow 和 application command flow 是否和手工 `.http` 路径一致。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解默认内容发布路径如何从 HTTP 操作进入 command、domain event、subscriber 和最终发布。
-Type: workflow diagram
-Prompt: Draw the default publication workflow for cap4k-reference-content-studio. Show http/content.http, http/review.http, http/query.http, http/media-processing.http, CreateContentDraftCmd, SubmitContentForReviewCmd, ApproveContentReviewCmd, ContentRequiresMediaProcessingDomainEvent, StartMediaProcessingCmd, MediaProcessingCallbackIntegrationEventSubscriber, MarkMediaProcessingSucceededCmd, RecordContentMediaReadyCmd, ContentPublicationReadyDomainEvent, PublishContentCmd, and final contentStatus PUBLISHED. Use Chinese labels and preserve English identifiers.
-Must show: default path only, review approval, media-processing callback, Domain Event to Subscriber reactions, PublishContentCmd, contentStatus PUBLISHED, processingStatus SUCCEEDED
-Must avoid: showing a built-in persistent orchestration runtime, publishing external events before local commit, implying generator writes business decisions automatically
-Alt text after insertion: 默认内容发布工作流，从创建草稿、审核通过、媒体处理回调到 PublishContentCmd 发布内容。
--->

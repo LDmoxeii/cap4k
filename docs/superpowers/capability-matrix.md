@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the current human-readable truth source for Cap4k capability support.
+This document is an internal audit aid. Current capability support is established by production descriptors, registries, task registration, generated Agent facts, and focused verification.
 
 It records:
 

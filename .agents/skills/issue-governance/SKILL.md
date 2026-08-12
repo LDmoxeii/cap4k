@@ -1,37 +1,38 @@
 ---
 name: issue-governance
-description: Use this skill when the user asks to "create an issue", "move backlog to GitHub", "triage roadmap items", "decide which repo an issue belongs to", "update issue status", or "close an issue". Activate for cross-repository issue governance across cap4k, only-engine, and only-danmuku-zero.
+description: Use this skill when the user asks to create, split, link, update, audit, or close GitHub issues, including parent issues, sub-issues, implementation slices, and cross-repository backlog governance across cap4k, only-engine, and only-danmuku-zero.
 ---
 
 # Issue Governance
 
-Shared workspace rules for backlog triage and GitHub issue lifecycle.
+Shared workspace rules for issue ownership, hierarchy, evidence, and lifecycle.
 
 ## Always Read
 
 - [rules/repository-ownership.md](rules/repository-ownership.md)
-- [rules/title-label-priority.md](rules/title-label-priority.md)
+- [rules/issue-hierarchy.md](rules/issue-hierarchy.md)
 - [rules/lifecycle-policy.md](rules/lifecycle-policy.md)
 
 ## Common Tasks
 
-- Create a new issue:
-  Read `rules/repository-ownership.md`, `rules/title-label-priority.md`, `workflows/create-issue.md`
-- Triage roadmap or backlog items into issues:
-  Read `rules/repository-ownership.md`, `rules/title-label-priority.md`, `workflows/triage-backlog.md`
-- Update an issue after spec, plan, implementation, release, or downstream verification:
-  Read `rules/lifecycle-policy.md`, `workflows/update-issue-lifecycle.md`
-- Decide whether an issue can be closed:
-  Read `rules/lifecycle-policy.md`, `workflows/close-issue.md`
+- Create a standalone issue: read `rules/title-label-priority.md` and `workflows/create-issue.md`.
+- Create a design parent and implementation slices: read `rules/title-label-priority.md` and `workflows/create-parent-and-children.md`.
+- Triage roadmap or backlog items: read `rules/title-label-priority.md` and `workflows/triage-backlog.md`.
+- Update progress after spec, plan, PR, release, or downstream verification: read `workflows/update-issue-lifecycle.md`.
+- Close a child or standalone issue: read `workflows/close-issue.md`.
+- Audit and close a parent issue: read `workflows/close-parent-issue.md`.
 
 ## Gotchas
 
-- A dogfood-discovered issue does not automatically belong in `only-danmuku-zero`; assign by repair code location.
-- Do not close an upstream issue just because code merged if release or downstream verification is still pending.
-- Use checklist and comments for progress; do not introduce `state:*` labels.
+- Assign by repair code location, not discovery location.
+- Do not split only because several directories change; split when slices are independently reviewable and mergeable.
+- A child PR closes only its child or standalone issue. It references the parent without a closing keyword.
+- A parent closes only after required children and composition evidence are accepted on one `origin/master` lineage.
+- Use checklists, native sub-issues, and comments for progress. Do not introduce `state:*` labels.
 
 ## Boundaries
 
-- This skill governs issue ownership, labels, lifecycle updates, and closure.
-- Spec and plan documents still live in repository docs.
-- Repository-specific technical design still belongs in the target repository.
+- This skill governs issue ownership, hierarchy, labels, lifecycle evidence, and closure.
+- Canonical specs and plans remain repository design assets.
+- Comet governs one change target and its acceptance loop; it is not a multi-PR live dependency graph.
+- Repository-specific technical design remains in the target repository.

@@ -15,6 +15,7 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineExtensionProvider
 import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineRunner
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
@@ -71,37 +72,37 @@ class PipelinePlugin : Plugin<Project> {
             configuration.description = "Build-time Cap4k Pipeline Extension dependencies."
         }
 
-        val planTask = project.tasks.register("cap4kPlan", Cap4kPlanTask::class.java) { task ->
+        val planTask = project.tasks.register(PipelinePublicTasks.PLAN, Cap4kPlanTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Plans Cap4k pipeline artifacts."
             task.extension = extension
             task.configFactory = configFactory
         }
-        val generateTask = project.tasks.register("cap4kGenerate", Cap4kGenerateTask::class.java) { task ->
+        val generateTask = project.tasks.register(PipelinePublicTasks.GENERATE, Cap4kGenerateTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Generates artifacts from the Cap4k pipeline."
             task.extension = extension
             task.configFactory = configFactory
         }
-        val generateSourcesTask = project.tasks.register("cap4kGenerateSources", Cap4kGenerateSourcesTask::class.java) { task ->
+        val generateSourcesTask = project.tasks.register(PipelinePublicTasks.GENERATE_SOURCES, Cap4kGenerateSourcesTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Generates build-owned Kotlin sources from the Cap4k pipeline."
             task.extension = extension
             task.configFactory = configFactory
         }
-        val analysisPlanTask = project.tasks.register("cap4kAnalysisPlan", Cap4kAnalysisPlanTask::class.java) { task ->
+        val analysisPlanTask = project.tasks.register(PipelinePublicTasks.ANALYSIS_PLAN, Cap4kAnalysisPlanTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Plans Cap4k analysis export artifacts."
             task.extension = extension
             task.configFactory = configFactory
         }
-        val analysisGenerateTask = project.tasks.register("cap4kAnalysisGenerate", Cap4kAnalysisGenerateTask::class.java) { task ->
+        val analysisGenerateTask = project.tasks.register(PipelinePublicTasks.ANALYSIS_GENERATE, Cap4kAnalysisGenerateTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Generates artifacts from analysis snapshots."
             task.extension = extension
             task.configFactory = configFactory
         }
-        project.tasks.register("cap4kAgentSnapshot", Cap4kAgentSnapshotTask::class.java) { task ->
+        project.tasks.register(PipelinePublicTasks.AGENT_SNAPSHOT, Cap4kAgentSnapshotTask::class.java) { task ->
             task.group = "cap4k"
             task.description = "Writes a read-only, manifest-first Cap4k project snapshot for agents."
             task.extension = extension
@@ -190,8 +191,6 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
 )
 private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "value-object-manifest")
 private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("types-value-object", "aggregate", "aggregate-projection")
-private val ANALYSIS_TASK_SOURCE_IDS = setOf("ir-analysis")
-private val ANALYSIS_TASK_GENERATOR_IDS = setOf("flow", "drawing-board")
 
 internal fun pipelineExtensionClasspath(project: Project): FileCollection =
     project.configurations.findByName(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME)
@@ -229,11 +228,15 @@ internal fun generatedSourceTaskConfig(config: ProjectConfig): ProjectConfig =
         generators = config.generators.filterKeys { it in GENERATED_SOURCE_TASK_GENERATOR_IDS },
     )
 
-internal fun analysisTaskConfig(config: ProjectConfig): ProjectConfig =
-    config.copy(
-        sources = config.sources.filterKeys { it in ANALYSIS_TASK_SOURCE_IDS },
-        generators = config.generators.filterKeys { it in ANALYSIS_TASK_GENERATOR_IDS },
+internal fun analysisTaskConfig(config: ProjectConfig): ProjectConfig {
+    val sourceIds = builtInAnalysisSourceProviders().mapTo(linkedSetOf(), SourceProvider::id)
+    val generatorIds = builtInAnalysisGeneratorProviders().mapTo(linkedSetOf(), GeneratorProvider::id)
+    return config.copy(
+        sources = config.sources.filterKeys(sourceIds::contains),
+        generators = config.generators.filterKeys(generatorIds::contains),
     )
+}
+
 
 internal fun ensureAggregateDomainJpaDependency(project: Project, config: ProjectConfig) {
     if ("aggregate" !in config.generators) {

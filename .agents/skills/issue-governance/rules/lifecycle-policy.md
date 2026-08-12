@@ -2,7 +2,7 @@
 
 ## Checklist Requirement
 
-Issues that are expected to move through design and implementation should include a lifecycle checklist in the body:
+Standalone and child issues expected to move through design and implementation include applicable checklist items:
 
 - [ ] spec written
 - [ ] plan written
@@ -10,71 +10,32 @@ Issues that are expected to move through design and implementation should includ
 - [ ] released if required
 - [ ] downstream verified if required
 
-Remove items only when they truly do not apply.
+Parents additionally track:
+
+- [ ] required children identified and linked
+- [ ] all required children complete
+- [ ] composition audit passed on one `origin/master` lineage
 
 ## Update Rules
 
-### After spec is written
+After each milestone, update the checklist and add a short evidence comment linking the spec, plan, PR, merge commit, release, or downstream verification. Record scope changes and new child dependencies explicitly.
 
-Do not close the issue.
+A merged child does not prove parent completion. A parent never auto-closes from an implementation PR.
 
-Update the issue by:
+## Child Or Standalone Closure
 
-- linking the spec
-- checking `spec written`
-- noting any scope split or major scope change
+Close only when all applicable lifecycle items are complete and the final implementation is merged. If several PRs implement one child, intermediate PRs reference it and only the final PR closes it.
 
-### After plan is written
+## Parent Closure
 
-Do not close the issue.
+Close only when:
 
-Update the issue by:
-
-- linking the plan
-- checking `plan written`
-- noting cross-repository implementation or downstream verification needs
-
-### After implementation is merged
-
-Do not close automatically.
-
-Check whether release or downstream verification is still required.
-
-### After release
-
-If downstream consumers depend on the published artifact, keep the issue open until release is complete.
-
-### After downstream verification
-
-If the issue requires real-project verification, keep it open until that verification is complete.
-
-## Closure Rule
-
-Close only when all applicable lifecycle steps are complete:
-
-- spec, if required
-- plan, if required
-- implementation merged
-- release completed, if required
-- downstream verification completed, if required
+- all required children are closed for valid reasons
+- required releases or downstream checks are complete
+- accepted child commits are contained in one `origin/master` lineage
+- the overall acceptance matrix and shared contracts have composition evidence
+- no remaining work belongs to the same intent
 
 ## Common Non-Closure Cases
 
-Do not close when:
-
-- only spec exists
-- only plan exists
-- code exists but is not merged
-- merge is done but publish is still required
-- upstream fix landed but downstream dogfood verification is still pending
-
-## Stable References
-
-Issue bodies and lifecycle updates should prefer stable references:
-
-- spec documents
-- plan documents
-- commits, pull requests, releases
-- downstream verification evidence
-
-Do not treat temporary roadmap or backlog files as long-term issue references when those files are expected to be retired after issue migration.
+Do not close for spec-only, plan-only, unmerged code, pending publication, pending downstream adoption, incomplete children, or missing composition evidence.

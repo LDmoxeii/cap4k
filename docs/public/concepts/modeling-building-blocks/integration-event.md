@@ -13,12 +13,3 @@ Integration Event 是跨系统或跨 bounded context 传播的外部事实。它
 入站 Integration Event 与本地 Domain Event 共用同步、串行、fail-fast 的 Handler 模型。不同方法级 `@Order` 值按数值从小到大执行，相同值不承诺次序。Handler 返回后，Runtime 等待当前 scope 中由 `askAsync()` / `callAsync()` 启动的全部受管任务；Handler 或受管任务失败都会使本服务的本次 delivery 失败，因此 transport 不会把它当作已完成。Handler 必须返回 `Unit/void`，并且不能使用 `@Async`、`suspend`、`@TransactionalEventListener`、`defaultExecution=false`、多事件声明或多态订阅。跨服务的“至少一次”仍由各自 transport/provider 的 delivery 与 retry 边界负责；一个服务的完成不代表其他接收方已经完成。
 
 使用 Integration Event 时，保持 inbound/outbound 区分清楚，字段使用边界语言，并通过 anti-corruption translation 保护 domain layer。Domain Event 到 Integration Event 的映射应明确，生成骨架和手写契约语义应分离，不要把外部事实伪装成内部不变量。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者区分 Domain Event、Integration Event、inbound/outbound 和 published language。
-Type: concept map
-Prompt: Draw a cap4k integration event boundary map. Show a bounded context with Domain Event inside, outbound Integration Event crossing to another system, inbound Integration Event entering through an anti-corruption layer and becoming a Command. Label published language at the boundary. Use Chinese labels and preserve English identifiers.
-Must show: external fact, inbound event, outbound event, published language, anti-corruption translation, Domain Event to Integration Event mapping
-Must avoid: exposing internal Aggregate structure as public contract, publishing external transport before local commit, arrows that violate Clean Architecture dependency rules
-Alt text after insertion: Integration Event 边界图，展示 outbound 和 inbound 外部事实如何通过 published language 与防腐转换协作。
--->

@@ -15,12 +15,3 @@ Capability 只保留一个阻塞 Handler 形态。`call()` 在当前线程执行
 External Capability Anti-Corruption Layer 的设计边界是外部协议与内部模型之间的翻译。常见误用包括把外部 response DTO 放进 Aggregate，把 HTTP error code 当成领域状态，让 domain service 直接调用 SDK，或者把 adapter handler 写成业务决策中心。外部事实需要进入内部状态时，应先转换成明确的 application result、Command、Integration Event 或领域可理解的数据。
 
 审查外部能力边界时，可以看 capability 名称是否表达业务需要，`capability` 是否位于 application 可依赖的位置，`capability-handler` 是否只做协议和适配，外部错误是否被转换成内部可处理语义，以及 generator 骨架是否没有被误解为自动完成业务判断。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 application 声明 external capability，adapter 通过 capability-handler 做协议转换。
-Type: architecture diagram
-Prompt: Draw a cap4k external capability anti-corruption layer architecture diagram. Show application layer declaring a Capability call, adapter layer implementing its Capability Handler, external system outside the boundary, and Command, Scheduled Reaction, or Subscriber using the internal capability. Use Chinese labels and preserve English identifiers.
-Must show: application Capability declaration, adapter Capability Handler, protocol conversion, external system, Command or Job caller, Clean Architecture dependency direction
-Must avoid: domain layer depending on external SDK, adapter making core business decisions, arrows that make external protocol leak into Aggregate
-Alt text after insertion: 外部能力防腐层架构图，展示 application 的 Capability 声明、adapter 的 Capability Handler 协议转换，以及外部系统隔离在边界外。
--->

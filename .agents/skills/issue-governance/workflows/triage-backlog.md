@@ -10,10 +10,10 @@ Use this workflow when converting roadmap or backlog entries into GitHub issues.
    - runtime work
    - downstream dogfood tracking
 3. Assign each actionable item to the repository where repair code will land.
-4. Avoid duplicating issues unless repositories have independent implementation work.
+4. For work spanning multiple capability surfaces, create one Parent Issue for intent and acceptance, then create Child Issues for independently reviewable slices; record dependencies and composition evidence on the Parent.
 5. If the item is only a weak observation and not yet actionable, leave it in backlog until the problem statement and acceptance criteria are clear enough.
-6. If the item already has spec or plan documents, link them in the issue body at creation time.
-7. Treat roadmap and backlog files as migration input, not as long-term issue references, when those files are planned for deletion after migration.
+6. If the item already has spec or plan documents, link them in the issue body at creation time. A Child Issue must state its owned boundary, required upstream facts, downstream projections, and the Parent acceptance IDs it advances.
+7. Treat roadmap and backlog files as migration input, not as long-term issue references, when those files are planned for deletion after migration. Do not use a historical roadmap paragraph as the current capability contract.
 
 ## Completion Check
 

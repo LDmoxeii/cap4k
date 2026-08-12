@@ -9,7 +9,6 @@ import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticsSection
 import com.only4.cap4k.plugin.pipeline.api.AgentEffectiveCapability
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotSections
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
-import com.only4.cap4k.plugin.pipeline.api.AgentSupportedCapability
 import com.only4.cap4k.plugin.pipeline.api.AgentValidationStatus
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityMetadataLevel
@@ -45,7 +44,7 @@ class AgentSnapshotService {
         val diagnostics = normalizeDiagnostics(request.diagnostics + runtimeDiagnostics)
         val capabilities = AgentCapabilitiesSection(
             status = capabilitySectionStatus(descriptors, observations),
-            supported = descriptors.map(::supportedCapability),
+            supported = descriptors.map(PipelineCapabilityFactProjection::supported),
             effective = descriptors.map { descriptor ->
                 effectiveCapability(descriptor, observations[descriptor.capabilityId])
             },
@@ -150,25 +149,6 @@ class AgentSnapshotService {
             ?.let { reason -> "$invalidCatalogReason Previous Runtime reason: $reason" }
             ?: invalidCatalogReason
     }
-
-    private fun supportedCapability(descriptor: PipelineCapabilityDescriptor) =
-        AgentSupportedCapability(
-            capabilityId = descriptor.capabilityId,
-            providerId = descriptor.providerId,
-            displayName = descriptor.displayName,
-            kind = descriptor.kind,
-            provenance = descriptor.provenance,
-            activation = descriptor.activation,
-            tacticalCarriers = descriptor.tacticalCarriers.sorted(),
-            executionLanes = descriptor.executionLanes.distinct().sortedBy(Enum<*>::name),
-            tasks = descriptor.tasks.distinct(),
-            inputRequirements = descriptor.inputRequirements.sortedBy { it.id },
-            outputKinds = descriptor.outputKinds.distinct().sortedBy(Enum<*>::name),
-            boundaries = descriptor.boundaries.sortedWith(
-                compareBy({ it.kind.name }, { it.authority })
-            ),
-            metadataLevel = descriptor.metadataLevel,
-        )
 
     private fun effectiveCapability(
         descriptor: PipelineCapabilityDescriptor,

@@ -1,0 +1,60 @@
+name: Implementation slice
+description: Track one independently reviewable and mergeable child of a design parent.
+title: "[Slice]: "
+labels:
+  - type:feature
+  - priority:p2
+body:
+  - type:input
+    id: parent
+    attributes:
+      label: Parent issue
+      description: Enter the parent issue number, then add this issue as a native sub-issue.
+      placeholder: "#123"
+    validations:
+      required: true
+  - type:textarea
+    id: boundary
+    attributes:
+      label: Slice boundary
+      description: State what this slice owns, what it does not own, and why it is independently mergeable.
+    validations:
+      required: true
+  - type:textarea
+    id: acceptance
+    attributes:
+      label: Delegated acceptance IDs
+      description: List the parent acceptance IDs implemented or verified by this slice.
+    validations:
+      required: true
+  - type:textarea
+    id: surfaces
+    attributes:
+      label: Capability surfaces and shared contracts
+      description: Cover affected Runtime, Generator, Analyzer, AgentFacts, Public Docs, Skill surfaces and the shared contracts touched.
+    validations:
+      required: true
+  - type:textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and sibling responsibility
+      description: Link prerequisite/sibling issues and state which related work remains outside this slice.
+    validations:
+      required: true
+  - type:textarea
+    id: verification
+    attributes:
+      label: Focused verification and merge evidence
+      description: Define tests, static checks, and the final PR/merge evidence required to close this child.
+    validations:
+      required: true
+  - type:checkboxes
+    id: lifecycle
+    attributes:
+      label: Lifecycle
+      options:
+        - label: Spec written or linked when required
+        - label: Plan written or linked when required
+        - label: Implementation merged
+        - label: Release completed when required
+        - label: Downstream verification completed when required

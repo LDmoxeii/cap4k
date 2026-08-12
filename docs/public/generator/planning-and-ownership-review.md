@@ -69,12 +69,3 @@ checked-in source 不是 generator 与作者长期共享维护的文件。作者
 - checked-in skeleton、generated source 和 analysis evidence 没有混为一类。
 
 如果发现错位，反馈路径是回到 [Inputs And Sources](inputs-and-sources.md)、[Generator Input Projection](../authoring/generator-input-projection.md) 或 [Technical Design](../authoring/technical-design.md)。generation 前停下来，是 plan evidence 的价值。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 cap4k plan review 如何在 generation 前审查 output ownership、conflictPolicy 和 checked-in first-materialization boundary。
-Type: workflow diagram
-Prompt: Draw a cap4k planning and ownership review workflow. Start from explicit inputs, then cap4kPlan, then plan.json, then human review of generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, and the checked-in first-materialization boundary before generation. Use Chinese labels while preserving English identifiers.
-Must show: cap4kPlan, plan.json, generatorId, templateId, outputKind, resolvedOutputRoot, conflictPolicy, CHECKED_IN_SOURCE fixed SKIP, GENERATED_SOURCE, OUTPUT_ARTIFACT, handwritten logic, review before generation
-Must avoid: 不要暗示 plan.json 是业务规则来源；不要把 GENERATED_SOURCE 画成手写业务区；不要把 analysis-plan.json 放进 ordinary source generation；不要画出未审查就生成的路径
-Alt text after insertion: cap4k plan ownership 审查流程图，展示 plan.json、ownership 字段、checked-in first-materialization boundary 和 generation 前人工审查。
--->

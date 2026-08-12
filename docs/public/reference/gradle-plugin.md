@@ -10,16 +10,18 @@ plugins {
 
 如果项目通过 version catalog 管理 plugin，也可以用别名；公开合同仍是 plugin id `io.github.ldmoxeii.cap4k.pipeline`。
 
+<!-- CAPABILITY_CONTRACT:PUBLIC_TASKS -->
 ## 公开任务
 
-| Task | 主要输入 | 主要输出 |
-| --- | --- | --- |
-| `cap4kAgentSnapshot` | 已解析 Gradle configuration、本地 inputs 与既有 evidence | `build/cap4k/agent/` manifest-first snapshot |
-| `cap4kPlan` | DB/schema、`design-json`、`enum-manifest`、`value-object-manifest`、Gradle extension | `build/cap4k/plan.json` |
-| `cap4kGenerate` | source-generation plan | 写出 source-generation plan 中的文件 |
-| `cap4kGenerateSources` | generated source task config | `<module>/build/generated/cap4k/main/kotlin` |
-| `cap4kAnalysisPlan` | `sources.irAnalysis.inputDirs` | `build/cap4k/analysis-plan.json` |
-| `cap4kAnalysisGenerate` | analysis plan | 导出 analysis artifacts，尤其是 flow 和 drawing-board |
+| Task | Mutation boundary | Live external input | 主要输入 | 主要输出 |
+| --- | --- | --- | --- | --- |
+| `cap4kAgentSnapshot` | `build_evidence_only` | `false` | 已解析 Gradle configuration、本地 inputs 与既有 evidence | `build/cap4k/agent/` manifest-first snapshot |
+| `cap4kPlan` | `build_evidence_only` | `true` | DB/schema、`design-json`、`enum-manifest`、`value-object-manifest`、Gradle extension | `build/cap4k/plan.json` |
+| `cap4kGenerate` | `managed_outputs` | `true` | source-generation plan | 写出 source-generation plan 中的文件 |
+| `cap4kGenerateSources` | `managed_outputs` | `true` | generated source task config | `<module>/build/generated/cap4k/main/kotlin` |
+| `cap4kAnalysisPlan` | `build_evidence_only` | `false` | `sources.irAnalysis.inputDirs` | `build/cap4k/analysis-plan.json` |
+| `cap4kAnalysisGenerate` | `managed_outputs` | `false` | analysis plan | 导出 analysis artifacts，尤其是 flow 和 drawing-board |
+<!-- /CAPABILITY_CONTRACT:PUBLIC_TASKS -->
 
 `build/cap4k/*` 是 `build/` 下的本地 generated evidence，不是 committed source truth。
 

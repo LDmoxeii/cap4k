@@ -29,12 +29,3 @@ Start layer 不允许保存业务规则。runtime config 可以选择 profile、
 生成骨架也要按同样规则审查。generated skeleton 可以给出 Command、Query、Capability、Subscriber、api payload、domain event、integration event 或 module wiring 的稳定位置；handwritten logic 需要落在对应层的可维护位置。generator 是组织工具，不是业务决策来源。
 
 参考项目入口是 [reference-content-studio.md](../examples/reference-content-studio.md)。可以用 `cap4k-reference-content-studio-domain`、`cap4k-reference-content-studio-application`、`cap4k-reference-content-studio-adapter` 和 `cap4k-reference-content-studio-start` 对照检查：依赖应从外向内指向更稳定的业务和用例契约，业务规则应停留在 domain/application 的手写位置。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者审查 cap4k 四层之间允许和禁止的依赖方向。
-Type: architecture diagram
-Prompt: Draw a dependency rules diagram for cap4k Clean Architecture. Use four layers: domain, application, adapter, start. Use Chinese labels while preserving English identifiers. Show allowed dependency arrows pointing inward: start to adapter/application/domain, adapter to application/domain contracts, application to domain. Show forbidden examples as blocked labels without arrows that violate the rules.
-Must show: domain independence, application orchestration, adapter protocol conversion, start assembly, generated skeleton and handwritten logic boundary, forbidden dependency examples for HTTP payload in domain and adapter implementation in application
-Must avoid: dependency arrows from domain to adapter or start, arrows from application to start, arrows from adapter to start, generator writing business decisions automatically, start layer as business truth
-Alt text after insertion: cap4k 依赖规则图，允许依赖从 start 和 adapter 指向内层，domain 保持独立，禁止外部协议进入领域模型。
--->

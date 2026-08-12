@@ -11,6 +11,8 @@ const val CAP4K_AGENT_ANALYSIS_SCHEMA: String = "cap4k.agent.analysis.v1"
 const val CAP4K_AGENT_DIAGNOSTICS_SCHEMA: String = "cap4k.agent.diagnostics.v1"
 const val CAP4K_PLAN_EVIDENCE_SCHEMA: String = "cap4k.plan-evidence.v1"
 
+fun agentContractEnumWireName(value: Enum<*>): String = value.name.lowercase()
+
 enum class AgentSnapshotStatus {
     OK,
     PARTIAL,

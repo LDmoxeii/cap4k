@@ -17,8 +17,8 @@ cap4k is a simplified DDD tactical framework designed for AI-assisted implementa
 ## How to Start
 
 1. Read the default happy path in this README.
-2. Continue with [Getting Started (Chinese)](docs/public/authoring/getting-started.md).
-3. Read [Framework Positioning (Chinese)](docs/public/authoring/framework-positioning.md) before treating advanced concepts or runtime surfaces as default promises.
+2. Continue with [Public Documentation (Chinese)](docs/public/index.md).
+3. Read [Concepts (Chinese)](docs/public/concepts/index.md) and [Architecture (Chinese)](docs/public/architecture/index.md) before treating advanced concepts or runtime surfaces as default promises.
 
 ## What cap4k Is
 
@@ -47,6 +47,7 @@ cap4k is a simplified DDD tactical framework designed for AI-assisted implementa
 
 ## Documentation Map
 
-- [Getting Started (Chinese)](docs/public/authoring/getting-started.md)
-- [Framework Positioning (Chinese)](docs/public/authoring/framework-positioning.md)
+- [Public Documentation (Chinese)](docs/public/index.md)
+- [Concepts (Chinese)](docs/public/concepts/index.md)
+- [Architecture (Chinese)](docs/public/architecture/index.md)
 - [Authoring Guide Overview (Chinese)](docs/public/authoring/index.md)

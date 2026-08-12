@@ -2,57 +2,28 @@
 
 ## Core Rule
 
-Assign the issue to the repository where the repair code will primarily land.
-
-Do not assign by discovery location. Do not assign by abstract stack level. Assign by repair code location.
+Assign the issue to the repository where the repair code will primarily land. Do not assign by discovery location or abstract stack level.
 
 ## Repository Mapping
 
 ### `cap4k`
 
-Use `cap4k` when the work primarily changes:
-
-- compiler plugin
-- pipeline, planner, renderer
-- Gradle DSL
-- analysis / irAnalysis
-- DDD core or repository contract
-- generated artifact contract
-- cap4k-side spec-driven framework capability
+Use `cap4k` for compiler, pipeline, planner, renderer, Gradle DSL, analysis, runtime/DDD contracts, generated artifact contracts, and cap4k framework capabilities.
 
 ### `only-engine`
 
-Use `only-engine` when the work primarily changes:
-
-- `engine-spi`
-- `engine-audit`
-- `engine-satoken`
-- starter or auto-configuration
-- runtime audit behavior
-- SPI bridge or runtime integration
+Use `only-engine` for engine SPI, audit, Sa-Token, starters, auto-configuration, runtime audit behavior, and SPI bridges.
 
 ### `only-danmuku-zero`
 
-Use `only-danmuku-zero` when the work primarily changes:
-
-- real-project migration cleanup
-- project-specific design or modeling problems
-- downstream integration or verification work
-- release-consumption alignment
-- temporary workaround removal after upstream fixes land
+Use `only-danmuku-zero` for real-project migration cleanup, project-specific modeling, downstream integration, release adoption, and workaround removal.
 
 ## Dogfood Escalation
 
-If a problem is discovered in `only-danmuku-zero` but the fix belongs in `cap4k` or `only-engine`, create the main issue in the upstream repository.
-
-Create a separate `only-danmuku-zero` issue only when the real project also has independent follow-up work, such as:
-
-- removing a workaround
-- adopting a published fix
-- running downstream validation
+Create the main issue upstream when the repair belongs upstream. Create a downstream issue only when adoption, workaround removal, or verification is independently required.
 
 ## Split Policy
 
-Default to one issue.
+Default to the smallest independently reviewable unit, not automatically to one issue.
 
-Split into multiple issues only when multiple repositories each have independent implementation work.
+Use a parent with children when one intent contains multiple independently mergeable slices, even in one repository. Split across repositories when each repository has independent implementation or verification work. Do not split tightly coupled edits that cannot be reviewed, merged, or verified separately.

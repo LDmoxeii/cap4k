@@ -85,7 +85,7 @@ JSON projection 只把整个 Value Object 映射为一个数据库 attribute。�
 - `aggregates` 最多只能声明一个 owner。
 - `persistence` 可省略；省略表示不生成 persistence projection。
 - 当前唯一支持的 projection 是 `persistence: { "kind": "json" }`。
-- 旧 `storage` 字段已移除，不提供隐式 JSON 兼容。
+- persistence projection 只通过 `persistence` 字段声明；schema 不接受 `storage`。
 - shared Value Object name 不能重复。
 - 同一个 owner 下的 Value Object name 不能重复。
 - 归属通过 `aggregates` 表达。

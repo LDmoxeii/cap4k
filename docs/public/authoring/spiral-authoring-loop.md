@@ -54,12 +54,3 @@ generator 只消费已经表达出来的事实，并输出结构、命名、入�
 - `analysis/flows`、`analysis/drawing-board` 和本地 `build/cap4k/analysis-plan.json`：结构证据是否和设计叙述一致。
 
 每次读到不一致，都把它当成下一轮 authoring 的入口，而不是在这一层硬补。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 cap4k authoring 是从业务意图到验证反馈的螺旋式证据纠偏过程。
-Type: workflow diagram
-Prompt: Draw a spiral workflow diagram for cap4k authoring. Use Chinese labels while preserving English identifiers. Show the spiral moving through 业务意图 intent, 模型 model, 技术设计 technical design, generator inputs, plan review, generation, handwritten implementation, verification, and feedback. Show feedback arrows that can return to earlier decisions. Show generator as a structure and ownership tool, not as business judgment.
-Must show: 螺旋循环, feedback arrows back to earlier decisions, human business judgment, design/design.json, types.enumManifest, types.valueObjectManifest, build/cap4k/plan.json, 生成骨架, 手写逻辑, 验证证据
-Must avoid: one-way waterfall, implying generator or AI replaces human business judgment, showing business rules created automatically, arrows that skip Clean Architecture boundaries
-Alt text after insertion: cap4k authoring 螺旋流程图，展示业务意图、模型、技术设计、生成输入、计划审查、生成骨架、手写实现、验证和反馈如何循环纠偏。
--->

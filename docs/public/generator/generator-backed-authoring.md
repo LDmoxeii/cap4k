@@ -46,12 +46,3 @@ generator-backed authoring 要求每次生成前后都有证据可读：
 public docs 中的 generator-backed authoring 只解释公开可用的输入、任务和证据面。需要字段定义时，转到 [Plan JSON](../reference/plan-json.md)、[Outputs](../reference/outputs.md)、[Generator DSL](../reference/generator-dsl.md)、[Design JSON](../reference/design-json.md)、[Value Object Manifest](../reference/value-object-manifest.md) 和 [Enum Manifest](../reference/enum-manifest.md)。
 
 如果读者想看真实项目如何使用这些 mechanics，可以对照 [Reference Content Studio](../examples/reference-content-studio.md) 和 [Generation And Analysis Evidence](../examples/generation-and-analysis-evidence.md)。参考项目展示的是 generator 和手写逻辑协作，不是让 generator 接管业务设计。
-
-<!-- IMAGE_PROMPT:
-Purpose: 帮助读者理解 generator-backed authoring 如何把明确设计输入变成 architecture control、stable code slots 和 evidence。
-Type: architecture diagram
-Prompt: Draw a cap4k generator-backed authoring architecture diagram. Show author decisions becoming schema, design/design.json, types.valueObjectManifest, types.enumManifest, and Gradle extension input. Then show generator producing plan evidence, checked-in skeletons, GENERATED_SOURCE, and analysis evidence. Use Chinese labels while preserving English identifiers.
-Must show: architecture control, explicit design inputs, stable code slots, checked-in skeletons, GENERATED_SOURCE, agent manifest/sections, plan.json, analysis/flows, analysis/drawing-board, handwritten logic
-Must avoid: 不要暗示 generator 会替作者写业务决策；不要把 generator 画成会替代业务建模和 ownership review；不要把 analysis outputs 画成 source skeletons；不要画出违反 Clean Architecture 依赖方向的箭头
-Alt text after insertion: generator-backed authoring 架构图，展示明确设计输入如何进入 generator，并产出 stable code slots、plan evidence、generated source 和 analysis evidence。
--->

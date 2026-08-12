@@ -52,6 +52,17 @@ enum class PipelineExecutionLane {
     ANALYSIS,
 }
 
+enum class PipelineTaskMutationBoundary {
+    BUILD_EVIDENCE_ONLY,
+    MANAGED_OUTPUTS,
+}
+
+data class PipelinePublicTaskContract(
+    val name: String,
+    val mutationBoundary: PipelineTaskMutationBoundary,
+    val readsLiveExternalInput: Boolean,
+)
+
 object PipelinePublicTasks {
     const val PLAN = "cap4kPlan"
     const val GENERATE = "cap4kGenerate"
@@ -59,6 +70,17 @@ object PipelinePublicTasks {
     const val ANALYSIS_PLAN = "cap4kAnalysisPlan"
     const val ANALYSIS_GENERATE = "cap4kAnalysisGenerate"
     const val AGENT_SNAPSHOT = "cap4kAgentSnapshot"
+
+    val contracts: List<PipelinePublicTaskContract> = listOf(
+        PipelinePublicTaskContract(PLAN, PipelineTaskMutationBoundary.BUILD_EVIDENCE_ONLY, readsLiveExternalInput = true),
+        PipelinePublicTaskContract(GENERATE, PipelineTaskMutationBoundary.MANAGED_OUTPUTS, readsLiveExternalInput = true),
+        PipelinePublicTaskContract(GENERATE_SOURCES, PipelineTaskMutationBoundary.MANAGED_OUTPUTS, readsLiveExternalInput = true),
+        PipelinePublicTaskContract(ANALYSIS_PLAN, PipelineTaskMutationBoundary.BUILD_EVIDENCE_ONLY, readsLiveExternalInput = false),
+        PipelinePublicTaskContract(ANALYSIS_GENERATE, PipelineTaskMutationBoundary.MANAGED_OUTPUTS, readsLiveExternalInput = false),
+        PipelinePublicTaskContract(AGENT_SNAPSHOT, PipelineTaskMutationBoundary.BUILD_EVIDENCE_ONLY, readsLiveExternalInput = false),
+    )
+
+    val all: List<String> = contracts.map(PipelinePublicTaskContract::name)
 }
 
 enum class PipelineInputSafety {
