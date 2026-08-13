@@ -109,6 +109,34 @@ class IrAnalysisSourceProviderTest {
     }
 
     @Test
+    fun `collect rejects retired and unknown aggregate structure types`() {
+        listOf(
+            "specification",
+            "unique-query",
+            "unique-query-handler",
+            "unique-validator",
+            "unknown",
+        ).forEachIndexed { index, unsupportedType ->
+            val dir = Files.createTempDirectory("cap4k-ir-unsupported-aggregate-type-$index")
+            dir.resolve("nodes.json").writeText("[]")
+            dir.resolve("rels.json").writeText("[]")
+            dir.resolve("aggregate-elements.json").writeText(
+                """
+                [{
+                  "carrierQualifiedName": "demo.CategoryCarrier",
+                  "aggregate": "Category",
+                  "type": "$unsupportedType"
+                }]
+                """.trimIndent(),
+            )
+
+            val error = assertThrows<IllegalArgumentException> {
+                IrAnalysisSourceProvider().collect(config(dir.toString()))
+            }
+            assertEquals("aggregate element at index 0 has unsupported type: $unsupportedType", error.message)
+        }
+    }
+    @Test
     fun `collect fails clearly for malformed graph nodes and rels`() {
         val cases = listOf(
             Triple("""[null]""", """[]""", "ir-analysis nodes[0] must be an object"),

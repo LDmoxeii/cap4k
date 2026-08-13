@@ -19,7 +19,7 @@
 - `CentralReleaseVersion.resolve` 对缺失或空白输入返回 baseline；非空输入 trim 后必须是 plain `major.minor.patch`；Snapshot 和带 `v` 的输入均被拒绝。
 - `kotlin-jvm.gradle.kts` 只配置 Maven Central 正式发布目标；没有 Aliyun、远程 Snapshot、`com.only4` group switching 或 private repository credentials contract。
 - Central Portal repository name 是 `CentralPortal`，目标 URL 是 `https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/`。
-- `CentralPublishTaskPolicy.kt` 识别 Central Portal publish task，并只允许 pipeline 与 flow-export 的 plugin marker publication。
+- `CentralPublishTaskPolicy.kt` 识别 Central Portal publish task，并只允许 Pipeline plugin marker publication；已退役的 flow-export marker 不在 allowlist 中。
 - `PublishToMavenRepository` gating 只在显式 release build 中启用 Central Portal tasks；签名 required gate 也绑定到允许的 Central task graph。
 - 本地 cap4k/consumer 联调使用显式 Gradle Composite Build，不使用 Aliyun、远程 Snapshot 或默认 `mavenLocal()`。
 - 已存在的 `v2.0.1` tag 和历史 promotion merge 保持原样；未来 release containment 以 `origin/master` 为准。
@@ -78,7 +78,7 @@ rg -ni 'publish/(aliyun-private|maven-central)|publish_promotion|ALIYUN_|com\.on
 - `release.version` 必须保持与 workflow 去 `v` 的行为一致。
 - `origin/master` containment、PR base guard、PR template 和 AGENTS 必须作为同一个治理合同更新。
 - Central Portal task matching 依赖 Gradle 生成的 task names；升级 Gradle publish/plugin 行为后重新运行 `buildSrc` tests。
-- Plugin marker allowlist 当前只覆盖 pipeline 和 flow-export marker；新增 plugin publication 时不要默认放行。
+- Plugin marker allowlist 当前只覆盖 Pipeline marker；新增 plugin publication 时不要默认放行，也不要恢复已退役的 flow-export marker。
 - Composite Build runtime substitution 依赖 `io.github.ldmoxeii` 和 project name；publication coordinates 漂移后不能沿用旧证据。
 
 ## Not Covered

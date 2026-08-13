@@ -277,6 +277,42 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
+    fun `aggregate element rejects retired generated structure types`() {
+        listOf(
+            "specification",
+            "unique-query",
+            "unique-query-handler",
+            "unique-validator",
+        ).forEach { retiredType ->
+            val messages = compileWithCap4kPluginExpectingFailure(
+                categorySources(
+                    useTopLevelBehavior = true,
+                    categoryBody = """
+                        @AggregateElementMetadata(
+                            aggregate = "Category",
+                            type = "$retiredType",
+                            name = "Category",
+                            packageName = "demo.domain.aggregates.category",
+                            root = true,
+                        )
+                        class Category
+                    """.trimIndent(),
+                    behaviorBody = """
+                        fun Category.changeSort(sort: Int) {
+                            CategorySortChanged(sort)
+                        }
+                    """.trimIndent(),
+                )
+            )
+
+            assertTrue(
+                messages.contains(
+                    "AggregateElementMetadata annotation on demo.domain.aggregates.category.Category has unsupported type: $retiredType"
+                ),
+            )
+        }
+    }
+    @Test
     fun `aggregate element accepts projection type without aggregate node`() {
         val rels = compileRelationships(
             categorySources(

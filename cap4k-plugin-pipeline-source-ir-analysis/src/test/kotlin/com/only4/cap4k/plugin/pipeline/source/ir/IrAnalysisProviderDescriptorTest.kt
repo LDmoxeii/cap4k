@@ -10,6 +10,14 @@ class IrAnalysisProviderDescriptorTest {
     fun `descriptor exposes analysis-only task family`() {
         val descriptor = IrAnalysisSourceProvider().descriptor
 
+        assertEquals(
+            listOf(
+                "Raw Analysis Graph Evidence",
+                "Normalized Design Projection Evidence",
+                "Aggregate Structure Evidence",
+            ),
+            descriptor.tacticalCarriers,
+        )
         assertEquals(listOf(PipelineExecutionLane.ANALYSIS), descriptor.executionLanes)
         assertEquals(listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE), descriptor.tasks)
     }

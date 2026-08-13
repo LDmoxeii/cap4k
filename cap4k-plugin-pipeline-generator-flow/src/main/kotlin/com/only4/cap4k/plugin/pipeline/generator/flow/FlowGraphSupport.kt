@@ -73,6 +73,22 @@ private data class EdgeKey(
     val label: String?,
 )
 
+internal data class FlowProjectionEvidence(
+    val projectedEdge: AnalysisEdgeModel,
+    val rawPath: List<AnalysisEdgeModel>,
+)
+
+internal data class CausalProjection(
+    val edges: List<AnalysisEdgeModel>,
+    val entryNodeIds: Set<String>,
+    val evidence: List<FlowProjectionEvidence>,
+)
+
+private data class HiddenPathState(
+    val nodeId: String,
+    val rawPath: List<AnalysisEdgeModel>,
+)
+
 private val flowJsonMapper = PipelineJson.newMapper()
 private val flowJsonWriter = PipelineJson.prettyWriter(flowJsonMapper)
 
@@ -104,21 +120,36 @@ private val rawCausalEdgeTypes = setOf(
     IntegrationEventHandlerToCommand,
 )
 
-private val entryNodeTypes = setOf(
-    "controllermethod",
-    "commandsendermethod",
+private val visibleBusinessNodeTypes = setOf(
+    "command",
+    "domainevent",
     "integrationevent",
 )
 
+private val hiddenCausalNodeTypes = setOf(
+    "commandhandler",
+    "domaineventhandler",
+    "integrationeventhandler",
+    "entitymethod",
+)
+
+private val causalEdgeComparator = compareBy<AnalysisEdgeModel> { it.fromId }
+    .thenBy { it.toId }
+    .thenBy { it.type }
+    .thenBy { it.label.orEmpty() }
+
 internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
     val nodesById = linkedMapOf<String, AnalysisNodeModel>()
-    graph.nodes.forEach { node ->
-        nodesById.putIfAbsent(node.id, node)
-    }
+    graph.nodes
+        .sortedBy(AnalysisNodeModel::id)
+        .forEach { node ->
+            nodesById.putIfAbsent(node.id, node)
+        }
 
-    val edges = projectCausalEdges(graph.edges)
+    val projection = projectCausalGraph(nodesById, graph.edges)
+    val edges = projection.edges
     val adjacency = edges.groupBy { it.fromId }
-    val entryNodes = selectRootEntryNodes(nodesById, edges)
+    val entryNodes = selectRootEntryNodes(nodesById, projection.entryNodeIds, edges)
 
     val usedSlugs = linkedSetOf<String>()
     val plannedEntries = entryNodes.map { entry ->
@@ -172,6 +203,7 @@ internal fun buildPlannedFlows(graph: AnalysisGraphModel): PlannedFlowSet {
 
 private fun selectRootEntryNodes(
     nodesById: Map<String, AnalysisNodeModel>,
+    entryNodeIds: Set<String>,
     edges: List<AnalysisEdgeModel>,
 ): List<AnalysisNodeModel> {
     val nodesWithUpstream = edges
@@ -181,47 +213,167 @@ private fun selectRootEntryNodes(
         .map { it.fromId }
         .toSet()
 
-    return nodesById.values
-        .filter { it.type.lowercase() in entryNodeTypes }
-        .filterNot { it.id in nodesWithUpstream }
-        .filter { it.id in nodesWithOutgoing }
+    return entryNodeIds
+        .asSequence()
+        .filterNot { it in nodesWithUpstream }
+        .filter { it in nodesWithOutgoing }
+        .map { entryId -> requireNotNull(nodesById[entryId]) }
         .sortedBy { it.id }
+        .toList()
 }
 
-private fun projectCausalEdges(edges: List<AnalysisEdgeModel>): List<AnalysisEdgeModel> {
+internal fun projectCausalGraph(
+    nodesById: Map<String, AnalysisNodeModel>,
+    edges: List<AnalysisEdgeModel>,
+): CausalProjection {
     val rawEdges = edges
-        .filter { it.type in rawCausalEdgeTypes }
+        .filter { edge -> isCausalEdge(edge, nodesById) }
         .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
+        .sortedWith(causalEdgeComparator)
 
-    val commandHandlerTargets = rawEdges
-        .filter { it.type == CommandHandlerToEntityMethod }
-        .groupBy { it.fromId }
-
-    val visibleEdges = rawEdges.filterNot {
-        it.type == CommandToCommandHandler || it.type == CommandHandlerToEntityMethod
+    rawEdges.forEach { edge ->
+        require(edge.fromId in nodesById) {
+            "Flow causal relationship '${edge.type}' references missing fromId '${edge.fromId}'"
+        }
+        require(edge.toId in nodesById) {
+            "Flow causal relationship '${edge.type}' references missing toId '${edge.toId}'"
+        }
     }
 
-    val projectedEdges = rawEdges
+    val outgoingByNode = rawEdges.groupBy(AnalysisEdgeModel::fromId)
+    val entryNodeIds = nodesById.values
         .asSequence()
-        .filter { it.type == CommandToCommandHandler }
-        .flatMap { commandToHandler ->
-            commandHandlerTargets[commandToHandler.toId].orEmpty()
-                .asSequence()
-                .filter { it.toId.isNotBlank() }
-                .map { entityMethod ->
-                    AnalysisEdgeModel(
-                        fromId = commandToHandler.fromId,
-                        toId = entityMethod.toId,
-                        type = CommandToEntityMethod,
-                        label = entityMethod.label,
+        .filter { node ->
+            node.type.lowercase() == "integrationevent" ||
+                isConcreteCommandEntry(node, nodesById, outgoingByNode[node.id].orEmpty())
+        }
+        .map(AnalysisNodeModel::id)
+        .toSortedSet()
+    val visibleNodeIds = nodesById.values
+        .asSequence()
+        .filter { node -> node.id in entryNodeIds || node.type.lowercase() in visibleBusinessNodeTypes }
+        .map(AnalysisNodeModel::id)
+        .toSet()
+
+    val evidenceByProjectedEdge = linkedMapOf<EdgeKey, FlowProjectionEvidence>()
+    visibleNodeIds.sorted().forEach { sourceId ->
+        val sourceNode = requireNotNull(nodesById[sourceId])
+        val hiddenQueue = ArrayDeque<HiddenPathState>()
+        val visitedHiddenNodes = linkedSetOf<String>()
+
+        fun acceptPath(path: List<AnalysisEdgeModel>) {
+            val terminalEdge = path.last()
+            val targetNode = requireNotNull(nodesById[terminalEdge.toId])
+            when {
+                targetNode.id in visibleNodeIds -> {
+                    val projectedEdge = if (path.size == 1) {
+                        terminalEdge
+                    } else {
+                        AnalysisEdgeModel(
+                            fromId = sourceNode.id,
+                            toId = targetNode.id,
+                            type = projectedEdgeType(sourceNode, targetNode),
+                            label = path.asReversed().firstNotNullOfOrNull(AnalysisEdgeModel::label),
+                        )
+                    }
+                    val key = EdgeKey(
+                        projectedEdge.fromId,
+                        projectedEdge.toId,
+                        projectedEdge.type,
+                        projectedEdge.label,
+                    )
+                    evidenceByProjectedEdge.putIfAbsent(
+                        key,
+                        FlowProjectionEvidence(projectedEdge = projectedEdge, rawPath = path),
                     )
                 }
-        }
-        .toList()
 
-    return (visibleEdges + projectedEdges)
-        .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
+                targetNode.type.lowercase() in hiddenCausalNodeTypes && visitedHiddenNodes.add(targetNode.id) -> {
+                    hiddenQueue.addLast(HiddenPathState(targetNode.id, path))
+                }
+            }
+        }
+
+        outgoingByNode[sourceId].orEmpty().forEach { edge -> acceptPath(listOf(edge)) }
+        while (hiddenQueue.isNotEmpty()) {
+            val state = hiddenQueue.removeFirst()
+            outgoingByNode[state.nodeId].orEmpty().forEach { edge ->
+                acceptPath(state.rawPath + edge)
+            }
+        }
+    }
+
+    val evidence = evidenceByProjectedEdge.values
+        .sortedWith(compareBy<FlowProjectionEvidence> { it.projectedEdge.fromId }
+            .thenBy { it.projectedEdge.toId }
+            .thenBy { it.projectedEdge.type }
+            .thenBy { it.projectedEdge.label.orEmpty() })
+    return CausalProjection(
+        edges = evidence.map(FlowProjectionEvidence::projectedEdge),
+        entryNodeIds = entryNodeIds,
+        evidence = evidence,
+    )
 }
+
+private fun isCausalEdge(
+    edge: AnalysisEdgeModel,
+    nodesById: Map<String, AnalysisNodeModel>,
+): Boolean {
+    if (edge.type in rawCausalEdgeTypes) {
+        return true
+    }
+    val source = nodesById[edge.fromId] ?: return false
+    val target = nodesById[edge.toId] ?: return false
+    return isPotentialEntryNode(source) &&
+        target.type.lowercase() == "command" &&
+        edge.type.endsWith("ToCommand")
+}
+
+private fun isConcreteCommandEntry(
+    node: AnalysisNodeModel,
+    nodesById: Map<String, AnalysisNodeModel>,
+    outgoing: List<AnalysisEdgeModel>,
+): Boolean = isPotentialEntryNode(node) && outgoing.any { edge ->
+    nodesById[edge.toId]?.type?.lowercase() == "command" &&
+        (edge.type == ControllerMethodToCommand ||
+            edge.type == CommandSenderMethodToCommand ||
+            edge.type.endsWith("ToCommand"))
+}
+
+private fun isPotentialEntryNode(node: AnalysisNodeModel): Boolean {
+    val type = node.type.lowercase()
+    return type !in visibleBusinessNodeTypes &&
+        type !in hiddenCausalNodeTypes &&
+        type !in excludedEntryNodeTypes
+}
+
+private val excludedEntryNodeTypes = setOf(
+    "aggregate",
+    "query",
+    "queryhandler",
+    "querysendermethod",
+    "capability",
+    "capabilityhandler",
+    "capabilitysendermethod",
+    "validator",
+)
+
+private fun projectedEdgeType(
+    from: AnalysisNodeModel,
+    to: AnalysisNodeModel,
+): String = "${projectionRole(from)}To${projectionRole(to)}"
+
+private fun projectionRole(node: AnalysisNodeModel): String =
+    when (node.type.lowercase()) {
+        "command" -> "Command"
+        "domainevent" -> "DomainEvent"
+        "integrationevent" -> "IntegrationEvent"
+        else -> node.type
+            .split(Regex("[^A-Za-z0-9]+"))
+            .filter(String::isNotBlank)
+            .joinToString("") { token -> token.replaceFirstChar(Char::uppercaseChar) }
+            .ifBlank { "Entry" }
+    }
 
 private fun collectFlow(
     entryId: String,

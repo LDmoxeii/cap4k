@@ -443,6 +443,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     root = element.root,
                 )
             }
+            .sortedBy(AggregateElementModel::carrierQualifiedName)
 
         val analysisGraph = analysisSnapshot?.let {
             AnalysisGraphModel(
@@ -465,7 +466,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         label = edge.label,
                     )
                 },
-                aggregateElements = aggregateElements,
             )
         }
 
@@ -495,11 +495,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             .toList()
             .orEmpty()
-        val drawingBoard = if (drawingBoardElements.isNotEmpty() || aggregateElements.isNotEmpty()) {
+        val drawingBoard = if (drawingBoardElements.isNotEmpty()) {
             DrawingBoardModel(
                 elements = drawingBoardElements,
                 elementsByTag = drawingBoardElements.groupBy { it.tag },
-                aggregateElements = aggregateElements,
             )
         } else {
             null
@@ -514,6 +513,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 repositories = aggregateModels.mapNotNull { it.third },
                 analysisGraph = analysisGraph,
                 drawingBoard = drawingBoard,
+                aggregateStructure = aggregateElements,
                 sharedEnums = sharedEnums,
                 aggregateRelations = aggregateRelations,
                 aggregateEntityJpa = aggregateEntityJpa,

@@ -10,7 +10,13 @@ class FlowArtifactPlanner : GeneratorProvider {
         kind = PipelineCapabilityKind.GENERATOR,
         module = "cap4k-plugin-pipeline-generator-flow",
         activation = PipelineCapabilityActivation.EXPLICIT_CONFIGURATION,
-        tacticalCarriers = listOf("Causal Flow Evidence"),
+        tacticalCarriers = listOf(
+            "Input: Raw Analysis Graph Evidence",
+            "Entry-centered Causal Flow Evidence",
+            "Visible: Entry, Command, Domain Event, Integration Event",
+            "Hidden: Command Handler, Domain Event Handler, Integration Event Handler, Entity Method",
+            "Projection: Hidden Path Contraction, Root After Projection, Cycle Preservation",
+        ),
         executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
         tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
         inputRequirements = listOf(

@@ -3,7 +3,6 @@ package buildsrc.convention
 object CentralPublishTaskPolicy {
     private val allowedPluginMarkerCentralPortalPublishTasks = setOf(
         "publishCap4kPipelinePluginMarkerMavenPublicationToCentralPortalRepository",
-        "publishCap4kFlowExportPluginMarkerMavenPublicationToCentralPortalRepository",
     )
 
     fun isCentralPortalPublishTask(taskName: String): Boolean =

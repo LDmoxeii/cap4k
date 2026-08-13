@@ -31,7 +31,11 @@ class IrAnalysisSourceProvider : SourceProvider {
         displayName = "IR Analysis Source",
         kind = PipelineCapabilityKind.SOURCE,
         module = "cap4k-plugin-pipeline-source-ir-analysis",
-        tacticalCarriers = listOf("Analysis Graph", "Drawing Board Evidence"),
+        tacticalCarriers = listOf(
+            "Raw Analysis Graph Evidence",
+            "Normalized Design Projection Evidence",
+            "Aggregate Structure Evidence",
+        ),
         executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
         tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
         inputRequirements = listOf(
@@ -48,6 +52,14 @@ class IrAnalysisSourceProvider : SourceProvider {
     )
 
     private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity")
+    private val supportedAggregateElementTypes = setOf(
+        "schema",
+        "entity",
+        "repository",
+        "factory",
+        "strong-id",
+        "projection",
+    )
 
     override fun localInputPaths(config: ProjectConfig): List<String> =
         (config.sources[id]?.options?.get("inputDirs") as? List<*> ?: emptyList<Any>())
@@ -252,13 +264,17 @@ class IrAnalysisSourceProvider : SourceProvider {
             val context = "aggregate element at index $index"
             val obj = element.objectNodeOrNull()
                 ?: throw IllegalArgumentException("$context must be an object")
+            val type = obj.requiredString("type", context)
+            require(type in supportedAggregateElementTypes) {
+                "$context has unsupported type: $type"
+            }
             AggregateElementSnapshot(
                 carrierQualifiedName = obj.requiredString("carrierQualifiedName", context),
                 aggregate = obj.requiredString("aggregate", context),
                 name = obj.optionalString("name", context).orEmpty().trim(),
                 packageName = obj.optionalString("packageName", context).orEmpty().trim(),
                 description = obj.optionalString("description", context).orEmpty().trim(),
-                type = obj.requiredString("type", context),
+                type = type,
                 root = obj.optionalBoolean("root", context) ?: false,
             )
         }

@@ -1,6 +1,6 @@
 # Analysis Evidence
 
-analysis evidence 用来观察已经存在的代码结构。它帮助作者检查 controller、subscriber、job、Command dispatch、Query path、event reaction 和 Capability wiring 是否和设计一致。它不是 ordinary source generation，也不产出 source skeleton。
+analysis evidence 用来观察已经存在的代码结构。它帮助作者检查实际入口、Command 与 Domain/Integration Event 的业务因果连接，以及 Drawing Board design projection 和 Aggregate Structure 证据是否与设计一致。Query、Capability、Validator 等事实可以保留在 raw graph 中，但不进入默认 Flow。analysis evidence 不是 ordinary source generation，也不产出 source skeleton。
 
 `cap4kAnalysisPlan` 写出本地 `build/cap4k/analysis-plan.json`。`cap4kAnalysisGenerate` 根据 analysis plan 产出 flow 和 drawing-board evidence。与 `build/cap4k/plan.json` 一样，`build/cap4k/analysis-plan.json` 是本地 generated output，不是 committed source truth。
 
@@ -69,7 +69,7 @@ analysis plan 的价值是让 observation output 可审查。它不说明业务�
 
 ## Flows
 
-`analysis/flows` 展示结构化 execution path。常见文件包括：
+`analysis/flows` 展示 entry-centered 业务因果投影。Pipeline `flow` generator 是唯一公开 Flow 产品入口。常见文件包括：
 
 - `analysis/flows/index.json`
 - `analysis/flows/*.json`
@@ -77,11 +77,11 @@ analysis plan 的价值是让 observation output 可审查。它不说明业务�
 
 flow evidence 可以帮助作者检查：
 
-- HTTP controller 是否委托到正确 Command 或 Query。
-- inbound integration event subscriber 是否只做边界转换和后续委托。
-- domain event subscriber 是否没有把复杂业务规则藏在错误层。
-- job 或 scheduled reaction 是否表达恢复、轮询或时间触发路径。
-- 需要持久化协调的 path 是否明确进入 provider-owned orchestration 边界。
+- 具有代码证据的 controller、RPC adapter、inbound Integration Event、job 或其他入口是否委托到正确 Command。
+- Command、Domain Event、Integration Event 之间的业务因果链是否连到预期后继。
+- Command Handler、Event Handler 与 Entity Method 被隐藏后，任意长度的中间路径是否正确收缩为可见节点之间的因果边。
+- root 是否在投影完成后由真实入口证据与零入度共同决定，而不是把孤立 Command/Event 伪装成入口。
+- 分支、汇合、共享后缀和循环是否保持有限、稳定且可审查；默认 Flow 不自动拼接跨入口 process。
 
 flow evidence 只能说明代码连接方式。连接存在不代表业务规则正确；连接错位则应反馈到 technical design 或 implementation。
 
@@ -96,7 +96,7 @@ flow evidence 只能说明代码连接方式。连接存在不代表业务规则
 - `analysis/drawing-board/drawing_board_query.json`
 - `analysis/drawing-board/drawing_board_aggregate_elements.json`（存在 Aggregate element 时）
 
-普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类，可以作为显式 Design JSON 输入。`drawing_board_aggregate_elements.json` 则记录 Aggregate element 的结构证据；它没有 `tag`，不是 Design JSON，不能注册到 `sources.designJson.files`。
+普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类，可以作为显式 Design JSON 输入。`drawing_board_aggregate_elements.json` 由独立 Aggregate Structure canonical 分区驱动；它不属于 raw graph 或 Drawing Board design projection，没有 `tag`，不是 Design JSON，也不能注册到 `sources.designJson.files`。
 
 drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Capability、event 锚点和 Aggregate element？”它不回答这些锚点是否完成业务实现。
 
@@ -106,14 +106,14 @@ drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Ca
 
 1. 先用 design inputs 和 source 确认作者本来想表达什么。
 2. 再用 `cap4kAnalysisPlan` 的 `analysis-plan.json` 确认 observation output 将如何生成。
-3. 再读 `analysis/flows`，看 runtime-adjacent path 是否经过预期 controller、subscriber、job 和 application use case。
+3. 再读 `analysis/flows`，看每个真实入口到 Command 与 Domain/Integration Event 的默认因果投影是否完整，隐藏路径收缩与 root 判定是否符合代码证据。
 4. 再读 `analysis/drawing-board`：用普通 tag 文件确认 Command、Query、Capability 和 event 锚点是否和 design JSON/source 对齐；用 `drawing_board_aggregate_elements.json` 检查 Aggregate element 结构。
 5. 最后把发现反馈到 [Verification And Feedback](../authoring/verification-and-feedback.md)、[Technical Design](../authoring/technical-design.md) 或 [Implementation Inside Generated Skeletons](../authoring/implementation-inside-generated-skeletons.md)。
 
 常见反馈包括：
 
-- controller flow 绕过 Command，说明 adapter 和 application 边界需要修正。
-- subscriber flow 直接堆叠复杂状态判断，说明应回到 Command、Domain Service 或显式 provider-owned orchestration。
+- 入口 flow 绕过 Command，说明 adapter 和 application 边界需要修正。
+- 预期的 Command/Event 因果边在隐藏 Handler 或 Entity Method 后丢失，说明 graph evidence 或投影规则需要修正。
 - drawing-board 中缺少预期 Command/Query，说明 design input 或 skeleton 落位可能不完整。
 - flow 中出现第二套事实来源，说明 external capability 或 polling fallback 需要重新审查。
 
@@ -122,7 +122,7 @@ drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Ca
 analysis evidence 是观察证据，不是 source truth。public docs 中要保持这些边界：
 
 - `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 不参与 ordinary `cap4kPlan` / `cap4kGenerate` source generation。
-- `flow` 和 `drawing-board` 是 analysis/observation outputs，不是 business source skeletons。
+- `flow` 和 `drawing-board` 是 analysis/observation outputs，不是 business source skeletons；Pipeline `flow` 是唯一公开 Flow 产品入口。
 - `analysis/flows` 和 `analysis/drawing-board` 可以作为已提交 reference evidence。
 - Drawing Board 的 Aggregate element 文件是结构证据，不是 Design JSON；不要把它与普通 tag 文件混用。
 - `build/cap4k/analysis-plan.json` 需要本地运行 analysis plan task 后才出现。
