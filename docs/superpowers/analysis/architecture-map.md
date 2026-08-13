@@ -13,7 +13,7 @@
 - `cap4k-ddd-*-starter` 是按 capability 拆分的运行时装配模块。每个 starter 通过自己的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 暴露且只暴露其所有能力；仓库不保留聚合 starter。
 - `cap4k-plugin-pipeline-*` 是 compile-time generation pipeline 相关模块。它们覆盖 API、Agent API snapshot service、core runner、renderer、source providers、generators 和 Gradle plugin，不属于运行时 tactical framework。
 - `cap4k-plugin-pipeline-agent` 负责稳定 JSON、凭据安全脱敏、identity/freshness、snapshot 状态聚合与 manifest/section 编码；`cap4k-plugin-pipeline-gradle` 的 `cap4kAgentSnapshot` task 负责从 Gradle project/config、provider descriptors、plan evidence 和本地 analysis files 适配出 `build/cap4k/agent/` 下的八个文件。
-- `cap4k-plugin-code-analysis-*` 是 code analysis 相关模块。当前目录包括 `cap4k-plugin-code-analysis-core`、`cap4k-plugin-code-analysis-compiler`、`cap4k-plugin-code-analysis-flow-export`，用于分析/导出代码结构事实，不是业务运行时模块。
+- `cap4k-plugin-code-analysis-*` 是 code analysis 相关模块。当前目录包括 `cap4k-plugin-code-analysis-core` 与 `cap4k-plugin-code-analysis-compiler`，用于抽取代码结构事实，不是业务运行时模块。Flow 的唯一产品入口属于 `cap4k-plugin-pipeline-generator-flow`。
 - generated output 是 pipeline 运行后的产物，不等同于 pipeline 源码，也不等同于 handwritten runtime framework。判断文件所有权时要回到 `plan.json`、`generatorId`、`templateId`、`outputKind`、`resolvedOutputRoot`、`conflictPolicy` 等生成计划字段。
 - 文档和技能维护位于 `docs/` 与 `skills/`。本目录 `docs/superpowers/analysis/` 是 analysis/fact index，不是 public docs；`skills/` 是 agent routing/working rules，不是用户手册。
 - examples/tests 目前主要以各模块 `src/test/kotlin` 分布存在，仓库根目录扫描没有发现独立 `example`/`examples` 子项目。测试覆盖 runtime、starter、pipeline、code analysis、buildSrc 等模块。
@@ -38,7 +38,7 @@
   - `cap4k-ddd-integration-event-rocketmq-starter`
   - `cap4k-plugin-code-analysis-compiler`
   - `cap4k-plugin-code-analysis-core`
-  - `cap4k-plugin-code-analysis-flow-export`
+
   - `cap4k-plugin-pipeline-agent`
   - `cap4k-plugin-pipeline-api`
   - `cap4k-plugin-pipeline-core`

@@ -50,6 +50,16 @@ class FlowArtifactPlannerTest {
 
         assertEquals(3, plan.size)
         assertEquals(PipelineCapabilityActivation.EXPLICIT_CONFIGURATION, planner.descriptor.activation)
+        assertEquals(
+            listOf(
+                "Input: Raw Analysis Graph Evidence",
+                "Entry-centered Causal Flow Evidence",
+                "Visible: Entry, Command, Domain Event, Integration Event",
+                "Hidden: Command Handler, Domain Event Handler, Integration Event Handler, Entity Method",
+                "Projection: Hidden Path Contraction, Root After Projection, Cycle Preservation",
+            ),
+            planner.descriptor.tacticalCarriers,
+        )
         assertEquals("flow/entry.json.peb", plan[0].templateId)
         assertEquals("flows/OrderController_submit.json", plan[0].outputPath)
         assertEquals("flow/entry.mmd.peb", plan[1].templateId)
@@ -62,11 +72,12 @@ class FlowArtifactPlannerTest {
             listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
             planner.descriptor.tasks,
         )
-        assertTrue(jsonContent.contains("Order::submit"))
-        assertTrue(jsonContent.contains("\"edgeCount\": 2"))
-        assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
+        assertTrue(jsonContent.contains("SubmitOrderCmd"))
+        assertTrue(jsonContent.contains("\"edgeCount\": 1"))
+        assertFalse(jsonContent.contains("Order::submit"))
         assertFalse(jsonContent.contains("SubmitOrderHandler"))
         assertFalse(jsonContent.contains("IgnoredAggregate"))
+        assertFalse(jsonContent.contains("CommandToEntityMethod"))
         assertTrue((plan[1].context["mermaidText"] as String).contains("flowchart TD"))
         assertTrue((plan[2].context["jsonContent"] as String).contains("\"flowCount\": 1"))
     }
@@ -234,7 +245,7 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
-    fun `keeps empty domain event handler visible and stops naturally`() {
+    fun `hides an empty domain event handler and stops naturally at the event`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -259,15 +270,15 @@ class FlowArtifactPlannerTest {
         val jsonContent = plan[0].context["jsonContent"] as String
 
         assertEquals(3, plan.size)
-        assertTrue(jsonContent.contains("OrderUpdatedHandler"))
-        assertTrue(jsonContent.contains("\"edgeCount\": 4"))
-        assertFalse(jsonContent.contains("SubmitOrderHandler"))
-        assertFalse(jsonContent.contains("CommandToCommandHandler"))
-        assertFalse(jsonContent.contains("CommandHandlerToEntityMethod"))
+        assertTrue(jsonContent.contains("OrderUpdated"))
+        assertTrue(jsonContent.contains("\"edgeCount\": 2"))
+        assertTrue(jsonContent.contains("\"CommandToDomainEvent\""))
+        assertFalse(jsonContent.contains("Order::submit"))
+        assertFalse(jsonContent.contains("OrderUpdatedHandler"))
     }
 
     @Test
-    fun `keeps integration event handler visible when inbound event sends command`() {
+    fun `projects inbound integration event through hidden handler to command`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -292,17 +303,14 @@ class FlowArtifactPlannerTest {
 
         assertEquals("flows/MediaProcessedIntegrationEvent.json", plan[0].outputPath)
         assertTrue(indexJson.contains("\"integrationevent\": 1"))
-        assertTrue(jsonContent.contains("MediaProcessedIntegrationEventHandler"))
         assertTrue(jsonContent.contains("MediaProcessedCmd"))
-        assertTrue(jsonContent.contains("Media::process"))
-        assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
-        assertFalse(jsonContent.contains("MediaProcessedHandler"))
-        assertFalse(jsonContent.contains("CommandToCommandHandler"))
-        assertFalse(jsonContent.contains("CommandHandlerToEntityMethod"))
+        assertTrue(jsonContent.contains("\"IntegrationEventToCommand\""))
+        assertFalse(jsonContent.contains("MediaProcessedIntegrationEventHandler"))
+        assertFalse(jsonContent.contains("Media::process"))
     }
 
     @Test
-    fun `projects raw command handler chain after event handler into entity method`() {
+    fun `hides both event and command handlers in one causal projection`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -313,12 +321,14 @@ class FlowArtifactPlannerTest {
                     node("MediaProcessedCmd", "command"),
                     node("MediaProcessedCmdHandler", "commandhandler"),
                     node("Media::process", "entitymethod"),
+                    node("MediaProcessed", "domainevent"),
                 ),
                 edges = listOf(
                     edge("MediaProcessedIntegrationEvent", "MediaProcessedIntegrationEventHandler", "IntegrationEventToHandler"),
                     edge("MediaProcessedIntegrationEventHandler", "MediaProcessedCmd", "IntegrationEventHandlerToCommand"),
                     edge("MediaProcessedCmd", "MediaProcessedCmdHandler", "CommandToCommandHandler"),
                     edge("MediaProcessedCmdHandler", "Media::process", "CommandHandlerToEntityMethod"),
+                    edge("Media::process", "MediaProcessed", "EntityMethodToDomainEvent"),
                 ),
             ),
         )
@@ -327,15 +337,142 @@ class FlowArtifactPlannerTest {
         val jsonContent = plan[0].context["jsonContent"] as String
 
         assertEquals("flows/MediaProcessedIntegrationEvent.json", plan[0].outputPath)
-        assertTrue(jsonContent.contains("MediaProcessedIntegrationEventHandler"))
         assertTrue(jsonContent.contains("MediaProcessedCmd"))
-        assertTrue(jsonContent.contains("Media::process"))
-        assertTrue(jsonContent.contains("\"CommandToEntityMethod\""))
+        assertTrue(jsonContent.contains("MediaProcessed"))
+        assertTrue(jsonContent.contains("\"IntegrationEventToCommand\""))
+        assertTrue(jsonContent.contains("\"CommandToDomainEvent\""))
+        assertFalse(jsonContent.contains("MediaProcessedIntegrationEventHandler"))
         assertFalse(jsonContent.contains("MediaProcessedCmdHandler"))
-        assertFalse(jsonContent.contains("CommandToCommandHandler"))
-        assertFalse(jsonContent.contains("CommandHandlerToEntityMethod"))
+        assertFalse(jsonContent.contains("Media::process"))
     }
 
+    @Test
+    fun `accepts rpc adapter evidence as an open entry role without synthetic entry nodes`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("adapter/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("OrderRpcAdapter::submit", "rpcadaptermethod"),
+                    node("SubmitOrderCmd", "command"),
+                ),
+                edges = listOf(
+                    edge("OrderRpcAdapter::submit", "SubmitOrderCmd", "RpcAdapterMethodToCommand"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val jsonContent = plan.first().context["jsonContent"] as String
+
+        assertEquals("flows/OrderRpcAdapter_submit.json", plan.first().outputPath)
+        assertTrue(jsonContent.contains("OrderRpcAdapter::submit"))
+        assertTrue(jsonContent.contains("SubmitOrderCmd"))
+        assertTrue(jsonContent.contains("RpcAdapterMethodToCommand"))
+        assertFalse(jsonContent.contains("\"type\": \"entry\""))
+    }
+    @Test
+    fun `contracts arbitrary hidden paths with fan out merge cycle and source evidence`() {
+        val nodes = listOf(
+            node("Job::run", "jobmethod"),
+            node("StartCmd", "command"),
+            node("StartHandler", "commandhandler"),
+            node("Aggregate::stepA", "entitymethod"),
+            node("Aggregate::stepB", "entitymethod"),
+            node("EventA", "domainevent"),
+            node("EventB", "domainevent"),
+            node("EventAHandler", "domaineventhandler"),
+            node("FollowCmd", "command"),
+            node("FollowHandler", "commandhandler"),
+            node("Aggregate::loop", "entitymethod"),
+        )
+        val nodesById = nodes.associateBy(AnalysisNodeModel::id)
+        val projection = projectCausalGraph(
+            nodesById = nodesById,
+            edges = listOf(
+                edge("Job::run", "StartCmd", "JobMethodToCommand"),
+                edge("StartCmd", "StartHandler", "CommandToCommandHandler"),
+                edge("StartHandler", "Aggregate::stepA", "CommandHandlerToEntityMethod"),
+                edge("Aggregate::stepA", "Aggregate::stepB", "EntityMethodToEntityMethod"),
+                edge("Aggregate::stepB", "EventA", "EntityMethodToDomainEvent"),
+                edge("Aggregate::stepA", "EventB", "EntityMethodToDomainEvent"),
+                edge("EventA", "EventAHandler", "DomainEventToHandler"),
+                edge("EventAHandler", "FollowCmd", "DomainEventHandlerToCommand"),
+                edge("FollowCmd", "FollowHandler", "CommandToCommandHandler"),
+                edge("FollowHandler", "Aggregate::loop", "CommandHandlerToEntityMethod"),
+                edge("Aggregate::loop", "Aggregate::loop", "EntityMethodToEntityMethod"),
+                edge("Aggregate::loop", "EventA", "EntityMethodToDomainEvent"),
+                edge("StartCmd", "StartHandler", "CommandToCommandHandler"),
+            ),
+        )
+
+        assertEquals(setOf("Job::run"), projection.entryNodeIds)
+        assertEquals(
+            setOf(
+                "Job::run->StartCmd:JobMethodToCommand",
+                "StartCmd->EventA:CommandToDomainEvent",
+                "StartCmd->EventB:CommandToDomainEvent",
+                "EventA->FollowCmd:DomainEventToCommand",
+                "FollowCmd->EventA:CommandToDomainEvent",
+            ),
+            projection.edges.map { "${it.fromId}->${it.toId}:${it.type}" }.toSet(),
+        )
+        val startToEvent = projection.evidence.single {
+            it.projectedEdge.fromId == "StartCmd" && it.projectedEdge.toId == "EventA"
+        }
+        assertEquals(
+            listOf(
+                "CommandToCommandHandler",
+                "CommandHandlerToEntityMethod",
+                "EntityMethodToEntityMethod",
+                "EntityMethodToDomainEvent",
+            ),
+            startToEvent.rawPath.map(AnalysisEdgeModel::type),
+        )
+    }
+
+    @Test
+    fun `does not invent a root for a pure visible cycle`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("EventA", "domainevent"),
+                    node("EventAHandler", "domaineventhandler"),
+                    node("FollowCmd", "command"),
+                    node("FollowHandler", "commandhandler"),
+                    node("Aggregate::loop", "entitymethod"),
+                ),
+                edges = listOf(
+                    edge("EventA", "EventAHandler", "DomainEventToHandler"),
+                    edge("EventAHandler", "FollowCmd", "DomainEventHandlerToCommand"),
+                    edge("FollowCmd", "FollowHandler", "CommandToCommandHandler"),
+                    edge("FollowHandler", "Aggregate::loop", "CommandHandlerToEntityMethod"),
+                    edge("Aggregate::loop", "EventA", "EntityMethodToDomainEvent"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
+        assertTrue((plan.single().context["jsonContent"] as String).contains("\"flowCount\": 0"))
+    }
+
+    @Test
+    fun `fails clearly when a causal relationship endpoint is missing`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            projectCausalGraph(
+                nodesById = mapOf("OrderController::submit" to node("OrderController::submit", "controllermethod")),
+                edges = listOf(edge("OrderController::submit", "MissingCmd", "ControllerMethodToCommand")),
+            )
+        }
+
+        assertEquals(
+            "Flow causal relationship 'ControllerMethodToCommand' references missing toId 'MissingCmd'",
+            error.message,
+        )
+    }
     @Test
     fun `adds digest suffix when slugified entry ids collide`() {
         val planner = FlowArtifactPlanner()

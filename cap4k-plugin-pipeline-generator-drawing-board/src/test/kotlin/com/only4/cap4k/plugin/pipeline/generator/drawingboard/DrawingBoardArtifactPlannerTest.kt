@@ -66,6 +66,13 @@ class DrawingBoardArtifactPlannerTest {
             plan.map { it.templateId },
         )
         assertEquals(PipelineCapabilityActivation.EXPLICIT_CONFIGURATION, planner.descriptor.activation)
+        assertEquals(
+            listOf(
+                "Normalized Design Projection Evidence",
+                "Aggregate Structure Evidence Output",
+            ),
+            planner.descriptor.tacticalCarriers,
+        )
         assertEquals("drawing-board", plan.first().generatorId)
         assertEquals("project", plan.first().moduleRole)
         assertEquals("command", plan.first().context["drawingBoardTag"])
@@ -387,10 +394,7 @@ class DrawingBoardArtifactPlannerTest {
         val plan = DrawingBoardArtifactPlanner().plan(
             config(),
             CanonicalModel(
-                drawingBoard = DrawingBoardModel(
-                    elements = emptyList(),
-                    aggregateElements = listOf(repository),
-                ),
+                aggregateStructure = listOf(repository),
             ),
         )
 

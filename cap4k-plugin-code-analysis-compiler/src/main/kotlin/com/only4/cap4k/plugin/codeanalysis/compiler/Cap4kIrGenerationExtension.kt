@@ -1179,10 +1179,6 @@ private val SUPPORTED_AGGREGATE_ELEMENT_TYPES = setOf(
     AGG_TYPE_ENTITY,
     "repository",
     "factory",
-    "specification",
-    "unique-query",
-    "unique-query-handler",
-    "unique-validator",
     "strong-id",
     "projection",
 )

@@ -474,7 +474,6 @@ private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelection
 data class DrawingBoardModel(
     val elements: List<DrawingBoardElementModel>,
     val elementsByTag: Map<String, List<DrawingBoardElementModel>> = elements.groupBy { it.tag },
-    val aggregateElements: List<AggregateElementModel> = emptyList(),
 ) {
     init {
         require(elementsByTag == elements.groupBy { it.tag }) {
@@ -487,7 +486,6 @@ data class AnalysisGraphModel(
     val inputDirs: List<String>,
     val nodes: List<AnalysisNodeModel>,
     val edges: List<AnalysisEdgeModel>,
-    val aggregateElements: List<AggregateElementModel> = emptyList(),
 )
 
 data class AggregateRef(
@@ -542,6 +540,7 @@ data class CanonicalModel(
     val repositories: List<RepositoryModel> = emptyList(),
     val analysisGraph: AnalysisGraphModel? = null,
     val drawingBoard: DrawingBoardModel? = null,
+    val aggregateStructure: List<AggregateElementModel> = emptyList(),
     val sharedEnums: List<SharedEnumDefinition> = emptyList(),
     val aggregateRelations: List<AggregateRelationModel> = emptyList(),
     val aggregateEntityJpa: List<AggregateEntityJpaModel> = emptyList(),

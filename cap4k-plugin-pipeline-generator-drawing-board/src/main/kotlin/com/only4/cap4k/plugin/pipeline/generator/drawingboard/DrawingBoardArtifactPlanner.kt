@@ -11,7 +11,10 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
         kind = PipelineCapabilityKind.GENERATOR,
         module = "cap4k-plugin-pipeline-generator-drawing-board",
         activation = PipelineCapabilityActivation.EXPLICIT_CONFIGURATION,
-        tacticalCarriers = listOf("Drawing Board Evidence"),
+        tacticalCarriers = listOf(
+            "Normalized Design Projection Evidence",
+            "Aggregate Structure Evidence Output",
+        ),
         executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
         tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
         inputRequirements = listOf(
@@ -29,13 +32,13 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
         requireDrawingBoardAnalysisMetadata(model)
-        val drawingBoard = model.drawingBoard ?: return emptyList()
+        val drawingBoard = model.drawingBoard
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val outputRoot = artifactLayout.drawingBoardOutputRoot()
 
         val designArtifacts = supportedTags.flatMap { tag ->
-            val elements = drawingBoard.elementsByTag[tag].orEmpty()
+            val elements = drawingBoard?.elementsByTag?.get(tag).orEmpty()
             if (elements.isEmpty()) {
                 emptyList()
             } else {
@@ -56,7 +59,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
                 )
             }
         }
-        val aggregateElements = drawingBoard.aggregateElements
+        val aggregateElements = model.aggregateStructure
             .sortedBy(AggregateElementModel::carrierQualifiedName)
         if (aggregateElements.isEmpty()) {
             return designArtifacts

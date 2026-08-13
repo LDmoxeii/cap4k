@@ -1616,7 +1616,7 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `preserves aggregate structure in analysis graph and drawing board without creating design tags`() {
+    fun `preserves aggregate structure under its independent canonical owner`() {
         val model = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),
             snapshots = listOf(
@@ -1640,17 +1640,15 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model
 
-        val graphRepository = model.analysisGraph!!.aggregateElements.single()
-        assertEquals("OrderRepository", graphRepository.name)
+        val repository = model.aggregateStructure.single()
+        assertEquals("OrderRepository", repository.name)
         assertEquals(
             "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
-            graphRepository.carrierQualifiedName,
+            repository.carrierQualifiedName,
         )
-        val drawingBoard = requireNotNull(model.drawingBoard)
-        assertEquals(listOf(graphRepository), drawingBoard.aggregateElements)
-        assertTrue(drawingBoard.elements.isEmpty())
-        assertTrue(drawingBoard.elementsByTag.isEmpty())
-        assertTrue("repository" !in drawingBoard.elementsByTag)
+        assertTrue(model.analysisGraph!!.nodes.isEmpty())
+        assertTrue(model.analysisGraph!!.edges.isEmpty())
+        assertNull(model.drawingBoard)
         assertTrue(model.designBlocks.isEmpty())
     }
 

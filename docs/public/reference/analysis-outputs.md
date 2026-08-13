@@ -83,7 +83,7 @@ cap4k {
 | `analysis/flows/*.json` | structured flow data。 |
 | `analysis/flows/*.mmd` | Mermaid flow rendering source。 |
 
-flow evidence 回答 controller、subscriber、job、Command dispatch、Query path 或 external Capability wiring 如何连接。它们不证明 business behavior 正确。
+flow evidence 是从实际代码入口出发的默认业务因果投影：保留具体入口、Command、Domain Event 与 Integration Event，隐藏 Command/Event Handler 和 Entity Method，并把隐藏路径收缩为可见节点之间的因果边。Query、Capability、Validator 等事实仍可存在于 raw graph，但不进入默认 Flow。它们不证明 business behavior 正确。
 
 ## Drawing Board Files
 
@@ -98,7 +98,7 @@ flow evidence 回答 controller、subscriber、job、Command dispatch、Query pa
 | `analysis/drawing-board/drawing_board_integration_event.json` | integration event anchors。 |
 | `analysis/drawing-board/drawing_board_aggregate_elements.json` | Aggregate element 结构证据。 |
 
-普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类。`drawing_board_aggregate_elements.json` 则记录 `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type` 与 `root`；它不带 `tag`，不是 Design JSON。
+普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类。`drawing_board_aggregate_elements.json` 则由独立 Aggregate Structure canonical 分区驱动，记录 `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type` 与 `root`；它不属于 raw graph 或 Drawing Board design projection，不带 `tag`，也不是 Design JSON。
 
 drawing-board evidence 回答代码中有哪些 anchors。它不说明这些 anchors 已经完成。
 
@@ -130,7 +130,7 @@ Drawing Board 的普通 tag 文件由当前 generator 输出为直接兼容 [Des
 ## 边界检查
 
 - `cap4kAnalysisGenerate` 不是 source generation。
-- `flow` 和 `drawing-board` 是显式配置的 analysis/observation outputs。
+- `flow` 和 `drawing-board` 是显式配置的 analysis/observation outputs；Pipeline `flow` 是唯一公开 Flow 产品入口，已退役的独立 flow-export plugin 不再存在。
 - 缺失必要 analysis metadata 时必须 fail fast；恢复默认 template/annotation 与 `compileOnly` dependency 后才能重新启用能力。
 - 缺少 `nodes.json`、`rels.json` 或 `aggregate-elements.json` 表示 analysis input 不完整；无 Aggregate element 时后者也必须为 `[]`。
 - `build/cap4k/analysis-plan.json` 是 `build/` 下的本地 generated evidence。

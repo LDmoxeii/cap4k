@@ -29,7 +29,7 @@ class CentralPublishTaskPolicyTest {
     fun `detects plugin marker Central portal publish tasks by task name`() {
         assertTrue(
             CentralPublishTaskPolicy.isPluginMarkerCentralPortalPublishTask(
-                "publishCap4kFlowExportPluginMarkerMavenPublicationToCentralPortalRepository"
+                "publishSamplePluginMarkerMavenPublicationToCentralPortalRepository"
             )
         )
         assertFalse(
@@ -44,11 +44,6 @@ class CentralPublishTaskPolicyTest {
         assertTrue(
             CentralPublishTaskPolicy.isAllowedPluginMarkerCentralPortalPublishTask(
                 "publishCap4kPipelinePluginMarkerMavenPublicationToCentralPortalRepository"
-            )
-        )
-        assertTrue(
-            CentralPublishTaskPolicy.isAllowedPluginMarkerCentralPortalPublishTask(
-                "publishCap4kFlowExportPluginMarkerMavenPublicationToCentralPortalRepository"
             )
         )
         assertFalse(
