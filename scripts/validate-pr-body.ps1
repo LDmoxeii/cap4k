@@ -254,7 +254,7 @@ try {
         Assert-IssueHierarchy -Markdown $bodyText
         Assert-AcceptanceIds -Markdown $bodyText
         [void](Get-CapabilityImpactRows -Markdown $bodyText)
-        foreach ($heading in @('## Summary', '## Shared Contracts', '## Propagation Closure', '## Composition Evidence', '## Sibling Slice Responsibility', '## Audit Focus', '## Verification', '## Docs-Only Skip Reason', '## Related Spec Or Plan', '## Agent Review', '## Release Note')) {
+        foreach ($heading in @('## Summary', '## Shared Contracts', '## Propagation Closure', '## Composition Evidence', '## Sibling Slice Responsibility', '## Audit Focus', '## Verification', '## Full Gradle Skip Reason', '## Related Spec Or Plan', '## Agent Review', '## Release Note')) {
             Assert-MeaningfulSection -Markdown $bodyText -Heading $heading
         }
         if ([string]::IsNullOrWhiteSpace($FactsFile) -xor [string]::IsNullOrWhiteSpace($ChangedFilesFile)) {

@@ -78,7 +78,7 @@ Contribution rules:
 - a Runtime contract change must evaluate the complete propagation closure, not only Generator and Analyzer; the same closure rule applies from any changed contract node
 - Public Docs and Skill describe only current supported behavior and boundaries; history belongs in Git, releases, changelogs, migration surfaces, GitHub issues, and archived internal design assets
 - AgentFacts remain generated from production contracts and current project observation; Public Docs and Skill never become reverse inputs to the facts catalog
-- docs-only pull requests may skip the full Gradle `check`, but they must still export code-derived facts and run capability, Skill, Runtime, PR-template, and workflow validation
+- documentation and governance/Skill-only pull requests may skip the full Gradle `check`, but they must still export code-derived facts and run capability, Skill, Runtime, PR-template, and workflow validation
 
 Governance objects have separate roles:
 
@@ -134,11 +134,13 @@ CI and branch protection contract:
 
 - the required status check context is `check`
 - `master` is protected by required PRs, strict `check`, and admin enforcement
-- PRs into `master` run Gradle only when the change can affect code, build, scripts, workflows, tests, fixtures, or template resources
-- docs-only PRs into `master` skip Gradle but still complete the required `check` job
-- PR workflow guard tests run in the required `check` job for normal and docs-only pull requests so PR template and PR creation scripts stay aligned
-- docs-only includes `docs/**`, `README*`, root Markdown files, `.github/ISSUE_TEMPLATE/**`, and `.github/PULL_REQUEST_TEMPLATE.md`
-- `.github/workflows/**`, `scripts/**`, `buildSrc/**`, `gradle/**`, Gradle files, source files, test files, fixtures, and template resources are not docs-only
+- PRs into `master` run Gradle only when the change can affect code, build, root governance scripts, workflows, tests, fixtures, or template resources
+- documentation and governance/Skill-only PRs into `master` skip Gradle but still complete the required `check` job
+- PR workflow guard tests run in the required `check` job for normal and lightweight pull requests so PR template, PR creation scripts, and CI path classification stay aligned
+- documentation-only includes `docs/**`, `README*`, root Markdown files except `AGENTS.md`, `.github/ISSUE_TEMPLATE/**`, and `.github/PULL_REQUEST_TEMPLATE.md`
+- governance/Skill-only includes `AGENTS.md`, `.agents/skills/**`, `skills/**`, and `.comet/config.yaml`; focused capability, Skill, Runtime, PR-template, and workflow guards remain mandatory
+- `.github/workflows/**`, root `scripts/**`, `buildSrc/**`, `gradle/**`, Gradle files, source files, test files, fixtures, and template resources are Gradle-impacting even when mixed with lightweight paths
+- renames and copies classify both the source and destination path; crossing from a lightweight path to a Gradle-impacting path, or the reverse, requires Gradle
 
 Release safety rules:
 
