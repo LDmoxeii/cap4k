@@ -1,11 +1,15 @@
 ---
 name: cap4k-authoring
-description: Use when an agent must inspect, model for, generate with, implement in, analyze, or verify a cap4k business project.
+description: Use only when an agent must inspect, model, generate, implement, analyze, or verify a downstream business project that consumes cap4k. Do not use for development or governance of the cap4k framework repository itself.
 ---
 
 # Cap4k Authoring
 
 This is a thin router and field guide, not a DDD process engine. Humans own domain research, language, boundaries, priorities, and final decisions.
+
+## Scope Boundary
+
+This skill is for business projects that consume cap4k public capabilities. Do not load it for work on the cap4k framework repository itself, including Runtime, Generator, Analyzer, Pipeline plugins, build logic, AgentFacts, public docs, releases, or Issue governance. Framework work follows the repository `AGENTS.md` and the workflow explicitly selected for that task.
 
 ## Start
 

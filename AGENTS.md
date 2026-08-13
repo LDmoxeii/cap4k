@@ -5,8 +5,9 @@
 When continuing work in `cap4k`, read this file first, then read:
 
 - [Original architecture reset spec](docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
-- the relevant GitHub issue that now acts as backlog source of truth
-- the most recent relevant spec or plan under `docs/superpowers/`
+- the relevant GitHub issue when the work comes from backlog or parent/child governance
+- the active Comet Native change when starting or resuming a change
+- the most recent relevant canonical spec or historical design asset
 
 ## Repository Entry Guard
 
@@ -24,13 +25,15 @@ Reading, searching, and review-only commands may run on `master`. Any repository
 
 ## Cap4k Skill Routing
 
-When a task involves cap4k business-project authoring, use the repo-local thin skill as the only cap4k-specific routing source:
+Use the repo-local thin authoring skill only when the target is a downstream business project that consumes cap4k:
 
 - [skills/cap4k-authoring/SKILL.md](skills/cap4k-authoring/SKILL.md)
 - [skills/cap4k-authoring/routing.yaml](skills/cap4k-authoring/routing.yaml)
 
 Select the smallest operation route, read its `required_reads`, and load only the listed Agent API sections after reading `build/cap4k/agent/manifest.json`.
 Do not recreate phase skills, mandatory DDD artifacts, approval gates, or duplicate route rows in this shell.
+
+Do not load `cap4k-authoring` for development or governance of the cap4k framework repository itself. Runtime, Generator, Analyzer, Pipeline plugin, build logic, AgentFacts, public-doc, release, and repository-governance work follows this file plus the relevant repository design assets. Load `issue-governance` only when an Issue is actually being created, split, linked, updated, audited, or closed. Use Comet Native when starting or resuming a formal change.
 
 Keep this file as a routing shell. Do not duplicate focused skill rules here.
 
@@ -79,10 +82,21 @@ Contribution rules:
 
 Governance objects have separate roles:
 
+- a GitHub Issue preserves backlog intent, priority, dependencies, ownership, and lifecycle across changes; an immediately authorized coherent change does not require an Issue first
 - a GitHub Parent Issue fixes overall intent, acceptance IDs, child inventory, dependencies, and composition status
-- Child Issues own independently reviewable and mergeable slices; implementation PRs close Child/Standalone Issues only and reference the Parent without a closing keyword
+- Child Issues own independently reviewable and mergeable slices; when a Child/Standalone Issue enters execution, it normally maps to one Comet change and its implementation PR
 - Parent closure requires all required children plus composition evidence on one accepted `origin/master` lineage
-- Comet stores the formal goal, complete specification, acceptance loop, and evidence for one change unit; it is not a live multi-PR dependency graph
+- Comet Shape owns the detailed target specification and acceptance loop for one change unit; the Issue remains macro-level and must not duplicate the change specification
+- `docs/comet/changes/<change>/specs/**` describes the complete target behavior of the active change; `docs/comet/specs/**` describes the accepted authoritative capability contract after Archive
+- canonical Comet specs may lead implementation when a spec/audit change confirms the target, but they are not backlog storage; undecided ideas remain in Issues, while accepted but deferred implementation keeps an Issue for priority and status
+- Comet is not a live multi-PR dependency graph; a Parent Issue normally composes several short-lived changes rather than one long-running change
+
+Audit and implementation have different lifecycles:
+
+- read-only audit may inspect `master`, but persisted audit notes or Comet artifacts must use a short-lived docs worktree from current `origin/master`
+- an audit change records verified current facts, accepted target decisions, implementation status, and independently executable slices; it may Archive a spec-only target before implementation only when the brief and verification explicitly state that scope and gap
+- merge accepted audit conclusions and canonical target specs back to `master`; do not keep an audit branch alive as the integration point for later implementation PRs, and do not project unimplemented targets into Public Docs, AgentFacts, or Skill as current support
+- each independently mergeable implementation starts from current `origin/master` and its own Comet change, consumes the current canonical contract, adds a spec change only when the contract itself changes, then Builds, Verifies, Archives, and lands code plus evidence together
 
 ## Branch And Release Policy
 
@@ -141,21 +155,23 @@ Release safety rules:
 
 ## Continuing Work
 
-- If the user says "continue the original mainline", use the current GitHub issues plus the newest relevant spec/plan to identify the active slice.
+- If the user says "continue the original mainline", use the current GitHub Issues when they exist, active Comet changes, canonical contracts, and latest `origin/master` facts to identify the active slice.
 - If the user says "unblock real project integration", read the relevant integration specs first. Do not silently turn an integration workaround into a new global framework rule.
 - If a request refers to the retired bootstrap capability, do not restore it; redirect project initialization to the official GitHub Template or explicit manual structure work.
 
 ## Current Planning State
 
-GitHub issues are now the backlog source of truth. Repository docs remain design assets:
+GitHub Issues are the backlog source of truth when work needs a durable backlog record. Comet is the execution source of truth for an authorized change. Repository docs remain design assets:
 
-- issues track backlog, state, and closure
-- specs and plans track design and implementation detail
-- before starting implementation, re-read the target issue plus the newest relevant spec/plan against current `master`
+- Issues track macro intent, priority, dependencies, state, and closure; they are optional for an immediately authorized coherent change
+- an active Comet change tracks its goal, detailed target specs, acceptance loop, and evidence
+- canonical Comet specs track accepted authoritative contracts and may precede implementation; code-derived facts, tests, AgentFacts, and Public Docs determine what the current build actually supports
+- archived Comet changes and `docs/superpowers/` assets preserve history and design context; they are not active backlog queues
+- before starting implementation, re-read the target Issue when one exists, then Shape or resume the Comet change against current `origin/master` and current canonical contracts
 
-Do not rely on a static issue list in this file. Query the current issue state or use the issue/spec/plan explicitly named by the user.
+Do not rely on a static Issue list in this file. Query the current Issue state or use the Issue or Comet change explicitly named by the user.
 
-Do not execute an old historical plan just because it exists. Re-read the relevant spec and plan against current `master`, update them if the repository or user's latest decisions changed the boundary, and then execute from the refreshed plan.
+Do not execute an old historical plan or archived change just because it exists. Re-read the relevant current contracts and design context against current `origin/master`, refresh the active Shape when the repository or user's latest decisions changed the boundary, and then execute from that refreshed change.
 
 Recent durable decisions to preserve:
 
@@ -185,11 +201,12 @@ Do not dismiss a fresh failure as known debt. Reproduce it in the capability own
 ## Reading Order
 
 1. [AGENTS.md](AGENTS.md)
-2. the relevant GitHub issue
-3. [2026-04-09-cap4k-pipeline-redesign-design.md](docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
-4. the most recent relevant specs/plans under `docs/superpowers/`
+2. the relevant GitHub Issue, when one exists
+3. the active Comet change, when starting or resuming one
+4. [2026-04-09-cap4k-pipeline-redesign-design.md](docs/superpowers/specs/2026-04-09-cap4k-pipeline-redesign-design.md)
+5. the relevant canonical Comet specs and most recent historical design assets
 
 ## Notes
 
 - `docs/superpowers/specs/` and `docs/superpowers/plans/` contain the historical slices
-- GitHub issues now carry backlog and lifecycle state; docs are no longer the backlog source of truth
+- GitHub Issues carry durable backlog and cross-change lifecycle state; active Comet changes carry execution detail
