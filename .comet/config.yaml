@@ -14,7 +14,7 @@ native:
   artifact_root: docs
   # Artifact language used by Native workflow documents.
   # language: en | zh-CN
-  language: en
+  language: zh-CN
   # Controls whether Native asks one clarification at a time or every currently answerable question in a round.
   # clarification_mode: sequential | batch
   clarification_mode: sequential

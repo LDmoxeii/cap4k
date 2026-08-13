@@ -53,61 +53,43 @@ jobs:
 
       - name: Classify change
         id: classify
-        shell: bash
+        shell: pwsh
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
         run: |
-          set -euo pipefail
+          $ErrorActionPreference = 'Stop'
+          $encoding = [System.Text.UTF8Encoding]::new($false)
 
-          is_docs_only_path() {
-            case "$1" in
-              docs/*) return 0 ;;
-              README|README.*) return 0 ;;
-              CHANGELOG.md|CONTRIBUTING.md|CODE_OF_CONDUCT.md) return 0 ;;
-              .github/ISSUE_TEMPLATE/*) return 0 ;;
-              .github/PULL_REQUEST_TEMPLATE.md) return 0 ;;
-              .github/pull_request_template.md) return 0 ;;
-              *.md) return 0 ;;
-              *) return 1 ;;
-            esac
+          if ($env:EVENT_NAME -eq 'pull_request') {
+            if ($env:BASE_REF -cne 'master') {
+              throw "Pull requests must target master; got $($env:BASE_REF)."
+            }
+
+            & git fetch --no-tags --prune origin "+refs/heads/$($env:BASE_REF):refs/remotes/origin/$($env:BASE_REF)"
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to fetch the pull request base branch.' }
+
+            $changedFilesFile = Join-Path $env:RUNNER_TEMP 'cap4k-changed-files.txt'
+            $diffLines = @(& git diff --name-status --find-renames "origin/$($env:BASE_REF)...HEAD")
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to inspect changed paths.' }
+            [System.IO.File]::WriteAllLines($changedFilesFile, $diffLines, $encoding)
+
+            $classificationJson = (& ./scripts/classify-ci-change.ps1 -ChangedFilesFile $changedFilesFile -GitHubOutputFile $env:GITHUB_OUTPUT | Out-String).Trim()
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to classify changed paths.' }
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "changed_files_file=$changedFilesFile`n", $encoding)
+            Write-Output $classificationJson
+          } else {
+            $outputs = @(
+              'run_gradle=true'
+              'docs_only=false'
+              'governance_skill_only=false'
+              'gradle_skippable=false'
+              'changed_file_count=0'
+              'changed_files_file='
+            )
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, (($outputs -join "`n") + "`n"), $encoding)
+            Write-Output '{"run_gradle":true,"docs_only":false,"governance_skill_only":false,"gradle_skippable":false,"changed_file_count":0}'
           }
-
-          run_gradle=true
-          docs_only=false
-
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            if [[ "$BASE_REF" != "master" ]]; then
-              echo "Pull requests must target master; got ${BASE_REF}." >&2
-              exit 1
-            fi
-
-            git fetch --no-tags --prune origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
-            changed_files_file="${RUNNER_TEMP}/cap4k-changed-files.txt"
-            git diff --name-status --find-renames "origin/${BASE_REF}...HEAD" > "$changed_files_file"
-            mapfile -t changed_files < <(awk -F '\t' '{ if ($1 ~ /^[RC]/) { print $2; print $3 } else { print $2 } }' "$changed_files_file")
-
-            docs_only=true
-            for changed_file in "${changed_files[@]}"; do
-              if ! is_docs_only_path "$changed_file"; then
-                docs_only=false
-                break
-              fi
-            done
-
-            if [[ "$docs_only" == "true" ]]; then
-              run_gradle=false
-            fi
-          fi
-
-          {
-            echo "run_gradle=${run_gradle}"
-            echo "docs_only=${docs_only}"
-            echo "changed_files_file=${changed_files_file:-}"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "run_gradle=${run_gradle}"
-          echo "docs_only=${docs_only}"
 
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
@@ -158,4 +140,4 @@ jobs:
 
       - name: Skip Gradle
         if: steps.classify.outputs.run_gradle != 'true'
-        run: echo "Docs-only change detected; Gradle check skipped."
+        run: echo "Documentation/governance/Skill-only change detected; full Gradle check skipped."

@@ -11,7 +11,7 @@ Keep a standalone issue when one reviewable change can carry the full intent and
 The parent owns:
 
 - overall problem and intended outcome
-- canonical spec and plan links
+- stable links to current contracts, audit decisions, or active Comet changes when applicable
 - global non-goals and invariants
 - acceptance IDs and capability impact matrix
 - required child inventory and dependency order

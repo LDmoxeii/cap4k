@@ -7,6 +7,7 @@ $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
 $validateScript = Join-Path $PSScriptRoot "validate-pr-body.ps1"
 $createScript = Join-Path $PSScriptRoot "create-pr.ps1"
 $exportFactsScript = Join-Path $PSScriptRoot 'export-capability-contract-facts.ps1'
+$classifyScript = Join-Path $PSScriptRoot 'classify-ci-change.ps1'
 $ciWorkflow = Join-Path $repoRoot ".github/workflows/ci.yml"
 
 function Invoke-ScriptProcess {
@@ -22,6 +23,47 @@ function Invoke-ScriptProcess {
     $text = ($output | Out-String).Trim()
     if ($actualExitCode -ne $ExpectedExitCode) { throw "Expected exit code $ExpectedExitCode from $Script with arguments [$($Arguments -join ', ')] but got $actualExitCode.`n$text" }
     if ($ExpectedOutputPattern -and $text -notmatch $ExpectedOutputPattern) { throw "Expected output to match '$ExpectedOutputPattern'.`n$text" }
+}
+
+function Assert-CiClassification {
+    param(
+        [string] $Name,
+        [string[]] $DiffLines,
+        [bool] $RunGradle,
+        [bool] $DocsOnly,
+        [bool] $GovernanceSkillOnly,
+        [bool] $GradleSkippable,
+        [string] $TempRoot
+    )
+
+    $safeName = $Name -replace '[^a-zA-Z0-9.-]', '-'
+    $diffFile = Join-Path $TempRoot "classification-$safeName.txt"
+    [IO.File]::WriteAllLines($diffFile, $DiffLines, [System.Text.UTF8Encoding]::new($false))
+    $output = & $pwsh -NoProfile -ExecutionPolicy Bypass -File $classifyScript -ChangedFilesFile $diffFile 2>&1
+    $actualExitCode = $LASTEXITCODE
+    $text = ($output | Out-String).Trim()
+    if ($actualExitCode -ne 0) { throw "Classification '$Name' failed with exit code $actualExitCode.`n$text" }
+    $result = $text | ConvertFrom-Json
+
+    $expectedChangedPathCount = 0
+    foreach ($line in $DiffLines) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        $parts = $line -split "`t"
+        $expectedChangedPathCount += if ($parts[0] -match '^[RC][0-9]*$' -and $parts.Count -ge 3) { 2 } else { 1 }
+    }
+    $expected = [ordered]@{
+        run_gradle = $RunGradle
+        docs_only = $DocsOnly
+        governance_skill_only = $GovernanceSkillOnly
+        gradle_skippable = $GradleSkippable
+        changed_file_count = $expectedChangedPathCount
+    }
+    foreach ($entry in $expected.GetEnumerator()) {
+        $actual = $result.($entry.Key)
+        if ($actual -ne $entry.Value) {
+            throw "Classification '$Name' expected $($entry.Key)=$($entry.Value) but got $actual."
+        }
+    }
 }
 
 function New-ValidPrBody {
@@ -105,9 +147,9 @@ function New-ValidPrBody {
 - [x] Static validation: PowerShell parser and YAML review
 - [ ] Not run because:
 
-## Docs-Only Skip Reason
+## Full Gradle Skip Reason
 
-- N/A - not documentation-only
+- N/A - full Gradle required
 
 ## Related Spec Or Plan
 
@@ -129,10 +171,24 @@ New-Item -ItemType Directory -Path $tempRoot | Out-Null
 $detachedWorktree = Join-Path $tempRoot "detached-worktree"
 try {
     $workflowText = Get-Content -LiteralPath $ciWorkflow -Raw -Encoding UTF8
-    foreach ($required in @('validate-pr-body.ps1', 'export-capability-contract-facts.ps1', 'validate-capability-contract.ps1', 'validate-cap4k-skills.ps1', 'ChangedFilesFile', 'git diff --name-status --find-renames')) {
+    foreach ($required in @('classify-ci-change.ps1', 'validate-pr-body.ps1', 'export-capability-contract-facts.ps1', 'validate-capability-contract.ps1', 'validate-cap4k-skills.ps1', 'validate-current-runtime-facts.ps1', 'test-capability-contract.ps1', 'test-pr-workflow.ps1', 'ChangedFilesFile', 'git diff --name-status --find-renames')) {
         if (-not $workflowText.Contains($required)) { throw "CI workflow must invoke or declare $required." }
     }
-    if (-not $workflowText.Contains('if [[ "$BASE_REF" != "master" ]]; then')) { throw 'CI must reject pull requests whose base is not master.' }
+    if (-not $workflowText.Contains("if (`$env:BASE_REF -cne 'master')")) { throw 'CI must reject pull requests whose base is not master.' }
+
+    Assert-CiClassification -Name 'docs' -DiffLines @("M`tdocs/public/reference/agent-api.md") -RunGradle $false -DocsOnly $true -GovernanceSkillOnly $false -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'agents' -DiffLines @("M`tAGENTS.md") -RunGradle $false -DocsOnly $false -GovernanceSkillOnly $true -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'repo-skill' -DiffLines @("M`t.agents/skills/issue-governance/SKILL.md") -RunGradle $false -DocsOnly $false -GovernanceSkillOnly $true -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'authoring-skill' -DiffLines @("M`tskills/cap4k-authoring/routing.yaml") -RunGradle $false -DocsOnly $false -GovernanceSkillOnly $true -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'skill-validator' -DiffLines @("M`tskills/scripts/validate-cap4k-skills.ps1") -RunGradle $false -DocsOnly $false -GovernanceSkillOnly $true -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'comet-config' -DiffLines @("M`t.comet/config.yaml") -RunGradle $false -DocsOnly $false -GovernanceSkillOnly $true -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'mixed-lightweight' -DiffLines @("M`tdocs/public/reference/agent-api.md", "M`tskills/cap4k-authoring/routing.yaml") -RunGradle $false -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $true -TempRoot $tempRoot
+    Assert-CiClassification -Name 'workflow' -DiffLines @("M`t.github/workflows/ci.yml") -RunGradle $true -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $false -TempRoot $tempRoot
+    Assert-CiClassification -Name 'root-script' -DiffLines @("M`tscripts/validate-pr-body.ps1") -RunGradle $true -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $false -TempRoot $tempRoot
+    Assert-CiClassification -Name 'source' -DiffLines @("M`tcap4k-plugin-pipeline-api/src/main/kotlin/Contract.kt") -RunGradle $true -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $false -TempRoot $tempRoot
+    Assert-CiClassification -Name 'mixed-impacting' -DiffLines @("M`tskills/cap4k-authoring/routing.yaml", "M`tscripts/validate-pr-body.ps1") -RunGradle $true -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $false -TempRoot $tempRoot
+    Assert-CiClassification -Name 'rename-to-lightweight' -DiffLines @("R100`tscripts/old.ps1`tskills/scripts/old.ps1") -RunGradle $true -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $false -TempRoot $tempRoot
+    Assert-CiClassification -Name 'rename-from-lightweight' -DiffLines @("R100`tskills/scripts/old.ps1`tscripts/old.ps1") -RunGradle $true -DocsOnly $false -GovernanceSkillOnly $false -GradleSkippable $false -TempRoot $tempRoot
 
     $validBody = Join-Path $tempRoot 'valid.md'
     $sameIssueBody = Join-Path $tempRoot 'same-issue.md'

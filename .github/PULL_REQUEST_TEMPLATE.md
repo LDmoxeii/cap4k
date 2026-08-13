@@ -68,9 +68,9 @@ Allowed results: `modified`, `verified-no-change`, `not-applicable`. Every row r
 - [ ] Static validation:
 - [ ] Not run because:
 
-## Docs-Only Skip Reason
+## Full Gradle Skip Reason
 
-If this is documentation-only, list the changed doc/template paths that allow CI to skip the full Gradle check. Otherwise use `N/A - not documentation-only`.
+If all changed paths are documentation, repository governance, or Skill-only paths, list the paths that allow CI to skip the full Gradle check. Otherwise use `N/A - full Gradle required`.
 
 -
 
