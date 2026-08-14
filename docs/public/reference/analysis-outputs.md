@@ -83,7 +83,13 @@ cap4k {
 | `analysis/flows/*.json` | structured flow data。 |
 | `analysis/flows/*.mmd` | Mermaid flow rendering source。 |
 
-flow evidence 是从实际代码入口出发的默认业务因果投影：保留具体入口、Command、Domain Event 与 Integration Event，隐藏 Command/Event Handler 和 Entity Method，并把隐藏路径收缩为可见节点之间的因果边。Query、Capability、Validator 等事实仍可存在于 raw graph，但不进入默认 Flow。它们不证明 business behavior 正确。
+flow evidence 是从实际代码入口出发的默认业务因果投影：保留具体入口、Command、Domain Event 与 Integration Event，隐藏 Command/Event Handler 和 Entity Method，并把任意长度的已知隐藏路径收缩为可见节点之间的因果边。Query、Capability、Validator 等事实仍可存在于 raw graph，但不进入默认 Flow。它们不证明 business behavior 正确。
+
+阅读 Flow 数量时使用以下规则：
+
+- 连续的 raw graph evidence 从同一个真实入口到达后续 Command/Event 时，保持在同一张 entry-centered Flow 中，不需要 process stitching。
+- 两个各自具有入口证据、完成投影后均为零入度的真实入口分别生成两张 Flow，即使它们共享下游 Command 或 Event。
+- 多张 Flow 通过 `index.json`、稳定 entry identity 和共享可见节点关联阅读；共享后缀本身不证明它们属于一个自动推断的业务过程。
 
 ## Drawing Board Files
 

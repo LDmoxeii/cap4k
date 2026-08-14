@@ -343,6 +343,135 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
+    fun `keeps a complete inbound integration event causal chain in one flow`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("MediaProcessingCompletedIntegrationEvent", "integrationevent"),
+                    node("MediaProcessingCompletedHandler", "integrationeventhandler"),
+                    node("RecordMediaProcessingCmd", "command"),
+                    node("RecordMediaProcessingHandler", "commandhandler"),
+                    node("MediaProcessing::record", "entitymethod"),
+                    node("MediaProcessing::publish", "entitymethod"),
+                    node("MediaProcessingRecorded", "domainevent"),
+                    node("MediaProcessingRecordedHandler", "domaineventhandler"),
+                    node("PublishContentCmd", "command"),
+                ),
+                edges = listOf(
+                    edge(
+                        "MediaProcessingCompletedIntegrationEvent",
+                        "MediaProcessingCompletedHandler",
+                        "IntegrationEventToHandler",
+                    ),
+                    edge(
+                        "MediaProcessingCompletedHandler",
+                        "RecordMediaProcessingCmd",
+                        "IntegrationEventHandlerToCommand",
+                    ),
+                    edge("RecordMediaProcessingCmd", "RecordMediaProcessingHandler", "CommandToCommandHandler"),
+                    edge(
+                        "RecordMediaProcessingHandler",
+                        "MediaProcessing::record",
+                        "CommandHandlerToEntityMethod",
+                    ),
+                    edge("MediaProcessing::record", "MediaProcessing::publish", "EntityMethodToEntityMethod"),
+                    edge("MediaProcessing::publish", "MediaProcessingRecorded", "EntityMethodToDomainEvent"),
+                    edge("MediaProcessingRecorded", "MediaProcessingRecordedHandler", "DomainEventToHandler"),
+                    edge(
+                        "MediaProcessingRecordedHandler",
+                        "PublishContentCmd",
+                        "DomainEventHandlerToCommand",
+                    ),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val entryPlans = plan.filter { it.templateId == "flow/entry.json.peb" }
+        val jsonContent = entryPlans.single().context["jsonContent"] as String
+        val mermaidText = plan.single { it.templateId == "flow/entry.mmd.peb" }.context["mermaidText"] as String
+        val indexJson = plan.single { it.templateId == "flow/index.json.peb" }.context["jsonContent"] as String
+
+        assertEquals(1, entryPlans.size)
+        assertEquals("flows/MediaProcessingCompletedIntegrationEvent.json", entryPlans.single().outputPath)
+        assertTrue(jsonContent.contains("\"nodeCount\": 4"))
+        assertTrue(jsonContent.contains("\"edgeCount\": 3"))
+        assertTrue(jsonContent.contains("MediaProcessingCompletedIntegrationEvent"))
+        assertTrue(jsonContent.contains("RecordMediaProcessingCmd"))
+        assertTrue(jsonContent.contains("MediaProcessingRecorded"))
+        assertTrue(jsonContent.contains("PublishContentCmd"))
+        assertTrue(jsonContent.contains("IntegrationEventToCommand"))
+        assertTrue(jsonContent.contains("CommandToDomainEvent"))
+        assertTrue(jsonContent.contains("DomainEventToCommand"))
+        assertFalse(jsonContent.contains("MediaProcessingCompletedHandler"))
+        assertFalse(jsonContent.contains("RecordMediaProcessingHandler"))
+        assertFalse(jsonContent.contains("MediaProcessing::record"))
+        assertFalse(jsonContent.contains("MediaProcessing::publish"))
+        assertFalse(jsonContent.contains("MediaProcessingRecordedHandler"))
+        assertTrue(mermaidText.contains("MediaProcessingCompletedIntegrationEvent"))
+        assertTrue(mermaidText.contains("PublishContentCmd"))
+        assertFalse(mermaidText.contains("Handler"))
+        assertTrue(indexJson.contains("\"flowCount\": 1"))
+    }
+
+    @Test
+    fun `keeps two real entries as separate flows when they share a downstream suffix`() {
+        val planner = FlowArtifactPlanner()
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    node("InboundCompleted", "integrationevent"),
+                    node("InboundCompletedHandler", "integrationeventhandler"),
+                    node("CommandA", "command"),
+                    node("CommandAHandler", "commandhandler"),
+                    node("Aggregate::fromInbound", "entitymethod"),
+                    node("Job::run", "jobmethod"),
+                    node("CommandB", "command"),
+                    node("CommandBHandler", "commandhandler"),
+                    node("Aggregate::fromJob", "entitymethod"),
+                    node("SharedEvent", "domainevent"),
+                    node("SharedEventHandler", "domaineventhandler"),
+                    node("SharedCommand", "command"),
+                ),
+                edges = listOf(
+                    edge("InboundCompleted", "InboundCompletedHandler", "IntegrationEventToHandler"),
+                    edge("InboundCompletedHandler", "CommandA", "IntegrationEventHandlerToCommand"),
+                    edge("CommandA", "CommandAHandler", "CommandToCommandHandler"),
+                    edge("CommandAHandler", "Aggregate::fromInbound", "CommandHandlerToEntityMethod"),
+                    edge("Aggregate::fromInbound", "SharedEvent", "EntityMethodToDomainEvent"),
+                    edge("Job::run", "CommandB", "JobMethodToCommand"),
+                    edge("CommandB", "CommandBHandler", "CommandToCommandHandler"),
+                    edge("CommandBHandler", "Aggregate::fromJob", "CommandHandlerToEntityMethod"),
+                    edge("Aggregate::fromJob", "SharedEvent", "EntityMethodToDomainEvent"),
+                    edge("SharedEvent", "SharedEventHandler", "DomainEventToHandler"),
+                    edge("SharedEventHandler", "SharedCommand", "DomainEventHandlerToCommand"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val entryJsonByPath = plan
+            .filter { it.templateId == "flow/entry.json.peb" }
+            .associate { it.outputPath to (it.context["jsonContent"] as String) }
+        val indexJson = plan.single { it.templateId == "flow/index.json.peb" }.context["jsonContent"] as String
+
+        assertEquals(
+            setOf("flows/InboundCompleted.json", "flows/Job_run.json"),
+            entryJsonByPath.keys,
+        )
+        assertTrue(indexJson.contains("\"flowCount\": 2"))
+        assertTrue(entryJsonByPath.getValue("flows/InboundCompleted.json").contains("SharedEvent"))
+        assertTrue(entryJsonByPath.getValue("flows/InboundCompleted.json").contains("SharedCommand"))
+        assertFalse(entryJsonByPath.getValue("flows/InboundCompleted.json").contains("CommandB"))
+        assertTrue(entryJsonByPath.getValue("flows/Job_run.json").contains("SharedEvent"))
+        assertTrue(entryJsonByPath.getValue("flows/Job_run.json").contains("SharedCommand"))
+        assertFalse(entryJsonByPath.getValue("flows/Job_run.json").contains("CommandA"))
+    }
+
+    @Test
     fun `accepts rpc adapter evidence as an open entry role without synthetic entry nodes`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(

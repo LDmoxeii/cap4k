@@ -1,0 +1,42 @@
+[
+  {
+    "fromId": "MediaProcessingCompletedIntegrationEvent",
+    "toId": "MediaProcessingCompletedHandler",
+    "type": "IntegrationEventToHandler"
+  },
+  {
+    "fromId": "MediaProcessingCompletedHandler",
+    "toId": "RecordMediaProcessingCmd",
+    "type": "IntegrationEventHandlerToCommand"
+  },
+  {
+    "fromId": "RecordMediaProcessingCmd",
+    "toId": "RecordMediaProcessingHandler",
+    "type": "CommandToCommandHandler"
+  },
+  {
+    "fromId": "RecordMediaProcessingHandler",
+    "toId": "MediaProcessing::record",
+    "type": "CommandHandlerToEntityMethod"
+  },
+  {
+    "fromId": "MediaProcessing::record",
+    "toId": "MediaProcessing::publish",
+    "type": "EntityMethodToEntityMethod"
+  },
+  {
+    "fromId": "MediaProcessing::publish",
+    "toId": "MediaProcessingRecorded",
+    "type": "EntityMethodToDomainEvent"
+  },
+  {
+    "fromId": "MediaProcessingRecorded",
+    "toId": "MediaProcessingRecordedHandler",
+    "type": "DomainEventToHandler"
+  },
+  {
+    "fromId": "MediaProcessingRecordedHandler",
+    "toId": "PublishContentCmd",
+    "type": "DomainEventHandlerToCommand"
+  }
+]

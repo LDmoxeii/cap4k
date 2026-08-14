@@ -2300,6 +2300,71 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
+    fun `cap4kAnalysisGenerate keeps the complete inbound causal chain in one flow`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow-causal-chain")
+        copyFixture(projectDir, "flow-causal-chain-sample")
+
+        val result = FunctionalFixtureSupport.runner(projectDir)
+            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
+            .build()
+
+        val entryFile = projectDir.resolve("flows/MediaProcessingCompletedIntegrationEvent.json")
+        val mermaidFile = projectDir.resolve("flows/MediaProcessingCompletedIntegrationEvent.mmd")
+        val indexFile = projectDir.resolve("flows/index.json")
+        val entry = jsonMapper.readTree(entryFile.toFile()).requireObjectNode()
+        val index = jsonMapper.readTree(indexFile.toFile()).requireObjectNode()
+        val visibleNodeIds = entry.requireArrayNode("nodes")
+            .map { node -> node.get("id").asText() }
+            .toSet()
+        val visibleNodeTypes = entry.requireArrayNode("nodes")
+            .map { node -> node.get("type").asText() }
+            .toSet()
+        val edgeTypes = entry.requireArrayNode("edges")
+            .map { edge -> edge.get("type").asText() }
+            .toSet()
+        val mermaid = mermaidFile.readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
+        assertTrue(entryFile.toFile().exists())
+        assertTrue(mermaidFile.toFile().exists())
+        assertTrue(indexFile.toFile().exists())
+        assertEquals("MediaProcessingCompletedIntegrationEvent", entry.get("entryId").asText())
+        assertEquals("integrationevent", entry.get("entryType").asText())
+        assertEquals(4, entry.get("nodeCount").asInt())
+        assertEquals(3, entry.get("edgeCount").asInt())
+        assertEquals(
+            setOf(
+                "MediaProcessingCompletedIntegrationEvent",
+                "RecordMediaProcessingCmd",
+                "MediaProcessingRecorded",
+                "PublishContentCmd",
+            ),
+            visibleNodeIds,
+        )
+        assertEquals(setOf("integrationevent", "command", "domainevent"), visibleNodeTypes)
+        assertEquals(
+            setOf("IntegrationEventToCommand", "CommandToDomainEvent", "DomainEventToCommand"),
+            edgeTypes,
+        )
+        assertEquals(1, index.get("flowCount").asInt())
+        assertEquals(1, index.get("entryTypeCounts").get("integrationevent").asInt())
+        assertEquals(
+            "MediaProcessingCompletedIntegrationEvent.json",
+            index.requireArrayNode("flows").single().get("json").asText(),
+        )
+        assertTrue(mermaid.contains("MediaProcessingCompletedIntegrationEvent"))
+        assertTrue(mermaid.contains("PublishContentCmd"))
+        assertFalse(mermaid.contains("Handler"))
+        assertFalse(mermaid.contains("MediaProcessing::"))
+        assertFalse(projectDir.resolve("flows/process.json").toFile().exists())
+        assertFalse(projectDir.resolve("flows/process-index.json").toFile().exists())
+        assertFalse(projectDir.resolve("process").toFile().exists())
+        assertFalse(result.output.contains("cap4kFlow"))
+    }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
     fun `cap4kAnalysisPlan consumes graph even when aggregate structure metadata is incomplete`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow-missing-metadata")
         copyFixture(projectDir, "flow-sample")
