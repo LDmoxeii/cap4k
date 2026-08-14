@@ -25,7 +25,12 @@ import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
-import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerAggregateStructurePartition
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerDesignProjectionPartition
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerGraphPartition
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSourceIdentity
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
@@ -1582,7 +1587,7 @@ class DefaultCanonicalAssemblerTest {
         val model = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = listOf("app/build/cap4k-code-analysis"),
                     nodes = listOf(
                         IrNodeSnapshot(
@@ -1616,11 +1621,58 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `requested consumers validate only their Analyzer partition owners`() {
+        val source = AnalyzerSourceIdentity("source-graph", "app/build/cap4k-code-analysis")
+        val snapshot = AnalyzerSnapshot(
+            graph = AnalyzerGraphPartition(
+                status = AgentSnapshotStatus.INVALID,
+                sources = listOf(source),
+                diagnostics = listOf(
+                    com.only4.cap4k.plugin.pipeline.api.AnalyzerPartitionDiagnostic(
+                        id = "graph.invalid",
+                        sourceId = source.id,
+                        message = "graph broken",
+                    )
+                ),
+            ),
+            designProjection = AnalyzerDesignProjectionPartition(
+                status = AgentSnapshotStatus.OK,
+                sources = listOf(source),
+                designBlocks = listOf(
+                    DesignElementSnapshot(
+                        tag = "command",
+                        packageName = "order.submit",
+                        name = "SubmitOrder",
+                        description = "submit order",
+                    )
+                ),
+            ),
+            aggregateStructure = AnalyzerAggregateStructurePartition(
+                status = AgentSnapshotStatus.OK,
+                sources = listOf(source),
+            ),
+        )
+
+        val drawingBoard = DefaultCanonicalAssembler().assemble(
+            config = baseConfig().copy(generators = mapOf("drawing-board" to GeneratorConfig())),
+            snapshots = listOf(snapshot),
+        ).model
+        assertNotNull(drawingBoard.drawingBoard)
+
+        val failure = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig().copy(generators = mapOf("flow" to GeneratorConfig())),
+                snapshots = listOf(snapshot),
+            )
+        }
+        assertTrue(failure.message.orEmpty().contains("Analyzer partition 'graph' is invalid"))
+    }
+    @Test
     fun `preserves aggregate structure under its independent canonical owner`() {
         val model = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = listOf("adapter/build/cap4k-code-analysis"),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1665,7 +1717,7 @@ class DefaultCanonicalAssemblerTest {
         val model = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = listOf("app/build/cap4k-code-analysis"),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1752,7 +1804,7 @@ class DefaultCanonicalAssemblerTest {
         val result = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = emptyList(),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1786,7 +1838,7 @@ class DefaultCanonicalAssemblerTest {
         val result = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = emptyList(),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1824,7 +1876,7 @@ class DefaultCanonicalAssemblerTest {
         val result = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = emptyList(),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1859,7 +1911,7 @@ class DefaultCanonicalAssemblerTest {
         val result = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = emptyList(),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1924,7 +1976,7 @@ class DefaultCanonicalAssemblerTest {
                             ),
                         )
                     ),
-                    IrAnalysisSnapshot(
+                    analyzerSnapshot(
                         inputDirs = emptyList(),
                         nodes = emptyList(),
                         edges = emptyList(),
@@ -1958,7 +2010,7 @@ class DefaultCanonicalAssemblerTest {
         val result = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = emptyList(),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -1996,7 +2048,7 @@ class DefaultCanonicalAssemblerTest {
         val result = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = emptyList(),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -2042,7 +2094,7 @@ class DefaultCanonicalAssemblerTest {
             assembler.assemble(
                 config = baseConfig(),
                 snapshots = listOf(
-                    IrAnalysisSnapshot(
+                    analyzerSnapshot(
                         inputDirs = emptyList(),
                         nodes = emptyList(),
                         edges = emptyList(),
@@ -2071,7 +2123,7 @@ class DefaultCanonicalAssemblerTest {
             assembler.assemble(
                 config = baseConfig(),
                 snapshots = listOf(
-                    IrAnalysisSnapshot(
+                    analyzerSnapshot(
                         inputDirs = emptyList(),
                         nodes = emptyList(),
                         edges = emptyList(),
@@ -2099,7 +2151,7 @@ class DefaultCanonicalAssemblerTest {
         val model = assembler.assemble(
             config = baseConfig(),
             snapshots = listOf(
-                IrAnalysisSnapshot(
+                analyzerSnapshot(
                     inputDirs = listOf("app/build/cap4k-code-analysis"),
                     nodes = emptyList(),
                     edges = emptyList(),
@@ -7286,6 +7338,37 @@ class DefaultCanonicalAssemblerTest {
     }
 
     private fun aggregateProjectConfig(): ProjectConfig = baseAggregateConfig()
+
+    private fun analyzerSnapshot(
+        id: String = "ir-analysis",
+        inputDirs: List<String>,
+        nodes: List<com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot>,
+        edges: List<com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot>,
+        designElements: List<com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot> = emptyList(),
+        aggregateElements: List<com.only4.cap4k.plugin.pipeline.api.AggregateElementSnapshot> = emptyList(),
+    ): AnalyzerSnapshot {
+        val sources = inputDirs.mapIndexed { index, inputDir -> AnalyzerSourceIdentity("source-$index", inputDir) }
+        return AnalyzerSnapshot(
+            id = id,
+            graph = AnalyzerGraphPartition(
+                status = AgentSnapshotStatus.OK,
+                sources = sources,
+                nodes = nodes,
+                relationships = edges,
+            ),
+            designProjection = AnalyzerDesignProjectionPartition(
+                status = AgentSnapshotStatus.OK,
+                sources = sources,
+                designBlocks = designElements,
+            ),
+            aggregateStructure = AnalyzerAggregateStructurePartition(
+                status = AgentSnapshotStatus.OK,
+                sources = sources,
+                aggregateElements = aggregateElements,
+            ),
+        )
+    }
+
 }
 
 private fun DesignFieldSnapshot(

@@ -1404,7 +1404,10 @@ class Cap4kProjectConfigFactoryTest {
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(
-            mapOf("inputDirs" to listOf(project.file("build/cap4k-code-analysis").absolutePath)),
+            mapOf(
+                "inputDirs" to listOf(project.file("build/cap4k-code-analysis").absolutePath),
+                "projectDir" to project.rootProject.projectDir.absolutePath,
+            ),
             config.sources.getValue("ir-analysis").options,
         )
         assertEquals(emptySet<String>(), config.generators.keys)

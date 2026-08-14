@@ -35,7 +35,15 @@ build/cap4k-code-analysis
 - `drawing-board`
 <!-- /CAPABILITY_CONTRACT:ANALYZER_OUTPUTS -->
 
-analysis generation 使用 source id `ir-analysis`，并 route 到这些 generator/output identities。
+<!-- CAPABILITY_CONTRACT:ANALYZER_PARTITIONS -->
+当前 Analyzer canonical contract 将 evidence 分为三个独立分区；每行依次为 `partition id|contract node|source capability|consumer capability|public output`：
+
+- `graph|analyzer.partition.graph|pipeline.source.ir-analysis|pipeline.generator.flow|flow`
+- `designProjection|analyzer.partition.design-projection|pipeline.source.ir-analysis|pipeline.generator.drawing-board|drawing-board`
+- `aggregateStructure|analyzer.partition.aggregate-structure|pipeline.source.ir-analysis|pipeline.generator.drawing-board|drawing_board_aggregate_elements.json`
+<!-- /CAPABILITY_CONTRACT:ANALYZER_PARTITIONS -->
+
+analysis generation 使用 source id `ir-analysis`，并 route 到这些 generator/output identities。三个分区可以共享一次 compiler observation 和同一组 input directories，但 schema、完整性、diagnostics 与消费者不能相互替代。
 
 
 这些 input 描述的是代码结构关系。它们不替代 schema、`design/design.json`、`types.valueObjectManifest` 或 `types.enumManifest`。

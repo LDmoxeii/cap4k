@@ -118,6 +118,13 @@ try {
     Invoke-ManagedDriftFixture -Root $tempRoot -Patterns @('(?s)ANALYZER_OUTPUTS drift.*analysis-test')
     $resolvedFactsFile = $originalResolvedFactsFile
 
+    $analyzerPartitionFacts = $originalFacts | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+    $analyzerPartitionFacts.analyzerPartitions[0].outputIds += 'partition-test-output'
+    $analyzerPartitionFacts | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $variantFactsPath -Encoding utf8NoBOM
+    $resolvedFactsFile = $variantFactsPath
+    Invoke-ManagedDriftFixture -Root $tempRoot -Patterns @('(?s)ANALYZER_PARTITIONS drift.*partition-test-output')
+    $resolvedFactsFile = $originalResolvedFactsFile
+
     $outputFacts = $originalFacts | ConvertTo-Json -Depth 100 | ConvertFrom-Json
     $outputFacts.outputKinds += 'analysis_test_artifact'
     $outputFacts | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $variantFactsPath -Encoding utf8NoBOM

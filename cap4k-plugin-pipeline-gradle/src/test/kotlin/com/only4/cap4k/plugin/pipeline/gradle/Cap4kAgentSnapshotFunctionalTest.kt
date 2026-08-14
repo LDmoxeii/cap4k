@@ -28,11 +28,36 @@ class Cap4kAgentSnapshotFunctionalTest {
         val manifest = jsonMapper.readTree(output.resolve("manifest.json").toFile().readText()).requireObjectNode()
         val analysis = jsonMapper.readTree(output.resolve("analysis.json").toFile().readText()).requireObjectNode()
         assertEquals("partial", manifest.get("status").asText())
+        assertEquals("cap4k.agent.analysis.v2", analysis.get("schema").asText())
         assertEquals("partial", analysis.get("status").asText())
         assertEquals("fresh", analysis.requireObjectNode("evidence").get("freshness").asText())
-        assertTrue(analysis.requireArrayNode("plannedOutputPaths").size() > 0)
-        assertEquals(0, analysis.requireArrayNode("availableOutputPaths").size())
-        assertEquals("cap4kAnalysisGenerate", analysis.get("nextAction").asText())
+        val partitions = analysis.get("partitions").requireArrayNode()
+        assertEquals(
+            setOf("aggregateStructure", "designProjection", "graph"),
+            partitions.map { partition -> partition.get("id").asText() }.toSet(),
+        )
+        val graph = partitions.single { partition -> partition.get("id").asText() == "graph" }
+        assertTrue(graph.get("requested").asBoolean())
+        assertEquals("partial", graph.get("status").asText())
+        assertTrue(graph.get("plannedOutputPaths").requireArrayNode().size() > 0)
+        assertEquals(0, graph.get("availableOutputPaths").requireArrayNode().size())
+        assertEquals("cap4kAnalysisGenerate", graph.get("nextAction").asText())
+        val graphSource = graph.get("sources").requireArrayNode().single()
+        assertEquals("project:analysis/app/build/cap4k-code-analysis", graphSource.get("id").asText())
+        assertEquals("analysis/app/build/cap4k-code-analysis", graphSource.get("path").asText())
+        partitions
+            .filterNot { partition -> partition.get("id").asText() == "graph" }
+            .forEach { partition ->
+                assertTrue(!partition.get("requested").asBoolean())
+                assertEquals("unavailable", partition.get("status").asText())
+                assertEquals("unknown", partition.get("freshness").asText())
+                assertTrue(partition.get("counts").fields().asSequence().all { (_, count) -> count.asInt() == 0 })
+                assertEquals(0, partition.get("sources").requireArrayNode().size())
+                assertEquals(0, partition.get("plannedOutputPaths").requireArrayNode().size())
+                assertEquals(0, partition.get("availableOutputPaths").requireArrayNode().size())
+                assertEquals(0, partition.get("diagnosticIds").requireArrayNode().size())
+                assertTrue(partition.get("nextAction").isNull)
+            }
 
         val generated = FunctionalFixtureSupport.runner(
             projectDir,
@@ -45,11 +70,13 @@ class Cap4kAgentSnapshotFunctionalTest {
             output.resolve("analysis.json").toFile().readText()
         ).requireObjectNode()
         assertEquals("ok", generatedAnalysis.get("status").asText())
+        val generatedGraph = generatedAnalysis.get("partitions").requireArrayNode()
+            .single { partition -> partition.get("id").asText() == "graph" }
         assertEquals(
-            generatedAnalysis.requireArrayNode("plannedOutputPaths").size(),
-            generatedAnalysis.requireArrayNode("availableOutputPaths").size(),
+            generatedGraph.get("plannedOutputPaths").requireArrayNode().size(),
+            generatedGraph.get("availableOutputPaths").requireArrayNode().size(),
         )
-        assertTrue(generatedAnalysis.get("nextAction").isNull)
+        assertTrue(generatedGraph.get("nextAction").isNull)
     }
 
     @Test

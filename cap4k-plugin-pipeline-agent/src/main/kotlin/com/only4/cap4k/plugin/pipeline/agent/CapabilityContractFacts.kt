@@ -13,6 +13,8 @@ import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeProviderFact
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeVerification
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentSupportedCapability
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerContractCatalog
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerPartitionContract
 import com.only4.cap4k.plugin.pipeline.api.AgentValidationStatus
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
@@ -24,7 +26,7 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineInputSafety
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTaskContract
 import com.only4.cap4k.plugin.pipeline.api.agentContractEnumWireName
 
-const val CAP4K_CAPABILITY_CONTRACT_FACTS_SCHEMA = "cap4k.capability-contract-facts.v2"
+const val CAP4K_CAPABILITY_CONTRACT_FACTS_SCHEMA = "cap4k.capability-contract-facts.v3"
 
 enum class CapabilityContractRelation {
     EXPOSES_TASK,
@@ -112,6 +114,7 @@ data class CapabilityContractFacts(
     val agentStatusVocabulary: AgentStatusVocabulary,
     val outputKinds: List<ArtifactOutputKind>,
     val analyzerOutputs: List<String>,
+    val analyzerPartitions: List<AnalyzerPartitionContract>,
     val pipelineCapabilities: List<AgentSupportedCapability>,
     val runtimeCapabilities: List<AgentRuntimeCapabilityFact>,
     val runtimeProviders: List<AgentRuntimeProviderFact>,
@@ -182,6 +185,7 @@ object CapabilityContractFactsFactory {
         runtimeCapabilities: List<AgentRuntimeCapabilityFact> = RuntimeAgentFactsCatalog.capabilities(),
         runtimeProviders: List<AgentRuntimeProviderFact> = RuntimeAgentFactsCatalog.providers(),
         pathRules: List<CapabilityContractPathRule> = CapabilityContractPathCatalog.rules,
+        analyzerPartitions: List<AnalyzerPartitionContract> = AnalyzerContractCatalog.partitions,
     ): CapabilityContractFacts {
         val normalizedDescriptors = normalizeDescriptors(descriptors)
         val duplicateSectionId = agentSections.groupingBy { it.id }.eachCount().entries
@@ -204,6 +208,27 @@ object CapabilityContractFactsFactory {
         require(unknownTasks.isEmpty()) {
             "pipeline capability descriptors reference unregistered public tasks: ${unknownTasks.joinToString()}"
         }
+
+        val descriptorIds = normalizedDescriptors.mapTo(linkedSetOf()) { it.capabilityId }
+        val normalizedAnalyzerPartitions = analyzerPartitions
+            .filter { partition ->
+                partition.sourceCapabilityId in descriptorIds && partition.consumerCapabilityIds.all(descriptorIds::contains)
+            }
+            .map { partition ->
+                partition.copy(
+                    consumerCapabilityIds = partition.consumerCapabilityIds.distinct().sorted(),
+                    outputIds = partition.outputIds.distinct().sorted(),
+                )
+            }
+            .sortedBy { it.id }
+        val duplicateAnalyzerPartitionId = normalizedAnalyzerPartitions.groupingBy { it.id }.eachCount().entries
+            .firstOrNull { it.value > 1 }
+            ?.key
+        require(duplicateAnalyzerPartitionId == null) { "duplicate Analyzer partition id: $duplicateAnalyzerPartitionId" }
+        val duplicateAnalyzerPartitionNode = normalizedAnalyzerPartitions.groupingBy { it.nodeId }.eachCount().entries
+            .firstOrNull { it.value > 1 }
+            ?.key
+        require(duplicateAnalyzerPartitionNode == null) { "duplicate Analyzer partition node: $duplicateAnalyzerPartitionNode" }
 
         val normalizedRuntimeCapabilities = runtimeCapabilities.sortedBy { it.capabilityId }
         val normalizedRuntimeProviders = runtimeProviders.sortedBy { it.providerId }
@@ -229,6 +254,7 @@ object CapabilityContractFactsFactory {
                 add(provider.capabilityId)
             }
             addAll(listOf("agent.project", "agent.analysis"))
+            normalizedAnalyzerPartitions.forEach { add(it.nodeId) }
             agentSections.forEach { add("agent.${it.id}") }
         }
         val unknownPathSeeds = pathRules.flatMap(CapabilityContractPathRule::seedNodes).distinct().filterNot(graphNodes::contains).sorted()
@@ -240,6 +266,7 @@ object CapabilityContractFactsFactory {
             agentSections = agentSections,
             runtimeCapabilities = normalizedRuntimeCapabilities,
             runtimeProviders = normalizedRuntimeProviders,
+            analyzerPartitions = normalizedAnalyzerPartitions,
         )
         return CapabilityContractFacts(
             surfaces = CapabilityContractNodes.surfaces,
@@ -254,6 +281,7 @@ object CapabilityContractFactsFactory {
                 .map { it.providerId }
                 .distinct()
                 .sorted(),
+            analyzerPartitions = normalizedAnalyzerPartitions,
             pipelineCapabilities = normalizedDescriptors.map(PipelineCapabilityFactProjection::supported),
             runtimeCapabilities = normalizedRuntimeCapabilities,
             runtimeProviders = normalizedRuntimeProviders,
@@ -298,6 +326,7 @@ object CapabilityContractFactsFactory {
         agentSections: List<AgentSectionContract>,
         runtimeCapabilities: List<AgentRuntimeCapabilityFact>,
         runtimeProviders: List<AgentRuntimeProviderFact>,
+        analyzerPartitions: List<AnalyzerPartitionContract>,
     ): List<CapabilityContractDependency> = buildList {
         addEdge(CapabilityContractNodes.RUNTIME, CapabilityContractNodes.GENERATOR)
         addEdge(CapabilityContractNodes.RUNTIME, CapabilityContractNodes.ANALYZER)
@@ -326,6 +355,14 @@ object CapabilityContractFactsFactory {
                 addEdge(descriptor.capabilityId, CapabilityContractNodes.ANALYZER)
                 add(CapabilityContractDependency(descriptor.capabilityId, "agent.analysis", CapabilityContractRelation.PROJECTS_TO))
             }
+        }
+        analyzerPartitions.forEach { partition ->
+            add(CapabilityContractDependency(partition.sourceCapabilityId, partition.nodeId, CapabilityContractRelation.PROJECTS_TO))
+            partition.consumerCapabilityIds.forEach { consumerCapabilityId ->
+                add(CapabilityContractDependency(partition.nodeId, consumerCapabilityId, CapabilityContractRelation.REQUIRES))
+            }
+            add(CapabilityContractDependency(partition.nodeId, "agent.analysis", CapabilityContractRelation.PROJECTS_TO))
+            addEdge(partition.nodeId, CapabilityContractNodes.ANALYZER)
         }
         runtimeCapabilities.forEach { capability ->
             add(CapabilityContractDependency(capability.capabilityId, CapabilityContractNodes.AGENT_FACTS, CapabilityContractRelation.PROJECTS_TO))

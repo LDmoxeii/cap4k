@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.nio.file.Files
 
 class PipelineModelsTest {
 
@@ -275,5 +276,55 @@ class PipelineModelsTest {
         assertEquals(OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN, relation.persistenceShape)
         assertEquals("files", relation.backingCollectionName)
         assertEquals("file", relation.singleAccessorName)
+    }
+
+    @Test
+    fun `Analyzer source identity is stable across checkout roots and redacts external paths`() {
+        val firstProject = Files.createTempDirectory("analyzer-source-project-a")
+        val secondProject = Files.createTempDirectory("analyzer-source-project-b")
+        val relativeInput = "modules/orders/build/cap4k-code-analysis"
+        val firstInput = firstProject.resolve(relativeInput).also { Files.createDirectories(it) }
+        val secondInput = secondProject.resolve(relativeInput).also { Files.createDirectories(it) }
+
+        val first = analyzerSourceIdentity(firstInput.toString(), firstProject.toString())
+        val second = analyzerSourceIdentity(secondInput.toString(), secondProject.toString())
+        val configuredRelative = analyzerSourceIdentity(relativeInput, firstProject.toString())
+        val externalInput = Files.createTempDirectory("analyzer-source-external")
+        val external = analyzerSourceIdentity(externalInput.toString(), firstProject.toString())
+
+        assertEquals("project:modules/orders/build/cap4k-code-analysis", first.id)
+        assertEquals(first.id, second.id)
+        assertEquals(first.id, configuredRelative.id)
+        assertTrue(external.id.startsWith("external-"))
+        assertFalse(external.id.contains(externalInput.toString().replace('\\', '/')))
+    }
+
+    @Test
+    fun `Analyzer catalog exposes three isolated partitions and deterministic status aggregation`() {
+        assertEquals(
+            listOf("aggregateStructure", "designProjection", "graph"),
+            AnalyzerContractCatalog.partitions.map { partition -> partition.id }.sorted(),
+        )
+        assertEquals(
+            listOf("pipeline.generator.flow"),
+            AnalyzerContractCatalog.GRAPH.consumerCapabilityIds,
+        )
+        assertEquals(
+            listOf("drawing_board_aggregate_elements.json"),
+            AnalyzerContractCatalog.AGGREGATE_STRUCTURE.outputIds,
+        )
+        assertEquals(AgentSnapshotStatus.UNAVAILABLE, analyzerSnapshotStatus(emptyList()))
+        assertEquals(
+            AgentSnapshotStatus.PARTIAL,
+            analyzerSnapshotStatus(listOf(AgentSnapshotStatus.OK, AgentSnapshotStatus.UNAVAILABLE)),
+        )
+        assertEquals(
+            AgentSnapshotStatus.INVALID,
+            analyzerSnapshotStatus(listOf(AgentSnapshotStatus.PARTIAL, AgentSnapshotStatus.INVALID)),
+        )
+        assertEquals(
+            AgentSnapshotStatus.OK,
+            analyzerSnapshotStatus(listOf(AgentSnapshotStatus.OK, AgentSnapshotStatus.OK)),
+        )
     }
 }

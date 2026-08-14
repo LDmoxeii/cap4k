@@ -1,5 +1,8 @@
 package com.only4.cap4k.plugin.pipeline.api
 
+import java.io.File
+import java.security.MessageDigest
+
 data class FieldModel(
     val name: String,
     val type: String,
@@ -219,14 +222,126 @@ data class DesignSpecSnapshot(
     val entries: List<DesignSpecEntry>,
 ) : SourceSnapshot
 
-data class IrAnalysisSnapshot(
-    override val id: String = "ir-analysis",
-    val inputDirs: List<String>,
-    val nodes: List<IrNodeSnapshot>,
-    val edges: List<IrEdgeSnapshot>,
-    val designElements: List<DesignElementSnapshot> = emptyList(),
+enum class AnalyzerPartitionId {
+    GRAPH,
+    DESIGN_PROJECTION,
+    AGGREGATE_STRUCTURE,
+}
+
+data class AnalyzerPartitionContract(
+    val id: String,
+    val nodeId: String,
+    val sourceCapabilityId: String,
+    val consumerCapabilityIds: List<String>,
+    val outputIds: List<String>,
+)
+
+object AnalyzerContractCatalog {
+    val GRAPH = AnalyzerPartitionContract(
+        id = AgentAnalysisPartitionIds.GRAPH,
+        nodeId = "analyzer.partition.graph",
+        sourceCapabilityId = "pipeline.source.ir-analysis",
+        consumerCapabilityIds = listOf("pipeline.generator.flow"),
+        outputIds = listOf("flow"),
+    )
+    val DESIGN_PROJECTION = AnalyzerPartitionContract(
+        id = AgentAnalysisPartitionIds.DESIGN_PROJECTION,
+        nodeId = "analyzer.partition.design-projection",
+        sourceCapabilityId = "pipeline.source.ir-analysis",
+        consumerCapabilityIds = listOf("pipeline.generator.drawing-board"),
+        outputIds = listOf("drawing-board"),
+    )
+    val AGGREGATE_STRUCTURE = AnalyzerPartitionContract(
+        id = AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE,
+        nodeId = "analyzer.partition.aggregate-structure",
+        sourceCapabilityId = "pipeline.source.ir-analysis",
+        consumerCapabilityIds = listOf("pipeline.generator.drawing-board"),
+        outputIds = listOf("drawing_board_aggregate_elements.json"),
+    )
+
+    val partitions: List<AnalyzerPartitionContract> = listOf(GRAPH, DESIGN_PROJECTION, AGGREGATE_STRUCTURE)
+}
+
+data class AnalyzerSourceIdentity(
+    val id: String,
+    val inputDir: String,
+)
+
+fun analyzerSourceIdentity(inputDir: String, projectDir: String?): AnalyzerSourceIdentity {
+    val projectRoot = projectDir
+        ?.takeIf(String::isNotBlank)
+        ?.let { File(it).canonicalFile }
+    val configuredInput = File(inputDir)
+    val inputPath = (if (configuredInput.isAbsolute) configuredInput else projectRoot?.resolve(inputDir) ?: configuredInput)
+        .canonicalFile
+        .toPath()
+    val projectPath = projectRoot?.toPath()
+    val id = if (projectPath != null && inputPath.startsWith(projectPath)) {
+        val relativePath = projectPath.relativize(inputPath)
+            .toString()
+            .replace('\\', '/')
+            .ifEmpty { "." }
+        "project:" + relativePath
+    } else {
+        val normalized = inputPath.toString().replace('\\', '/')
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(normalized.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
+            .take(12)
+        "external-" + digest
+    }
+    return AnalyzerSourceIdentity(id = id, inputDir = inputDir)
+}
+
+data class AnalyzerPartitionDiagnostic(
+    val id: String,
+    val sourceId: String? = null,
+    val message: String,
+)
+
+data class AnalyzerGraphPartition(
+    val id: AnalyzerPartitionId = AnalyzerPartitionId.GRAPH,
+    val status: AgentSnapshotStatus,
+    val sources: List<AnalyzerSourceIdentity>,
+    val diagnostics: List<AnalyzerPartitionDiagnostic> = emptyList(),
+    val nodes: List<IrNodeSnapshot> = emptyList(),
+    val relationships: List<IrEdgeSnapshot> = emptyList(),
+)
+
+data class AnalyzerDesignProjectionPartition(
+    val id: AnalyzerPartitionId = AnalyzerPartitionId.DESIGN_PROJECTION,
+    val status: AgentSnapshotStatus,
+    val sources: List<AnalyzerSourceIdentity>,
+    val diagnostics: List<AnalyzerPartitionDiagnostic> = emptyList(),
+    val designBlocks: List<DesignElementSnapshot> = emptyList(),
+)
+
+data class AnalyzerAggregateStructurePartition(
+    val id: AnalyzerPartitionId = AnalyzerPartitionId.AGGREGATE_STRUCTURE,
+    val status: AgentSnapshotStatus,
+    val sources: List<AnalyzerSourceIdentity>,
+    val diagnostics: List<AnalyzerPartitionDiagnostic> = emptyList(),
     val aggregateElements: List<AggregateElementSnapshot> = emptyList(),
-) : SourceSnapshot
+)
+
+data class AnalyzerSnapshot(
+    override val id: String = "ir-analysis",
+    val graph: AnalyzerGraphPartition,
+    val designProjection: AnalyzerDesignProjectionPartition,
+    val aggregateStructure: AnalyzerAggregateStructurePartition,
+) : SourceSnapshot {
+    val inputDirs: List<String>
+        get() = (graph.sources + designProjection.sources + aggregateStructure.sources)
+            .distinctBy(AnalyzerSourceIdentity::id)
+            .map(AnalyzerSourceIdentity::inputDir)
+}
+
+fun analyzerSnapshotStatus(partitions: Collection<AgentSnapshotStatus>): AgentSnapshotStatus = when {
+    partitions.isEmpty() || partitions.all { it == AgentSnapshotStatus.UNAVAILABLE } -> AgentSnapshotStatus.UNAVAILABLE
+    AgentSnapshotStatus.INVALID in partitions -> AgentSnapshotStatus.INVALID
+    partitions.any { it == AgentSnapshotStatus.PARTIAL || it == AgentSnapshotStatus.UNAVAILABLE } -> AgentSnapshotStatus.PARTIAL
+    else -> AgentSnapshotStatus.OK
+}
 
 data class EnumManifestSnapshot(
     override val id: String = "enum-manifest",

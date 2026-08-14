@@ -49,7 +49,7 @@ class Cap4kAgentSnapshotTaskTest {
         assertFalse(output.resolve("old").exists())
         val manifest = readManifest(output)
         assertEquals(AgentSnapshotStatus.PARTIAL, manifest.status)
-        assertEquals(3, manifest.contractVersion)
+        assertEquals(4, manifest.contractVersion)
         assertEquals(EXPECTED_SECTION_IDS, manifest.sections.map { it.id }.toSet())
         assertTrue(PipelinePublicTasks.AGENT_SNAPSHOT in manifest.project.publicTasks)
         assertFalse(manifest.project.publicTasks.any { it.startsWith("cap4kBootstrap") })

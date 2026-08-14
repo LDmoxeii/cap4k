@@ -6,7 +6,14 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.only4.cap4k.plugin.pipeline.api.AggregateElementSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
 import com.only4.cap4k.plugin.pipeline.api.DesignElementSnapshot
-import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerAggregateStructurePartition
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerDesignProjectionPartition
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerGraphPartition
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerPartitionDiagnostic
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSourceIdentity
+import com.only4.cap4k.plugin.pipeline.api.analyzerSourceIdentity
 import com.only4.cap4k.plugin.pipeline.api.IrEdgeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.IrNodeSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
@@ -22,6 +29,7 @@ import com.only4.cap4k.plugin.pipeline.api.SemanticFieldSnapshot
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
 import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import java.io.File
+import java.security.MessageDigest
 
 class IrAnalysisSourceProvider : SourceProvider {
     private val objectMapper = PipelineJson.newMapper()
@@ -65,151 +73,315 @@ class IrAnalysisSourceProvider : SourceProvider {
         (config.sources[id]?.options?.get("inputDirs") as? List<*> ?: emptyList<Any>())
             .map { it.toString().trim() }
             .filter { it.isNotEmpty() }
+            .distinct()
+            .sorted()
 
-    override fun collect(config: ProjectConfig): IrAnalysisSnapshot {
+    override fun collect(config: ProjectConfig): AnalyzerSnapshot {
         val inputDirs = localInputPaths(config)
         require(inputDirs.isNotEmpty()) { "ir-analysis source requires at least one inputDirs entry." }
 
+        val projectDir = config.sources[id]?.options?.get("projectDir")?.toString()
+        val sources = inputDirs.map { inputDir -> analyzerSourceIdentity(inputDir, projectDir) }
         val nodesById = linkedMapOf<String, IrNodeSnapshot>()
+        val nodeSources = linkedMapOf<String, String>()
         val edgeKeys = linkedSetOf<EdgeKey>()
+        val edgeSources = linkedMapOf<EdgeKey, String>()
         val designElements = mutableListOf<DesignElementSnapshot>()
+        val designElementSources = linkedMapOf<String, MutableSet<String>>()
         val aggregateElementsByCarrier = linkedMapOf<String, AggregateElementSnapshot>()
+        val graphDiagnostics = mutableListOf<AnalyzerPartitionDiagnostic>()
+        val designDiagnostics = mutableListOf<AnalyzerPartitionDiagnostic>()
+        val aggregateDiagnostics = mutableListOf<AnalyzerPartitionDiagnostic>()
 
-        inputDirs.forEach { inputDir ->
-            val dir = File(inputDir)
-            require(dir.exists() && dir.isDirectory) { "ir-analysis inputDir does not exist or is not a directory: $inputDir" }
+        sources.forEach { source ->
+            val dir = File(source.inputDir)
+            if (!dir.exists() || !dir.isDirectory) {
+                listOf(
+                    AnalyzerPartitionIdAndDiagnostics("graph", graphDiagnostics),
+                    AnalyzerPartitionIdAndDiagnostics("design-projection", designDiagnostics),
+                    AnalyzerPartitionIdAndDiagnostics("aggregate-structure", aggregateDiagnostics),
+                ).forEach { target ->
+                    target.diagnostics += diagnostic(
+                        partitionId = target.partitionId,
+                        source = source,
+                        code = "input-dir-unavailable",
+                        message = "Analysis input directory is missing or is not a directory.",
+                    )
+                }
+                return@forEach
+            }
 
             val nodesFile = File(dir, "nodes.json")
             val relsFile = File(dir, "rels.json")
-            require(nodesFile.exists() && relsFile.exists()) {
-                "ir-analysis inputDir is missing nodes.json or rels.json: $inputDir"
-            }
-            val aggregateElementsFile = File(dir, "aggregate-elements.json")
-            require(aggregateElementsFile.exists()) {
-                "ir-analysis inputDir is missing aggregate-elements.json: $inputDir"
-            }
+            val inputNodes = parsePartitionFile(
+                partitionId = "graph",
+                source = source,
+                file = nodesFile,
+                required = true,
+                diagnostics = graphDiagnostics,
+                parser = ::parseNodes,
+            ).orEmpty()
+            val inputEdges = parsePartitionFile(
+                partitionId = "graph",
+                source = source,
+                file = relsFile,
+                required = true,
+                diagnostics = graphDiagnostics,
+                parser = ::parseEdges,
+            ).orEmpty()
 
-            val inputNodes = parseNodes(nodesFile)
             val designElementsFile = File(dir, "design-elements.json")
-            val inputDesignElements = if (designElementsFile.exists()) {
-                parseDesignElements(designElementsFile)
-            } else {
-                emptyList()
-            }
-            val inputAggregateElements = parseAggregateElements(aggregateElementsFile)
-            requireRequestedAnalysisMetadata(
-                config = config,
-                nodes = inputNodes,
-                designElements = inputDesignElements,
-                inputDir = inputDir,
-            )
+            val inputDesignElements = parsePartitionFile(
+                partitionId = "design-projection",
+                source = source,
+                file = designElementsFile,
+                required = false,
+                diagnostics = designDiagnostics,
+                parser = ::parseDesignElements,
+            ).orEmpty()
+
+            val aggregateElementsFile = File(dir, "aggregate-elements.json")
+            val inputAggregateElements = parsePartitionFile(
+                partitionId = "aggregate-structure",
+                source = source,
+                file = aggregateElementsFile,
+                required = true,
+                diagnostics = aggregateDiagnostics,
+                parser = ::parseAggregateElements,
+            ).orEmpty()
 
             inputNodes.forEach { node ->
                 val existing = nodesById[node.id]
-                nodesById[node.id] = if (existing == null) {
-                    node
+                if (existing == null) {
+                    nodesById[node.id] = node
+                    nodeSources[node.id] = source.id
                 } else {
-                    val metadataOwners = listOfNotNull(existing.metadataOwner, node.metadataOwner).distinct()
-                    require(metadataOwners.size <= 1) {
-                        "conflicting analysis metadata owner for ${node.id}: ${metadataOwners.joinToString(", ")}"
+                    if (existing.name != node.name || existing.fullName != node.fullName || existing.type != node.type) {
+                        graphDiagnostics += diagnostic(
+                            partitionId = "graph",
+                            source = source,
+                            code = "node-identity-conflict",
+                            message = "Node ${node.id} conflicts with source ${nodeSources[node.id]}.",
+                        )
                     }
-                    existing.copy(
-                        missingMetadata = (existing.missingMetadata + node.missingMetadata).distinct(),
+                    val metadataOwners = listOfNotNull(existing.metadataOwner, node.metadataOwner).distinct()
+                    if (metadataOwners.size > 1) {
+                        graphDiagnostics += diagnostic(
+                            partitionId = "graph",
+                            source = source,
+                            code = "metadata-owner-conflict",
+                            message = "Node ${node.id} declares conflicting metadata owners: ${metadataOwners.joinToString()}.",
+                        )
+                    }
+                    nodesById[node.id] = existing.copy(
+                        missingMetadata = (existing.missingMetadata + node.missingMetadata).distinct().sorted(),
                         metadataOwner = metadataOwners.singleOrNull(),
                     )
                 }
             }
-            parseEdges(relsFile).forEach { edge ->
-                edgeKeys.add(EdgeKey(edge.fromId, edge.toId, edge.type, edge.label))
+            inputEdges.forEach { edge ->
+                val key = EdgeKey(edge.fromId, edge.toId, edge.type, edge.label)
+                edgeKeys += key
+                edgeSources.putIfAbsent(key, source.id)
             }
 
-            designElements.addAll(inputDesignElements)
+            val designCandidates = inputNodes.filter { node ->
+                node.type.lowercase() in DRAWING_BOARD_CANDIDATE_NODE_TYPES
+            }
+            if (!designElementsFile.exists() && designCandidates.isNotEmpty()) {
+                designDiagnostics += diagnostic(
+                    partitionId = "design-projection",
+                    source = source,
+                    code = "missing-design-sidecar",
+                    message = "design-elements.json is missing while ${designCandidates.size} design candidate(s) were observed.",
+                )
+            } else if (inputDesignElements.isEmpty() && designCandidates.isNotEmpty()) {
+                designDiagnostics += diagnostic(
+                    partitionId = "design-projection",
+                    source = source,
+                    code = "empty-design-projection",
+                    message = "Design projection is empty while ${designCandidates.size} design candidate(s) were observed.",
+                )
+            }
+            inputNodes.forEach { node ->
+                if (DESIGN_BLOCK_METADATA_FQ in node.missingMetadata) {
+                    designDiagnostics += diagnostic(
+                        partitionId = "design-projection",
+                        source = source,
+                        code = "missing-design-metadata",
+                        message = "Symbol ${node.metadataOwner ?: node.fullName} is missing $DESIGN_BLOCK_METADATA_FQ. " +
+                            "Restore the generated metadata or keep cap4k-analysis-metadata on the owning module compileOnly classpath.",
+                    )
+                }
+                if (AGGREGATE_ELEMENT_METADATA_FQ in node.missingMetadata) {
+                    aggregateDiagnostics += diagnostic(
+                        partitionId = "aggregate-structure",
+                        source = source,
+                        code = "missing-aggregate-metadata",
+                        message = "Symbol ${node.metadataOwner ?: node.fullName} is missing $AGGREGATE_ELEMENT_METADATA_FQ. " +
+                            "Restore the generated metadata or keep cap4k-analysis-metadata on the owning module compileOnly classpath.",
+                    )
+                }
+            }
+
+            inputDesignElements.forEach { designElement ->
+                val key = designElementIdentity(designElement)
+                val conflictingFields = designElements
+                    .filter { existing -> designElementIdentity(existing) == key }
+                    .flatMap { existing -> designElementConflictFields(existing, designElement) }
+                    .distinct()
+                    .sorted()
+                if (conflictingFields.isNotEmpty()) {
+                    val relatedSources = designElementSources[key].orEmpty().sorted()
+                    designDiagnostics += diagnostic(
+                        partitionId = "design-projection",
+                        source = source,
+                        code = "design-block-conflict-${stableCodeSuffix(key)}",
+                        message = "Design block $key conflicts on ${conflictingFields.joinToString()} between sources " +
+                            "${(relatedSources + source.id).distinct().sorted().joinToString()}.",
+                    )
+                }
+                designElementSources.getOrPut(key) { linkedSetOf() } += source.id
+                designElements += designElement
+            }
             inputAggregateElements.forEach { aggregateElement ->
                 val existing = aggregateElementsByCarrier[aggregateElement.carrierQualifiedName]
-                require(existing == null || existing == aggregateElement) {
-                    "conflicting aggregate element metadata for ${aggregateElement.carrierQualifiedName}"
+                if (existing != null && existing != aggregateElement) {
+                    aggregateDiagnostics += diagnostic(
+                        partitionId = "aggregate-structure",
+                        source = source,
+                        code = "carrier-conflict",
+                        message = "Aggregate carrier ${aggregateElement.carrierQualifiedName} has conflicting metadata.",
+                    )
+                } else {
+                    aggregateElementsByCarrier.putIfAbsent(aggregateElement.carrierQualifiedName, aggregateElement)
                 }
-                aggregateElementsByCarrier.putIfAbsent(aggregateElement.carrierQualifiedName, aggregateElement)
             }
         }
 
-        return IrAnalysisSnapshot(
-            inputDirs = inputDirs,
-            nodes = nodesById.values.toList(),
-            edges = edgeKeys.map { key ->
-                IrEdgeSnapshot(
-                    fromId = key.fromId,
-                    toId = key.toId,
-                    type = key.type,
-                    label = key.label,
+        val nodeIds = nodesById.keys
+        edgeKeys.forEach { edge ->
+            val missingEndpoints = listOf(edge.fromId, edge.toId).filterNot(nodeIds::contains)
+            if (missingEndpoints.isNotEmpty()) {
+                val source = sources.firstOrNull { it.id == edgeSources[edge] }
+                graphDiagnostics += AnalyzerPartitionDiagnostic(
+                    id = diagnosticId("graph", edgeSources[edge] ?: "merged", "missing-edge-endpoint"),
+                    sourceId = edgeSources[edge],
+                    message = "Relationship ${edge.fromId} -> ${edge.toId} references missing endpoint(s): ${missingEndpoints.joinToString()}.",
                 )
-            },
-            designElements = designElements,
-            aggregateElements = aggregateElementsByCarrier.values.toList(),
+            }
+        }
+
+        return AnalyzerSnapshot(
+            graph = AnalyzerGraphPartition(
+                status = partitionStatus(graphDiagnostics),
+                sources = sources,
+                diagnostics = graphDiagnostics.distinctBy(AnalyzerPartitionDiagnostic::id).sortedBy(AnalyzerPartitionDiagnostic::id),
+                nodes = nodesById.values.sortedBy(IrNodeSnapshot::id),
+                relationships = edgeKeys.map { edge ->
+                    IrEdgeSnapshot(edge.fromId, edge.toId, edge.type, edge.label)
+                }.sortedWith(compareBy({ it.fromId }, { it.toId }, { it.type }, { it.label.orEmpty() })),
+            ),
+            designProjection = AnalyzerDesignProjectionPartition(
+                status = partitionStatus(designDiagnostics),
+                sources = sources,
+                diagnostics = designDiagnostics.distinctBy(AnalyzerPartitionDiagnostic::id).sortedBy(AnalyzerPartitionDiagnostic::id),
+                designBlocks = designElements.sortedWith(compareBy({ it.tag }, { it.packageName }, { it.name })),
+            ),
+            aggregateStructure = AnalyzerAggregateStructurePartition(
+                status = partitionStatus(aggregateDiagnostics),
+                sources = sources,
+                diagnostics = aggregateDiagnostics.distinctBy(AnalyzerPartitionDiagnostic::id).sortedBy(AnalyzerPartitionDiagnostic::id),
+                aggregateElements = aggregateElementsByCarrier.values.sortedBy(AggregateElementSnapshot::carrierQualifiedName),
+            ),
         )
     }
 
-    private fun requireRequestedAnalysisMetadata(
-        config: ProjectConfig,
-        nodes: Collection<IrNodeSnapshot>,
-        designElements: List<DesignElementSnapshot>,
-        inputDir: String,
-    ) {
-        val requestedCapabilities = linkedSetOf<String>()
-        val missing = linkedMapOf<Pair<String, String>, LinkedHashSet<String>>()
-
-        if ("drawing-board" in config.generators) {
-            requestedCapabilities += DRAWING_BOARD_CAPABILITY
-            nodes.forEach { node ->
-                listOf(DESIGN_BLOCK_METADATA_FQ, AGGREGATE_ELEMENT_METADATA_FQ).forEach { metadataFq ->
-                    if (metadataFq in node.missingMetadata) {
-                        missing.getOrPut((node.metadataOwner ?: node.fullName) to metadataFq) { linkedSetOf() }
-                            .add(DRAWING_BOARD_CAPABILITY)
-                    }
-                }
-            }
-            if (designElements.isEmpty()) {
-                nodes.asSequence()
-                    .filter { node -> node.type.lowercase() in DRAWING_BOARD_CANDIDATE_NODE_TYPES }
-                    .forEach { node ->
-                        missing.getOrPut((node.metadataOwner ?: node.fullName) to DESIGN_BLOCK_METADATA_FQ) { linkedSetOf() }
-                            .add(DRAWING_BOARD_CAPABILITY)
-                    }
-            }
-        }
-        if ("flow" in config.generators) {
-            requestedCapabilities += FLOW_ANALYSIS_CAPABILITY
-            nodes.forEach { node ->
-                if (AGGREGATE_ELEMENT_METADATA_FQ in node.missingMetadata) {
-                    missing.getOrPut((node.metadataOwner ?: node.fullName) to AGGREGATE_ELEMENT_METADATA_FQ) { linkedSetOf() }
-                        .add(FLOW_ANALYSIS_CAPABILITY)
-                }
-            }
-        }
-
-        if (missing.isEmpty()) {
-            return
-        }
-
-        val details = missing.entries.joinToString(separator = System.lineSeparator()) { (key, capabilities) ->
-            val (symbol, metadataFq) = key
-            "- symbol: $symbol; missing metadata: $metadataFq; affected capability: ${capabilities.joinToString(", ")}"
-        }
-        throw IllegalArgumentException(
-            buildString {
-                appendLine("Cap4k analysis metadata contract violation.")
-                appendLine("Analysis input: $inputDir.")
-                appendLine(details)
-                appendLine("Requested analysis capabilities: ${requestedCapabilities.joinToString(", ")}.")
-                append(
-                    "Recovery: restore the default ddd-default generator template for each symbol, or add the listed " +
-                        "metadata annotation and keep io.github.ldmoxeii:cap4k-analysis-metadata on the owning " +
-                        "business module compileOnly classpath. Custom templates that omit analysis metadata explicitly " +
-                        "opt out of the affected capability; Cap4k will not emit an apparently complete partial result."
+    private fun <T> parsePartitionFile(
+        partitionId: String,
+        source: AnalyzerSourceIdentity,
+        file: File,
+        required: Boolean,
+        diagnostics: MutableList<AnalyzerPartitionDiagnostic>,
+        parser: (File) -> List<T>,
+    ): List<T>? {
+        if (!file.exists()) {
+            if (required) {
+                diagnostics += diagnostic(
+                    partitionId = partitionId,
+                    source = source,
+                    code = "missing-${file.nameWithoutExtension}",
+                    message = "Required ${file.name} is missing.",
                 )
             }
-        )
+            return null
+        }
+        return try {
+            parser(file)
+        } catch (failure: Exception) {
+            diagnostics += diagnostic(
+                partitionId = partitionId,
+                source = source,
+                code = "invalid-${file.nameWithoutExtension}",
+                message = failure.message.orEmpty()
+                    .replace(source.inputDir, source.id)
+                    .ifBlank { "${file.name} is invalid." },
+            )
+            null
+        }
     }
+
+    private fun partitionStatus(diagnostics: List<AnalyzerPartitionDiagnostic>): AgentSnapshotStatus =
+        if (diagnostics.isEmpty()) AgentSnapshotStatus.OK else AgentSnapshotStatus.INVALID
+
+    private fun designElementIdentity(element: DesignElementSnapshot): String =
+        "${element.tag}|${element.packageName}|${element.name}"
+
+    private fun designElementConflictFields(
+        existing: DesignElementSnapshot,
+        incoming: DesignElementSnapshot,
+    ): List<String> = buildList {
+        if (existing.description.isNotBlank() && incoming.description.isNotBlank() &&
+            existing.description != incoming.description
+        ) add("description")
+        if (existing.aggregates.isNotEmpty() && incoming.aggregates.isNotEmpty() &&
+            existing.aggregates != incoming.aggregates
+        ) add("aggregates")
+        if (existing.eventName?.isNotBlank() == true && incoming.eventName?.isNotBlank() == true &&
+            existing.eventName != incoming.eventName
+        ) add("eventName")
+        if (existing.persist != null && incoming.persist != null && existing.persist != incoming.persist) add("persist")
+        if (existing.fields.isNotEmpty() && incoming.fields.isNotEmpty() && existing.fields != incoming.fields) add("fields")
+        if (existing.resultFields.isNotEmpty() && incoming.resultFields.isNotEmpty() &&
+            existing.resultFields != incoming.resultFields
+        ) add("resultFields")
+        val existingVariants = existing.artifacts.groupBy(ArtifactSelectionModel::family)
+        val incomingVariants = incoming.artifacts.groupBy(ArtifactSelectionModel::family)
+        existingVariants.keys.intersect(incomingVariants.keys).sorted().forEach { family ->
+            val first = existingVariants.getValue(family).map(ArtifactSelectionModel::variant).distinct()
+            val second = incomingVariants.getValue(family).map(ArtifactSelectionModel::variant).distinct()
+            if (first.isNotEmpty() && second.isNotEmpty() && first != second) add("artifacts.$family")
+        }
+    }
+
+    private fun stableCodeSuffix(value: String): String = MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
+        .take(12)
+
+    private fun diagnostic(
+        partitionId: String,
+        source: AnalyzerSourceIdentity,
+        code: String,
+        message: String,
+    ): AnalyzerPartitionDiagnostic = AnalyzerPartitionDiagnostic(
+        id = diagnosticId(partitionId, source.id, code),
+        sourceId = source.id,
+        message = message,
+    )
+
+    private fun diagnosticId(partitionId: String, sourceId: String, code: String): String =
+        "analyzer.$partitionId.$sourceId.$code"
 
     private fun parseNodes(file: File): List<IrNodeSnapshot> {
         val array = parseRequiredArray(file, "nodes")
@@ -453,6 +625,11 @@ class IrAnalysisSourceProvider : SourceProvider {
         }
     }
 }
+
+private data class AnalyzerPartitionIdAndDiagnostics(
+    val partitionId: String,
+    val diagnostics: MutableList<AnalyzerPartitionDiagnostic>,
+)
 
 private data class EdgeKey(
     val fromId: String,

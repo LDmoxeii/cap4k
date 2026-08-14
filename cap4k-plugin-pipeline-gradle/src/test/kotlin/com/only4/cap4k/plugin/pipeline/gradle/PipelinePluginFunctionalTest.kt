@@ -2300,33 +2300,30 @@ class PipelinePluginFunctionalTest {
 
     @OptIn(ExperimentalPathApi::class)
     @Test
-    fun `cap4kAnalysisPlan alone rejects incomplete flow metadata without writing partial artifacts`() {
+    fun `cap4kAnalysisPlan consumes graph even when aggregate structure metadata is incomplete`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-analysis-flow-missing-metadata")
         copyFixture(projectDir, "flow-sample")
         val nodesFile = projectDir.resolve("analysis/app/build/cap4k-code-analysis/nodes.json")
-        nodesFile.writeText(
-            """
-            [
-              {
-                "id": "demo.domain.aggregates.order.Order",
-                "name": "Order",
-                "fullName": "demo.domain.aggregates.order.Order",
-                "type": "aggregate",
-                "missingMetadata": ["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"]
-              }
-            ]
-            """.trimIndent()
+        val nodes = jsonMapper.readTree(nodesFile.toFile()).requireArrayNode()
+        nodes.add(
+            jsonMapper.createObjectNode().apply {
+                put("id", "demo.domain.aggregates.order.Order")
+                put("name", "Order")
+                put("fullName", "demo.domain.aggregates.order.Order")
+                put("type", "aggregate")
+                putArray("missingMetadata")
+                    .add("com.only4.cap4k.analysis.metadata.AggregateElementMetadata")
+            }
         )
+        nodesFile.writeText(jsonMapper.writerWithDefaultPrettyPrinter().writeValueAsString(nodes))
 
         val result = FunctionalFixtureSupport.runner(projectDir)
             .withArguments("cap4kAnalysisPlan")
-            .buildAndFail()
+            .build()
 
-        assertTrue(result.output.contains("demo.domain.aggregates.order.Order"))
-        assertTrue(result.output.contains("AggregateElementMetadata"))
-        assertTrue(result.output.contains("affected capability: Flow Analysis"))
-        assertTrue(result.output.contains("restore the default ddd-default generator template"))
-        assertFalse(projectDir.resolve("flows/index.json").toFile().exists())
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
+        assertTrue(projectDir.resolve("build/cap4k/analysis-plan.json").readText().contains("\"templateId\": \"flow/index.json.peb\""))
     }
 
     @OptIn(ExperimentalPathApi::class)
@@ -2460,7 +2457,7 @@ class PipelinePluginFunctionalTest {
 
         assertTrue(result.output.contains("com.acme.demo.application.commands.SubmitOrderCmd"))
         assertTrue(result.output.contains("DesignBlockMetadata"))
-        assertTrue(result.output.contains("affected capability: Drawing Board"))
+        assertTrue(result.output.contains("Analyzer partition 'designProjection' is invalid"))
         assertTrue(result.output.contains("compileOnly classpath"))
         assertFalse(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         assertEquals("unchanged", sentinel.readText())
@@ -2524,7 +2521,7 @@ class PipelinePluginFunctionalTest {
             .withArguments("cap4kAnalysisPlan")
             .buildAndFail()
 
-        assertTrue(result.output.contains("ir-analysis inputDir is missing nodes.json or rels.json"))
+        assertTrue(result.output.contains("Analyzer partition 'graph' is invalid: Required rels.json is missing."))
         assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
     }
 

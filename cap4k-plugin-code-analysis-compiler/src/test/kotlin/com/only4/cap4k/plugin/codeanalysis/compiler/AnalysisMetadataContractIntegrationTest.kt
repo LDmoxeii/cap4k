@@ -2,6 +2,7 @@
 
 package com.only4.cap4k.plugin.codeanalysis.compiler
 
+import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
@@ -13,7 +14,7 @@ import com.only4.cap4k.plugin.pipeline.renderer.pebble.PebbleArtifactRenderer
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import com.only4.cap4k.plugin.pipeline.source.ir.IrAnalysisSourceProvider
 import com.tschuchort.compiletesting.SourceFile
-import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Files
@@ -58,12 +59,10 @@ class AnalysisMetadataContractIntegrationTest {
         val nodes = analysisDir.resolve("nodes.json").toFile().readText()
         assertTrue(nodes.contains("demo.application.commands.OptedOutCmd.Request"), nodes)
         assertTrue(nodes.contains("com.only4.cap4k.analysis.metadata.DesignBlockMetadata"), nodes)
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            IrAnalysisSourceProvider().collect(analysisConfig(analysisDir.toString(), "drawing-board"))
-        }
-        assertTrue(error.message!!.contains("demo.application.commands.OptedOutCmd"))
-        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
-        assertTrue(error.message!!.contains("compileOnly classpath"))
+        val snapshot = IrAnalysisSourceProvider().collect(analysisConfig(analysisDir.toString(), "drawing-board"))
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("demo.application.commands.OptedOutCmd") })
+        assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("DesignBlockMetadata") })
     }
 
     @Test
@@ -102,12 +101,11 @@ class AnalysisMetadataContractIntegrationTest {
         val nodes = analysisDir.resolve("nodes.json").toFile().readText()
         assertTrue(nodes.contains("demo.domain.aggregates.order.Order"), nodes)
         assertTrue(nodes.contains("com.only4.cap4k.analysis.metadata.AggregateElementMetadata"), nodes)
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            IrAnalysisSourceProvider().collect(analysisConfig(analysisDir.toString(), "flow"))
-        }
-        assertTrue(error.message!!.contains("demo.domain.aggregates.order.Order"))
-        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
-        assertTrue(error.message!!.contains("compileOnly classpath"))
+        val snapshot = IrAnalysisSourceProvider().collect(analysisConfig(analysisDir.toString(), "flow"))
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
+        assertTrue(snapshot.aggregateStructure.diagnostics.any { it.message.contains("demo.domain.aggregates.order.Order") })
+        assertTrue(snapshot.aggregateStructure.diagnostics.any { it.message.contains("AggregateElementMetadata") })
     }
 
     private fun renderOverride(

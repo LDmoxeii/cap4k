@@ -1,5 +1,7 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisPartition
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisPartitionIds
 import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityObservation
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityStatus
@@ -324,6 +326,57 @@ class AgentSnapshotServiceTest {
     }
 
     @Test
+    fun `analysis status aggregates only requested partitions`() {
+        val analysis = AgentAnalysisSection(
+            status = AgentSnapshotStatus.INVALID,
+            configured = true,
+            partitions = listOf(
+                AgentAnalysisPartition(
+                    id = AgentAnalysisPartitionIds.GRAPH,
+                    requested = true,
+                    status = AgentSnapshotStatus.PARTIAL,
+                ),
+                AgentAnalysisPartition(
+                    id = AgentAnalysisPartitionIds.DESIGN_PROJECTION,
+                    requested = false,
+                    status = AgentSnapshotStatus.INVALID,
+                ),
+                AgentAnalysisPartition(
+                    id = AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE,
+                    requested = false,
+                    status = AgentSnapshotStatus.OK,
+                ),
+            ),
+        )
+
+        val partial = service.assemble(request(capabilityDescriptors = emptyList(), analysis = analysis))
+
+        assertEquals(AgentSnapshotStatus.PARTIAL, partial.analysis.status)
+        assertEquals("One or more requested Analyzer partitions are incomplete or stale.", partial.analysis.reason)
+
+        val okay = service.assemble(
+            request(
+                capabilityDescriptors = emptyList(),
+                analysis = analysis.copy(
+                    partitions = analysis.partitions.map { partition ->
+                        if (partition.id == AgentAnalysisPartitionIds.GRAPH) {
+                            partition.copy(status = AgentSnapshotStatus.OK)
+                        } else {
+                            partition
+                        }
+                    },
+                ),
+            )
+        )
+
+        assertEquals(AgentSnapshotStatus.OK, okay.analysis.status)
+        assertEquals(null, okay.analysis.reason)
+        assertEquals(AgentSnapshotStatus.INVALID, okay.analysis.partitions.single {
+            it.id == AgentAnalysisPartitionIds.DESIGN_PROJECTION
+        }.status)
+    }
+
+    @Test
     fun `observations correlate by capability identity when provider ids are shared`() {
         val source = descriptor("pipeline.source.shared", "shared").copy(
             kind = PipelineCapabilityKind.SOURCE,
@@ -365,6 +418,11 @@ class AgentSnapshotServiceTest {
         observations: List<AgentCapabilityObservation> = emptyList(),
         diagnostics: List<AgentDiagnostic> = emptyList(),
         runtime: AgentRuntimeSection = AgentRuntimeSection(status = AgentSnapshotStatus.OK),
+        analysis: AgentAnalysisSection = AgentAnalysisSection(
+            status = AgentSnapshotStatus.UNAVAILABLE,
+            configured = false,
+            reason = "IR analysis is not configured.",
+        ),
     ) = AgentSnapshotRequest(
         project = AgentProjectSection(
             status = AgentSnapshotStatus.OK,
@@ -375,11 +433,7 @@ class AgentSnapshotServiceTest {
         inputs = AgentInputsSection(status = AgentSnapshotStatus.OK, inputs = emptyList()),
         ownership = AgentOwnershipSection(status = AgentSnapshotStatus.OK, items = emptyList()),
         runtime = runtime,
-        analysis = AgentAnalysisSection(
-            status = AgentSnapshotStatus.UNAVAILABLE,
-            configured = false,
-            reason = "IR analysis is not configured.",
-        ),
+        analysis = analysis,
         diagnostics = diagnostics,
     )
 

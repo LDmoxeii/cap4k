@@ -91,67 +91,31 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
-    fun `rejects missing design metadata before drawing board planning`() {
+    fun `planner does not read analysis graph metadata owned by other Analyzer partitions`() {
         val planner = DrawingBoardArtifactPlanner()
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config(),
-                CanonicalModel(
-                    analysisGraph = AnalysisGraphModel(
-                        inputDirs = listOf("application/build/cap4k-code-analysis"),
-                        nodes = listOf(
-                            AnalysisNodeModel(
-                                id = "demo.FindOrderQry.Request",
-                                name = "Request",
-                                fullName = "demo.FindOrderQry.Request",
-                                type = "query",
-                                missingMetadata = listOf("com.only4.cap4k.analysis.metadata.DesignBlockMetadata"),
-                                metadataOwner = "demo.FindOrderQry",
-                            )
-                        ),
-                        edges = emptyList(),
+
+        val plan = planner.plan(
+            config(),
+            CanonicalModel(
+                analysisGraph = AnalysisGraphModel(
+                    inputDirs = listOf("application/build/cap4k-code-analysis"),
+                    nodes = listOf(
+                        AnalysisNodeModel(
+                            id = "demo.FindOrderQry.Request",
+                            name = "Request",
+                            fullName = "demo.FindOrderQry.Request",
+                            type = "query",
+                            missingMetadata = listOf("com.only4.cap4k.analysis.metadata.DesignBlockMetadata"),
+                            metadataOwner = "demo.FindOrderQry",
+                        )
                     ),
-                    drawingBoard = DrawingBoardModel(emptyList()),
+                    edges = emptyList(),
                 ),
-            )
-        }
+                drawingBoard = DrawingBoardModel(emptyList()),
+            ),
+        )
 
-        assertTrue(error.message!!.contains("demo.FindOrderQry"))
-        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
-        assertTrue(error.message!!.contains("compileOnly classpath"))
-    }
-
-    @Test
-    fun `rejects missing aggregate metadata before drawing board planning`() {
-        val planner = DrawingBoardArtifactPlanner()
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config(),
-                CanonicalModel(
-                    analysisGraph = AnalysisGraphModel(
-                        inputDirs = listOf("adapter/build/cap4k-code-analysis"),
-                        nodes = listOf(
-                            AnalysisNodeModel(
-                                id = "demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
-                                name = "OrderJpaRepositoryAdapter",
-                                fullName = "demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
-                                type = "repository",
-                                missingMetadata = listOf(
-                                    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
-                                ),
-                                metadataOwner = "demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
-                            )
-                        ),
-                        edges = emptyList(),
-                    ),
-                    drawingBoard = DrawingBoardModel(emptyList()),
-                ),
-            )
-        }
-
-        assertTrue(error.message!!.contains("demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"))
-        assertTrue(error.message!!.contains("AggregateElementMetadata"))
-        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
+        assertTrue(plan.isEmpty())
     }
 
     @Test

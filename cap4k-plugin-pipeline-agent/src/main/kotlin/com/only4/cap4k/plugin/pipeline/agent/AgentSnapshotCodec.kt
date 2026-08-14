@@ -238,8 +238,20 @@ class AgentSnapshotCodec(
     private fun normalizeAnalysis(section: AgentAnalysisSection): AgentAnalysisSection = section.copy(
         inputDirs = section.inputDirs.distinct().map(::normalizePath).sorted(),
         evidence = section.evidence?.let { evidence -> evidence.copy(path = normalizePath(evidence.path)) },
-        plannedOutputPaths = section.plannedOutputPaths.distinct().map(::normalizePath).sorted(),
-        availableOutputPaths = section.availableOutputPaths.distinct().map(::normalizePath).sorted(),
+        partitions = section.partitions
+            .map { partition ->
+                partition.copy(
+                    counts = partition.counts.toSortedMap(),
+                    sources = partition.sources
+                        .map { source -> source.copy(path = normalizePath(source.path)) }
+                        .distinctBy { source -> source.id }
+                        .sortedBy { source -> source.id },
+                    plannedOutputPaths = partition.plannedOutputPaths.map(::normalizePath).distinct().sorted(),
+                    availableOutputPaths = partition.availableOutputPaths.map(::normalizePath).distinct().sorted(),
+                    diagnosticIds = partition.diagnosticIds.distinct().sorted(),
+                )
+            }
+            .sortedBy { partition -> partition.id },
     )
 
     private fun normalizeDiagnostics(section: AgentDiagnosticsSection): AgentDiagnosticsSection = section.copy(
@@ -321,11 +333,15 @@ class AgentSnapshotCodec(
             status = sections.analysis.status,
             counts = buildMap {
                 put("inputDirs", sections.analysis.inputDirs.size)
-                put("plannedOutputs", sections.analysis.plannedOutputPaths.size)
-                put("availableOutputs", sections.analysis.availableOutputPaths.size)
-                sections.analysis.nodeCount?.let { put("nodes", it) }
-                sections.analysis.edgeCount?.let { put("edges", it) }
-                sections.analysis.designElementCount?.let { put("designElements", it) }
+                put("partitions", sections.analysis.partitions.size)
+                put("sources", sections.analysis.partitions.flatMap { it.sources }.distinctBy { it.id }.size)
+                put("plannedOutputs", sections.analysis.partitions.sumOf { it.plannedOutputPaths.size })
+                put("availableOutputs", sections.analysis.partitions.sumOf { it.availableOutputPaths.size })
+                sections.analysis.partitions.forEach { partition ->
+                    partition.counts.toSortedMap().forEach { (name, value) ->
+                        put("${partition.id}.$name", value)
+                    }
+                }
             },
             reason = sections.analysis.reason,
             value = sections.analysis,

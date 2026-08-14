@@ -141,8 +141,8 @@ try {
 
     $resolvedFacts = (Resolve-Path -LiteralPath $FactsFile -ErrorAction Stop).Path
     $facts = Get-Content -LiteralPath $resolvedFacts -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($facts.schema -ne 'cap4k.capability-contract-facts.v2') {
-        throw (New-ContractDriftMessage -Problem 'Unsupported capability contract facts schema' -AuthoritativeCodeSource 'cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/CapabilityContractFacts.kt#CAP4K_CAPABILITY_CONTRACT_FACTS_SCHEMA' -ProjectionLocation $resolvedFacts -RecommendedRemediation 'Regenerate the facts with scripts/export-capability-contract-facts.ps1 using the current checkout.' -Details "expected=[cap4k.capability-contract-facts.v2] actual=[$($facts.schema)]")
+    if ($facts.schema -ne 'cap4k.capability-contract-facts.v3') {
+        throw (New-ContractDriftMessage -Problem 'Unsupported capability contract facts schema' -AuthoritativeCodeSource 'cap4k-plugin-pipeline-agent/src/main/kotlin/com/only4/cap4k/plugin/pipeline/agent/CapabilityContractFacts.kt#CAP4K_CAPABILITY_CONTRACT_FACTS_SCHEMA' -ProjectionLocation $resolvedFacts -RecommendedRemediation 'Regenerate the facts with scripts/export-capability-contract-facts.ps1 using the current checkout.' -Details "expected=[cap4k.capability-contract-facts.v3] actual=[$($facts.schema)]")
     }
 
     $publicTaskContracts = @($facts.publicTasks)
@@ -154,6 +154,9 @@ try {
     $outputKinds = @($facts.outputKinds)
     $analyzerCapabilities = @($facts.pipelineCapabilities | Where-Object { 'analysis' -in @($_.executionLanes) } | ForEach-Object capabilityId)
     $analyzerOutputs = @($facts.analyzerOutputs)
+    $analyzerPartitions = @($facts.analyzerPartitions | ForEach-Object {
+        "$($_.id)|$($_.nodeId)|$($_.sourceCapabilityId)|$(@($_.consumerCapabilityIds) -join ',')|$(@($_.outputIds) -join ',')"
+    })
 
     $taskSource = 'cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineCapabilityDescriptors.kt#PipelinePublicTasks'
     $taskRemediation = 'Update the marked PUBLIC_TASKS block to match PipelinePublicTasks.contracts; do not edit the exported facts JSON.'
@@ -186,6 +189,7 @@ try {
     Assert-MarkedSet -RelativePath 'docs/public/reference/plan-json.md' -Kind 'OUTPUT_KINDS' -ValuePattern '[A-Z][A-Z_]+' -Expected $outputKinds -AuthoritativeCodeSource 'cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineContracts.kt#ArtifactOutputKind' -RecommendedRemediation 'Update the marked OUTPUT_KINDS block to match ArtifactOutputKind entries.'
     Assert-MarkedSet -RelativePath 'docs/public/generator/analysis-evidence.md' -Kind 'ANALYZER_CAPABILITIES' -ValuePattern 'pipeline\.[a-z0-9.-]+' -Expected $analyzerCapabilities -AuthoritativeCodeSource 'built-in PipelineCapabilityDescriptor catalogs plus CapabilityContractFactsFactory analyzer projection' -RecommendedRemediation 'Update the marked Analyzer capability block to match analysis-lane descriptors.'
     Assert-MarkedSet -RelativePath 'docs/public/generator/analysis-evidence.md' -Kind 'ANALYZER_OUTPUTS' -ValuePattern '[a-z][a-z0-9-]+' -Expected $analyzerOutputs -AuthoritativeCodeSource 'built-in analysis-lane generator/artifact-addon descriptors' -RecommendedRemediation 'Update the marked Analyzer output block to match code-derived analysis provider outputs.'
+    Assert-MarkedSet -RelativePath 'docs/public/generator/analysis-evidence.md' -Kind 'ANALYZER_PARTITIONS' -ValuePattern '[A-Za-z][A-Za-z0-9]*\|analyzer\.partition\.[a-z-]+\|pipeline\.[a-z0-9.-]+\|pipeline\.[a-z0-9.,-]+\|[A-Za-z0-9_.,-]+' -Expected $analyzerPartitions -AuthoritativeCodeSource 'cap4k-plugin-pipeline-api/src/main/kotlin/com/only4/cap4k/plugin/pipeline/api/PipelineModels.kt#AnalyzerContractCatalog' -RecommendedRemediation 'Update the marked Analyzer partition block to match AnalyzerContractCatalog; do not hand-maintain a second partition graph.'
 
     $routingPath = Join-Path $repoRoot 'skills/cap4k-authoring/routing.yaml'
     $routing = Get-Content -LiteralPath $routingPath -Raw -Encoding UTF8

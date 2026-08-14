@@ -1,7 +1,9 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilitiesSection
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityObservation
+import com.only4.cap4k.plugin.pipeline.api.analyzerSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnostic
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticLevel
@@ -42,6 +44,7 @@ class AgentSnapshotService {
             reason = runtimeSectionReason(request.runtime.reason, runtimeDiagnostics),
         )
         val diagnostics = normalizeDiagnostics(request.diagnostics + runtimeDiagnostics)
+        val analysis = normalizeAnalysis(request.analysis)
         val capabilities = AgentCapabilitiesSection(
             status = capabilitySectionStatus(descriptors, observations),
             supported = descriptors.map(PipelineCapabilityFactProjection::supported),
@@ -61,7 +64,7 @@ class AgentSnapshotService {
             inputs = request.inputs,
             ownership = request.ownership,
             runtime = runtime,
-            analysis = request.analysis,
+            analysis = analysis,
             diagnostics = diagnosticsSection,
         )
     }
@@ -119,6 +122,24 @@ class AgentSnapshotService {
         }
 
         return observations.associateBy(AgentCapabilityObservation::capabilityId)
+    }
+
+    private fun normalizeAnalysis(analysis: AgentAnalysisSection): AgentAnalysisSection {
+        if (!analysis.configured) return analysis
+
+        val requestedStatuses = analysis.partitions
+            .filter { partition -> partition.requested }
+            .map { partition -> partition.status }
+        val status = analyzerSnapshotStatus(requestedStatuses)
+        return analysis.copy(
+            status = status,
+            reason = when (status) {
+                AgentSnapshotStatus.OK -> null
+                AgentSnapshotStatus.INVALID -> "One or more requested Analyzer partitions are invalid."
+                AgentSnapshotStatus.PARTIAL -> "One or more requested Analyzer partitions are incomplete or stale."
+                AgentSnapshotStatus.UNAVAILABLE -> "No Analyzer partition is requested."
+            },
+        )
     }
 
     private fun normalizeDiagnostics(diagnostics: List<AgentDiagnostic>): List<AgentDiagnostic> {
