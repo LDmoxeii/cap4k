@@ -2,73 +2,92 @@
 
 ## 目标
 
-Analyzer 必须把同一次静态 compiler observation 中产生的不同事实表达为三个逻辑分区，并为每个分区提供独立 schema、canonical ownership、完整性状态、来源和消费者边界。物理上可以继续共享一次编译、同一 inputDirs 和 raw transport bundle；canonical model 不能把不同事实混成一种 IR graph 或由消费者二次修复。
+Analyzer 必须把同一次静态 compiler observation 中产生的事实表达为三个强类型逻辑分区，并为每个分区提供独立 schema、canonical ownership、来源、完整性、计数和诊断。物理上继续允许共享一次编译、同一组 `inputDirs` 和现有 raw sidecar bundle；任何 consumer 都不得把三个分区重新压平成一种 IR graph 或从其他分区补造缺失事实。
 
-## 推荐逻辑模型
+## 权威逻辑模型
 
 ```text
 AnalyzerSnapshot
-├── graph
+├── graph: AnalyzerGraphPartition
+│   ├── sources
+│   ├── status / diagnostics
 │   ├── nodes
 │   └── relationships
-├── designProjection
+├── designProjection: AnalyzerDesignProjectionPartition
+│   ├── sources
+│   ├── status / diagnostics
 │   └── designBlocks
-└── aggregateStructure
+└── aggregateStructure: AnalyzerAggregateStructurePartition
+    ├── sources
+    ├── status / diagnostics
     └── aggregateElements
 ```
 
 - `graph`：从代码观察到的 Cap4k tactical nodes 和静态 directed relationships。
-- `designProjection`：从生成 metadata 恢复的规范化战术设计，供 Drawing Board contract 使用。
+- `designProjection`：从生成 metadata 恢复的规范化战术设计，遵循 `analyzer-drawing-board-contract`。
 - `aggregateStructure`：对实际生成 Aggregate-related carrier 的独立结构观察。
 
-三类事实可以共享物理生产链，但不得共享混淆后的 payload owner。一个不可变 source identity 可以被多个 view 引用，但不能复制成两个权威事实源。
+`AnalyzerSnapshot` 是 source provider 与 canonical assembler 之间唯一的 Analyzer snapshot contract。不得保留一个平铺旧 snapshot 作为并列权威模型；短期内部适配只能是单向、不可公开且必须在本 Change 内删除。
+
+## 物理 raw transport
+
+本合同保留一次 compiler observation 和每个 analysis input directory 下的现有 sidecar：
+
+- `nodes.json`
+- `rels.json`
+- `design-elements.json`
+- `aggregate-elements.json`
+
+逻辑分区不要求用户改变 `sources.ir-analysis.inputDirs`，也不要求额外 compiler invocation。文件名、目录和任务如需迁移，必须作为后续显式 wire change，不能夹带在本次模型重构中。
+
+每个配置 input directory 必须形成稳定的 source identity。对项目内目录，公开投影使用规范化 project-relative identity；外部目录必须使用稳定、可脱敏且能够与当前配置关联的 identity，不得把不可复现的临时绝对路径当作长期 contract。每个分区引用自己的 source 集合和 diagnostic IDs。
+
+## 分区状态和汇总
+
+分区复用现有 `AgentSnapshotStatus` 词汇：
+
+- `ok`：该分区所需 raw evidence 完整、可解析、无冲突，结果可以合法为空或非空；
+- `partial`：已配置且存在部分可用证据，但计划 output 或 freshness 尚不完整；不得把 partial payload 当完整产品输出；
+- `invalid`：required raw 缺失、JSON 无效、metadata contract 违反、identity 冲突或其他确定性错误；
+- `unavailable`：未配置、未请求或没有可执行 observation，不能声称该分区存在当前事实。
+
+顶层 Analyzer status 按确定性顺序聚合：任一 required partition 为 `invalid` 时顶层为 `invalid`；没有 invalid 但存在 required `partial` 或 `unavailable` 时顶层为 `partial`；全部 requested partition 为 `ok` 时为 `ok`；Analyzer 整体未配置时为 `unavailable`。
+
+一个分区完整不能掩盖另一个分区不完整。完整性、来源、freshness 和诊断是横切状态，不是第四种业务事实。source observation completeness 与 artifact plan freshness 必须分别表达：mtime 或 plan freshness 不能证明 compiler metadata 完整，raw 文件存在也不能证明 output 已生成且新鲜。
 
 ## Graph 分区
 
-- 当前最小事实粒度为稳定 node identity 和 directed relationship。
+- 最小事实粒度为稳定 node identity 和 directed relationship identity。
 - Graph 可以保留 Query、Capability、Validator、read-side dependency 和其他低层技术关系；它们保留在 Graph 不代表进入默认 causal Flow。
 - Graph 不是通用 Kotlin AST、CFG 或 runtime trace，也不证明业务设计正确或运行时顺序。
-- `pipeline.flow` 只能消费 Graph 分区及其 completeness 状态，不得从 Drawing Board 或 Aggregate Structure 反向补造因果关系。
+- 同一 node identity 的 `name`、`fullName` 和 `type` 必须一致；等价重复稳定去重，`missingMetadata` 可以稳定合并，非空 `metadataOwner` 冲突必须失败并保留来源诊断。
+- Relationship 以稳定的 from/to/type/label identity 去重；任何丢失 endpoint 或无效 identity 必须形成 Graph diagnostic，不得由其他分区补齐。
+- `pipeline.generator.flow` 只能消费 Graph 分区及其状态，不能读取 Drawing Board 或 Aggregate Structure 反向生成因果关系。
 
 ## Design Projection 分区
 
-- Design projection 只由 `analyzer-drawing-board-contract` 定义，不重复其往返规则。
-- `design-elements.json` 可以是可选 physical input，但其缺失语义必须与 metadata 丢失、空设计、未配置、不可用和 partial 区分。
-- `aggregate-elements.json` 不得同时挂入 Graph model 和 Drawing Board model；它只能属于 Aggregate Structure 分区。
+- Design Projection 的业务字段和往返语义由 `analyzer-drawing-board-contract` 定义。
+- `design-elements.json` 可以在没有任何 design candidate 的 input directory 中合法缺失或为空；该情形必须与未配置、不可用和无效区分。
+- 如果某个 input directory 存在需要 `DesignBlockMetadata` 的候选节点，但 sidecar 缺失、projection 为空或 metadata 丢失，则该来源的 Design Projection 为 `invalid`，请求 Drawing Board 时必须失败，不得生成伪完整 board。
+- 跨模块相同 design block identity 的等价 fragment 可以合并；description、aggregate ownership、event semantics、fields、resultFields 或其他战术语义冲突必须失败并关联全部来源。
+- `aggregate-elements.json` 不得挂入 Graph 或 Drawing Board model；它只属于 Aggregate Structure 分区。
 
 ## Aggregate Structure 分区
 
 ### 代码事实来源
 
-当前生产链为：
+生产链为：
 
 1. Generator 在实际 carrier class 上写入 BINARY-retained `AggregateElementMetadata`；
-2. Kotlin compiler Analyzer 的 `Cap4kIrGenerationExtension` 收集 metadata，写出每个 analysis input directory 的 `aggregate-elements.json`；
-3. `IrAnalysisSourceProvider` 读取 raw 文件，按 `carrierQualifiedName` 进行跨目录去重和冲突判断；
-4. canonical assembler 建立唯一的 Aggregate Structure owner，exporter 从该 owner 生成稳定 evidence output。
+2. Kotlin compiler Analyzer 收集 metadata，为每个 input directory 写 `aggregate-elements.json`；
+3. IR source 按 `carrierQualifiedName` 跨目录去重并拒绝冲突；
+4. canonical assembler 建立唯一 Aggregate Structure owner，structure evidence exporter 从该 owner 生成稳定 output。
 
-当前代码事实中的最小记录包括 `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type` 和 `root`。它描述实际生成的 carrier class，不是 Design JSON building block、Graph node、Entity Method 或业务事实。
+最小记录包括 `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type` 和 `root`。它描述实际生成 carrier，不是 Design JSON building block、Graph node、Entity Method、业务事实或数据库 schema。
 
-### 内容与用户问题
+### 类型闭集
 
-它可以包含当前内置 producer 标记的 Aggregate、Entity、Repository、Factory、Strong ID、Projection 等 carrier observation，具体内容以 compiler metadata 和输入目录的实际证据为准。它解决的问题是：让工程师、Agent 和结构审计能够回答“生成后实际存在哪些聚合相关结构、来源是什么、多个模块是否一致”，而不是让用户 author 一个新的 Design JSON schema。
-
-### 为什么不是 Design JSON
-
-- Design JSON 描述用户显式选择的 tactical authoring intent；Aggregate Structure 描述生成后实际存在的 carrier。
-- Design JSON 的等价合同比较 fields、artifacts、event semantics 和其他战术语义；Aggregate Structure 只观察 carrier identity、ownership、type 和结构字段。
-- Aggregate Structure 不生成 SQL、表结构、JDBC 映射或数据库关系真相；缺少相应证据时不得推断这些内容。
-- Aggregate Structure 不自动反馈 Generator，也不参与 Drawing Board round-trip。
-
-### 保留、删除、SQL/Schema projection 的意义
-
-- 已确认保留：继续提供独立的结构观察 output；它不退役，也不改造成 SQL/Schema projection。本 Change 保留现有 `drawing_board_aggregate_elements.json` 文件名、输出位置和公开 output identity，避免把模型 ownership 修正扩大成 wire/路径迁移；该文件必须由独立 Aggregate Structure canonical owner 驱动，不再属于 Drawing Board design model。后续若改名或迁移物理位置，必须作为显式合同变化处理。
-- 删除：表示不再提供该类 carrier observation；会损失生成结构审计、Agent 读取和跨模块一致性核验能力，必须由明确产品决定承担。
-- 转成 SQL/Schema projection：会把观察目标改成数据库结构或持久化 projection，需要新的 source evidence、字段和产品合同，不能作为当前 Aggregate Structure 的隐式重命名。
-
-### 当前类型边界
-
-目标闭集只有：
+受支持 type 只有：
 
 - `schema`
 - `entity`
@@ -77,26 +96,63 @@ AnalyzerSnapshot
 - `strong-id`
 - `projection`
 
-`specification`、`unique-query`、`unique-query-handler`、`unique-validator` 是已退役 cap4k Aggregate Specification / Unique 生成能力的 drift。它们不是兼容承诺，不得恢复 alias、deprecated value、silent mapping 或 migration bridge。Spring Data JPA 的 `org.springframework.data.jpa.domain.Specification` 查询谓词能力不属于本项删除范围。
+`specification`、`unique-query`、`unique-query-handler`、`unique-validator` 是已退役 drift，不得恢复 alias、deprecated value、silent mapping 或 migration bridge。Spring Data JPA `Specification` 查询谓词不属于该删除范围。
 
-## 完整性、ownership 和 wire
+### 输出边界
 
-- Metadata 缺失、raw 文件缺失、输入覆盖、freshness、解析冲突和诊断属于横切 completeness 状态，不是第四类业务事实。
-- 请求某个分区时，该分区不完整必须失败或明确不可用；其他分区完整不能掩盖它，也不能生成外观完整的 partial output。
-- `analysis.json` 当前仍是 `cap4k.agent.analysis.v1` 的平铺 `AgentAnalysisSection`，不足以表达三个分区的独立 status、count、source attribution、freshness、planned/available paths 和 diagnostics；升级 wire schema 是后置实现缺口，不进入本 Change Build。
-- `CapabilityContractFacts` 已在主线表达 `surface.analyzer` 和传播边，后续实现必须继续由生产代码派生 Analyzer 子契约、消费者依赖和闭包；Public Docs、Skill、AgentFacts 不能反向构造事实。
+保留现有 `drawing_board_aggregate_elements.json` 文件名、路径和公开 output identity，但它必须继续由 `CanonicalModel.aggregateStructure` 驱动，不属于 Drawing Board design model，也不参与 Design JSON round-trip。删除或转成 SQL/Schema projection 均需要新的产品合同。
 
-## Issue 与后续实现
+## Canonical ownership
 
-- [Issue #25](https://github.com/LDmoxeii/cap4k/issues/25) 继续承担后置 Graph、Design Projection、Aggregate Structure 边界和 transport/model 的实现优先级与状态管理；本 Change 已实施范围之外的 Snapshot/round-trip 工作均以该 Issue 为 backlog owner。
-- Aggregate Structure 已纳入本 Change Build；若实现调查暴露超出本合同、无法独立验收的剩余工作，必须由 Issue 明确管理，不能藏在 Drawing Board 或 Snapshot 文档任务中。
-- 每个未纳入本 Change Build 的 implementation slice 都从届时最新 `origin/master` 建立自己的 worktree 和 Comet Change，读取本合同，补充自己的范围、验收、focused tests、capability propagation 和真实项目证据。
+Canonical assembler 必须建立且只建立以下关系：
 
-## 本 Change 的边界
+- `AnalyzerSnapshot.graph` → `CanonicalModel.analysisGraph`
+- `AnalyzerSnapshot.designProjection` → `CanonicalModel.drawingBoard`
+- `AnalyzerSnapshot.aggregateStructure` → `CanonicalModel.aggregateStructure`
 
-- 本合同是 canonical target contract，不是当前实现完成声明。
-- Shape 阶段不修改产品代码。当前 Build 必须完成 Aggregate Structure 的 compiler type 闭集、raw 生成/解析与稳定 merge、独立 canonical ownership、现有 evidence artifact 驱动、focused tests 和实际受影响的 capability propagation。
-- 当前 Build 可以暂时保留平铺 `IrAnalysisSnapshot` raw transport，但 `CanonicalModel` 必须提供唯一 Aggregate Structure owner，`AnalysisGraphModel` 与 `DrawingBoardModel` 不得继续重复拥有 `aggregateElements`。
-- 当前 Build 不实现完整 `AnalyzerSnapshot` 三分区 transport、per-partition completeness、`cap4k.agent.analysis.v2` 或完整 Drawing Board round-trip gate；这些边界继续由 [Issue #25](https://github.com/LDmoxeii/cap4k/issues/25) 和后续 Change 承担。
-- 自动化证据和真实项目证据必须分别记录；旧审计 Verifier 的 `passed` 只证明审计材料覆盖，不证明本合同已经实现。
-- 未实现目标不得提前写入 Public Docs、AgentFacts 或 Skill 的当前支持状态。
+Assembler 不得跨分区复制事实，不得从消费者需求倒推 source payload，也不得让某个分区的非空集合替另一个分区制造完整状态。
+
+## Agent analysis wire
+
+`analysis.json` 必须能够直接表达三分区，而不是只提供平铺的 node/edge/design counts。顶层 section 保留配置、整体 status 和公共 evidence；每个 partition 至少投影：
+
+- stable partition id；
+- status；
+- type-specific counts；
+- source attribution；
+- evidence freshness；
+- planned output paths；
+- available output paths；
+- diagnostic IDs；
+- reason / next action。
+
+Analyzer collect、parse 或 merge 异常不得再被 `.getOrNull()` 静默吞掉。异常必须转换为稳定 diagnostics，并只污染实际受影响的分区；未受影响分区继续报告自己的状态。
+
+`analysis.json` 直接以 `cap4k.agent.analysis.v2` 替换 `cap4k.agent.analysis.v1`。不同时输出 v1/v2，不保留公开兼容桥，也不长期维持两个并列权威 schema。当前仓内没有生产 decoder 依赖 v1，项目处于 breaking redesign；所有仓内 producer、codec、manifest reference、tests、validators 和当前能力投影必须在同一 Change 中迁移。Public Docs、Skill 或手写 JSON 不得反向成为 Analyzer 事实源。
+
+## Capability contract propagation
+
+生产 capability declarations 必须派生并公开以下直接 consumer 关系：
+
+- Graph → Pipeline Flow；
+- Design Projection → Drawing Board；
+- Aggregate Structure → structure evidence output。
+
+`CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 按依赖图传播；只有实际代码完成的 schema、status、outputs 和 consumer contract 才能声明为当前支持能力。canonical spec 可以先于实现，但不能冒充当前代码事实。
+
+## 验证合同
+
+- API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区。
+- IR source tests 覆盖每目录 required/optional/empty/invalid raw、metadata completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
+- Canonical tests 证明三个分区各自进入唯一 owner，消费者不会跨分区读取。
+- Agent codec/service/task/functional tests 证明分区 schema、manifest、counts、freshness、outputs、diagnostics 和状态聚合。
+- Capability facts 与 validator tests 证明子契约和传播闭包由生产代码派生。
+- Drawing Board 仓内 compiler-backed 自动化与下游项目证据边界遵循 `analyzer-drawing-board-contract`。
+
+## 非目标
+
+- 改变默认 causal Flow 或增加 process projection；
+- 改变 raw sidecar 名称、inputDirs DSL、公开任务或 compiler invocation 数量；
+- 自动把 Analyzer output 注册为 Generator input；
+- 把 Aggregate Structure 改造成 Design JSON 或 SQL/Schema projection；
+- 从 runtime trace 或任意 Kotlin 结构推断缺失设计。
