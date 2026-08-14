@@ -12,8 +12,8 @@ data class Node(
 enum class NodeType {
     controller,
     controllermethod,
+    temporaltriggermethod,
     commandsender,
-    commandsendermethod,
     querysendermethod,
     capabilitysendermethod,
     validator,

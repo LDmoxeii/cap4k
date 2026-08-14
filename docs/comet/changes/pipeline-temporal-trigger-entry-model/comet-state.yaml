@@ -1,0 +1,2135 @@
+schema: comet.native.v4
+name: pipeline-temporal-trigger-entry-model
+language: zh-CN
+phase: archive
+status: active
+state_version: 14
+brief: brief.md
+spec_changes:
+  - capability: analyzer-evidence-model
+    operation: modify
+    source: specs/analyzer-evidence-model/spec.md
+  - capability: pipeline-causal-flow-contract
+    operation: modify
+    source: specs/pipeline-causal-flow-contract/spec.md
+workspace:
+  isolation: worktree
+  change_branch: feature/temporal-trigger-flow-entry
+  target_branch: master
+  finish: keep
+loop:
+  stage: archive-ready
+  goal_cycle: 1
+  iteration: 2
+  attempt: 2
+  retry_epoch: 0
+  failed_iteration_count: 1
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: archive
+acceptance:
+  - id: A1
+    source: brief.md
+    text: A1：一个 Spring `@Scheduled` 方法直接发送 Command 时，Analyzer Graph 产生真实 method
+      节点和明确 Temporal Trigger 到 Command 的 relationship，Flow 以该 method 为唯一 root
+      并生成 JSON、Mermaid 与 index entry。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: A2：`@Scheduled` 方法只执行 Query、Capability 或纯技术逻辑而不发送 Command 时，不生成默认 causal
+      Flow。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: A3：HTTP Controller 到 Command 与无上游 Inbound Integration Event 到 Command 的现有
+      Flow 保持成立，并分别归入 Actor 与 Event 触发语义。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: A4：普通内部方法即使发送 Command，也不能仅凭 generic sender evidence 自动升级为默认 Flow root。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: A5：由既有业务链登记的 delayed/scheduled Command 不制造抽象 Temporal Trigger
+      root；时间唤醒仍是执行策略或已有因果链 continuation。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: A6：有上游因果边的中间 Event、Command 或 trigger method 不制造重复 Flow；两个独立显式 root 仍生成两张
+      Flow。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: A7：生产 Node/Relationship 类型、Analyzer compiler observation、Flow
+      projection、focused tests 与 Gradle functional fixture 对 Temporal Trigger 的
+      identity、edge、root 和输出计数保持确定性。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: A8：Capability facts、AgentFacts、Public Docs、Skill、Runtime/PR/workflow
+      validators 与完整 Gradle `check` 的声明和实际代码一致，不声明未实现的 adapter detector 或
+      scheduler 能力。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A9
+    source: specs/analyzer-evidence-model/spec.md
+    text: Analyzer 必须把同一次静态 compiler observation 中产生的事实表达为三个强类型逻辑分区，并为每个分区提供独立
+      schema、canonical ownership、来源、完整性、计数和诊断。物理上继续允许共享一次编译、同一组 `inputDirs` 和现有
+      raw sidecar bundle；任何 consumer 都不得把三个分区重新压平成一种 IR graph 或从其他分区补造缺失事实。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A10
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`graph`：从代码观察到的 Cap4k tactical nodes 和静态 directed relationships。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A11
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`designProjection`：从生成 metadata 恢复的规范化战术设计，遵循
+      `analyzer-drawing-board-contract`。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A12
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`aggregateStructure`：对实际生成 Aggregate-related carrier 的独立结构观察。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A13
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot` 是 source provider 与 canonical assembler 之间唯一的 Analyzer
+      snapshot contract。不得保留一个平铺旧 snapshot 作为并列权威模型；短期内部适配只能是单向、不可公开且必须在本 Change
+      内删除。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A14
+    source: specs/analyzer-evidence-model/spec.md
+    text: 本合同保留一次 compiler observation 和每个 analysis input directory 下的现有 sidecar：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A15
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`nodes.json`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A16
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`rels.json`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A17
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`design-elements.json`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A18
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`aggregate-elements.json`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A19
+    source: specs/analyzer-evidence-model/spec.md
+    text: 逻辑分区不要求用户改变 `sources.ir-analysis.inputDirs`，也不要求额外 compiler
+      invocation。文件名、目录和任务如需迁移，必须作为后续显式 wire change，不能夹带在本次模型重构中。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A20
+    source: specs/analyzer-evidence-model/spec.md
+    text: 每个配置 input directory 必须形成稳定的 source identity。对项目内目录，公开投影使用规范化
+      project-relative identity；外部目录必须使用稳定、可脱敏且能够与当前配置关联的
+      identity，不得把不可复现的临时绝对路径当作长期 contract。每个分区引用自己的 source 集合和 diagnostic IDs。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A21
+    source: specs/analyzer-evidence-model/spec.md
+    text: 分区复用现有 `AgentSnapshotStatus` 词汇：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A22
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`ok`：该分区所需 raw evidence 完整、可解析、无冲突，结果可以合法为空或非空；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A23
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`partial`：已配置且存在部分可用证据，但计划 output 或 freshness 尚不完整；不得把 partial payload
+      当完整产品输出；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A24
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`invalid`：required raw 缺失、JSON 无效、metadata contract 违反、identity
+      冲突或其他确定性错误；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A25
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`unavailable`：未配置、未请求或没有可执行 observation，不能声称该分区存在当前事实。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A26
+    source: specs/analyzer-evidence-model/spec.md
+    text: 顶层 Analyzer status 按确定性顺序聚合：任一 required partition 为 `invalid` 时顶层为
+      `invalid`；没有 invalid 但存在 required `partial` 或 `unavailable` 时顶层为
+      `partial`；全部 requested partition 为 `ok` 时为 `ok`；Analyzer 整体未配置时为
+      `unavailable`。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A27
+    source: specs/analyzer-evidence-model/spec.md
+    text: 一个分区完整不能掩盖另一个分区不完整。完整性、来源、freshness 和诊断是横切状态，不是第四种业务事实。source observation
+      completeness 与 artifact plan freshness 必须分别表达：mtime 或 plan freshness 不能证明
+      compiler metadata 完整，raw 文件存在也不能证明 output 已生成且新鲜。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A28
+    source: specs/analyzer-evidence-model/spec.md
+    text: 最小事实粒度为稳定 node identity 和 directed relationship identity。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A29
+    source: specs/analyzer-evidence-model/spec.md
+    text: Graph 可以保留 Query、Capability、Validator、read-side dependency 和其他低层技术关系；它们保留在
+      Graph 不代表进入默认 causal Flow。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A30
+    source: specs/analyzer-evidence-model/spec.md
+    text: 默认业务因果入口按触发来源解释为 Actor、Event、Time 三类，但分类不是封闭 NodeType
+      allowlist。每个当前支持入口都必须由生产 Analyzer 观察到实际代码节点及明确 relationship evidence；未来
+      adapter 通过新增真实 detector 扩展，不由 Flow、文档或 generic fallback 猜测。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A31
+    source: specs/analyzer-evidence-model/spec.md
+    text: Actor 当前生产 evidence 为 Spring HTTP Controller method 到
+      Command；RPC、GraphQL、CLI、Admin 与 workflow task 属于 Actor 概念家族，但在没有对应
+      Analyzer detector 前不得声明为当前支持。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A32
+    source: specs/analyzer-evidence-model/spec.md
+    text: Event 当前生产 evidence 为无上游 Inbound Integration Event 经实际 `@EventListener`
+      Handler 到 Command。Domain Event Handler、outbound Integration Event 和有上游
+      Integration Event 是已有因果链 continuation，不是新入口。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A33
+    source: specs/analyzer-evidence-model/spec.md
+    text: Time 当前生产 evidence 为带
+      `org.springframework.scheduling.annotation.Scheduled` 的实际 method。Analyzer
+      必须使用该 method 的稳定 identity，生成 `temporaltriggermethod` node；当方法直接发送 Command
+      时生成 `TemporalTriggerMethodToCommand` relationship。只执行 Query、Capability
+      或纯技术逻辑的 scheduled method 不产生默认 causal entry evidence。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A34
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`commandsendermethod` NodeType 与 `CommandSenderMethodToCommand`
+      RelationshipType 完全删除。普通未分类方法即使直接发送 Command，也不得生成 generic sender
+      node、relationship、alias、deprecated value 或迁移桥；需要成为入口时必须先实现明确 trigger
+      detector。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A35
+    source: specs/analyzer-evidence-model/spec.md
+    text: Graph 不是通用 Kotlin AST、CFG 或 runtime trace，也不证明业务设计正确或运行时顺序。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A36
+    source: specs/analyzer-evidence-model/spec.md
+    text: 同一 node identity 的 `name`、`fullName` 和 `type`
+      必须一致；等价重复稳定去重，`missingMetadata` 可以稳定合并，非空 `metadataOwner` 冲突必须失败并保留来源诊断。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A37
+    source: specs/analyzer-evidence-model/spec.md
+    text: Relationship 以稳定的 from/to/type/label identity 去重；任何丢失 endpoint 或无效
+      identity 必须形成 Graph diagnostic，不得由其他分区补齐。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A38
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`pipeline.generator.flow` 只能消费 Graph 分区及其状态，不能读取 Drawing Board 或
+      Aggregate Structure 反向生成因果关系。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A39
+    source: specs/analyzer-evidence-model/spec.md
+    text: Design Projection 的业务字段和往返语义由 `analyzer-drawing-board-contract` 定义。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A40
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`design-elements.json` 可以在没有任何 design candidate 的 input directory
+      中合法缺失或为空；该情形必须与未配置、不可用和无效区分。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A41
+    source: specs/analyzer-evidence-model/spec.md
+    text: 如果某个 input directory 存在需要 `DesignBlockMetadata` 的候选节点，但 sidecar
+      缺失、projection 为空或 metadata 丢失，则该来源的 Design Projection 为 `invalid`，请求
+      Drawing Board 时必须失败，不得生成伪完整 board。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A42
+    source: specs/analyzer-evidence-model/spec.md
+    text: 跨模块相同 design block identity 的等价 fragment 可以合并；description、aggregate
+      ownership、event semantics、fields、resultFields 或其他战术语义冲突必须失败并关联全部来源。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A43
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`aggregate-elements.json` 不得挂入 Graph 或 Drawing Board model；它只属于 Aggregate
+      Structure 分区。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A44
+    source: specs/analyzer-evidence-model/spec.md
+    text: 生产链为：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A45
+    source: specs/analyzer-evidence-model/spec.md
+    text: Generator 在实际 carrier class 上写入 BINARY-retained `AggregateElementMetadata`；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A46
+    source: specs/analyzer-evidence-model/spec.md
+    text: Kotlin compiler Analyzer 收集 metadata，为每个 input directory 写
+      `aggregate-elements.json`；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A47
+    source: specs/analyzer-evidence-model/spec.md
+    text: IR source 按 `carrierQualifiedName` 跨目录去重并拒绝冲突；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A48
+    source: specs/analyzer-evidence-model/spec.md
+    text: canonical assembler 建立唯一 Aggregate Structure owner，structure evidence
+      exporter 从该 owner 生成稳定 output。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A49
+    source: specs/analyzer-evidence-model/spec.md
+    text: 最小记录包括
+      `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type`
+      和 `root`。它描述实际生成 carrier，不是 Design JSON building block、Graph node、Entity
+      Method、业务事实或数据库 schema。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A50
+    source: specs/analyzer-evidence-model/spec.md
+    text: 受支持 type 只有：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A51
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`schema`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A52
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`entity`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A53
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`repository`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A54
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`factory`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A55
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`strong-id`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A56
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`projection`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A57
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`specification`、`unique-query`、`unique-query-handler`、`unique-validator`
+      是已退役 drift，不得恢复 alias、deprecated value、silent mapping 或 migration
+      bridge。Spring Data JPA `Specification` 查询谓词不属于该删除范围。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A58
+    source: specs/analyzer-evidence-model/spec.md
+    text: 保留现有 `drawing_board_aggregate_elements.json` 文件名、路径和公开 output
+      identity，但它必须继续由 `CanonicalModel.aggregateStructure` 驱动，不属于 Drawing Board
+      design model，也不参与 Design JSON round-trip。删除或转成 SQL/Schema projection
+      均需要新的产品合同。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A59
+    source: specs/analyzer-evidence-model/spec.md
+    text: Canonical assembler 必须建立且只建立以下关系：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A60
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot.graph` → `CanonicalModel.analysisGraph`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A61
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot.designProjection` → `CanonicalModel.drawingBoard`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A62
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot.aggregateStructure` →
+      `CanonicalModel.aggregateStructure`"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A63
+    source: specs/analyzer-evidence-model/spec.md
+    text: Assembler 不得跨分区复制事实，不得从消费者需求倒推 source payload，也不得让某个分区的非空集合替另一个分区制造完整状态。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A64
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`analysis.json` 必须能够直接表达三分区，而不是只提供平铺的 node/edge/design counts。顶层 section
+      保留配置、整体 status 和公共 evidence；每个 partition 至少投影："
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A65
+    source: specs/analyzer-evidence-model/spec.md
+    text: stable partition id；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A66
+    source: specs/analyzer-evidence-model/spec.md
+    text: status；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A67
+    source: specs/analyzer-evidence-model/spec.md
+    text: type-specific counts；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A68
+    source: specs/analyzer-evidence-model/spec.md
+    text: source attribution；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A69
+    source: specs/analyzer-evidence-model/spec.md
+    text: evidence freshness；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A70
+    source: specs/analyzer-evidence-model/spec.md
+    text: planned output paths；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A71
+    source: specs/analyzer-evidence-model/spec.md
+    text: available output paths；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A72
+    source: specs/analyzer-evidence-model/spec.md
+    text: diagnostic IDs；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A73
+    source: specs/analyzer-evidence-model/spec.md
+    text: reason / next action。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A74
+    source: specs/analyzer-evidence-model/spec.md
+    text: Analyzer collect、parse 或 merge 异常不得再被 `.getOrNull()` 静默吞掉。异常必须转换为稳定
+      diagnostics，并只污染实际受影响的分区；未受影响分区继续报告自己的状态。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A75
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`analysis.json` 直接以 `cap4k.agent.analysis.v2` 替换
+      `cap4k.agent.analysis.v1`。不同时输出 v1/v2，不保留公开兼容桥，也不长期维持两个并列权威
+      schema。当前仓内没有生产 decoder 依赖 v1，项目处于 breaking redesign；所有仓内
+      producer、codec、manifest reference、tests、validators 和当前能力投影必须在同一 Change
+      中迁移。Public Docs、Skill 或手写 JSON 不得反向成为 Analyzer 事实源。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A76
+    source: specs/analyzer-evidence-model/spec.md
+    text: 生产 capability declarations 必须派生并公开以下直接 consumer 关系：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A77
+    source: specs/analyzer-evidence-model/spec.md
+    text: Graph → Pipeline Flow；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A78
+    source: specs/analyzer-evidence-model/spec.md
+    text: Design Projection → Drawing Board；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A79
+    source: specs/analyzer-evidence-model/spec.md
+    text: Aggregate Structure → structure evidence output。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A80
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 按依赖图传播；只有实际代码完成的
+      schema、status、outputs 和 consumer contract 才能声明为当前支持能力。canonical spec
+      可以先于实现，但不能冒充当前代码事实。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A81
+    source: specs/analyzer-evidence-model/spec.md
+    text: API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区，并证明 `temporaltriggermethod`
+      / `TemporalTriggerMethodToCommand` 是唯一新增 Time trigger evidence，generic
+      Command sender 类型已经删除。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A82
+    source: specs/analyzer-evidence-model/spec.md
+    text: IR compiler/source tests 覆盖 Spring `@Scheduled` method detection、Temporal
+      Trigger 到 Command、scheduled Query/Capability 非 Flow 入口、普通方法不再产生 generic
+      Command sender，以及每目录 required/optional/empty/invalid raw、metadata
+      completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A83
+    source: specs/analyzer-evidence-model/spec.md
+    text: Canonical tests 证明三个分区各自进入唯一 owner，消费者不会跨分区读取。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A84
+    source: specs/analyzer-evidence-model/spec.md
+    text: Agent codec/service/task/functional tests 证明分区
+      schema、manifest、counts、freshness、outputs、diagnostics 和状态聚合。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A85
+    source: specs/analyzer-evidence-model/spec.md
+    text: Capability facts 与 validator tests 证明子契约和传播闭包由生产代码派生。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A86
+    source: specs/analyzer-evidence-model/spec.md
+    text: Drawing Board 仓内 compiler-backed 自动化与下游项目证据边界遵循
+      `analyzer-drawing-board-contract`。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A87
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Pipeline `flow` 是面向业务因果链的默认静态投影。它从一个有生产代码或明确 relationship evidence
+      的实际入口出发，沿可验证的 Command/Event 因果关系生成入口中心的最小有向子图，帮助人类和 Agent 阅读代码结构。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A88
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Flow 只陈述静态连接与可达性，不证明业务正确性、运行时执行顺序、事务边界、消息必达、重试结果或最终业务结果。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A89
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 一张 Flow 对应一个具体真实入口及其沿默认因果关系可达的最小投影。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A90
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认产品不提供自动或独立 process projection，不把多个真实入口拼成一个业务过程。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A91
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Pipeline generator `pipeline.generator.flow`、generator id `flow` 和 output
+      id `flow` 是唯一公开 Flow 产品身份。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A92
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate` 是 Flow planning 与
+      generation 的公开 task lane。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A93
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 已退役的 `cap4k-plugin-code-analysis-flow-export`、`cap4kFlow*` tasks、plugin
+      id、alias 和第二套 output contract 不得恢复。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A94
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Flow 只消费 `AnalyzerSnapshot.graph` 及其 completeness、freshness、source
+      identity 和 diagnostics。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A95
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Drawing Board Design Projection 与 Aggregate Structure 不得补造 Flow 节点、边、入口或
+      process 关系。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A96
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: raw Graph 可以包含默认 Flow 不展示的技术事实，例如 Query、Capability、普通 `validator`
+      observation 和 read-side dependency。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A97
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`unique-validator` 等已退役 Aggregate Structure 类型不得因 Flow 重新出现。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A98
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Graph 缺失、不可解析 relationship、identity 冲突或会使投影不可信的完整性问题必须产生可操作诊断；合法零 Flow
+      与分析不完整必须可区分。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A99
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认可见节点：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A100
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 具备入口证据的实际代码节点；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A101
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Command；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A102
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Domain Event；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A103
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Integration Event。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A104
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认隐藏但保留在 raw Graph 中的节点：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A105
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Command Handler；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A106
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Domain Event Handler；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A107
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Integration Event Handler；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A108
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Entity Method。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A109
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Query、Capability、普通 Validator、read-side dependency 和非 Command/Event
+      技术关系不进入默认业务因果链。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A110
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 入口节点不是新增的抽象 `Entry` 节点。默认业务因果入口按触发来源解释为 Actor、Event、Time 三类：Actor 当前由
+      Spring HTTP Controller method 提供生产 evidence；Event 当前由无上游 Inbound
+      Integration Event 提供生产 evidence；Time 当前由 Spring `@Scheduled` method 提供
+      Temporal Trigger evidence。RPC、GraphQL、CLI、Admin、workflow、webhook、CDC、其他消息
+      adapter 和其他 scheduler provider 可以归入这些概念家族，但只有生产 Analyzer 提供真实节点和明确
+      relationship evidence 后才成为当前支持入口。入口类别不是 Public Docs、Skill 或永久手写封闭
+      taxonomy，也不新增 `entryFamily` wire。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A111
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Temporal Trigger 使用实际 scheduled method identity，node type 为
+      `temporaltriggermethod`，到 Command 的明确 relationship 为
+      `TemporalTriggerMethodToCommand`。独立周期 Job 可以成为 Time root；由已有业务链登记的
+      scheduled/delayed Command、可靠 worker 到期唤醒或延迟 Event delivery 是已有因果
+      continuation 或执行策略，不创建抽象 Temporal root。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A112
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`commandsendermethod` 与 `CommandSenderMethodToCommand` 完全删除。普通未分类方法调用
+      Command 不再形成默认 Flow 入口，也不保留 raw fallback、alias 或迁移桥；未来真实入口必须新增对应 Analyzer
+      detector。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A113
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认 Flow 只处理生产 Analyzer 明确识别的 causal relationship，以及从实际入口节点到 Command 的可验证显式
+      `*ToCommand` trigger relationship。当前显式入口关系包括 `ControllerMethodToCommand` 与
+      `TemporalTriggerMethodToCommand`；Inbound Integration Event 通过
+      `IntegrationEventToHandler` / `IntegrationEventHandlerToCommand`
+      进入因果链。relationship 名称以 `ToCommand` 结尾不是入口资格的充分条件，generic sender fallback
+      不存在。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A114
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 当两个可见节点之间存在 raw causal path，且内部节点全部属于隐藏集合时，建立一条直接投影边。隐藏路径长度不设固定上限。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A115
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 例如：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A116
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 投影为：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A117
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 以及：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A118
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 完整链投影为：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A119
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Command 和 Event 是可见边界，因此路径在这些节点处分段压缩，不把整条链压成入口到最终 Command 的单边。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A120
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 路径压缩只穿过已知隐藏因果角色。遇到既不可见、也不属于隐藏集合的未知 Graph 节点时，不把它自动视为透明中间节点。新增可压缩技术角色属于
+      Analyzer contract 变化，必须由生产代码、测试和 capability propagation 明确声明。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A121
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 分叉、汇合和共享后缀必须保留。raw edge 与 projected edge 使用稳定 identity
+      去重，不依赖输入目录或遍历顺序。投影实现保留至少一条对应 raw path evidence 供诊断和测试使用；是否扩展为多路径 evidence
+      或公开 wire 字段属于独立合同变化，不在本合同中隐式增加。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A122
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 只有同时满足以下条件的节点才生成默认 Flow root：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A123
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 生产 Analyzer evidence 能证明节点属于当前支持的 Actor、Event 或 Time trigger，并具备入口资格；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A124
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 完成可见投影和隐藏路径压缩后，该节点没有上游因果边；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A125
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 该节点在最终投影中存在下游因果边。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A126
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 入度为零只是必要条件，不是入口资格的充分条件。孤立 Command/Event、因 metadata
+      缺失而失去上游的节点、仅因名称或包路径像入口的节点，都不得自动升级为 root。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A127
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 有上游因果边的中间 Integration Event、Command、Temporal Trigger method 或其他节点不得制造重复
+      Flow。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A128
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 两个各自具有真实入口证据、最终投影后均为零入度的入口必须分别生成两张 Flow，即使它们共享下游后缀。共享
+      Command、Event、节点名称或静态可达性不是自动 stitching 的充分证据。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A129
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认 Flow 不强制为 DAG，不拒绝合法循环，不折叠强连通分量。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A130
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 遍历使用稳定 visited node/edge 语义有限结束。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A131
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 入口可达的 visible cycle 必须保留，不能静默截断或伪装成 DAG。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A132
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 没有可证明入口的纯循环仍属于 raw Graph 事实，但不发明默认 Flow root。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A133
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 节点、边、entry 和 index 使用稳定排序；重复 raw edge、projected edge 和重复 entry identity
+      的结果必须确定。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A134
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 每个真实 root 生成：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A135
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 并统一生成：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A136
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Entry JSON 至少包含：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A137
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`entryId`；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A138
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`entryType`；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A139
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 不新增 `entryFamily`；Actor / Event / Time 是合同解释，不是新的 wire 字段；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A140
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`nodeCount`；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A141
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`edgeCount`；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A142
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: projected nodes；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A143
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: projected edges。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A144
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Index 至少包含 input identities、entry type summary、node/edge
+      summary、`flowCount` 和每张 Flow 的 JSON/Mermaid reference。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A145
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 本合同不改变既有 JSON、Mermaid、index wire shape、output root、slug 规则或 `flow`
+      identity。连续链修正与回归证据不得通过增加 process artifact、process index 或第二个 generator id
+      实现。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A146
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "Issue #55 观察到旧项目中“外部事实到达 follow-up Command 后，后续业务链出现在另一张
+      Flow”的现象。当前目标按以下规则判断："
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A147
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 如果 raw Graph evidence 连续，完整的 `Inbound Integration Event -> Command ->
+      Domain Event -> follow-up Command` 必须在同一张 entry-centered Flow 中出现，不需要
+      process stitching。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A148
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 如果拆分来自中间节点被错误提升为 root、隐藏路径未正确收缩或 relationship 丢失，应修复或以 regression fixture
+      防止回归。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A149
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 如果两个节点各自具有独立入口证据且最终投影后均为零入度，两张 Flow 是正确结果。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A150
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 多张真实入口 Flow 通过稳定 entry identity、index 和共享可见节点关联阅读；默认产品不自动推断它们属于同一个业务过程。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A151
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 本次不使用长期未更新的 `cap4k-reference-content-studio` 作为验证门槛，使用仓库内等价 focused 与
+      Gradle functional fixture 提供自动化证据，不声明该下游项目兼容性。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A152
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: causal edge 选择、节点角色、入口资格、路径压缩、root、循环、去重和 Mermaid graph topology 由 Kotlin
+      生产代码拥有。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A153
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Generator planner 把已计算结果规划为 JSON、Mermaid 和 index artifacts。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A154
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Pebble 模板只负责写出 planner 提供的内容，不决定节点、边、入口、路径压缩或 Flow 数量。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A155
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 项目用户可以启用或禁用 `flow`、配置 output root，并按模板合同调整呈现；不能注入自定义遍历、root 或 stitching 算法。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A156
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 本合同不新增 topology DSL、arbitrary user projection 或 process profile。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A157
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 需要不同图的高级消费者可以读取 raw Graph 并在 cap4k 产品边界之外生成自有视图。若未来多个项目形成稳定共同需求，应创建独立
+      Change，设计由插件拥有、命名明确、合同固定的 projection profile，而不是在模板中实现图语义。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A158
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 保留 `surface.analyzer`、`pipeline.generator.flow` 和 output `flow` 的当前
+      identity。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A159
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Analyzer Graph partition 的 Flow consumer 仍只有
+      `pipeline.generator.flow`，不得新增未实现的 process consumer 或 output。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A160
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 必须表达 Actor /
+      Event / Time trigger、当前实际 detector、默认 entry-centered
+      Flow、隐藏路径压缩、root-after-projection、cycle preservation 和唯一产品入口。"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A161
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Public Docs 与 Skill 必须说明连续 graph evidence 生成一张 Flow、两个真实 root 生成两张
+      Flow，以及共享后缀不触发自动 stitching。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A162
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Public Docs、Skill 和 AgentFacts 不得宣称 process projection、process output
+      或用户自定义拓扑算法已经可用。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A163
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Runtime 对本合同为 `verified-no-change` 或 `not-applicable`，除非实际实现修改了 Runtime
+      contract。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A164
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Focused tests 必须覆盖：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A165
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 完整入站 Integration Event 到 follow-up Command 的单 fixture，并断言一张 Flow；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A166
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Spring `@Scheduled` method 到 Command 的 Temporal Trigger fixture，并断言实际
+      method identity、`temporaltriggermethod`、`TemporalTriggerMethodToCommand`
+      和唯一 root；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A167
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 普通未分类 method 直接发送 Command 不生成
+      `commandsendermethod`、`CommandSenderMethodToCommand` 或默认 Flow；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A168
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Handler 与任意长度 Entity Method 路径隐藏和收缩；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A169
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 有上游节点不制造重复 root；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A170
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 两个真实入口和共享下游保持两张 Flow；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A171
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: fan-out、merge、visible cycle、纯循环、稳定去重和 source evidence；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A172
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 合法零 Flow 与无效 Graph evidence 的区别。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A173
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Gradle functional fixture 必须实际执行 `cap4kAnalysisPlan` 和
+      `cap4kAnalysisGenerate`，并核对：
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A174
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: entry JSON、Mermaid、index 均实际生成；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A175
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`entryId`、entry type、Temporal Trigger relationship、节点/边计数和 `flowCount`
+      一致；"
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A176
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Handler 与 Entity Method 不进入公开 Flow；
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A177
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 不生成 process artifact、第二套 Flow output 或已退役 task。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+  - id: A178
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Change Verify 还必须运行完整 Gradle `check`、capability facts
+      export/validate/test、Skill validator、current Runtime facts validator、PR
+      workflow tests 和 `git diff --check`。自动化证据与真实项目证据分别记录；未运行长期漂移的 downstream
+      项目必须明确声明，不得形成兼容性结论。
+    result: passed
+    reason:
+      text: Fresh independent read-only verification found the production
+        implementation, tests, descriptors, documentation, Skill, and Runtime
+        check evidence consistent with this acceptance item.
+      truncated: false
+builder_handoff:
+  candidate_id: 0be0fb7c-16d5-444a-b8fd-e552f0820312
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:e7364f2e-b7d5-4ad3-8341-d38afdf8b7c3
+  iteration: 2
+  summary:
+    text: Repair iteration 2 removes the remaining Flow-specific legacy
+      command-sender compatibility constant, exclusions, and focused
+      legacy-evidence test. Explicit trigger validation now rejects
+      sender-shaped observation roles by general semantics, still requires
+      relationship-prefix/source-role agreement and a Command target, and
+      remains open to future concrete adapter detector roles. Production code,
+      tests, descriptors, Public Docs, Skill, and generated capability facts are
+      aligned.
+    truncated: false
+  addressed_acceptance_ids:
+    - A8
+    - A34
+    - A80
+    - A112
+    - A160
+  checks:
+    - name:
+        text: focused temporal Analyzer, Flow, and Gradle functional tests
+        truncated: false
+      result: passed
+      note:
+        text: Compiler-backed, Flow focused, and actual Kotlin compile fixture tests
+          passed after the repair.
+        truncated: false
+    - name:
+        text: full Gradle check
+        truncated: false
+      result: passed
+      note:
+        text: .\gradlew.bat check --no-daemon completed successfully in 9m 11s.
+        truncated: false
+    - name:
+        text: capability contract facts export
+        truncated: false
+      result: passed
+      note:
+        text: .\scripts\export-capability-contract-facts.ps1 completed successfully.
+        truncated: false
+    - name:
+        text: capability contract validation
+        truncated: false
+      result: passed
+      note:
+        text: validate-capability-contract.ps1 and test-capability-contract.ps1 passed.
+        truncated: false
+    - name:
+        text: Skill validation
+        truncated: false
+      result: passed
+      note:
+        text: .\skills\scripts\validate-cap4k-skills.ps1 passed.
+        truncated: false
+    - name:
+        text: Runtime facts validation
+        truncated: false
+      result: passed
+      note:
+        text: .\scripts\validate-current-runtime-facts.ps1 passed; Runtime remains
+          verified-no-change.
+        truncated: false
+    - name:
+        text: PR workflow tests
+        truncated: false
+      result: passed
+      note:
+        text: .\scripts\test-pr-workflow.ps1 passed.
+        truncated: false
+    - name:
+        text: diff whitespace validation
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check passed.
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: The long-drifted cap4k-reference-content-studio downstream project was not
+        run and no downstream compatibility conclusion is claimed.
+      truncated: false
+    - text: This change intentionally does not implement scheduler runtime, Job
+        generation, cron/misfire/retry semantics, entryFamily wire, process
+        artifacts, or process stitching.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-14T17:10:53.800Z
+blockers: []
+verification:
+  candidate_id: 0be0fb7c-16d5-444a-b8fd-e552f0820312
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:00295033-e182-4b60-b404-b078787ba328
+  iteration: 2
+  attempt: 2
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: focused-temporal
+      name:
+        text: Focused temporal Analyzer Flow and functional tests
+        truncated: false
+      argv_display:
+        - text: /d
+          truncated: false
+        - text: /c
+          truncated: false
+        - text: gradlew.bat
+          truncated: false
+        - text: :cap4k-plugin-code-analysis-compiler:test
+          truncated: false
+        - text: --tests
+          truncated: false
+        - text: com.only4.cap4k.plugin.codeanalysis.compiler.TemporalTriggerAnalysisTest
+          truncated: false
+        - text: :cap4k-plugin-pipeline-generator-flow:test
+          truncated: false
+        - text: --tests
+          truncated: false
+        - text: com.only4.cap4k.plugin.pipeline.generator.flow.TemporalTriggerFlowTest
+          truncated: false
+        - text: :cap4k-plugin-pipeline-gradle:test
+          truncated: false
+        - text: --tests
+          truncated: false
+        - text: com.only4.cap4k.plugin.pipeline.gradle.TemporalTriggerFlowFunctionalTest
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 22572
+    - id: gradle-check
+      name:
+        text: Full Gradle check
+        truncated: false
+      argv_display:
+        - text: /d
+          truncated: false
+        - text: /c
+          truncated: false
+        - text: gradlew.bat
+          truncated: false
+        - text: check
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 403708
+    - id: export-capability-facts
+      name:
+        text: Export capability contract facts
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: .\scripts\export-capability-contract-facts.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 4104
+    - id: validate-capability
+      name:
+        text: Validate capability contract
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: .\scripts\validate-capability-contract.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 4735
+    - id: test-capability
+      name:
+        text: Test capability contract validator
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: .\scripts\test-capability-contract.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 29995
+    - id: validate-skills
+      name:
+        text: Validate cap4k authoring Skill
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: .\skills\scripts\validate-cap4k-skills.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 4252
+    - id: validate-runtime-facts
+      name:
+        text: Validate current Runtime facts
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: .\scripts\validate-current-runtime-facts.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 5327
+    - id: test-pr-workflow
+      name:
+        text: Test PR workflow
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: .\scripts\test-pr-workflow.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 30304
+    - id: git-diff-check
+      name:
+        text: Git diff whitespace validation
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 97
+  summary:
+    text: PASS. A1-A178 all pass with no failed or blocked acceptance. Fresh
+      read-only Verify attempt 2 confirms the repaired implementation completely
+      removes retired generic command-sender production constants, types,
+      emission, fallback, aliases, and migration bridge; validates concrete
+      source role, relationship prefix, Command target, and sender-shaped
+      rejection while preserving future real adapter detector extension.
+      Analyzer, Flow, compiler-backed/focused/functional tests,
+      production-derived descriptors, AgentFacts/Public Docs/Skill, and all nine
+      Runtime checks are aligned. Runtime is verified-no-change; no scheduler
+      runtime, process stitching/artifacts, or entryFamily were added.
+    truncated: false
+  risks:
+    - text: Future adapter detectors must preserve the concrete node-role and
+        relationship-prefix naming contract and add focused Analyzer/Flow
+        coverage.
+      truncated: false
+    - text: The long-drifted cap4k-reference-content-studio downstream project was not
+        run; no downstream compatibility conclusion is claimed.
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-08-14T17:39:26.144Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: fail
+    unresolved_ids:
+      - A8
+      - A34
+      - A80
+      - A112
+      - A160
+    summary:
+      text: "FAIL: A8, A34, A80, A112, and A160 fail because Flow production code and
+        a focused test retain legacy
+        commandsendermethod/CommandSenderMethodToCommand compatibility behavior.
+        Return to Build, remove the legacy-specific guards/test behavior, and
+        revalidate."
+      truncated: false
+    completed_at: 2026-08-14T16:55:07.315Z
+  - goal_cycle: 1
+    iteration: 2
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: PASS. A1-A178 all pass with no failed or blocked acceptance. Repair
+        iteration 2 completely removes the retired generic command-sender
+        production constants, types, emission, fallback, aliases, and migration
+        bridge. Sender-shaped observations cannot become entries; explicit
+        ToCommand trigger relationships validate concrete source role, matching
+        relationship prefix, and Command target while remaining open to future
+        real adapter detectors. Compiler-backed tests, focused Flow tests, the
+        actual-Kotlin Gradle fixture, JSON/Mermaid/index outputs,
+        production-derived descriptors, AgentFacts/Public Docs/Skill
+        propagation, and all nine Runtime checks are aligned. Runtime remains
+        verified-no-change, and no scheduler runtime, process stitching, process
+        artifacts, or entryFamily were added.
+      truncated: false
+    completed_at: 2026-08-14T17:24:32.081Z
+  - goal_cycle: 1
+    iteration: 2
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Local Runtime was unavailable at Archive ready; the synchronized
+        implementation must be verified again.
+      truncated: false
+    completed_at: 2026-08-14T17:25:34.996Z
+  - goal_cycle: 1
+    iteration: 2
+    attempt: 2
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: PASS. A1-A178 all pass with no failed or blocked acceptance. Fresh
+        read-only Verify attempt 2 confirms the repaired implementation
+        completely removes retired generic command-sender production constants,
+        types, emission, fallback, aliases, and migration bridge; validates
+        concrete source role, relationship prefix, Command target, and
+        sender-shaped rejection while preserving future real adapter detector
+        extension. Analyzer, Flow, compiler-backed/focused/functional tests,
+        production-derived descriptors, AgentFacts/Public Docs/Skill, and all
+        nine Runtime checks are aligned. Runtime is verified-no-change; no
+        scheduler runtime, process stitching/artifacts, or entryFamily were
+        added.
+      truncated: false
+    completed_at: 2026-08-14T17:39:26.144Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-14T08:06:17.391Z

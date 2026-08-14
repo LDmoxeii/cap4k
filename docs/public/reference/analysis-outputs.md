@@ -83,7 +83,11 @@ cap4k {
 | `analysis/flows/*.json` | structured flow data。 |
 | `analysis/flows/*.mmd` | Mermaid flow rendering source。 |
 
-flow evidence 是从实际代码入口出发的默认业务因果投影：保留具体入口、Command、Domain Event 与 Integration Event，隐藏 Command/Event Handler 和 Entity Method，并把任意长度的已知隐藏路径收缩为可见节点之间的因果边。Query、Capability、Validator 等事实仍可存在于 raw graph，但不进入默认 Flow。它们不证明 business behavior 正确。
+flow evidence 是从实际代码入口出发的默认业务因果投影：保留具体入口、Command、Domain Event 与 Integration Event，隐藏 Command/Event Handler 和 Entity Method，并把任意长度的已知隐藏路径收缩为可见节点之间的因果边。概念入口分为 Actor、Event、Time；当前生产 detector 仅包括 Spring HTTP Controller method（Actor）、无上游 Inbound Integration Event（Event）和 Spring `@Scheduled` method（Time）。Query、Capability、Validator 等事实仍可存在于 raw graph，但不进入默认 Flow。它们不证明 business behavior 正确。
+
+Spring `@Scheduled` method 以真实 method 节点 `temporaltriggermethod` 出现在 raw graph 中，且只有直接发送 Command 时才通过 `TemporalTriggerMethodToCommand` 形成默认 causal Flow。仅发送 Query、调用 Capability 或执行纯技术逻辑的 scheduled method 不形成 Flow；普通内部 method 直接发送 Command 也不会生成通用 sender 入口。未来 RPC、CLI 等真实 adapter detector 可以用与来源节点语义匹配的显式 `*ToCommand` relationship 扩展 Flow，但任意后缀关系不自动获得入口资格，旧 `commandsendermethod` / `CommandSenderMethodToCommand` fallback 已删除。
+
+Temporal Trigger detection 只描述 Analyzer 观察到的代码入口与因果关系，不提供 scheduler runtime、Job generator、cron/misfire/retry 语义、`entryFamily` wire 或跨入口 process stitching。
 
 阅读 Flow 数量时使用以下规则：
 

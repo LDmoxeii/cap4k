@@ -11,7 +11,7 @@ enum class RelationshipType {
     ControllerMethodToCommand,
     ControllerMethodToQuery,
     ControllerMethodToCapability,
-    CommandSenderMethodToCommand,
+    TemporalTriggerMethodToCommand,
     QuerySenderMethodToQuery,
     CapabilitySenderMethodToCapability,
     ValidatorToQuery,
