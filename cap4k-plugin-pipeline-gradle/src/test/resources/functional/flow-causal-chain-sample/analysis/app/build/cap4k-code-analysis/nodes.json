@@ -1,0 +1,56 @@
+[
+  {
+    "id": "MediaProcessingCompletedIntegrationEvent",
+    "name": "MediaProcessingCompletedIntegrationEvent",
+    "fullName": "com.acme.demo.application.events.MediaProcessingCompletedIntegrationEvent",
+    "type": "integrationevent"
+  },
+  {
+    "id": "MediaProcessingCompletedHandler",
+    "name": "MediaProcessingCompletedHandler",
+    "fullName": "com.acme.demo.application.handlers.MediaProcessingCompletedHandler",
+    "type": "integrationeventhandler"
+  },
+  {
+    "id": "RecordMediaProcessingCmd",
+    "name": "RecordMediaProcessingCmd",
+    "fullName": "com.acme.demo.application.commands.RecordMediaProcessingCmd",
+    "type": "command"
+  },
+  {
+    "id": "RecordMediaProcessingHandler",
+    "name": "RecordMediaProcessingHandler",
+    "fullName": "com.acme.demo.application.handlers.RecordMediaProcessingHandler",
+    "type": "commandhandler"
+  },
+  {
+    "id": "MediaProcessing::record",
+    "name": "MediaProcessing::record",
+    "fullName": "com.acme.demo.domain.MediaProcessing::record",
+    "type": "entitymethod"
+  },
+  {
+    "id": "MediaProcessing::publish",
+    "name": "MediaProcessing::publish",
+    "fullName": "com.acme.demo.domain.MediaProcessing::publish",
+    "type": "entitymethod"
+  },
+  {
+    "id": "MediaProcessingRecorded",
+    "name": "MediaProcessingRecorded",
+    "fullName": "com.acme.demo.domain.events.MediaProcessingRecorded",
+    "type": "domainevent"
+  },
+  {
+    "id": "MediaProcessingRecordedHandler",
+    "name": "MediaProcessingRecordedHandler",
+    "fullName": "com.acme.demo.application.handlers.MediaProcessingRecordedHandler",
+    "type": "domaineventhandler"
+  },
+  {
+    "id": "PublishContentCmd",
+    "name": "PublishContentCmd",
+    "fullName": "com.acme.demo.application.commands.PublishContentCmd",
+    "type": "command"
+  }
+]

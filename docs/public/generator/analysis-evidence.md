@@ -91,6 +91,8 @@ flow evidence 可以帮助作者检查：
 - root 是否在投影完成后由真实入口证据与零入度共同决定，而不是把孤立 Command/Event 伪装成入口。
 - 分支、汇合、共享后缀和循环是否保持有限、稳定且可审查；默认 Flow 不自动拼接跨入口 process。
 
+连续的 raw graph evidence 从同一个真实入口延伸到 follow-up Command 时，应留在一张 Flow 中。两个各自具有入口证据、投影后均为零入度的真实入口应生成两张 Flow，即使共享下游后缀。阅读这种结果时，通过 `index.json`、稳定 entry identity 和共享可见节点建立关联，不要把共享后缀解释成自动 process stitching 的依据。
+
 flow evidence 只能说明代码连接方式。连接存在不代表业务规则正确；连接错位则应反馈到 technical design 或 implementation。
 
 ## Drawing Board
