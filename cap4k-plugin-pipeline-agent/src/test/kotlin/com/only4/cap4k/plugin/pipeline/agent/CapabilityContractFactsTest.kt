@@ -6,6 +6,7 @@ import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeCapabilityFact
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeOwnership
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeProviderFact
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerContractCatalog
 import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryAuthorities
 import com.only4.cap4k.plugin.pipeline.api.PipelineBoundaryKind
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityBoundary
@@ -109,6 +110,60 @@ class CapabilityContractFactsTest {
     }
 
     @Test
+    fun `Analyzer partition facts and dependency edges come from the production catalog`() {
+        val facts = CapabilityContractFactsFactory.derive(
+            descriptors = analyzerDescriptors(),
+            publicTasks = PipelinePublicTasks.contracts,
+        )
+
+        assertEquals("cap4k.capability-contract-facts.v3", facts.schema)
+        assertEquals(AnalyzerContractCatalog.partitions.sortedBy { it.id }, facts.analyzerPartitions)
+        AnalyzerContractCatalog.partitions.forEach { partition ->
+            assertTrue(facts.dependencyEdges.any { edge ->
+                edge.source == partition.sourceCapabilityId &&
+                    edge.target == partition.nodeId &&
+                    edge.relation == CapabilityContractRelation.PROJECTS_TO
+            })
+            partition.consumerCapabilityIds.forEach { consumerId ->
+                assertTrue(facts.dependencyEdges.any { edge ->
+                    edge.source == partition.nodeId &&
+                        edge.target == consumerId &&
+                        edge.relation == CapabilityContractRelation.REQUIRES
+                })
+            }
+            assertTrue(facts.dependencyEdges.any { edge ->
+                edge.source == partition.nodeId &&
+                    edge.target == "agent.analysis" &&
+                    edge.relation == CapabilityContractRelation.PROJECTS_TO
+            })
+        }
+    }
+
+    @Test
+    fun `Analyzer partition identities and graph nodes must be unique`() {
+        val duplicateId = AnalyzerContractCatalog.GRAPH.copy(nodeId = "analyzer.partition.graph-copy")
+        val duplicateNode = AnalyzerContractCatalog.GRAPH.copy(id = "graphCopy")
+
+        val duplicateIdFailure = assertThrows(IllegalArgumentException::class.java) {
+            CapabilityContractFactsFactory.derive(
+                descriptors = analyzerDescriptors(),
+                publicTasks = PipelinePublicTasks.contracts,
+                analyzerPartitions = AnalyzerContractCatalog.partitions + duplicateId,
+            )
+        }
+        val duplicateNodeFailure = assertThrows(IllegalArgumentException::class.java) {
+            CapabilityContractFactsFactory.derive(
+                descriptors = analyzerDescriptors(),
+                publicTasks = PipelinePublicTasks.contracts,
+                analyzerPartitions = AnalyzerContractCatalog.partitions + duplicateNode,
+            )
+        }
+
+        assertTrue(duplicateIdFailure.message.orEmpty().contains("duplicate Analyzer partition id"))
+        assertTrue(duplicateNodeFailure.message.orEmpty().contains("duplicate Analyzer partition node"))
+    }
+
+    @Test
     fun `runtime propagation closure reaches every downstream capability and projection surface`() {
         val facts = CapabilityContractFactsFactory.derive(
             descriptors = listOf(generatorDescriptor()),
@@ -192,6 +247,36 @@ class CapabilityContractFactsTest {
 
         assertTrue(failure.message.orEmpty().contains("runtime.missing"))
     }
+
+    private fun analyzerDescriptors(): List<PipelineCapabilityDescriptor> = listOf(
+        PipelineCapabilityDescriptor.builtIn(
+            providerId = "ir-analysis",
+            displayName = "IR Analysis Source",
+            kind = PipelineCapabilityKind.SOURCE,
+            module = "cap4k-plugin-pipeline-source-ir-analysis",
+            executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
+            tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+            boundaries = emptyList(),
+        ),
+        PipelineCapabilityDescriptor.builtIn(
+            providerId = "flow",
+            displayName = "Flow Generator",
+            kind = PipelineCapabilityKind.GENERATOR,
+            module = "cap4k-plugin-pipeline-generator-flow",
+            executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
+            tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+            boundaries = emptyList(),
+        ),
+        PipelineCapabilityDescriptor.builtIn(
+            providerId = "drawing-board",
+            displayName = "Drawing Board Generator",
+            kind = PipelineCapabilityKind.GENERATOR,
+            module = "cap4k-plugin-pipeline-generator-drawing-board",
+            executionLanes = listOf(PipelineExecutionLane.ANALYSIS),
+            tasks = listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
+            boundaries = emptyList(),
+        ),
+    )
 
     private fun generatorDescriptor() = PipelineCapabilityDescriptor.builtIn(
         providerId = "sample",

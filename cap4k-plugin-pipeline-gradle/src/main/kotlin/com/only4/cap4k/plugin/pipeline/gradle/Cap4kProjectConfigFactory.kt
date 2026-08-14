@@ -163,7 +163,15 @@ class Cap4kProjectConfigFactory {
 
         if (states.irAnalysisConfigured) {
             val inputDirs = extension.sources.irAnalysis.inputDirs.files.map(File::getAbsolutePath).sorted()
-            put("ir-analysis", SourceConfig(options = mapOf("inputDirs" to inputDirs)))
+            put(
+                "ir-analysis",
+                SourceConfig(
+                    options = mapOf(
+                        "inputDirs" to inputDirs,
+                        "projectDir" to project.rootProject.projectDir.absolutePath,
+                    )
+                )
+            )
         }
         if (states.enumManifestConfigured) {
             val files = extension.types.enumManifest.files.files.map(File::getAbsolutePath).sorted()

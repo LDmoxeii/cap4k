@@ -83,33 +83,29 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
-    fun `rejects missing aggregate metadata before flow planning`() {
+    fun `flow planner reads graph facts without validating aggregate structure metadata`() {
         val planner = FlowArtifactPlanner()
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            planner.plan(
-                config(),
-                CanonicalModel(
-                    analysisGraph = AnalysisGraphModel(
-                        inputDirs = listOf("domain/build/cap4k-code-analysis"),
-                        nodes = listOf(
-                            AnalysisNodeModel(
-                                id = "demo.domain.Order",
-                                name = "Order",
-                                fullName = "demo.domain.Order",
-                                type = "aggregate",
-                                missingMetadata = listOf("com.only4.cap4k.analysis.metadata.AggregateElementMetadata"),
-                                metadataOwner = "demo.domain.Order",
-                            )
-                        ),
-                        edges = emptyList(),
+        val plan = planner.plan(
+            config(),
+            CanonicalModel(
+                analysisGraph = AnalysisGraphModel(
+                    inputDirs = listOf("domain/build/cap4k-code-analysis"),
+                    nodes = listOf(
+                        AnalysisNodeModel(
+                            id = "demo.domain.Order",
+                            name = "Order",
+                            fullName = "demo.domain.Order",
+                            type = "aggregate",
+                            missingMetadata = listOf("com.only4.cap4k.analysis.metadata.AggregateElementMetadata"),
+                            metadataOwner = "demo.domain.Order",
+                        )
                     ),
+                    edges = emptyList(),
                 ),
-            )
-        }
+            ),
+        )
 
-        assertTrue(error.message!!.contains("demo.domain.Order"))
-        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
-        assertTrue(error.message!!.contains("compileOnly classpath"))
+        assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
     }
 
     @Test

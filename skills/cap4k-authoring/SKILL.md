@@ -27,6 +27,7 @@ If Gradle fails before the Agent API task starts, use the ordinary Gradle failur
 - Prepare supported inputs, review plan and diagnostics, then run mutation tasks. Do not handwrite a generator-supported parallel skeleton.
 - Put durable business logic only in checked-in author-owned surfaces or explicit handwritten exceptions. Never edit build-owned generated source or generated evidence as source truth.
 - Treat analyzer output as observation, not business truth or automatic generator input. A current-contract Drawing Board file may be explicitly registered as Design JSON after reviewing context ownership and any event-direction decision.
+- When reading `analysis.json` v2, select the operation-owned Analyzer partition and inspect its local status, sources, freshness, outputs, and diagnostics; the section status is not a substitute for partition evidence.
 - Keep Domain Events as explicit immutable historical facts; never relax the Aggregate/Entity payload boundary.
 - Do not assume a provider or tactical carrier exists. Read the machine catalog and report unsupported/provider-owned boundaries honestly.
 - Use only public tasks and inputs reported by the installed Agent snapshot; project initialization stays outside the pipeline task surface.

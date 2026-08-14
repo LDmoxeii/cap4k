@@ -15,7 +15,7 @@
 | `inputs.json` | configured input、local path/readability、external-I/O safety、脱敏 identity 与显式 plan task。 |
 | `ownership.json` | 既有 plan 中的 output kind、conflict policy、managed roots 与 freshness。 |
 | `runtime.json` | v3 静态 Runtime capability/provider facts、Event Handler contract、runtime/provider boundaries 与已加载 extension contribution 概要。 |
-| `analysis.json` | analysis 配置、IR node/edge/design-element counts、计划输出、当前可用输出、既有 evidence 与可证明范围。 |
+| `analysis.json` | v2 Analyzer 分区事实：`graph`、`designProjection`、`aggregateStructure` 各自的 requested/status/count/source/freshness/output/diagnostic。 |
 | `diagnostics.json` | 稳定 diagnostic identity、level、stage、path、message 与 actionable hint。 |
 <!-- /CAPABILITY_CONTRACT:AGENT_SECTIONS -->
 
@@ -62,7 +62,11 @@ Agent validation 的状态闭集是 `verified`、`unknown`、`failed`。它只�
 
 配置了 DB source 时，Agent task 只报告 source 已配置、所需 task 与脱敏 identity；它不连接数据库，也不声称 live schema 已验证为最新。
 
-`analysis.json` 区分 `plannedOutputPaths` 与 `availableOutputPaths`。只运行 `cap4kAnalysisPlan` 时，fresh plan 可以证明将生成什么，但不能证明 artifacts 已存在；此时 analysis 分区为 `partial` 并给出 `cap4kAnalysisGenerate`。只有计划输出都存在且不早于当前 plan 时，该分区才把 outputs 报告为 available。
+`analysis.json` 使用 `cap4k.agent.analysis.v2`，固定公开 `graph`、`designProjection`、`aggregateStructure` 三个分区。每个分区独立报告 `requested`、`status`、`counts`、`sources`、`freshness`、`plannedOutputPaths`、`availableOutputPaths`、`diagnosticIds`、`nextAction` 与 `reason`。`sources` 的稳定 identity 和本地路径用于解释跨模块合并与冲突证据；读取方不得用另一个分区的成功掩盖当前分区的不完整。
+
+section 顶层 `status` 只聚合本次 generator 配置实际请求的分区：`flow` 请求 `graph`；`drawing-board` 请求 `designProjection` 与 `aggregateStructure`。未请求分区仍保留当前观察事实和诊断，但不会把 section 顶层状态降级。没有任何分区被请求时，section 为 `unavailable`。
+
+每个分区分别区分 `plannedOutputPaths` 与 `availableOutputPaths`。只运行 `cap4kAnalysisPlan` 时，fresh plan 可以证明将生成什么，但不能证明 artifacts 已存在；相应 requested 分区为 `partial` 并给出 `cap4kAnalysisGenerate`。只有该分区的计划输出都存在且不早于当前 plan 时，才把 outputs 报告为 available。
 
 Pipeline Extension discovery 只读取本地 resolved classpath metadata。Extension SPI 要求 provider 构造、descriptor 和 contribution discovery 保持确定、无副作用，不得连接网络、数据库或其他 live source，也不得修改文件或启动进程；真正的 contribution work 只能在显式 pipeline operation 中执行。若 extension inspection 失败，`runtime.externalIoSafe` 为 `false`，snapshot 同时以 structured diagnostic 报告失败，不能对该次检查作安全性声明。
 
@@ -70,7 +74,7 @@ Pipeline Extension discovery 只读取本地 resolved classpath metadata。Exten
 
 ## Runtime Facts
 
-Agent contract version 3 将 `runtime.json` 升级为 `cap4k.agent.runtime.v3`。该文件仍是静态、只读的框架事实，不启动 Spring application，不检查 classpath 是否装配 provider，也不读取 broker 或 live registry。
+Agent contract version 4 保留 `runtime.json` 的 `cap4k.agent.runtime.v3`。该文件仍是静态、只读的框架事实，不启动 Spring application，不检查 classpath 是否装配 provider，也不读取 broker 或 live registry。
 
 <!-- CAPABILITY_CONTRACT:RUNTIME_CAPABILITIES -->
 当前 Runtime capability catalog 固定为：

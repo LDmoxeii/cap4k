@@ -189,7 +189,7 @@ function Get-DeclaredChangedNodes {
 
 function Assert-CapabilityImpactAlignment {
     param([string] $Markdown, [object] $Facts, [string] $ChangedFilesPath)
-    if ($Facts.schema -ne 'cap4k.capability-contract-facts.v2') { throw "Capability impact alignment requires facts schema cap4k.capability-contract-facts.v2; got $($Facts.schema)." }
+    if ($Facts.schema -ne 'cap4k.capability-contract-facts.v3') { throw "Capability impact alignment requires facts schema cap4k.capability-contract-facts.v3; got $($Facts.schema)." }
     if ([string]$Facts.pathMatchPolicy -ne 'first_match') { throw "Unsupported capability path match policy: $($Facts.pathMatchPolicy)" }
 
     $rows = Get-CapabilityImpactRows -Markdown $Markdown

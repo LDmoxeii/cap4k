@@ -32,7 +32,8 @@ import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
-import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSnapshot
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnosticsException
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
@@ -82,7 +83,22 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
         val valueObjectDeclarations = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.declarations }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
-        val analysisSnapshot = snapshots.filterIsInstance<IrAnalysisSnapshot>().firstOrNull()
+        val analysisSnapshot = snapshots.filterIsInstance<AnalyzerSnapshot>().firstOrNull()
+        analysisSnapshot?.let { snapshot ->
+            if ("flow" in config.generators) {
+                require(snapshot.graph.status == AgentSnapshotStatus.OK) {
+                    analyzerPartitionFailure("graph", snapshot.graph.diagnostics.map { it.message })
+                }
+            }
+            if ("drawing-board" in config.generators) {
+                require(snapshot.designProjection.status == AgentSnapshotStatus.OK) {
+                    analyzerPartitionFailure("designProjection", snapshot.designProjection.diagnostics.map { it.message })
+                }
+                require(snapshot.aggregateStructure.status == AgentSnapshotStatus.OK) {
+                    analyzerPartitionFailure("aggregateStructure", snapshot.aggregateStructure.diagnostics.map { it.message })
+                }
+            }
+        }
         val designEntries = designSnapshot?.entries.orEmpty()
         designEntries.forEach { entry ->
             require(entry.tag in SupportedDesignBlockTags) {
@@ -286,7 +302,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             enums = sharedEnums,
             valueObjects = valueObjectDeclarations,
             designEntries = designEntries,
-            recoveredDesignElements = analysisSnapshot?.designElements.orEmpty(),
+            recoveredDesignElements = analysisSnapshot?.designProjection?.designBlocks.orEmpty(),
         )
         val semanticCompiler = SemanticValueCompiler(semanticTypeCatalog)
         val valueObjects = valueObjectDeclarations.map { declaration ->
@@ -430,6 +446,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
 
         val aggregateElements = analysisSnapshot
+            ?.aggregateStructure
             ?.aggregateElements
             .orEmpty()
             .map { element ->
@@ -445,10 +462,10 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             .sortedBy(AggregateElementModel::carrierQualifiedName)
 
-        val analysisGraph = analysisSnapshot?.let {
+        val analysisGraph = analysisSnapshot?.graph?.let { graph ->
             AnalysisGraphModel(
-                inputDirs = it.inputDirs,
-                nodes = it.nodes.map { node ->
+                inputDirs = graph.sources.map { it.inputDir },
+                nodes = graph.nodes.map { node ->
                     AnalysisNodeModel(
                         id = node.id,
                         name = node.name,
@@ -458,7 +475,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         metadataOwner = node.metadataOwner,
                     )
                 },
-                edges = it.edges.map { edge ->
+                edges = graph.relationships.map { edge ->
                     AnalysisEdgeModel(
                         fromId = edge.fromId,
                         toId = edge.toId,
@@ -470,7 +487,8 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         }
 
         val drawingBoardElements = analysisSnapshot
-            ?.designElements
+            ?.designProjection
+            ?.designBlocks
             .orEmpty()
             .mapNotNull { element ->
                 element.toDrawingBoardElementOrNull(
@@ -2096,3 +2114,15 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
     }
 
 }
+
+
+private fun analyzerPartitionFailure(partition: String, diagnostics: List<String>): String =
+    buildString {
+        append("Analyzer partition '")
+        append(partition)
+        append("' is invalid")
+        if (diagnostics.isNotEmpty()) {
+            append(": ")
+            append(diagnostics.joinToString("; "))
+        }
+    }

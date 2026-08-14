@@ -11,7 +11,10 @@ import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotCodec
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotRequest
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotService
 import com.only4.cap4k.plugin.pipeline.agent.RuntimeAgentFactsCatalog
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisPartition
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisPartitionIds
 import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSection
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSource
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityObservation
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnostic
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticLevel
@@ -32,7 +35,9 @@ import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
 import com.only4.cap4k.plugin.pipeline.api.CAP4K_PLAN_EVIDENCE_SCHEMA
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
-import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSnapshot
+import com.only4.cap4k.plugin.pipeline.api.analyzerSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.analyzerSourceIdentity
 import com.only4.cap4k.plugin.pipeline.api.ManagedFieldPolicyProvider
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityDescriptor
 import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityActivation
@@ -637,6 +642,15 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
                 reason = "sources.irAnalysis.inputDirs is not configured.",
             )
         }
+        val sourceProvider = sourceProviders.getValue("ir-analysis")
+        val configuredInputDirs = sourceProvider.localInputPaths(taskConfig)
+        val fallbackSources = configuredInputDirs.map { path ->
+            val source = analyzerSourceIdentity(path, project.rootProject.projectDir.absolutePath)
+            AgentAnalysisSource(
+                id = source.id,
+                path = displayPath(path),
+            )
+        }
         val planFile = project.layout.buildDirectory.file("cap4k/analysis-plan.json").get().asFile
         val report = readPlanReport(planFile, redactor, diagnostics)
         val planFailureReason = report
@@ -674,45 +688,209 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
             planOutcome = report?.outcome,
             nextAction = "cap4kAnalysisPlan",
         )
-        val observedInput = runCatching {
-            sourceProviders.getValue("ir-analysis").collect(taskConfig) as IrAnalysisSnapshot
-        }.getOrNull()
-        val plannedOutputPaths = report?.items.orEmpty().map { item -> displayPath(item.outputPath) }
-        val availableOutputPaths = report?.items.orEmpty().mapNotNull { item ->
+        val observation = runCatching {
+            sourceProvider.collect(taskConfig) as AnalyzerSnapshot
+        }
+        val observedInput = observation.getOrNull()
+        val collectFailure = observation.exceptionOrNull()
+        if (collectFailure != null) {
+            AgentAnalysisPartitionIds.ALL.forEach { partitionId ->
+                diagnostics += diagnostic(
+                    id = "analyzer.${analysisPartitionSlug(partitionId)}.collect-failed",
+                    level = AgentDiagnosticLevel.ERROR,
+                    stage = "analysis-source",
+                    capabilityId = "pipeline.source.ir-analysis",
+                    message = redactor.redact(collectFailure.message ?: collectFailure.javaClass.simpleName),
+                    hint = "Fix the Analyzer raw evidence for this partition and run cap4kAnalysisPlan again.",
+                )
+            }
+        }
+
+        val plannedByPartition = AgentAnalysisPartitionIds.ALL.associateWith { mutableListOf<String>() }
+        val availableByPartition = AgentAnalysisPartitionIds.ALL.associateWith { mutableListOf<String>() }
+        report?.items.orEmpty().forEach { item ->
+            val partitionId = analysisPartitionId(item.generatorId, item.outputPath) ?: return@forEach
+            val outputPath = displayPath(item.outputPath)
+            plannedByPartition.getValue(partitionId) += outputPath
             val outputFile = project.file(item.outputPath)
-            outputFile.takeIf { file ->
-                projectOwned(file) && file.isFile && file.lastModified() >= planFile.lastModified()
-            }?.let { file -> projectRelativePath(file) }
+            if (projectOwned(outputFile) && outputFile.isFile && outputFile.lastModified() >= planFile.lastModified()) {
+                availableByPartition.getValue(partitionId) += projectRelativePath(outputFile)
+            }
         }
-        val evidenceStatus = evidenceStatus(report, freshness.freshness)
-        val outputsAvailable = plannedOutputPaths.size == availableOutputPaths.size
-        val status = when {
-            evidenceStatus != AgentSnapshotStatus.OK -> evidenceStatus
-            !outputsAvailable -> AgentSnapshotStatus.PARTIAL
-            else -> AgentSnapshotStatus.OK
+        val requestedPartitions = buildSet {
+            if ("flow" in taskConfig.generators) add(AgentAnalysisPartitionIds.GRAPH)
+            if ("drawing-board" in taskConfig.generators) {
+                add(AgentAnalysisPartitionIds.DESIGN_PROJECTION)
+                add(AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE)
+            }
         }
+        val planStatus = evidenceStatus(report, freshness.freshness)
+        val sourcePathById = observedInput
+            ?.let { snapshot ->
+                (snapshot.graph.sources + snapshot.designProjection.sources + snapshot.aggregateStructure.sources)
+                    .distinctBy { source -> source.id }
+                    .associate { source -> source.id to displayPath(source.inputDir) }
+            }
+            .orEmpty()
+        fun sourcesOf(sources: List<com.only4.cap4k.plugin.pipeline.api.AnalyzerSourceIdentity>?): List<AgentAnalysisSource> =
+            sources.orEmpty()
+                .map { source -> AgentAnalysisSource(source.id, sourcePathById[source.id] ?: displayPath(source.inputDir)) }
+                .distinctBy(AgentAnalysisSource::id)
+                .sortedBy(AgentAnalysisSource::id)
+                .ifEmpty { fallbackSources }
+        fun publishDiagnostics(
+            partitionId: String,
+            partitionDiagnostics: List<com.only4.cap4k.plugin.pipeline.api.AnalyzerPartitionDiagnostic>,
+        ) {
+            partitionDiagnostics.forEach { partitionDiagnostic ->
+                diagnostics += diagnostic(
+                    id = partitionDiagnostic.id,
+                    level = AgentDiagnosticLevel.ERROR,
+                    stage = "analysis-source",
+                    capabilityId = "pipeline.source.ir-analysis",
+                    inputPath = partitionDiagnostic.sourceId?.let(sourcePathById::get),
+                    message = redactor.redact(partitionDiagnostic.message),
+                    hint = "Fix the Analyzer ${analysisPartitionSlug(partitionId)} evidence and run cap4kAnalysisPlan again.",
+                )
+            }
+        }
+        observedInput?.let { snapshot ->
+            if (AgentAnalysisPartitionIds.GRAPH in requestedPartitions) {
+                publishDiagnostics(AgentAnalysisPartitionIds.GRAPH, snapshot.graph.diagnostics)
+            }
+            if (AgentAnalysisPartitionIds.DESIGN_PROJECTION in requestedPartitions) {
+                publishDiagnostics(AgentAnalysisPartitionIds.DESIGN_PROJECTION, snapshot.designProjection.diagnostics)
+            }
+            if (AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE in requestedPartitions) {
+                publishDiagnostics(AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE, snapshot.aggregateStructure.diagnostics)
+            }
+        }
+
+        fun partition(
+            id: String,
+            rawStatus: AgentSnapshotStatus,
+            counts: Map<String, Int>,
+            sources: List<AgentAnalysisSource>,
+            diagnosticIds: List<String>,
+        ): AgentAnalysisPartition {
+            val plannedOutputs = plannedByPartition.getValue(id).distinct().sorted()
+            val availableOutputs = availableByPartition.getValue(id).distinct().sorted()
+            val requested = id in requestedPartitions
+            val status = analysisPartitionStatus(
+                rawStatus = rawStatus,
+                requested = requested,
+                planStatus = planStatus,
+                plannedOutputs = plannedOutputs,
+                availableOutputs = availableOutputs,
+            )
+            val outputsAvailable = plannedOutputs.size == availableOutputs.size
+            val reason = when {
+                !requested -> "This Analyzer partition is not requested by the configured generators."
+                rawStatus == AgentSnapshotStatus.INVALID -> "Analyzer raw evidence for " + analysisPartitionSlug(id) + " is invalid."
+                planStatus != AgentSnapshotStatus.OK -> planFailureReason ?: freshness.reason
+                !outputsAvailable -> "Analysis plan is fresh, but planned " + analysisPartitionSlug(id) + " outputs are missing or older than the plan."
+                else -> null
+            }
+            return AgentAnalysisPartition(
+                id = id,
+                requested = requested,
+                status = status,
+                counts = if (requested) counts else counts.mapValues { 0 },
+                sources = if (requested) sources else emptyList(),
+                freshness = if (requested) freshness.freshness else AgentEvidenceFreshness.UNKNOWN,
+                plannedOutputPaths = if (requested) plannedOutputs else emptyList(),
+                availableOutputPaths = if (requested) availableOutputs else emptyList(),
+                diagnosticIds = if (requested) diagnosticIds.distinct().sorted() else emptyList(),
+                nextAction = when {
+                    !requested -> null
+                    rawStatus == AgentSnapshotStatus.INVALID -> "cap4kAnalysisPlan"
+                    planStatus != AgentSnapshotStatus.OK -> "cap4kAnalysisPlan"
+                    !outputsAvailable -> "cap4kAnalysisGenerate"
+                    else -> null
+                },
+                reason = reason,
+            )
+        }
+
+        val fallbackDiagnosticIds = AgentAnalysisPartitionIds.ALL.associateWith { id ->
+            if (collectFailure == null) emptyList() else listOf("analyzer.${analysisPartitionSlug(id)}.collect-failed")
+        }
+        val partitions = listOf(
+            partition(
+                id = AgentAnalysisPartitionIds.GRAPH,
+                rawStatus = observedInput?.graph?.status ?: AgentSnapshotStatus.INVALID,
+                counts = mapOf(
+                    "nodes" to observedInput?.graph?.nodes.orEmpty().size,
+                    "relationships" to observedInput?.graph?.relationships.orEmpty().size,
+                ),
+                sources = sourcesOf(observedInput?.graph?.sources),
+                diagnosticIds = observedInput?.graph?.diagnostics.orEmpty().map { it.id } + fallbackDiagnosticIds.getValue(AgentAnalysisPartitionIds.GRAPH),
+            ),
+            partition(
+                id = AgentAnalysisPartitionIds.DESIGN_PROJECTION,
+                rawStatus = observedInput?.designProjection?.status ?: AgentSnapshotStatus.INVALID,
+                counts = mapOf("designBlocks" to observedInput?.designProjection?.designBlocks.orEmpty().size),
+                sources = sourcesOf(observedInput?.designProjection?.sources),
+                diagnosticIds = observedInput?.designProjection?.diagnostics.orEmpty().map { it.id } + fallbackDiagnosticIds.getValue(AgentAnalysisPartitionIds.DESIGN_PROJECTION),
+            ),
+            partition(
+                id = AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE,
+                rawStatus = observedInput?.aggregateStructure?.status ?: AgentSnapshotStatus.INVALID,
+                counts = mapOf("aggregateElements" to observedInput?.aggregateStructure?.aggregateElements.orEmpty().size),
+                sources = sourcesOf(observedInput?.aggregateStructure?.sources),
+                diagnosticIds = observedInput?.aggregateStructure?.diagnostics.orEmpty().map { it.id } + fallbackDiagnosticIds.getValue(AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE),
+            ),
+        )
+        val status = analyzerSnapshotStatus(
+            partitions.filter(AgentAnalysisPartition::requested).map(AgentAnalysisPartition::status),
+        )
         return AgentAnalysisSection(
             status = status,
             configured = true,
-            inputDirs = sourceProviders.getValue("ir-analysis").localInputPaths(taskConfig)
-                .map { path -> displayPath(path) },
-            nodeCount = observedInput?.nodes?.size,
-            edgeCount = observedInput?.edges?.size,
-            designElementCount = observedInput?.designElements?.size,
+            inputDirs = configuredInputDirs.map(::displayPath),
             evidence = evidence,
-            plannedOutputPaths = plannedOutputPaths,
-            availableOutputPaths = availableOutputPaths,
-            nextAction = when {
-                evidenceStatus != AgentSnapshotStatus.OK -> "cap4kAnalysisPlan"
-                !outputsAvailable -> "cap4kAnalysisGenerate"
-                else -> null
-            },
-            reason = planFailureReason ?: when {
-                evidenceStatus != AgentSnapshotStatus.OK -> freshness.reason
-                !outputsAvailable -> "Analysis plan is fresh, but planned outputs are missing or older than the plan."
-                else -> null
+            partitions = partitions,
+            reason = when (status) {
+                AgentSnapshotStatus.OK -> null
+                AgentSnapshotStatus.INVALID -> "One or more requested Analyzer partitions are invalid."
+                AgentSnapshotStatus.PARTIAL -> "One or more requested Analyzer partitions are incomplete or stale."
+                AgentSnapshotStatus.UNAVAILABLE -> "No Analyzer partition is requested."
             },
         )
+    }
+
+    private fun analysisPartitionId(generatorId: String, outputPath: String): String? = when (generatorId) {
+        "flow" -> AgentAnalysisPartitionIds.GRAPH
+        "drawing-board" -> if (outputPath.replace('\\', '/').endsWith("/drawing_board_aggregate_elements.json")) {
+            AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE
+        } else {
+            AgentAnalysisPartitionIds.DESIGN_PROJECTION
+        }
+        else -> null
+    }
+
+    private fun analysisPartitionSlug(partitionId: String): String = when (partitionId) {
+        AgentAnalysisPartitionIds.GRAPH -> "graph"
+        AgentAnalysisPartitionIds.DESIGN_PROJECTION -> "design-projection"
+        AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE -> "aggregate-structure"
+        else -> error("unsupported Analyzer partition: $partitionId")
+    }
+
+    private fun analysisPartitionStatus(
+        rawStatus: AgentSnapshotStatus,
+        requested: Boolean,
+        planStatus: AgentSnapshotStatus,
+        plannedOutputs: List<String>,
+        availableOutputs: List<String>,
+    ): AgentSnapshotStatus = when {
+        !requested -> AgentSnapshotStatus.UNAVAILABLE
+        rawStatus == AgentSnapshotStatus.INVALID -> AgentSnapshotStatus.INVALID
+        rawStatus == AgentSnapshotStatus.UNAVAILABLE -> AgentSnapshotStatus.UNAVAILABLE
+        rawStatus == AgentSnapshotStatus.PARTIAL -> AgentSnapshotStatus.PARTIAL
+        planStatus == AgentSnapshotStatus.INVALID -> AgentSnapshotStatus.INVALID
+        planStatus != AgentSnapshotStatus.OK -> AgentSnapshotStatus.PARTIAL
+        plannedOutputs.size != availableOutputs.size -> AgentSnapshotStatus.PARTIAL
+        else -> AgentSnapshotStatus.OK
     }
 
     private fun runtimeSection(

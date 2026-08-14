@@ -1,13 +1,13 @@
 package com.only4.cap4k.plugin.pipeline.api
 
-const val CAP4K_AGENT_CONTRACT_VERSION: Int = 3
+const val CAP4K_AGENT_CONTRACT_VERSION: Int = 4
 const val CAP4K_AGENT_MANIFEST_SCHEMA: String = "cap4k.agent.manifest.v1"
 const val CAP4K_AGENT_PROJECT_SCHEMA: String = "cap4k.agent.project.v1"
 const val CAP4K_AGENT_CAPABILITIES_SCHEMA: String = "cap4k.agent.capabilities.v1"
 const val CAP4K_AGENT_INPUTS_SCHEMA: String = "cap4k.agent.inputs.v1"
 const val CAP4K_AGENT_OWNERSHIP_SCHEMA: String = "cap4k.agent.ownership.v1"
 const val CAP4K_AGENT_RUNTIME_SCHEMA: String = "cap4k.agent.runtime.v3"
-const val CAP4K_AGENT_ANALYSIS_SCHEMA: String = "cap4k.agent.analysis.v1"
+const val CAP4K_AGENT_ANALYSIS_SCHEMA: String = "cap4k.agent.analysis.v2"
 const val CAP4K_AGENT_DIAGNOSTICS_SCHEMA: String = "cap4k.agent.diagnostics.v1"
 const val CAP4K_PLAN_EVIDENCE_SCHEMA: String = "cap4k.plan-evidence.v1"
 
@@ -349,20 +349,63 @@ data class AgentRuntimeSection(
     val reason: String? = null,
 )
 
+object AgentAnalysisPartitionIds {
+    const val GRAPH: String = "graph"
+    const val DESIGN_PROJECTION: String = "designProjection"
+    const val AGGREGATE_STRUCTURE: String = "aggregateStructure"
+
+    val ALL: List<String> = listOf(GRAPH, DESIGN_PROJECTION, AGGREGATE_STRUCTURE)
+}
+
+data class AgentAnalysisSource(
+    val id: String,
+    val path: String,
+) {
+    init {
+        require(id.isNotBlank()) { "analysis source id must not be blank" }
+        require(path.isNotBlank()) { "analysis source path must not be blank" }
+    }
+}
+
+data class AgentAnalysisPartition(
+    val id: String,
+    val requested: Boolean,
+    val status: AgentSnapshotStatus,
+    val counts: Map<String, Int> = emptyMap(),
+    val sources: List<AgentAnalysisSource> = emptyList(),
+    val freshness: AgentEvidenceFreshness = AgentEvidenceFreshness.UNKNOWN,
+    val plannedOutputPaths: List<String> = emptyList(),
+    val availableOutputPaths: List<String> = emptyList(),
+    val diagnosticIds: List<String> = emptyList(),
+    val nextAction: String? = null,
+    val reason: String? = null,
+) {
+    init {
+        require(id in AgentAnalysisPartitionIds.ALL) { "unsupported analysis partition id: $id" }
+        require(counts.values.all { it >= 0 }) { "analysis partition counts must not be negative" }
+    }
+}
+
 data class AgentAnalysisSection(
     val schema: String = CAP4K_AGENT_ANALYSIS_SCHEMA,
     val status: AgentSnapshotStatus,
     val configured: Boolean,
     val inputDirs: List<String> = emptyList(),
-    val nodeCount: Int? = null,
-    val edgeCount: Int? = null,
-    val designElementCount: Int? = null,
     val evidence: AgentEvidence? = null,
-    val plannedOutputPaths: List<String> = emptyList(),
-    val availableOutputPaths: List<String> = emptyList(),
-    val nextAction: String? = null,
+    val partitions: List<AgentAnalysisPartition> = emptyList(),
     val reason: String? = null,
-)
+) {
+    init {
+        require(schema == CAP4K_AGENT_ANALYSIS_SCHEMA) { "unsupported agent analysis schema: $schema" }
+        val ids = partitions.map(AgentAnalysisPartition::id)
+        require(ids.distinct().size == ids.size) { "duplicate agent analysis partition id" }
+        if (configured) {
+            require(ids.toSet() == AgentAnalysisPartitionIds.ALL.toSet()) {
+                "configured analysis must expose graph, designProjection, and aggregateStructure partitions"
+            }
+        }
+    }
+}
 
 data class AgentDiagnostic(
     val id: String,

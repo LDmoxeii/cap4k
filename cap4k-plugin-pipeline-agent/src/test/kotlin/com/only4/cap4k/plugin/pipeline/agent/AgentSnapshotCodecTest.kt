@@ -1,6 +1,9 @@
 package com.only4.cap4k.plugin.pipeline.agent
 
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisPartition
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisPartitionIds
 import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSection
+import com.only4.cap4k.plugin.pipeline.api.AgentAnalysisSource
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilitiesSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnostic
@@ -68,7 +71,7 @@ class AgentSnapshotCodecTest {
         )
         assertEquals(encoded.sectionsByPath.size + 1, encoded.filesByPath.size)
         assertEquals(AgentSnapshotStatus.PARTIAL, encoded.manifest.status)
-        assertEquals(3, encoded.manifest.contractVersion)
+        assertEquals(4, encoded.manifest.contractVersion)
         val runtimeReference = encoded.manifest.sections.single { section -> section.id == "runtime" }
         assertEquals(7, runtimeReference.counts["capabilities"])
         assertEquals(3, runtimeReference.counts["providers"])
@@ -154,6 +157,74 @@ class AgentSnapshotCodecTest {
 
         assertEquals(first.manifest.snapshotId, reordered.manifest.snapshotId)
         assertEquals(first.filesByPath, reordered.filesByPath)
+    }
+
+    @Test
+    fun `analysis v2 encodes normalized partition local evidence`() {
+        val analysis = AgentAnalysisSection(
+            status = AgentSnapshotStatus.PARTIAL,
+            configured = true,
+            inputDirs = listOf("build\\cap4k-code-analysis", "build/cap4k-code-analysis"),
+            partitions = listOf(
+                AgentAnalysisPartition(
+                    id = AgentAnalysisPartitionIds.GRAPH,
+                    requested = true,
+                    status = AgentSnapshotStatus.OK,
+                    counts = linkedMapOf("relationships" to 2, "nodes" to 3),
+                    sources = listOf(
+                        AgentAnalysisSource("source-b", "module-b\\build\\analysis"),
+                        AgentAnalysisSource("source-a", "module-a/build/analysis"),
+                    ),
+                    plannedOutputPaths = listOf("analysis\\flows\\index.json", "analysis/flows/index.json"),
+                    availableOutputPaths = listOf("analysis\\flows\\index.json"),
+                    diagnosticIds = listOf("graph.z", "graph.a", "graph.a"),
+                ),
+                AgentAnalysisPartition(
+                    id = AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE,
+                    requested = false,
+                    status = AgentSnapshotStatus.INVALID,
+                    counts = mapOf("aggregateElements" to 1),
+                    sources = listOf(AgentAnalysisSource("source-a", "module-a/build/analysis")),
+                ),
+                AgentAnalysisPartition(
+                    id = AgentAnalysisPartitionIds.DESIGN_PROJECTION,
+                    requested = false,
+                    status = AgentSnapshotStatus.OK,
+                    counts = mapOf("designBlocks" to 4),
+                    sources = listOf(AgentAnalysisSource("source-a", "module-a/build/analysis")),
+                ),
+            ),
+        )
+        val encoded = codec.encode("2.1.0", sections(reversed = false).copy(analysis = analysis))
+        val decoded = codec.fromJson(
+            encoded.sectionJsonByPath.getValue("analysis.json"),
+            AgentAnalysisSection::class.java,
+        )
+
+        assertEquals("cap4k.agent.analysis.v2", decoded.schema)
+        assertEquals(
+            listOf(
+                AgentAnalysisPartitionIds.AGGREGATE_STRUCTURE,
+                AgentAnalysisPartitionIds.DESIGN_PROJECTION,
+                AgentAnalysisPartitionIds.GRAPH,
+            ),
+            decoded.partitions.map { it.id },
+        )
+        val graph = decoded.partitions.single { it.id == AgentAnalysisPartitionIds.GRAPH }
+        assertTrue(graph.requested)
+        assertEquals(listOf("nodes", "relationships"), graph.counts.keys.toList())
+        assertEquals(listOf("source-a", "source-b"), graph.sources.map { it.id })
+        assertEquals(listOf("module-a/build/analysis", "module-b/build/analysis"), graph.sources.map { it.path })
+        assertEquals(listOf("analysis/flows/index.json"), graph.plannedOutputPaths)
+        assertEquals(listOf("analysis/flows/index.json"), graph.availableOutputPaths)
+        assertEquals(listOf("graph.a", "graph.z"), graph.diagnosticIds)
+
+        val analysisReference = encoded.manifest.sections.single { section -> section.id == "analysis" }
+        assertEquals(3, analysisReference.counts["partitions"])
+        assertEquals(3, analysisReference.counts["graph.nodes"])
+        assertEquals(2, analysisReference.counts["graph.relationships"])
+        assertEquals(4, analysisReference.counts["designProjection.designBlocks"])
+        assertEquals(1, analysisReference.counts["aggregateStructure.aggregateElements"])
     }
 
     private fun sections(reversed: Boolean): AgentSnapshotSections {

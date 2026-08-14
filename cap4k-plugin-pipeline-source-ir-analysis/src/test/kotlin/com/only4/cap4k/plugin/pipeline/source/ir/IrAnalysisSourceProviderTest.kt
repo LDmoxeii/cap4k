@@ -2,7 +2,8 @@ package com.only4.cap4k.plugin.pipeline.source.ir
 
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.ArtifactSelectionModel
-import com.only4.cap4k.plugin.pipeline.api.IrAnalysisSnapshot
+import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.AnalyzerSnapshot
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
@@ -19,7 +20,7 @@ import org.junit.jupiter.api.assertThrows
 class IrAnalysisSourceProviderTest {
 
     @Test
-    fun `collect merges input dirs normalizes blanks and preserves first node by id`() {
+    fun `collect merges input dirs and reports duplicate node semantic conflicts`() {
         val dirA = Files.createTempDirectory("cap4k-ir-a")
         val dirB = Files.createTempDirectory("cap4k-ir-b")
 
@@ -57,17 +58,46 @@ class IrAnalysisSourceProviderTest {
         )
         dirB.writeEmptyAggregateElements()
 
-        val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString())) as IrAnalysisSnapshot
+        val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString()))
 
         assertEquals(listOf(dirA.toString(), dirB.toString()), snapshot.inputDirs)
-        assertEquals(4, snapshot.nodes.size)
-        assertEquals("submit", snapshot.nodes.first { it.id == "OrderController::submit" }.name)
-        assertEquals("OrderController::submit", snapshot.nodes.first { it.id == "OrderController::submit" }.fullName)
-        assertEquals("unknown", snapshot.nodes.first { it.id == "EmptyTypeNode" }.type)
-        assertEquals(2, snapshot.edges.size)
-        assertEquals("CommandToCommandHandler", snapshot.edges.last().type)
-        assertTrue(snapshot.designElements.isEmpty())
-        assertTrue(snapshot.aggregateElements.isEmpty())
+        assertEquals(4, snapshot.graph.nodes.size)
+        assertEquals("submit", snapshot.graph.nodes.first { it.id == "OrderController::submit" }.name)
+        assertEquals("OrderController::submit", snapshot.graph.nodes.first { it.id == "OrderController::submit" }.fullName)
+        assertEquals("unknown", snapshot.graph.nodes.first { it.id == "EmptyTypeNode" }.type)
+        assertEquals(2, snapshot.graph.relationships.size)
+        assertEquals("CommandToCommandHandler", snapshot.graph.relationships.last().type)
+        assertTrue(snapshot.designProjection.designBlocks.isEmpty())
+        assertTrue(snapshot.aggregateStructure.aggregateElements.isEmpty())
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.graph.status)
+        assertTrue(snapshot.graph.diagnostics.any { it.id.contains("node-identity-conflict") })
+    }
+
+    @Test
+    fun `collect keeps project source identity stable across checkout roots`() {
+        val relativeInput = Path.of("modules", "orders", "build", "cap4k-code-analysis")
+        val firstProject = Files.createTempDirectory("cap4k-ir-project-a")
+        val secondProject = Files.createTempDirectory("cap4k-ir-project-b")
+        val firstInput = firstProject.resolve(relativeInput)
+        val secondInput = secondProject.resolve(relativeInput)
+        listOf(firstInput, secondInput).forEach { input ->
+            Files.createDirectories(input)
+            input.resolve("nodes.json").writeText("[]")
+            input.resolve("rels.json").writeText("[]")
+            input.writeEmptyAggregateElements()
+        }
+
+        val first = IrAnalysisSourceProvider().collect(
+            config(firstInput.toString(), projectDir = firstProject.toString())
+        )
+        val second = IrAnalysisSourceProvider().collect(
+            config(secondInput.toString(), projectDir = secondProject.toString())
+        )
+
+        assertEquals("project:modules/orders/build/cap4k-code-analysis", first.graph.sources.single().id)
+        assertEquals(first.graph.sources.single().id, second.graph.sources.single().id)
+        assertEquals(first.graph.sources.single().id, first.designProjection.sources.single().id)
+        assertEquals(first.graph.sources.single().id, first.aggregateStructure.sources.single().id)
     }
 
     @Test
@@ -92,10 +122,10 @@ class IrAnalysisSourceProviderTest {
             """.trimIndent(),
         )
 
-        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-        assertTrue(snapshot.designElements.isEmpty())
-        val repository = snapshot.aggregateElements.single()
+        assertTrue(snapshot.designProjection.designBlocks.isEmpty())
+        val repository = snapshot.aggregateStructure.aggregateElements.single()
         assertEquals(
             "com.acme.demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
             repository.carrierQualifiedName,
@@ -130,12 +160,16 @@ class IrAnalysisSourceProviderTest {
                 """.trimIndent(),
             )
 
-            val error = assertThrows<IllegalArgumentException> {
-                IrAnalysisSourceProvider().collect(config(dir.toString()))
-            }
-            assertEquals("aggregate element at index 0 has unsupported type: $unsupportedType", error.message)
+            val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
+
+            assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+            assertEquals(AgentSnapshotStatus.OK, snapshot.designProjection.status)
+            assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
+            assertTrue(snapshot.aggregateStructure.aggregateElements.isEmpty())
+            assertTrue(snapshot.aggregateStructure.diagnostics.single().message.contains("unsupported type: $unsupportedType"))
         }
     }
+
     @Test
     fun `collect fails clearly for malformed graph nodes and rels`() {
         val cases = listOf(
@@ -153,11 +187,11 @@ class IrAnalysisSourceProviderTest {
             dir.resolve("rels.json").writeText(relsJson)
             dir.writeEmptyAggregateElements()
 
-            val error = assertThrows<IllegalArgumentException> {
-                IrAnalysisSourceProvider().collect(config(dir.toString()))
-            }
+            val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-            assertEquals(expectedMessage, error.message)
+            assertEquals(AgentSnapshotStatus.INVALID, snapshot.graph.status)
+            assertTrue(snapshot.graph.diagnostics.any { it.message.contains(expectedMessage) })
+            assertEquals(AgentSnapshotStatus.OK, snapshot.aggregateStructure.status)
         }
     }
 
@@ -174,12 +208,11 @@ class IrAnalysisSourceProviderTest {
             dir.resolve("rels.json").writeText(relsJson)
             dir.writeEmptyAggregateElements()
 
-            val error = assertThrows<IllegalArgumentException> {
-                IrAnalysisSourceProvider().collect(config(dir.toString()))
-            }
+            val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-            assertTrue(error.message!!.contains(expectedMessageFragment))
-            assertTrue(error.message!!.contains("root must be an array"))
+            assertEquals(AgentSnapshotStatus.INVALID, snapshot.graph.status)
+            assertTrue(snapshot.graph.diagnostics.any { it.message.contains(expectedMessageFragment) })
+            assertTrue(snapshot.graph.diagnostics.any { it.message.contains("root must be an array") })
         }
     }
 
@@ -240,31 +273,31 @@ class IrAnalysisSourceProviderTest {
             """.trimIndent()
         )
 
-        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-        assertEquals(4, snapshot.designElements.size)
-        assertEquals("command", snapshot.designElements.first().tag)
-        assertEquals("orders", snapshot.designElements.first().packageName)
-        assertEquals("SubmitOrder", snapshot.designElements.first().name)
-        assertEquals("submit order", snapshot.designElements.first().description)
-        assertEquals(listOf("Order"), snapshot.designElements.first().aggregates)
+        assertEquals(4, snapshot.designProjection.designBlocks.size)
+        assertEquals("command", snapshot.designProjection.designBlocks.first().tag)
+        assertEquals("orders", snapshot.designProjection.designBlocks.first().packageName)
+        assertEquals("SubmitOrder", snapshot.designProjection.designBlocks.first().name)
+        assertEquals("submit order", snapshot.designProjection.designBlocks.first().description)
+        assertEquals(listOf("Order"), snapshot.designProjection.designBlocks.first().aggregates)
         assertEquals(
             listOf(ArtifactSelectionModel(family = "command")),
-            snapshot.designElements.first().artifacts,
+            snapshot.designProjection.designBlocks.first().artifacts,
         )
-        assertEquals(1, snapshot.designElements.first().fields.size)
-        assertEquals("orderId", snapshot.designElements.first().fields.first().name)
-        assertEquals("Long", snapshot.designElements.first().fields.first().typeExpression)
-        assertEquals("0", snapshot.designElements.first().fields.first().defaultValue)
-        assertEquals(1, snapshot.designElements.first().resultFields.size)
-        assertEquals("accepted", snapshot.designElements.first().resultFields.first().name)
-        assertEquals("Boolean", snapshot.designElements.first().resultFields.first().typeExpression)
-        val pageQuery = snapshot.designElements.single { it.name == "FindOrderPage" }
+        assertEquals(1, snapshot.designProjection.designBlocks.first().fields.size)
+        assertEquals("orderId", snapshot.designProjection.designBlocks.first().fields.first().name)
+        assertEquals("Long", snapshot.designProjection.designBlocks.first().fields.first().typeExpression)
+        assertEquals("0", snapshot.designProjection.designBlocks.first().fields.first().defaultValue)
+        assertEquals(1, snapshot.designProjection.designBlocks.first().resultFields.size)
+        assertEquals("accepted", snapshot.designProjection.designBlocks.first().resultFields.first().name)
+        assertEquals("Boolean", snapshot.designProjection.designBlocks.first().resultFields.first().typeExpression)
+        val pageQuery = snapshot.designProjection.designBlocks.single { it.name == "FindOrderPage" }
         assertEquals(listOf(ArtifactSelectionModel(family = "query", variant = "page")), pageQuery.artifacts)
-        val integrationEvent = snapshot.designElements.single { it.tag == "integration_event" }
+        val integrationEvent = snapshot.designProjection.designBlocks.single { it.tag == "integration_event" }
         assertEquals("order.created", integrationEvent.eventName)
         assertEquals(listOf("orderId"), integrationEvent.fields.map { it.name })
-        val domainEvent = snapshot.designElements.single { it.tag == "domain_event" }
+        val domainEvent = snapshot.designProjection.designBlocks.single { it.tag == "domain_event" }
         assertEquals("", domainEvent.packageName)
         assertEquals("OrderCreated", domainEvent.name)
         assertEquals("order created domain event", domainEvent.description)
@@ -306,16 +339,71 @@ class IrAnalysisSourceProviderTest {
             """.trimIndent()
         )
 
-        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-        assertEquals(2, snapshot.designElements.size)
+        assertEquals(2, snapshot.designProjection.designBlocks.size)
         assertEquals(
             listOf(
                 listOf(ArtifactSelectionModel(family = "query")),
                 listOf(ArtifactSelectionModel(family = "query-handler")),
             ),
-            snapshot.designElements.map { it.artifacts },
+            snapshot.designProjection.designBlocks.map { it.artifacts },
         )
+    }
+
+    @Test
+    fun `collect preserves complementary design block artifacts across input dirs`() {
+        val dirA = Files.createTempDirectory("cap4k-ir-design-merge-a")
+        val dirB = Files.createTempDirectory("cap4k-ir-design-merge-b")
+        listOf(dirA, dirB).forEach { dir ->
+            dir.resolve("nodes.json").writeText("[]")
+            dir.resolve("rels.json").writeText("[]")
+            dir.writeEmptyAggregateElements()
+        }
+        dirA.resolve("design-elements.json").writeText(
+            """[{"tag":"query","package":"orders.read","name":"FindOrder","description":"find order","aggregates":["Order"],"artifacts":[{"family":"query"}]}]"""
+        )
+        dirB.resolve("design-elements.json").writeText(
+            """[{"tag":"query","package":"orders.read","name":"FindOrder","description":"find order","aggregates":["Order"],"artifacts":[{"family":"query-handler"}]}]"""
+        )
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString()))
+
+        assertEquals(AgentSnapshotStatus.OK, snapshot.designProjection.status)
+        assertEquals(2, snapshot.designProjection.designBlocks.size)
+        assertEquals(
+            listOf("query", "query-handler"),
+            snapshot.designProjection.designBlocks.flatMap { block -> block.artifacts.map { it.family } }.sorted(),
+        )
+        assertEquals(2, snapshot.designProjection.sources.size)
+    }
+
+    @Test
+    fun `collect reports conflicting design block fields with both source identities`() {
+        val dirA = Files.createTempDirectory("cap4k-ir-design-conflict-a")
+        val dirB = Files.createTempDirectory("cap4k-ir-design-conflict-b")
+        listOf(dirA, dirB).forEach { dir ->
+            dir.resolve("nodes.json").writeText("[]")
+            dir.resolve("rels.json").writeText("[]")
+            dir.writeEmptyAggregateElements()
+        }
+        dirA.resolve("design-elements.json").writeText(
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"submit order","artifacts":[{"family":"command"}]}]"""
+        )
+        dirB.resolve("design-elements.json").writeText(
+            """[{"tag":"command","package":"orders","name":"SubmitOrder","description":"place order","artifacts":[{"family":"command"}]}]"""
+        )
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString()))
+
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        val conflict = snapshot.designProjection.diagnostics.single { it.id.contains("design-block-conflict") }
+        assertTrue(conflict.message.contains("description"))
+        snapshot.designProjection.sources.forEach { source ->
+            assertTrue(conflict.message.contains(source.id))
+        }
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertEquals(AgentSnapshotStatus.OK, snapshot.aggregateStructure.status)
     }
 
     @Test
@@ -347,55 +435,36 @@ class IrAnalysisSourceProviderTest {
 
         cases.forEachIndexed { index, (json, expectedMessage) ->
             val dir = Files.createTempDirectory("cap4k-ir-malformed-fields-$index")
-            dir.resolve("nodes.json").writeText("""[]""")
-            dir.resolve("rels.json").writeText("""[]""")
+            dir.resolve("nodes.json").writeText("[]")
+            dir.resolve("rels.json").writeText("[]")
             dir.writeEmptyAggregateElements()
             dir.resolve("design-elements.json").writeText(json)
 
-            val error = assertThrows<IllegalArgumentException> {
-                IrAnalysisSourceProvider().collect(config(dir.toString()))
-            }
+            val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-            assertTrue(error.message!!.contains(expectedMessage))
+            assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+            assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains(expectedMessage) })
+            assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
         }
     }
 
     @Test
     fun `collect rejects removed recovery fields in design elements`() {
-        val cases = listOf(
-            "desc",
-            "requestFields",
-            "responseFields",
-            "traits",
-            "role",
-            "scope",
-            "entity",
-        )
-
-        cases.forEach { field ->
+        listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity").forEach { field ->
             val dir = Files.createTempDirectory("cap4k-ir-removed-$field")
-            dir.resolve("nodes.json").writeText("""[]""")
-            dir.resolve("rels.json").writeText("""[]""")
+            dir.resolve("nodes.json").writeText("[]")
+            dir.resolve("rels.json").writeText("[]")
             dir.writeEmptyAggregateElements()
             dir.resolve("design-elements.json").writeText(
                 """
-                [
-                  {
-                    "tag": "query",
-                    "package": "orders",
-                    "name": "FindOrder",
-                    "description": "find order",
-                    "$field": []
-                  }
-                ]
+                [{"tag":"query","package":"orders","name":"FindOrder","description":"find order","$field":[]}]
                 """.trimIndent()
             )
 
-            val error = assertThrows<IllegalArgumentException> {
-                IrAnalysisSourceProvider().collect(config(dir.toString()))
-            }
+            val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-            assertEquals("design element FindOrder uses removed fields: $field", error.message)
+            assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+            assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("design element FindOrder uses removed fields: $field") })
         }
     }
 
@@ -403,146 +472,76 @@ class IrAnalysisSourceProviderTest {
     fun `drawing board fails fast with symbol capability and recovery when design metadata is missing`() {
         val dir = Files.createTempDirectory("cap4k-ir-missing-design-metadata")
         dir.resolve("nodes.json").writeText(
-            """
-            [
-              {
-                "id":"demo.application.queries.FindOrderQry.Request",
-                "name":"FindOrderQry.Request",
-                "fullName":"demo.application.queries.FindOrderQry.Request",
-                "type":"query",
-                "missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"],
-                "metadataOwner":"demo.application.queries.FindOrderQry"
-              }
-            ]
-            """.trimIndent()
+            """[{"id":"demo.application.queries.FindOrderQry.Request","name":"FindOrderQry.Request","fullName":"demo.application.queries.FindOrderQry.Request","type":"query","missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"],"metadataOwner":"demo.application.queries.FindOrderQry"}]"""
         )
-        dir.resolve("rels.json").writeText("""[]""")
+        dir.resolve("rels.json").writeText("[]")
         dir.writeEmptyAggregateElements()
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
 
-        assertTrue(error.message!!.contains("demo.application.queries.FindOrderQry"))
-        assertTrue(!error.message!!.contains("FindOrderQry.Request; missing metadata"))
-        assertTrue(error.message!!.contains("DesignBlockMetadata"))
-        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
-        assertTrue(error.message!!.contains("restore the default ddd-default generator template"))
-        assertTrue(error.message!!.contains("compileOnly classpath"))
-        assertTrue(error.message!!.contains("will not emit an apparently complete partial result"))
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertTrue(snapshot.designProjection.diagnostics.any { it.id.contains("missing-design-sidecar") })
+        assertTrue(snapshot.designProjection.diagnostics.any { it.id.contains("missing-design-metadata") })
+        assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("demo.application.queries.FindOrderQry") })
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertEquals(AgentSnapshotStatus.OK, snapshot.aggregateStructure.status)
     }
 
     @Test
     fun `drawing board fails fast when repository aggregate metadata is missing`() {
         val dir = Files.createTempDirectory("cap4k-ir-missing-repository-metadata")
         dir.resolve("nodes.json").writeText(
-            """
-            [
-              {
-                "id":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
-                "name":"OrderJpaRepositoryAdapter",
-                "fullName":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter",
-                "type":"repository",
-                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],
-                "metadataOwner":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"
-              }
-            ]
-            """.trimIndent()
+            """[{"id":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter","name":"OrderJpaRepositoryAdapter","fullName":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter","type":"repository","missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],"metadataOwner":"demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"}]"""
         )
         dir.resolve("rels.json").writeText("[]")
         dir.writeEmptyAggregateElements()
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
 
-        assertTrue(error.message!!.contains("demo.adapter.domain.repositories.OrderJpaRepositoryAdapter"))
-        assertTrue(error.message!!.contains("AggregateElementMetadata"))
-        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
-        assertTrue(!error.message!!.contains("Flow Analysis"))
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
+        assertTrue(snapshot.aggregateStructure.diagnostics.any { it.id.contains("missing-aggregate-metadata") })
+        assertTrue(snapshot.aggregateStructure.diagnostics.any { it.message.contains("OrderJpaRepositoryAdapter") })
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
     }
 
     @Test
     fun `flow analysis fails fast only for aggregate metadata loss`() {
         val dir = Files.createTempDirectory("cap4k-ir-missing-aggregate-metadata")
         dir.resolve("nodes.json").writeText(
-            """
-            [
-              {
-                "id":"demo.domain.aggregates.order.Order",
-                "name":"Order",
-                "fullName":"demo.domain.aggregates.order.Order",
-                "type":"aggregate",
-                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"]
-              },
-              {
-                "id":"demo.application.commands.SubmitOrderCmd.Request",
-                "name":"SubmitOrderCmd.Request",
-                "fullName":"demo.application.commands.SubmitOrderCmd.Request",
-                "type":"command",
-                "missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"]
-              }
-            ]
-            """.trimIndent()
+            """[
+              {"id":"demo.domain.aggregates.order.Order","name":"Order","fullName":"demo.domain.aggregates.order.Order","type":"aggregate","missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"]},
+              {"id":"demo.application.commands.SubmitOrderCmd.Request","name":"SubmitOrderCmd.Request","fullName":"demo.application.commands.SubmitOrderCmd.Request","type":"command","missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"]}
+            ]"""
         )
-        dir.resolve("rels.json").writeText("""[]""")
+        dir.resolve("rels.json").writeText("[]")
         dir.writeEmptyAggregateElements()
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("flow")))
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("flow")))
 
-        assertTrue(error.message!!.contains("demo.domain.aggregates.order.Order"))
-        assertTrue(error.message!!.contains("AggregateElementMetadata"))
-        assertTrue(error.message!!.contains("affected capability: Flow Analysis"))
-        assertTrue(!error.message!!.contains("SubmitOrderCmd.Request; missing metadata"))
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
     }
 
     @Test
     fun `combined analysis request reports every missing metadata owner and affected capability`() {
         val dir = Files.createTempDirectory("cap4k-ir-multiple-metadata-gaps")
         dir.resolve("nodes.json").writeText(
-            """
-            [
-              {
-                "id":"demo.FindOrderQry.Request",
-                "name":"Request",
-                "fullName":"demo.FindOrderQry.Request",
-                "type":"query",
-                "missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"],
-                "metadataOwner":"demo.FindOrderQry"
-              },
-              {
-                "id":"demo.Order",
-                "name":"Order",
-                "fullName":"demo.Order",
-                "type":"aggregate",
-                "missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],
-                "metadataOwner":"demo.domain.Order"
-              }
-            ]
-            """.trimIndent()
+            """[
+              {"id":"demo.FindOrderQry.Request","name":"Request","fullName":"demo.FindOrderQry.Request","type":"query","missingMetadata":["com.only4.cap4k.analysis.metadata.DesignBlockMetadata"],"metadataOwner":"demo.FindOrderQry"},
+              {"id":"demo.Order","name":"Order","fullName":"demo.Order","type":"aggregate","missingMetadata":["com.only4.cap4k.analysis.metadata.AggregateElementMetadata"],"metadataOwner":"demo.domain.Order"}
+            ]"""
         )
         dir.resolve("rels.json").writeText("[]")
         dir.writeEmptyAggregateElements()
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(
-                config(dir.toString(), generators = setOf("drawing-board", "flow"))
-            )
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board", "flow")))
 
-        assertTrue(error.message!!.contains("demo.FindOrderQry"))
-        assertTrue(error.message!!.contains("DesignBlockMetadata"))
-        assertTrue(error.message!!.contains("affected capability: Drawing Board"))
-        assertTrue(
-            error.message!!.contains(
-                "- symbol: demo.domain.Order; missing metadata: " +
-                    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata; " +
-                    "affected capability: Drawing Board, Flow Analysis"
-            )
-        )
-        assertTrue(error.message!!.contains("Requested analysis capabilities: Drawing Board, Flow Analysis"))
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
+        assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("demo.FindOrderQry") })
+        assertTrue(snapshot.aggregateStructure.diagnostics.any { it.message.contains("demo.domain.Order") })
     }
 
     @Test
@@ -551,15 +550,14 @@ class IrAnalysisSourceProviderTest {
         dir.resolve("nodes.json").writeText(
             """[{"id":"FindOrderQry.Request","name":"Request","fullName":"demo.FindOrderQry.Request","type":"query"}]"""
         )
-        dir.resolve("rels.json").writeText("""[]""")
+        dir.resolve("rels.json").writeText("[]")
         dir.writeEmptyAggregateElements()
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString(), generators = setOf("drawing-board")))
 
-        assertTrue(error.message!!.contains("demo.FindOrderQry.Request"))
-        assertTrue(error.message!!.contains("Drawing Board"))
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertTrue(snapshot.designProjection.diagnostics.any { it.id.contains("missing-design-sidecar") })
+        assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("1 design candidate") })
     }
 
     @Test
@@ -571,20 +569,8 @@ class IrAnalysisSourceProviderTest {
         completeDir.resolve("rels.json").writeText("[]")
         completeDir.writeEmptyAggregateElements()
         completeDir.resolve("design-elements.json").writeText(
-            """
-            [
-              {
-                "tag":"query",
-                "package":"complete",
-                "name":"Complete",
-                "artifacts":[{"family":"query"}],
-                "fields":[],
-                "resultFields":[]
-              }
-            ]
-            """.trimIndent()
+            """[{"tag":"query","package":"complete","name":"Complete","artifacts":[{"family":"query"}],"fields":[],"resultFields":[]}]"""
         )
-
         val incompleteDir = Files.createTempDirectory("cap4k-ir-incomplete-module")
         incompleteDir.resolve("nodes.json").writeText(
             """[{"id":"MissingQry.Request","name":"Request","fullName":"demo.MissingQry.Request","type":"query"}]"""
@@ -592,19 +578,14 @@ class IrAnalysisSourceProviderTest {
         incompleteDir.resolve("rels.json").writeText("[]")
         incompleteDir.writeEmptyAggregateElements()
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(
-                config(
-                    completeDir.toString(),
-                    incompleteDir.toString(),
-                    generators = setOf("drawing-board"),
-                )
-            )
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(
+            config(completeDir.toString(), incompleteDir.toString(), generators = setOf("drawing-board"))
+        )
 
-        assertTrue(error.message!!.contains("Analysis input: $incompleteDir"))
-        assertTrue(error.message!!.contains("demo.MissingQry.Request"))
-        assertTrue(!error.message!!.contains("demo.CompleteQry.Request; missing metadata"))
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertEquals(listOf("Complete"), snapshot.designProjection.designBlocks.map { it.name })
+        val incompleteSource = snapshot.designProjection.sources.single { it.inputDir == incompleteDir.toString() }
+        assertTrue(snapshot.designProjection.diagnostics.any { it.sourceId == incompleteSource.id })
     }
 
     @Test
@@ -625,9 +606,9 @@ class IrAnalysisSourceProviderTest {
 
         val snapshot = IrAnalysisSourceProvider().collect(
             config(completeDir.toString(), emptyDir.toString(), generators = setOf("drawing-board"))
-        ) as IrAnalysisSnapshot
+        )
 
-        assertEquals(listOf("Complete"), snapshot.designElements.map { it.name })
+        assertEquals(listOf("Complete"), snapshot.designProjection.designBlocks.map { it.name })
     }
 
     @Test
@@ -637,22 +618,22 @@ class IrAnalysisSourceProviderTest {
         dir.resolve("rels.json").writeText("""[]""")
         dir.writeEmptyAggregateElements()
 
-        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString())) as IrAnalysisSnapshot
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-        assertTrue(snapshot.designElements.isEmpty())
+        assertTrue(snapshot.designProjection.designBlocks.isEmpty())
     }
 
     @Test
     fun `collect fails clearly when required files are missing`() {
         val dir = Files.createTempDirectory("cap4k-ir-missing")
-        dir.resolve("nodes.json").writeText("""[]""")
+        dir.resolve("nodes.json").writeText("[]")
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(config(dir.toString()))
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-        assertTrue(error.message!!.contains("ir-analysis inputDir is missing nodes.json or rels.json"))
-        assertTrue(error.message!!.contains(dir.toString()))
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.graph.status)
+        assertTrue(snapshot.graph.diagnostics.any { it.id.contains("missing-rels") })
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
+        assertTrue(snapshot.aggregateStructure.diagnostics.any { it.id.contains("missing-aggregate-elements") })
     }
 
     @Test
@@ -661,11 +642,11 @@ class IrAnalysisSourceProviderTest {
         dir.resolve("nodes.json").writeText("[]")
         dir.resolve("rels.json").writeText("[]")
 
-        val error = assertThrows<IllegalArgumentException> {
-            IrAnalysisSourceProvider().collect(config(dir.toString()))
-        }
+        val snapshot = IrAnalysisSourceProvider().collect(config(dir.toString()))
 
-        assertEquals("ir-analysis inputDir is missing aggregate-elements.json: $dir", error.message)
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
+        assertTrue(snapshot.aggregateStructure.diagnostics.single().id.contains("missing-aggregate-elements"))
     }
 
     private fun Path.writeEmptyAggregateElements() {
@@ -675,6 +656,7 @@ class IrAnalysisSourceProviderTest {
     private fun config(
         vararg inputDirs: String,
         generators: Set<String> = emptySet(),
+        projectDir: String? = null,
     ): ProjectConfig {
         return ProjectConfig(
             basePackage = "com.acme.demo",
@@ -682,7 +664,10 @@ class IrAnalysisSourceProviderTest {
             modules = emptyMap(),
             sources = mapOf(
                 "ir-analysis" to SourceConfig(
-                    options = mapOf("inputDirs" to inputDirs.toList()),
+                    options = buildMap {
+                        put("inputDirs", inputDirs.toList())
+                        projectDir?.let { put("projectDir", it) }
+                    },
                 )
             ),
             generators = generators.associateWith { GeneratorConfig() },

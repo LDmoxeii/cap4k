@@ -31,7 +31,6 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
     )
 
     override fun plan(config: ProjectConfig, model: CanonicalModel): List<ArtifactPlanItem> {
-        requireDrawingBoardAnalysisMetadata(model)
         val drawingBoard = model.drawingBoard
 
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
@@ -194,37 +193,3 @@ private data class NestedReference(
 private val ArtifactComparator =
     compareBy<ArtifactSelectionModel> { it.family }
         .thenBy { it.variant }
-
-private fun requireDrawingBoardAnalysisMetadata(model: CanonicalModel) {
-    val missing = model.analysisGraph?.nodes.orEmpty()
-        .flatMap { node ->
-            listOf(DESIGN_BLOCK_METADATA_FQ, AGGREGATE_ELEMENT_METADATA_FQ)
-                .filter { metadataFq -> metadataFq in node.missingMetadata }
-                .map { metadataFq -> (node.metadataOwner ?: node.fullName) to metadataFq }
-        }
-        .distinct()
-        .sortedWith(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
-    if (missing.isEmpty()) {
-        return
-    }
-    val details = missing.joinToString(separator = System.lineSeparator()) { (symbol, metadataFq) ->
-        "- symbol: $symbol; missing metadata: $metadataFq; affected capability: Drawing Board"
-    }
-    throw IllegalArgumentException(
-        buildString {
-            appendLine("Cap4k analysis metadata contract violation.")
-            appendLine(details)
-            append(
-                "Recovery: restore the default ddd-default generator template for each symbol, or add the listed " +
-                    "metadata annotation and keep io.github.ldmoxeii:cap4k-analysis-metadata on the owning business " +
-                    "module compileOnly classpath. Custom templates that omit analysis metadata explicitly opt out " +
-                    "of Drawing Board; Cap4k will not emit an apparently complete partial result."
-            )
-        }
-    )
-}
-
-private const val DESIGN_BLOCK_METADATA_FQ =
-    "com.only4.cap4k.analysis.metadata.DesignBlockMetadata"
-private const val AGGREGATE_ELEMENT_METADATA_FQ =
-    "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
