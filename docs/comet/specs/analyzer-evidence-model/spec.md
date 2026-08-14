@@ -59,13 +59,17 @@ AnalyzerSnapshot
 
 - 最小事实粒度为稳定 node identity 和 directed relationship identity。
 - Graph 可以保留 Query、Capability、Validator、read-side dependency 和其他低层技术关系；它们保留在 Graph 不代表进入默认 causal Flow。
+- 默认业务因果入口按触发来源解释为 Actor、Event、Time 三类，但分类不是封闭 NodeType allowlist。每个当前支持入口都必须由生产 Analyzer 观察到实际代码节点及明确 relationship evidence；未来 adapter 通过新增真实 detector 扩展，不由 Flow、文档或 generic fallback 猜测。
+- Actor 当前生产 evidence 为 Spring HTTP Controller method 到 Command；RPC、GraphQL、CLI、Admin 与 workflow task 属于 Actor 概念家族，但在没有对应 Analyzer detector 前不得声明为当前支持。
+- Event 当前生产 evidence 为无上游 Inbound Integration Event 经实际 `@EventListener` Handler 到 Command。Domain Event Handler、outbound Integration Event 和有上游 Integration Event 是已有因果链 continuation，不是新入口。
+- Time 当前生产 evidence 为带 `org.springframework.scheduling.annotation.Scheduled` 的实际 method。Analyzer 必须使用该 method 的稳定 identity，生成 `temporaltriggermethod` node；当方法直接发送 Command 时生成 `TemporalTriggerMethodToCommand` relationship。只执行 Query、Capability 或纯技术逻辑的 scheduled method 不产生默认 causal entry evidence。
+- `commandsendermethod` NodeType 与 `CommandSenderMethodToCommand` RelationshipType 完全删除。普通未分类方法即使直接发送 Command，也不得生成 generic sender node、relationship、alias、deprecated value 或迁移桥；需要成为入口时必须先实现明确 trigger detector。
 - Graph 不是通用 Kotlin AST、CFG 或 runtime trace，也不证明业务设计正确或运行时顺序。
 - 同一 node identity 的 `name`、`fullName` 和 `type` 必须一致；等价重复稳定去重，`missingMetadata` 可以稳定合并，非空 `metadataOwner` 冲突必须失败并保留来源诊断。
 - Relationship 以稳定的 from/to/type/label identity 去重；任何丢失 endpoint 或无效 identity 必须形成 Graph diagnostic，不得由其他分区补齐。
 - `pipeline.generator.flow` 只能消费 Graph 分区及其状态，不能读取 Drawing Board 或 Aggregate Structure 反向生成因果关系。
 
 ## Design Projection 分区
-
 - Design Projection 的业务字段和往返语义由 `analyzer-drawing-board-contract` 定义。
 - `design-elements.json` 可以在没有任何 design candidate 的 input directory 中合法缺失或为空；该情形必须与未配置、不可用和无效区分。
 - 如果某个 input directory 存在需要 `DesignBlockMetadata` 的候选节点，但 sidecar 缺失、projection 为空或 metadata 丢失，则该来源的 Design Projection 为 `invalid`，请求 Drawing Board 时必须失败，不得生成伪完整 board。
@@ -142,8 +146,8 @@ Analyzer collect、parse 或 merge 异常不得再被 `.getOrNull()` 静默吞�
 
 ## 验证合同
 
-- API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区。
-- IR source tests 覆盖每目录 required/optional/empty/invalid raw、metadata completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
+- API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区，并证明 `temporaltriggermethod` / `TemporalTriggerMethodToCommand` 是唯一新增 Time trigger evidence，generic Command sender 类型已经删除。
+- IR compiler/source tests 覆盖 Spring `@Scheduled` method detection、Temporal Trigger 到 Command、scheduled Query/Capability 非 Flow 入口、普通方法不再产生 generic Command sender，以及每目录 required/optional/empty/invalid raw、metadata completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
 - Canonical tests 证明三个分区各自进入唯一 owner，消费者不会跨分区读取。
 - Agent codec/service/task/functional tests 证明分区 schema、manifest、counts、freshness、outputs、diagnostics 和状态聚合。
 - Capability facts 与 validator tests 证明子契约和传播闭包由生产代码派生。
@@ -151,8 +155,9 @@ Analyzer collect、parse 或 merge 异常不得再被 `.getOrNull()` 静默吞�
 
 ## 非目标
 
-- 改变默认 causal Flow 或增加 process projection；
+- 增加 process projection、scheduler/Job runtime、Job generator 或调度 provider 管理；
 - 改变 raw sidecar 名称、inputDirs DSL、公开任务或 compiler invocation 数量；
 - 自动把 Analyzer output 注册为 Generator input；
 - 把 Aggregate Structure 改造成 Design JSON 或 SQL/Schema projection；
 - 从 runtime trace 或任意 Kotlin 结构推断缺失设计。
+- 在本合同中新增 RPC、GraphQL、CLI、workflow、CDC 或非 Spring scheduling detector；这些入口只能在后续生产 evidence Change 中扩展。
