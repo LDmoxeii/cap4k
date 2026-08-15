@@ -74,7 +74,7 @@ compiler analysis output root 是 `build/cap4k-code-analysis`。analysis generat
 
 [Reference Content Studio](../examples/reference-content-studio.md) 提供可对照的输入面：
 
-- `design/design.json`：Command、Query、Capability、payload、event 和 domain service 锚点。
+- `design/design.json`：Command、Query、Capability、Endpoint、payload、event 和 domain service 锚点。
 - `design/value-objects.json`：通过 `types.valueObjectManifest` 管理 `MediaProcessingResultSnapshot`。
 - `design/enums.json`：通过 `types.enumManifest` 管理 `ReleasePolicy` 和 `MediaProcessingResultStatus`。
 - start module schema：表达 aggregate table、type marker、引用和 persistence surface。

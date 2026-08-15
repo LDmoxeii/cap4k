@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.application.event
 
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.application.provider.RuntimeProviderState

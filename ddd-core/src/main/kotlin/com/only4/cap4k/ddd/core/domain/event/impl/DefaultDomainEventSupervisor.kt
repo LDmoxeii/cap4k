@@ -4,7 +4,7 @@ import com.only4.cap4k.ddd.core.ProviderUnavailableException
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventManager
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor

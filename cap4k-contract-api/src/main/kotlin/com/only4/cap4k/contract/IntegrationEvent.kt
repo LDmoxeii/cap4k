@@ -1,4 +1,4 @@
-package com.only4.cap4k.ddd.core.application.event.annotation
+package com.only4.cap4k.contract
 
 /** Marks a payload as a transport-neutral Integration Event. */
 @Target(AnnotationTarget.CLASS)

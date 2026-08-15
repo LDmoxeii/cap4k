@@ -3,6 +3,7 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
+import com.only4.cap4k.plugin.pipeline.api.ActorEndpointModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateElementModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
@@ -325,6 +326,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             .values
             .toList()
+        val actorEndpoints = designBlocks.filter { it.tag == "endpoint" }.map { block ->
+            ActorEndpointModel(block.operationName, block.request.identity.packageName, block.request.identity.typePath.first(), block.description, block.aggregates, block.request, requireNotNull(block.response))
+        }
+        actorEndpoints.groupBy { it.operationName }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { duplicate ->
+            throw IllegalArgumentException("duplicate endpoint operationName: $duplicate")
+        }
         val domainEvents = designBlocks
             .asSequence()
             .filter { block -> block.tag == "domain_event" }
@@ -525,6 +532,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return CanonicalAssemblyResult(
             model = CanonicalModel(
                 designBlocks = designBlocks,
+                actorEndpoints = actorEndpoints,
                 domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
                 entities = entities,
@@ -737,6 +745,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query" -> "${name}Qry"
             "capability" -> name.normalizeUpperCamelTypeName()
             "api_payload" -> name.normalizeUpperCamelTypeName()
+            "endpoint" -> name.normalizeUpperCamelTypeName()
             "domain_event" -> name.toDomainEventTypeName()
             "integration_event" -> name.toIntegrationEventTypeName()
             else -> name.normalizeUpperCamelTypeName()
@@ -746,6 +755,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query" -> artifactLayout.designQueryPackage(packageName)
             "capability" -> artifactLayout.designCapabilityPackage(packageName)
             "api_payload" -> artifactLayout.designApiPayloadPackage(packageName)
+            "endpoint" -> artifactLayout.designEndpointPackage(packageName)
             "domain_event" -> {
                 val aggregateName = resolveDomainEventAggregateName(this)
                 val aggregate = aggregateEntityMetadata[aggregateName]
@@ -806,6 +816,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             description = description,
             aggregates = aggregates,
             eventName = eventName.orEmpty(),
+            operationName = operationName.orEmpty(),
             persist = persist,
             artifacts = artifactSelections,
             artifactsDeclared = artifacts != null,
@@ -819,6 +830,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         "query" -> SemanticValueRole.QUERY_REQUEST
         "capability" -> SemanticValueRole.CAPABILITY_REQUEST
         "api_payload" -> SemanticValueRole.API_PAYLOAD_REQUEST
+        "endpoint" -> SemanticValueRole.ENDPOINT_REQUEST
         "domain_event" -> SemanticValueRole.DOMAIN_EVENT
         "integration_event" -> SemanticValueRole.INTEGRATION_EVENT
         "domain_service" -> SemanticValueRole.API_PAYLOAD_REQUEST
@@ -830,10 +842,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         "query" -> SemanticValueRole.QUERY_RESPONSE
         "capability" -> SemanticValueRole.CAPABILITY_RESPONSE
         "api_payload" -> SemanticValueRole.API_PAYLOAD_RESPONSE
+        "endpoint" -> SemanticValueRole.ENDPOINT_RESPONSE
         else -> error("Design tag $tag does not support a response payload")
     }
 
     private fun DesignSpecEntry.validateDesignBlockSharedFields() {
+        require(operationName.isNullOrBlank() || tag == "endpoint") { "design entry $name cannot declare operationName on tag: $tag" }
+        if (tag == "endpoint") require(!operationName.isNullOrBlank()) { "endpoint $name must declare operationName." }
         require(eventName.isNullOrBlank() || tag in EventNameTags) {
             "design entry $name cannot declare eventName on tag: $tag"
         }
@@ -977,6 +992,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
             "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
             "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
+            "endpoint" -> listOf(ArtifactSelectionModel("endpoint"))
             "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
             "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
             "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
@@ -1009,6 +1025,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             fields = fields,
             resultFields = recoveredResultFields,
             eventName = recoveredEventName,
+            operationName = operationName,
         ).toDesignBlockModel(
             compiler = compiler,
             artifactLayout = artifactLayout,
@@ -1030,6 +1047,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             request = compiled.request,
             response = compiled.response,
             eventName = recoveredEventName,
+            operationName = operationName,
         )
     }
 
@@ -1039,6 +1057,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query" -> "query"
             "capability" -> "capability"
             "api_payload" -> "api_payload"
+            "endpoint" -> "endpoint"
             "domain_event" -> "domain_event"
             "integration_event" -> "integration_event"
             "domain_service" -> "domain_service"
@@ -1074,6 +1093,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             description = mergeStringMetadata(context, "description", existing.description, incoming.description),
             aggregates = mergeListMetadata(context, "aggregates", existing.aggregates, incoming.aggregates),
             eventName = mergeStringMetadata(context, "eventName", existing.eventName, incoming.eventName),
+            operationName = mergeStringMetadata(context, "operationName", existing.operationName, incoming.operationName),
             persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
             artifacts = artifacts,
             request = mergeSemanticValueDefinition(context, "fields", existing.request, incoming.request),
@@ -1196,6 +1216,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 )
             },
             eventName = mergeNullableStringMetadata(context, "eventName", existing.eventName, incoming.eventName),
+            operationName = mergeNullableStringMetadata(context, "operationName", existing.operationName, incoming.operationName),
         )
     }
 
@@ -1973,11 +1994,12 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query",
             "capability",
             "api_payload",
+            "endpoint",
             "domain_event",
             "integration_event",
             "domain_service",
         )
-        val ResultFieldTags = setOf("command", "query", "capability", "api_payload")
+        val ResultFieldTags = setOf("command", "query", "capability", "api_payload", "endpoint")
         val PageEnvelopeTags = setOf("query", "api_payload")
         val EventPayloadTags = setOf("domain_event", "integration_event")
         val EventNameTags = setOf("domain_event", "integration_event")
@@ -1988,6 +2010,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "capability" to setOf(""),
             "capability-handler" to setOf(""),
             "api-payload" to setOf("", "page"),
+            "endpoint" to setOf(""),
             "domain-event" to setOf(""),
             "domain-subscriber" to setOf(""),
             "integration-event" to setOf("inbound", "outbound"),
@@ -1999,6 +2022,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query" to setOf("query", "query-handler"),
             "capability" to setOf("capability", "capability-handler"),
             "api_payload" to setOf("api-payload"),
+            "endpoint" to setOf("endpoint"),
             "domain_event" to setOf("domain-event", "domain-subscriber"),
             "integration_event" to setOf("integration-event", "integration-subscriber"),
             "domain_service" to setOf("domain-service"),
@@ -2008,6 +2032,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query" to "query",
             "capability" to "capability",
             "api_payload" to "api-payload",
+            "endpoint" to "endpoint",
             "domain_event" to "domain-event",
             "integration_event" to "integration-event",
             "domain_service" to "domain-service",
@@ -2024,6 +2049,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query",
             "capability",
             "api_payload",
+            "endpoint",
             "domain_event",
             "integration_event",
             "domain_service",

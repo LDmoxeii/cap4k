@@ -5,6 +5,7 @@ plugins {
 cap4k {
     project {
         basePackage.set("com.acme.demo")
+        contractModulePath.set("demo-contract")
         applicationModulePath.set("demo-application")
     }
     sources {

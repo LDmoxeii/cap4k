@@ -83,6 +83,7 @@ data class ArtifactLayoutConfig(
     ),
     val flow: OutputRootLayout = OutputRootLayout("flows"),
     val drawingBoard: OutputRootLayout = OutputRootLayout("design"),
+    val designEndpoint: PackageLayout = PackageLayout("contract.endpoints"),
     val designCommand: PackageLayout = PackageLayout("application.commands"),
     val designQuery: PackageLayout = PackageLayout("application.queries"),
     val designCapability: PackageLayout = PackageLayout("application.capabilities"),
@@ -98,7 +99,7 @@ data class ArtifactLayoutConfig(
         packageSuffix = "",
     ),
     val designIntegrationEvent: PackageLayout = PackageLayout(
-        packageRoot = "application.subscribers.integration",
+        packageRoot = "contract.events.integration",
         packageSuffix = "",
     ),
     val designIntegrationEventSubscriber: PackageLayout = PackageLayout(

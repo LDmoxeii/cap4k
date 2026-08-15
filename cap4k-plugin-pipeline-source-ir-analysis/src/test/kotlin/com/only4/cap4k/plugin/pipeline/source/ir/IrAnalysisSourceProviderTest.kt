@@ -653,6 +653,31 @@ class IrAnalysisSourceProviderTest {
         resolve("aggregate-elements.json").writeText("[]")
     }
 
+    @Test
+    fun `collect preserves endpoint operation name and reports cross source conflicts`() {
+        val dirA = Files.createTempDirectory("cap4k-ir-endpoint-a")
+        val dirB = Files.createTempDirectory("cap4k-ir-endpoint-b")
+        listOf(dirA, dirB).forEach { dir ->
+            dir.resolve("nodes.json").writeText("[]")
+            dir.resolve("rels.json").writeText("[]")
+            dir.writeEmptyAggregateElements()
+        }
+        dirA.resolve("design-elements.json").writeText(
+            """[{"tag":"endpoint","package":"booking","name":"CreateBooking","operationName":"booking.create","artifacts":[{"family":"endpoint"}],"fields":[],"resultFields":[]}]""",
+        )
+        dirB.resolve("design-elements.json").writeText(
+            """[{"tag":"endpoint","package":"booking","name":"CreateBooking","operationName":"booking.create.v2","artifacts":[{"family":"endpoint"}],"fields":[],"resultFields":[]}]""",
+        )
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(dirA.toString(), dirB.toString()))
+
+        assertEquals("booking.create", snapshot.designProjection.designBlocks.first().operationName)
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.designProjection.status)
+        assertTrue(snapshot.designProjection.diagnostics.any { it.message.contains("operationName") })
+        assertTrue(snapshot.graph.nodes.isEmpty())
+        assertTrue(snapshot.graph.relationships.isEmpty())
+    }
+
     private fun config(
         vararg inputDirs: String,
         generators: Set<String> = emptySet(),

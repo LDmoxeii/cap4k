@@ -20,6 +20,7 @@ import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryConfig
 import com.only4.cap4k.plugin.pipeline.api.TypeRegistryEntry
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignEndpointArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanner
@@ -574,6 +575,7 @@ class PipelinePluginTest {
                 "ir-analysis" to SourceConfig(),
             ),
             generators = mapOf(
+                "endpoint" to GeneratorConfig(),
                 "integration-event" to GeneratorConfig(),
                 "integration-subscriber" to GeneratorConfig(),
                 "types-value-object" to GeneratorConfig(),
@@ -586,7 +588,7 @@ class PipelinePluginTest {
 
         assertEquals(setOf("design-json", "value-object-manifest"), sourceConfig.sources.keys)
         assertEquals(
-            setOf("integration-event", "integration-subscriber", "types-value-object"),
+            setOf("endpoint", "integration-event", "integration-subscriber", "types-value-object"),
             sourceConfig.generators.keys,
         )
     }
@@ -597,6 +599,7 @@ class PipelinePluginTest {
 
         val runner = buildSourceRunner(project, minimalConfig(), exportEnabled = false)
 
+        assertTrue(generatorProviderTypes(runner).contains(DesignEndpointArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(DesignIntegrationEventSubscriberArtifactPlanner::class.java))
         assertTrue(generatorProviderTypes(runner).contains(ValueObjectArtifactPlanner::class.java))

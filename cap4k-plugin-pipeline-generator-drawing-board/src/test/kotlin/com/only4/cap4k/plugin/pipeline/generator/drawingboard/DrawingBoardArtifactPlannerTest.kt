@@ -91,6 +91,30 @@ class DrawingBoardArtifactPlannerTest {
     }
 
     @Test
+    fun `plans endpoint drawing board with operation identity and endpoint artifact`() {
+        val endpoint = DrawingBoardElementModel(
+            tag = "endpoint",
+            packageName = "booking",
+            name = "CreateBooking",
+            description = "create booking",
+            artifacts = listOf(ArtifactSelectionModel("endpoint")),
+            request = semanticValue("booking", "CreateBookingEndpoint.Request", SemanticValueRole.ENDPOINT_REQUEST),
+            response = semanticValue("booking", "CreateBookingEndpoint.Response", SemanticValueRole.ENDPOINT_RESPONSE),
+            operationName = "booking.create",
+        )
+
+        val plan = DrawingBoardArtifactPlanner().plan(
+            config(),
+            CanonicalModel(drawingBoard = DrawingBoardModel(listOf(endpoint))),
+        )
+
+        assertEquals("design/drawing_board_endpoint.json", plan.single().outputPath)
+        val render = (plan.single().context["elements"] as List<*>).filterIsInstance<DrawingBoardRenderElement>().single()
+        assertEquals("booking.create", render.operationName)
+        assertEquals(listOf(ArtifactSelectionModel("endpoint")), render.designJsonArtifacts)
+    }
+
+    @Test
     fun `planner does not read analysis graph metadata owned by other Analyzer partitions`() {
         val planner = DrawingBoardArtifactPlanner()
 

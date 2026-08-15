@@ -2,7 +2,7 @@ package com.only4.cap4k.ddd.domain.event
 
 import com.only4.cap4k.ddd.application.JpaOwnershipClaim
 import com.only4.cap4k.ddd.application.JpaRedriveResult
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventPublisher
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator

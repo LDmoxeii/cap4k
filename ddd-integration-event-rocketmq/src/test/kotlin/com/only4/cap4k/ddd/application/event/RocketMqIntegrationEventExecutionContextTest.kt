@@ -288,7 +288,7 @@ class RocketMqIntegrationEventExecutionContextTest {
     ).toByteArray()
 }
 
-@com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent("context.transport.event")
+@com.only4.cap4k.contract.IntegrationEvent("context.transport.event")
 internal data class ContextTransportEvent(val value: String)
 
 private data class TransportContext(val value: String) : ExecutionContextElement

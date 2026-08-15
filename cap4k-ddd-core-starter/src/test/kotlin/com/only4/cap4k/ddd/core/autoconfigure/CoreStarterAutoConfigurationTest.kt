@@ -9,9 +9,11 @@ import com.only4.cap4k.ddd.core.application.command.Command
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandRecordRepository
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
+import com.only4.cap4k.contract.EndpointRequest
+import com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.domain.event.DomainEventSupervisor
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
@@ -59,6 +61,7 @@ class CoreStarterAutoConfigurationTest {
         .withBean(TestQueryExecution::class.java)
         .withBean(TestQueryHandler::class.java)
         .withBean(TestCapabilityHandler::class.java)
+        .withBean(TestEndpointHandler::class.java)
         .withBean(TestEventListener::class.java)
 
     @Test
@@ -84,6 +87,11 @@ class CoreStarterAutoConfigurationTest {
                 "capability:async",
                 Mediator.capabilities.callAsync(TestCapability("async")).toCompletableFuture().get(),
             )
+            assertEquals("endpoint:ok", Mediator.endpoints.send(TestEndpoint("ok")))
+            assertEquals(
+                "endpoint:async",
+                Mediator.endpoints.sendAsync(TestEndpoint("async")).toCompletableFuture().get(),
+            )
             assertTrue(Mediator.identifiers.next("uuid7", String::class).isNotBlank())
             assertEquals(context, Mediator.ioc)
             assertNotSame(
@@ -93,6 +101,16 @@ class CoreStarterAutoConfigurationTest {
                 ),
                 context.getBean(
                     CoreRuntimeAutoConfiguration.CAPABILITY_ASYNC_EXECUTOR_BEAN,
+                    ApplicationAsyncExecutor::class.java,
+                ),
+            )
+            assertNotSame(
+                context.getBean(
+                    CoreRuntimeAutoConfiguration.CAPABILITY_ASYNC_EXECUTOR_BEAN,
+                    ApplicationAsyncExecutor::class.java,
+                ),
+                context.getBean(
+                    CoreRuntimeAutoConfiguration.ENDPOINT_ASYNC_EXECUTOR_BEAN,
                     ApplicationAsyncExecutor::class.java,
                 ),
             )
@@ -310,6 +328,12 @@ class CoreStarterAutoConfigurationTest {
 
     class TestCapabilityHandler : CapabilityHandler<TestCapability, String> {
         override fun call(request: TestCapability): String = "capability:${request.value}"
+    }
+
+    data class TestEndpoint(val value: String) : EndpointRequest<String>
+
+    class TestEndpointHandler : EndpointHandler<TestEndpoint, String> {
+        override fun handle(request: TestEndpoint): String = "endpoint:${request.value}"
     }
 
     class TestUnitOfWork : CommandUnitOfWorkCoordinator {

@@ -8,6 +8,7 @@ dependencies {
 
     // Core API dependencies that are exposed to consumers
     api(libs.validation)
+    api(project(":cap4k-contract-api"))
 
     // Compile-only dependencies - Spring framework
     compileOnly(libs.spring.context)

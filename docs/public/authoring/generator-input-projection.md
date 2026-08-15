@@ -9,10 +9,10 @@ generator input projection 是把已经形成的业务意图、模型和技术�
 输入投影要覆盖这些 surface：
 
 - DB schema：Aggregate table、ID、引用、enum type marker、Value Object type marker、unique constraint 和外键。
-- `design/design.json`：Command、Query、Capability、API Payload、Domain Event、Integration Event、Domain Service 等 building blocks。
+- `design/design.json`：Command、Query、Capability、API Payload、Endpoint、Domain Event、Integration Event、Domain Service 等 building blocks。
 - `design/value-objects.json`：通过 `types.valueObjectManifest` 管理 Value Object。
 - `design/enums.json`：通过 `types.enumManifest` 管理 Business Enum。
-- module layout：domain、application、adapter、start 的物理模块位置。
+- module layout：可选的 dependency-leaf contract，以及 domain、application、adapter、start 的物理模块位置。
 - Gradle extension configuration：声明 project、templates、types、sources、generators 和 analysis output layout。
 
 这些输入应该来自前面几轮 authoring 的设计结论。不要通过“先生成看看”来绕过业务意图，也不要把 plan output 反向当成业务模型来源。
@@ -39,6 +39,7 @@ schema 可以帮助 generator 理解字段、类型和 persistence mapping，但
 - `command`：例如 `CreateContentDraft`、`ApproveContentReview`、`StartMediaProcessing`、`MarkMediaProcessingSucceeded`、`RecordContentMediaReady`、`PublishContent`、paid publication commands。
 - `query`：例如 `GetContentDetail`、`GetMediaProcessingStatus`、`GetPaidPublicationStatus`、`ListSubmittedMediaProcessingTasksForPolling`。
 - `api_payload`：HTTP payload 和 result shape。
+- `endpoint`：一个 transport-neutral published operation，使用显式 `operationName` 与 Request/Response shape。
 - `capability`：例如 `TriggerMediaProcessing`、`GetMediaProcessingStatus`、paid publication external capabilities。
 - `domain_event`：例如 `ContentPublicationReady`、`MediaProcessingSucceeded`。
 - `integration_event`：例如 inbound `MediaProcessingCallback` 和 outbound `ContentPublished`。
@@ -59,13 +60,14 @@ type manifest 的目标是表达类型边界。不要把 adapter payload 直接�
 
 ## Module Layout
 
-module layout 要和 [Architecture](../architecture/index.md) 对齐。参考项目的 Gradle extension 中，`domainModulePath`、`applicationModulePath` 和 `adapterModulePath` 分别指向：
+module layout 要和 [Architecture](../architecture/index.md) 对齐。需要生成 Endpoint 或 Integration Event payload 时，还要配置 dependency-leaf `contractModulePath`；`domainModulePath`、`applicationModulePath` 和 `adapterModulePath` 则继续指向内部实现层。参考项目的 Gradle extension 中这些角色可分别指向：
 
+- `cap4k-reference-content-studio-contract`（仅在项目选择 contract-owned artifact 时需要）
 - `cap4k-reference-content-studio-domain`
 - `cap4k-reference-content-studio-application`
 - `cap4k-reference-content-studio-adapter`
 
-start module 不属于 generator module mapping；它由项目结构本身保留为 `cap4k-reference-content-studio-start`，负责运行时装配。`domainModulePath`、`applicationModulePath` 和 `adapterModulePath` 决定 generated output 和 checked-in skeleton 应该落在哪里，也帮助 plan review 判断 module placement 是否正确。
+start module 不属于 generator module mapping；它由项目结构本身保留为 `cap4k-reference-content-studio-start`，负责运行时装配。`contractModulePath`、`domainModulePath`、`applicationModulePath` 和 `adapterModulePath` 决定 generated output 和 checked-in skeleton 应该落在哪里，也帮助 plan review 判断 module placement 是否正确。contract module 只承载 published Endpoint/Integration Event shape 与轻量 contract API 依赖，不依赖本服务 domain、application、adapter、Spring 或 transport implementation。
 
 如果 plan output 显示 Query handler、capability-handler 或 persistence adapter 的物理位置和作者预期不同，先回到 module layout 和 generator input projection 检查，不要直接移动生成文件。
 
@@ -77,6 +79,7 @@ Gradle extension 把输入面连接到 generator。参考项目 root `build.grad
 cap4k {
     project {
         basePackage.set("com.only4.cap4k.reference.contentstudio")
+        contractModulePath.set("cap4k-reference-content-studio-contract")
         domainModulePath.set("cap4k-reference-content-studio-domain")
         applicationModulePath.set("cap4k-reference-content-studio-application")
         adapterModulePath.set("cap4k-reference-content-studio-adapter")

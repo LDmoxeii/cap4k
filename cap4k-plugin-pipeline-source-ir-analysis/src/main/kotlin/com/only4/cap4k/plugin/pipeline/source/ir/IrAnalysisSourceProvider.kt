@@ -354,6 +354,9 @@ class IrAnalysisSourceProvider : SourceProvider {
         if (existing.eventName?.isNotBlank() == true && incoming.eventName?.isNotBlank() == true &&
             existing.eventName != incoming.eventName
         ) add("eventName")
+        if (existing.operationName?.isNotBlank() == true && incoming.operationName?.isNotBlank() == true &&
+            existing.operationName != incoming.operationName
+        ) add("operationName")
         if (existing.persist != null && incoming.persist != null && existing.persist != incoming.persist) add("persist")
         if (existing.fields.isNotEmpty() && incoming.fields.isNotEmpty() && existing.fields != incoming.fields) add("fields")
         if (existing.resultFields.isNotEmpty() && incoming.resultFields.isNotEmpty() &&
@@ -428,6 +431,7 @@ class IrAnalysisSourceProvider : SourceProvider {
                 artifactsDeclared = obj.has("artifacts"),
                 persist = obj.optionalBoolean("persist", context),
                 eventName = obj.optionalString("eventName", context),
+                operationName = obj.optionalString("operationName", context),
                 fields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
                 resultFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
             )
@@ -548,6 +552,7 @@ class IrAnalysisSourceProvider : SourceProvider {
             "capability",
             "capabilityhandler",
             "apipayload",
+            "endpoint",
             "domainevent",
             "domaineventhandler",
             "integrationevent",

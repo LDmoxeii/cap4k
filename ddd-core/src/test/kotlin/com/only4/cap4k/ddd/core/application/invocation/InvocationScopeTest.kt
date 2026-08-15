@@ -28,7 +28,8 @@ class InvocationScopeTest {
         val allowed = mapOf(
             InvocationKind.COMMAND to setOf(InvocationKind.COMMAND, InvocationKind.CAPABILITY),
             InvocationKind.QUERY to setOf(InvocationKind.QUERY, InvocationKind.CAPABILITY),
-            InvocationKind.CAPABILITY to setOf(InvocationKind.CAPABILITY),
+            InvocationKind.CAPABILITY to setOf(InvocationKind.CAPABILITY, InvocationKind.ENDPOINT),
+            InvocationKind.ENDPOINT to setOf(InvocationKind.COMMAND, InvocationKind.QUERY),
             InvocationKind.DOMAIN_EVENT_HANDLER to setOf(
                 InvocationKind.COMMAND,
                 InvocationKind.QUERY,

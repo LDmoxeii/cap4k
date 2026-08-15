@@ -111,7 +111,7 @@ flow evidence 只能说明代码连接方式。连接存在不代表业务规则
 
 普通 `drawing_board_<tag>.json` 文件按 Design JSON tag 分类，可以作为显式 Design JSON 输入。`drawing_board_aggregate_elements.json` 由独立 Aggregate Structure canonical 分区驱动；它不属于 raw graph 或 Drawing Board design projection，没有 `tag`，不是 Design JSON，也不能注册到 `sources.designJson.files`。
 
-drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Capability、event 锚点和 Aggregate element？”它不回答这些锚点是否完成业务实现。
+drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Capability、Endpoint、event 锚点和 Aggregate element？”它不回答这些锚点是否完成业务实现。
 
 ## Verification Usage
 
@@ -120,7 +120,7 @@ drawing-board evidence 适合回答：“项目里有哪些 Command、Query、Ca
 1. 先用 design inputs 和 source 确认作者本来想表达什么。
 2. 再用 `cap4kAnalysisPlan` 的 `analysis-plan.json` 确认 observation output 将如何生成。
 3. 再读 `analysis/flows`，看每个真实入口到 Command 与 Domain/Integration Event 的默认因果投影是否完整，隐藏路径收缩与 root 判定是否符合代码证据。
-4. 再读 `analysis/drawing-board`：用普通 tag 文件确认 Command、Query、Capability 和 event 锚点是否和 design JSON/source 对齐；用 `drawing_board_aggregate_elements.json` 检查 Aggregate element 结构。
+4. 再读 `analysis/drawing-board`：用普通 tag 文件确认 Command、Query、Capability、Endpoint 和 event 锚点是否和 design JSON/source 对齐；用 `drawing_board_aggregate_elements.json` 检查 Aggregate element 结构。
 5. 最后把发现反馈到 [Verification And Feedback](../authoring/verification-and-feedback.md)、[Technical Design](../authoring/technical-design.md) 或 [Implementation Inside Generated Skeletons](../authoring/implementation-inside-generated-skeletons.md)。
 
 常见反馈包括：

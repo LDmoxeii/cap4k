@@ -118,6 +118,98 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
+    fun `endpoint becomes first class canonical operation with dedicated request response roles`() {
+        val model = DefaultCanonicalAssembler().assemble(
+            config = baseConfig(),
+            snapshots = listOf(
+                DesignSpecSnapshot(
+                    entries = listOf(
+                        DesignSpecEntry(
+                            tag = "endpoint",
+                            packageName = "booking",
+                            name = "CreateBookingEndpoint",
+                            operationName = "booking.create",
+                            description = "create booking",
+                            aggregates = listOf("Booking"),
+                            fields = listOf(
+                                SemanticFieldSnapshot(name = "customerId", typeExpression = "String"),
+                                SemanticFieldSnapshot(name = "startTime", typeExpression = "Long"),
+                            ),
+                            resultFields = listOf(
+                                SemanticFieldSnapshot(name = "bookingId", typeExpression = "String"),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ).model
+
+        val block = model.designBlocks.single()
+        val endpoint = model.actorEndpoints.single()
+        assertEquals(listOf(ArtifactSelectionModel("endpoint")), block.artifacts)
+        assertEquals("booking.create", endpoint.operationName)
+        assertEquals("com.acme.demo.contract.endpoints.booking", endpoint.packageName)
+        assertEquals("CreateBookingEndpoint", endpoint.typeName)
+        assertEquals(SemanticValueRole.ENDPOINT_REQUEST, endpoint.request.role)
+        assertEquals(SemanticValueRole.ENDPOINT_RESPONSE, endpoint.response.role)
+        assertEquals(listOf("customerId", "startTime"), endpoint.request.fields.map { it.name })
+        assertEquals(listOf("bookingId"), endpoint.response.fields.map { it.name })
+    }
+
+    @Test
+    fun `endpoint rejects blank and duplicate operation identities`() {
+        val blankError = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "endpoint",
+                                packageName = "booking",
+                                name = "CreateBookingEndpoint",
+                                operationName = " ",
+                                description = "create booking",
+                                aggregates = emptyList(),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+        assertEquals("endpoint CreateBookingEndpoint must declare operationName.", blankError.message)
+
+        val duplicateError = assertThrows(IllegalArgumentException::class.java) {
+            DefaultCanonicalAssembler().assemble(
+                config = baseConfig(),
+                snapshots = listOf(
+                    DesignSpecSnapshot(
+                        entries = listOf(
+                            DesignSpecEntry(
+                                tag = "endpoint",
+                                packageName = "booking",
+                                name = "CreateBookingEndpoint",
+                                operationName = "booking.create",
+                                description = "create booking",
+                                aggregates = emptyList(),
+                            ),
+                            DesignSpecEntry(
+                                tag = "endpoint",
+                                packageName = "booking.admin",
+                                name = "AdminCreateBookingEndpoint",
+                                operationName = "booking.create",
+                                description = "admin create booking",
+                                aggregates = emptyList(),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        }
+        assertEquals("duplicate endpoint operationName: booking.create", duplicateError.message)
+    }
+
+    @Test
     fun `integration event design block defaults to outbound integration event`() {
         val model = DefaultCanonicalAssembler().assemble(
             config = baseConfig(),

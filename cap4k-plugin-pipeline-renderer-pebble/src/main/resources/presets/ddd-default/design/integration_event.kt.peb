@@ -3,7 +3,7 @@ package {{ packageName }}
 {% if buildingBlock is defined -%}
 {{ use("com.only4.cap4k.analysis.metadata.DesignBlockMetadata") -}}
 {% endif -%}
-{{ use("com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent") -}}
+{{ use("com.only4.cap4k.contract.IntegrationEvent") -}}
 {% for import in imports(imports) -%}
 import {{ import }}
 {% endfor %}

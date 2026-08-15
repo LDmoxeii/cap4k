@@ -226,6 +226,62 @@
     ]
   },
   {
+    "tag": "endpoint",
+    "package": "order",
+    "name": "CreateOrder",
+    "operationName": "order.create",
+    "description": "create an order through an actor endpoint contract",
+    "aggregates": [
+      "Order"
+    ],
+    "artifacts": [
+      {
+        "family": "endpoint"
+      }
+    ],
+    "fields": [
+      {
+        "name": "customerId",
+        "type": "String"
+      },
+      {
+        "name": "requestedAt",
+        "type": "java.time.Instant"
+      },
+      {
+        "name": "options",
+        "type": "Options?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "options.labels",
+        "type": "Set<String>",
+        "defaultValue": "emptySet()"
+      }
+    ],
+    "resultFields": [
+      {
+        "name": "orderId",
+        "type": "String"
+      },
+      {
+        "name": "accepted",
+        "type": "Boolean",
+        "defaultValue": "true"
+      },
+      {
+        "name": "receipt",
+        "type": "Receipt?",
+        "defaultValue": "null"
+      },
+      {
+        "name": "receipt.sequence",
+        "type": "Long",
+        "defaultValue": "0"
+      }
+    ]
+  },
+  {
     "tag": "api_payload",
     "package": "order",
     "name": "OrderSearchPayload",
@@ -447,7 +503,7 @@
     "fields": [
       {
         "name": "orderId",
-        "type": "com.acme.demo.domain.aggregates.order.OrderId"
+        "type": "String"
       },
       {
         "name": "destinations",

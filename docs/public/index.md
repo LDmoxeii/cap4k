@@ -15,7 +15,7 @@
 README.md -> docs/public/index.md -> concepts -> architecture -> examples/reference-content-studio.md
 ```
 
-建议先读 [concepts](concepts/index.md)，理解 Aggregate、Command、Query、Capability、Event、Repository、Unit of Work 和 generated/handwritten boundary。然后读 [architecture](architecture/index.md)，确认 domain、application、adapter、start 的责任和依赖方向。最后进入 [reference content studio](examples/reference-content-studio.md)，把概念对照到 `cap4k-reference-content-studio` 的真实模块和流程。
+建议先读 [concepts](concepts/index.md)，理解 Aggregate、Command、Query、Capability、Actor Endpoint、Event、Repository、Unit of Work 和 generated/handwritten boundary。然后读 [architecture](architecture/index.md)，确认可选 contract role 与 domain、application、adapter、start 的责任和依赖方向。最后进入 [reference content studio](examples/reference-content-studio.md)，把概念对照到 `cap4k-reference-content-studio` 的真实模块和流程。
 
 ### 创建新项目
 
@@ -44,7 +44,7 @@ reference/index.md -> gradle-plugin.md | generator-dsl.md | design-json.md | val
 ## 文档章节
 
 - [concepts](concepts/index.md)：解释 DDD 战术构件和执行所有权，包括 modeling building blocks 与 command/query、subscriber、repository、mediator、generated skeleton 等执行边界。
-- [architecture](architecture/index.md)：解释 Clean Architecture 分层、domain/application/adapter/start 的职责、依赖规则和按层测试。
+- [architecture](architecture/index.md)：解释 dependency-leaf contract role、Clean Architecture 四层职责、依赖规则和按层测试。
 - [examples](examples/index.md)：用 `cap4k-reference-content-studio` 展示四层多模块结构、默认发布流、Value Object 类型输入、外部能力边界和分析证据。
 - [authoring](authoring/index.md)：组织从业务意图到验证反馈的 spiral authoring loop。
 - [generator](generator/index.md)：解释 generator-backed authoring、Agent snapshot、输入来源、计划审阅、生成任务和分析证据。

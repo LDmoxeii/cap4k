@@ -17,6 +17,7 @@ class DesignJsonProviderDescriptorTest {
                 "Query",
                 "Capability",
                 "API Payload",
+                "Actor Endpoint",
                 "Domain Event",
                 "Integration Event",
                 "Domain Service",

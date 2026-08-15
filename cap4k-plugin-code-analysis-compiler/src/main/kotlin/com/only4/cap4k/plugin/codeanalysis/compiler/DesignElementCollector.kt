@@ -78,6 +78,13 @@ class DesignElementCollector(
         require(family.isNotEmpty()) { "DesignBlockMetadata annotation on $className must declare non-blank family" }
 
         val nestedTypes = collectNestedTypes(declaration)
+        val operationName = ann.getStringArg("operationName").orEmpty().trim()
+        if (family == "endpoint") {
+            require(operationName.isNotEmpty()) { "endpoint metadata carrier $className must declare non-blank operationName" }
+            validateEndpointContract(declaration, className)
+        } else {
+            require(operationName.isEmpty()) { "$family metadata carrier $className must not declare operationName" }
+        }
         val fields = primaryFieldCarrier(declaration, family)?.let { fieldsRoot ->
             val recoveredFields = collectFields(
                 fieldsRoot,
@@ -118,6 +125,7 @@ class DesignElementCollector(
                 description = ann.getStringArg("description").orEmpty(),
                 aggregates = ann.getStringListArg("aggregates"),
                 eventName = eventContract.eventName,
+                operationName = operationName,
                 persist = eventContract.persist,
                 artifacts = listOfNotNull(artifact),
                 fields = fields,
@@ -132,13 +140,14 @@ class DesignElementCollector(
             "query",
             "capability",
             "api-payload" -> findNestedClass(declaration, "Request") ?: declaration
+            "endpoint" -> findNestedClass(declaration, "Request")
             "domain-event",
             "integration-event" -> declaration
             else -> null
         }
 
     private fun String.hasResultFields(): Boolean =
-        this == "command" || this == "query" || this == "capability" || this == "api-payload"
+        this == "command" || this == "query" || this == "capability" || this == "api-payload" || this == "endpoint"
 
     private fun validateAndFilterPageFields(
         carrier: IrClass,
@@ -198,6 +207,7 @@ class DesignElementCollector(
     private fun MutableDesignBlock.mergeShared(element: DesignElement) {
         mergeString("description", description, element.description) { description = it }
         mergeString("eventName", eventName, element.eventName) { eventName = it }
+        mergeString("operationName", operationName, element.operationName) { operationName = it }
         mergeStringList("aggregates", aggregates, element.aggregates) { aggregates = it }
         mergeBoolean("persist", persist, element.persist) { persist = it }
     }
@@ -615,6 +625,29 @@ class DesignElementCollector(
         return nestedTypes
     }
 
+
+    private fun validateEndpointContract(declaration: IrClass, className: String) {
+        val request = findNestedClass(declaration, "Request")
+            ?: throw IllegalArgumentException("endpoint metadata carrier $className must declare nested Request")
+        val response = findNestedClass(declaration, "Response")
+            ?: throw IllegalArgumentException("endpoint metadata carrier $className must declare nested Response")
+        val responseFq = response.fqNameWhenAvailable?.asString()
+        val marker = request.superTypes.firstOrNull { type ->
+            val simple = type as? IrSimpleType ?: return@firstOrNull false
+            val owner = simple.classifier?.owner as? IrClass ?: return@firstOrNull false
+            owner.fqNameWhenAvailable?.asString() == ENDPOINT_REQUEST_FQ
+        } as? IrSimpleType
+        require(marker != null) {
+            "endpoint Request ${request.fqNameWhenAvailable?.asString()} must implement $ENDPOINT_REQUEST_FQ<Response>"
+        }
+        val resultType = marker.arguments.singleOrNull()?.typeOrNull
+        val resultFq = (resultType as? IrSimpleType)?.classifier?.owner
+            ?.let { it as? IrClass }?.fqNameWhenAvailable?.asString()
+        require(resultFq == responseFq) {
+            "endpoint Request ${request.fqNameWhenAvailable?.asString()} must implement $ENDPOINT_REQUEST_FQ<Response>"
+        }
+    }
+
     private fun IrClass.resolveEventContract(
         className: String,
         family: String,
@@ -758,6 +791,7 @@ class DesignElementCollector(
         var description: String,
         var aggregates: List<String>,
         var eventName: String,
+        var operationName: String,
         var persist: Boolean?,
         val artifacts: MutableList<DesignArtifact>,
         var fields: List<DesignField>,
@@ -771,6 +805,7 @@ class DesignElementCollector(
                 description = description,
                 aggregates = aggregates,
                 eventName = eventName,
+                operationName = operationName,
                 persist = persist,
                 artifacts = artifacts.toList(),
                 fields = fields,
@@ -786,6 +821,7 @@ class DesignElementCollector(
                     description = element.description,
                     aggregates = element.aggregates,
                     eventName = element.eventName,
+                    operationName = element.operationName,
                     persist = element.persist,
                     artifacts = element.artifacts.toMutableList(),
                     fields = element.fields,
@@ -808,6 +844,7 @@ class DesignElementCollector(
     }
 
     private companion object {
+        const val ENDPOINT_REQUEST_FQ = "com.only4.cap4k.contract.EndpointRequest"
         val PAGE_FIELD_DEFAULTS = linkedMapOf(
             "pageNum" to "1",
             "pageSize" to "10",

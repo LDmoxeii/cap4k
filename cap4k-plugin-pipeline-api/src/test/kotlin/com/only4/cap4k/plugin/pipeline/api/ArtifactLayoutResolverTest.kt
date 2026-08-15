@@ -28,6 +28,7 @@ class ArtifactLayoutResolverTest {
 
     @Test
     fun `resolves default design packages`() {
+        assertEquals("com.acme.demo.contract.endpoints.message.create", resolver.designEndpointPackage("message.create"))
         assertEquals("com.acme.demo.application.commands.message.create", resolver.designCommandPackage("message.create"))
         assertEquals("com.acme.demo.application.queries.message.read", resolver.designQueryPackage("message.read"))
         assertEquals("com.acme.demo.application.capabilities.message.delivery", resolver.designCapabilityPackage("message.delivery"))
@@ -52,11 +53,11 @@ class ArtifactLayoutResolverTest {
         val resolver = ArtifactLayoutResolver("com.acme")
 
         assertEquals(
-            "com.acme.application.subscribers.integration.inbound.media.processing",
+            "com.acme.contract.events.integration.inbound.media.processing",
             resolver.designIntegrationEventPackage("inbound", "media.processing"),
         )
         assertEquals(
-            "com.acme.application.subscribers.integration.outbound.content",
+            "com.acme.contract.events.integration.outbound.content",
             resolver.designIntegrationEventPackage("outbound", "content"),
         )
         assertEquals(

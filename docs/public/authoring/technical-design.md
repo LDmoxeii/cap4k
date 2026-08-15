@@ -6,10 +6,11 @@ technical design 把业务模型放进 cap4k 的 Clean Architecture。它回答�
 
 ## Clean Architecture
 
-cap4k public docs 使用 [Architecture](../architecture/index.md) 中的四层模型：
+cap4k public docs 使用 [Architecture](../architecture/index.md) 中的四层模型，并在有跨服务 published language 时增加独立 contract role：
 
+- contract role：Endpoint Request/Response、Integration Event payload 和轻量 contract API；它是依赖叶子，不承载 Handler 或 transport。
 - domain layer：Aggregate、Entity、Value Object、Factory、Domain Service 和 Domain Event。
-- application layer：独立的 Command、Query、Capability，以及 Subscriber 和 Scheduled Reaction；外层 Command 自动拥有 REQUIRED transaction 与 Unit of Work completion，入口路由使用 Mediator。
+- application layer：独立的 Command、Query、Capability、Endpoint Handler，以及 Subscriber 和 Scheduled Reaction；外层 Command 自动拥有 REQUIRED transaction 与 Unit of Work completion，入口路由使用 Mediator。
 - adapter layer：Controller、API Payload、query adapter、capability-handler、persistence adapter，以及 cap4k framework integration-event transport adapter/runtime；typed inbound Integration Event 的业务解释由 application inbound subscriber 承担。
 - start layer：Spring Boot runtime assembly、local startup、runtime config 和 smoke path。
 
@@ -25,6 +26,10 @@ cap4k public docs 使用 [Architecture](../architecture/index.md) 中的四层�
 - `cap4k-reference-content-studio-start`
 
 authoring 时先把 building blocks 放进正确 module，再写 generator inputs。比如 `Content` behavior 和 `MediaProcessingResultSnapshot` 属于 domain；`PublishContentCmd`、`MediaProcessingCallbackIntegrationEventSubscriber` 和 application-facing Capability 属于 application；`ContentController`、query handler、Capability Handler 和 persistence adapter 属于 adapter；cap4k framework integration-event transport adapter/runtime 负责 callback/message consumption、parse/register/dispatch；boot application、runtime config 和 smoke path 属于 start。
+
+## Endpoint Boundary
+
+Actor Endpoint 表达一个显式 published operation，不是把内部 Command/Query 自动公开。Provider 的 Endpoint Handler 接收 contract Request，再通过 `Mediator.commands` / `Mediator.queries` 进入内部用例；Consumer 可以直接通过 `Mediator.endpoints` 使用 published language，或先通过本地 Capability 做防腐映射。当前不包含 HTTP/RPC binding 或 Consumer proxy generation。
 
 ## Command And Query Boundaries
 
@@ -68,7 +73,7 @@ persistence design 要服务 Aggregate ownership。schema 可以表达聚合表�
 
 ## Testing Expectations
 
-[Testing By Layer](../architecture/testing-by-layer.md) 是 technical design 的验证边界。domain tests 应直接覆盖业务不变量和状态变化；application tests 覆盖 Command、Query、Capability、Subscriber、Scheduled Reaction 和 UoW/event frontier semantics；adapter tests 覆盖 protocol conversion；start tests 覆盖 runtime assembly 和 smoke path。
+[Testing By Layer](../architecture/testing-by-layer.md) 是 technical design 的验证边界。domain tests 应直接覆盖业务不变量和状态变化；application tests 覆盖 Command、Query、Capability、Endpoint Handler、Subscriber、Scheduled Reaction 和 UoW/event frontier semantics；adapter tests 覆盖 protocol conversion；start tests 覆盖 runtime assembly 和 smoke path。
 
 测试设计不应把全部正确性压在 HTTP smoke path 上。smoke path 能证明系统连通，不能替代 `ContentBehaviorTest`、`ContentFactoryTest`、`PublishContentCommandContractTest` 或 provider-owned orchestration 相关的 focused evidence。
 

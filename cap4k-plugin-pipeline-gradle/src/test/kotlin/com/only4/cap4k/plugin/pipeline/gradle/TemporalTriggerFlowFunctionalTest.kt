@@ -62,4 +62,35 @@ class TemporalTriggerFlowFunctionalTest {
         assertFalse(projectDir.resolve("flows/process-index.json").toFile().exists())
         assertFalse(result.output.contains("cap4kFlow"), result.output)
     }
+
+    @OptIn(ExperimentalPathApi::class)
+    @Test
+    fun `endpoint contract metadata and local dispatch do not create actor flows`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-endpoint-flow-negative")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "endpoint-flow-negative-compile-sample")
+
+        val result = FunctionalFixtureSupport.runner(
+            projectDir,
+            "cap4kAnalysisPlan",
+            "cap4kAnalysisGenerate",
+        ).build()
+
+        val analysisDir = projectDir.resolve("build/cap4k-code-analysis")
+        val nodesText = analysisDir.resolve("nodes.json").readText()
+        val relsText = analysisDir.resolve("rels.json").readText()
+        val designText = analysisDir.resolve("design-elements.json").readText()
+        val index = jsonMapper.readTree(projectDir.resolve("flows/index.json").toFile())
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
+        assertTrue(designText.contains("\"tag\":\"endpoint\""), designText)
+        assertTrue(designText.contains("\"operationName\":\"booking.create\""), designText)
+        assertFalse(nodesText.contains("CreateBookingEndpoint"), nodesText)
+        assertFalse(nodesText.contains("\"type\":\"actor\""), nodesText)
+        assertFalse(relsText.contains("Endpoint"), relsText)
+        assertEquals(0, index.get("flowCount").asInt())
+        assertFalse(projectDir.resolve("flows/demo_CreateBookingEndpoint.json").toFile().exists())
+        assertEquals(listOf("index.json"), Files.list(projectDir.resolve("flows")).use { stream ->
+            stream.map { it.fileName.toString() }.sorted().toList()
+        })
+    }
 }

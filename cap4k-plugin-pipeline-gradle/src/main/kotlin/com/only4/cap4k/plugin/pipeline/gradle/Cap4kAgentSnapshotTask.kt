@@ -277,6 +277,9 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
             config.modules
         } else {
             buildMap<String, String> {
+                extension.project.contractModulePath.orNull?.trim()?.takeIf { it.isNotEmpty() }?.let { path ->
+                    put("contract", path)
+                }
                 extension.project.domainModulePath.orNull?.trim()?.takeIf { it.isNotEmpty() }?.let { path ->
                     put("domain", path)
                 }

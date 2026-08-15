@@ -91,6 +91,75 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
+    fun `parses endpoint operation identity and request response shapes`() {
+        val tempFile = tempDir.resolve("endpoint.json")
+        Files.writeString(
+            tempFile,
+            """
+                [
+                  {
+                    "tag": "endpoint",
+                    "package": "booking",
+                    "name": "CreateBookingEndpoint",
+                    "operationName": "booking.create",
+                    "description": "create booking",
+                    "fields": [
+                      { "name": "customerId", "type": "String" },
+                      { "name": "startTime", "type": "java.time.Instant" }
+                    ],
+                    "resultFields": [
+                      { "name": "bookingId", "type": "String" }
+                    ]
+                  }
+                ]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+
+        val entry = (DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot)
+            .entries
+            .single()
+
+        assertEquals("endpoint", entry.tag)
+        assertEquals("booking.create", entry.operationName)
+        assertEquals(listOf("customerId", "startTime"), entry.fields.map { it.name })
+        assertEquals(listOf("bookingId"), entry.resultFields.map { it.name })
+    }
+
+    @Test
+    fun `requires operation name only for endpoint`() {
+        val missing = tempDir.resolve("endpoint-missing-operation.json")
+        Files.writeString(
+            missing,
+            """
+                [{ "tag": "endpoint", "package": "booking", "name": "CreateBookingEndpoint" }]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+        val missingError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(missing.toString()))
+        }
+        assertTrue(missingError.message?.contains("endpoint CreateBookingEndpoint") == true)
+        assertTrue(missingError.message?.contains("operationName") == true)
+
+        val foreign = tempDir.resolve("command-operation.json")
+        Files.writeString(
+            foreign,
+            """
+                [{ "tag": "command", "package": "booking", "name": "CreateBooking", "operationName": "booking.create" }]
+            """.trimIndent(),
+            StandardCharsets.UTF_8,
+        )
+        val foreignError = assertThrows(IllegalArgumentException::class.java) {
+            DesignJsonSourceProvider().collect(configFor(foreign.toString()))
+        }
+        assertEquals(
+            "design entry CreateBooking cannot declare operationName on tag: command",
+            foreignError.message,
+        )
+    }
+
+    @Test
     fun `parses command result fields as command response payload`() {
         val tempFile = tempDir.resolve("command-result-fields.json")
         Files.writeString(

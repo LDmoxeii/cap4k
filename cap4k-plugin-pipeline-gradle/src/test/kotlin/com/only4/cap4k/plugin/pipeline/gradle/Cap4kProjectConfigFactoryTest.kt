@@ -42,7 +42,8 @@ class Cap4kProjectConfigFactoryTest {
         assertEquals("events", extension.layout.designDomainEvent.packageSuffix.get())
         assertEquals("application.subscribers.domain", extension.layout.designDomainEventHandler.packageRoot.get())
         assertEquals("", extension.layout.designDomainEventHandler.packageSuffix.get())
-        assertEquals("application.subscribers.integration", extension.layout.designIntegrationEvent.packageRoot.get())
+        assertEquals("contract.endpoints", extension.layout.designEndpoint.packageRoot.get())
+        assertEquals("contract.events.integration", extension.layout.designIntegrationEvent.packageRoot.get())
         assertEquals("", extension.layout.designIntegrationEvent.packageSuffix.get())
         assertEquals("application.subscribers.integration", extension.layout.designIntegrationEventSubscriber.packageRoot.get())
         assertEquals("", extension.layout.designIntegrationEventSubscriber.packageSuffix.get())
@@ -61,6 +62,21 @@ class Cap4kProjectConfigFactoryTest {
         val config = Cap4kProjectConfigFactory().build(project, extension)
 
         assertEquals(ArtifactLayoutConfig(), config.artifactLayout)
+    }
+
+    @Test
+    fun `factory projects contract module without requiring implementation modules`() {
+        val project = ProjectBuilder.builder().build()
+        val extension = project.extensions.create("cap4k", Cap4kExtension::class.java)
+
+        extension.project {
+            basePackage.set("com.acme.demo")
+            contractModulePath.set("demo-contract")
+        }
+
+        val config = Cap4kProjectConfigFactory().build(project, extension)
+
+        assertEquals(mapOf("contract" to "demo-contract"), config.modules)
     }
 
     @Test

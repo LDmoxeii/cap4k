@@ -5,7 +5,7 @@ import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManag
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextCodecRegistry
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.invocation.DefaultInvocationScopeManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.EventMessageInterceptor

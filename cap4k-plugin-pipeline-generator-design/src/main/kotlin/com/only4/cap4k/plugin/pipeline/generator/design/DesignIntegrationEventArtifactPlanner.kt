@@ -22,7 +22,7 @@ class DesignIntegrationEventArtifactPlanner : GeneratorProvider {
             return emptyList()
         }
 
-        val applicationRoot = requireRelativeModuleRoot(config, "application")
+        val contractRoot = requireRelativeModuleRoot(config, "contract")
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
 
         return blocks.map { block ->
@@ -35,9 +35,9 @@ class DesignIntegrationEventArtifactPlanner : GeneratorProvider {
             )
             ArtifactPlanItem(
                 generatorId = id,
-                moduleRole = "application",
+                moduleRole = "contract",
                 templateId = "design/integration_event.kt.peb",
-                outputPath = artifactLayout.kotlinSourcePath(applicationRoot, packageName, typeName),
+                outputPath = artifactLayout.kotlinSourcePath(contractRoot, packageName, typeName),
                 context = renderModel.toIntegrationEventContextMap(block, variant),
                 conflictPolicy = config.templates.conflictPolicy,
             )

@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 class ApplicationExecutionProperties {
     var query: AsyncExecutor = AsyncExecutor(threadNamePrefix = "cap4k-query-")
     var capability: AsyncExecutor = AsyncExecutor(threadNamePrefix = "cap4k-capability-")
+    var endpoint: AsyncExecutor = AsyncExecutor(threadNamePrefix = "cap4k-endpoint-")
 
     class AsyncExecutor(
         var workers: Int = 4,

@@ -1,8 +1,8 @@
 package com.acme.demo.application.smoke
 
-import com.acme.demo.application.subscribers.integration.inbound.media.processing.MediaProcessingCallbackIntegrationEvent
+import com.acme.demo.contract.events.integration.inbound.media.processing.MediaProcessingCallbackIntegrationEvent
 import com.acme.demo.application.subscribers.integration.MediaProcessingCallbackIntegrationEventSubscriber
-import com.acme.demo.application.subscribers.integration.outbound.content.ContentPublishedIntegrationEvent
+import com.acme.demo.contract.events.integration.outbound.content.ContentPublishedIntegrationEvent
 import java.time.LocalDateTime
 import java.util.UUID
 

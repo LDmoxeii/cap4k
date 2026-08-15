@@ -9,6 +9,7 @@ import com.only4.cap4k.plugin.pipeline.api.AgentCapabilitiesSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentDiagnosticsSection
 import com.only4.cap4k.plugin.pipeline.api.AgentOwnershipSection
+import com.only4.cap4k.plugin.pipeline.api.AgentProjectSection
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeSection
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
@@ -38,6 +39,7 @@ class Cap4kAgentSnapshotTaskTest {
         val project = project("agent-snapshot-valid")
         val extension = project.extensions.getByType(Cap4kExtension::class.java)
         extension.project.basePackage.set("com.acme.publishing")
+        extension.project.contractModulePath.set("publishing-contract")
         val output = project.layout.buildDirectory.dir("cap4k/agent").get().asFile
         output.resolve("manifest.json").apply { parentFile.mkdirs(); writeText("stale") }
         output.resolve("stale.json").apply { parentFile.mkdirs(); writeText("stale") }
@@ -53,6 +55,14 @@ class Cap4kAgentSnapshotTaskTest {
         assertEquals(EXPECTED_SECTION_IDS, manifest.sections.map { it.id }.toSet())
         assertTrue(PipelinePublicTasks.AGENT_SNAPSHOT in manifest.project.publicTasks)
         assertFalse(manifest.project.publicTasks.any { it.startsWith("cap4kBootstrap") })
+        val projectFacts = AgentSnapshotCodec().fromJson(
+            output.resolve("project.json").readText(Charsets.UTF_8),
+            AgentProjectSection::class.java,
+        )
+        assertEquals(
+            "publishing-contract",
+            projectFacts.project.modules.single { module -> module.role == "contract" }.path,
+        )
         manifest.sections.forEach { section ->
             val sectionJson = output.resolve(section.path).readText(Charsets.UTF_8)
             assertEquals(section.sha256, AgentHashing.sha256(sectionJson), section.path)
@@ -64,6 +74,7 @@ class Cap4kAgentSnapshotTaskTest {
         assertEquals(
             listOf(
                 "API Payload",
+                "Actor Endpoint",
                 "Capability",
                 "Command",
                 "Domain Event",
@@ -82,7 +93,11 @@ class Cap4kAgentSnapshotTaskTest {
         assertEquals("SYNCHRONOUS_SEQUENTIAL_FAIL_FAST", runtime.eventHandler.execution.name)
         assertEquals("UNSPECIFIED", runtime.eventHandler.ordering.equalValues.name)
         assertEquals(
-            setOf("Mediator.queries.askAsync", "Mediator.capabilities.callAsync"),
+            setOf(
+                "Mediator.queries.askAsync",
+                "Mediator.capabilities.callAsync",
+                "Mediator.endpoints.sendAsync",
+            ),
             runtime.eventHandler.managedAsyncCompletion.trackedOperations.toSet(),
         )
         assertEquals("cap4k.agent.runtime.v3", runtime.schema)

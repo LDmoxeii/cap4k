@@ -85,6 +85,7 @@ data class DesignSpecEntry(
     val fields: List<SemanticFieldSnapshot> = emptyList(),
     val resultFields: List<SemanticFieldSnapshot> = emptyList(),
     val eventName: String? = null,
+    val operationName: String? = null,
 )
 
 data class ArtifactSelectionModel(
@@ -99,6 +100,7 @@ data class DesignBlockModel(
     val description: String = "",
     val aggregates: List<String> = emptyList(),
     val eventName: String = "",
+    val operationName: String = "",
     val persist: Boolean? = null,
     val artifacts: List<ArtifactSelectionModel>,
     val artifactsDeclared: Boolean = true,
@@ -131,6 +133,7 @@ data class DesignElementSnapshot(
     val fields: List<SemanticFieldSnapshot> = emptyList(),
     val resultFields: List<SemanticFieldSnapshot> = emptyList(),
     val eventName: String? = null,
+    val operationName: String? = null,
 )
 
 data class AggregateElementSnapshot(
@@ -550,6 +553,7 @@ data class DrawingBoardElementModel(
     val request: SemanticValueDefinition,
     val response: SemanticValueDefinition? = null,
     val eventName: String? = null,
+    val operationName: String? = null,
 ) {
     val fields: List<SemanticValueField>
         get() = request.fields
@@ -580,6 +584,7 @@ private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelection
         "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
         "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
         "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
+        "endpoint" -> listOf(ArtifactSelectionModel("endpoint"))
         "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
         "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
         "domain_service" -> listOf(ArtifactSelectionModel("domain-service"))
@@ -645,10 +650,21 @@ data class StrongIdModel(
     val isEmbeddedId: Boolean = false,
 )
 
+data class ActorEndpointModel(
+    val operationName: String,
+    val packageName: String,
+    val typeName: String,
+    val description: String,
+    val aggregates: List<String>,
+    val request: SemanticValueDefinition,
+    val response: SemanticValueDefinition,
+)
+
 data class CanonicalModel(
     val project: ProjectModel = ProjectModel(),
     val aggregates: List<AggregateModel> = emptyList(),
     val designBlocks: List<DesignBlockModel> = emptyList(),
+    val actorEndpoints: List<ActorEndpointModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),

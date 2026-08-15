@@ -23,6 +23,9 @@ class DesignElementJsonWriter {
                 element.eventName.takeIf { it.isNotBlank() }?.let { value ->
                     append(",\"eventName\":\"").append(escape(value)).append("\"")
                 }
+                element.operationName.takeIf { it.isNotBlank() }?.let { value ->
+                    append(",\"operationName\":\"").append(escape(value)).append("\"")
+                }
                 element.persist?.let { value ->
                     append(",\"persist\":").append(value)
                 }

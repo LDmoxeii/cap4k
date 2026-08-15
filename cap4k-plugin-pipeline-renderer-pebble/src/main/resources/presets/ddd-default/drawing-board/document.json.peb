@@ -12,6 +12,9 @@
       "variant": {{ artifact.variant | json | raw }}{% endif %}
     }{% if not loop.last %}, {% endif %}{% endfor %}]
 {%- endif %}
+{%- if element.operationName is not empty %},
+    "operationName": {{ element.operationName | json | raw }}
+{%- endif %}
 {%- if element.persist is not null %},
     "persist": {{ element.persist }}
 {%- endif %},

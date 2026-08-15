@@ -8,6 +8,7 @@ val dbFilePath = layout.buildDirectory.file("h2/demo").get().asFile.absolutePath
 cap4k {
     project {
         basePackage.set("com.acme.demo")
+        contractModulePath.set("demo-contract")
         domainModulePath.set("demo-domain")
         applicationModulePath.set("demo-application")
         adapterModulePath.set("demo-adapter")

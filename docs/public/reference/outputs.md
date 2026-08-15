@@ -20,7 +20,7 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 
 conflict policy 固定为 `SKIP`。cap4k 只承诺第一次 materialization，不承诺 checked-in file 在后续 generation 中追平最新 template，也不提供 merge、patch 或 managed-section refresh。需要重建时，由项目作者基于版本控制自行删除、生成和审查。
 
-Factory、Behavior、Command、Query、Capability、Event、Value Object 以及 owned-child `*Creation` 都遵循这条 checked-in contract。它们生成后可以承载手写语义，但不会被 generator 覆盖。
+Factory、Behavior、Command、Query、Capability、Endpoint contract、Event、Value Object 以及 owned-child `*Creation` 都遵循这条 checked-in contract。它们生成后可以承载手写语义，但不会被 generator 覆盖。
 
 ## Generated Source
 

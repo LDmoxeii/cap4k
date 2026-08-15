@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.async.BoundedApplicationAsyncExecutor
 import com.only4.cap4k.ddd.core.application.context.DefaultExecutionContextManager
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextPropagation

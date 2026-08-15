@@ -63,7 +63,7 @@ cap4kAnalysisPlan -> cap4kAnalysisGenerate
 <module>/src/main/kotlin
 ```
 
-这些 skeleton 可以成为长期维护的入口，例如 Command、Query、Capability、Subscriber、API payload、Repository adapter、Factory、Creation、Domain Event、Value Object 或 enum。所有 checked-in skeleton 都固定使用 `SKIP`；cap4k 不承诺后续同步最新 template。
+这些 skeleton 可以成为长期维护的入口，例如 Command、Query、Capability、Endpoint contract、Subscriber、API payload、Repository adapter、Factory、Creation、Domain Event、Integration Event contract、Value Object 或 enum。所有 checked-in skeleton 都固定使用 `SKIP`；cap4k 不承诺后续同步最新 template。
 
 生成后仍要在 intended handwritten slot 中写业务实现。不要把“文件生成了”解释成“业务完成了”。
 
