@@ -9,6 +9,7 @@ annotation class DesignBlockMetadata(
     val description: String = "",
     val aggregates: Array<String> = [],
     val eventName: String = "",
+    val operationName: String = "",
     val family: String,
     val variant: String = "",
 )

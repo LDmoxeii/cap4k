@@ -102,10 +102,12 @@ class Cap4kProjectConfigFactory {
         sources: SourceStates,
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
+        extension.project.contractModulePath.optionalValue()?.let { put("contract", it) }
         extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
         extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
         extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
         if (sources.designJsonConfigured) {
+            extension.project.contractModulePath.optionalValue()?.let { put("contract", it) }
             extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
             extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
             extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
@@ -221,6 +223,7 @@ class Cap4kProjectConfigFactory {
             aggregateSharedEnum = extension.layout.aggregateSharedEnum.toPackageLayout("aggregateSharedEnum"),
             flow = extension.layout.flow.toOutputRootLayout("flow"),
             drawingBoard = extension.layout.drawingBoard.toOutputRootLayout("drawing-board"),
+            designEndpoint = extension.layout.designEndpoint.toPackageLayout("designEndpoint"),
             designCommand = extension.layout.designCommand.toPackageLayout("designCommand"),
             designQuery = extension.layout.designQuery.toPackageLayout("designQuery"),
             designCapability = extension.layout.designCapability.toPackageLayout("designCapability"),

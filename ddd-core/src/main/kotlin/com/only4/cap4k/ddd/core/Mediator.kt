@@ -3,6 +3,7 @@ package com.only4.cap4k.ddd.core
 import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
+import com.only4.cap4k.ddd.core.application.endpoint.EndpointSupervisor
 import com.only4.cap4k.ddd.core.application.query.QuerySupervisor
 import com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor
 import com.only4.cap4k.ddd.core.domain.id.IdentifierGenerator
@@ -54,6 +55,10 @@ class Mediator private constructor() {
         @JvmStatic
         val capabilities: CapabilitySupervisor
             get() = CapabilitySupervisor.instance
+
+        @JvmStatic
+        val endpoints: EndpointSupervisor
+            get() = EndpointSupervisor.instance
 
     }
 }

@@ -10,6 +10,7 @@ enum class InvocationKind {
     COMMAND,
     QUERY,
     CAPABILITY,
+    ENDPOINT,
     DOMAIN_EVENT_HANDLER,
 }
 
@@ -141,7 +142,10 @@ class InvocationPolicy(
                 requestedKind == InvocationKind.CAPABILITY
             InvocationKind.QUERY -> requestedKind == InvocationKind.CAPABILITY ||
                 (requestedKind == InvocationKind.QUERY && !asynchronous)
-            InvocationKind.CAPABILITY -> requestedKind == InvocationKind.CAPABILITY
+            InvocationKind.CAPABILITY -> requestedKind == InvocationKind.CAPABILITY ||
+                requestedKind == InvocationKind.ENDPOINT
+            InvocationKind.ENDPOINT -> requestedKind == InvocationKind.COMMAND ||
+                requestedKind == InvocationKind.QUERY
             InvocationKind.DOMAIN_EVENT_HANDLER -> requestedKind == InvocationKind.COMMAND ||
                 requestedKind == InvocationKind.QUERY ||
                 requestedKind == InvocationKind.CAPABILITY

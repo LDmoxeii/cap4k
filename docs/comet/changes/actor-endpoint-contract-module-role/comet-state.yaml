@@ -1,0 +1,2274 @@
+schema: comet.native.v4
+name: actor-endpoint-contract-module-role
+language: zh-CN
+phase: archive
+status: active
+state_version: 14
+brief: brief.md
+spec_changes:
+  - capability: actor-endpoint-contract
+    operation: create
+    source: specs/actor-endpoint-contract/spec.md
+  - capability: design-roundtrip-contract
+    operation: modify
+    source: specs/design-roundtrip-contract/spec.md
+workspace:
+  isolation: worktree
+  change_branch: feature/actor-endpoint-contract-module-role
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: archive-ready
+  goal_cycle: 2
+  iteration: 2
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 1
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: archive
+acceptance:
+  - id: A1
+    source: brief.md
+    text: "**A1**：配置 `project.contractModulePath` 后，`ProjectConfig.modules` 与 Agent
+      project facts 都出现 `contract -> <path>`；未选择 contract-owned artifact
+      时该路径可省略，选择后缺失会给出稳定明确诊断。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: "**A2**：一个显式 `endpoint` 输入产生唯一的一等 canonical operation，保留
+      `operationName`、有序 Request/Response fields、嵌套 DTO、类型、nullability 与
+      defaults；空白/重复 operation identity 或非法 shape 在 source/canonical 阶段失败。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: "**A3**：默认 `endpoint` artifact 生成到 contract module 的 checked-in
+      source；产物是操作级 object，其 Request 实现轻量 `EndpointRequest<Response>`，包含
+      Response 和稳定 identity 常量，不引用 domain/application/adapter 类型。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: "**A4**：`Mediator.endpoints.send(request)` 与 `sendAsync(request)` 按
+      Request concrete type 分发到唯一 `EndpointHandler<Request, Response>`，并保持
+      validation、invocation scope、execution context 和异步失败传播等现有 application
+      dispatcher 约束。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: "**A5**：Provider 的本地 Endpoint Handler 可将 published Request 映射到本地
+      Command/Query；Consumer 侧 RPC proxy 可作为同一 Request 的本地 Endpoint
+      Handler。Consumer 可直接调用 `Mediator.endpoints`，也可由本地 Capability Handler
+      先完成防腐映射后再调用 `Mediator.endpoints`；任何路径都不直接调用 proxy。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: "**A6**：`cap4k-contract-api` 可独立编译与发布，只依赖 Kotlin/JDK 基础；包含
+      `EndpointRequest` 和共享 Integration Event annotation，但不包含
+      Spring、Mediator/Supervisor 实现、持久化或 transport runtime。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: "**A7**：生成的 inbound/outbound Integration Event payload 归
+      `moduleRole=contract`，继续保留稳定 `eventName` 与 direction metadata；integration
+      subscriber 仍归 application，既有 topology/ack/retry/inbox 语义不变。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: "**A8**：ActorEndpoint 与迁移后的 Integration Event 通过真实 Kotlin Analyzer 恢复到
+      Drawing Board，并可作为普通 Design JSON 重新生成，保持 operation/event identity、artifact
+      selection 和 semantic shapes。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A9
+    source: brief.md
+    text: "**A9**：仅生成或本地分发 ActorEndpoint contract 不增加 Analyzer Graph 节点、关系、Flow root
+      或 flow 数量；HTTP/RPC Actor evidence 必须等待真实 binding detector。"
+    result: passed
+    reason:
+      text: 真实 compiler+IR+Flow 负回归证明无 Actor 节点、因果关系、Flow root 或 flow 数量增量。
+      truncated: false
+  - id: A10
+    source: brief.md
+    text: "**A10**：capability descriptor、provider registry、AgentFacts、Public Docs 与
+      authoring Skill 都从生产合同投影新的 carrier/module ownership；现有
+      domain/application/adapter planner 输出保持不变，consumer fixture 只依赖 contract
+      artifact 与所选 endpoint/RPC runtime。"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A11
+    source: specs/actor-endpoint-contract/spec.md
+    text: Cap4k MUST model every externally invokable Actor operation as an
+      explicit, transport-neutral ActorEndpoint published contract. HTTP and RPC
+      are bindings over this contract; internal Command, Query and Capability
+      remain distinct application semantics and MUST NOT become published
+      automatically.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A12
+    source: specs/actor-endpoint-contract/spec.md
+    text: ActorEndpoint invocation MUST preserve cap4k's Request + Handler +
+      Response model and MUST be dispatched through Mediator. A Consumer RPC
+      proxy is a local Handler selected by Mediator, not a service object
+      directly called by business code.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A13
+    source: specs/actor-endpoint-contract/spec.md
+    text: The published language MUST live in a dependency-leaf `contract` module so
+      a consumer can depend on operation and event shapes without depending on
+      the Provider service implementation.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A14
+    source: specs/actor-endpoint-contract/spec.md
+    text: The Design JSON tactical tag MUST be `endpoint`. `actor` identifies the
+      Analyzer/Flow trigger-source family, while `endpoint` identifies the
+      authored invokable operation. The framework MUST NOT use an `actor` tag,
+      because an Actor may enter through HTTP, RPC, CLI, admin or another real
+      binding and is not itself a Request/Response contract.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A15
+    source: specs/actor-endpoint-contract/spec.md
+    text: The primary artifact family MUST also be `endpoint`.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A16
+    source: specs/actor-endpoint-contract/spec.md
+    text: "An ActorEndpoint declaration MUST represent exactly one operation and
+      MUST contain:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A17
+    source: specs/actor-endpoint-contract/spec.md
+    text: a canonical Kotlin package and type identity;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A18
+    source: specs/actor-endpoint-contract/spec.md
+    text: a non-blank stable logical `operationName`;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A19
+    source: specs/actor-endpoint-contract/spec.md
+    text: a description and optional aggregate/context associations used only as
+      design metadata;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A20
+    source: specs/actor-endpoint-contract/spec.md
+    text: one ordered Request semantic value definition;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A21
+    source: specs/actor-endpoint-contract/spec.md
+    text: one ordered Response semantic value definition.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A22
+    source: specs/actor-endpoint-contract/spec.md
+    text: Request and Response MUST use dedicated ActorEndpoint semantic roles. They
+      MUST NOT reuse Command, Query, Capability or API payload roles even when
+      their field shapes happen to be equal.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A23
+    source: specs/actor-endpoint-contract/spec.md
+    text: Canonical assembly MUST reject duplicate logical operation names across
+      the assembled design, duplicate canonical type identities, blank operation
+      names, invalid semantic fields and unresolved/unsupported types before
+      artifact planning.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A24
+    source: specs/actor-endpoint-contract/spec.md
+    text: The canonical unit is one operation. A multi-operation service interface,
+      facade or client grouping MAY be added later as a projection, but MUST NOT
+      replace or redefine operation identity.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A25
+    source: specs/actor-endpoint-contract/spec.md
+    text: "The framework-owned default artifact MUST generate one Kotlin object per
+      operation. The object MUST:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A26
+    source: specs/actor-endpoint-contract/spec.md
+    text: own a Request implementing the lightweight `EndpointRequest<Response>`
+      marker;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A27
+    source: specs/actor-endpoint-contract/spec.md
+    text: own its Response data contract;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A28
+    source: specs/actor-endpoint-contract/spec.md
+    text: expose the stable logical operation name as a framework-owned constant;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A29
+    source: specs/actor-endpoint-contract/spec.md
+    text: preserve ordered fields, nested DTOs, resolved canonical types,
+      nullability and supported defaults;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A30
+    source: specs/actor-endpoint-contract/spec.md
+    text: carry lossless compile-time Design metadata needed for Analyzer/Drawing
+      Board round-trip.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A31
+    source: specs/actor-endpoint-contract/spec.md
+    text: "A representative shape is:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A32
+    source: specs/actor-endpoint-contract/spec.md
+    text: The generated contract MUST NOT contain Spring stereotypes, Mediator
+      implementation, Handler implementation, HTTP/RPC annotations, service
+      discovery, retry, timeout, routing or persistence behavior.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A33
+    source: specs/actor-endpoint-contract/spec.md
+    text: The generated Request MUST NOT implement internal `Command`, `Query` or
+      `CapabilityCall` markers. Provider-side translation to local application
+      messages is the Provider Endpoint Handler's responsibility.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A34
+    source: specs/actor-endpoint-contract/spec.md
+    text: "Cap4k MUST publish a minimal `cap4k-contract-api` artifact containing
+      only stable primitives required by shared published contracts, including:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A35
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`EndpointRequest<RESULT>`;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A36
+    source: specs/actor-endpoint-contract/spec.md
+    text: the shared Integration Event identity annotation required by runtime
+      catalogs/codecs.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A37
+    source: specs/actor-endpoint-contract/spec.md
+    text: This artifact MUST NOT contain Endpoint Handler dispatch, Supervisor or
+      Mediator implementations and MUST NOT depend on Spring, Gradle, compiler
+      APIs, persistence APIs, HTTP/RPC transports, broker clients or full
+      `ddd-core`.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A38
+    source: specs/actor-endpoint-contract/spec.md
+    text: The Provider service, Consumer service and generated business contract
+      module MAY all depend on this lightweight artifact without acquiring
+      cap4k's application/runtime implementation surface.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A39
+    source: specs/actor-endpoint-contract/spec.md
+    text: No compatibility facade for the former Integration Event annotation
+      package is required.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A40
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`ddd-core` MUST provide a dedicated Endpoint application dispatch family:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A41
+    source: specs/actor-endpoint-contract/spec.md
+    text: "It MUST expose:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A42
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`EndpointHandler<REQUEST : EndpointRequest<RESPONSE>, RESPONSE>` with one
+      `handle(request)` operation;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A43
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`EndpointSupervisor.send(request)`;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A44
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`EndpointSupervisor.sendAsync(request)`;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A45
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`Mediator.endpoints` as the static access surface."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A46
+    source: specs/actor-endpoint-contract/spec.md
+    text: The Supervisor MUST follow the established synchronous application
+      dispatcher constraints for concrete Request-to-Handler resolution,
+      duplicate/missing Handler failure, Bean Validation, invocation policy,
+      invocation scope, execution-context propagation, causal frame management
+      and asynchronous failure reporting.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A47
+    source: specs/actor-endpoint-contract/spec.md
+    text: Endpoint is a dedicated category. It MUST NOT restore an untyped/general
+      Request dispatcher and MUST NOT apply Command, Query or Capability policy
+      merely because field shapes are similar.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A48
+    source: specs/actor-endpoint-contract/spec.md
+    text: The published Request/Response and operation identity are shared, while
+      Handler ownership is local to each process.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A49
+    source: specs/actor-endpoint-contract/spec.md
+    text: "On a Provider service:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A50
+    source: specs/actor-endpoint-contract/spec.md
+    text: the local `EndpointHandler<Request, Response>` is the business-facing
+      implementation;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A51
+    source: specs/actor-endpoint-contract/spec.md
+    text: it MAY translate the published Request into local Command/Query calls
+      through their existing Mediator families;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A52
+    source: specs/actor-endpoint-contract/spec.md
+    text: an HTTP/RPC Provider binding deserializes the Request and invokes
+      `Mediator.endpoints.send(request)`;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A53
+    source: specs/actor-endpoint-contract/spec.md
+    text: the binding MUST NOT bypass the Endpoint Supervisor by calling the Handler
+      directly.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A54
+    source: specs/actor-endpoint-contract/spec.md
+    text: "On a Consumer service:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A55
+    source: specs/actor-endpoint-contract/spec.md
+    text: the local `EndpointHandler<Request, Response>` MAY be a generated RPC
+      proxy;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A56
+    source: specs/actor-endpoint-contract/spec.md
+    text: that proxy serializes the Request, invokes the remote Provider using the
+      stable operation identity and returns the Response;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A57
+    source: specs/actor-endpoint-contract/spec.md
+    text: application code MUST NOT directly inject or call the generated proxy;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A58
+    source: specs/actor-endpoint-contract/spec.md
+    text: application code MAY directly invoke
+      `Mediator.endpoints.send(publishedRequest)` when accepting the Provider's
+      published language as a local dependency;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A59
+    source: specs/actor-endpoint-contract/spec.md
+    text: when an anti-corruption boundary is required, application code MAY instead
+      invoke a local `CapabilityCall` through `Mediator.capabilities`; its
+      adapter-owned Capability Handler maps the local Request/Response to the
+      published Endpoint Request/Response and invokes `Mediator.endpoints`.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A60
+    source: specs/actor-endpoint-contract/spec.md
+    text: "The same Request type therefore participates in the same Mediator
+      contract on both sides, while the locally registered Handler differs:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A61
+    source: specs/actor-endpoint-contract/spec.md
+    text: A process MUST still have at most one applicable Endpoint Handler for a
+      concrete Request. Supporting both a local Provider implementation and
+      remote proxy for the same Request in one application requires an explicit
+      future routing decision and is outside this Change.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A62
+    source: specs/actor-endpoint-contract/spec.md
+    text: The Gradle project DSL MUST expose `project.contractModulePath`. The
+      assembled `ProjectConfig.modules` MUST project it as role `contract` with
+      a repository-relative module path.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A63
+    source: specs/actor-endpoint-contract/spec.md
+    text: "The role is conditionally required:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A64
+    source: specs/actor-endpoint-contract/spec.md
+    text: when no selected planner owns a contract artifact, `contractModulePath`
+      MAY be absent;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A65
+    source: specs/actor-endpoint-contract/spec.md
+    text: when an ActorEndpoint or Integration Event payload artifact is selected,
+      absence MUST fail with a stable diagnostic naming the required
+      role/property and selected artifact;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A66
+    source: specs/actor-endpoint-contract/spec.md
+    text: setting only `basePackage` plus `contractModulePath` MUST count as an
+      explicitly configured project layout when the selected operation can be
+      planned without other roles.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A67
+    source: specs/actor-endpoint-contract/spec.md
+    text: "All ActorEndpoint primary artifacts and Integration Event payload
+      artifacts MUST plan with:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A68
+    source: specs/actor-endpoint-contract/spec.md
+    text: '`moduleRole = "contract"`;'
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A69
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`outputKind = CHECKED_IN_SOURCE`;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A70
+    source: specs/actor-endpoint-contract/spec.md
+    text: AUTHORING lane ownership;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A71
+    source: specs/actor-endpoint-contract/spec.md
+    text: the existing `cap4kPlan` and `cap4kGenerate` tasks.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A72
+    source: specs/actor-endpoint-contract/spec.md
+    text: The framework MUST NOT add a new public generation task and MUST NOT route
+      these artifacts through the generated-source lane.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A73
+    source: specs/actor-endpoint-contract/spec.md
+    text: The DSL MUST expose a dedicated ActorEndpoint contract package layout and
+      a published Integration Event contract package layout. Defaults MUST be
+      deterministic and MUST not place published payloads under application or
+      adapter package roots.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A74
+    source: specs/actor-endpoint-contract/spec.md
+    text: Output path, canonical FQN, template identity and ownership metadata MUST
+      remain stable for equal canonical input. Collision detection MUST run
+      before rendering/writing.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A75
+    source: specs/actor-endpoint-contract/spec.md
+    text: Inbound and outbound Integration Event payloads are published contracts
+      and MUST be generated into the contract module. Their application
+      subscriber artifacts MUST remain in the application module.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A76
+    source: specs/actor-endpoint-contract/spec.md
+    text: "Moving the payload owner MUST NOT change existing Integration Event
+      semantics:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A77
+    source: specs/actor-endpoint-contract/spec.md
+    text: "`eventName` remains the stable transport-neutral identity;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A78
+    source: specs/actor-endpoint-contract/spec.md
+    text: direction remains explicit Design/Analyzer metadata and is not inferred
+      from the runtime annotation;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A79
+    source: specs/actor-endpoint-contract/spec.md
+    text: outbound remains the default variant;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A80
+    source: specs/actor-endpoint-contract/spec.md
+    text: a subscriber remains legal only for inbound;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A81
+    source: specs/actor-endpoint-contract/spec.md
+    text: an outbound declaration MUST NOT automatically create or convert an
+      inbound contract;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A82
+    source: specs/actor-endpoint-contract/spec.md
+    text: provider route topology remains runtime configuration keyed by `eventName`;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A83
+    source: specs/actor-endpoint-contract/spec.md
+    text: subscription derives only from a real local Handler;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A84
+    source: specs/actor-endpoint-contract/spec.md
+    text: ack, retry, completion boundaries, idempotency, inbox/dedup and
+      per-consumer state remain owned by their existing runtime/application
+      boundaries.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A85
+    source: specs/actor-endpoint-contract/spec.md
+    text: The runtime Integration Event catalog, codec and transports MUST consume
+      the shared annotation from `cap4k-contract-api` without adding transport
+      dependencies to the contract module.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A86
+    source: specs/actor-endpoint-contract/spec.md
+    text: "The canonical ActorEndpoint identity, generated Request/Response and
+      Endpoint Mediator family MUST be sufficient for later bindings to:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A87
+    source: specs/actor-endpoint-contract/spec.md
+    text: generate an HTTP adapter that invokes `Mediator.endpoints.send(request)`;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A88
+    source: specs/actor-endpoint-contract/spec.md
+    text: generate an RPC Provider dispatcher that invokes the same Mediator family;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A89
+    source: specs/actor-endpoint-contract/spec.md
+    text: generate a Consumer RPC proxy as an `EndpointHandler<Request, Response>`.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A90
+    source: specs/actor-endpoint-contract/spec.md
+    text: This Change MUST NOT implement those bindings or proxies. Binding-specific
+      route names, protocol metadata, status/error mapping, service discovery,
+      timeout, retry and topology MUST remain absent from the ActorEndpoint
+      canonical contract.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A91
+    source: specs/actor-endpoint-contract/spec.md
+    text: Analyzer Design Projection MUST recover ActorEndpoint operation identity,
+      Request/Response semantic shapes and selected artifacts from
+      framework-owned Kotlin contract structure and compile-time metadata.
+      Drawing Board MUST emit an ordinary `endpoint` Design JSON block that the
+      Design JSON source accepts directly.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A92
+    source: specs/actor-endpoint-contract/spec.md
+    text: "Analyzer Graph and Flow MUST treat a contract declaration and local
+      Endpoint Mediator dispatch as non-transport-entry evidence. Generating,
+      compiling or locally dispatching an ActorEndpoint Request alone MUST NOT
+      create:"
+    result: passed
+    reason:
+      text: 真实 compiler+IR+Flow 负回归确认 endpoint declaration 与 local dispatch 不是
+        transport entry evidence。
+      truncated: false
+  - id: A93
+    source: specs/actor-endpoint-contract/spec.md
+    text: an Actor graph node;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A94
+    source: specs/actor-endpoint-contract/spec.md
+    text: an Endpoint-to-Command/Query relationship;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A95
+    source: specs/actor-endpoint-contract/spec.md
+    text: a Flow root;
+    result: passed
+    reason:
+      text: 真实 Flow 输出仅含 index.json，没有 endpoint Flow root。
+      truncated: false
+  - id: A96
+    source: specs/actor-endpoint-contract/spec.md
+    text: a flow count change.
+    result: passed
+    reason:
+      text: 真实 Flow index 的 flowCount 为 0。
+      truncated: false
+  - id: A97
+    source: specs/actor-endpoint-contract/spec.md
+    text: Real HTTP and RPC Actor evidence belongs to their binding changes and
+      requires production detectors observing actual binding/provider code.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A98
+    source: specs/actor-endpoint-contract/spec.md
+    text: Production descriptors and registries MUST declare the new ActorEndpoint
+      authoring/runtime capabilities, tactical carrier, required source, tasks,
+      output ownership and module role. AgentFacts MUST derive project module
+      and artifact ownership facts from these production contracts rather than a
+      second handwritten catalog.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A99
+    source: specs/actor-endpoint-contract/spec.md
+    text: Public Docs and the authoring Skill MUST describe only shipped behavior.
+      They MUST state that Change 1 provides the published contract, Endpoint
+      Mediator family and module boundary but no HTTP/RPC binding.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A100
+    source: specs/actor-endpoint-contract/spec.md
+    text: Runtime, Generator, Analyzer, AgentFacts, Public Docs and Skill impact
+      MUST each be recorded as modified, verified-no-change or not-applicable
+      with evidence.
+    result: passed
+    reason:
+      text: active brief 已逐项记录 Runtime、Generator、Analyzer、AgentFacts、Public Docs、Skill
+        六面 impact status 与证据。
+      truncated: false
+  - id: A101
+    source: specs/actor-endpoint-contract/spec.md
+    text: "Focused and functional evidence MUST demonstrate:"
+    result: passed
+    reason:
+      text: 修复缺口的 focused tests 与完整 pipeline Gradle suite 均已通过。
+      truncated: false
+  - id: A102
+    source: specs/actor-endpoint-contract/spec.md
+    text: conditional `contractModulePath` projection and diagnostics;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A103
+    source: specs/actor-endpoint-contract/spec.md
+    text: first-class canonical ActorEndpoint identity and dedicated semantic roles;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A104
+    source: specs/actor-endpoint-contract/spec.md
+    text: deterministic checked-in contract planning and rendering;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A105
+    source: specs/actor-endpoint-contract/spec.md
+    text: compile-valid generated Request/Response using `EndpointRequest` from a
+      leaf contract module;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A106
+    source: specs/actor-endpoint-contract/spec.md
+    text: EndpointSupervisor sync/async dispatch, unique Handler selection,
+      validation, scope and failure semantics;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A107
+    source: specs/actor-endpoint-contract/spec.md
+    text: Provider Handler and Consumer proxy Handler both invoked through
+      `Mediator.endpoints` rather than direct calls, including direct Consumer
+      Endpoint use and Capability anti-corruption mapping;
+    result: passed
+    reason:
+      text: 真实多模块 fixture 证明 Provider、Consumer direct/proxy 与 Capability ACL 均通过
+        Mediator.endpoints。
+      truncated: false
+  - id: A108
+    source: specs/actor-endpoint-contract/spec.md
+    text: consumer compilation with contract-only plus selected endpoint/RPC runtime
+      dependencies;
+    result: passed
+    reason:
+      text: Consumer 仅依赖 contract 与所选 endpoint runtime，Provider/Consumer/contract
+        多模块编译通过。
+      truncated: false
+  - id: A109
+    source: specs/actor-endpoint-contract/spec.md
+    text: Provider-side single-direction dependency on contract;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A110
+    source: specs/actor-endpoint-contract/spec.md
+    text: Integration Event payload placement in contract and subscriber placement
+      in application;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A111
+    source: specs/actor-endpoint-contract/spec.md
+    text: unchanged event direction, topology and runtime delivery semantics;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A112
+    source: specs/actor-endpoint-contract/spec.md
+    text: Analyzer/Drawing Board semantic round-trip and no new Graph/Flow entry
+      evidence;
+    result: passed
+    reason:
+      text: 真实 Analyzer round-trip gate 与真实 compiler+IR+Flow 负回归共同通过。
+      truncated: false
+  - id: A113
+    source: specs/actor-endpoint-contract/spec.md
+    text: descriptor, registry, AgentFacts, docs and Skill propagation;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A114
+    source: specs/actor-endpoint-contract/spec.md
+    text: unchanged existing domain/application/adapter artifact ownership outside
+      the declared migration.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A115
+    source: specs/actor-endpoint-contract/spec.md
+    text: This is an intentional breaking architecture change. No alias, fallback
+      package, duplicate annotation, old application-owned Integration Event
+      generation or migration bridge is required.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A116
+    source: specs/design-roundtrip-contract/spec.md
+    text: Cap4k MUST preserve one normalized tactical design across explicit Design
+      JSON authoring, framework-owned generated Kotlin skeletons, real compiler
+      Analyzer recovery, Drawing Board export, and explicit regeneration from
+      Drawing Board files.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A117
+    source: specs/design-roundtrip-contract/spec.md
+    text: The contract is semantic rather than byte-for-byte. Physical JSON
+      organization may normalize, but framework-owned tactical declarations and
+      runtime semantics may not be lost, invented, normalized differently from
+      runtime, or require manual structural repair.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A118
+    source: specs/design-roundtrip-contract/spec.md
+    text: "The normal Design JSON language supports exactly these tags:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A119
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`command`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A120
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`query`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A121
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`capability`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A122
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`api_payload`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A123
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`endpoint`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A124
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`domain_event`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A125
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`integration_event`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A126
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`domain_service`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A127
+    source: specs/design-roundtrip-contract/spec.md
+    text: Unknown tags and removed public fields MUST fail fast. Compatibility
+      aliases and legacy dialects MUST NOT be retained.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A128
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`fields` expresses the primary payload for every payload-bearing tag.
+      `resultFields` is allowed only for `command`, `query`, `capability`,
+      `api_payload`, and `endpoint`. `endpoint` additionally requires a
+      non-blank `operationName`; `operationName` is invalid for every other tag.
+      `domain_service` is a metadata-only anchor and MUST reject non-empty
+      `fields` or `resultFields`; business operations remain handwritten and
+      Analyzer MUST NOT infer them from method bodies."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A129
+    source: specs/design-roundtrip-contract/spec.md
+    text: An omitted `artifacts` property expands to the current documented
+      defaults. A present property is complete and authoritative.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A130
+    source: specs/design-roundtrip-contract/spec.md
+    text: "Every accepted selection MUST:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A131
+    source: specs/design-roundtrip-contract/spec.md
+    text: be non-empty;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A132
+    source: specs/design-roundtrip-contract/spec.md
+    text: contain the tag's primary structural carrier;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A133
+    source: specs/design-roundtrip-contract/spec.md
+    text: contain only families compatible with that tag;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A134
+    source: specs/design-roundtrip-contract/spec.md
+    text: contain no duplicate or contradictory family/variant pair.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A135
+    source: specs/design-roundtrip-contract/spec.md
+    text: "The compatible primary/secondary families are:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A136
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| Tag | Primary | Optional secondary |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A137
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `command` | `command` | none |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A138
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `query` | `query` | `query-handler` |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A139
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `capability` | `capability` | `capability-handler` |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A140
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `api_payload` | `api-payload` | none |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A141
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `endpoint` | `endpoint` | none |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A142
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `domain_event` | `domain-event` | `domain-subscriber` |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A143
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `integration_event` | `integration-event` | `integration-subscriber`
+      for inbound only |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A144
+    source: specs/design-roundtrip-contract/spec.md
+    text: "| `domain_service` | `domain-service` | none |"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A145
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`query` and `api-payload` primary artifacts optionally use variant
+      `page`. `endpoint` has no variant. `integration-event` MUST use `inbound`
+      or `outbound`. Other family variants are invalid. A handler/subscriber
+      without its primary carrier is invalid. `integration-subscriber` with
+      outbound is invalid and MUST NOT auto-add or auto-convert an inbound
+      carrier."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A146
+    source: specs/design-roundtrip-contract/spec.md
+    text: "The `page` variant implies runtime `PageRequest` structure:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A147
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`pageNum: Int = 1`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A148
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`pageSize: Int = 10`"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A149
+    source: specs/design-roundtrip-contract/spec.md
+    text: These are framework-owned derived properties, not authoring `fields`. A
+      page block declaring a flat field path whose root segment is `pageNum` or
+      `pageSize` MUST fail. Root comparison removes a trailing `[]` from the
+      first segment before the first `.`; therefore `pageNum.value` and
+      `pageSize[].value` collide, while `filter.pageNum` and
+      `filters[].pageSize` do not. Non-page blocks may use either root name as
+      an ordinary field.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A150
+    source: specs/design-roundtrip-contract/spec.md
+    text: Analyzer may exclude these properties only after proving that the analyzed
+      primary carrier is the page variant, implements the PageRequest contract,
+      and has the required types/defaults. A mismatch MUST fail instead of
+      silently dropping fields.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A151
+    source: specs/design-roundtrip-contract/spec.md
+    text: An `endpoint` block represents exactly one published Actor operation.
+      `endpoint` is the tactical building block name; Actor remains the
+      Analyzer/Flow trigger-source interpretation and is not encoded into the
+      tag name. `operationName` is the required stable logical identity and is
+      distinct from its Kotlin package/type identity. The source and canonical
+      assembler MUST reject blank or duplicate operation names and duplicate
+      canonical type identities.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A152
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`fields` defines the ordered Request shape and `resultFields` defines the
+      ordered Response shape. Both use dedicated ActorEndpoint semantic roles.
+      ActorEndpoint MUST NOT be inferred from Command, Query or Capability
+      declarations, and its Request/Response MUST NOT implement those internal
+      application markers."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A153
+    source: specs/design-roundtrip-contract/spec.md
+    text: The default generated carrier is one Kotlin operation object. Its nested
+      Request implements the lightweight `EndpointRequest<Response>` marker; the
+      object owns the nested Response and exposes the stable operation identity
+      as framework-owned constant metadata. Handler implementation and dispatch
+      belong to the Endpoint Mediator family, not the published contract
+      artifact. The carrier MUST contain no HTTP/RPC route, provider, client,
+      retry, timeout, discovery, Spring or persistence behavior.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A154
+    source: specs/design-roundtrip-contract/spec.md
+    text: ActorEndpoint declaration and compile-time Design metadata are Design
+      Projection evidence only. They MUST NOT create Analyzer Graph Actor nodes,
+      causal relationships or Flow roots without a real transport binding
+      detector.
+    result: passed
+    reason:
+      text: 真实 compiler+IR+Flow 回归证明 endpoint metadata 仅是 Design Projection evidence。
+      truncated: false
+  - id: A155
+    source: specs/design-roundtrip-contract/spec.md
+    text: Domain Event and Integration Event fields and nested DTOs use the same
+      supported stable default-expression subset as other design payloads.
+      Generator MUST render defaults and Analyzer MUST recover their normalized
+      semantics.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A156
+    source: specs/design-roundtrip-contract/spec.md
+    text: "An Integration Event MUST have a non-blank `eventName`. A Domain Event
+      with `persist: true` MUST have a non-blank `eventName`; transient Domain
+      Events may omit it."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A157
+    source: specs/design-roundtrip-contract/spec.md
+    text: When a Domain Event name is present, Generator MUST emit it in runtime
+      `@DomainEvent(value = ..., persist = ...)` as well as compile-time
+      analysis metadata. Analyzer MUST compare the canonical metadata name with
+      the unmodified runtime annotation literal and fail unless both are exactly
+      equal. It MUST NOT trim a runtime literal or fill missing metadata from
+      runtime. Only a transient Domain Event with both names absent may use an
+      empty name. Persisted Domain Events MUST NOT produce an empty runtime
+      event type.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A158
+    source: specs/design-roundtrip-contract/spec.md
+    text: "Integration Event `eventName` MUST agree between metadata and the
+      unmodified runtime `@IntegrationEvent.value` literal. Direction remains
+      explicit Design/Analyzer metadata only: the runtime annotation does not
+      encode inbound/outbound direction, and Analyzer MUST NOT infer or
+      contradict direction from runtime annotation fields."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A159
+    source: specs/design-roundtrip-contract/spec.md
+    text: "The identifier `entity` is not a reserved payload field name. Canonical
+      assembly and Analyzer MUST retain it. Reliable-event payload rejection
+      MUST depend only on the resolved recursive semantic type graph: actual
+      Entity/Aggregate types remain invalid at any nested container position,
+      preserving PR #152's runtime history boundary."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A160
+    source: specs/design-roundtrip-contract/spec.md
+    text: "Drawing Board type expressions MUST be stable and recursively canonical:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A161
+    source: specs/design-roundtrip-contract/spec.md
+    text: Design builtins and standard containers use their normalized short names.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A162
+    source: specs/design-roundtrip-contract/spec.md
+    text: Nested DTOs declared by the current design block use their current-block
+      short names.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A163
+    source: specs/design-roundtrip-contract/spec.md
+    text: Strong IDs, Value Objects, enums, other project/context types, and
+      external types use resolved canonical FQNs.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A164
+    source: specs/design-roundtrip-contract/spec.md
+    text: Container element/key/value identities apply the same rule recursively.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A165
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`List<T>`, `Set<T>`, `Map<K,V>`, and `Array<T>` are supported with
+      container and element nullability. `emptyList()`, `emptySet()`,
+      `emptyMap()`, and `emptyArray()` are normalized supported defaults."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A166
+    source: specs/design-roundtrip-contract/spec.md
+    text: Kotlin primitive arrays are outside this contract and MUST fail after the
+      final canonical identity is resolved, regardless of whether the input used
+      a direct FQN, alias, short-name evidence, or recursive container position.
+      The rejected FQNs are `kotlin.BooleanArray`, `kotlin.ByteArray`,
+      `kotlin.CharArray`, `kotlin.DoubleArray`, `kotlin.FloatArray`,
+      `kotlin.IntArray`, `kotlin.LongArray`, `kotlin.ShortArray`,
+      `kotlin.UByteArray`, `kotlin.UIntArray`, `kotlin.ULongArray`, and
+      `kotlin.UShortArray`. A different business type whose simple name
+      resembles a primitive array is not rejected.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A167
+    source: specs/design-roundtrip-contract/spec.md
+    text: Analyzer MUST recover stable supported defaults for null, strings,
+      primitive values, enum/object constants, and supported empty containers.
+      Unsupported or unstable initializer expressions MUST fail with context
+      rather than be silently omitted when they belong to framework-owned
+      payload structure.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A168
+    source: specs/design-roundtrip-contract/spec.md
+    text: Kotlin string literal recovery MUST use Kotlin-supported escapes. U+000C
+      form-feed is recovered as `\\u000c`, not `\\f`, and the recovered Drawing
+      Board value MUST compile through the Design JSON default compiler and
+      second-generation Kotlin compiler.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A169
+    source: specs/design-roundtrip-contract/spec.md
+    text: "Declaration order is tactical semantics for:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A170
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`fields`;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A171
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`resultFields`;"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A172
+    source: specs/design-roundtrip-contract/spec.md
+    text: every nested DTO's constructor fields.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A173
+    source: specs/design-roundtrip-contract/spec.md
+    text: Analyzer and Drawing Board MUST preserve this order. Artifact, file, and
+      top-level entry order may be normalized for deterministic output.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A174
+    source: specs/design-roundtrip-contract/spec.md
+    text: "Round-trip comparison may ignore:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A175
+    source: specs/design-roundtrip-contract/spec.md
+    text: JSON formatting;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A176
+    source: specs/design-roundtrip-contract/spec.md
+    text: output file names, count, and partitioning;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A177
+    source: specs/design-roundtrip-contract/spec.md
+    text: file and top-level entry order;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A178
+    source: specs/design-roundtrip-contract/spec.md
+    text: artifact order;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A179
+    source: specs/design-roundtrip-contract/spec.md
+    text: omitted optional empty arrays;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A180
+    source: specs/design-roundtrip-contract/spec.md
+    text: omitted values versus the same effective default;
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A181
+    source: specs/design-roundtrip-contract/spec.md
+    text: type spelling that resolves to the same canonical identity.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A182
+    source: specs/design-roundtrip-contract/spec.md
+    text: It MUST compare tag, package, name, description, aggregate ownership,
+      effective artifact family/variant, ordered payload/result/nested fields,
+      resolved type/nullability/default semantics, page semantics, ActorEndpoint
+      operationName/EndpointRequest semantics, event direction,
+      persist/eventName, and runtime annotations/interfaces.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A183
+    source: specs/design-roundtrip-contract/spec.md
+    text: "`DesignBlockMetadata` from the dedicated `cap4k-analysis-metadata`
+      compile-only module is the lossless authoring carrier. It has BINARY
+      retention and no runtime meaning. Default templates emit it; a custom
+      template may omit it only by intentionally opting the symbol out of
+      Drawing Board and metadata-dependent analysis."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A184
+    source: specs/design-roundtrip-contract/spec.md
+    text: When Drawing Board is requested, completeness MUST be evaluated for each
+      configured analysis input directory. A directory with complete design
+      elements MUST NOT mask candidate symbols or missing-metadata evidence in
+      another directory. Missing metadata MUST fail the combined request before
+      planning/rendering and identify the affected symbols, requested
+      capability, required annotation, and restoration action.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A185
+    source: specs/design-roundtrip-contract/spec.md
+    text: Analyzer output is observation evidence. It MUST NOT become an
+      automatically registered Generator source. Drawing Board files are
+      ordinary Design JSON only when a human or Agent explicitly registers them.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A186
+    source: specs/design-roundtrip-contract/spec.md
+    text: Every emitted Drawing Board block MUST be directly accepted by the Design
+      JSON source without an additional normalization exporter or dedicated
+      recovery input API.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A187
+    source: specs/design-roundtrip-contract/spec.md
+    text: Drawing Board MUST omit fields that are not legal for the emitted tag,
+      while preserving all legal tactical semantics. It may omit `artifacts`
+      only when the recovered set equals the tag's effective defaults; variants,
+      explicit primary-only selections that differ from defaults, and
+      non-default secondary selections require an explicit complete artifact
+      list.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A188
+    source: specs/design-roundtrip-contract/spec.md
+    text: Cross-context reuse may explicitly copy an outbound published-language
+      event and change its variant to inbound. That edit is a new
+      bounded-context decision and MUST NOT occur automatically.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A189
+    source: specs/design-roundtrip-contract/spec.md
+    text: Every accepted design declaration MUST generate a compile-valid,
+      runtime-contract-complete framework-owned skeleton. Required fields,
+      nested types, annotations, interfaces, artifact carriers, and structural
+      wiring MUST be generated. A human or Agent remains responsible only for
+      business policy and bodies such as handlers, subscribers, Domain Service
+      algorithms, repositories, transactions, and compensation.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A190
+    source: specs/design-roundtrip-contract/spec.md
+    text: Changing handwritten method bodies, injected dependencies, or repository
+      calls without changing framework-owned structure MUST NOT change recovered
+      Drawing Board semantics. Focused evidence MUST compare recovered design
+      blocks from structurally equal carriers with different business
+      implementations.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A191
+    source: specs/design-roundtrip-contract/spec.md
+    text: "One dedicated real functional gate MUST use two clean temporary project
+      copies:"
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A192
+    source: specs/design-roundtrip-contract/spec.md
+    text: Immediately after fixture copy and before any Gradle, Generator, compiler,
+      or Analyzer operation, Project A freezes the original Design JSON
+      bytes/hash and builds canonical projection `C0`.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A193
+    source: specs/design-roundtrip-contract/spec.md
+    text: Project A generates all selected artifacts, compiles every generated
+      module, and runs the real `Cap4kCodeAnalysisCompilerRegistrar` on
+      generated sources in domain/application/adapter dependency order.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A194
+    source: specs/design-roundtrip-contract/spec.md
+    text: Project A merges the real per-module analysis outputs, generates Drawing
+      Board files without any hand-written `design-elements.json` fixture, and
+      proves that the original Design JSON bytes/hash are unchanged.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A195
+    source: specs/design-roundtrip-contract/spec.md
+    text: Project B disables/removes its original Design JSON and registers only
+      Project A's Drawing Board files as ordinary explicit Design JSON inputs.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A196
+    source: specs/design-roundtrip-contract/spec.md
+    text: Project B builds canonical projection `C1`, asserts normalized `C0 == C1`,
+      regenerates all artifacts, and compiles every generated module.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A197
+    source: specs/design-roundtrip-contract/spec.md
+    text: The gate compares both generations' framework-owned skeleton structure and
+      runtime annotation/interface semantics so projection comparison omissions
+      cannot create a false positive.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A198
+    source: specs/design-roundtrip-contract/spec.md
+    text: "The rich fixture MUST cover all eight tags and explicitly assert
+      meaningful shape coverage: ordinary and page Query; ordinary and page API
+      payload; ActorEndpoint operationName, Request/Response and EndpointRequest
+      marker semantics; optional-secondary selected and explicit non-default
+      primary-only forms; inbound and outbound Integration Events; persisted,
+      transient-payload, and marker-without-fields Domain Events; Strong IDs;
+      enums; Value Objects; external canonical FQNs; nested
+      List/Set/Map/Array/nullability/defaults including U+000C; nested DTO
+      order; and a legal `entity` field."
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A199
+    source: specs/design-roundtrip-contract/spec.md
+    text: Focused module tests MUST cover invalid artifacts, Domain Service
+      payloads, page root collisions and non-root counterexamples, page
+      mismatches, missing event names, exact runtime/metadata conflicts,
+      subscriber direction literals, recursive semantic Entity payloads,
+      final-identity primitive arrays, order preservation, incomplete
+      per-directory analysis, U+000C recovery, and business-body invariance.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A200
+    source: specs/design-roundtrip-contract/spec.md
+    text: The functional fixture may use a temporary-project-unique H2 in-memory URL
+      without `DB_CLOSE_DELAY=-1`. Production database source connection
+      lifecycle MUST NOT change as part of test isolation.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+  - id: A201
+    source: specs/design-roundtrip-contract/spec.md
+    text: This is a breaking current-contract repair. No alias, fallback dialect,
+      silent semantic loss, deprecation path, or compatibility adapter is
+      required.
+    result: passed
+    reason:
+      text: 独立只读 Verifier 已核对对应生产实现、focused/functional tests、fixture、文档投影及已记录 Runtime
+        checks，确认满足此项。
+      truncated: false
+builder_handoff:
+  candidate_id: 9501499c-d58d-478d-9491-8a452d2064d2
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:26a1d90a-3b71-47d3-b341-0ca8e9ef0eb7
+  iteration: 2
+  summary:
+    text: "Iteration 2 repairs all previously unresolved verification gaps: added a
+      production compiler+IR+Flow negative regression proving endpoint
+      metadata/local dispatch create no Actor root, causal endpoint
+      relationship, or flow-count increase; added a real multi-module Gradle
+      Provider/Consumer compile fixture proving leaf contract dependencies and
+      Mediator-only dispatch including Capability ACL; and recorded the
+      six-surface capability impact matrix in the active brief."
+    truncated: false
+  addressed_acceptance_ids:
+    - A9
+    - A92
+    - A95
+    - A96
+    - A100
+    - A101
+    - A107
+    - A108
+    - A112
+    - A154
+  checks:
+    - name:
+        text: Focused repaired-gap Gradle functional tests
+        truncated: false
+      result: passed
+      note:
+        text: TemporalTriggerFlowFunctionalTest endpoint negative-flow test and
+          PipelinePluginCompileFunctionalTest Provider/Consumer leaf-contract
+          test passed; BUILD SUCCESSFUL in 26s.
+        truncated: false
+    - name:
+        text: :cap4k-plugin-pipeline-gradle:test --no-daemon
+        truncated: false
+      result: passed
+      note:
+        text: Complete pipeline Gradle plugin unit and functional suite passed; BUILD
+          SUCCESSFUL in 5m 50s, 67 actionable tasks.
+        truncated: false
+    - name:
+        text: scripts/validate-capability-contract.ps1
+        truncated: false
+      result: passed
+      note:
+        text: Capability contract facts align with Public Docs, Skill routing, and
+          current-state content.
+        truncated: false
+    - name:
+        text: skills/scripts/validate-cap4k-skills.ps1
+        truncated: false
+      result: passed
+      note:
+        text: Cap4k Skill validation passed.
+        truncated: false
+    - name:
+        text: git diff --check
+        truncated: false
+      result: passed
+      note:
+        text: No whitespace errors; only Windows line-ending warnings.
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: "HTTP Actor binding is intentionally deferred to #193."
+      truncated: false
+    - text: "RPC transport, serialization/networking, discovery, retry/timeout policy,
+        and generated client proxy implementation are intentionally deferred to
+        #194; this change provides the contract and Mediator Handler seam plus
+        compile-level Provider/Consumer proof."
+      truncated: false
+    - text: Endpoint declarations and local dispatch intentionally do not create
+        Analyzer Graph/Flow Actor evidence until a real transport binding
+        detector exists.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-15T10:46:41.624Z
+blockers: []
+verification:
+  candidate_id: 9501499c-d58d-478d-9491-8a452d2064d2
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:a3599f61-9763-4e5d-a8cd-d147f972dc7a
+  iteration: 2
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: full-repository-check
+      name:
+        text: Full repository check
+        truncated: false
+      argv_display:
+        - text: check
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 432195
+    - id: pipeline-gradle-complete-tests
+      name:
+        text: Pipeline Gradle complete tests
+        truncated: false
+      argv_display:
+        - text: :cap4k-plugin-pipeline-gradle:test
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+        - text: --rerun-tasks
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 448382
+    - id: contract-api-runtime-classpath
+      name:
+        text: Contract API runtime classpath
+        truncated: false
+      argv_display:
+        - text: :cap4k-contract-api:dependencies
+          truncated: false
+        - text: --configuration
+          truncated: false
+        - text: runtimeClasspath
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 5763
+    - id: capability-contract-validation
+      name:
+        text: Capability contract validation
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/validate-capability-contract.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 7711
+    - id: current-runtime-facts-validation
+      name:
+        text: Current Runtime facts validation
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/validate-current-runtime-facts.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 7769
+    - id: cap4k-skill-validation
+      name:
+        text: Cap4k Skill validation
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: skills/scripts/validate-cap4k-skills.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 5453
+    - id: capability-contract-guard-tests
+      name:
+        text: Capability contract guard tests
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/test-capability-contract.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 36008
+    - id: pr-workflow-guard-tests
+      name:
+        text: PR workflow guard tests
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/test-pr-workflow.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 30864
+    - id: local-markdown-link-validation
+      name:
+        text: Local Markdown link validation
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: "& './scripts/validate-local-markdown-links.ps1' -RepoRoot '.' -Paths
+            @('README.md','README.en.md','docs/public','skills/cap4k-authoring')
+            -Label 'Actor endpoint public and skill surface'"
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 822
+    - id: git-diff-check
+      name:
+        text: Git whitespace check
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 200
+  summary:
+    text: 全部 201 项通过。iteration 2 独立核验已补齐真实 compiler+IR+Flow 负回归、Provider/Consumer
+      多模块叶子依赖编译 fixture 和六面 capability impact matrix；完整 pipeline Gradle
+      suite、capability contract validation、Skill validation 与 git diff --check
+      均已记录通过。
+    truncated: false
+  risks:
+    - text: "HTTP Actor binding 按范围推迟至 #193。"
+      truncated: false
+    - text: "真实 RPC transport、proxy 生成、网络/序列化、发现、重试和超时按范围推迟至 #194；本次仅交付并验证 contract 与
+        Mediator Handler seam。"
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-08-15T12:09:40.170Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-08-15T07:35:04.939Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: "Native Verifier response was invalid: Native verification cannot pass
+        before every required check succeeds"
+      truncated: false
+    completed_at: 2026-08-15T09:58:34.091Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 2
+    outcome: fail
+    unresolved_ids:
+      - A9
+      - A92
+      - A95
+      - A96
+      - A100
+      - A101
+      - A107
+      - A108
+      - A112
+      - A154
+    summary:
+      text: 实现主体和10项 authoritative Runtime checks均成立；但 A9/A92/A95/A96/A112/A154 所需
+        Flow regression、A107/A108 所需真实 Consumer/Provider Gradle functional
+        compile fixture，以及 A100 所需六面 impact status 记录缺失，因此 iteration 1 attempt 2
+        判定 fail。
+      truncated: false
+    completed_at: 2026-08-15T10:27:01.094Z
+  - goal_cycle: 2
+    iteration: 2
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: 全部 201 项通过。iteration 2 独立核验已补齐真实 compiler+IR+Flow 负回归、Provider/Consumer
+        多模块叶子依赖编译 fixture 和六面 capability impact matrix；完整 pipeline Gradle
+        suite、capability contract validation、Skill validation 与 git diff --check
+        均已记录通过。
+      truncated: false
+    completed_at: 2026-08-15T12:09:40.170Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-15T06:33:46.548Z

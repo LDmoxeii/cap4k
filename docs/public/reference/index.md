@@ -9,7 +9,7 @@
 | Gradle plugin id、公开 task 名称、task output | [Gradle Plugin](gradle-plugin.md) |
 | `cap4kAgentSnapshot`、manifest-first 分区、状态与失败语义 | [Agent API](agent-api.md) |
 | `cap4k {}` extension block、字段、最小 Gradle 片段 | [Generator DSL](generator-dsl.md) |
-| `design/design.json` normal tags、common keys、`resultFields`、`eventName`、artifact metadata | [Design JSON](design-json.md) |
+| `design/design.json` normal tags、common keys、Endpoint `operationName`、`resultFields`、`eventName`、artifact metadata | [Design JSON](design-json.md) |
 | DB/schema comment annotations、relation metadata、type markers | [DB Schema Annotations](db-schema-annotations.md) |
 | `types.valueObjectManifest`、shared 与 aggregate-owned Value Object、JSON-backed value | [Value Object Manifest](value-object-manifest.md) |
 | `types.enumManifest`、enum `items` shape、enum generation notes | [Enum Manifest](enum-manifest.md) |

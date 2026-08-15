@@ -34,6 +34,7 @@ class DesignJsonSourceProvider : SourceProvider {
             "Query",
             "Capability",
             "API Payload",
+            "Actor Endpoint",
             "Domain Event",
             "Integration Event",
             "Domain Service",
@@ -59,12 +60,13 @@ class DesignJsonSourceProvider : SourceProvider {
         "query",
         "capability",
         "api_payload",
+        "endpoint",
         "domain_event",
         "integration_event",
         "domain_service",
     )
     private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity")
-    private val resultFieldTags = setOf("command", "query", "capability", "api_payload")
+    private val resultFieldTags = setOf("command", "query", "capability", "api_payload", "endpoint")
     private val eventNameTags = setOf("domain_event", "integration_event")
     private val selfToken = Regex("""(?<![A-Za-z0-9_.])self(?![A-Za-z0-9_])""", RegexOption.IGNORE_CASE)
 
@@ -163,6 +165,7 @@ class DesignJsonSourceProvider : SourceProvider {
             val resultFields = parseFields(obj["resultFields"], name, "resultFields")
             val artifacts = parseArtifacts(obj["artifacts"], name)
             val eventName = parseIntegrationEventName(obj, tag, name)
+            val operationName = parseOperationName(obj, tag, name)
             val persist = parsePersist(obj, tag, name)
             validateDomainServiceFields(tag, name, fields, resultFields)
             validateResultFields(tag, name, resultFields)
@@ -181,6 +184,7 @@ class DesignJsonSourceProvider : SourceProvider {
                 fields = fields,
                 resultFields = resultFields,
                 eventName = eventName,
+                operationName = operationName,
             )
         }
     }
@@ -224,6 +228,14 @@ class DesignJsonSourceProvider : SourceProvider {
             "integration_event $name must declare eventName."
         }
         return eventName
+    }
+
+    private fun parseOperationName(obj: ObjectNode, tag: String, name: String): String? {
+        require(tag == "endpoint" || !obj.has("operationName")) {
+            "design entry $name cannot declare operationName on tag: $tag"
+        }
+        if (tag != "endpoint") return null
+        return readRequiredString(obj, "operationName", "endpoint $name")
     }
 
     private fun parsePersist(obj: ObjectNode, tag: String, name: String): Boolean? {

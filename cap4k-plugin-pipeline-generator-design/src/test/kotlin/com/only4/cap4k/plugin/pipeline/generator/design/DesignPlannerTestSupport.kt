@@ -26,6 +26,7 @@ internal fun designBlock(
     description: String = name,
     aggregates: List<String> = emptyList(),
     eventName: String = "",
+    operationName: String = "",
     persist: Boolean? = null,
     fields: List<FieldModel> = emptyList(),
     resultFields: List<FieldModel> = emptyList(),
@@ -38,6 +39,7 @@ internal fun designBlock(
     description = description,
     aggregates = aggregates,
     eventName = eventName,
+    operationName = operationName,
     persist = persist,
     artifacts = listOf(ArtifactSelectionModel(family, variant)),
     request = requestDefinition ?: semanticDefinition(
@@ -46,7 +48,7 @@ internal fun designBlock(
         role = requestRole(tag),
         fields = fields,
     ),
-    response = responseDefinition ?: if (tag in setOf("command", "query", "capability", "api_payload")) {
+    response = responseDefinition ?: if (tag in setOf("command", "query", "capability", "api_payload", "endpoint")) {
         semanticDefinition(
             packageName = packageName,
             typeName = "$name.Response",
@@ -151,6 +153,7 @@ private fun requestRole(tag: String): SemanticValueRole = when (tag) {
     "query" -> SemanticValueRole.QUERY_REQUEST
     "capability" -> SemanticValueRole.CAPABILITY_REQUEST
     "api_payload" -> SemanticValueRole.API_PAYLOAD_REQUEST
+    "endpoint" -> SemanticValueRole.ENDPOINT_REQUEST
     "domain_event" -> SemanticValueRole.DOMAIN_EVENT
     "integration_event" -> SemanticValueRole.INTEGRATION_EVENT
     else -> SemanticValueRole.API_PAYLOAD_REQUEST
@@ -161,5 +164,6 @@ private fun responseRole(tag: String): SemanticValueRole = when (tag) {
     "query" -> SemanticValueRole.QUERY_RESPONSE
     "capability" -> SemanticValueRole.CAPABILITY_RESPONSE
     "api_payload" -> SemanticValueRole.API_PAYLOAD_RESPONSE
+    "endpoint" -> SemanticValueRole.ENDPOINT_RESPONSE
     else -> error("unsupported response role for $tag")
 }

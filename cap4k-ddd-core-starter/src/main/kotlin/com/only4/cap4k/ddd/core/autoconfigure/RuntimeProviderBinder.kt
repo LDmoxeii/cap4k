@@ -7,6 +7,8 @@ import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisorSupport
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisor
 import com.only4.cap4k.ddd.core.application.command.ReliableCommandSupervisorSupport
+import com.only4.cap4k.ddd.core.application.endpoint.EndpointSupervisor
+import com.only4.cap4k.ddd.core.application.endpoint.EndpointSupervisorSupport
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
@@ -48,6 +50,7 @@ class RuntimeProviderBinder(
         val commandSupervisor = required(CommandSupervisor::class.java, "commands")
         val querySupervisor = required(QuerySupervisor::class.java, "queries")
         val capabilitySupervisor = required(CapabilitySupervisor::class.java, "capabilities")
+        val endpointSupervisor = required(EndpointSupervisor::class.java, "endpoints")
         val domainServiceSupervisor = required(DomainServiceSupervisor::class.java, "services")
         val domainEventSupervisor = required(DomainEventSupervisor::class.java, "domain-events")
         val domainEventManager = required(DomainEventManager::class.java, "domain-event-manager")
@@ -69,6 +72,7 @@ class RuntimeProviderBinder(
             bind(commandSupervisor, CommandSupervisorSupport::configure, CommandSupervisorSupport::release)
             bind(querySupervisor, QuerySupervisorSupport::configure, QuerySupervisorSupport::release)
             bind(capabilitySupervisor, CapabilitySupervisorSupport::configure, CapabilitySupervisorSupport::release)
+            bind(endpointSupervisor, EndpointSupervisorSupport::configure, EndpointSupervisorSupport::release)
             bind(
                 domainServiceSupervisor,
                 DomainServiceSupervisorSupport::configure,

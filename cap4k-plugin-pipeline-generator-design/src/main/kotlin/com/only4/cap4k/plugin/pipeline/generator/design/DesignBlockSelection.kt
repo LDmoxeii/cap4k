@@ -20,6 +20,8 @@ internal fun DesignBlockModel.queryTypeName(): String = "${name}Qry"
 
 internal fun DesignBlockModel.capabilityTypeName(): String = name.normalizeUpperCamelTypeName()
 
+internal fun DesignBlockModel.endpointTypeName(): String = name.normalizeUpperCamelTypeName()
+
 internal fun DesignBlockModel.apiPayloadTypeName(): String = name.normalizeUpperCamelTypeName()
 
 internal fun DesignBlockModel.domainEventTypeName(): String = name.toDomainEventTypeName()

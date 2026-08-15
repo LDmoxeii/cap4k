@@ -1,6 +1,6 @@
 package com.only4.cap4k.ddd.core.domain.event
 
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 
 /** A stable-name projection over Integration Event payload types. */
 interface IntegrationEventTypeView {

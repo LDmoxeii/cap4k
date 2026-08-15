@@ -32,6 +32,7 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPla
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainServiceArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignEndpointArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
@@ -180,6 +181,7 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "capability",
     "capability-handler",
     "api-payload",
+    "endpoint",
     "domain-event",
     "domain-subscriber",
     "domain-service",
@@ -211,6 +213,7 @@ private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean =
 
 private fun hasConfiguredProjectLayout(extension: Cap4kExtension): Boolean =
     extension.project.basePackage.isPresent && listOf(
+        extension.project.contractModulePath,
         extension.project.domainModulePath,
         extension.project.applicationModulePath,
         extension.project.adapterModulePath,
@@ -963,6 +966,7 @@ internal fun builtInAuthoringGeneratorProviders(): List<GeneratorProvider> = lis
     DesignCapabilityArtifactPlanner(),
     DesignCapabilityHandlerArtifactPlanner(),
     DesignApiPayloadArtifactPlanner(),
+    DesignEndpointArtifactPlanner(),
     DesignDomainEventArtifactPlanner(),
     DesignDomainEventHandlerArtifactPlanner(),
     DesignDomainServiceArtifactPlanner(),

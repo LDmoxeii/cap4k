@@ -9,7 +9,7 @@ data class Cap4kOptions(
     val scanSpring: Boolean = true,
     val mediatorFq: String = "com.only4.cap4k.ddd.core.Mediator",
     val domainEventAnnFq: String = "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
-    val integrationEventAnnFq: String = "com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent",
+    val integrationEventAnnFq: String = "com.only4.cap4k.contract.IntegrationEvent",
     val eventListenerAnnFq: String = "org.springframework.context.event.EventListener",
     val repositorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.repo.RepositorySupervisor",
     val aggregateFactorySupervisorFq: String = "com.only4.cap4k.ddd.core.domain.aggregate.AggregateFactorySupervisor",
@@ -27,7 +27,7 @@ data class Cap4kOptions(
             domainEventAnnFq = System.getProperty(OptionsKeys.DOMAIN_EVENT_ANNOTATION_FQ)
                 ?: "com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent",
             integrationEventAnnFq = System.getProperty(OptionsKeys.INTEGRATION_EVENT_ANNOTATION_FQ)
-                ?: "com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent",
+                ?: "com.only4.cap4k.contract.IntegrationEvent",
             eventListenerAnnFq = System.getProperty(OptionsKeys.EVENT_LISTENER_ANNOTATION_FQ)
                 ?: "org.springframework.context.event.EventListener",
             repositorySupervisorFq = System.getProperty(OptionsKeys.REPOSITORY_SUPERVISOR_FQ)

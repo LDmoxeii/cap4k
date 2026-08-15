@@ -3,7 +3,7 @@ package com.only4.cap4k.ddd.core.application.event
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonValue
 import com.only4.cap4k.ddd.core.application.context.EncodedExecutionContextElement
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.id.StrongId
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventRedeliveryHint

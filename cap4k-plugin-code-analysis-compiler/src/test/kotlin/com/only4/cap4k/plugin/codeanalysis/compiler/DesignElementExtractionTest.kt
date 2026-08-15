@@ -49,6 +49,60 @@ class DesignElementExtractionTest {
     }
 
     @Test
+    fun `recovers endpoint operation request response nested fields and marker contract`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "EndpointRequest.kt",
+                    """
+                        package com.only4.cap4k.contract
+                        interface EndpointRequest<RESULT>
+                    """.trimIndent(),
+                ),
+                SourceFile.kotlin(
+                    "CreateBookingEndpoint.kt",
+                    """
+                        package demo.contract.endpoints
+
+                        import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+                        import com.only4.cap4k.contract.EndpointRequest
+
+                        @DesignBlockMetadata(
+                            tag = "endpoint",
+                            name = "CreateBooking",
+                            packageName = "booking",
+                            operationName = "booking.create",
+                            family = "endpoint",
+                        )
+                        object CreateBookingEndpoint {
+                            data class Request(
+                                val customerId: Long,
+                                val details: Details,
+                            ) : EndpointRequest<Response>
+                            data class Response(val bookingId: Long, val status: Status = Status.PENDING)
+                            data class Details(val note: String? = null, val tags: List<String> = emptyList())
+                            enum class Status { PENDING }
+                        }
+                    """.trimIndent(),
+                ),
+            ),
+        )
+
+        val json = outputDir.resolve("design-elements.json").toFile().readText()
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        val relationships = outputDir.resolve("rels.json").toFile().readText()
+        val endpoint = findObject(extractTopLevelObjects(json), "endpoint", "CreateBooking")
+        assertTrue(endpoint.contains("\"operationName\":\"booking.create\""), endpoint)
+        assertTrue(endpoint.contains("\"name\":\"details.note\",\"type\":\"String?\",\"defaultValue\":\"null\""), endpoint)
+        assertTrue(endpoint.contains("\"name\":\"details.tags\",\"type\":\"List<String>\",\"defaultValue\":\"emptyList()\""), endpoint)
+        assertTrue(endpoint.contains("\"resultFields\":[{\"name\":\"bookingId\",\"type\":\"Long\"}"), endpoint)
+        assertFalse(nodes.contains("CreateBookingEndpoint"), nodes)
+        assertFalse(nodes.contains("\"type\":\"actor\""), nodes)
+        assertFalse(relationships.contains("CreateBookingEndpoint"), relationships)
+        assertFalse(relationships.contains("Endpoint"), relationships)
+    }
+
+    @Test
     fun `recovers and merges design blocks from DesignBlockMetadata annotations`() {
         val sources = listOf(
             SourceFile.kotlin(
@@ -625,7 +679,7 @@ class DesignElementExtractionTest {
             SourceFile.kotlin(
                 "IntegrationEvent.kt",
                 """
-                    package com.only4.cap4k.ddd.core.application.event.annotation
+                    package com.only4.cap4k.contract
                     annotation class IntegrationEvent(val value: String = "")
                 """.trimIndent()
             ),
@@ -635,7 +689,7 @@ class DesignElementExtractionTest {
                     package demo.application.subscribers.integration.inbound.payment
 
                     import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
-                    import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+                    import com.only4.cap4k.contract.IntegrationEvent
 
                     @IntegrationEvent(value = "demo.payment.received")
                     @DesignBlockMetadata(
@@ -728,7 +782,7 @@ class DesignElementExtractionTest {
             SourceFile.kotlin(
                 "IntegrationEvent.kt",
                 """
-                    package com.only4.cap4k.ddd.core.application.event.annotation
+                    package com.only4.cap4k.contract
                     annotation class IntegrationEvent(val value: String = "")
                 """.trimIndent()
             ),
@@ -851,7 +905,7 @@ class DesignElementExtractionTest {
                     package com.acme.application.subscribers.integration.inbound.media.processing
                     import java.time.LocalDateTime
 
-                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                    @com.only4.cap4k.contract.IntegrationEvent(
                         value = "cap4k.reference.contentstudio.media-processing.succeeded",
                     )
                     data class MediaProcessingCallbackIntegrationEvent(
@@ -865,7 +919,7 @@ class DesignElementExtractionTest {
                 """
                     package com.acme.application.events
 
-                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                    @com.only4.cap4k.contract.IntegrationEvent(
                         value = "cap4k.reference.ignored"
                     )
                     data class IgnoredRuntimeIntegrationEvent(val externalTaskId: String)
@@ -876,7 +930,7 @@ class DesignElementExtractionTest {
                 """
                     package com.acme.application.subscribers.integration.outbound.content
 
-                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent(
+                    @com.only4.cap4k.contract.IntegrationEvent(
                         value = "cap4k.reference.content.published",
                     )
                     data class ContentPublishedIntegrationEvent(val contentId: Long)
@@ -1472,7 +1526,7 @@ class DesignElementExtractionTest {
             SourceFile.kotlin(
                 "IntegrationEvent.kt",
                 """
-                    package com.only4.cap4k.ddd.core.application.event.annotation
+                    package com.only4.cap4k.contract
                     annotation class IntegrationEvent(val value: String = "")
                 """.trimIndent()
             ),
@@ -1481,7 +1535,7 @@ class DesignElementExtractionTest {
                 """
                     package demo.application.subscribers.integration.inbound.media
 
-                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+                    @com.only4.cap4k.contract.IntegrationEvent
                     data class MissingEventNameIntegrationEvent(val externalTaskId: String)
                 """.trimIndent()
             )

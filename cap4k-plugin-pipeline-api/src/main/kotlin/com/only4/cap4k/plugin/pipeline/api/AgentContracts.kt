@@ -257,6 +257,7 @@ data class AgentEventHandlerManagedAsyncContract(
     val trackedOperations: List<String> = listOf(
         "Mediator.queries.askAsync",
         "Mediator.capabilities.callAsync",
+        "Mediator.endpoints.sendAsync",
     ),
     val completion: AgentEventHandlerManagedAsyncCompletion =
         AgentEventHandlerManagedAsyncCompletion.WAIT_BEFORE_HANDLER_COMPLETION,

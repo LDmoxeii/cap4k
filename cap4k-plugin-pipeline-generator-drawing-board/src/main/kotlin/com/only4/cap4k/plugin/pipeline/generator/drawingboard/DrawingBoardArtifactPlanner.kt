@@ -82,6 +82,7 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
             "query",
             "capability",
             "api_payload",
+            "endpoint",
             "domain_event",
             "integration_event",
             "domain_service",
@@ -107,6 +108,7 @@ internal data class DrawingBoardRenderElement(
     val fields: List<DrawingBoardRenderField>,
     val resultFields: List<DrawingBoardRenderField>,
     val eventName: String?,
+    val operationName: String?,
 )
 
 private fun DrawingBoardElementModel.toRenderModel(): DrawingBoardRenderElement =
@@ -122,6 +124,7 @@ private fun DrawingBoardElementModel.toRenderModel(): DrawingBoardRenderElement 
         fields = request.toSourceFields(),
         resultFields = response?.toSourceFields().orEmpty(),
         eventName = eventName,
+        operationName = operationName,
     )
 
 private fun SemanticValueDefinition.toSourceFields(): List<DrawingBoardRenderField> {

@@ -57,6 +57,7 @@ internal typealias PipelineExtension = Cap4kExtension
 
 open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
     val basePackage: Property<String> = objects.property(String::class.java)
+    val contractModulePath: Property<String> = objects.property(String::class.java)
     val applicationModulePath: Property<String> = objects.property(String::class.java)
     val domainModulePath: Property<String> = objects.property(String::class.java)
     val adapterModulePath: Property<String> = objects.property(String::class.java)
@@ -133,6 +134,8 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention("flows")
     val drawingBoard: OutputRootLayoutExtension = objects.newInstance(OutputRootLayoutExtension::class.java)
         .convention("design")
+    val designEndpoint: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
+        .convention("contract.endpoints")
     val designCommand: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("application.commands")
     val designQuery: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
@@ -150,7 +153,7 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
     val designDomainEventHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("application.subscribers.domain")
     val designIntegrationEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("application.subscribers.integration")
+        .convention("contract.events.integration")
     val designIntegrationEventSubscriber: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("application.subscribers.integration")
 
@@ -177,6 +180,8 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
     fun drawingBoard(block: OutputRootLayoutExtension.() -> Unit) {
         drawingBoard.block()
     }
+
+    fun designEndpoint(block: PackageLayoutExtension.() -> Unit) { designEndpoint.block() }
 
     fun designCommand(block: PackageLayoutExtension.() -> Unit) {
         designCommand.block()

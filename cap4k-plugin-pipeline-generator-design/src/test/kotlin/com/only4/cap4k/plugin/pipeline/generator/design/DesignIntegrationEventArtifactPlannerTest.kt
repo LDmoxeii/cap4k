@@ -18,12 +18,12 @@ import org.junit.jupiter.api.Test
 class DesignIntegrationEventArtifactPlannerTest {
 
     @Test
-    fun `plans inbound and outbound integration event contracts into application integration event paths`() {
+    fun `plans inbound and outbound integration event contracts into contract paths`() {
         val planner = DesignIntegrationEventArtifactPlanner()
         assertEquals("integration-event", planner.id)
 
         val items = planner.plan(
-            config = projectConfig(modules = mapOf("application" to "demo-application")),
+            config = projectConfig(modules = mapOf("contract" to "demo-contract")),
             model = CanonicalModel(
                 designBlocks = listOf(
                     integrationEvent(
@@ -48,12 +48,12 @@ class DesignIntegrationEventArtifactPlannerTest {
         assertEquals("integration-event", inbound.generatorId)
         assertEquals("design/integration_event.kt.peb", inbound.templateId)
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/order/OrderCreatedIntegrationEvent.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/inbound/order/OrderCreatedIntegrationEvent.kt",
             inbound.outputPath,
         )
-        assertEquals("application", inbound.moduleRole)
+        assertEquals("contract", inbound.moduleRole)
         assertEquals(ConflictPolicy.SKIP, inbound.conflictPolicy)
-        assertEquals("com.acme.demo.application.subscribers.integration.inbound.order", inbound.context["packageName"])
+        assertEquals("com.acme.demo.contract.events.integration.inbound.order", inbound.context["packageName"])
         assertEquals("OrderCreatedIntegrationEvent", inbound.context["typeName"])
         assertEquals("order.created", inbound.context["eventName"])
         assertEquals("\"order.created\"", inbound.context["eventNameKotlinStringLiteral"])
@@ -83,10 +83,10 @@ class DesignIntegrationEventArtifactPlannerTest {
 
         val outbound = items[1]
         assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/billing/InvoicePaidIntegrationEvent.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/outbound/billing/InvoicePaidIntegrationEvent.kt",
             outbound.outputPath,
         )
-        assertEquals("com.acme.demo.application.subscribers.integration.outbound.billing", outbound.context["packageName"])
+        assertEquals("com.acme.demo.contract.events.integration.outbound.billing", outbound.context["packageName"])
         assertEquals("invoice.\$paid\\completed", outbound.context["eventName"])
         assertEquals("\"invoice.\\\$paid\\\\completed\"", outbound.context["eventNameKotlinStringLiteral"])
         assertEquals("outbound", outbound.context["variant"])

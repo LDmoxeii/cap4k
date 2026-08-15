@@ -10,7 +10,7 @@ import com.only4.cap4k.ddd.core.application.invocation.InvocationScopeAccessor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventSupervisor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventRouteResolver
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.ReliableEventCoordinator
 import com.only4.cap4k.ddd.core.domain.event.EventRecordRepository
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher

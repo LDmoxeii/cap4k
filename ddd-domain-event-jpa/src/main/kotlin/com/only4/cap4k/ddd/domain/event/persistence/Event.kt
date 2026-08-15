@@ -2,7 +2,7 @@ package com.only4.cap4k.ddd.domain.event.persistence
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPayloadValidator
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventPayloadValidator
 import com.only4.cap4k.ddd.core.share.DomainException

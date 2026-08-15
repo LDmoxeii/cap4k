@@ -1528,6 +1528,67 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `design endpoint template renders published request response and stable operation identity`() {
+        val content = renderTemplate(
+            templateId = "design/endpoint.kt.peb",
+            outputPath = "demo-contract/src/main/kotlin/com/acme/demo/contract/endpoints/booking/CreateBookingEndpoint.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.contract.endpoints.booking",
+                "typeName" to "CreateBookingEndpoint",
+                "description" to "create booking",
+                "descriptionText" to "create booking",
+                "descriptionCommentText" to "create booking",
+                "descriptionKotlinStringLiteral" to "\"create booking\"",
+                "operationName" to "booking.create",
+                "operationNameKotlinStringLiteral" to "\"booking.create\"",
+                "imports" to listOf("java.time.Instant"),
+                "fields" to listOf(
+                    mapOf("name" to "customerId", "renderedType" to "String", "nullable" to false),
+                    mapOf("name" to "startTime", "renderedType" to "Instant", "nullable" to false),
+                    mapOf("name" to "details", "renderedType" to "Details", "nullable" to false),
+                ),
+                "resultFields" to listOf(
+                    mapOf("name" to "bookingId", "renderedType" to "String", "nullable" to false),
+                ),
+                "nestedTypes" to listOf(
+                    mapOf(
+                        "name" to "Details",
+                        "fields" to listOf(
+                            mapOf("name" to "note", "renderedType" to "String?", "nullable" to true, "defaultValue" to "null"),
+                        ),
+                    ),
+                ),
+                "resultNestedTypes" to emptyList<Map<String, Any?>>(),
+                "pageRequest" to false,
+                "buildingBlock" to buildingBlockContext(
+                    tag = "endpoint",
+                    name = "CreateBookingEndpoint",
+                    family = "endpoint",
+                    packageName = "booking",
+                    description = "create booking",
+                    aggregates = listOf("Booking"),
+                ),
+            ),
+        )
+
+        assertReadableKotlin(content)
+        assertTrue(content.contains("import com.only4.cap4k.contract.EndpointRequest"))
+        assertTrue(content.contains("const val OPERATION_NAME: String = \"booking.create\""))
+        assertTrue(content.contains("data class Request("))
+        assertTrue(content.contains(") : EndpointRequest<Response>"))
+        assertTrue(content.contains("data class Details("))
+        assertTrue(content.contains("data class Response("))
+        assertTrue(content.contains("operationName = \"booking.create\""))
+        assertBuildingBlockAnnotation(
+            content = content,
+            tag = "endpoint",
+            name = "CreateBookingEndpoint",
+            family = "endpoint",
+            aggregates = listOf("Booking"),
+        )
+    }
+
+    @Test
     fun `design command template renders strong id request field imports`() {
         val content = renderTemplate(
             templateId = "design/command.kt.peb",
@@ -8954,7 +9015,7 @@ class PebbleArtifactRendererTest {
         )
 
         val inboundContent = rendered[0].content
-        assertTrue(inboundContent.contains("import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent"))
+        assertTrue(inboundContent.contains("import com.only4.cap4k.contract.IntegrationEvent"))
         assertTrue(inboundContent.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
         assertTrue(inboundContent.contains("import java.util.UUID"))
         assertTrue(inboundContent.contains("@IntegrationEvent("))
@@ -8968,7 +9029,7 @@ class PebbleArtifactRendererTest {
         assertTrue(inboundContent.contains("eventName = \"order.created\""))
 
         val outboundContent = rendered[1].content
-        assertTrue(outboundContent.contains("import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent"))
+        assertTrue(outboundContent.contains("import com.only4.cap4k.contract.IntegrationEvent"))
         assertTrue(outboundContent.contains("import java.util.UUID"))
         assertTrue(outboundContent.contains("value = \"invoice.\\\$paid\\\\completed\""))
         assertTrue(outboundContent.contains("const val EVENT_NAME = \"invoice.\\\$paid\\\\completed\""))

@@ -7,7 +7,7 @@ import com.only4.cap4k.ddd.core.share.json.RuntimeJson
 import com.only4.cap4k.ddd.core.domain.event.EventRecord
 import com.only4.cap4k.ddd.core.domain.event.annotation.DomainEvent
 import com.only4.cap4k.ddd.core.domain.event.impl.DomainEventPayloadValidator
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import java.time.Instant
 
 /**

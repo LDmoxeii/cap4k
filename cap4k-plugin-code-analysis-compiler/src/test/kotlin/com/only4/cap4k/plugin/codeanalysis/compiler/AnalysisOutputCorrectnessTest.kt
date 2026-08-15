@@ -87,7 +87,7 @@ class AnalysisOutputCorrectnessTest {
                         name = "OutboundIntegrationEvent", eventName = "order.exported",
                         family = "integration-event", variant = "outbound",
                     )
-                    @com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent("order.exported")
+                    @com.only4.cap4k.contract.IntegrationEvent("order.exported")
                     data class OutboundIntegrationEvent(val orderId: Long)
                 """.trimIndent(),
             ),
@@ -935,7 +935,7 @@ class AnalysisOutputCorrectnessTest {
         SourceFile.kotlin(
             "IntegrationEvent.kt",
             """
-                package com.only4.cap4k.ddd.core.application.event.annotation
+                package com.only4.cap4k.contract
 
                 annotation class IntegrationEvent(
                     val value: String = "",

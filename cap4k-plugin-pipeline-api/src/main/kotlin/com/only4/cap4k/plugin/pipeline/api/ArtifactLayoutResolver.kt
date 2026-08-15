@@ -34,6 +34,9 @@ class ArtifactLayoutResolver(
     fun aggregateLocalEnumPackage(entityPackage: String): String =
         joinPackage(entityPackage, "enums")
 
+    fun designEndpointPackage(designPackage: String): String =
+        packageFromLayout(artifactLayout.designEndpoint, designPackage)
+
     fun designCommandPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designCommand, designPackage)
 
@@ -128,6 +131,7 @@ class ArtifactLayoutResolver(
         "aggregateSchema" to artifactLayout.aggregateSchema,
         "aggregateRepository" to artifactLayout.aggregateRepository,
         "aggregateSharedEnum" to artifactLayout.aggregateSharedEnum,
+        "designEndpoint" to artifactLayout.designEndpoint,
         "designCommand" to artifactLayout.designCommand,
         "designQuery" to artifactLayout.designQuery,
         "designCapability" to artifactLayout.designCapability,

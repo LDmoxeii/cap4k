@@ -11,7 +11,7 @@ import com.only4.cap4k.ddd.core.application.context.ExecutionContextSnapshot
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelopeCodec
 import com.only4.cap4k.ddd.core.domain.event.impl.DefaultReliableEventDeliveryContextManager
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher
 import com.only4.cap4k.ddd.core.domain.event.InboundIntegrationEventRegistrationView
 import io.mockk.every

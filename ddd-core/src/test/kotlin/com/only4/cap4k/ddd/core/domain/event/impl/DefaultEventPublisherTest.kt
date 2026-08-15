@@ -1,7 +1,7 @@
 package com.only4.cap4k.ddd.core.domain.event.impl
 
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
 import com.only4.cap4k.ddd.core.domain.event.DomainEventInterceptorManager
 import com.only4.cap4k.ddd.core.domain.event.EventHandlerDispatcher

@@ -14,4 +14,4 @@ dependencyResolutionManagement {
 includeBuild("__CAP4K_REPO_ROOT__")
 
 rootProject.name = "design-integrated-compile-sample"
-include("demo-domain", "demo-application", "demo-adapter")
+include("demo-contract", "demo-domain", "demo-application", "demo-adapter")

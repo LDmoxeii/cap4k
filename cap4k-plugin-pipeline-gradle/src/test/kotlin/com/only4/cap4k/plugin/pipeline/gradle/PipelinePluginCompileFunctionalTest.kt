@@ -303,7 +303,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `integration event generation participates in application compileKotlin`() {
+    fun `integration event contract generation participates in contract and application compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-integration-event-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-integration-event-compile-sample")
 
@@ -319,20 +319,20 @@ class PipelinePluginCompileFunctionalTest {
             .runner(projectDir, ":demo-application:compileKotlin")
             .build()
         val inboundEvent = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt"
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt"
         ).readText()
         val inboundSubscriber = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/MediaProcessingCallbackIntegrationEventSubscriber.kt"
         ).readText()
         val outboundEvent = projectDir.resolve(
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEvent.kt"
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/outbound/content/ContentPublishedIntegrationEvent.kt"
         ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/inbound/media/processing/MediaProcessingCallbackIntegrationEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/MediaProcessingCallbackIntegrationEventSubscriber.kt",
-            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/outbound/content/ContentPublishedIntegrationEvent.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/outbound/content/ContentPublishedIntegrationEvent.kt",
         )
         assertFalse(
             projectDir.resolve(
@@ -1631,6 +1631,9 @@ class PipelinePluginCompileFunctionalTest {
         val generateResult = FunctionalFixtureSupport
             .runner(projectDir, "cap4kGenerate")
             .build()
+        val contractCompileResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-contract:compileKotlin")
+            .build()
         val domainCompileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
             .build()
@@ -1650,6 +1653,8 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/inbound/payment/integration/PaymentReceivedIntegrationEvent.kt",
+            "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/integration/PaymentReceivedIntegrationEventSubscriber.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/values/OrderAddress.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/services/order/pricing/CalculateOrderTotal.kt",
         )
@@ -1670,6 +1675,7 @@ class PipelinePluginCompileFunctionalTest {
         assertTrue(orderAddressSource.contains("val details: Details"))
         assertTrue(orderAddressSource.contains("data class Details("))
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
+        assertTrue(contractCompileResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(domainCompileResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(applicationCompileResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(adapterCompileResult.output.contains("BUILD SUCCESSFUL"))
@@ -1689,6 +1695,42 @@ class PipelinePluginCompileFunctionalTest {
             Regex("""\bid\s*:\s*${Regex.escape(idType)}\b""").containsMatchIn(constructorParameters),
             "Expected internal constructor to exclude id: $idType, but parameters were:\n$constructorParameters",
         )
+    }
+
+    @Test
+    fun `provider and consumer endpoint seams compile with leaf contract dependencies`() {
+        val projectDir = Files.createTempDirectory("pipeline-functional-endpoint-provider-consumer")
+        FunctionalFixtureSupport.copyCompileFixture(projectDir, "endpoint-provider-consumer-compile-sample")
+
+        val result = FunctionalFixtureSupport.runner(
+            projectDir,
+            ":contract:compileKotlin",
+            ":provider:compileKotlin",
+            ":consumer:compileKotlin",
+        ).build()
+
+        val providerSource = projectDir.resolve(
+            "provider/src/main/kotlin/demo/provider/ProviderEndpoint.kt",
+        ).readText()
+        val consumerSource = projectDir.resolve(
+            "consumer/src/main/kotlin/demo/consumer/ConsumerEndpoint.kt",
+        ).readText()
+        val consumerBuild = projectDir.resolve("consumer/build.gradle.kts").readText()
+
+        assertTrue(result.output.contains("BUILD SUCCESSFUL"), result.output)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":contract:compileKotlin")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":provider:compileKotlin")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":consumer:compileKotlin")?.outcome)
+        assertTrue(providerSource.contains("Mediator.endpoints.send(request)"))
+        assertTrue(consumerSource.contains("Mediator.endpoints.send(CreateBookingEndpoint.Request(customerId))"))
+        assertTrue(consumerSource.contains("class BookingAcl : CapabilityHandler"))
+        assertTrue(consumerSource.contains("Mediator.endpoints.send(CreateBookingEndpoint.Request(request.customerId))"))
+        assertFalse(consumerSource.contains("RpcProxyShapedHandler().handle"))
+        assertTrue(consumerBuild.contains("project(\":contract\")"))
+        assertTrue(consumerBuild.contains("io.github.ldmoxeii:ddd-core"))
+        listOf("provider", "application", "domain", "adapter", "spring", "http").forEach { forbidden ->
+            assertFalse(consumerBuild.lowercase().contains(forbidden), consumerBuild)
+        }
     }
 
     private fun internalConstructorParameters(generatedEntity: String): String {

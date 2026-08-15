@@ -33,6 +33,7 @@ cap4k {
 | Field | 说明 |
 | --- | --- |
 | `basePackage` | generated package 的基础包。 |
+| `contractModulePath` | published Endpoint 与 Integration Event payload 的 dependency-leaf contract module path；仅在选择 contract-owned artifact 时必填。 |
 | `domainModulePath` | domain module path。 |
 | `applicationModulePath` | application module path。 |
 | `adapterModulePath` | adapter module path。 |
@@ -40,6 +41,7 @@ cap4k {
 ```kotlin
 project {
     basePackage.set("com.acme.demo")
+    contractModulePath.set("demo-contract")
     domainModulePath.set("demo-domain")
     applicationModulePath.set("demo-application")
     adapterModulePath.set("demo-adapter")
@@ -187,12 +189,13 @@ layout {
     designCapability { packageRoot.set("application.capabilities") }
     designCapabilityHandler { packageRoot.set("adapter.application.capabilities") }
     designApiPayload { packageRoot.set("adapter.portal.api.payload") }
+    designEndpoint { packageRoot.set("contract.endpoints") }
     flow { outputRoot.set("analysis/flows") }
     drawingBoard { outputRoot.set("analysis/drawing-board") }
 }
 ```
 
-公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designCapability`, `designQueryHandler`, `designCapabilityHandler`, `designApiPayload`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。
+公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designCapability`, `designQueryHandler`, `designCapabilityHandler`, `designApiPayload`, `designEndpoint`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。`designEndpoint` 与 `designIntegrationEvent` 默认输出到 contract role；`designIntegrationEventSubscriber` 仍输出到 application role。
 
 ## `pipelineExtensions { }`
 

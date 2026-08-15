@@ -9,6 +9,7 @@ val databaseName = "cap4k_roundtrip_" +
 cap4k {
     project {
         basePackage.set("com.acme.demo")
+        contractModulePath.set("demo-contract")
         domainModulePath.set("demo-domain")
         applicationModulePath.set("demo-application")
         adapterModulePath.set("demo-adapter")

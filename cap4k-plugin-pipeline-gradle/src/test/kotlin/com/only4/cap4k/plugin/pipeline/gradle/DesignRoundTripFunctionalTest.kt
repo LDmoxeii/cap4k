@@ -82,7 +82,7 @@ class DesignRoundTripFunctionalTest {
         assertGeneratedRepositoryCarrier(firstRepositoryCarrier.source)
 
         val analysisModules = analyzeWithRealCompiler(projectA)
-        assertEquals(listOf("domain", "application", "adapter"), analysisModules.map { it.role })
+        assertEquals(listOf("contract", "domain", "application", "adapter"), analysisModules.map { it.role })
         analysisModules.forEach(::assertRealAnalysisOutput)
         val analyzedRepositoryEvidence = aggregateElementEvidence(
             analysisModules.single { it.role == "adapter" }.analysisDir,
@@ -179,6 +179,16 @@ class DesignRoundTripFunctionalTest {
         assertTrue(pageQuery.artifacts.contains(ArtifactProjection("query", "page")))
         assertTrue(pageQuery.artifacts.contains(ArtifactProjection("query-handler", "")))
 
+        val endpoint = blocks.single { it.tag == "endpoint" && it.name == "CreateOrder" }
+        assertEquals("order.create", endpoint.operationName)
+        assertEquals(listOf(ArtifactProjection("endpoint", "")), endpoint.artifacts)
+        assertEquals("ENDPOINT_REQUEST", endpoint.request.role)
+        assertEquals("ENDPOINT_RESPONSE", endpoint.response?.role)
+        assertTrue(endpoint.request.fields.isNotEmpty())
+        assertTrue(endpoint.request.nestedDefinitions.isNotEmpty())
+        assertTrue(endpoint.response?.fields?.isNotEmpty() == true)
+        assertTrue(endpoint.response?.nestedDefinitions?.isNotEmpty() == true)
+
         val ordinaryApiPayload = blocks.single { it.tag == "api_payload" && it.name == "OrderSearchPayload" }
         assertEquals(listOf(ArtifactProjection("api-payload", "")), ordinaryApiPayload.artifacts)
         val pageApiPayload = blocks.single { it.tag == "api_payload" && it.name == "OrderPagePayload" }
@@ -248,13 +258,14 @@ class DesignRoundTripFunctionalTest {
 
         val compileResult = roundTripRunner(
             projectDir,
+            ":demo-contract:compileKotlin",
             ":demo-domain:compileKotlin",
             ":demo-application:compileKotlin",
             ":demo-adapter:compileKotlin",
             "--stacktrace",
         ).build()
         assertBuildSucceeded(compileResult)
-        listOf("demo-domain", "demo-application", "demo-adapter").forEach { module ->
+        listOf("demo-contract", "demo-domain", "demo-application", "demo-adapter").forEach { module ->
             assertTaskSucceeded(compileResult, ":$module:compileKotlin")
         }
     }
@@ -279,6 +290,7 @@ class DesignRoundTripFunctionalTest {
         val dependencyOutputs = mutableListOf<File>()
 
         listOf(
+            "contract" to "demo-contract",
             "domain" to "demo-domain",
             "application" to "demo-application",
             "adapter" to "demo-adapter",
@@ -519,6 +531,7 @@ $registeredPaths
             basePackage = "com.acme.demo",
             layout = ProjectLayout.MULTI_MODULE,
             modules = mapOf(
+                "contract" to "demo-contract",
                 "domain" to "demo-domain",
                 "application" to "demo-application",
                 "adapter" to "demo-adapter",
@@ -577,6 +590,7 @@ $registeredPaths
         description = description,
         aggregates = aggregates,
         eventName = eventName,
+        operationName = operationName,
         persist = persist,
         artifacts = artifacts
             .map { artifact -> ArtifactProjection(artifact.family, artifact.variant) }
@@ -755,6 +769,7 @@ $registeredPaths
         val description: String,
         val aggregates: List<String>,
         val eventName: String,
+        val operationName: String,
         val persist: Boolean?,
         val artifacts: List<ArtifactProjection>,
         val request: ValueProjection,
@@ -814,6 +829,7 @@ $registeredPaths
             "command",
             "query",
             "capability",
+            "endpoint",
             "api_payload",
             "domain_event",
             "integration_event",
@@ -831,6 +847,7 @@ $registeredPaths
             "query-handler",
             "capability",
             "capability-handler",
+            "endpoint",
             "api-payload",
             "domain-event",
             "domain-subscriber",

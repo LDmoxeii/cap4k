@@ -1,6 +1,6 @@
 # Execution Context And Invocation Scope
 
-ExecutionContext 与 InvocationScope 解决两类不同问题。ExecutionContext 说明“这次调用来自谁、属于哪条追踪或环境链路”；InvocationScope 说明“当前代码正在执行 Command、Query、Capability 还是 Event Handler”。这里的 Event Handler 同时包括本地 Domain Event Handler 与入站 Integration Event Handler。ExecutionContext 可以跨框架拥有的异步和可靠边界传播，InvocationScope 只在当前线程和调用栈内生效。
+ExecutionContext 与 InvocationScope 解决两类不同问题。ExecutionContext 说明“这次调用来自谁、属于哪条追踪或环境链路”；InvocationScope 说明“当前代码正在执行 Command、Query、Capability、Endpoint 还是 Event Handler”。这里的 Event Handler 同时包括本地 Domain Event Handler 与入站 Integration Event Handler。ExecutionContext 可以跨框架拥有的异步和可靠边界传播，InvocationScope 只在当前线程和调用栈内生效。
 
 ExecutionContext 是不可变的 typed element snapshot。actor、correlation、trace、environment 或 tenant hint 可以通过稳定 key 和版本化 codec 登记，但这些值只用于归因与传递，不等于认证、授权或数据库租户隔离。可靠 Command、可靠 Domain Event、Integration Event 和 RPC 分别声明允许传播的元素；payload 与 context envelope 保持分离。
 

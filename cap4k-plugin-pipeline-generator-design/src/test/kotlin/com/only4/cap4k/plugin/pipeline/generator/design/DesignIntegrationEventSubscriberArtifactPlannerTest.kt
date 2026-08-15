@@ -46,7 +46,7 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         assertEquals("OrderCreatedIntegrationEventSubscriber", subscriber.context["typeName"])
         assertEquals("OrderCreatedIntegrationEvent", subscriber.context["eventTypeName"])
         assertEquals(
-            "com.acme.demo.application.subscribers.integration.inbound.order.OrderCreatedIntegrationEvent",
+            "com.acme.demo.contract.events.integration.inbound.order.OrderCreatedIntegrationEvent",
             subscriber.context["eventType"],
         )
         assertEquals("order.created", subscriber.context["eventName"])
@@ -55,7 +55,7 @@ class DesignIntegrationEventSubscriberArtifactPlannerTest {
         assertEquals(false, subscriber.context["outbound"])
         assertEquals("order * / created event", subscriber.context["descriptionCommentText"])
         assertEquals(
-            listOf("com.acme.demo.application.subscribers.integration.inbound.order.OrderCreatedIntegrationEvent"),
+            listOf("com.acme.demo.contract.events.integration.inbound.order.OrderCreatedIntegrationEvent"),
             subscriber.context["imports"],
         )
     }

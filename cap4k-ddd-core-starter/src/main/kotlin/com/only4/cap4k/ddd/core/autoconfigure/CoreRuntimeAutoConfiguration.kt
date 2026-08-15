@@ -12,6 +12,9 @@ import com.only4.cap4k.ddd.core.application.capability.CapabilityHandler
 import com.only4.cap4k.ddd.core.application.capability.CapabilityInterceptor
 import com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor
 import com.only4.cap4k.ddd.core.application.capability.impl.DefaultCapabilitySupervisor
+import com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler
+import com.only4.cap4k.ddd.core.application.endpoint.EndpointSupervisor
+import com.only4.cap4k.ddd.core.application.endpoint.impl.DefaultEndpointSupervisor
 import com.only4.cap4k.ddd.core.application.command.CommandHandler
 import com.only4.cap4k.ddd.core.application.command.CommandInterceptor
 import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
@@ -108,6 +111,11 @@ class CoreRuntimeAutoConfiguration {
     fun capabilityAsyncExecutor(properties: ApplicationExecutionProperties): ApplicationAsyncExecutor =
         properties.capability.toExecutor()
 
+    @Bean(name = [ENDPOINT_ASYNC_EXECUTOR_BEAN])
+    @ConditionalOnMissingBean(name = [ENDPOINT_ASYNC_EXECUTOR_BEAN])
+    fun endpointAsyncExecutor(properties: ApplicationExecutionProperties): ApplicationAsyncExecutor =
+        properties.endpoint.toExecutor()
+
     @Bean
     @ConditionalOnMissingBean(CommandSupervisor::class)
     fun defaultCommandSupervisor(
@@ -179,6 +187,26 @@ class CoreRuntimeAutoConfiguration {
     ).apply(DefaultCapabilitySupervisor::init)
 
     @Bean
+    @ConditionalOnMissingBean(EndpointSupervisor::class)
+    fun defaultEndpointSupervisor(
+        handlers: List<EndpointHandler<*, *>>,
+        validatorProvider: ObjectProvider<Validator>,
+        invocationPolicy: InvocationPolicy,
+        invocationScopeManager: InvocationScopeManager,
+        executionContextAccessor: ExecutionContextAccessor,
+        executionContextPropagation: ExecutionContextPropagation,
+        @Qualifier(ENDPOINT_ASYNC_EXECUTOR_BEAN) asyncExecutor: ApplicationAsyncExecutor,
+    ): DefaultEndpointSupervisor = DefaultEndpointSupervisor(
+        handlers,
+        validatorProvider.ifAvailable,
+        invocationPolicy,
+        invocationScopeManager,
+        executionContextAccessor,
+        executionContextPropagation,
+        asyncExecutor,
+    ).apply(DefaultEndpointSupervisor::init)
+
+    @Bean
     @ConditionalOnMissingBean(DomainServiceSupervisor::class)
     fun defaultDomainServiceSupervisor(applicationContext: ApplicationContext): DefaultDomainServiceSupervisor =
         DefaultDomainServiceSupervisor(applicationContext)
@@ -223,5 +251,6 @@ class CoreRuntimeAutoConfiguration {
     companion object {
         const val QUERY_ASYNC_EXECUTOR_BEAN = "cap4kQueryAsyncExecutor"
         const val CAPABILITY_ASYNC_EXECUTOR_BEAN = "cap4kCapabilityAsyncExecutor"
+        const val ENDPOINT_ASYNC_EXECUTOR_BEAN = "cap4kEndpointAsyncExecutor"
     }
 }

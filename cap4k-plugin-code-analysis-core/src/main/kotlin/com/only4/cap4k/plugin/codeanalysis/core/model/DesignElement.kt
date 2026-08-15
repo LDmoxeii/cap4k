@@ -7,6 +7,7 @@ data class DesignElement(
     val description: String = "",
     val aggregates: List<String> = emptyList(),
     val eventName: String = "",
+    val operationName: String = "",
     val persist: Boolean? = null,
     val artifacts: List<DesignArtifact> = emptyList(),
     val fields: List<DesignField> = emptyList(),

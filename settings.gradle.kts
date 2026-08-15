@@ -17,6 +17,7 @@ plugins {
 }
 
 include("cap4k-analysis-metadata")
+include("cap4k-contract-api")
 include("ddd-core")
 include("ddd-application-command-jpa")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")

@@ -122,7 +122,11 @@ class AgentSnapshotCodecTest {
             runtime.eventHandler.managedAsyncCompletion.failure,
         )
         assertEquals(
-            listOf("Mediator.capabilities.callAsync", "Mediator.queries.askAsync"),
+            listOf(
+                "Mediator.capabilities.callAsync",
+                "Mediator.endpoints.sendAsync",
+                "Mediator.queries.askAsync",
+            ),
             runtime.eventHandler.managedAsyncCompletion.trackedOperations,
         )
         assertTrue("transactional_event_listener" in runtime.eventHandler.forbidden)

@@ -4,7 +4,7 @@ import com.only4.cap4k.ddd.core.application.event.IntegrationEventEnvelope
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptor
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventInterceptorManager
 import com.only4.cap4k.ddd.core.application.event.IntegrationEventPublisher
-import com.only4.cap4k.ddd.core.application.event.annotation.IntegrationEvent
+import com.only4.cap4k.contract.IntegrationEvent
 import com.only4.cap4k.ddd.core.application.context.ExecutionContextAccessor
 import com.only4.cap4k.ddd.core.application.query.Query
 import com.only4.cap4k.ddd.core.application.query.QueryExecution

@@ -56,6 +56,10 @@ internal object DesignPayloadRenderModelFactory {
         response = block.response,
     )
 
+    fun createForEndpointBlock(packageName: String, block: DesignBlockModel): DesignRenderModel = createForBlock(
+        packageName, block.endpointTypeName(), block.description, block.request, block.response
+    )
+
     fun createForApiPayloadBlock(
         packageName: String,
         block: DesignBlockModel,
