@@ -54,7 +54,11 @@ class FlowArtifactPlannerTest {
             listOf(
                 "Input: Raw Analysis Graph Evidence",
                 "Entry-centered Causal Flow Evidence",
-                "Visible: Entry, Command, Domain Event, Integration Event",
+                "Trigger Families: Actor, Event, Time",
+                "Current Actor Detector: Spring HTTP Controller Method",
+                "Current Event Detector: Inbound Integration Event",
+                "Current Time Detector: Spring @Scheduled Method",
+                "Visible: Concrete Trigger, Command, Domain Event, Integration Event",
                 "Hidden: Command Handler, Domain Event Handler, Integration Event Handler, Entity Method",
                 "Projection: Hidden Path Contraction, Root After Projection, Cycle Preservation",
             ),

@@ -10,6 +10,8 @@ Scheduled Reaction 与其他边界的协作要保持应用层意图清楚。需�
 
 cap4k 当前不生成 Scheduled Reaction 或 Job。Job 是项目手写的 application implementation surface；generator 只为当前支持的 Command、Query、Capability、Subscriber 及相关 handler wiring 提供骨架。轮询频率、恢复条件、幂等策略、失败重试和状态推进含义都来自手写逻辑。尤其在 recovery 路径中，代码应能解释为什么某条记录可以再次尝试、为什么某个外部结果可以推进内部状态，以及重复执行时如何保持安全。
 
+Analyzer 会把真实的 Spring `@Scheduled` method 识别为 Time 类入口节点 `temporaltriggermethod`。只有该 method 直接发送 Command 时，才会产生 `TemporalTriggerMethodToCommand` evidence 并进入默认 Flow；只发送 Query、调用 Capability 或执行纯技术逻辑不会形成 Flow。这个 detection 仅观察已有代码，不提供 scheduler runtime、Job generator、cron、misfire、retry 或跨入口 process stitching。
+
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。`MediaProcessingPollingFallbackJob` 是时间触发 reaction 的直接锚点；它可以和 `StartMediaProcessingCmd`、`GetMediaProcessingStatus` 及媒体处理 callback 相关入口一起阅读，理解 callback 不可靠时如何用 polling fallback 补足恢复能力。
 
 Scheduled Reaction 的设计边界是时间触发的可靠检查和推进。常见误用包括把 Job 写成所有业务规则的集合，把轮询结果直接改成内部状态，忽略重复执行，或者让 scheduled path 与 callback path 推进出不同语义。审查时可以看触发条件是否清楚，幂等和恢复是否可解释，状态改变是否委托给 Command/application boundary，以及 Job 是否只作为实现 surface 出现。

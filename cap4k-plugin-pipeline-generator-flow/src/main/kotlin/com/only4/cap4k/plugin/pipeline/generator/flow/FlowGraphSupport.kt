@@ -92,8 +92,6 @@ private data class HiddenPathState(
 private val flowJsonMapper = PipelineJson.newMapper()
 private val flowJsonWriter = PipelineJson.prettyWriter(flowJsonMapper)
 
-private const val ControllerMethodToCommand = "ControllerMethodToCommand"
-private const val CommandSenderMethodToCommand = "CommandSenderMethodToCommand"
 private const val CommandToCommandHandler = "CommandToCommandHandler"
 private const val CommandHandlerToEntityMethod = "CommandHandlerToEntityMethod"
 private const val CommandToEntityMethod = "CommandToEntityMethod"
@@ -106,8 +104,6 @@ private const val IntegrationEventToHandler = "IntegrationEventToHandler"
 private const val IntegrationEventHandlerToCommand = "IntegrationEventHandlerToCommand"
 
 private val rawCausalEdgeTypes = setOf(
-    ControllerMethodToCommand,
-    CommandSenderMethodToCommand,
     CommandToCommandHandler,
     CommandHandlerToEntityMethod,
     CommandToEntityMethod,
@@ -226,6 +222,15 @@ internal fun projectCausalGraph(
     nodesById: Map<String, AnalysisNodeModel>,
     edges: List<AnalysisEdgeModel>,
 ): CausalProjection {
+    edges.filter(::isPotentialCausalRelationshipType).forEach { edge ->
+        require(edge.fromId in nodesById) {
+            "Flow causal relationship '${edge.type}' references missing fromId '${edge.fromId}'"
+        }
+        require(edge.toId in nodesById) {
+            "Flow causal relationship '${edge.type}' references missing toId '${edge.toId}'"
+        }
+    }
+
     val rawEdges = edges
         .filter { edge -> isCausalEdge(edge, nodesById) }
         .distinctBy { EdgeKey(it.fromId, it.toId, it.type, it.label) }
@@ -315,6 +320,9 @@ internal fun projectCausalGraph(
     )
 }
 
+private fun isPotentialCausalRelationshipType(edge: AnalysisEdgeModel): Boolean =
+    edge.type in rawCausalEdgeTypes || edge.type.endsWith("ToCommand")
+
 private fun isCausalEdge(
     edge: AnalysisEdgeModel,
     nodesById: Map<String, AnalysisNodeModel>,
@@ -322,11 +330,7 @@ private fun isCausalEdge(
     if (edge.type in rawCausalEdgeTypes) {
         return true
     }
-    val source = nodesById[edge.fromId] ?: return false
-    val target = nodesById[edge.toId] ?: return false
-    return isPotentialEntryNode(source) &&
-        target.type.lowercase() == "command" &&
-        edge.type.endsWith("ToCommand")
+    return isExplicitCommandTriggerRelationship(edge, nodesById)
 }
 
 private fun isConcreteCommandEntry(
@@ -334,15 +338,39 @@ private fun isConcreteCommandEntry(
     nodesById: Map<String, AnalysisNodeModel>,
     outgoing: List<AnalysisEdgeModel>,
 ): Boolean = isPotentialEntryNode(node) && outgoing.any { edge ->
-    nodesById[edge.toId]?.type?.lowercase() == "command" &&
-        (edge.type == ControllerMethodToCommand ||
-            edge.type == CommandSenderMethodToCommand ||
-            edge.type.endsWith("ToCommand"))
+    isExplicitCommandTriggerRelationship(edge, nodesById, node)
 }
 
+private fun isExplicitCommandTriggerRelationship(
+    edge: AnalysisEdgeModel,
+    nodesById: Map<String, AnalysisNodeModel>,
+    sourceNode: AnalysisNodeModel? = nodesById[edge.fromId],
+): Boolean {
+    if (!edge.type.endsWith("ToCommand")) {
+        return false
+    }
+    val source = sourceNode ?: return false
+    val target = nodesById[edge.toId] ?: return false
+    if (!isPotentialEntryNode(source) || target.type.lowercase() != "command") {
+        return false
+    }
+
+    val relationshipPrefix = edge.type.removeSuffix("ToCommand")
+    return relationshipPrefix.isNotBlank() &&
+        canonicalRole(relationshipPrefix) == canonicalRole(source.type)
+}
+
+private fun canonicalRole(value: String): String = value
+    .asSequence()
+    .filter(Char::isLetterOrDigit)
+    .joinToString("")
+    .lowercase()
+
 private fun isPotentialEntryNode(node: AnalysisNodeModel): Boolean {
-    val type = node.type.lowercase()
-    return type !in visibleBusinessNodeTypes &&
+    val type = canonicalRole(node.type)
+    return type.isNotBlank() &&
+        "sender" !in type &&
+        type !in visibleBusinessNodeTypes &&
         type !in hiddenCausalNodeTypes &&
         type !in excludedEntryNodeTypes
 }
@@ -351,10 +379,8 @@ private val excludedEntryNodeTypes = setOf(
     "aggregate",
     "query",
     "queryhandler",
-    "querysendermethod",
     "capability",
     "capabilityhandler",
-    "capabilitysendermethod",
     "validator",
 )
 

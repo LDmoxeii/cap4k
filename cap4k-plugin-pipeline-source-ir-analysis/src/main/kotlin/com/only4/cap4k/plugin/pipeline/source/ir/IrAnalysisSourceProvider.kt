@@ -41,6 +41,10 @@ class IrAnalysisSourceProvider : SourceProvider {
         module = "cap4k-plugin-pipeline-source-ir-analysis",
         tacticalCarriers = listOf(
             "Raw Analysis Graph Evidence",
+            "Graph Trigger Families: Actor, Event, Time",
+            "Graph Actor Detector: Spring HTTP Controller Method",
+            "Graph Event Detector: Inbound Integration Event",
+            "Graph Time Detector: Spring @Scheduled Method",
             "Normalized Design Projection Evidence",
             "Aggregate Structure Evidence",
         ),

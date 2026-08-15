@@ -285,6 +285,7 @@ private class GraphCollector(
     private val integrationEventCache: MutableMap<String, Boolean> = mutableMapOf()
 
     private val restController = FqName("org.springframework.web.bind.annotation.RestController")
+    private val scheduled = FqName("org.springframework.scheduling.annotation.Scheduled")
     private val requestMappings = setOf(
         "org.springframework.web.bind.annotation.RequestMapping",
         "org.springframework.web.bind.annotation.GetMapping",
@@ -427,6 +428,7 @@ private class GraphCollector(
                 val annFq = ann.symbol.owner.parentAsClass.fqNameWhenAvailable
                 annFq != null && requestMappings.contains(annFq)
             }
+        val isTemporalTriggerMethod = options.scanSpring && declaration.hasAnnotation(scheduled)
 
         if (isControllerMethod) {
             addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = NodeType.controllermethod))
@@ -452,6 +454,9 @@ private class GraphCollector(
             val relType = if (isDomainEventHandler) RelationshipType.DomainEventToHandler else RelationshipType.IntegrationEventToHandler
             addRel(Relationship(fromId = eventType, toId = methodId, type = relType))
         }
+        if (isTemporalTriggerMethod && !isControllerMethod && !isDomainEventHandler && !isIntegrationEventHandler) {
+            addNode(Node(id = methodId, name = methodDisplayName, fullName = methodId, type = NodeType.temporaltriggermethod))
+        }
 
         if (entityMethodRef != null) {
             addNode(
@@ -468,6 +473,7 @@ private class GraphCollector(
             isControllerMethod -> FunctionCtx.CONTROLLER_METHOD
             isDomainEventHandler -> FunctionCtx.DOMAIN_EVENT_HANDLER
             isIntegrationEventHandler -> FunctionCtx.INTEGRATION_EVENT_HANDLER
+            isTemporalTriggerMethod -> FunctionCtx.TEMPORAL_TRIGGER_METHOD
             isValidatorMethod -> FunctionCtx.VALIDATOR
             else -> FunctionCtx.OTHER
         }
@@ -534,7 +540,9 @@ private class GraphCollector(
                         val senderId = methodId
                         val controllerRoots = if (ctx == FunctionCtx.OTHER) controllerRootsByMethod[senderId].orEmpty() else emptySet()
                         if (controllerRoots.isNotEmpty()) {
-                            val relType = relationshipTypeForSend(applicationCallKind, FunctionCtx.CONTROLLER_METHOD)
+                            val relType = requireNotNull(
+                                relationshipTypeForSend(applicationCallKind, FunctionCtx.CONTROLLER_METHOD)
+                            )
                             controllerRoots.forEach { rootId ->
                                 addRel(Relationship(fromId = rootId, toId = requestFq, type = relType))
                             }
@@ -547,12 +555,14 @@ private class GraphCollector(
                             addNode(Node(id = senderId, name = methodDisplayName, fullName = senderId, type = NodeType.validator))
                             validatorNodeAdded = true
                         }
-                        if (relType.isSenderMethodRel() && !senderMethodAdded && ctx == FunctionCtx.OTHER) {
-                            val senderType = senderNodeTypeForRel(relType)
-                            addNode(Node(id = senderId, name = methodDisplayName, fullName = senderId, type = senderType))
-                            senderMethodAdded = true
+                        if (relType != null) {
+                            if (relType.isSenderMethodRel() && !senderMethodAdded && ctx == FunctionCtx.OTHER) {
+                                val senderType = senderNodeTypeForRel(relType)
+                                addNode(Node(id = senderId, name = methodDisplayName, fullName = senderId, type = senderType))
+                                senderMethodAdded = true
+                            }
+                            addRel(Relationship(fromId = senderId, toId = requestFq, type = relType))
                         }
-                        addRel(Relationship(fromId = senderId, toId = requestFq, type = relType))
                     }
                 }
 
@@ -893,6 +903,7 @@ private enum class FunctionCtx {
     CONTROLLER_METHOD,
     DOMAIN_EVENT_HANDLER,
     INTEGRATION_EVENT_HANDLER,
+    TEMPORAL_TRIGGER_METHOD,
     VALIDATOR,
     OTHER
 }
@@ -903,13 +914,14 @@ private enum class ApplicationCallKind {
     CAPABILITY
 }
 
-private fun relationshipTypeForSend(kind: ApplicationCallKind, ctx: FunctionCtx?): RelationshipType {
+private fun relationshipTypeForSend(kind: ApplicationCallKind, ctx: FunctionCtx?): RelationshipType? {
     return when (kind) {
         ApplicationCallKind.COMMAND -> when (ctx) {
             FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToCommand
             FunctionCtx.DOMAIN_EVENT_HANDLER -> RelationshipType.DomainEventHandlerToCommand
             FunctionCtx.INTEGRATION_EVENT_HANDLER -> RelationshipType.IntegrationEventHandlerToCommand
-            else -> RelationshipType.CommandSenderMethodToCommand
+            FunctionCtx.TEMPORAL_TRIGGER_METHOD -> RelationshipType.TemporalTriggerMethodToCommand
+            else -> null
         }
         ApplicationCallKind.QUERY -> when (ctx) {
             FunctionCtx.CONTROLLER_METHOD -> RelationshipType.ControllerMethodToQuery
@@ -957,16 +969,14 @@ private fun typeDisplayNameForFqcn(fqcn: String): String {
 
 private fun senderNodeTypeForRel(relType: RelationshipType): NodeType {
     return when (relType) {
-        RelationshipType.CommandSenderMethodToCommand -> NodeType.commandsendermethod
         RelationshipType.QuerySenderMethodToQuery -> NodeType.querysendermethod
         RelationshipType.CapabilitySenderMethodToCapability -> NodeType.capabilitysendermethod
-        else -> NodeType.commandsendermethod
+        else -> error("Relationship $relType does not use a generic sender method node")
     }
 }
 
 private fun RelationshipType.isSenderMethodRel(): Boolean {
-    return this == RelationshipType.CommandSenderMethodToCommand ||
-        this == RelationshipType.QuerySenderMethodToQuery ||
+    return this == RelationshipType.QuerySenderMethodToQuery ||
         this == RelationshipType.CapabilitySenderMethodToCapability
 }
 
