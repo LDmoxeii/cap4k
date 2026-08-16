@@ -627,7 +627,10 @@ created_at: 2026-08-16T00:00:00.000Z
         Write-Utf8File (Join-Path $fakeBin 'gh.cmd') "@echo off`r`npwsh -NoProfile -ExecutionPolicy Bypass -File `"%~dp0fake-gh.ps1`" %*`r`n"
     } else {
         $fakeGhCommand = Join-Path $fakeBin 'gh'
-        $fakeGhWrapper = (@('#!/usr/bin/env pwsh', '& "$PSScriptRoot/fake-gh.ps1" @args', 'exit $LASTEXITCODE') -join "`n") + "`n"
+        $fakeGhWrapper = (@(
+            '#!/bin/sh'
+            'exec pwsh -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$(dirname "$0")/fake-gh.ps1" "$@"'
+        ) -join "`n") + "`n"
         Write-Utf8File $fakeGhCommand $fakeGhWrapper
         & chmod +x -- $fakeGhCommand
         if ($LASTEXITCODE -ne 0) { throw 'Failed to make the Unix fake gh wrapper executable.' }
