@@ -201,6 +201,14 @@ function Get-Sha256Hex {
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+function Get-CanonicalTextSha256 {
+    param([string] $Path)
+    $text = [Text.UTF8Encoding]::new($false, $true).GetString([IO.File]::ReadAllBytes($Path))
+    $canonical = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($canonical)
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+}
+
 function Get-AuthoringFingerprint {
     param([object] $Artifact)
     $normalize = {
@@ -459,6 +467,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Failed to initialize provider fixture repository.' }
     Invoke-TestGit $providerRepo @('config','user.name','Cap4k Test') | Out-Null
     Invoke-TestGit $providerRepo @('config','user.email','cap4k-test@example.invalid') | Out-Null
+    Invoke-TestGit $providerRepo @('config','core.autocrlf','true') | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $providerRepo 'scripts'), (Join-Path $providerRepo '.github') | Out-Null
     Copy-Item -LiteralPath $finishProviderScript -Destination (Join-Path $providerRepo 'scripts/comet-finish-pr.ps1')
     Copy-Item -LiteralPath $createScript -Destination (Join-Path $providerRepo 'scripts/create-pr.ps1')
@@ -561,6 +570,19 @@ created_at: 2026-08-16T00:00:00.000Z
     Invoke-TestGit $providerRepo @('commit','-m','chore(native): archive provider-test') | Out-Null
     $providerHead = (@(Invoke-TestGit $providerRepo @('rev-parse','HEAD'))[0]).Trim()
     $providerFinalTree = (@(Invoke-TestGit $providerRepo @('rev-parse',"$providerHead^{tree}"))[0]).Trim()
+    $checkoutTextPaths = @(
+        '.github/PULL_REQUEST_TEMPLATE.md',
+        'docs/comet/archive/2026-08-16-provider-test/brief.md',
+        'docs/comet/archive/2026-08-16-provider-test/specs/repository-pr-finish/spec.md'
+    )
+    foreach ($relativePath in $checkoutTextPaths) { Remove-Item -LiteralPath (Join-Path $providerRepo $relativePath) -Force }
+    Invoke-TestGit $providerRepo (@('checkout','--') + $checkoutTextPaths) | Out-Null
+    if (@(Invoke-TestGit $providerRepo @('status','--porcelain')).Count -ne 0) { throw 'Autocrlf checkout fixture must remain Git-clean.' }
+    foreach ($relativePath in $checkoutTextPaths) {
+        $workingOid = (@(Invoke-TestGit $providerRepo @('hash-object','--no-filters',$relativePath))[0]).Trim()
+        $blobOid = (@(Invoke-TestGit $providerRepo @('rev-parse',"HEAD:$relativePath"))[0]).Trim()
+        if ($workingOid -ceq $blobOid) { throw "Autocrlf fixture did not create a working-tree/blob byte difference for $relativePath." }
+    }
 
     $factsOutput = Join-Path $tempRoot 'provider-facts.json'
     & (Join-Path $providerRepo 'scripts/export-capability-contract-facts.ps1') -OutputFile $factsOutput | Out-Null
@@ -578,9 +600,9 @@ created_at: 2026-08-16T00:00:00.000Z
             stateVersion = 6
             verificationResult = 'pass'
             verification = [ordered]@{ path='verification.md'; candidateId='candidate-provider-test'; verifierExecutionRef='verifier-provider-test'; iteration=1; attempt=1 }
-            brief = [ordered]@{ path='brief.md'; sha256=(Get-Sha256Hex (Join-Path $archiveRoot 'brief.md')) }
-            specs = @([ordered]@{ path='specs/repository-pr-finish/spec.md'; sha256=(Get-Sha256Hex (Join-Path $archiveSpecDir 'spec.md')) })
-            template = [ordered]@{ path='.github/PULL_REQUEST_TEMPLATE.md'; sha256=(Get-Sha256Hex (Join-Path $providerRepo '.github/PULL_REQUEST_TEMPLATE.md')) }
+            brief = [ordered]@{ path='brief.md'; sha256=(Get-CanonicalTextSha256 (Join-Path $archiveRoot 'brief.md')) }
+            specs = @([ordered]@{ path='specs/repository-pr-finish/spec.md'; sha256=(Get-CanonicalTextSha256 (Join-Path $archiveSpecDir 'spec.md')) })
+            template = [ordered]@{ path='.github/PULL_REQUEST_TEMPLATE.md'; sha256=(Get-CanonicalTextSha256 (Join-Path $providerRepo '.github/PULL_REQUEST_TEMPLATE.md')) }
             preArchiveHeadSha = $preArchiveHead
             preArchiveTreeSha = $preArchiveTree
             facts = [ordered]@{ sha256=(Get-Sha256Hex $factsOutput) }

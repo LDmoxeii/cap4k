@@ -26,13 +26,13 @@ cap4k 的 Comet Native Archive 在选择 `finish=pull-request` 时，自动形�
 
 - A1: `.comet/config.yaml` 使用项目相对 PowerShell adapter 后，Comet 可发现该 provider，且原有 Native snapshot 配置保持不变。
 - A2: adapter 只接受 `comet.native.pull-request-finish-input.v1`，拒绝错误 schema、非 `master` base、非法 head、无效 Git OID 和越界输入；stdout 成功时只包含一个 result JSON。
-- A3: 用户选择 `finish=pull-request` 后，Native Agent 自动生成符合 tracked template 的 repository-owned authoring artifact，不展示 title/body 二次确认；artifact 同时绑定 change、base、head、已验收的 pre-Archive commit identity、当前已验收 working tree 的完整 Git tree snapshot identity（`source.preArchiveTreeSha`）、来源 state/verification identity 与内容指纹。
+- A3: 用户选择 `finish=pull-request` 后，Native Agent 自动生成符合 tracked template 的 repository-owned authoring artifact，不展示 title/body 二次确认；artifact 同时绑定 change、base、head、已验收的 pre-Archive commit identity、当前已验收 working tree 的完整 Git tree snapshot identity（`source.preArchiveTreeSha`）、来源 state/verification identity、换行规范化后的 brief/Spec/template 内容散列与内容指纹。
 - A4: authoring artifact 中的语义内容覆盖 Summary、Issue/Acceptance、六个 capability surfaces、shared contracts、propagation closure、composition/sibling responsibility、audit focus、实际 verification、Agent Review 和 release note；本地 validator 使用当前 diff 与 capability facts 验证承重字段后才允许远端 mutation。
 - A5: 没有现有 PR 时，provider 通过 `scripts/create-pr.ps1` 创建唯一 PR，并仅在远端 body 重新通过仓库 validator 后返回 `created` 与 `remoteVerified: true`。
 - A6: 已有唯一 open PR 时，provider 不重复创建；它只在远端 title/body 与 authoring artifact 一致且 identity 合规时复用并重新核验该 PR，返回 `reused`。任何漂移都 fail closed。
 - A7: authoring artifact 缺失、过期、指纹不符、含占位符、无法唯一定位，或 `source.preArchiveTreeSha` 缺失、无效、不是 tree、与已验收 working tree 不一致，或 snapshot 后 final Archive head 出现非 Runtime Archive progression 路径变化，或 body validation 未通过时，provider 在创建或修改远端 PR 前失败，且不声称 remote verification 成功。
 - A8: provider 的 number、URL、base、head 与精确 Archive head SHA 进入 result；Comet 随后仍独立执行通用远端 identity 核验。
-- A9: PR workflow tests 覆盖 authoring contract、pre-Archive commit/tree 双重绑定、snapshot 缺失/非法/篡改与 snapshot 后非 Archive 路径变化、JSON contract、create/reuse、失败恢复、stdout/stderr 边界和 root-script CI classification；既有手工 `create-pr.ps1` dry-run 入口继续通过。
+- A9: PR workflow tests 覆盖 authoring contract、pre-Archive commit/tree 双重绑定、真实 `core.autocrlf=true` checkout 下的稳定文本散列、snapshot 缺失/非法/篡改与 snapshot 后非 Archive 路径变化、JSON contract、create/reuse、失败恢复、stdout/stderr 边界和 root-script CI classification；既有手工 `create-pr.ps1` dry-run 入口继续通过。
 - A10: `scripts/validate-capability-contract.ps1`、`scripts/test-capability-contract.ps1`、Skill/Runtime/PR workflow guards 与必要 Gradle 检查均通过，或明确记录真实的无关环境阻塞。
 
 # Constraints and invariants

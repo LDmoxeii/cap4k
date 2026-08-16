@@ -55,17 +55,24 @@ function Resolve-SafeRelativeFile([string] $Relative, [string] $Name, [string] $
     return $candidate
 }
 function Sha256([string] $Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
+function Normalize-LineEndings([string] $Text) { return $Text.Replace("`r`n", "`n").Replace("`r", "`n") }
 function Normalize-Content([string] $Text) {
-    $normalized = $Text.Replace("`r`n", "`n").Replace("`r", "`n")
+    $normalized = Normalize-LineEndings $Text
     if ($normalized.EndsWith("`n", [StringComparison]::Ordinal)) { return $normalized.Substring(0, $normalized.Length - 1) }
     return $normalized
 }
+function Get-CanonicalTextSha256([byte[]] $Bytes, [string] $Name) {
+    try { $text = [Text.UTF8Encoding]::new($false, $true).GetString($Bytes) } catch [Text.DecoderFallbackException] { Fail "$Name is not valid UTF-8." }
+    $canonicalBytes = [Text.UTF8Encoding]::new($false).GetBytes((Normalize-LineEndings $text))
+    return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($canonicalBytes)).ToLowerInvariant()
+}
+function TextSha256([string] $Path, [string] $Name) { return Get-CanonicalTextSha256 ([IO.File]::ReadAllBytes($Path)) $Name }
 function Check-HashAt([object] $Source, [string] $ExpectedRelative, [string] $Name, [string] $BaseRoot) {
     Assert-Properties $Source @('path','sha256') @() $Name
     if ([string]$Source.path -cne $ExpectedRelative) { Fail "$Name.path does not match the accepted change source." }
     $path = Resolve-SafeRelativeFile ([string]$Source.path) "$Name.path" $BaseRoot
     Assert-String $Source.sha256 "$Name.sha256" 64 | Out-Null
-    if ($Source.sha256 -cnotmatch '^[0-9a-fA-F]{64}$' -or (Sha256 $path) -cne $Source.sha256.ToLowerInvariant()) { Fail "$Name hash does not match current content." }
+    if ($Source.sha256 -cnotmatch '^[0-9a-fA-F]{64}$' -or (TextSha256 $path $Name) -cne $Source.sha256.ToLowerInvariant()) { Fail "$Name hash does not match current content." }
     return $path
 }
 function Read-BoundedUtf8Stdin {
@@ -272,7 +279,7 @@ try {
     $templateSource = $artifact.source.template
     Assert-Properties $templateSource @('path','sha256') @() 'artifact.source.template'
     $templatePath = Resolve-SafeRelativeFile ([string]$templateSource.path) 'artifact.source.template.path' $repoRoot
-    if ((Sha256 $templatePath) -cne ([string]$templateSource.sha256).ToLowerInvariant()) { Fail 'artifact.source.template hash does not match current content.' }
+    if ((TextSha256 $templatePath 'artifact.source.template') -cne ([string]$templateSource.sha256).ToLowerInvariant()) { Fail 'artifact.source.template hash does not match current content.' }
     $templateRel = ([IO.Path]::GetRelativePath($repoRoot, $templatePath) -replace '\\','/')
     $trackedTemplates = @(Invoke-GitCommand @('ls-files')) | Where-Object { $_ -match '(?i)(^|/)(pull_request_template\.md|pull_request_template/.*\.md)$' }
     if ($trackedTemplates -cnotcontains $templateRel) { Fail 'artifact.source.template must be a tracked PR template.' }
@@ -332,13 +339,13 @@ try {
     $activeBriefRef = Get-YamlScalar $activeStateText 'brief' 'pre-Archive state'
     if ($activeBriefRef -cne [string]$artifact.source.brief.path) { Fail 'pre-Archive brief path does not match artifact.source.brief.' }
     $activeBriefBytes = Get-GitObjectBytes "$preTree`:$activeRel/$activeBriefRef" $MaxArtifactBytes
-    if ((Get-BytesSha256 $activeBriefBytes) -cne ([string]$artifact.source.brief.sha256).ToLowerInvariant()) { Fail 'pre-Archive brief hash does not match artifact.source.brief.' }
+    if ((Get-CanonicalTextSha256 $activeBriefBytes 'pre-Archive brief') -cne ([string]$artifact.source.brief.sha256).ToLowerInvariant()) { Fail 'pre-Archive brief hash does not match artifact.source.brief.' }
     $activeSpecSection = Get-YamlSection $activeStateText 'spec_changes'
     $activeSpecPaths = @([regex]::Matches($activeSpecSection, '(?m)^\s+source:\s*(?<source>\S+)\s*$') | ForEach-Object { $_.Groups['source'].Value })
     Assert-ExactPathSet $activeSpecPaths $providedSpecPaths 'pre-Archive state Spec paths'
     foreach ($specSource in $artifact.source.specs) {
         $specBytes = Get-GitObjectBytes "$preTree`:$activeRel/$([string]$specSource.path)" $MaxArtifactBytes
-        if ((Get-BytesSha256 $specBytes) -cne ([string]$specSource.sha256).ToLowerInvariant()) { Fail "pre-Archive Spec hash does not match artifact source '$($specSource.path)'." }
+        if ((Get-CanonicalTextSha256 $specBytes "pre-Archive Spec '$([string]$specSource.path)'") -cne ([string]$specSource.sha256).ToLowerInvariant()) { Fail "pre-Archive Spec hash does not match artifact source '$($specSource.path)'." }
     }
 
     $selectionPath = '.comet/current-change.json'

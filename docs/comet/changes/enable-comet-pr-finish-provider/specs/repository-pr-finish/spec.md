@@ -28,7 +28,7 @@ The repository-owned authoring artifact MUST:
 - contain the exact title and body to be published;
 - identify the change, base, and head;
 - record both the accepted pre-Archive commit identity and `source.preArchiveTreeSha`, the complete Git tree snapshot identity of the accepted working tree from which it was authored; the Native Agent MUST create that tree through an isolated temporary Git index equivalent to reading `HEAD`, staging all working-tree changes, and writing the tree, without changing the real index, committing the snapshot, or adding it to product source;
-- include a deterministic content fingerprint;
+- include a deterministic content fingerprint; hashes of tracked UTF-8 text sources MUST normalize CRLF and CR to LF before SHA-256 so Git checkout line-ending policy cannot change their identity;
 - remain local and reusable for an Archive retry without being committed as product source.
 
 AI owns semantic synthesis such as Summary, Audit Focus, boundary explanations, risk, composition, and sibling responsibility. Deterministic scripts MUST NOT fabricate these narratives from fixed sentence templates.
@@ -78,7 +78,7 @@ The template is a structured context contract for human and AI reviewers. It is 
 
 ## Failure and recovery
 
-Before any remote mutation, the flow MUST fail if the authoring artifact or deterministic validation is invalid, including a missing, invalid, non-tree, or tampered snapshot or any post-snapshot non-Archive path change. Tests MUST cover the isolated-index snapshot without altering the real index, permitted Runtime Archive progression, and each fail-closed snapshot case. After a PR has been observed, any provider failure MUST preserve enough verified identity for safe retry without treating unverified provider claims as trusted output. A failed finish MUST preserve the PR and worktree and expose the Native recovery command. Retrying with the same accepted commit, tree snapshot, and authored content MUST reuse the unique PR rather than create a duplicate.
+Before any remote mutation, the flow MUST fail if the authoring artifact or deterministic validation is invalid, including a missing, invalid, non-tree, or tampered snapshot or any post-snapshot non-Archive path change. Tests MUST cover the isolated-index snapshot without altering the real index, stable source hashing under a real `core.autocrlf=true` checkout, permitted Runtime Archive progression, and each fail-closed snapshot case. After a PR has been observed, any provider failure MUST preserve enough verified identity for safe retry without treating unverified provider claims as trusted output. A failed finish MUST preserve the PR and worktree and expose the Native recovery command. Retrying with the same accepted commit, tree snapshot, and authored content MUST reuse the unique PR rather than create a duplicate.
 
 ## AI review boundary
 
