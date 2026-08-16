@@ -31,12 +31,38 @@ function Get-MarkdownSection {
 
 function Test-Checked { param([string] $Mark) return $Mark -match "^[xX]$" }
 
+function Get-CheckboxItems {
+    param([string] $Markdown, [string] $Heading)
+    $section = Get-MarkdownSection -Markdown $Markdown -Heading $Heading
+    return @($section -split "\r?\n" | Where-Object { $_ -match '^\s*-\s*\[(?<mark>[ xX])\]\s*(?<label>.+?)\s*$' } | ForEach-Object {
+        [pscustomobject]@{ Checked = Test-Checked $Matches.mark; Label = $Matches.label.Trim() }
+    })
+}
+
+function Assert-TemplateCheckboxContract {
+    param([string] $TemplateMarkdown, [string] $BodyMarkdown, [string] $Heading)
+    $templateItems = @(Get-CheckboxItems -Markdown $TemplateMarkdown -Heading $Heading)
+    $bodyItems = @(Get-CheckboxItems -Markdown $BodyMarkdown -Heading $Heading)
+    if ($templateItems.Count -eq 0 -or $bodyItems.Count -ne $templateItems.Count) { throw "$Heading must preserve every tracked template checkbox and may not add options." }
+    $resolved = [System.Collections.Generic.List[object]]::new()
+    foreach ($templateItem in $templateItems) {
+        $allowsDetail = $templateItem.Label.EndsWith(':', [System.StringComparison]::Ordinal)
+        $matches = @($bodyItems | Where-Object {
+            if ($allowsDetail) { $_.Label.StartsWith($templateItem.Label, [System.StringComparison]::Ordinal) }
+            else { [string]::Equals($_.Label, $templateItem.Label, [System.StringComparison]::Ordinal) }
+        })
+        if ($matches.Count -ne 1) { throw "$Heading must preserve tracked template option '$($templateItem.Label)'." }
+        $resolved.Add([pscustomobject]@{ Checked=$matches[0].Checked; Label=$matches[0].Label; TemplateLabel=$templateItem.Label; AllowsDetail=$allowsDetail })
+    }
+    return @($resolved)
+}
+
 function Get-MeaningfulText {
     param([string] $Text)
     return (($Text -split "\r?\n") |
         Where-Object { $_ -notmatch '^\s*<!--' -and $_ -notmatch '^\s*Use ' -and $_ -notmatch '^\s*Allowed results:' } |
         ForEach-Object { $_.Trim() } |
-        Where-Object { $_ -and $_ -notin @('-', 'N/A', 'NA', 'None', 'TBD') }) -join "`n"
+        Where-Object { $_ -and $_ -notin @('-', 'N/A', 'NA', 'None', 'TBD') -and $_ -notmatch '^-?\s*(?:Name the descriptors|Changed contract nodes: N/A - replace|Closure evidence: State how|State cross-module|State what remains|Tell reviewers|If all changed paths)' }) -join "`n"
 }
 
 function Assert-MeaningfulSection {
@@ -225,38 +251,80 @@ function Assert-CapabilityImpactAlignment {
     }
 }
 
+function Assert-NoAuthorPlaceholders {
+    param([string] $Markdown)
+    foreach ($line in ($Markdown -split "\r?\n")) {
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed -match '^<!--' -or $trimmed -match '^Use ' -or $trimmed -match '^Allowed results:') { continue }
+        if ($trimmed -eq '-') { throw 'PR body contains a standalone placeholder dash.' }
+        if ($trimmed -match '(?i)\b(?:TBD|TODO)\b|<summary>|<reason>|\bExplain the\b|\bLink changed\b|N/A\s+-\s+explain why|^-?\s*(?:Name the descriptors|Changed contract nodes: N/A - replace|Closure evidence: State how|State cross-module|State what remains|Tell reviewers|If all changed paths)') {
+            throw "PR body contains an unresolved author placeholder and requires concrete evidence: $trimmed"
+        }
+    }
+}
+function Assert-AgentReview {
+    param([string] $TemplateMarkdown, [string] $Markdown)
+    $options = @(Assert-TemplateCheckboxContract -TemplateMarkdown $TemplateMarkdown -BodyMarkdown $Markdown -Heading '## Agent Review')
+    $checked = @($options | Where-Object Checked)
+    if ($checked.Count -ne 1) { throw 'Agent Review must check exactly one option.' }
+    if ($checked[0].TemplateLabel -ceq 'Not requested because:') {
+        $reason = $checked[0].Label.Substring($checked[0].TemplateLabel.Length).Trim()
+        if (-not $reason -or $reason -match '^(?:-|N/?A|None|TBD|TODO)$') { throw 'Agent Review "Not requested" must include a concrete reason after the colon.' }
+    }
+}
+function Assert-Verification {
+    param([string] $TemplateMarkdown, [string] $Markdown)
+    $items = @(Assert-TemplateCheckboxContract -TemplateMarkdown $TemplateMarkdown -BodyMarkdown $Markdown -Heading '## Verification')
+    $checked = @($items | Where-Object Checked)
+    $notRun = @($checked | Where-Object { $_.TemplateLabel -ceq 'Not run because:' })
+    $executed = @($checked | Where-Object { $_.TemplateLabel -cne 'Not run because:' })
+    if ($executed.Count -gt 0 -and $notRun.Count -gt 0) { throw 'Verification cannot select executed checks and Not run because together.' }
+    if ($executed.Count -gt 0) {
+        foreach ($item in $executed) {
+            if ($item.AllowsDetail -and [string]::IsNullOrWhiteSpace($item.Label.Substring($item.TemplateLabel.Length))) { throw "Checked Verification item requires concrete execution detail: $($item.Label)" }
+        }
+        return
+    }
+    if ($notRun.Count -ne 1) { throw 'Verification must check at least one executed item, or check Not run because with a concrete reason.' }
+    $reason = $notRun[0].Label.Substring($notRun[0].TemplateLabel.Length).Trim()
+    if (-not $reason -or $reason -match '^(?:-|N/?A|None|TBD|TODO)$') { throw 'Verification "Not run because" must include a concrete reason after the colon.' }
+}
+
 try {
     $templatePath = (Resolve-Path -LiteralPath $Template -ErrorAction Stop).Path
     $bodyPath = (Resolve-Path -LiteralPath $BodyFile -ErrorAction Stop).Path
-    $requiredHeadings = @(Get-Content -LiteralPath $templatePath -Encoding UTF8 | Where-Object { $_ -match "^##\s+\S" } | ForEach-Object Trim)
+    $templateText = Get-Content -LiteralPath $templatePath -Raw -Encoding UTF8
+    $requiredHeadings = @($templateText -split "\r?\n" | Where-Object { $_ -match "^##\s+\S" } | ForEach-Object Trim)
     if ($requiredHeadings.Count -eq 0) { throw "Template has no level-2 headings: $templatePath" }
 
     $bodyText = Get-Content -LiteralPath $bodyPath -Raw -Encoding UTF8
+    Assert-NoAuthorPlaceholders -Markdown $bodyText
     $missing = @($requiredHeadings | Where-Object { $bodyText -notmatch ("(?m)^" + [regex]::Escape($_) + "\s*$") })
     if ($missing.Count -gt 0) { throw "Missing required template heading: $($missing -join ', ')" }
 
     if ($Base) {
-        $targetBranchSection = Get-MarkdownSection -Markdown $bodyText -Heading '## Target Branch'
-        $targetBranchLines = @($targetBranchSection -split "\n" | Where-Object { $_ -match '^\s*-\s*\[(?<mark>[ xX])\]\s*`(?<branch>[^`]+)`' } | ForEach-Object { [pscustomobject]@{ Branch = $Matches.branch; Checked = Test-Checked -Mark $Matches.mark } })
-        $baseLine = @($targetBranchLines | Where-Object { $_.Branch -ceq $Base })
+        $targetBranchLines = @(Assert-TemplateCheckboxContract -TemplateMarkdown $templateText -BodyMarkdown $bodyText -Heading '## Target Branch')
+        $baseLabel = ([string][char]96) + $Base + ([string][char]96)
+        $baseLine = @($targetBranchLines | Where-Object { $_.TemplateLabel -ceq $baseLabel })
         $checkedTargets = @($targetBranchLines | Where-Object Checked)
         if ($baseLine.Count -eq 0) { throw "Target Branch section does not list base branch: $Base" }
         if (-not $baseLine[0].Checked -or $checkedTargets.Count -ne 1) { throw "Target Branch selection must check exactly base branch: $Base" }
     }
 
     if ($RequireChangeType) {
-        $changeTypeSection = Get-MarkdownSection -Markdown $bodyText -Heading '## Change Type'
-        $checkedChangeTypes = @($changeTypeSection -split "\n" | Where-Object { $_ -match '^\s*-\s*\[(?<mark>[ xX])\]' -and (Test-Checked -Mark $Matches.mark) })
-        if ($checkedChangeTypes.Count -eq 0) { throw 'Change Type section must check at least one item.' }
+        $changeTypes = @(Assert-TemplateCheckboxContract -TemplateMarkdown $templateText -BodyMarkdown $bodyText -Heading '## Change Type')
+        if (@($changeTypes | Where-Object Checked).Count -eq 0) { throw 'Change Type section must check at least one item.' }
     }
 
     if ('## Issue Hierarchy' -in $requiredHeadings) {
         Assert-IssueHierarchy -Markdown $bodyText
         Assert-AcceptanceIds -Markdown $bodyText
         [void](Get-CapabilityImpactRows -Markdown $bodyText)
-        foreach ($heading in @('## Summary', '## Shared Contracts', '## Propagation Closure', '## Composition Evidence', '## Sibling Slice Responsibility', '## Audit Focus', '## Verification', '## Full Gradle Skip Reason', '## Related Spec Or Plan', '## Agent Review', '## Release Note')) {
+        foreach ($heading in @('## Summary', '## Shared Contracts', '## Propagation Closure', '## Composition Evidence', '## Sibling Slice Responsibility', '## Audit Focus', '## Full Gradle Skip Reason', '## Related Spec Or Plan', '## Release Note')) {
             Assert-MeaningfulSection -Markdown $bodyText -Heading $heading
         }
+        Assert-Verification -TemplateMarkdown $templateText -Markdown $bodyText
+        Assert-AgentReview -TemplateMarkdown $templateText -Markdown $bodyText
         if ([string]::IsNullOrWhiteSpace($FactsFile) -xor [string]::IsNullOrWhiteSpace($ChangedFilesFile)) {
             throw 'FactsFile and ChangedFilesFile must be provided together for diff-aware capability impact validation.'
         }
