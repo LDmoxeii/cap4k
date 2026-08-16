@@ -20,7 +20,10 @@ The confirmed active capability identities are:
 - `runtime.jpa-persistence`;
 - `runtime.reliable-command`;
 - `runtime.reliable-event`;
-- `runtime.integration-event-transport`.
+- `runtime.integration-event-transport`;
+- `runtime.endpoint-http-provider`.
+
+The Endpoint HTTP Provider capability MUST declare implementation ownership in `ddd-endpoint-http` and starter ownership in `cap4k-ddd-endpoint-http-starter`. It has no Integration Event provider identity and MUST NOT be added to the Integration Event static provider catalog. Its static fact MUST describe typed Spring MVC registration, WebMvc.fn materialization and mediated Provider dispatch without claiming application assembly, live route activation or HTTP health observation.
 
 
 ### Static provider catalog
@@ -75,7 +78,7 @@ strategic DDD quality, or Analyzer business truth.
 
 ## Acceptance
 
-- Manifest generation exposes the confirmed capability catalog, ownership, and exact provider IDs.
+- Manifest generation exposes the confirmed capability catalog including `runtime.endpoint-http-provider`, its exact implementation/starter ownership, and the unchanged exact Integration Event provider IDs.
 - Static assembly/state fields remain `UNKNOWN`; observation/verification remain `NOT_PERFORMED`.
 - Registry tests prove sorted snapshots, duplicate rejection, reporter fencing, close/re-register, and
   exact transport identities.

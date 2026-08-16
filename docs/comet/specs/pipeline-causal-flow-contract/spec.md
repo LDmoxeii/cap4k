@@ -40,7 +40,9 @@ Flow 只陈述静态连接与可达性，不证明业务正确性、运行时执
 
 Query、Capability、普通 Validator、read-side dependency 和非 Command/Event 技术关系不进入默认业务因果链。
 
-入口节点不是新增的抽象 `Entry` 节点。默认业务因果入口按触发来源解释为 Actor、Event、Time 三类：Actor 当前由 Spring HTTP Controller method 提供生产 evidence；Event 当前由无上游 Inbound Integration Event 提供生产 evidence；Time 当前由 Spring `@Scheduled` method 提供 Temporal Trigger evidence。RPC、GraphQL、CLI、Admin、workflow、webhook、CDC、其他消息 adapter 和其他 scheduler provider 可以归入这些概念家族，但只有生产 Analyzer 提供真实节点和明确 relationship evidence 后才成为当前支持入口。入口类别不是 Public Docs、Skill 或永久手写封闭 taxonomy，也不新增 `entryFamily` wire。
+入口节点不是新增的抽象 `Entry` 节点。默认业务因果入口按触发来源解释为 Actor、Event、Time 三类：Actor 当前由annotated Spring HTTP Controller method与typed Spring MVC `EndpointMvcBinding` Provider registration提供生产 evidence；Event当前由无上游Inbound Integration Event提供生产 evidence；Time当前由Spring `@Scheduled` method提供Temporal Trigger evidence。RPC、GraphQL、CLI、Admin、workflow、webhook、CDC、其他消息adapter和其他scheduler provider可以归入这些概念家族，但只有生产Analyzer提供真实节点和明确relationship evidence后才成为当前支持入口。入口类别不是Public Docs、Skill或永久手写封闭taxonomy，也不新增`entryFamily` wire。
+
+Typed Endpoint HTTP Actor root MUST use the concrete `endpointhttpbinding` node derived from binding kind plus operation identity. Contract declaration、Provider Handler单独存在和local Endpoint dispatch不是entry。Command-oriented binding具备Flow资格；Query-oriented binding保留raw Graph evidence但不得增加默认Flow数量。
 
 Temporal Trigger 使用实际 scheduled method identity，node type 为 `temporaltriggermethod`，到 Command 的明确 relationship 为 `TemporalTriggerMethodToCommand`。独立周期 Job 可以成为 Time root；由已有业务链登记的 scheduled/delayed Command、可靠 worker 到期唤醒或延迟 Event delivery 是已有因果 continuation 或执行策略，不创建抽象 Temporal root。
 
@@ -48,7 +50,7 @@ Temporal Trigger 使用实际 scheduled method identity，node type 为 `tempora
 
 ## 因果关系与路径压缩
 
-默认 Flow 只处理生产 Analyzer 明确识别的 causal relationship，以及从实际入口节点到 Command 的可验证显式 `*ToCommand` trigger relationship。当前显式入口关系包括 `ControllerMethodToCommand` 与 `TemporalTriggerMethodToCommand`；Inbound Integration Event 通过 `IntegrationEventToHandler` / `IntegrationEventHandlerToCommand` 进入因果链。relationship 名称以 `ToCommand` 结尾不是入口资格的充分条件，generic sender fallback 不存在。
+默认 Flow 只处理生产 Analyzer 明确识别的 causal relationship，以及从实际入口节点到 Command 的可验证显式 `*ToCommand` trigger relationship。当前显式入口关系包括 `ControllerMethodToCommand`、`EndpointHttpBindingToCommand` 与 `TemporalTriggerMethodToCommand`；Inbound Integration Event 通过 `IntegrationEventToHandler` / `IntegrationEventHandlerToCommand` 进入因果链。`EndpointHttpBindingToQuery`保留在raw Graph但不是causal Flow edge。relationship名称以`ToCommand`结尾不是入口资格的充分条件；source node role必须与该relationship匹配，generic sender fallback不存在。
 
 当两个可见节点之间存在 raw causal path，且内部节点全部属于隐藏集合时，建立一条直接投影边。隐藏路径长度不设固定上限。
 
@@ -167,7 +169,7 @@ Issue #55 观察到旧项目中“外部事实到达 follow-up Command 后，后
 
 - 保留 `surface.analyzer`、`pipeline.generator.flow` 和 output `flow` 的当前 identity。
 - Analyzer Graph partition 的 Flow consumer 仍只有 `pipeline.generator.flow`，不得新增未实现的 process consumer 或 output。
-- `CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 必须表达 Actor / Event / Time trigger、当前实际 detector、默认 entry-centered Flow、隐藏路径压缩、root-after-projection、cycle preservation 和唯一产品入口。
+- `CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 必须表达 Actor / Event / Time trigger、annotated Controller与typed Endpoint HTTP等当前实际detectors、Command-oriented Endpoint root / Query non-root、默认 entry-centered Flow、隐藏路径压缩、root-after-projection、cycle preservation 和唯一产品入口。
 - Public Docs 与 Skill 必须说明连续 graph evidence 生成一张 Flow、两个真实 root 生成两张 Flow，以及共享后缀不触发自动 stitching。
 - Public Docs、Skill 和 AgentFacts 不得宣称 process projection、process output 或用户自定义拓扑算法已经可用。
 - Runtime 对本合同为 `verified-no-change` 或 `not-applicable`，除非实际实现修改了 Runtime contract。
@@ -178,6 +180,8 @@ Focused tests 必须覆盖：
 
 - 完整入站 Integration Event 到 follow-up Command 的单 fixture，并断言一张 Flow；
 - Spring `@Scheduled` method 到 Command 的 Temporal Trigger fixture，并断言实际 method identity、`temporaltriggermethod`、`TemporalTriggerMethodToCommand` 和唯一 root；
+- typed Spring MVC Endpoint binding到Command的fixture，断言operation-based `endpointhttpbinding` identity、`EndpointHttpBindingToCommand`与唯一root；对应Query fixture只保留`EndpointHttpBindingToQuery` Graph evidence且不增加flowCount；
+- Endpoint contract-only、Handler-only、local dispatch和缺失registration fixtures均为零Endpoint Actor Flow；WebMvc.fn binding不与annotated Controller detector重复root，ordinary Controller fixture保持既有行为；
 - 普通未分类 method 直接发送 Command 不生成 `commandsendermethod`、`CommandSenderMethodToCommand` 或默认 Flow；
 - Handler 与任意长度 Entity Method 路径隐藏和收缩；
 - 有上游节点不制造重复 root；
@@ -188,7 +192,7 @@ Focused tests 必须覆盖：
 Gradle functional fixture 必须实际执行 `cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate`，并核对：
 
 - entry JSON、Mermaid、index 均实际生成；
-- `entryId`、entry type、Temporal Trigger relationship、节点/边计数和 `flowCount` 一致；
+- `entryId`、entry type、Controller/Endpoint HTTP/Temporal Trigger relationship、节点/边计数和 `flowCount` 一致；
 - Handler 与 Entity Method 不进入公开 Flow；
 - 不生成 process artifact、第二套 Flow output 或已退役 task。
 
