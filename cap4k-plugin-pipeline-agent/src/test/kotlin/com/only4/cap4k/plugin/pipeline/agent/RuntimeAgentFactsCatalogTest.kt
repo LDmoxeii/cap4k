@@ -19,6 +19,7 @@ class RuntimeAgentFactsCatalogTest {
         assertEquals(
             setOf(
                 "runtime.core-dispatch",
+                "runtime.endpoint-http-provider",
                 "runtime.identifier-allocation",
                 "runtime.local-domain-event",
                 "runtime.jpa-persistence",
@@ -29,6 +30,11 @@ class RuntimeAgentFactsCatalogTest {
             facts.keys,
         )
         assertOwnership(facts.getValue("runtime.core-dispatch"), "ddd-core", "cap4k-ddd-core-starter")
+        assertOwnership(
+            facts.getValue("runtime.endpoint-http-provider"),
+            "ddd-endpoint-http",
+            "cap4k-ddd-endpoint-http-starter",
+        )
         assertOwnership(facts.getValue("runtime.identifier-allocation"), "ddd-core", "cap4k-ddd-core-starter")
         assertOwnership(facts.getValue("runtime.local-domain-event"), "ddd-core", "cap4k-ddd-core-starter")
         assertOwnership(facts.getValue("runtime.jpa-persistence"), "ddd-domain-repo-jpa", "cap4k-ddd-jpa-starter")

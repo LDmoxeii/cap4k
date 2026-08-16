@@ -15,7 +15,7 @@
 README.md -> docs/public/index.md -> concepts -> architecture -> examples/reference-content-studio.md
 ```
 
-建议先读 [concepts](concepts/index.md)，理解 Aggregate、Command、Query、Capability、Actor Endpoint、Event、Repository、Unit of Work 和 generated/handwritten boundary。然后读 [architecture](architecture/index.md)，确认可选 contract role 与 domain、application、adapter、start 的责任和依赖方向。最后进入 [reference content studio](examples/reference-content-studio.md)，把概念对照到 `cap4k-reference-content-studio` 的真实模块和流程。
+建议先读 [concepts](concepts/index.md)，理解 Aggregate、Command、Query、Capability、Endpoint、Event、Repository、Unit of Work 和 generated/handwritten boundary。然后读 [architecture](architecture/index.md)，确认可选 contract role 与 domain、application、adapter、start 的责任和依赖方向。最后进入 [reference content studio](examples/reference-content-studio.md)，把概念对照到 `cap4k-reference-content-studio` 的真实模块和流程。
 
 ### 创建新项目
 

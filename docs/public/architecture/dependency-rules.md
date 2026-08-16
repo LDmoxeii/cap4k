@@ -18,7 +18,7 @@ Start layer 可以依赖 domain、application 和 adapter 模块来完成 Spring
 
 Domain layer 不允许引用 Controller、adapter-private DTO、HTTP status、capability-handler、Spring bean wiring、runtime config 或 external protocol DTO。领域对象不能因为某个接口字段存在就改变不变量表达方式，也不能为了适配数据库或 HTTP 结构暴露协议细节。
 
-Application layer 不允许接收 HTTP payload details 作为用例语义，也不允许直接依赖 adapter implementation。Provider Endpoint Handler 可以把 published Endpoint Request 映射为本地 Command/Query；Consumer 需要防腐时可以由 Capability Handler 映射为 Endpoint Request，但 application 业务代码不得直接依赖或调用 transport proxy。Command handler 不应该判断 URL、header、HTTP status 或 callback 原始字段；这些内容应先由 adapter 转换成 application 可以理解的 Command、Query、Integration Event 或 external capability result。
+Application layer 不允许接收 HTTP payload details 作为用例语义，也不允许直接依赖 adapter implementation。adapter-owned Provider Endpoint Handler 可以把 published Endpoint Request 映射为本地 Command/Query；Consumer 需要防腐时可以由 Capability Handler 映射为 Endpoint Request，但 application 业务代码不得直接依赖或调用 transport proxy。Command handler 不应该判断 URL、header、HTTP status 或 callback 原始字段；这些内容应先由 adapter 转换成 application 可以理解的 Command、Query、Integration Event 或 external capability result。
 
 Adapter layer 不允许成为业务真相层。Controller、query handler、Capability Handler 和 persistence adapter 可以处理 mapping、技术错误、外部协议差异和返回格式。对 inbound Integration Event，cap4k transport adapter/runtime 负责协议消费与 typed event 分发；业务 subscriber 负责幂等、语义翻译和 Command delegation。两者都不应该把 Aggregate invariant 或流程编排决策藏在协议转换代码里。
 

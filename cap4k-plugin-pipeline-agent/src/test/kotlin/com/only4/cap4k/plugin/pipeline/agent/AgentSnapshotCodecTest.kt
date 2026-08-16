@@ -73,7 +73,7 @@ class AgentSnapshotCodecTest {
         assertEquals(AgentSnapshotStatus.PARTIAL, encoded.manifest.status)
         assertEquals(4, encoded.manifest.contractVersion)
         val runtimeReference = encoded.manifest.sections.single { section -> section.id == "runtime" }
-        assertEquals(7, runtimeReference.counts["capabilities"])
+        assertEquals(8, runtimeReference.counts["capabilities"])
         assertEquals(3, runtimeReference.counts["providers"])
         assertEquals(1, encoded.manifest.diagnosticCounts.warning)
         assertEquals(listOf("analysis", "diagnostics"), encoded.manifest.recommendedSections)

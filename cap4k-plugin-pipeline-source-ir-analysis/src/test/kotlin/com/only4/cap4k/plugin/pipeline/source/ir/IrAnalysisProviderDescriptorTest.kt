@@ -14,7 +14,7 @@ class IrAnalysisProviderDescriptorTest {
             listOf(
                 "Raw Analysis Graph Evidence",
                 "Graph Trigger Families: Actor, Event, Time",
-                "Graph Actor Detector: Spring HTTP Controller Method",
+                "Graph Actor Detectors: Spring HTTP Controller Method, Typed Endpoint MVC Binding",
                 "Graph Event Detector: Inbound Integration Event",
                 "Graph Time Detector: Spring @Scheduled Method",
                 "Normalized Design Projection Evidence",

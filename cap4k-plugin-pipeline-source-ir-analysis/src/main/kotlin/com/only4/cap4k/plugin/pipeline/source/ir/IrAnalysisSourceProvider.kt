@@ -42,7 +42,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         tacticalCarriers = listOf(
             "Raw Analysis Graph Evidence",
             "Graph Trigger Families: Actor, Event, Time",
-            "Graph Actor Detector: Spring HTTP Controller Method",
+            "Graph Actor Detectors: Spring HTTP Controller Method, Typed Endpoint MVC Binding",
             "Graph Event Detector: Inbound Integration Event",
             "Graph Time Detector: Spring @Scheduled Method",
             "Normalized Design Projection Evidence",
@@ -91,6 +91,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         val edgeKeys = linkedSetOf<EdgeKey>()
         val edgeSources = linkedMapOf<EdgeKey, String>()
         val designElements = mutableListOf<DesignElementSnapshot>()
+        val rawDesignElements = mutableListOf<RawDesignElement>()
         val designElementSources = linkedMapOf<String, MutableSet<String>>()
         val aggregateElementsByCarrier = linkedMapOf<String, AggregateElementSnapshot>()
         val graphDiagnostics = mutableListOf<AnalyzerPartitionDiagnostic>()
@@ -228,7 +229,9 @@ class IrAnalysisSourceProvider : SourceProvider {
                 }
             }
 
-            inputDesignElements.forEach { designElement ->
+            inputDesignElements.forEach { rawDesignElement ->
+                val designElement = rawDesignElement.snapshot
+                rawDesignElements += rawDesignElement
                 val key = designElementIdentity(designElement)
                 val conflictingFields = designElements
                     .filter { existing -> designElementIdentity(existing) == key }
@@ -261,6 +264,48 @@ class IrAnalysisSourceProvider : SourceProvider {
                     aggregateElementsByCarrier.putIfAbsent(aggregateElement.carrierQualifiedName, aggregateElement)
                 }
             }
+        }
+
+        val invalidEndpointBindingIds = linkedSetOf<String>()
+        nodesById.values
+            .filter { node -> node.type.equals(ENDPOINT_HTTP_BINDING_NODE_TYPE, ignoreCase = true) }
+            .forEach { node ->
+                val operationName = node.id.takeIf { it.startsWith(ENDPOINT_HTTP_BINDING_NODE_PREFIX) }
+                    ?.removePrefix(ENDPOINT_HTTP_BINDING_NODE_PREFIX)
+                    ?.trim()
+                    ?.takeIf(String::isNotEmpty)
+                val operationOwner = node.metadataOwner?.trim()?.takeIf(String::isNotEmpty)
+                val hasGeneratedMetadataProvenance = operationName != null && operationOwner != null &&
+                    rawDesignElements.any { element ->
+                        element.carrierQualifiedName == operationOwner &&
+                            element.snapshot.tag == "endpoint" &&
+                            element.snapshot.operationName == operationName
+                    }
+                if (!hasGeneratedMetadataProvenance) {
+                    val sourceId = nodeSources[node.id]
+                    graphDiagnostics += AnalyzerPartitionDiagnostic(
+                        id = diagnosticId(
+                            "graph",
+                            sourceId ?: "merged",
+                            "endpoint-binding-provenance-${stableCodeSuffix(node.id)}",
+                        ),
+                        sourceId = sourceId,
+                        message = "Endpoint HTTP binding ${node.id} cannot be authenticated against generated endpoint metadata " +
+                            "for carrier ${operationOwner ?: "<missing>"}. Include the owning contract analysis directory " +
+                            "and reference its generated OPERATION_NAME.",
+                    )
+                    invalidEndpointBindingIds += node.id
+                }
+            }
+        invalidEndpointBindingIds.forEach { nodeId ->
+            nodesById.remove(nodeId)
+            nodeSources.remove(nodeId)
+        }
+        edgeKeys.filter { edge ->
+            edge.fromId in invalidEndpointBindingIds || edge.toId in invalidEndpointBindingIds
+        }.forEach { edge ->
+            edgeKeys.remove(edge)
+            edgeSources.remove(edge)
         }
 
         val nodeIds = nodesById.keys
@@ -411,7 +456,7 @@ class IrAnalysisSourceProvider : SourceProvider {
         }
     }
 
-    private fun parseDesignElements(file: File): List<DesignElementSnapshot> {
+    private fun parseDesignElements(file: File): List<RawDesignElement> {
         val array = parseRequiredArray(file, "design-elements")
         return array.mapIndexed { index, element ->
             val obj = element.objectNodeOrNull()
@@ -421,19 +466,22 @@ class IrAnalysisSourceProvider : SourceProvider {
             val name = obj.requiredString("name", "design element at index $index")
             rejectRemovedFields(obj, name)
             val context = "design element $tag $packageName $name"
-            DesignElementSnapshot(
-                tag = tag,
-                packageName = packageName,
-                name = name,
-                description = obj.optionalString("description", context).orEmpty().trim(),
-                aggregates = obj.stringList("aggregates", context),
-                artifacts = parseArtifacts(obj.jsonArrayOrNull("artifacts", context), context),
-                artifactsDeclared = obj.has("artifacts"),
-                persist = obj.optionalBoolean("persist", context),
-                eventName = obj.optionalString("eventName", context),
-                operationName = obj.optionalString("operationName", context),
-                fields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
-                resultFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
+            RawDesignElement(
+                snapshot = DesignElementSnapshot(
+                    tag = tag,
+                    packageName = packageName,
+                    name = name,
+                    description = obj.optionalString("description", context).orEmpty().trim(),
+                    aggregates = obj.stringList("aggregates", context),
+                    artifacts = parseArtifacts(obj.jsonArrayOrNull("artifacts", context), context),
+                    artifactsDeclared = obj.has("artifacts"),
+                    persist = obj.optionalBoolean("persist", context),
+                    eventName = obj.optionalString("eventName", context),
+                    operationName = obj.optionalString("operationName", context),
+                    fields = parseDesignFields(obj.jsonArrayOrNull("fields", context), context, "fields"),
+                    resultFields = parseDesignFields(obj.jsonArrayOrNull("resultFields", context), context, "resultFields"),
+                ),
+                carrierQualifiedName = obj.optionalString("carrierQualifiedName", context)?.trim()?.takeIf(String::isNotEmpty),
             )
         }
     }
@@ -544,6 +592,8 @@ class IrAnalysisSourceProvider : SourceProvider {
         const val AGGREGATE_ELEMENT_METADATA_FQ = "com.only4.cap4k.analysis.metadata.AggregateElementMetadata"
         const val DRAWING_BOARD_CAPABILITY = "Drawing Board"
         const val FLOW_ANALYSIS_CAPABILITY = "Flow Analysis"
+        const val ENDPOINT_HTTP_BINDING_NODE_TYPE = "endpointhttpbinding"
+        const val ENDPOINT_HTTP_BINDING_NODE_PREFIX = "endpoint-http:"
         val DRAWING_BOARD_CANDIDATE_NODE_TYPES = setOf(
             "command",
             "commandhandler",
@@ -551,7 +601,6 @@ class IrAnalysisSourceProvider : SourceProvider {
             "queryhandler",
             "capability",
             "capabilityhandler",
-            "apipayload",
             "endpoint",
             "domainevent",
             "domaineventhandler",
@@ -638,6 +687,11 @@ class IrAnalysisSourceProvider : SourceProvider {
 private data class AnalyzerPartitionIdAndDiagnostics(
     val partitionId: String,
     val diagnostics: MutableList<AnalyzerPartitionDiagnostic>,
+)
+
+private data class RawDesignElement(
+    val snapshot: DesignElementSnapshot,
+    val carrierQualifiedName: String?,
 )
 
 private data class EdgeKey(

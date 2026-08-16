@@ -73,11 +73,11 @@ class Cap4kAgentSnapshotTaskTest {
         )
         assertEquals(
             listOf(
-                "Actor Endpoint",
                 "Capability",
                 "Command",
                 "Domain Event",
                 "Domain Service",
+                "Endpoint",
                 "Integration Event",
                 "Query",
                 "Subscriber",
@@ -103,6 +103,7 @@ class Cap4kAgentSnapshotTaskTest {
         assertEquals(
             listOf(
                 "runtime.core-dispatch",
+                "runtime.endpoint-http-provider",
                 "runtime.identifier-allocation",
                 "runtime.integration-event-transport",
                 "runtime.jpa-persistence",

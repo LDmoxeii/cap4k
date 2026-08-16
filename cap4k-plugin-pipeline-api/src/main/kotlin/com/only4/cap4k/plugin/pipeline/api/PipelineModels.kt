@@ -649,7 +649,7 @@ data class StrongIdModel(
     val isEmbeddedId: Boolean = false,
 )
 
-data class ActorEndpointModel(
+data class EndpointModel(
     val operationName: String,
     val packageName: String,
     val typeName: String,
@@ -663,7 +663,7 @@ data class CanonicalModel(
     val project: ProjectModel = ProjectModel(),
     val aggregates: List<AggregateModel> = emptyList(),
     val designBlocks: List<DesignBlockModel> = emptyList(),
-    val actorEndpoints: List<ActorEndpointModel> = emptyList(),
+    val endpoints: List<EndpointModel> = emptyList(),
     val domainEvents: List<DomainEventModel> = emptyList(),
     val schemas: List<SchemaModel> = emptyList(),
     val entities: List<EntityModel> = emptyList(),

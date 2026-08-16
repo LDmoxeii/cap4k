@@ -1,0 +1,4289 @@
+schema: comet.native.v4
+name: actor-endpoint-http-binding
+language: zh-CN
+phase: archive
+status: active
+state_version: 11
+brief: brief.md
+spec_changes:
+  - capability: actor-endpoint-contract
+    operation: remove
+    source: null
+  - capability: analyzer-evidence-model
+    operation: modify
+    source: specs/analyzer-evidence-model/spec.md
+  - capability: endpoint-contract
+    operation: create
+    source: specs/endpoint-contract/spec.md
+  - capability: endpoint-http-binding
+    operation: create
+    source: specs/endpoint-http-binding/spec.md
+  - capability: pipeline-causal-flow-contract
+    operation: modify
+    source: specs/pipeline-causal-flow-contract/spec.md
+  - capability: runtime-agent-api-facts
+    operation: modify
+    source: specs/runtime-agent-api-facts/spec.md
+workspace:
+  isolation: worktree
+  change_branch: feature/actor-endpoint-http-binding
+  target_branch: master
+  finish: keep
+loop:
+  stage: archive-ready
+  goal_cycle: 1
+  iteration: 2
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 1
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: archive
+acceptance:
+  - id: A1
+    source: brief.md
+    text: A1：`ddd-endpoint-http` 暴露 typed `EndpointMvcBinding<Request, Response>`
+      registration contract，`cap4k-ddd-endpoint-http-starter` 收集其 Spring beans 并
+      materialize WebMvc.fn routes；module dependencies 保持 contract leaf 与
+      Runtime ownership 边界。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: A2：registration 必须显式提供 generated `OPERATION_NAME`、Request/Response
+      type、supported HTTP method 与 absolute route；runtime 无 catalog 地校验 outer
+      operation owner、`OPERATION_NAME`、`EndpointRequest<Response>` 泛型一致性及
+      non-blank identity，错误在 route activation 前给出稳定可操作诊断。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: A3：同一个 operation 的第二个 HTTP binding 与任意重复 normalized method+route 都在
+      activation 前失败；不同 operation 的不冲突 routes 可同时注册；Handler-only operation
+      合法且不自动暴露 route。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: A4：普通 JSON preset 使用应用配置的 Spring MVC message converters 将 whole body 解码为
+      published Request、将 published Response 直接编码为 response body，并且 route 只调用
+      `Mediator.endpoints.send/sendAsync`。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: A5：typed special request mapper 能显式读取 named body/path/query/header source
+      并直接构造 published Request；缺失 required value、malformed input 或 conversion
+      failure 稳定映射为 HTTP 400，不依赖参数名猜测或 generated transport DTO。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: A6：response policy 支持 fixed success status（默认 200）、`RESPONSE|NONE`、fixed
+      header、typed direct Response-property header 与 optional fixed content
+      type；302 + empty body + `Location <- response.url` 可表达且 Provider Handler
+      不接触 `ResponseEntity`/`ServerResponse`。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: A7：HTTP wire body 与 published Endpoint Response 保持同一 schema；不存在
+      `DEFAULT|RAW` envelope 开关或 framework wrapper。Endpoint Request Bean
+      Validation failure 映射 400，其他 Handler/domain 异常交给现有 Spring MVC
+      resolver；route 继承应用 filter/security chain而不新增 auth DSL。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: A8：独立 checked-in Provider `EndpointHandler` 显式把 Endpoint Request 映射为一个
+      authored Command 或 Query，并显式构造 Endpoint Response；不包含 Spring route、HTTP
+      method/status/header/auth/error metadata，且 binding 增删不改变其 identity。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A9
+    source: brief.md
+    text: A9：Analyzer 只从真实 typed HTTP binding 建立 Actor entry，并通过 Request/operation
+      evidence跨类、跨文件关联对应 Provider Handler；contract
+      declaration、Handler-only、local `Mediator.endpoints` dispatch 或缺失真实 route
+      均不产生 HTTP Actor entry。
+    result: passed
+    reason:
+      text: 独立复核通过：仅真实 typed binding 建立 HTTP entry，Handler 关系从真实 handle() 与同类可达 helper
+        派生；contract-only、Handler-only、local dispatch 与缺 registration 负例均不产生
+        entry。
+      truncated: false
+  - id: A10
+    source: brief.md
+    text: A10：真实 HTTP Endpoint 到 Command 生成稳定 Endpoint HTTP binding-to-Command Graph
+      relationship和一张 entry-centered Flow；到 Query 只生成 Graph relationship，不增加默认
+      Flow count。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A11
+    source: brief.md
+    text: A11：WebMvc.fn Endpoint binding 不被 generic annotated Controller
+      detector重复计数；普通 handwritten Controller 的现有
+      Controller-to-Command/Query/Capability evidence 与 Flow 行为无回归。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A12
+    source: brief.md
+    text: A12：`NodeType.apipayload` 与 IR Drawing Board candidate 的 `apipayload`
+      残留完全删除；Analyzer、Design Projection、Drawing Board 与 capability facts 不再投影
+      API Payload，同时 Endpoint contract Design round-trip 保持不变。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A13
+    source: brief.md
+    text: A13：实现不新增 Design JSON tag、Pipeline source/canonical
+      family/planner/renderer、generated adapter artifact或 operation
+      catalog；Generator/Renderer/Design Projection tests证明现有 endpoint contract
+      generation无需修改即可支撑 binding association。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A14
+    source: brief.md
+    text: A14：Runtime descriptor/facts、Analyzer descriptor/wire、Flow、Public Docs 与
+      authoring Skill 一致使用 `Endpoint` product vocabulary，声明 Spring MVC Provider
+      binding、独立 Handler、真实 entry
+      evidence、security/error/envelope边界及明确非目标；canonical capability 为
+      `endpoint-contract`，旧 `actor-endpoint-contract`/`ActorEndpoint` surface 无
+      alias 或兼容桥，并通过 capability propagation guards。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A15
+    source: brief.md
+    text: A15：真实 multi-module functional fixture 同时证明 contract module、adapter
+      Handler、typed binding、Spring application route、普通 JSON、特殊
+      query/redirect、400 failure、Command Flow、Query non-Flow、零 generated
+      Controller/binding artifact和完整编译/运行结果。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 brief、生产实现、测试与 Runtime checks 复核通过。
+      truncated: false
+  - id: A16
+    source: specs/analyzer-evidence-model/spec.md
+    text: Analyzer 必须把同一次静态 compiler observation 中产生的事实表达为三个强类型逻辑分区，并为每个分区提供独立
+      schema、canonical ownership、来源、完整性、计数和诊断。物理上继续允许共享一次编译、同一组 `inputDirs` 和现有
+      raw sidecar bundle；任何 consumer 都不得把三个分区重新压平成一种 IR graph 或从其他分区补造缺失事实。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A17
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`graph`：从代码观察到的 Cap4k tactical nodes 和静态 directed relationships。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A18
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`designProjection`：从生成 metadata 恢复的规范化战术设计，遵循
+      `analyzer-drawing-board-contract`。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A19
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`aggregateStructure`：对实际生成 Aggregate-related carrier 的独立结构观察。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A20
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot` 是 source provider 与 canonical assembler 之间唯一的 Analyzer
+      snapshot contract。不得保留一个平铺旧 snapshot 作为并列权威模型；短期内部适配只能是单向、不可公开且必须在本 Change
+      内删除。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A21
+    source: specs/analyzer-evidence-model/spec.md
+    text: 本合同保留一次 compiler observation 和每个 analysis input directory 下的现有 sidecar：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A22
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`nodes.json`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A23
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`rels.json`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A24
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`design-elements.json`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A25
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`aggregate-elements.json`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A26
+    source: specs/analyzer-evidence-model/spec.md
+    text: 逻辑分区不要求用户改变 `sources.ir-analysis.inputDirs`，也不要求额外 compiler
+      invocation。文件名、目录和任务如需迁移，必须作为后续显式 wire change，不能夹带在本次模型重构中。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A27
+    source: specs/analyzer-evidence-model/spec.md
+    text: 每个配置 input directory 必须形成稳定的 source identity。对项目内目录，公开投影使用规范化
+      project-relative identity；外部目录必须使用稳定、可脱敏且能够与当前配置关联的
+      identity，不得把不可复现的临时绝对路径当作长期 contract。每个分区引用自己的 source 集合和 diagnostic IDs。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A28
+    source: specs/analyzer-evidence-model/spec.md
+    text: 分区复用现有 `AgentSnapshotStatus` 词汇：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A29
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`ok`：该分区所需 raw evidence 完整、可解析、无冲突，结果可以合法为空或非空；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A30
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`partial`：已配置且存在部分可用证据，但计划 output 或 freshness 尚不完整；不得把 partial payload
+      当完整产品输出；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A31
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`invalid`：required raw 缺失、JSON 无效、metadata contract 违反、identity
+      冲突或其他确定性错误；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A32
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`unavailable`：未配置、未请求或没有可执行 observation，不能声称该分区存在当前事实。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A33
+    source: specs/analyzer-evidence-model/spec.md
+    text: 顶层 Analyzer status 按确定性顺序聚合：任一 required partition 为 `invalid` 时顶层为
+      `invalid`；没有 invalid 但存在 required `partial` 或 `unavailable` 时顶层为
+      `partial`；全部 requested partition 为 `ok` 时为 `ok`；Analyzer 整体未配置时为
+      `unavailable`。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A34
+    source: specs/analyzer-evidence-model/spec.md
+    text: 一个分区完整不能掩盖另一个分区不完整。完整性、来源、freshness 和诊断是横切状态，不是第四种业务事实。source observation
+      completeness 与 artifact plan freshness 必须分别表达：mtime 或 plan freshness 不能证明
+      compiler metadata 完整，raw 文件存在也不能证明 output 已生成且新鲜。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A35
+    source: specs/analyzer-evidence-model/spec.md
+    text: 最小事实粒度为稳定 node identity 和 directed relationship identity。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A36
+    source: specs/analyzer-evidence-model/spec.md
+    text: Graph 可以保留 Query、Capability、Validator、read-side dependency 和其他低层技术关系；它们保留在
+      Graph 不代表进入默认 causal Flow。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A37
+    source: specs/analyzer-evidence-model/spec.md
+    text: 默认业务因果入口按触发来源解释为 Actor、Event、Time 三类，但分类不是封闭 NodeType
+      allowlist。每个当前支持入口都必须由生产 Analyzer 观察到实际代码节点及明确 relationship evidence；未来
+      adapter 通过新增真实 detector 扩展，不由 Flow、文档或 generic fallback 猜测。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A38
+    source: specs/analyzer-evidence-model/spec.md
+    text: Actor 当前生产 evidence 包含两类真实 Spring HTTP entry：annotated Controller
+      method，以及 typed `EndpointMvcBinding` Spring MVC Provider
+      registration。Endpoint detector 必须把 registration 与 generated
+      operation/Request evidence及独立 Provider `EndpointHandler` 的显式 Command/Query
+      invocation关联，不得假设 binding 与 Handler 同类/同文件。RPC、GraphQL、CLI、Admin 与
+      workflow task 属于 Actor 概念家族，但在没有对应 Analyzer detector 前不得声明为当前支持。
+    result: passed
+    reason:
+      text: 独立复核通过：typed EndpointMvcBinding 与 generated operation/Request evidence
+        跨类、跨文件关联独立 Provider Handler，不假设同类或同文件。
+      truncated: false
+  - id: A39
+    source: specs/analyzer-evidence-model/spec.md
+    text: Event 当前生产 evidence 为无上游 Inbound Integration Event 经实际 `@EventListener`
+      Handler 到 Command。Domain Event Handler、outbound Integration Event 和有上游
+      Integration Event 是已有因果链 continuation，不是新入口。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A40
+    source: specs/analyzer-evidence-model/spec.md
+    text: Time 当前生产 evidence 为带
+      `org.springframework.scheduling.annotation.Scheduled` 的实际 method。Analyzer
+      必须使用该 method 的稳定 identity，生成 `temporaltriggermethod` node；当方法直接发送 Command
+      时生成 `TemporalTriggerMethodToCommand` relationship。只执行 Query、Capability
+      或纯技术逻辑的 scheduled method 不产生默认 causal entry evidence。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A41
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`commandsendermethod` NodeType 与 `CommandSenderMethodToCommand`
+      RelationshipType 完全删除。普通未分类方法即使直接发送 Command，也不得生成 generic sender
+      node、relationship、alias、deprecated value 或迁移桥；需要成为入口时必须先实现明确 trigger
+      detector。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A42
+    source: specs/analyzer-evidence-model/spec.md
+    text: typed Endpoint HTTP entry 的 Graph node type MUST be
+      `endpointhttpbinding`，stable node identity MUST derive from binding kind
+      plus referenced operation identity，并保留真实 method/route作为安全的静态
+      evidence而不得包含credential/header value。Command mapping MUST use
+      `EndpointHttpBindingToCommand`; Query mapping MUST use
+      `EndpointHttpBindingToQuery`。两类relationship都由Analyzer观察Provider
+      Handler的显式调用后投影，不由binding mapper直接dispatch或名称猜测产生。
+    result: passed
+    reason:
+      text: 独立复核通过：endpointhttpbinding identity、真实 method/route、metadataOwner 及
+        EndpointHttpBindingToCommand/Query 专用关系符合合同。
+      truncated: false
+  - id: A43
+    source: specs/analyzer-evidence-model/spec.md
+    text: Endpoint contract declaration、Provider Handler单独存在、local
+      `Mediator.endpoints` dispatch或缺失真实typed
+      registration都不得产生`endpointhttpbinding` node或上述relationships。同一个WebMvc.fn
+      binding不得再被annotated Controller detector重复观察；ordinary Controller
+      detector行为保持不变。
+    result: passed
+    reason:
+      text: 独立复核通过：contract declaration、Handler-only、local Mediator.endpoints dispatch
+        和缺 typed registration 均不产生 Endpoint HTTP evidence，WebMvc.fn 不被
+        Controller detector 重复计数。
+      truncated: false
+  - id: A44
+    source: specs/analyzer-evidence-model/spec.md
+    text: 已退休 API Payload 的separator-free残留必须闭合：`NodeType.apipayload` 与 IR Drawing
+      Board candidate `apipayload` MUST be removed without alias, deprecated
+      value or compatibility mapping。Endpoint Design Projection仍使用`endpoint`
+      tactical tag，与Graph entry node `endpointhttpbinding`职责分离。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A45
+    source: specs/analyzer-evidence-model/spec.md
+    text: Graph 不是通用 Kotlin AST、CFG 或 runtime trace，也不证明业务设计正确或运行时顺序。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A46
+    source: specs/analyzer-evidence-model/spec.md
+    text: 同一 node identity 的 `name`、`fullName` 和 `type`
+      必须一致；等价重复稳定去重，`missingMetadata` 可以稳定合并，非空 `metadataOwner` 冲突必须失败并保留来源诊断。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A47
+    source: specs/analyzer-evidence-model/spec.md
+    text: Relationship 以稳定的 from/to/type/label identity 去重；任何丢失 endpoint 或无效
+      identity 必须形成 Graph diagnostic，不得由其他分区补齐。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A48
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`pipeline.generator.flow` 只能消费 Graph 分区及其状态，不能读取 Drawing Board 或
+      Aggregate Structure 反向生成因果关系。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A49
+    source: specs/analyzer-evidence-model/spec.md
+    text: Design Projection 的业务字段和往返语义由 `analyzer-drawing-board-contract` 定义。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A50
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`design-elements.json` 可以在没有任何 design candidate 的 input directory
+      中合法缺失或为空；该情形必须与未配置、不可用和无效区分。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A51
+    source: specs/analyzer-evidence-model/spec.md
+    text: 如果某个 input directory 存在需要 `DesignBlockMetadata` 的候选节点，但 sidecar
+      缺失、projection 为空或 metadata 丢失，则该来源的 Design Projection 为 `invalid`，请求
+      Drawing Board 时必须失败，不得生成伪完整 board。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A52
+    source: specs/analyzer-evidence-model/spec.md
+    text: 跨模块相同 design block identity 的等价 fragment 可以合并；description、aggregate
+      ownership、event semantics、fields、resultFields 或其他战术语义冲突必须失败并关联全部来源。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A53
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`aggregate-elements.json` 不得挂入 Graph 或 Drawing Board model；它只属于 Aggregate
+      Structure 分区。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A54
+    source: specs/analyzer-evidence-model/spec.md
+    text: 生产链为：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A55
+    source: specs/analyzer-evidence-model/spec.md
+    text: Generator 在实际 carrier class 上写入 BINARY-retained `AggregateElementMetadata`；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A56
+    source: specs/analyzer-evidence-model/spec.md
+    text: Kotlin compiler Analyzer 收集 metadata，为每个 input directory 写
+      `aggregate-elements.json`；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A57
+    source: specs/analyzer-evidence-model/spec.md
+    text: IR source 按 `carrierQualifiedName` 跨目录去重并拒绝冲突；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A58
+    source: specs/analyzer-evidence-model/spec.md
+    text: canonical assembler 建立唯一 Aggregate Structure owner，structure evidence
+      exporter 从该 owner 生成稳定 output。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A59
+    source: specs/analyzer-evidence-model/spec.md
+    text: 最小记录包括
+      `carrierQualifiedName`、`aggregate`、`name`、`packageName`、`description`、`type`
+      和 `root`。它描述实际生成 carrier，不是 Design JSON building block、Graph node、Entity
+      Method、业务事实或数据库 schema。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A60
+    source: specs/analyzer-evidence-model/spec.md
+    text: 受支持 type 只有：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A61
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`schema`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A62
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`entity`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A63
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`repository`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A64
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`factory`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A65
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`strong-id`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A66
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`projection`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A67
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`specification`、`unique-query`、`unique-query-handler`、`unique-validator`
+      是已退役 drift，不得恢复 alias、deprecated value、silent mapping 或 migration
+      bridge。Spring Data JPA `Specification` 查询谓词不属于该删除范围。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A68
+    source: specs/analyzer-evidence-model/spec.md
+    text: 保留现有 `drawing_board_aggregate_elements.json` 文件名、路径和公开 output
+      identity，但它必须继续由 `CanonicalModel.aggregateStructure` 驱动，不属于 Drawing Board
+      design model，也不参与 Design JSON round-trip。删除或转成 SQL/Schema projection
+      均需要新的产品合同。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A69
+    source: specs/analyzer-evidence-model/spec.md
+    text: Canonical assembler 必须建立且只建立以下关系：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A70
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot.graph` → `CanonicalModel.analysisGraph`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A71
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot.designProjection` → `CanonicalModel.drawingBoard`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A72
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`AnalyzerSnapshot.aggregateStructure` →
+      `CanonicalModel.aggregateStructure`"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A73
+    source: specs/analyzer-evidence-model/spec.md
+    text: Assembler 不得跨分区复制事实，不得从消费者需求倒推 source payload，也不得让某个分区的非空集合替另一个分区制造完整状态。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A74
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`analysis.json` 必须能够直接表达三分区，而不是只提供平铺的 node/edge/design counts。顶层 section
+      保留配置、整体 status 和公共 evidence；每个 partition 至少投影："
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A75
+    source: specs/analyzer-evidence-model/spec.md
+    text: stable partition id；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A76
+    source: specs/analyzer-evidence-model/spec.md
+    text: status；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A77
+    source: specs/analyzer-evidence-model/spec.md
+    text: type-specific counts；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A78
+    source: specs/analyzer-evidence-model/spec.md
+    text: source attribution；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A79
+    source: specs/analyzer-evidence-model/spec.md
+    text: evidence freshness；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A80
+    source: specs/analyzer-evidence-model/spec.md
+    text: planned output paths；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A81
+    source: specs/analyzer-evidence-model/spec.md
+    text: available output paths；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A82
+    source: specs/analyzer-evidence-model/spec.md
+    text: diagnostic IDs；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A83
+    source: specs/analyzer-evidence-model/spec.md
+    text: reason / next action。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A84
+    source: specs/analyzer-evidence-model/spec.md
+    text: Analyzer collect、parse 或 merge 异常不得再被 `.getOrNull()` 静默吞掉。异常必须转换为稳定
+      diagnostics，并只污染实际受影响的分区；未受影响分区继续报告自己的状态。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A85
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`analysis.json` 直接以 `cap4k.agent.analysis.v2` 替换
+      `cap4k.agent.analysis.v1`。不同时输出 v1/v2，不保留公开兼容桥，也不长期维持两个并列权威
+      schema。当前仓内没有生产 decoder 依赖 v1，项目处于 breaking redesign；所有仓内
+      producer、codec、manifest reference、tests、validators 和当前能力投影必须在同一 Change
+      中迁移。Public Docs、Skill 或手写 JSON 不得反向成为 Analyzer 事实源。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A86
+    source: specs/analyzer-evidence-model/spec.md
+    text: 生产 capability declarations 必须派生并公开以下直接 consumer 关系：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A87
+    source: specs/analyzer-evidence-model/spec.md
+    text: Graph（annotated Controller、typed Endpoint HTTP、Inbound Integration
+      Event、Temporal Trigger等实际detectors）→ Pipeline Flow；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A88
+    source: specs/analyzer-evidence-model/spec.md
+    text: Design Projection → Drawing Board；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A89
+    source: specs/analyzer-evidence-model/spec.md
+    text: Aggregate Structure → structure evidence output。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A90
+    source: specs/analyzer-evidence-model/spec.md
+    text: IR Analysis production descriptor MUST identify both annotated Spring HTTP
+      Controller and typed Spring MVC Endpoint binding as current Actor
+      detectors. Descriptor, facts, Public Docs and Skill MUST NOT imply that
+      contract declaration or Handler-only code is an HTTP entry.
+    result: passed
+    reason:
+      text: 独立复核通过：生产 Analyzer descriptor 明确列出 typed Endpoint MVC detector，并未把
+        Handler-only 识别为 entry。
+      truncated: false
+  - id: A91
+    source: specs/analyzer-evidence-model/spec.md
+    text: "`CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 按依赖图传播；只有实际代码完成的
+      schema、status、outputs 和 consumer contract 才能声明为当前支持能力。canonical spec
+      可以先于实现，但不能冒充当前代码事实。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A92
+    source: specs/analyzer-evidence-model/spec.md
+    text: API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区，并证明 `temporaltriggermethod`
+      / `TemporalTriggerMethodToCommand`、`endpointhttpbinding` /
+      `EndpointHttpBindingToCommand|Query` 是明确trigger evidence，generic Command
+      sender与`apipayload`类型已经删除。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A93
+    source: specs/analyzer-evidence-model/spec.md
+    text: IR compiler/source tests 覆盖 Spring `@Scheduled` method detection、Temporal
+      Trigger 到 Command、typed Endpoint HTTP registration detection、generated
+      operation/type provenance、cross-file Provider Handler
+      association、Command/Query relationships、local-only negatives、Controller
+      coexistence、scheduled Query/Capability 非 Flow 入口、普通方法不再产生 generic Command
+      sender，以及每目录 required/optional/empty/invalid raw、metadata
+      completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
+    result: passed
+    reason:
+      text: 独立复核通过：compiler/source tests 覆盖 copied literal 拒绝、跨模块 const provenance、跨文件
+        Handler、不可达 maintenance method 与 non-entry 负例。
+      truncated: false
+  - id: A94
+    source: specs/analyzer-evidence-model/spec.md
+    text: Canonical tests 证明三个分区各自进入唯一 owner，消费者不会跨分区读取。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A95
+    source: specs/analyzer-evidence-model/spec.md
+    text: Agent codec/service/task/functional tests 证明分区
+      schema、manifest、counts、freshness、outputs、diagnostics 和状态聚合。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A96
+    source: specs/analyzer-evidence-model/spec.md
+    text: Capability facts 与 validator tests 证明子契约和传播闭包由生产代码派生。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A97
+    source: specs/analyzer-evidence-model/spec.md
+    text: Drawing Board 仓内 compiler-backed 自动化与下游项目证据边界遵循
+      `analyzer-drawing-board-contract`。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A98
+    source: specs/endpoint-contract/spec.md
+    text: Cap4k MUST model every externally invokable Actor operation as an
+      explicit, transport-neutral Endpoint published contract. HTTP and RPC are
+      bindings over this contract; internal Command, Query and Capability remain
+      distinct application semantics and MUST NOT become published
+      automatically.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A99
+    source: specs/endpoint-contract/spec.md
+    text: Endpoint invocation MUST preserve cap4k's Request + Handler + Response
+      model and MUST be dispatched through Mediator. A Consumer RPC proxy is a
+      local Handler selected by Mediator, not a service object directly called
+      by business code.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A100
+    source: specs/endpoint-contract/spec.md
+    text: The published language MUST live in a dependency-leaf `contract` module so
+      a consumer can depend on operation and event shapes without depending on
+      the Provider service implementation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 analyzer-evidence-model spec、生产 Analyzer/IR/Flow 实现与测试复核通过。
+      truncated: false
+  - id: A101
+    source: specs/endpoint-contract/spec.md
+    text: The Design JSON tactical tag MUST be `endpoint`. `actor` identifies the
+      Analyzer/Flow trigger-source family, while `endpoint` identifies the
+      authored invokable operation. The framework MUST NOT use an `actor` tag,
+      because an Actor may enter through HTTP, RPC, CLI, admin or another real
+      binding and is not itself a Request/Response contract.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A102
+    source: specs/endpoint-contract/spec.md
+    text: The primary artifact family MUST also be `endpoint`.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A103
+    source: specs/endpoint-contract/spec.md
+    text: Product code, capability names, Public Docs and Skill MUST use `Endpoint`
+      rather than the compound `ActorEndpoint`. `Actor` remains only the
+      Analyzer/Flow trigger-source classification. The canonical capability
+      identity MUST be `endpoint-contract`; the former `actor-endpoint-contract`
+      capability is removed without alias or compatibility bridge.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A104
+    source: specs/endpoint-contract/spec.md
+    text: "An Endpoint declaration MUST represent exactly one operation and MUST
+      contain:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A105
+    source: specs/endpoint-contract/spec.md
+    text: a canonical Kotlin package and type identity;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A106
+    source: specs/endpoint-contract/spec.md
+    text: a non-blank stable logical `operationName`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A107
+    source: specs/endpoint-contract/spec.md
+    text: a description and optional aggregate/context associations used only as
+      design metadata;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A108
+    source: specs/endpoint-contract/spec.md
+    text: one ordered Request semantic value definition;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A109
+    source: specs/endpoint-contract/spec.md
+    text: one ordered Response semantic value definition.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A110
+    source: specs/endpoint-contract/spec.md
+    text: Request and Response MUST use dedicated Endpoint semantic roles. They MUST
+      NOT reuse Command, Query, Capability or API payload roles even when their
+      field shapes happen to be equal.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A111
+    source: specs/endpoint-contract/spec.md
+    text: Canonical assembly MUST reject duplicate logical operation names across
+      the assembled design, duplicate canonical type identities, blank operation
+      names, invalid semantic fields and unresolved/unsupported types before
+      artifact planning.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A112
+    source: specs/endpoint-contract/spec.md
+    text: The canonical unit is one operation. A multi-operation service interface,
+      facade or client grouping MAY be added later as a projection, but MUST NOT
+      replace or redefine operation identity.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A113
+    source: specs/endpoint-contract/spec.md
+    text: "The framework-owned default artifact MUST generate one Kotlin object per
+      operation. The object MUST:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A114
+    source: specs/endpoint-contract/spec.md
+    text: own a Request implementing the lightweight `EndpointRequest<Response>`
+      marker;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A115
+    source: specs/endpoint-contract/spec.md
+    text: own its Response data contract;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A116
+    source: specs/endpoint-contract/spec.md
+    text: expose the stable logical operation name as a framework-owned constant;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A117
+    source: specs/endpoint-contract/spec.md
+    text: preserve ordered fields, nested DTOs, resolved canonical types,
+      nullability and supported defaults;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A118
+    source: specs/endpoint-contract/spec.md
+    text: carry lossless compile-time Design metadata needed for Analyzer/Drawing
+      Board round-trip.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A119
+    source: specs/endpoint-contract/spec.md
+    text: "A representative shape is:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A120
+    source: specs/endpoint-contract/spec.md
+    text: The generated contract MUST NOT contain Spring stereotypes, Mediator
+      implementation, Handler implementation, HTTP/RPC annotations, service
+      discovery, retry, timeout, routing or persistence behavior.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A121
+    source: specs/endpoint-contract/spec.md
+    text: The generated Request MUST NOT implement internal `Command`, `Query` or
+      `CapabilityCall` markers. Provider-side translation to local application
+      messages is the Provider Endpoint Handler's responsibility.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A122
+    source: specs/endpoint-contract/spec.md
+    text: "Cap4k MUST publish a minimal `cap4k-contract-api` artifact containing
+      only stable primitives required by shared published contracts, including:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A123
+    source: specs/endpoint-contract/spec.md
+    text: "`EndpointRequest<RESULT>`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A124
+    source: specs/endpoint-contract/spec.md
+    text: the shared Integration Event identity annotation required by runtime
+      catalogs/codecs.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A125
+    source: specs/endpoint-contract/spec.md
+    text: This artifact MUST NOT contain Endpoint Handler dispatch, Supervisor or
+      Mediator implementations and MUST NOT depend on Spring, Gradle, compiler
+      APIs, persistence APIs, HTTP/RPC transports, broker clients or full
+      `ddd-core`.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A126
+    source: specs/endpoint-contract/spec.md
+    text: The Provider service, Consumer service and generated business contract
+      module MAY all depend on this lightweight artifact without acquiring
+      cap4k's application/runtime implementation surface.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A127
+    source: specs/endpoint-contract/spec.md
+    text: No compatibility facade for the former Integration Event annotation
+      package is required.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A128
+    source: specs/endpoint-contract/spec.md
+    text: "`ddd-core` MUST provide a dedicated Endpoint application dispatch family:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A129
+    source: specs/endpoint-contract/spec.md
+    text: "It MUST expose:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A130
+    source: specs/endpoint-contract/spec.md
+    text: "`EndpointHandler<REQUEST : EndpointRequest<RESPONSE>, RESPONSE>` with one
+      `handle(request)` operation;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A131
+    source: specs/endpoint-contract/spec.md
+    text: "`EndpointSupervisor.send(request)`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A132
+    source: specs/endpoint-contract/spec.md
+    text: "`EndpointSupervisor.sendAsync(request)`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A133
+    source: specs/endpoint-contract/spec.md
+    text: "`Mediator.endpoints` as the static access surface."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A134
+    source: specs/endpoint-contract/spec.md
+    text: The Supervisor MUST follow the established synchronous application
+      dispatcher constraints for concrete Request-to-Handler resolution,
+      duplicate/missing Handler failure, Bean Validation, invocation policy,
+      invocation scope, execution-context propagation, causal frame management
+      and asynchronous failure reporting.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A135
+    source: specs/endpoint-contract/spec.md
+    text: Endpoint is a dedicated category. It MUST NOT restore an untyped/general
+      Request dispatcher and MUST NOT apply Command, Query or Capability policy
+      merely because field shapes are similar.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A136
+    source: specs/endpoint-contract/spec.md
+    text: The published Request/Response and operation identity are shared, while
+      Handler ownership is local to each process.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A137
+    source: specs/endpoint-contract/spec.md
+    text: "On a Provider service:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A138
+    source: specs/endpoint-contract/spec.md
+    text: the local `EndpointHandler<Request, Response>` is the business-facing
+      implementation;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A139
+    source: specs/endpoint-contract/spec.md
+    text: it MAY translate the published Request into local Command/Query calls
+      through their existing Mediator families;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A140
+    source: specs/endpoint-contract/spec.md
+    text: an HTTP/RPC Provider binding deserializes the Request and invokes
+      `Mediator.endpoints.send(request)`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A141
+    source: specs/endpoint-contract/spec.md
+    text: the binding MUST NOT bypass the Endpoint Supervisor by calling the Handler
+      directly.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A142
+    source: specs/endpoint-contract/spec.md
+    text: "On a Consumer service:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A143
+    source: specs/endpoint-contract/spec.md
+    text: the local `EndpointHandler<Request, Response>` MAY be a generated RPC
+      proxy;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A144
+    source: specs/endpoint-contract/spec.md
+    text: that proxy serializes the Request, invokes the remote Provider using the
+      stable operation identity and returns the Response;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A145
+    source: specs/endpoint-contract/spec.md
+    text: application code MUST NOT directly inject or call the generated proxy;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A146
+    source: specs/endpoint-contract/spec.md
+    text: application code MAY directly invoke
+      `Mediator.endpoints.send(publishedRequest)` when accepting the Provider's
+      published language as a local dependency;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A147
+    source: specs/endpoint-contract/spec.md
+    text: when an anti-corruption boundary is required, application code MAY instead
+      invoke a local `CapabilityCall` through `Mediator.capabilities`; its
+      adapter-owned Capability Handler maps the local Request/Response to the
+      published Endpoint Request/Response and invokes `Mediator.endpoints`.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A148
+    source: specs/endpoint-contract/spec.md
+    text: "The same Request type therefore participates in the same Mediator
+      contract on both sides, while the locally registered Handler differs:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A149
+    source: specs/endpoint-contract/spec.md
+    text: A process MUST still have at most one applicable Endpoint Handler for a
+      concrete Request. Supporting both a local Provider implementation and
+      remote proxy for the same Request in one application requires an explicit
+      future routing decision and is outside this Change.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A150
+    source: specs/endpoint-contract/spec.md
+    text: The Gradle project DSL MUST expose `project.contractModulePath`. The
+      assembled `ProjectConfig.modules` MUST project it as role `contract` with
+      a repository-relative module path.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A151
+    source: specs/endpoint-contract/spec.md
+    text: "The role is conditionally required:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A152
+    source: specs/endpoint-contract/spec.md
+    text: when no selected planner owns a contract artifact, `contractModulePath`
+      MAY be absent;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A153
+    source: specs/endpoint-contract/spec.md
+    text: when an Endpoint or Integration Event payload artifact is selected,
+      absence MUST fail with a stable diagnostic naming the required
+      role/property and selected artifact;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A154
+    source: specs/endpoint-contract/spec.md
+    text: setting only `basePackage` plus `contractModulePath` MUST count as an
+      explicitly configured project layout when the selected operation can be
+      planned without other roles.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A155
+    source: specs/endpoint-contract/spec.md
+    text: "All Endpoint primary artifacts and Integration Event payload artifacts
+      MUST plan with:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A156
+    source: specs/endpoint-contract/spec.md
+    text: '`moduleRole = "contract"`;'
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A157
+    source: specs/endpoint-contract/spec.md
+    text: "`outputKind = CHECKED_IN_SOURCE`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A158
+    source: specs/endpoint-contract/spec.md
+    text: AUTHORING lane ownership;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A159
+    source: specs/endpoint-contract/spec.md
+    text: the existing `cap4kPlan` and `cap4kGenerate` tasks.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A160
+    source: specs/endpoint-contract/spec.md
+    text: The framework MUST NOT add a new public generation task and MUST NOT route
+      these artifacts through the generated-source lane.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A161
+    source: specs/endpoint-contract/spec.md
+    text: The DSL MUST expose a dedicated Endpoint contract package layout and a
+      published Integration Event contract package layout. Defaults MUST be
+      deterministic and MUST not place published payloads under application or
+      adapter package roots.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A162
+    source: specs/endpoint-contract/spec.md
+    text: Output path, canonical FQN, template identity and ownership metadata MUST
+      remain stable for equal canonical input. Collision detection MUST run
+      before rendering/writing.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A163
+    source: specs/endpoint-contract/spec.md
+    text: Inbound and outbound Integration Event payloads are published contracts
+      and MUST be generated into the contract module. Their application
+      subscriber artifacts MUST remain in the application module.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A164
+    source: specs/endpoint-contract/spec.md
+    text: "Moving the payload owner MUST NOT change existing Integration Event
+      semantics:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A165
+    source: specs/endpoint-contract/spec.md
+    text: "`eventName` remains the stable transport-neutral identity;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A166
+    source: specs/endpoint-contract/spec.md
+    text: direction remains explicit Design/Analyzer metadata and is not inferred
+      from the runtime annotation;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A167
+    source: specs/endpoint-contract/spec.md
+    text: outbound remains the default variant;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A168
+    source: specs/endpoint-contract/spec.md
+    text: a subscriber remains legal only for inbound;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A169
+    source: specs/endpoint-contract/spec.md
+    text: an outbound declaration MUST NOT automatically create or convert an
+      inbound contract;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A170
+    source: specs/endpoint-contract/spec.md
+    text: provider route topology remains runtime configuration keyed by `eventName`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A171
+    source: specs/endpoint-contract/spec.md
+    text: subscription derives only from a real local Handler;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A172
+    source: specs/endpoint-contract/spec.md
+    text: ack, retry, completion boundaries, idempotency, inbox/dedup and
+      per-consumer state remain owned by their existing runtime/application
+      boundaries.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A173
+    source: specs/endpoint-contract/spec.md
+    text: The runtime Integration Event catalog, codec and transports MUST consume
+      the shared annotation from `cap4k-contract-api` without adding transport
+      dependencies to the contract module.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A174
+    source: specs/endpoint-contract/spec.md
+    text: The canonical Endpoint identity, generated Request/Response and Endpoint
+      Mediator family support independent transport bindings without moving
+      protocol metadata into the contract.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A175
+    source: specs/endpoint-contract/spec.md
+    text: "The shipped Spring MVC Provider binding MUST:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A176
+    source: specs/endpoint-contract/spec.md
+    text: reference the existing generated `OPERATION_NAME` plus Request/Response
+      type evidence;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A177
+    source: specs/endpoint-contract/spec.md
+    text: keep method, route, codec, status, headers, security and error mapping
+      outside the contract module;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A178
+    source: specs/endpoint-contract/spec.md
+    text: materialize a real route that invokes `Mediator.endpoints.send(request)`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A179
+    source: specs/endpoint-contract/spec.md
+    text: reuse the same binding-neutral local Provider Handler that a future RPC
+      binding would use.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A180
+    source: specs/endpoint-contract/spec.md
+    text: A future RPC Provider dispatcher MAY invoke the same Mediator family, and
+      a future Consumer proxy MAY implement `EndpointHandler<Request,
+      Response>`. Service discovery, timeout, retry, topology and protocol
+      client/stub details MUST remain absent from the canonical contract and
+      `ddd-core`.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A181
+    source: specs/endpoint-contract/spec.md
+    text: One operation MAY have zero or multiple Provider bindings of different
+      kinds. Binding identity and lifecycle MUST NOT redefine operation
+      identity. The first HTTP capability allows at most one HTTP binding per
+      operation, but that protocol-specific cardinality is not part of the
+      canonical Endpoint contract.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A182
+    source: specs/endpoint-contract/spec.md
+    text: Analyzer Design Projection MUST recover Endpoint operation identity,
+      Request/Response semantic shapes and selected artifacts from
+      framework-owned Kotlin contract structure and compile-time metadata.
+      Drawing Board MUST emit an ordinary `endpoint` Design JSON block that the
+      Design JSON source accepts directly.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A183
+    source: specs/endpoint-contract/spec.md
+    text: "Analyzer Graph and Flow MUST treat a contract declaration, Provider
+      Handler existence and local Endpoint Mediator dispatch as
+      non-transport-entry evidence. Generating, compiling or locally dispatching
+      an Endpoint Request alone MUST NOT create:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A184
+    source: specs/endpoint-contract/spec.md
+    text: an Actor graph node;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A185
+    source: specs/endpoint-contract/spec.md
+    text: an Endpoint HTTP binding-to-Command/Query relationship;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A186
+    source: specs/endpoint-contract/spec.md
+    text: a Flow root;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A187
+    source: specs/endpoint-contract/spec.md
+    text: a flow count change.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A188
+    source: specs/endpoint-contract/spec.md
+    text: A real typed Spring MVC binding is production Actor evidence. Analyzer
+      MUST join that binding to the independent Provider Handler through
+      generated operation/Request evidence without assuming a shared class or
+      file. Command-oriented HTTP evidence can create a default Flow root;
+      Query-oriented evidence remains raw Graph-only. Future RPC or other Actor
+      evidence still requires its own production detector.
+    result: passed
+    reason:
+      text: 独立复核通过：值相同的 copied literal 被拒绝；跨 module const val 内联仍由调用源码引用与 generated
+        metadata 联合证明 provenance。
+      truncated: false
+  - id: A189
+    source: specs/endpoint-contract/spec.md
+    text: Production descriptors and registries MUST declare the Endpoint
+      authoring/runtime capabilities, tactical carrier, required source, tasks,
+      output ownership and module role. The shipped Endpoint HTTP capability
+      MUST additionally declare its Runtime implementation/starter ownership and
+      Analyzer detector/relationship evidence. AgentFacts MUST derive project
+      module, artifact and Runtime ownership facts from these production
+      contracts rather than a second handwritten catalog.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A190
+    source: specs/endpoint-contract/spec.md
+    text: Public Docs and the authoring Skill MUST describe only shipped behavior.
+      They MUST describe the published contract, Endpoint Mediator family,
+      independent Provider Handler and Spring MVC Provider binding while keeping
+      RPC Provider, Consumer proxy, service discovery and client generation
+      explicit non-goals.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A191
+    source: specs/endpoint-contract/spec.md
+    text: Runtime, Generator, Analyzer, AgentFacts, Public Docs and Skill impact
+      MUST each be recorded as modified, verified-no-change or not-applicable
+      with evidence. Generator/Renderer/Design Projection remain unchanged for
+      HTTP binding authoring because the existing generated operation structure
+      is the contract evidence consumed by Runtime and Analyzer.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A192
+    source: specs/endpoint-contract/spec.md
+    text: "Focused and functional evidence MUST demonstrate:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A193
+    source: specs/endpoint-contract/spec.md
+    text: conditional `contractModulePath` projection and diagnostics;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A194
+    source: specs/endpoint-contract/spec.md
+    text: first-class canonical Endpoint identity and dedicated semantic roles;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A195
+    source: specs/endpoint-contract/spec.md
+    text: deterministic checked-in contract planning and rendering;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A196
+    source: specs/endpoint-contract/spec.md
+    text: compile-valid generated Request/Response using `EndpointRequest` from a
+      leaf contract module;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A197
+    source: specs/endpoint-contract/spec.md
+    text: EndpointSupervisor sync/async dispatch, unique Handler selection,
+      validation, scope and failure semantics;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A198
+    source: specs/endpoint-contract/spec.md
+    text: Provider Handler and future Consumer proxy Handler semantics both remain
+      mediated rather than directly invoked, including direct Consumer Endpoint
+      use and Capability anti-corruption mapping;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A199
+    source: specs/endpoint-contract/spec.md
+    text: Provider-side single-direction dependency on contract and absence of
+      Spring/HTTP metadata from generated contracts;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A200
+    source: specs/endpoint-contract/spec.md
+    text: typed Spring MVC Provider registration and WebMvc.fn route materialization
+      invoke the independent Provider Handler only through `Mediator.endpoints`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A201
+    source: specs/endpoint-contract/spec.md
+    text: one operation can exist Handler-only and can later add different binding
+      kinds without changing contract/Handler identity;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A202
+    source: specs/endpoint-contract/spec.md
+    text: Integration Event payload placement in contract and subscriber placement
+      in application;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A203
+    source: specs/endpoint-contract/spec.md
+    text: unchanged event direction, topology and runtime delivery semantics;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A204
+    source: specs/endpoint-contract/spec.md
+    text: Analyzer/Drawing Board semantic round-trip remains unchanged while real
+      HTTP binding evidence creates only the accepted Graph/Flow Actor entry;
+    result: passed
+    reason:
+      text: 独立复核通过：Generator、Renderer、Design Projection 未扩大；未新增 binding
+        generator、catalog、manifest 或 adapter artifact。
+      truncated: false
+  - id: A205
+    source: specs/endpoint-contract/spec.md
+    text: descriptor, registry, AgentFacts, docs and Skill propagation;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A206
+    source: specs/endpoint-contract/spec.md
+    text: unchanged Generator/Renderer/Design Projection behavior and unchanged
+      existing domain/application/adapter artifact ownership outside the
+      declared binding capability.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A207
+    source: specs/endpoint-contract/spec.md
+    text: This is an intentional breaking architecture change. The former
+      `actor-endpoint-contract` capability name and `ActorEndpoint` product
+      vocabulary are removed. No alias, fallback capability, duplicate API,
+      fallback package, duplicate annotation, old application-owned Integration
+      Event generation or migration bridge is required.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A208
+    source: specs/endpoint-http-binding/spec.md
+    text: Cap4k MUST support Spring MVC servlet applications as the first production
+      Provider binding over an existing transport-neutral Endpoint operation.
+      The binding MUST expose a real HTTP route while preserving the accepted
+      Request + Handler + Response model and MUST NOT redefine the published
+      operation contract.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-contract spec、生成合同、dispatch、Analyzer projection
+        与验证证据复核通过。
+      truncated: false
+  - id: A209
+    source: specs/endpoint-http-binding/spec.md
+    text: "An Endpoint operation, its local Provider implementation and its
+      transport bindings MUST remain separate concerns:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A210
+    source: specs/endpoint-http-binding/spec.md
+    text: the dependency-leaf contract module owns stable operation identity and
+      published Request/Response;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A211
+    source: specs/endpoint-http-binding/spec.md
+    text: one binding-neutral local `EndpointHandler<Request, Response>` owns
+      translation to local Command or Query behavior;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A212
+    source: specs/endpoint-http-binding/spec.md
+    text: each Provider transport binding owns only its protocol entry and invokes
+      `Mediator.endpoints`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A213
+    source: specs/endpoint-http-binding/spec.md
+    text: one operation MAY have zero, one or multiple Provider bindings of
+      different kinds at the same time;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A214
+    source: specs/endpoint-http-binding/spec.md
+    text: adding, removing or replacing an HTTP, RPC or other binding MUST NOT
+      change the Endpoint contract or duplicate the local Provider Handler.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A215
+    source: specs/endpoint-http-binding/spec.md
+    text: The framework MUST NOT make one annotated adapter class the universal
+      identity of an Endpoint operation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A216
+    source: specs/endpoint-http-binding/spec.md
+    text: "The Provider Handler MUST be a checked-in adapter-owned source
+      implementing `EndpointHandler<Request, Response>`. It MUST:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A217
+    source: specs/endpoint-http-binding/spec.md
+    text: depend on the published contract and the local application Command/Query
+      contracts;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A218
+    source: specs/endpoint-http-binding/spec.md
+    text: explicitly map published Request fields to one authored local Command or
+      Query invocation;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A219
+    source: specs/endpoint-http-binding/spec.md
+    text: explicitly map the local result to the published Response;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A220
+    source: specs/endpoint-http-binding/spec.md
+    text: contain no Spring MVC route, HTTP method, status, header, authentication
+      or error-mapping metadata;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A221
+    source: specs/endpoint-http-binding/spec.md
+    text: contain no inferred field-copy or name-based Command/Query selection.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A222
+    source: specs/endpoint-http-binding/spec.md
+    text: The Handler MAY exist before any Provider transport binding is selected.
+      It MAY be created manually or by an optional authoring Skill scaffold, but
+      an existing checked-in file MUST be treated as `SKIP` and MUST NOT be
+      overwritten, merged or patched by later framework/template changes.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A223
+    source: specs/endpoint-http-binding/spec.md
+    text: "The capability MUST introduce two focused modules:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A224
+    source: specs/endpoint-http-binding/spec.md
+    text: "`ddd-endpoint-http`: the typed Spring MVC binding descriptor,
+      request-reader and response-policy contracts plus protocol-specific
+      runtime implementation;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A225
+    source: specs/endpoint-http-binding/spec.md
+    text: "`cap4k-ddd-endpoint-http-starter`: Spring Boot auto-configuration that
+      collects registrations, validates the effective set and materializes
+      WebMvc.fn routes."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A226
+    source: specs/endpoint-http-binding/spec.md
+    text: The modules MAY depend on `ddd-core`, `cap4k-contract-api` and Spring MVC
+      as required by their responsibility. The dependency-leaf contract module
+      MUST NOT depend on either module. This capability MUST NOT be added to
+      `ddd-core` as remote lookup, discovery or HTTP fallback behavior.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A227
+    source: specs/endpoint-http-binding/spec.md
+    text: Each selected HTTP Provider binding MUST be an adapter-owned typed
+      code-first `EndpointMvcBinding<Request, Response>` registration made
+      available to the Spring application as a bean. Multiple registration beans
+      MAY be grouped in one adapter configuration class; the API MUST NOT
+      require one Controller, class or physical file per operation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A228
+    source: specs/endpoint-http-binding/spec.md
+    text: "Each immutable registration MUST explicitly preserve:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A229
+    source: specs/endpoint-http-binding/spec.md
+    text: the generated non-blank `OPERATION_NAME`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A230
+    source: specs/endpoint-http-binding/spec.md
+    text: published Request and Response `KClass` evidence;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A231
+    source: specs/endpoint-http-binding/spec.md
+    text: an explicitly supported HTTP method normalized to uppercase;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A232
+    source: specs/endpoint-http-binding/spec.md
+    text: an absolute normalized route-template path;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A233
+    source: specs/endpoint-http-binding/spec.md
+    text: one runtime-owned request reader or preset;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A234
+    source: specs/endpoint-http-binding/spec.md
+    text: one runtime-owned response policy or preset.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A235
+    source: specs/endpoint-http-binding/spec.md
+    text: "A representative ordinary registration is:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A236
+    source: specs/endpoint-http-binding/spec.md
+    text: The exact factory names and Kotlin surface are implementation choices, but
+      the production declaration MUST remain immutable, typed and statically
+      recognizable. Core binding identity and method/path evidence MUST NOT be
+      hidden in an arbitrary opaque builder callback.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A237
+    source: specs/endpoint-http-binding/spec.md
+    text: "The effective binding set MUST be validated before route activation
+      without introducing a runtime or generated operation catalog. For every
+      registration, Runtime MUST validate using the supplied types and the
+      existing generated outer-object structure that:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A238
+    source: specs/endpoint-http-binding/spec.md
+    text: "`operationName` is non-blank and equals the outer operation object's
+      public `OPERATION_NAME`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A239
+    source: specs/endpoint-http-binding/spec.md
+    text: Request and Response belong to the same generated operation owner;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A240
+    source: specs/endpoint-http-binding/spec.md
+    text: Request implements `EndpointRequest<Response>` with a coherent Response
+      type;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A241
+    source: specs/endpoint-http-binding/spec.md
+    text: method and route are supported and normalized;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A242
+    source: specs/endpoint-http-binding/spec.md
+    text: the operation has not already selected another HTTP binding;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A243
+    source: specs/endpoint-http-binding/spec.md
+    text: normalized method plus route does not collide with another effective
+      registration.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A244
+    source: specs/endpoint-http-binding/spec.md
+    text: A missing/mismatched operation owner or `OPERATION_NAME`, incoherent
+      Request/Response types, malformed method/path, duplicate operation binding
+      or route collision MUST fail before activation with deterministic
+      actionable diagnostics. Compile-time Analyzer evidence MUST additionally
+      validate generated Endpoint metadata/provenance; Runtime structural
+      validation and Analyzer provenance validation are complementary and MUST
+      NOT require Generator changes.
+    result: passed
+    reason:
+      text: 独立复核通过：Analyzer evidence 必须同时来自真实 registration、generated provenance 与独立
+        Handler 的显式 Command/Query invocation。
+      truncated: false
+  - id: A245
+    source: specs/endpoint-http-binding/spec.md
+    text: "The starter MUST collect the typed binding registrations and use Spring
+      MVC Functional Endpoints (`RouterFunction` / `HandlerFunction`, WebMvc.fn)
+      to materialize real routes. For every invocation, the materialized route
+      MUST:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A246
+    source: specs/endpoint-http-binding/spec.md
+    text: read or construct the published Endpoint Request through the selected
+      request preset/mapper;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A247
+    source: specs/endpoint-http-binding/spec.md
+    text: invoke `Mediator.endpoints.send` or `sendAsync`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A248
+    source: specs/endpoint-http-binding/spec.md
+    text: map the published Endpoint Response through the selected response policy;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A249
+    source: specs/endpoint-http-binding/spec.md
+    text: never call an `EndpointHandler` directly;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A250
+    source: specs/endpoint-http-binding/spec.md
+    text: never invoke local Command, Query or Capability families directly.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A251
+    source: specs/endpoint-http-binding/spec.md
+    text: Binding authors MUST NOT directly implement a Controller or
+      `HandlerFunction` for the ordinary path. WebMvc.fn types, route
+      registration, codec integration, protocol conversion and dispatch are
+      runtime/starter implementation details.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A252
+    source: specs/endpoint-http-binding/spec.md
+    text: The capability MUST remain a thin registration API rather than a complete
+      FastEndpoints-style `Configure + Handle` framework. It MUST NOT create a
+      universal cross-transport base class or DSL.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A253
+    source: specs/endpoint-http-binding/spec.md
+    text: Whole-body decoding and response-body encoding MUST use the current Spring
+      application's configured MVC `HttpMessageConverter` chain and Jackson
+      customizations. The Endpoint HTTP capability MUST NOT use `RuntimeJson`,
+      create a private default `ObjectMapper`, or silently bypass application
+      modules, naming strategy, date/time handling, Strong ID codecs or other
+      MVC JSON configuration.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A254
+    source: specs/endpoint-http-binding/spec.md
+    text: "`RuntimeJson` remains the existing Runtime persistence/Integration Event
+      codec boundary and MUST NOT become the application HTTP API codec."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A255
+    source: specs/endpoint-http-binding/spec.md
+    text: "The first version MUST provide:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A256
+    source: specs/endpoint-http-binding/spec.md
+    text: a whole-body JSON preset that decodes directly to the published Endpoint
+      Request; and
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A257
+    source: specs/endpoint-http-binding/spec.md
+    text: a typed special request-mapping API for explicit body, path, query and
+      header access when the HTTP shape differs.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A258
+    source: specs/endpoint-http-binding/spec.md
+    text: Path, query and header sources used by a special mapper MUST be explicitly
+      named in authored typed code. The mapper MUST construct the published
+      Request directly and MUST NOT assign target fields through string property
+      names, infer field copies or dispatch Command, Query, Capability or
+      Endpoint operations.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A259
+    source: specs/endpoint-http-binding/spec.md
+    text: A special HTTP body MAY use an adapter-private handwritten intermediate
+      type only when the actual wire shape cannot directly reuse the published
+      Request. Such a type MUST remain an implementation detail; it MUST NOT
+      become a Design JSON tag, canonical role, generated artifact, Analyzer
+      node, AgentFact or competing published schema.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A260
+    source: specs/endpoint-http-binding/spec.md
+    text: Protocol parsing and conversion MUST complete before construction of the
+      published Request. Missing required values, malformed bodies and
+      conversion failures MUST produce deterministic HTTP 400 binding failures.
+      The framework MUST NOT rely on Spring implicit parameter-name binding or
+      route-template coincidence.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A261
+    source: specs/endpoint-http-binding/spec.md
+    text: After Request construction, contract Bean Validation MUST continue through
+      `Mediator.endpoints` and the Endpoint Supervisor. Endpoint Request
+      constraint failures at the HTTP boundary MUST map to HTTP 400; they MUST
+      NOT be reclassified as local Command/Query validation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A262
+    source: specs/endpoint-http-binding/spec.md
+    text: "The published Endpoint Response MUST be the actual HTTP response schema.
+      The first version MUST provide response presets/policies without requiring
+      `ResponseEntity`, `ServerResponse` or another HTTP type in the Endpoint
+      Response or Provider Handler. It MUST support:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A263
+    source: specs/endpoint-http-binding/spec.md
+    text: direct whole-response encoding through the application MVC converters;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A264
+    source: specs/endpoint-http-binding/spec.md
+    text: a fixed success HTTP status, defaulting to `200`;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A265
+    source: specs/endpoint-http-binding/spec.md
+    text: "`body = RESPONSE` or `body = NONE`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A266
+    source: specs/endpoint-http-binding/spec.md
+    text: response headers whose values are fixed literals or typed direct
+      references to Endpoint Response properties;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A267
+    source: specs/endpoint-http-binding/spec.md
+    text: an optional fixed response content type.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A268
+    source: specs/endpoint-http-binding/spec.md
+    text: Typed response property references MUST support deterministic header-value
+      conversion. The policy API MUST express a redirect as fixed `302`, empty
+      body and `Location` sourced from a Response property without exposing
+      Spring response objects to the Provider Handler.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A269
+    source: specs/endpoint-http-binding/spec.md
+    text: The capability MUST NOT add a `DEFAULT|RAW` envelope switch or an implicit
+      framework response wrapper. WebMvc.fn routes MUST NOT claim
+      annotated-controller `ResponseBodyAdvice` as part of their contract. If a
+      published API requires an envelope, that envelope MUST be modeled
+      explicitly in the Endpoint Response. Arbitrary business dispatch, dynamic
+      status selection and framework-native return objects are outside the first
+      version.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A270
+    source: specs/endpoint-http-binding/spec.md
+    text: The first version MUST NOT define binding-level authentication or
+      authorization metadata. Materialized routes MUST participate in the
+      application's existing Servlet filter and Spring Security chain. Public
+      route exceptions, roles, permissions and deployment-specific security
+      policy remain application security configuration keyed by the real route.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A271
+    source: specs/endpoint-http-binding/spec.md
+    text: "The Runtime MUST provide only the minimum deterministic HTTP failure
+      mapping required by this binding:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A272
+    source: specs/endpoint-http-binding/spec.md
+    text: malformed body, missing required binding input and conversion failure ->
+      HTTP 400;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A273
+    source: specs/endpoint-http-binding/spec.md
+    text: Endpoint Request Bean Validation failure -> HTTP 400;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A274
+    source: specs/endpoint-http-binding/spec.md
+    text: activation/configuration defects -> application startup failure before
+      route activation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A275
+    source: specs/endpoint-http-binding/spec.md
+    text: Other Handler, domain and application exceptions MUST propagate to the
+      application's configured Spring MVC exception resolvers. This capability
+      MUST NOT introduce a global business exception taxonomy or
+      application-wide error envelope.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A276
+    source: specs/endpoint-http-binding/spec.md
+    text: The first version MUST NOT support multipart upload, buffered binary
+      response, download attachment or streaming materialization. It MUST NOT
+      permit Spring `MultipartFile`, `Resource`, `ResponseEntity`, servlet types
+      or other transport-native types in published Endpoint Request/Response
+      contracts.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A277
+    source: specs/endpoint-http-binding/spec.md
+    text: The HTTP runtime MAY reserve request-part resolver and response-writer
+      extension seams, but no built-in binary/content-reference lifecycle is
+      implied. A future binary capability MUST separately define
+      transport-neutral content/reference semantics, ownership, size limits,
+      repeatability, temporary storage and cleanup before multipart or streaming
+      is accepted as supported Endpoint behavior.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A278
+    source: specs/endpoint-http-binding/spec.md
+    text: One `operationName` MUST have at most one HTTP binding in the first
+      version. HTTP binding identity MUST therefore be the referenced
+      `operationName`; no separate `bindingId` is introduced. The same operation
+      MAY still have bindings of different kinds, such as one HTTP binding and
+      one future RPC binding.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A279
+    source: specs/endpoint-http-binding/spec.md
+    text: Binding planning/observation keys MUST include binding kind plus operation
+      identity so different protocol projections do not collide. Provider
+      Handler identity MUST remain independent of the number and kind of
+      selected bindings.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A280
+    source: specs/endpoint-http-binding/spec.md
+    text: This capability implements Provider HTTP binding only. A future Consumer
+      transport capability MAY publish a separate client artifact derived from
+      Provider-owned binding descriptors. That client artifact MUST depend on
+      the published contract; the contract MUST NOT depend on Spring, Feign, RPC
+      or the client artifact.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A281
+    source: specs/endpoint-http-binding/spec.md
+    text: Consumer application code MUST NOT be required to author, inject or
+      directly call a Feign/RPC transport interface. Consumer assembly MAY
+      select a client artifact and transport configuration, and that artifact
+      MUST auto-register one concrete remote `EndpointHandler<Request,
+      Response>` for the published Request. Application code MAY then invoke the
+      published Endpoint only through `Mediator.endpoints`.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A282
+    source: specs/endpoint-http-binding/spec.md
+    text: If Feign is selected as a future backend, any annotated client interface
+      MUST remain an internal implementation detail rather than a published
+      contract or Consumer application API. A future client artifact MAY instead
+      implement the remote Handler over a generic `EndpointTransportInvoker`
+      without generating a Feign interface.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A283
+    source: specs/endpoint-http-binding/spec.md
+    text: "`Mediator.endpoints` MUST continue to resolve the unique applicable
+      Handler in the current process. The remote Handler, not `ddd-core`, owns
+      service discovery, route resolution and network invocation. Consumer
+      assembly remains responsible for topology, authentication, timeout and
+      retry configuration."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A284
+    source: specs/endpoint-http-binding/spec.md
+    text: When a Consumer requires a local anti-corruption language, a local
+      Capability and adapter-owned CapabilityHandler MAY map the local
+      Capability Request/Response to the published Endpoint Request/Response and
+      invoke `Mediator.endpoints`. The CapabilityHandler does not replace the
+      transport proxy's EndpointHandler role.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A285
+    source: specs/endpoint-http-binding/spec.md
+    text: Analyzer MUST observe each typed production binding registration for a
+      selected Spring MVC route and associate it with the referenced generated
+      Endpoint operation. It MUST separately observe the binding-neutral
+      Provider Handler and its explicit local Command or Query invocation.
+      Detection MUST NOT assume that binding and Handler are in the same class
+      or file.
+    result: passed
+    reason:
+      text: 独立复核通过：跨 inputDirs 仅接受 carrierQualifiedName、tag=endpoint、operationName
+        三元组匹配的 generated metadata。
+      truncated: false
+  - id: A286
+    source: specs/endpoint-http-binding/spec.md
+    text: The typed binding registration is the concrete Actor entry identity.
+      Runtime route materialization and Analyzer projection MUST preserve its
+      stable operation-based identity. Contract declaration, Provider Handler
+      existence and local `Mediator.endpoints` dispatch without a real transport
+      binding MUST remain non-entry evidence.
+    result: passed
+    reason:
+      text: 独立复核通过：IR reconciliation 认证 binding owner 与 generated endpoint
+        metadata，缺失或冲突产生稳定诊断。
+      truncated: false
+  - id: A287
+    source: specs/endpoint-http-binding/spec.md
+    text: "For a real HTTP binding:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A288
+    source: specs/endpoint-http-binding/spec.md
+    text: operation-to-Command evidence MUST produce an Actor entry and one
+      entry-centered default Flow when otherwise eligible;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A289
+    source: specs/endpoint-http-binding/spec.md
+    text: operation-to-Query evidence MAY remain in raw Graph but MUST NOT increase
+      default Flow count;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A290
+    source: specs/endpoint-http-binding/spec.md
+    text: one binding MUST NOT be double-counted by the generic annotated Spring
+      Controller detector and the Endpoint-specific detector;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A291
+    source: specs/endpoint-http-binding/spec.md
+    text: ordinary handwritten Controllers MUST retain their existing behavior.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A292
+    source: specs/endpoint-http-binding/spec.md
+    text: Analyzer MUST validate generated Endpoint metadata and operation/type
+      provenance at compile time. It MUST emit stable Endpoint HTTP binding
+      nodes and explicit binding-to-Command / binding-to-Query relationship
+      types rather than reusing Controller identities or guessing from
+      method/class names.
+    result: passed
+    reason:
+      text: 独立复核通过：metadataOwner 在 node serialization 中被保留，并在 IR parse/merge 中参与一致性校验。
+      truncated: false
+  - id: A293
+    source: specs/endpoint-http-binding/spec.md
+    text: This capability MUST NOT add a custom manifest, Pipeline source, canonical
+      binding family, planner, renderer, generated binding source, per-operation
+      Controller or operation catalog. Existing generated `OPERATION_NAME`,
+      nested Request/Response structure and compile-time metadata are
+      sufficient; Generator, Renderer, Design JSON and Design Projection MUST
+      remain unchanged unless Build proves a target-contract impossibility and
+      returns to Shape.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A294
+    source: specs/endpoint-http-binding/spec.md
+    text: Framework-level API Payload remains retired. `NodeType.apipayload` and the
+      separator-free IR Drawing Board candidate `apipayload` MUST be removed as
+      Analyzer residue. Ordinary bindings reuse published Endpoint types;
+      exceptional transport-local DTOs remain private handwritten implementation
+      details.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A295
+    source: specs/endpoint-http-binding/spec.md
+    text: OpenAPI is neither the authoring source nor an output of this capability.
+      A future projection MAY derive OpenAPI from the same production binding
+      registry and generated Endpoint model, but MUST NOT create a second
+      unmanaged schema authority.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A296
+    source: specs/endpoint-http-binding/spec.md
+    text: Runtime production descriptors/facts MUST declare the Endpoint HTTP
+      Provider capability and its implementation/starter ownership. Analyzer
+      descriptors and Graph wire vocabulary MUST declare the typed Spring MVC
+      Endpoint detector and relationships. Flow, AgentFacts, Public Docs and the
+      repo-local authoring Skill MUST accurately project the shipped binding,
+      independent Handler, exact Response schema, security/error boundary and
+      non-goals.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A297
+    source: specs/endpoint-http-binding/spec.md
+    text: Public surfaces MUST continue to state that RPC Provider, Consumer proxy,
+      service discovery, timeout, retry, WebFlux, HTTP client generation,
+      multipart/binary/streaming and universal transport DSL behavior are not
+      provided by this capability.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A298
+    source: specs/endpoint-http-binding/spec.md
+    text: "Verification MUST include:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A299
+    source: specs/endpoint-http-binding/spec.md
+    text: focused registration/runtime tests for generated-structure coherence,
+      no-catalog diagnostics, method/path normalization, duplicate operation,
+      route collision, request mapping and response policies;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A300
+    source: specs/endpoint-http-binding/spec.md
+    text: Spring Boot starter tests for bean collection, WebMvc.fn activation,
+      application MVC converters, Mediator-only dispatch, 400 mapping,
+      security/filter participation and resolver propagation;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A301
+    source: specs/endpoint-http-binding/spec.md
+    text: a real multi-module application fixture with dependency-leaf contract,
+      adapter Handler, ordinary JSON binding, special query/redirect binding,
+      Command and Query variants;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A302
+    source: specs/endpoint-http-binding/spec.md
+    text: compiler Analyzer and IR source tests for real binding nodes, cross-file
+      Handler association, generated provenance, local-only negatives,
+      Controller coexistence and API Payload residue removal;
+    result: passed
+    reason:
+      text: 独立复核通过：EndpointHttpBindingToCommand 是真实 causal
+        root；EndpointHttpBindingToQuery 仅保留 Graph evidence，不增加 Flow。
+      truncated: false
+  - id: A303
+    source: specs/endpoint-http-binding/spec.md
+    text: Flow tests for Command root, Query non-root, stable entry identity, zero
+      false positives and zero duplicate roots;
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A304
+    source: specs/endpoint-http-binding/spec.md
+    text: Runtime/Analyzer descriptors, capability facts, Agent snapshot, Public
+      Docs, Skill, full Gradle check and repository validation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A305
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Pipeline `flow` 是面向业务因果链的默认静态投影。它从一个有生产代码或明确 relationship evidence
+      的实际入口出发，沿可验证的 Command/Event 因果关系生成入口中心的最小有向子图，帮助人类和 Agent 阅读代码结构。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A306
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Flow 只陈述静态连接与可达性，不证明业务正确性、运行时执行顺序、事务边界、消息必达、重试结果或最终业务结果。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A307
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 一张 Flow 对应一个具体真实入口及其沿默认因果关系可达的最小投影。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A308
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认产品不提供自动或独立 process projection，不把多个真实入口拼成一个业务过程。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A309
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Pipeline generator `pipeline.generator.flow`、generator id `flow` 和 output
+      id `flow` 是唯一公开 Flow 产品身份。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A310
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate` 是 Flow planning 与
+      generation 的公开 task lane。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A311
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 已退役的 `cap4k-plugin-code-analysis-flow-export`、`cap4kFlow*` tasks、plugin
+      id、alias 和第二套 output contract 不得恢复。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A312
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Flow 只消费 `AnalyzerSnapshot.graph` 及其 completeness、freshness、source
+      identity 和 diagnostics。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A313
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Drawing Board Design Projection 与 Aggregate Structure 不得补造 Flow 节点、边、入口或
+      process 关系。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A314
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: raw Graph 可以包含默认 Flow 不展示的技术事实，例如 Query、Capability、普通 `validator`
+      observation 和 read-side dependency。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A315
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`unique-validator` 等已退役 Aggregate Structure 类型不得因 Flow 重新出现。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A316
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Graph 缺失、不可解析 relationship、identity 冲突或会使投影不可信的完整性问题必须产生可操作诊断；合法零 Flow
+      与分析不完整必须可区分。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A317
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认可见节点：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A318
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 具备入口证据的实际代码节点；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A319
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Command；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 endpoint-http-binding spec、typed runtime、Spring MVC
+        starter、Analyzer 与 multi-module fixture 复核通过。
+      truncated: false
+  - id: A320
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Domain Event；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A321
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Integration Event。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A322
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认隐藏但保留在 raw Graph 中的节点：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A323
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Command Handler；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A324
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Domain Event Handler；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A325
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Integration Event Handler；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A326
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Entity Method。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A327
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Query、Capability、普通 Validator、read-side dependency 和非 Command/Event
+      技术关系不进入默认业务因果链。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A328
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 入口节点不是新增的抽象 `Entry` 节点。默认业务因果入口按触发来源解释为 Actor、Event、Time 三类：Actor
+      当前由annotated Spring HTTP Controller method与typed Spring MVC
+      `EndpointMvcBinding` Provider registration提供生产 evidence；Event当前由无上游Inbound
+      Integration Event提供生产 evidence；Time当前由Spring `@Scheduled` method提供Temporal
+      Trigger
+      evidence。RPC、GraphQL、CLI、Admin、workflow、webhook、CDC、其他消息adapter和其他scheduler
+      provider可以归入这些概念家族，但只有生产Analyzer提供真实节点和明确relationship
+      evidence后才成为当前支持入口。入口类别不是Public
+      Docs、Skill或永久手写封闭taxonomy，也不新增`entryFamily` wire。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A329
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Typed Endpoint HTTP Actor root MUST use the concrete `endpointhttpbinding`
+      node derived from binding kind plus operation identity. Contract
+      declaration、Provider Handler单独存在和local Endpoint
+      dispatch不是entry。Command-oriented binding具备Flow资格；Query-oriented
+      binding保留raw Graph evidence但不得增加默认Flow数量。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A330
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Temporal Trigger 使用实际 scheduled method identity，node type 为
+      `temporaltriggermethod`，到 Command 的明确 relationship 为
+      `TemporalTriggerMethodToCommand`。独立周期 Job 可以成为 Time root；由已有业务链登记的
+      scheduled/delayed Command、可靠 worker 到期唤醒或延迟 Event delivery 是已有因果
+      continuation 或执行策略，不创建抽象 Temporal root。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A331
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`commandsendermethod` 与 `CommandSenderMethodToCommand` 完全删除。普通未分类方法调用
+      Command 不再形成默认 Flow 入口，也不保留 raw fallback、alias 或迁移桥；未来真实入口必须新增对应 Analyzer
+      detector。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A332
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认 Flow 只处理生产 Analyzer 明确识别的 causal relationship，以及从实际入口节点到 Command 的可验证显式
+      `*ToCommand` trigger relationship。当前显式入口关系包括
+      `ControllerMethodToCommand`、`EndpointHttpBindingToCommand` 与
+      `TemporalTriggerMethodToCommand`；Inbound Integration Event 通过
+      `IntegrationEventToHandler` / `IntegrationEventHandlerToCommand`
+      进入因果链。`EndpointHttpBindingToQuery`保留在raw Graph但不是causal Flow
+      edge。relationship名称以`ToCommand`结尾不是入口资格的充分条件；source node
+      role必须与该relationship匹配，generic sender fallback不存在。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A333
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 当两个可见节点之间存在 raw causal path，且内部节点全部属于隐藏集合时，建立一条直接投影边。隐藏路径长度不设固定上限。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A334
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 例如：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A335
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 投影为：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A336
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 以及：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A337
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 完整链投影为：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A338
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Command 和 Event 是可见边界，因此路径在这些节点处分段压缩，不把整条链压成入口到最终 Command 的单边。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A339
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 路径压缩只穿过已知隐藏因果角色。遇到既不可见、也不属于隐藏集合的未知 Graph 节点时，不把它自动视为透明中间节点。新增可压缩技术角色属于
+      Analyzer contract 变化，必须由生产代码、测试和 capability propagation 明确声明。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A340
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 分叉、汇合和共享后缀必须保留。raw edge 与 projected edge 使用稳定 identity
+      去重，不依赖输入目录或遍历顺序。投影实现保留至少一条对应 raw path evidence 供诊断和测试使用；是否扩展为多路径 evidence
+      或公开 wire 字段属于独立合同变化，不在本合同中隐式增加。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A341
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 只有同时满足以下条件的节点才生成默认 Flow root：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A342
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 生产 Analyzer evidence 能证明节点属于当前支持的 Actor、Event 或 Time trigger，并具备入口资格；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A343
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 完成可见投影和隐藏路径压缩后，该节点没有上游因果边；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A344
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 该节点在最终投影中存在下游因果边。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A345
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 入度为零只是必要条件，不是入口资格的充分条件。孤立 Command/Event、因 metadata
+      缺失而失去上游的节点、仅因名称或包路径像入口的节点，都不得自动升级为 root。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A346
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 有上游因果边的中间 Integration Event、Command、Temporal Trigger method 或其他节点不得制造重复
+      Flow。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A347
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 两个各自具有真实入口证据、最终投影后均为零入度的入口必须分别生成两张 Flow，即使它们共享下游后缀。共享
+      Command、Event、节点名称或静态可达性不是自动 stitching 的充分证据。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A348
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 默认 Flow 不强制为 DAG，不拒绝合法循环，不折叠强连通分量。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A349
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 遍历使用稳定 visited node/edge 语义有限结束。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A350
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 入口可达的 visible cycle 必须保留，不能静默截断或伪装成 DAG。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A351
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 没有可证明入口的纯循环仍属于 raw Graph 事实，但不发明默认 Flow root。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A352
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 节点、边、entry 和 index 使用稳定排序；重复 raw edge、projected edge 和重复 entry identity
+      的结果必须确定。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A353
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 每个真实 root 生成：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A354
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 并统一生成：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A355
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Entry JSON 至少包含：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A356
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`entryId`；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A357
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`entryType`；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A358
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 不新增 `entryFamily`；Actor / Event / Time 是合同解释，不是新的 wire 字段；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A359
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`nodeCount`；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A360
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`edgeCount`；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A361
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: projected nodes；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A362
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: projected edges。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A363
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Index 至少包含 input identities、entry type summary、node/edge
+      summary、`flowCount` 和每张 Flow 的 JSON/Mermaid reference。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A364
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 本合同不改变既有 JSON、Mermaid、index wire shape、output root、slug 规则或 `flow`
+      identity。连续链修正与回归证据不得通过增加 process artifact、process index 或第二个 generator id
+      实现。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A365
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "Issue #55 观察到旧项目中“外部事实到达 follow-up Command 后，后续业务链出现在另一张
+      Flow”的现象。当前目标按以下规则判断："
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A366
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 如果 raw Graph evidence 连续，完整的 `Inbound Integration Event -> Command ->
+      Domain Event -> follow-up Command` 必须在同一张 entry-centered Flow 中出现，不需要
+      process stitching。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A367
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 如果拆分来自中间节点被错误提升为 root、隐藏路径未正确收缩或 relationship 丢失，应修复或以 regression fixture
+      防止回归。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A368
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 如果两个节点各自具有独立入口证据且最终投影后均为零入度，两张 Flow 是正确结果。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A369
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 多张真实入口 Flow 通过稳定 entry identity、index 和共享可见节点关联阅读；默认产品不自动推断它们属于同一个业务过程。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A370
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 本次不使用长期未更新的 `cap4k-reference-content-studio` 作为验证门槛，使用仓库内等价 focused 与
+      Gradle functional fixture 提供自动化证据，不声明该下游项目兼容性。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A371
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: causal edge 选择、节点角色、入口资格、路径压缩、root、循环、去重和 Mermaid graph topology 由 Kotlin
+      生产代码拥有。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A372
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Generator planner 把已计算结果规划为 JSON、Mermaid 和 index artifacts。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A373
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Pebble 模板只负责写出 planner 提供的内容，不决定节点、边、入口、路径压缩或 Flow 数量。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A374
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 项目用户可以启用或禁用 `flow`、配置 output root，并按模板合同调整呈现；不能注入自定义遍历、root 或 stitching 算法。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A375
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 本合同不新增 topology DSL、arbitrary user projection 或 process profile。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A376
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 需要不同图的高级消费者可以读取 raw Graph 并在 cap4k 产品边界之外生成自有视图。若未来多个项目形成稳定共同需求，应创建独立
+      Change，设计由插件拥有、命名明确、合同固定的 projection profile，而不是在模板中实现图语义。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A377
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 保留 `surface.analyzer`、`pipeline.generator.flow` 和 output `flow` 的当前
+      identity。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A378
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Analyzer Graph partition 的 Flow consumer 仍只有
+      `pipeline.generator.flow`，不得新增未实现的 process consumer 或 output。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A379
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 必须表达 Actor /
+      Event / Time trigger、annotated Controller与typed Endpoint
+      HTTP等当前实际detectors、Command-oriented Endpoint root / Query non-root、默认
+      entry-centered Flow、隐藏路径压缩、root-after-projection、cycle preservation
+      和唯一产品入口。"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A380
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Public Docs 与 Skill 必须说明连续 graph evidence 生成一张 Flow、两个真实 root 生成两张
+      Flow，以及共享后缀不触发自动 stitching。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A381
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Public Docs、Skill 和 AgentFacts 不得宣称 process projection、process output
+      或用户自定义拓扑算法已经可用。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A382
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Runtime 对本合同为 `verified-no-change` 或 `not-applicable`，除非实际实现修改了 Runtime
+      contract。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A383
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Focused tests 必须覆盖：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A384
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 完整入站 Integration Event 到 follow-up Command 的单 fixture，并断言一张 Flow；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A385
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Spring `@Scheduled` method 到 Command 的 Temporal Trigger fixture，并断言实际
+      method identity、`temporaltriggermethod`、`TemporalTriggerMethodToCommand`
+      和唯一 root；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A386
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: typed Spring MVC Endpoint binding到Command的fixture，断言operation-based
+      `endpointhttpbinding`
+      identity、`EndpointHttpBindingToCommand`与唯一root；对应Query
+      fixture只保留`EndpointHttpBindingToQuery` Graph evidence且不增加flowCount；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A387
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Endpoint contract-only、Handler-only、local dispatch和缺失registration
+      fixtures均为零Endpoint Actor Flow；WebMvc.fn binding不与annotated Controller
+      detector重复root，ordinary Controller fixture保持既有行为；
+    result: passed
+    reason:
+      text: 独立复核通过：contract-only、Handler-only、local dispatch、缺 registration 均为零
+        Endpoint Flow，且 WebMvc.fn 不重复产生 Controller root。
+      truncated: false
+  - id: A388
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 普通未分类 method 直接发送 Command 不生成
+      `commandsendermethod`、`CommandSenderMethodToCommand` 或默认 Flow；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A389
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Handler 与任意长度 Entity Method 路径隐藏和收缩；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A390
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 有上游节点不制造重复 root；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A391
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 两个真实入口和共享下游保持两张 Flow；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A392
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: fan-out、merge、visible cycle、纯循环、稳定去重和 source evidence；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A393
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 合法零 Flow 与无效 Graph evidence 的区别。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A394
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Gradle functional fixture 必须实际执行 `cap4kAnalysisPlan` 和
+      `cap4kAnalysisGenerate`，并核对：
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A395
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: entry JSON、Mermaid、index 均实际生成；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A396
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: "`entryId`、entry type、Controller/Endpoint HTTP/Temporal Trigger
+      relationship、节点/边计数和 `flowCount` 一致；"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A397
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Handler 与 Entity Method 不进入公开 Flow；
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A398
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: 不生成 process artifact、第二套 Flow output 或已退役 task。
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 pipeline-causal-flow-contract spec、Flow
+        实现、focused/functional tests 与 output contracts 复核通过。
+      truncated: false
+  - id: A399
+    source: specs/pipeline-causal-flow-contract/spec.md
+    text: Change Verify 还必须运行完整 Gradle `check`、capability facts
+      export/validate/test、Skill validator、current Runtime facts validator、PR
+      workflow tests 和 `git diff --check`。自动化证据与真实项目证据分别记录；未运行长期漂移的 downstream
+      项目必须明确声明，不得形成兼容性结论。
+    result: passed
+    reason:
+      text: Runtime 必需 checks 全部通过；外部 downstream 项目明确 NOT_PERFORMED，未形成兼容性声明。
+      truncated: false
+  - id: A400
+    source: specs/runtime-agent-api-facts/spec.md
+    text: The existing Gradle-first Agent snapshot publishes one deterministic
+      `runtime.json`. It is a static framework and engineering fact document; it
+      does not start an application, inspect Spring, query a broker, or infer
+      business truth.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A401
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Each Runtime capability fact contains stable identity, display name,
+      contract/implementation/starter ownership, framework support,
+      current-application assembly, runtime observation, verification, and
+      optional provider identities.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A402
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "The confirmed active capability identities are:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A403
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.core-dispatch`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A404
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.identifier-allocation`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A405
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.local-domain-event`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A406
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.jpa-persistence`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A407
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.reliable-command`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A408
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.reliable-event`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A409
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.integration-event-transport`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A410
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`runtime.endpoint-http-provider`."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A411
+    source: specs/runtime-agent-api-facts/spec.md
+    text: The Endpoint HTTP Provider capability MUST declare implementation
+      ownership in `ddd-endpoint-http` and starter ownership in
+      `cap4k-ddd-endpoint-http-starter`. It has no Integration Event provider
+      identity and MUST NOT be added to the Integration Event static provider
+      catalog. Its static fact MUST describe typed Spring MVC registration,
+      WebMvc.fn materialization and mediated Provider dispatch without claiming
+      application assembly, live route activation or HTTP health observation.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A412
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "The Integration Event transport capability declares exactly:"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A413
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`integration-event-transport.http`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A414
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`integration-event-transport.rabbitmq`;"
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A415
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`integration-event-transport.rocketmq`."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A416
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Each provider fact contains capability identity, implementation/starter
+      ownership, framework support, application assembly, runtime observation,
+      operational state, verification, and authoritative live state source. The
+      Gradle snapshot marks support from the landed catalog, assembly `UNKNOWN`,
+      observation `NOT_PERFORMED`, operational state `UNKNOWN`, and verification
+      `NOT_PERFORMED`. Source, configuration, dependency, or prose presence
+      never promotes those fields.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A417
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`RuntimeProviderStateRegistry` remains the sole live source. Its snapshot
+      fields stay `providerId`, `state` (`HEALTHY`, `DEGRADED`, or
+      `RECOVERING`), `observedAt`, and safe `category`."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A418
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Presence in an actually observed registry snapshot proves current
+      registration in that application. Static absence proves nothing. Absence
+      from an actually performed live snapshot means no registration was
+      observed then.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A419
+    source: specs/runtime-agent-api-facts/spec.md
+    text: No Actuator endpoint is added. A future optional endpoint must delegate
+      each read directly to `RuntimeProviderStateRegistry.snapshot()` and must
+      not cache, merge, or derive provider state.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A420
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Normalized capability and provider identities are unique. Duplicates
+      produce deterministic diagnostics and prevent a valid snapshot. Provider
+      association validation uses the complete candidate set for each normalized
+      provider identity; it never selects one duplicate by encounter order. When
+      duplicate provider facts target different capabilities, every referencing
+      capability is validated against all candidates and receives stable
+      mismatch diagnostics when the complete set cannot belong to it. Static
+      provider IDs exactly match the IDs registered by the three transport
+      starters.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A421
+    source: specs/runtime-agent-api-facts/spec.md
+    text: "`RetiredRuntimeDescriptorPolicy` continues to reject capability identity
+      segments and exact provider identities `console`, `snowflake`, `locker`,
+      and `saga`. They are never emitted as placeholders."
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A422
+    source: specs/runtime-agent-api-facts/spec.md
+    text: All Agent JSON uses the shared Jackson-only stable encoder. Catalogs,
+      ownership, and provider references are normalized and sorted before
+      hashing.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A423
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Facts contain no raw payload, execution-context payload, credential,
+      token, header, URI, broker detail, topology secret, exception message,
+      cause, or stack trace. Static output does not copy arbitrary live registry
+      categories.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A424
+    source: specs/runtime-agent-api-facts/spec.md
+    text: The manifest does not claim business intent, Bounded Context correctness,
+      domain-model correctness, strategic DDD quality, or Analyzer business
+      truth.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A425
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Manifest generation exposes the confirmed capability catalog including
+      `runtime.endpoint-http-provider`, its exact implementation/starter
+      ownership, and the unchanged exact Integration Event provider IDs.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A426
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Static assembly/state fields remain `UNKNOWN`; observation/verification
+      remain `NOT_PERFORMED`.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A427
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Registry tests prove sorted snapshots, duplicate rejection, reporter
+      fencing, close/re-register, and exact transport identities.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A428
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Duplicate capability/provider identities fail deterministically, including
+      mixed duplicates that share one normalized provider identity while
+      targeting different capabilities; reversed inputs keep diagnostics,
+      section reasons, encoded files, and snapshot hashes byte-identical.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A429
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Reordered inputs produce byte-identical `runtime.json` and snapshot hashes.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A430
+    source: specs/runtime-agent-api-facts/spec.md
+    text: JSON round-trip uses the shared Jackson codec only.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A431
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Retired tests and `scripts/validate-current-runtime-facts.ps1` prove no
+      active retired facts.
+    result: passed
+    reason:
+      text: 独立 Verifier 对照 runtime-agent-api-facts spec、生产 descriptors、facts
+        projections 与验证 guards 复核通过。
+      truncated: false
+  - id: A432
+    source: specs/runtime-agent-api-facts/spec.md
+    text: Focused tests, `./gradlew check`, `git diff --check`, and Comet Verify
+      pass; unavailable external execution is reported `NOT_PERFORMED` rather
+      than successful.
+    result: passed
+    reason:
+      text: Focused tests、完整 Gradle check、git diff check 与 Comet Runtime checks
+        均通过；外部执行按合同记录为 NOT_PERFORMED。
+      truncated: false
+builder_handoff:
+  candidate_id: b70a8da3-b8f3-4c2d-9734-50c3ca6a24b0
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:8de5ff16-bd52-4445-a8f6-6c56c7d29c5b
+  iteration: 2
+  summary:
+    text: Repaired iteration 2 Analyzer false-positive/provenance defects.
+      EndpointHandler association is now rooted at the real handle method and
+      same-class reachable helpers; unreachable maintenance methods no longer
+      create Endpoint relationships/Flow. Typed Endpoint HTTP registrations now
+      require generated OPERATION_NAME source provenance even across module
+      const inlining, and IR reconciliation authenticates the binding owner
+      against generated endpoint metadata across input directories. Preserved
+      binding metadataOwner through node serialization and made the multi-module
+      TestKit fixture deterministic with out-of-process Kotlin compiler
+      execution.
+    truncated: false
+  addressed_acceptance_ids:
+    - A9
+    - A38
+    - A42
+    - A43
+    - A90
+    - A93
+    - A188
+    - A204
+    - A244
+    - A285
+    - A286
+    - A292
+    - A302
+    - A387
+  checks:
+    - name:
+        text: Focused Analyzer/IR/functional repair tests
+        truncated: false
+      result: passed
+      note:
+        text: TemporalTriggerAnalysisTest, IrAnalysisSourceProviderTest, and
+          EndpointHttpBindingFlowFunctionalTest passed, including copied literal
+          rejection, handle-reachable helper association, generated carrier
+          authentication, real multi-module binding nodes/relationships, Command
+          Flow, and Query non-Flow.
+        truncated: false
+    - name:
+        text: Analyzer, IR source, Flow, and Gradle module suites
+        truncated: false
+      result: passed
+      note:
+        text: :cap4k-plugin-code-analysis-compiler:test
+          :cap4k-plugin-pipeline-source-ir-analysis:test
+          :cap4k-plugin-pipeline-generator-flow:test
+          :cap4k-plugin-pipeline-gradle:test completed BUILD SUCCESSFUL in 8m
+          26s.
+        truncated: false
+    - name:
+        text: Full Gradle check
+        truncated: false
+      result: passed
+      note:
+        text: gradlew check --no-daemon completed BUILD SUCCESSFUL in 7m 52s; 191
+          actionable tasks.
+        truncated: false
+    - name:
+        text: Capability contract export and validation
+        truncated: false
+      result: passed
+      note:
+        text: export-capability-contract-facts.ps1, validate-capability-contract.ps1,
+          and test-capability-contract.ps1 passed.
+        truncated: false
+    - name:
+        text: Runtime facts validation
+        truncated: false
+      result: passed
+      note:
+        text: validate-current-runtime-facts.ps1 passed.
+        truncated: false
+    - name:
+        text: Authoring Skill validation
+        truncated: false
+      result: passed
+      note:
+        text: validate-cap4k-skills.ps1 passed.
+        truncated: false
+    - name:
+        text: PR workflow guard tests
+        truncated: false
+      result: passed
+      note:
+        text: test-pr-workflow.ps1 passed.
+        truncated: false
+    - name:
+        text: Whitespace, diagnostics, vocabulary, and retired API Payload scans
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check passed; no temporary Endpoint diagnostics, no
+          current-surface ActorEndpoint compound vocabulary outside excluded
+          historical/governance paths, and no production API Payload residue.
+        truncated: false
+    - name:
+        text: External downstream reference project execution
+        truncated: false
+      result: not-run
+      note:
+        text: NOT_PERFORMED. No downstream compatibility claim; repository focused,
+          module, and real multi-module functional fixtures are the integration
+          evidence.
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: RPC consumers, Feign, gRPC, multipart, binary bodies, streaming, and
+        OpenAPI authoring remain outside this change.
+      truncated: false
+    - text: The first provider runtime dispatches synchronously through
+        Mediator.endpoints.send; no async registration variant is exposed.
+      truncated: false
+    - text: External downstream reference project execution was NOT_PERFORMED; no
+        downstream compatibility claim is made.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-16T10:32:01.100Z
+blockers: []
+verification:
+  candidate_id: b70a8da3-b8f3-4c2d-9734-50c3ca6a24b0
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:b11976a0-5375-4792-8ad8-f807dd09015f
+  iteration: 2
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: full-gradle-check
+      name:
+        text: Full Gradle verification
+        truncated: false
+      argv_display:
+        - text: check
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 568162
+    - id: capability-skill-governance-guards
+      name:
+        text: Capability facts, runtime facts, Skill, and PR workflow guards
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference = 'Stop'; &
+            .\scripts\export-capability-contract-facts.ps1; if ($LASTEXITCODE
+            -ne 0) { exit $LASTEXITCODE }; &
+            .\scripts\validate-capability-contract.ps1; if ($LASTEXITCODE -ne 0)
+            { exit $LASTEXITCODE }; & .\scripts\test-capability-contract.ps1; if
+            ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; &
+            .\scripts\validate-current-runtime-facts.ps1; if ($LASTEXITCODE -ne
+            0) { exit $LASTEXITCODE }; &
+            .\skills\scripts\validate-cap4k-skills.ps1; if ($LASTEXITCODE -ne 0)
+            { exit $LASTEXITCODE }; & .\scripts\test-pr-workflow.ps1; exit
+            $LASTEXITCODE
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 109861
+    - id: git-diff-check
+      name:
+        text: Patch whitespace validation
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 142
+    - id: retired-surface-scan
+      name:
+        text: Endpoint vocabulary and retired API Payload production scan
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference = 'Stop'; $a = rg -n --hidden --glob '!.git' --glob
+            '!.git/**' --glob '!docs/comet/archive/**' --glob
+            '!docs/comet/runtime/**' --glob '!docs/comet/changes/**' --glob
+            '!docs/comet/specs/actor-endpoint-contract/**' --glob
+            '!docs/superpowers/**' 'ActorEndpoint|Actor
+            Endpoint|actor-endpoint|actorEndpoints' . 2>$null; if ($LASTEXITCODE
+            -eq 0) { $a; exit 21 }; if ($LASTEXITCODE -ne 1) { exit
+            $LASTEXITCODE }; $p = rg -n --hidden --glob '!.git' --glob
+            '!.git/**' --glob '!docs/**' --glob '!build/**' --glob
+            '!**/build/**'
+            'NodeType\.apipayload|SemanticValueRole\.API_PAYLOAD|designApiPayload|api_payload'
+            . 2>$null; if ($LASTEXITCODE -eq 0) { $p; exit 22 }; if
+            ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }; Write-Host
+            'CURRENT_SURFACE_SCANS_OK'
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 738
+  summary:
+    text: Independent iteration-2 semantic verification passed. The verifier read
+      the active brief and all five target specs, inspected production
+      implementation, tests, public docs, facts/Skill projections and git diff,
+      and independently reran the compiler, IR-source and real multi-module
+      functional fixtures. It confirmed handle-rooted reachable-helper
+      association, copied-literal rejection, cross-module generated
+      OPERATION_NAME provenance, cross-input generated metadata authentication,
+      metadataOwner preservation, all non-entry negatives,
+      Command-root/Query-Graph-only behavior, and the typed Spring MVC runtime
+      boundaries. Runtime-required checks all passed. passed=432, failed=0,
+      blocked=0, total=432; every A1..A432 appears exactly once.
+    truncated: false
+  risks:
+    - text: External downstream reference project execution was NOT_PERFORMED; no
+        compatibility claim is made.
+      truncated: false
+    - text: Operation-name provenance for const inlining depends on compiler source
+        ranges plus generated metadata; copied-literal and real multi-module
+        fixtures cover the current Kotlin compiler contract.
+      truncated: false
+    - text: This first version is Spring MVC Provider only and synchronous through
+        Mediator.endpoints.send; RPC, Consumer, WebFlux, multipart, binary,
+        streaming, and OpenAPI authoring remain explicit non-goals.
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-08-16T10:53:13.235Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: fail
+    unresolved_ids:
+      - A9
+      - A38
+      - A42
+      - A43
+      - A90
+      - A93
+      - A188
+      - A204
+      - A244
+      - A285
+      - A286
+      - A292
+      - A302
+      - A387
+    summary:
+      text: Independent verification found the runtime binding, Spring MVC
+        materialization, Mediator-only dispatch, mapping/status/error/filter
+        behavior, checked-in Handler separation, multi-module fixture, API
+        Payload retirement, and documentation/facts projections sound. The
+        candidate fails because Analyzer association is class-wide rather than
+        rooted at EndpointHandler.handle, and because copied operation-name
+        literals are accepted as generated provenance.
+      truncated: false
+    completed_at: 2026-08-16T07:42:53.882Z
+  - goal_cycle: 1
+    iteration: 2
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: Independent iteration-2 semantic verification passed. The verifier read
+        the active brief and all five target specs, inspected production
+        implementation, tests, public docs, facts/Skill projections and git
+        diff, and independently reran the compiler, IR-source and real
+        multi-module functional fixtures. It confirmed handle-rooted
+        reachable-helper association, copied-literal rejection, cross-module
+        generated OPERATION_NAME provenance, cross-input generated metadata
+        authentication, metadataOwner preservation, all non-entry negatives,
+        Command-root/Query-Graph-only behavior, and the typed Spring MVC runtime
+        boundaries. Runtime-required checks all passed. passed=432, failed=0,
+        blocked=0, total=432; every A1..A432 appears exactly once.
+      truncated: false
+    completed_at: 2026-08-16T10:53:13.235Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-15T14:18:20.464Z

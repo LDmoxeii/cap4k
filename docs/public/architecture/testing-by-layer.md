@@ -1,8 +1,8 @@
 # Testing By Layer
 
-Testing by layer 的目标是让测试责任和 Clean Architecture 边界一致。cap4k 项目中，generated skeleton 提供稳定入口和目录 shape；测试重点应该落在 handwritten business behavior、application orchestration、adapter protocol conversion 和 start runtime wiring 上。
+Testing by layer 的目标是让测试责任和 Clean Architecture 边界一致。cap4k 项目中，generated contract 与 framework runtime 提供稳定边界；测试重点应该落在 handwritten business behavior、application orchestration、adapter protocol conversion 和 start runtime wiring 上。
 
-测试不是只证明文件存在。一个 Command、Aggregate、Subscriber 或 Controller 的骨架可以由 generation 提供，但业务状态如何推进、何时拒绝、如何 no-op、如何恢复、如何转换外部协议，仍需要用测试或审查证据覆盖。
+测试不是只证明文件存在。一个 Command、Aggregate、Subscriber 或 Endpoint published contract 可以由 generation 提供，但业务状态如何推进、何时拒绝、如何 no-op、如何恢复、如何转换外部协议，仍需要用测试或审查证据覆盖。Controller、Endpoint Provider Handler 与 transport binding 不由 framework generator 代写这些决策。
 
 ## Domain Layer Tests
 
@@ -22,7 +22,7 @@ Application layer tests 应覆盖用例编排和提交边界。Command tests 应
 
 ## Adapter Layer Tests
 
-Adapter layer tests 应覆盖 protocol conversion。Controller、adapter-private DTO、query adapter、capability-handler 和 persistence adapter 的测试重点，是外部协议如何映射到 application contract，以及 application result 如何转换成外部 response。对 inbound Integration Event，HTTP/message consumption、parse/register/dispatch 可以通过 framework/runtime smoke 或 adapter module wiring evidence 覆盖；业务项目的 application inbound subscriber 应作为 application-layer reaction to typed inbound Integration Event 测试，重点覆盖幂等、语义翻译和 Command/application delegation。
+Adapter layer tests 应覆盖 protocol conversion。Controller、Endpoint Provider Handler、typed binding、adapter-private DTO、query adapter、capability-handler 和 persistence adapter 的测试重点，是外部协议如何映射到 published/application contract，以及 application result 如何转换成外部 response。Endpoint HTTP tests 还应覆盖 whole-body codec、显式 path/query/header mapping、status/header policy、400 binding failures，以及 route 只通过 `Mediator.endpoints` dispatch。对 inbound Integration Event，HTTP/message consumption、parse/register/dispatch 可以通过 framework/runtime smoke 或 adapter module wiring evidence 覆盖；业务项目的 application inbound subscriber 应作为 application-layer reaction to typed inbound Integration Event 测试，重点覆盖幂等、语义翻译和 Command/application delegation。
 
 参考项目锚点包括 `ContentController`、`ReviewController`、`QueryController`、`GetContentDetailQryHandler`、`GetMediaProcessingStatusQryHandler`、`TriggerMediaProcessingHandler`、`GetMediaProcessingStatusHandler` 和 `MediaProcessingCallbackIntegrationEventSmokeTest`。其中 smoke test 可以证明 inbound HTTP consumption wiring 可达，但不替代 domain/application 的 focused tests。
 

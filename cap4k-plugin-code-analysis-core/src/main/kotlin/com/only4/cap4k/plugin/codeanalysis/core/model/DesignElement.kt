@@ -12,6 +12,7 @@ data class DesignElement(
     val artifacts: List<DesignArtifact> = emptyList(),
     val fields: List<DesignField> = emptyList(),
     val resultFields: List<DesignField> = emptyList(),
+    val carrierQualifiedName: String = "",
 )
 
 data class DesignArtifact(

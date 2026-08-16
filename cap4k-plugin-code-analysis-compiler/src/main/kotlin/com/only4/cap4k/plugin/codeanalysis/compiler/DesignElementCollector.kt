@@ -130,6 +130,7 @@ class DesignElementCollector(
                 artifacts = listOfNotNull(artifact),
                 fields = fields,
                 resultFields = resultFields,
+                carrierQualifiedName = className.takeIf { family == "endpoint" }.orEmpty(),
             )
         )
     }
@@ -207,6 +208,7 @@ class DesignElementCollector(
         mergeString("description", description, element.description) { description = it }
         mergeString("eventName", eventName, element.eventName) { eventName = it }
         mergeString("operationName", operationName, element.operationName) { operationName = it }
+        mergeString("carrierQualifiedName", carrierQualifiedName, element.carrierQualifiedName) { carrierQualifiedName = it }
         mergeStringList("aggregates", aggregates, element.aggregates) { aggregates = it }
         mergeBoolean("persist", persist, element.persist) { persist = it }
     }
@@ -791,6 +793,7 @@ class DesignElementCollector(
         var aggregates: List<String>,
         var eventName: String,
         var operationName: String,
+        var carrierQualifiedName: String,
         var persist: Boolean?,
         val artifacts: MutableList<DesignArtifact>,
         var fields: List<DesignField>,
@@ -805,6 +808,7 @@ class DesignElementCollector(
                 aggregates = aggregates,
                 eventName = eventName,
                 operationName = operationName,
+                carrierQualifiedName = carrierQualifiedName,
                 persist = persist,
                 artifacts = artifacts.toList(),
                 fields = fields,
@@ -821,6 +825,7 @@ class DesignElementCollector(
                     aggregates = element.aggregates,
                     eventName = element.eventName,
                     operationName = element.operationName,
+                    carrierQualifiedName = element.carrierQualifiedName,
                     persist = element.persist,
                     artifacts = element.artifacts.toMutableList(),
                     fields = element.fields,

@@ -3,7 +3,7 @@ package com.only4.cap4k.plugin.pipeline.core
 import com.only4.cap4k.plugin.pipeline.api.AnalysisEdgeModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisGraphModel
 import com.only4.cap4k.plugin.pipeline.api.AnalysisNodeModel
-import com.only4.cap4k.plugin.pipeline.api.ActorEndpointModel
+import com.only4.cap4k.plugin.pipeline.api.EndpointModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateElementModel
 import com.only4.cap4k.plugin.pipeline.api.AggregateMetadataRecord
 import com.only4.cap4k.plugin.pipeline.api.AggregateCreationGraphModel
@@ -326,9 +326,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             }
             .values
             .toList()
-        val actorEndpoints = designBlocks.filter { it.tag == "endpoint" }.map { block ->
+        val endpoints = designBlocks.filter { it.tag == "endpoint" }.map { block ->
             val request = requireNotNull(block.request) { "endpoint ${block.name} is missing its canonical request" }
-            ActorEndpointModel(
+            EndpointModel(
                 operationName = block.operationName,
                 packageName = request.identity.packageName,
                 typeName = request.identity.typePath.first(),
@@ -338,7 +338,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                 response = requireNotNull(block.response) { "endpoint ${block.name} is missing its canonical response" },
             )
         }
-        actorEndpoints.groupBy { it.operationName }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { duplicate ->
+        endpoints.groupBy { it.operationName }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { duplicate ->
             throw IllegalArgumentException("duplicate endpoint operationName: $duplicate")
         }
         val domainEvents = designBlocks
@@ -543,7 +543,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         return CanonicalAssemblyResult(
             model = CanonicalModel(
                 designBlocks = designBlocks,
-                actorEndpoints = actorEndpoints,
+                endpoints = endpoints,
                 domainEvents = domainEvents,
                 schemas = aggregateModels.map { it.first },
                 entities = entities,

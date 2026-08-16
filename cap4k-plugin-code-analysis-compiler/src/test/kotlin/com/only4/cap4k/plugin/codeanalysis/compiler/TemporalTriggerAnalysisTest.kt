@@ -16,6 +16,10 @@ class TemporalTriggerAnalysisTest {
         assertTrue("temporaltriggermethod" in nodeTypes)
         assertFalse("commandsendermethod" in nodeTypes)
         assertTrue("TemporalTriggerMethodToCommand" in relationshipTypes)
+        assertTrue("endpointhttpbinding" in nodeTypes)
+        assertFalse("apipayload" in nodeTypes)
+        assertTrue("EndpointHttpBindingToCommand" in relationshipTypes)
+        assertTrue("EndpointHttpBindingToQuery" in relationshipTypes)
         assertFalse("CommandSenderMethodToCommand" in relationshipTypes)
     }
 
@@ -122,6 +126,147 @@ class TemporalTriggerAnalysisTest {
         assertFalse(rels.contains("CommandSenderMethodToCommand"), rels)
         assertFalse(rels.contains("demo.InternalHelper::refresh"), rels)
     }
+
+    @Test
+    fun `typed endpoint mvc binding associates cross file handler command evidence`() {
+        val outputDir = compileWithCap4kPlugin(endpointHttpSources())
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        val rels = outputDir.resolve("rels.json").toFile().readText()
+
+        assertTrue(nodes.contains("\"id\":\"endpoint-http:booking.create\""), nodes)
+        assertTrue(nodes.contains("\"type\":\"endpointhttpbinding\""), nodes)
+        assertTrue(nodes.contains("booking.create [POST /api/bookings]"), nodes)
+        assertTrue(rels.contains("\"type\":\"EndpointHttpBindingToCommand\""), rels)
+        assertTrue(rels.contains("\"toId\":\"demo.CreateBookingCmd\""), rels)
+        assertFalse(nodes.contains("apipayload"), nodes)
+    }
+
+    @Test
+    fun `endpoint handler association follows handle helpers and ignores unreachable methods`() {
+        val outputDir = compileWithCap4kPlugin(
+            endpointHttpSources(
+                handleExpression = "dispatch(request)",
+                extraHandlerMembers = """
+                    private fun dispatch(request: CreateBookingEndpoint.Request) =
+                        commands.send(CreateBookingCmd(request.id))
+
+                    private fun unusedMaintenance(request: CreateBookingEndpoint.Request) =
+                        commands.send(UnusedBookingCmd(request.id))
+                """.trimIndent(),
+            )
+        )
+        val rels = outputDir.resolve("rels.json").toFile().readText()
+
+        assertTrue(
+            rels.contains(
+                "{\"fromId\":\"endpoint-http:booking.create\",\"toId\":\"demo.CreateBookingCmd\",\"type\":\"EndpointHttpBindingToCommand\"}"
+            ),
+            rels,
+        )
+        assertFalse(
+            rels.contains(
+                "{\"fromId\":\"endpoint-http:booking.create\",\"toId\":\"demo.UnusedBookingCmd\",\"type\":\"EndpointHttpBindingToCommand\"}"
+            ),
+            rels,
+        )
+    }
+
+    @Test
+    fun `copied endpoint operation name literal does not establish binding provenance`() {
+        val outputDir = compileWithCap4kPlugin(
+            endpointHttpSources(operationNameExpression = "\"booking.create\"")
+        )
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        val rels = outputDir.resolve("rels.json").toFile().readText()
+
+        assertFalse(nodes.contains("\"id\":\"endpoint-http:booking.create\""), nodes)
+        assertFalse(rels.contains("EndpointHttpBindingToCommand"), rels)
+    }
+
+    private fun endpointHttpSources(
+        operationNameExpression: String = "CreateBookingEndpoint.OPERATION_NAME",
+        handleExpression: String = "commands.send(CreateBookingCmd(request.id))",
+        extraHandlerMembers: String = "",
+    ): List<SourceFile> = listOf(
+        SourceFile.kotlin("Metadata.kt", """
+            package com.only4.cap4k.analysis.metadata
+            @Target(AnnotationTarget.CLASS)
+            @Retention(AnnotationRetention.BINARY)
+            annotation class DesignBlockMetadata(
+                val tag: String, val name: String, val packageName: String,
+                val operationName: String, val family: String,
+            )
+        """.trimIndent()),
+        SourceFile.kotlin("EndpointContract.kt", """
+            package com.only4.cap4k.contract
+            interface EndpointRequest<R : Any>
+        """.trimIndent()),
+        SourceFile.kotlin("EndpointHandler.kt", """
+            package com.only4.cap4k.ddd.core.application.endpoint
+            import com.only4.cap4k.contract.EndpointRequest
+            fun interface EndpointHandler<REQUEST : EndpointRequest<RESPONSE>, RESPONSE : Any> {
+                fun handle(request: REQUEST): RESPONSE
+            }
+        """.trimIndent()),
+        SourceFile.kotlin("Command.kt", """
+            package com.only4.cap4k.ddd.core.application.command
+            interface Command<R : Any>
+            interface CommandSupervisor { fun <R : Any> send(command: Command<R>): R }
+        """.trimIndent()),
+        SourceFile.kotlin("Http.kt", """
+            package org.springframework.http
+            enum class HttpMethod { GET, POST }
+        """.trimIndent()),
+        SourceFile.kotlin("Binding.kt", """
+            package com.only4.cap4k.ddd.endpoint.http
+            import com.only4.cap4k.contract.EndpointRequest
+            import org.springframework.http.HttpMethod
+            import kotlin.reflect.KClass
+            class EndpointMvcBinding<RQ : EndpointRequest<RS>, RS : Any> private constructor() {
+                companion object {
+                    fun <RQ : EndpointRequest<RS>, RS : Any> json(
+                        operationName: String, requestType: KClass<RQ>, responseType: KClass<RS>,
+                        method: HttpMethod, path: String,
+                    ): EndpointMvcBinding<RQ, RS> = EndpointMvcBinding()
+                }
+            }
+        """.trimIndent()),
+        SourceFile.kotlin("Contract.kt", """
+            package demo
+            import com.only4.cap4k.analysis.metadata.DesignBlockMetadata
+            import com.only4.cap4k.contract.EndpointRequest
+            @DesignBlockMetadata(tag = "endpoint", name = "CreateBooking", packageName = "booking", operationName = "booking.create", family = "endpoint")
+            object CreateBookingEndpoint {
+                const val OPERATION_NAME = "booking.create"
+                data class Request(val id: Long) : EndpointRequest<Response>
+                data class Response(val id: Long)
+            }
+            class CreateBookingCmd(val id: Long) : com.only4.cap4k.ddd.core.application.command.Command<CreateBookingEndpoint.Response>
+            class UnusedBookingCmd(val id: Long) : com.only4.cap4k.ddd.core.application.command.Command<CreateBookingEndpoint.Response>
+        """.trimIndent()),
+        SourceFile.kotlin("Handler.kt", """
+            package demo
+            import com.only4.cap4k.ddd.core.application.command.CommandSupervisor
+            import com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler
+            class BookingHandler(private val commands: CommandSupervisor) : EndpointHandler<CreateBookingEndpoint.Request, CreateBookingEndpoint.Response> {
+                override fun handle(request: CreateBookingEndpoint.Request) = $handleExpression
+
+                $extraHandlerMembers
+            }
+        """.trimIndent()),
+        SourceFile.kotlin("Registration.kt", """
+            package demo
+            import com.only4.cap4k.ddd.endpoint.http.EndpointMvcBinding
+            import org.springframework.http.HttpMethod
+            fun binding() = EndpointMvcBinding.json(
+                operationName = $operationNameExpression,
+                requestType = CreateBookingEndpoint.Request::class,
+                responseType = CreateBookingEndpoint.Response::class,
+                method = HttpMethod.POST,
+                path = "/api/bookings",
+            )
+        """.trimIndent()),
+    )
 
     private fun applicationContractSources(applicationSource: String): List<SourceFile> = listOf(
         SourceFile.kotlin(

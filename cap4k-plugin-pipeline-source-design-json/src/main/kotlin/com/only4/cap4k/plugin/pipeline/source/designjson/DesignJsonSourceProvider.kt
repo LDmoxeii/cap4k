@@ -33,7 +33,7 @@ class DesignJsonSourceProvider : SourceProvider {
             "Command",
             "Query",
             "Capability",
-            "Actor Endpoint",
+            "Endpoint",
             "Domain Event",
             "Integration Event",
             "Domain Service",
