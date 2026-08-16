@@ -110,7 +110,7 @@ class TemporalTriggerFlowTest {
     }
 
     @Test
-    fun `matching future adapter evidence remains open without an entry allowlist`() {
+    fun `unknown adapter relationship does not become a flow trigger by suffix`() {
         val plan = plan(
             nodes = listOf(
                 node("demo.OrderCli::submit", "climethod"),
@@ -121,10 +121,27 @@ class TemporalTriggerFlowTest {
             ),
         )
 
-        assertEquals(3, plan.size)
-        val entryJson = plan.single { it.templateId == "flow/entry.json.peb" }.context.getValue("jsonContent") as String
-        assertTrue(entryJson.contains("demo.OrderCli::submit"), entryJson)
-        assertTrue(entryJson.contains("CliMethodToCommand"), entryJson)
+        assertEquals(listOf("flow/index.json.peb"), plan.map { it.templateId })
+        assertTrue((plan.single().context.getValue("jsonContent") as String).contains("\"flowCount\": 0"))
+    }
+
+    @Test
+    fun `endpoint http command binding is one actor root while query binding is graph only`() {
+        val commandPlan = plan(
+            nodes = listOf(node("endpoint-http:booking.create", "endpointhttpbinding"), node("demo.CreateBookingCmd", "command")),
+            edges = listOf(edge("endpoint-http:booking.create", "demo.CreateBookingCmd", "EndpointHttpBindingToCommand")),
+        )
+        assertEquals(3, commandPlan.size)
+        val commandIndex = commandPlan.single { it.templateId == "flow/index.json.peb" }.context.getValue("jsonContent") as String
+        assertTrue(commandIndex.contains("\"flowCount\": 1"), commandIndex)
+        assertTrue(commandIndex.contains("\"endpointhttpbinding\": 1"), commandIndex)
+
+        val queryPlan = plan(
+            nodes = listOf(node("endpoint-http:booking.read", "endpointhttpbinding"), node("demo.ReadBookingQuery", "query")),
+            edges = listOf(edge("endpoint-http:booking.read", "demo.ReadBookingQuery", "EndpointHttpBindingToQuery")),
+        )
+        assertEquals(listOf("flow/index.json.peb"), queryPlan.map { it.templateId })
+        assertTrue((queryPlan.single().context.getValue("jsonContent") as String).contains("\"flowCount\": 0"))
     }
 
     private fun plan(

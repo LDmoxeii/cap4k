@@ -11,7 +11,9 @@ import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrFileEntry
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.PsiIrFileEntry
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
 import org.jetbrains.kotlin.ir.expressions.*
@@ -41,11 +43,15 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
         val controllerRoots = ControllerCallGraphBuilder(options).apply {
             moduleFragment.files.forEach { it.acceptVoid(this) }
         }.buildRootsByMethod()
+        val endpointHandlerMethods = EndpointHandlerCallGraphBuilder().apply {
+            moduleFragment.files.forEach { it.acceptVoid(this) }
+        }.buildReachableMethods()
 
-        val collector = GraphCollector(options, index, controllerRoots)
+        val collector = GraphCollector(options, index, controllerRoots, endpointHandlerMethods)
         moduleFragment.files.forEach { file ->
             file.accept(collector, null)
         }
+        collector.completeEndpointHttpEvidence()
 
         val fallback = options.outputDir
         val filePaths = moduleFragment.files.map { it.fileEntry.name }
@@ -101,6 +107,21 @@ private data class EntityMethodRef(
     val aggregateRootFq: String,
     val methodId: String,
     val displayName: String,
+)
+
+private data class EndpointHttpBindingEvidence(
+    val operationName: String,
+    val operationOwnerFq: String,
+    val requestFq: String,
+    val method: String,
+    val path: String,
+) {
+    val nodeId: String get() = "endpoint-http:$operationName"
+}
+
+private data class EndpointHandlerInvocation(
+    val kind: ApplicationCallKind,
+    val targetFq: String,
 )
 
 private data class ClassIndex(
@@ -196,6 +217,65 @@ private class ControllerCallGraphBuilder(
     }
 }
 
+private class EndpointHandlerCallGraphBuilder : IrVisitorVoid() {
+    private val endpointHandlerFq = FqName("com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler")
+    private val handlerClasses = mutableSetOf<String>()
+    private val handleRoots = mutableSetOf<IrFunction>()
+    private val methodCalls = mutableMapOf<IrFunction, MutableSet<IrFunction>>()
+
+    override fun visitElement(element: IrElement) {
+        element.acceptChildrenVoid(this)
+    }
+
+    override fun visitClass(declaration: IrClass) {
+        val fqcn = declaration.fqNameWhenAvailable?.asString()
+        if (fqcn != null && declaration.isOrImplements(endpointHandlerFq)) handlerClasses.add(fqcn)
+        super.visitClass(declaration)
+    }
+
+    override fun visitFunction(declaration: IrFunction) {
+        val parentClass = declaration.parent as? IrClass ?: return super.visitFunction(declaration)
+        val parentFqcn = parentClass.fqNameWhenAvailable?.asString() ?: return super.visitFunction(declaration)
+        if (parentFqcn !in handlerClasses) return super.visitFunction(declaration)
+
+        val implementsHandle = declaration is IrSimpleFunction &&
+            declaration.name.asString() == "handle" && declaration.overriddenSymbols.any { symbol ->
+            val ownerClass = symbol.owner.parent as? IrClass
+            ownerClass?.isOrImplements(endpointHandlerFq) == true
+        }
+        if (implementsHandle) handleRoots.add(declaration)
+
+        declaration.body?.acceptVoid(object : IrVisitorVoid() {
+            override fun visitElement(element: IrElement) {
+                element.acceptChildrenVoid(this)
+            }
+
+            override fun visitCall(expression: IrCall) {
+                val targetClass = expression.symbol.owner.parent as? IrClass
+                val targetFq = targetClass?.fqNameWhenAvailable?.asString()
+                if (targetFq == parentFqcn) {
+                    methodCalls.getOrPut(declaration) { mutableSetOf() }
+                        .add(expression.symbol.owner)
+                }
+                super.visitCall(expression)
+            }
+        })
+        super.visitFunction(declaration)
+    }
+
+    fun buildReachableMethods(): Set<IrFunction> {
+        val reachable = linkedSetOf<IrFunction>()
+        val stack = ArrayDeque<IrFunction>()
+        handleRoots.forEach(stack::addLast)
+        while (stack.isNotEmpty()) {
+            val current = stack.removeLast()
+            if (!reachable.add(current)) continue
+            methodCalls[current].orEmpty().forEach(stack::addLast)
+        }
+        return reachable
+    }
+}
+
 @OptIn(UnsafeDuringIrConstructionAPI::class)
 private class ClassIndexBuilder(
     private val options: Cap4kOptions,
@@ -271,6 +351,7 @@ private class GraphCollector(
     private val options: Cap4kOptions,
     private val index: ClassIndex,
     private val controllerRootsByMethod: Map<String, Set<String>>,
+    private val endpointHandlerReachableMethods: Set<IrFunction>,
 ) : IrElementTransformerVoidWithContext() {
     private val nodes = LinkedHashMap<String, Node>()
     private val rels = LinkedHashSet<Relationship>()
@@ -283,6 +364,9 @@ private class GraphCollector(
     private val aggregateRootsByName: MutableMap<String, String> = index.aggregateRootsByName.toMutableMap()
     private val domainEventCache: MutableMap<String, Boolean> = mutableMapOf()
     private val integrationEventCache: MutableMap<String, Boolean> = mutableMapOf()
+    private val endpointHttpBindings = linkedMapOf<String, EndpointHttpBindingEvidence>()
+    private val endpointRequestByHandlerClass = mutableMapOf<String, String>()
+    private val endpointHandlerInvocationsByRequest = mutableMapOf<String, MutableList<EndpointHandlerInvocation>>()
 
     private val restController = FqName("org.springframework.web.bind.annotation.RestController")
     private val scheduled = FqName("org.springframework.scheduling.annotation.Scheduled")
@@ -306,6 +390,9 @@ private class GraphCollector(
     private val commandHandlerFq = FqName("com.only4.cap4k.ddd.core.application.command.CommandHandler")
     private val queryHandlerFq = FqName("com.only4.cap4k.ddd.core.application.query.QueryHandler")
     private val capabilityHandlerFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilityHandler")
+    private val endpointHandlerFq = FqName("com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler")
+    private val endpointRequestFq = FqName("com.only4.cap4k.contract.EndpointRequest")
+    private val endpointMvcBindingFq = "com.only4.cap4k.ddd.endpoint.http.EndpointMvcBinding"
     private val commandSupervisorFq = FqName("com.only4.cap4k.ddd.core.application.command.CommandSupervisor")
     private val querySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.query.QuerySupervisor")
     private val capabilitySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor")
@@ -323,7 +410,6 @@ private class GraphCollector(
     override fun visitClassNew(declaration: IrClass): IrStatement {
         val fqcn = declaration.fqNameWhenAvailable?.asString() ?: return super.visitClassNew(declaration)
         val classDisplayName = declaration.nestedSimpleName()
-
         if (index.domainEventClasses.contains(fqcn) || declaration.hasAnnotation(domainEventAnn)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.domainevent))
             requireDesignBlockMetadata(fqcn, declaration)
@@ -370,6 +456,14 @@ private class GraphCollector(
             requireDesignBlockMetadata(fqcn, declaration)
         }
 
+        if (declaration.isOrImplements(endpointHandlerFq)) {
+            val endpointRequestClass = resolveRequestClassFromHandlerInterface(declaration, endpointHandlerFq)
+            val endpointRequestFq = endpointRequestClass?.fqNameWhenAvailable?.asString()
+            if (endpointRequestFq != null) {
+                endpointRequestByHandlerClass[fqcn] = endpointRequestFq
+            }
+        }
+
         val implementsCommandHandler = declaration.isOrImplements(commandHandlerFq)
         val implementsQueryHandler = declaration.isOrImplements(queryHandlerFq)
         val implementsCapabilityHandler = declaration.isOrImplements(capabilityHandlerFq)
@@ -414,6 +508,7 @@ private class GraphCollector(
         val methodName = declaration.name.asString()
         val parentFqcn = parentClass?.fqNameWhenAvailable?.asString()
         val methodId = if (parentFqcn != null) "$parentFqcn::$methodName" else methodName
+        val isReachableEndpointHandlerMethod = declaration in endpointHandlerReachableMethods
         val methodDisplayName = buildMethodDisplayName(parentClass, methodName)
         val entityMethodRef = resolveEntityMethodRef(declaration)
 
@@ -491,6 +586,7 @@ private class GraphCollector(
             }
 
             override fun visitCall(expression: IrCall) {
+                collectEndpointHttpBinding(expression)
                 val calleeName = expression.symbol.owner.name.asString()
                 val ownerClass = expression.symbol.owner.parent as? IrClass
                 val receiverClass = expression.dispatchReceiverClass()
@@ -531,6 +627,17 @@ private class GraphCollector(
                         val requestDisplayName = requestClass.nestedSimpleName()
                         addNode(Node(id = requestFq, name = requestDisplayName, fullName = requestFq, type = nodeType))
                         requireDesignBlockMetadata(requestFq, requestClass)
+
+                        val endpointRequestFq = parentFqcn?.let(endpointRequestByHandlerClass::get)
+                        if (
+                            endpointRequestFq != null &&
+                            isReachableEndpointHandlerMethod &&
+                            applicationCallKind != ApplicationCallKind.CAPABILITY
+                        ) {
+                            endpointHandlerInvocationsByRequest
+                                .getOrPut(endpointRequestFq) { mutableListOf() }
+                                .add(EndpointHandlerInvocation(applicationCallKind, requestFq))
+                        }
 
                         val ctx = functionContext.lastOrNull()
                         val senderId = methodId
@@ -659,6 +766,72 @@ private class GraphCollector(
         functionContext.removeLastOrNull()
 
         return super.visitFunctionNew(declaration)
+    }
+
+    private fun collectEndpointHttpBinding(expression: IrCall) {
+        val callee = expression.symbol.owner
+        if (callee.name.asString() !in setOf("json", "special")) return
+        val ownerClass = callee.parent as? IrClass ?: return
+        if (!ownerClass.isNestedWithin(endpointMvcBindingFq)) return
+
+        val requestClass = expression.valueArgumentOrNull(1).classReferenceClass() ?: return
+        val responseClass = expression.valueArgumentOrNull(2).classReferenceClass() ?: return
+        val requestFq = requestClass.fqNameWhenAvailable?.asString() ?: return
+        val operationOwner = requestClass.parent as? IrClass ?: return
+        val operationOwnerFq = operationOwner.fqNameWhenAvailable?.asString() ?: return
+        if ((responseClass.parent as? IrClass)?.fqNameWhenAvailable?.asString() != operationOwnerFq) return
+        if (requestClass.name.asString() != "Request" || responseClass.name.asString() != "Response") return
+
+        val metadata = operationOwner.annotations.firstOrNull {
+            it.symbol.owner.parentAsClass.fqNameWhenAvailable == designBlockMetadataAnn
+        }
+        if (metadata != null) {
+            val endpointResponseType = resolveTypeArgumentInHierarchyFromClass(requestClass, endpointRequestFq, 0)
+                as? IrSimpleType ?: return
+            val endpointResponseClass = endpointResponseType.classifier?.owner as? IrClass ?: return
+            if (endpointResponseClass != responseClass) return
+        }
+
+        val operationArgument = expression.valueArgumentOrNull(0)
+        val operationName = metadata?.getStringArg("operationName")?.trim()?.takeIf(String::isNotEmpty)
+            ?: operationArgument.stringConstant()?.trim()?.takeIf(String::isNotEmpty)
+            ?: return
+        if (metadata != null && metadata.getStringArg("tag")?.trim() != "endpoint") return
+        if (!operationArgument.referencesOperationNameOn(operationOwner, operationName, currentFile?.fileEntry, expression)) return
+
+        val method = expression.valueArgumentOrNull(3).enumEntryName() ?: return
+        val path = expression.valueArgumentOrNull(4).stringConstant() ?: return
+        if (!path.startsWith('/')) return
+
+        endpointHttpBindings.putIfAbsent(
+            operationName,
+            EndpointHttpBindingEvidence(operationName, operationOwnerFq, requestFq, method.uppercase(), path),
+        )
+    }
+
+    fun completeEndpointHttpEvidence() {
+        endpointHttpBindings.values.sortedBy(EndpointHttpBindingEvidence::operationName).forEach { binding ->
+            val displayName = "${binding.operationName} [${binding.method} ${binding.path}]"
+            addNode(
+                Node(
+                    binding.nodeId,
+                    displayName,
+                    binding.nodeId,
+                    NodeType.endpointhttpbinding,
+                    metadataOwner = binding.operationOwnerFq,
+                )
+            )
+            endpointHandlerInvocationsByRequest[binding.requestFq].orEmpty()
+                .distinct()
+                .forEach { invocation ->
+                    val relationshipType = when (invocation.kind) {
+                        ApplicationCallKind.COMMAND -> RelationshipType.EndpointHttpBindingToCommand
+                        ApplicationCallKind.QUERY -> RelationshipType.EndpointHttpBindingToQuery
+                        ApplicationCallKind.CAPABILITY -> return@forEach
+                    }
+                    addRel(Relationship(binding.nodeId, invocation.targetFq, relationshipType))
+                }
+        }
     }
 
     private fun resolveRequestClassFromHandlerInterface(declaration: IrClass, handlerFq: FqName): IrClass? {
@@ -866,8 +1039,8 @@ private class GraphCollector(
 
     fun nodesAsSequence(): Sequence<Node> = nodes.values.asSequence().map { node ->
         node.copy(
-            missingMetadata = missingMetadataByNodeId[node.id].orEmpty().toList(),
-            metadataOwner = metadataOwnerByNodeId[node.id],
+            missingMetadata = (node.missingMetadata + missingMetadataByNodeId[node.id].orEmpty()).distinct(),
+            metadataOwner = metadataOwnerByNodeId[node.id] ?: node.metadataOwner,
         )
     }
     fun relsAsSequence(): Sequence<Relationship> = rels.asSequence()
@@ -1151,6 +1324,93 @@ private fun IrFunction.valueParameterIndex(name: String): Int {
         }
     }
     return -1
+}
+
+private fun IrClass.isNestedWithin(fqcn: String): Boolean {
+    var current: IrClass? = this
+    while (current != null) {
+        if (current.fqNameWhenAvailable?.asString() == fqcn) return true
+        current = current.parent as? IrClass
+    }
+    return false
+}
+
+private fun IrExpression?.classReferenceClass(): IrClass? {
+    val reference = this?.unwrapExpression() as? IrClassReference ?: return null
+    return (reference.classType as? IrSimpleType)?.classifier?.owner as? IrClass
+}
+
+private fun IrExpression?.stringConstant(): String? =
+    (this?.unwrapExpression() as? IrConst)?.value as? String
+
+private fun IrExpression?.enumEntryName(): String? {
+    val expression = this?.unwrapExpression() ?: return null
+    return when (expression) {
+        is IrGetEnumValue -> expression.symbol.owner.name.asString()
+        is IrGetField -> expression.symbol.owner.name.asString()
+        is IrCall -> expression.symbol.owner.name.asString().removePrefix("<get-").removeSuffix(">")
+        else -> null
+    }
+}
+
+private fun IrExpression?.referencesOperationNameOn(
+    operationOwner: IrClass,
+    expectedOperationName: String,
+    fileEntry: IrFileEntry?,
+    callExpression: IrCall,
+): Boolean {
+    val expression = this?.unwrapExpression() ?: return false
+    if (expression is IrConst) {
+        if (expression.value != expectedOperationName) return false
+        val source = fileEntry.sourceContents() ?: return false
+        val ownerName = operationOwner.fqNameWhenAvailable?.asString()?.substringAfterLast('.')
+            ?: operationOwner.name.asString()
+        if (expression.hasGeneratedOperationNameSourceReference(source, ownerName)) return true
+        return callExpression.hasGeneratedOperationNameArgument(source, ownerName)
+    }
+    val declaration = when (expression) {
+        is IrCall -> expression.symbol.owner
+        is IrGetField -> expression.symbol.owner
+        else -> return false
+    }
+    if (declaration.name.asString() !in setOf("OPERATION_NAME", "<get-OPERATION_NAME>", "getOPERATION_NAME")) return false
+    var owner = declaration.parent as? IrClass
+    while (owner != null) {
+        if (owner == operationOwner) return true
+        owner = owner.parent as? IrClass
+    }
+    return false
+}
+
+private fun IrExpression.hasGeneratedOperationNameSourceReference(source: String, ownerName: String): Boolean {
+    if (startOffset < 0 || endOffset <= startOffset || endOffset > source.length) return false
+    val sourceReference = source.substring(startOffset, endOffset).trim()
+    if (sourceReference == "$ownerName.OPERATION_NAME" || sourceReference.endsWith(".$ownerName.OPERATION_NAME")) {
+        return true
+    }
+    if (sourceReference != "OPERATION_NAME") return false
+    return source.substring(0, startOffset).trimEnd().endsWith("$ownerName.")
+}
+
+private fun IrCall.hasGeneratedOperationNameArgument(source: String, ownerName: String): Boolean {
+    if (startOffset < 0 || endOffset <= startOffset || endOffset > source.length) return false
+    val callSource = source.substring(startOffset, endOffset)
+    val qualifiedOwner = "(?:[A-Za-z_][A-Za-z0-9_]*\\.)*${Regex.escape(ownerName)}"
+    val operationReference = "$qualifiedOwner\\.OPERATION_NAME"
+    val namedArgument = Regex("""\boperationName\s*=\s*$operationReference\b""")
+    if (namedArgument.containsMatchIn(callSource)) return true
+    val positionalArgument = Regex("""\(\s*$operationReference\s*[,)]""")
+    return positionalArgument.containsMatchIn(callSource)
+}
+
+private fun IrFileEntry?.sourceContents(): String? {
+    val entry = this ?: return null
+    return when (entry) {
+        is PsiIrFileEntry -> entry.psiFile.text
+        else -> entry.name.takeIf(String::isNotBlank)?.let { sourceFileName ->
+            runCatching { java.nio.file.Files.readString(kotlin.io.path.Path(sourceFileName)) }.getOrNull()
+        }
+    }
 }
 
 private fun IrExpression.unwrapExpression(): IrExpression {

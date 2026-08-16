@@ -320,8 +320,14 @@ internal fun projectCausalGraph(
     )
 }
 
+private val explicitCommandTriggerRoles = mapOf(
+    "ControllerMethodToCommand" to "controllermethod",
+    "EndpointHttpBindingToCommand" to "endpointhttpbinding",
+    "TemporalTriggerMethodToCommand" to "temporaltriggermethod",
+)
+
 private fun isPotentialCausalRelationshipType(edge: AnalysisEdgeModel): Boolean =
-    edge.type in rawCausalEdgeTypes || edge.type.endsWith("ToCommand")
+    edge.type in rawCausalEdgeTypes || edge.type in explicitCommandTriggerRoles
 
 private fun isCausalEdge(
     edge: AnalysisEdgeModel,
@@ -346,18 +352,10 @@ private fun isExplicitCommandTriggerRelationship(
     nodesById: Map<String, AnalysisNodeModel>,
     sourceNode: AnalysisNodeModel? = nodesById[edge.fromId],
 ): Boolean {
-    if (!edge.type.endsWith("ToCommand")) {
-        return false
-    }
+    val requiredSourceRole = explicitCommandTriggerRoles[edge.type] ?: return false
     val source = sourceNode ?: return false
     val target = nodesById[edge.toId] ?: return false
-    if (!isPotentialEntryNode(source) || target.type.lowercase() != "command") {
-        return false
-    }
-
-    val relationshipPrefix = edge.type.removeSuffix("ToCommand")
-    return relationshipPrefix.isNotBlank() &&
-        canonicalRole(relationshipPrefix) == canonicalRole(source.type)
+    return canonicalRole(source.type) == requiredSourceRole && target.type.lowercase() == "command"
 }
 
 private fun canonicalRole(value: String): String = value

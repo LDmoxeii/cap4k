@@ -1,10 +1,10 @@
-# ActorEndpoint Published Contract
+# Endpoint Published Contract
 
 ## Purpose
 
-Cap4k MUST model every externally invokable Actor operation as an explicit, transport-neutral ActorEndpoint published contract. HTTP and RPC are bindings over this contract; internal Command, Query and Capability remain distinct application semantics and MUST NOT become published automatically.
+Cap4k MUST model every externally invokable Actor operation as an explicit, transport-neutral Endpoint published contract. HTTP and RPC are bindings over this contract; internal Command, Query and Capability remain distinct application semantics and MUST NOT become published automatically.
 
-ActorEndpoint invocation MUST preserve cap4k's Request + Handler + Response model and MUST be dispatched through Mediator. A Consumer RPC proxy is a local Handler selected by Mediator, not a service object directly called by business code.
+Endpoint invocation MUST preserve cap4k's Request + Handler + Response model and MUST be dispatched through Mediator. A Consumer RPC proxy is a local Handler selected by Mediator, not a service object directly called by business code.
 
 The published language MUST live in a dependency-leaf `contract` module so a consumer can depend on operation and event shapes without depending on the Provider service implementation.
 
@@ -14,9 +14,11 @@ The Design JSON tactical tag MUST be `endpoint`. `actor` identifies the Analyzer
 
 The primary artifact family MUST also be `endpoint`.
 
+Product code, capability names, Public Docs and Skill MUST use `Endpoint` rather than the compound `ActorEndpoint`. `Actor` remains only the Analyzer/Flow trigger-source classification. The canonical capability identity MUST be `endpoint-contract`; the former `actor-endpoint-contract` capability is removed without alias or compatibility bridge.
+
 ## Canonical operation
 
-An ActorEndpoint declaration MUST represent exactly one operation and MUST contain:
+An Endpoint declaration MUST represent exactly one operation and MUST contain:
 
 - a canonical Kotlin package and type identity;
 - a non-blank stable logical `operationName`;
@@ -24,7 +26,7 @@ An ActorEndpoint declaration MUST represent exactly one operation and MUST conta
 - one ordered Request semantic value definition;
 - one ordered Response semantic value definition.
 
-Request and Response MUST use dedicated ActorEndpoint semantic roles. They MUST NOT reuse Command, Query, Capability or API payload roles even when their field shapes happen to be equal.
+Request and Response MUST use dedicated Endpoint semantic roles. They MUST NOT reuse Command, Query, Capability or API payload roles even when their field shapes happen to be equal.
 
 Canonical assembly MUST reject duplicate logical operation names across the assembled design, duplicate canonical type identities, blank operation names, invalid semantic fields and unresolved/unsupported types before artifact planning.
 
@@ -130,10 +132,10 @@ The Gradle project DSL MUST expose `project.contractModulePath`. The assembled `
 The role is conditionally required:
 
 - when no selected planner owns a contract artifact, `contractModulePath` MAY be absent;
-- when an ActorEndpoint or Integration Event payload artifact is selected, absence MUST fail with a stable diagnostic naming the required role/property and selected artifact;
+- when an Endpoint or Integration Event payload artifact is selected, absence MUST fail with a stable diagnostic naming the required role/property and selected artifact;
 - setting only `basePackage` plus `contractModulePath` MUST count as an explicitly configured project layout when the selected operation can be planned without other roles.
 
-All ActorEndpoint primary artifacts and Integration Event payload artifacts MUST plan with:
+All Endpoint primary artifacts and Integration Event payload artifacts MUST plan with:
 
 - `moduleRole = "contract"`;
 - `outputKind = CHECKED_IN_SOURCE`;
@@ -144,7 +146,7 @@ The framework MUST NOT add a new public generation task and MUST NOT route these
 
 ## Package and layout ownership
 
-The DSL MUST expose a dedicated ActorEndpoint contract package layout and a published Integration Event contract package layout. Defaults MUST be deterministic and MUST not place published payloads under application or adapter package roots.
+The DSL MUST expose a dedicated Endpoint contract package layout and a published Integration Event contract package layout. Defaults MUST be deterministic and MUST not place published payloads under application or adapter package roots.
 
 Output path, canonical FQN, template identity and ownership metadata MUST remain stable for equal canonical input. Collision detection MUST run before rendering/writing.
 
@@ -167,56 +169,62 @@ The runtime Integration Event catalog, codec and transports MUST consume the sha
 
 ## Binding extension boundary
 
-The canonical ActorEndpoint identity, generated Request/Response and Endpoint Mediator family MUST be sufficient for later bindings to:
+The canonical Endpoint identity, generated Request/Response and Endpoint Mediator family support independent transport bindings without moving protocol metadata into the contract.
 
-- generate an HTTP adapter that invokes `Mediator.endpoints.send(request)`;
-- generate an RPC Provider dispatcher that invokes the same Mediator family;
-- generate a Consumer RPC proxy as an `EndpointHandler<Request, Response>`.
+The shipped Spring MVC Provider binding MUST:
 
-This Change MUST NOT implement those bindings or proxies. Binding-specific route names, protocol metadata, status/error mapping, service discovery, timeout, retry and topology MUST remain absent from the ActorEndpoint canonical contract.
+- reference the existing generated `OPERATION_NAME` plus Request/Response type evidence;
+- keep method, route, codec, status, headers, security and error mapping outside the contract module;
+- materialize a real route that invokes `Mediator.endpoints.send(request)`;
+- reuse the same binding-neutral local Provider Handler that a future RPC binding would use.
+
+A future RPC Provider dispatcher MAY invoke the same Mediator family, and a future Consumer proxy MAY implement `EndpointHandler<Request, Response>`. Service discovery, timeout, retry, topology and protocol client/stub details MUST remain absent from the canonical contract and `ddd-core`.
+
+One operation MAY have zero or multiple Provider bindings of different kinds. Binding identity and lifecycle MUST NOT redefine operation identity. The first HTTP capability allows at most one HTTP binding per operation, but that protocol-specific cardinality is not part of the canonical Endpoint contract.
 
 ## Analyzer and Flow
 
-Analyzer Design Projection MUST recover ActorEndpoint operation identity, Request/Response semantic shapes and selected artifacts from framework-owned Kotlin contract structure and compile-time metadata. Drawing Board MUST emit an ordinary `endpoint` Design JSON block that the Design JSON source accepts directly.
+Analyzer Design Projection MUST recover Endpoint operation identity, Request/Response semantic shapes and selected artifacts from framework-owned Kotlin contract structure and compile-time metadata. Drawing Board MUST emit an ordinary `endpoint` Design JSON block that the Design JSON source accepts directly.
 
-Analyzer Graph and Flow MUST treat a contract declaration and local Endpoint Mediator dispatch as non-transport-entry evidence. Generating, compiling or locally dispatching an ActorEndpoint Request alone MUST NOT create:
+Analyzer Graph and Flow MUST treat a contract declaration, Provider Handler existence and local Endpoint Mediator dispatch as non-transport-entry evidence. Generating, compiling or locally dispatching an Endpoint Request alone MUST NOT create:
 
 - an Actor graph node;
-- an Endpoint-to-Command/Query relationship;
+- an Endpoint HTTP binding-to-Command/Query relationship;
 - a Flow root;
 - a flow count change.
 
-Real HTTP and RPC Actor evidence belongs to their binding changes and requires production detectors observing actual binding/provider code.
+A real typed Spring MVC binding is production Actor evidence. Analyzer MUST join that binding to the independent Provider Handler through generated operation/Request evidence without assuming a shared class or file. Command-oriented HTTP evidence can create a default Flow root; Query-oriented evidence remains raw Graph-only. Future RPC or other Actor evidence still requires its own production detector.
 
 ## Capability projections
 
-Production descriptors and registries MUST declare the new ActorEndpoint authoring/runtime capabilities, tactical carrier, required source, tasks, output ownership and module role. AgentFacts MUST derive project module and artifact ownership facts from these production contracts rather than a second handwritten catalog.
+Production descriptors and registries MUST declare the Endpoint authoring/runtime capabilities, tactical carrier, required source, tasks, output ownership and module role. The shipped Endpoint HTTP capability MUST additionally declare its Runtime implementation/starter ownership and Analyzer detector/relationship evidence. AgentFacts MUST derive project module, artifact and Runtime ownership facts from these production contracts rather than a second handwritten catalog.
 
-Public Docs and the authoring Skill MUST describe only shipped behavior. They MUST state that Change 1 provides the published contract, Endpoint Mediator family and module boundary but no HTTP/RPC binding.
+Public Docs and the authoring Skill MUST describe only shipped behavior. They MUST describe the published contract, Endpoint Mediator family, independent Provider Handler and Spring MVC Provider binding while keeping RPC Provider, Consumer proxy, service discovery and client generation explicit non-goals.
 
-Runtime, Generator, Analyzer, AgentFacts, Public Docs and Skill impact MUST each be recorded as modified, verified-no-change or not-applicable with evidence.
+Runtime, Generator, Analyzer, AgentFacts, Public Docs and Skill impact MUST each be recorded as modified, verified-no-change or not-applicable with evidence. Generator/Renderer/Design Projection remain unchanged for HTTP binding authoring because the existing generated operation structure is the contract evidence consumed by Runtime and Analyzer.
 
 ## Verification
 
 Focused and functional evidence MUST demonstrate:
 
 1. conditional `contractModulePath` projection and diagnostics;
-2. first-class canonical ActorEndpoint identity and dedicated semantic roles;
+2. first-class canonical Endpoint identity and dedicated semantic roles;
 3. deterministic checked-in contract planning and rendering;
 4. compile-valid generated Request/Response using `EndpointRequest` from a leaf contract module;
 5. EndpointSupervisor sync/async dispatch, unique Handler selection, validation, scope and failure semantics;
-6. Provider Handler and Consumer proxy Handler both invoked through `Mediator.endpoints` rather than direct calls, including direct Consumer Endpoint use and Capability anti-corruption mapping;
-7. consumer compilation with contract-only plus selected endpoint/RPC runtime dependencies;
-8. Provider-side single-direction dependency on contract;
-9. Integration Event payload placement in contract and subscriber placement in application;
-10. unchanged event direction, topology and runtime delivery semantics;
-11. Analyzer/Drawing Board semantic round-trip and no new Graph/Flow entry evidence;
-12. descriptor, registry, AgentFacts, docs and Skill propagation;
-13. unchanged existing domain/application/adapter artifact ownership outside the declared migration.
+6. Provider Handler and future Consumer proxy Handler semantics both remain mediated rather than directly invoked, including direct Consumer Endpoint use and Capability anti-corruption mapping;
+7. Provider-side single-direction dependency on contract and absence of Spring/HTTP metadata from generated contracts;
+8. typed Spring MVC Provider registration and WebMvc.fn route materialization invoke the independent Provider Handler only through `Mediator.endpoints`;
+9. one operation can exist Handler-only and can later add different binding kinds without changing contract/Handler identity;
+10. Integration Event payload placement in contract and subscriber placement in application;
+11. unchanged event direction, topology and runtime delivery semantics;
+12. Analyzer/Drawing Board semantic round-trip remains unchanged while real HTTP binding evidence creates only the accepted Graph/Flow Actor entry;
+13. descriptor, registry, AgentFacts, docs and Skill propagation;
+14. unchanged Generator/Renderer/Design Projection behavior and unchanged existing domain/application/adapter artifact ownership outside the declared binding capability.
 
 ## Compatibility
 
-This is an intentional breaking architecture change. No alias, fallback package, duplicate annotation, old application-owned Integration Event generation or migration bridge is required.
+This is an intentional breaking architecture change. The former `actor-endpoint-contract` capability name and `ActorEndpoint` product vocabulary are removed. No alias, fallback capability, duplicate API, fallback package, duplicate annotation, old application-owned Integration Event generation or migration bridge is required.
 
 
 

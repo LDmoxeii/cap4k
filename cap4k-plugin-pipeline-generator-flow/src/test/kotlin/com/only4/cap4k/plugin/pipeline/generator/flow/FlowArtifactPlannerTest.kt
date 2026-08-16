@@ -55,7 +55,8 @@ class FlowArtifactPlannerTest {
                 "Input: Raw Analysis Graph Evidence",
                 "Entry-centered Causal Flow Evidence",
                 "Trigger Families: Actor, Event, Time",
-                "Current Actor Detector: Spring HTTP Controller Method",
+                "Current Actor Detectors: Spring HTTP Controller Method, Typed Endpoint MVC Binding",
+                "Endpoint HTTP Binding: Command Root, Query Graph-only",
                 "Current Event Detector: Inbound Integration Event",
                 "Current Time Detector: Spring @Scheduled Method",
                 "Visible: Concrete Trigger, Command, Domain Event, Integration Event",
@@ -432,7 +433,7 @@ class FlowArtifactPlannerTest {
                     node("CommandA", "command"),
                     node("CommandAHandler", "commandhandler"),
                     node("Aggregate::fromInbound", "entitymethod"),
-                    node("Job::run", "jobmethod"),
+                    node("Job::run", "temporaltriggermethod"),
                     node("CommandB", "command"),
                     node("CommandBHandler", "commandhandler"),
                     node("Aggregate::fromJob", "entitymethod"),
@@ -446,7 +447,7 @@ class FlowArtifactPlannerTest {
                     edge("CommandA", "CommandAHandler", "CommandToCommandHandler"),
                     edge("CommandAHandler", "Aggregate::fromInbound", "CommandHandlerToEntityMethod"),
                     edge("Aggregate::fromInbound", "SharedEvent", "EntityMethodToDomainEvent"),
-                    edge("Job::run", "CommandB", "JobMethodToCommand"),
+                    edge("Job::run", "CommandB", "TemporalTriggerMethodToCommand"),
                     edge("CommandB", "CommandBHandler", "CommandToCommandHandler"),
                     edge("CommandBHandler", "Aggregate::fromJob", "CommandHandlerToEntityMethod"),
                     edge("Aggregate::fromJob", "SharedEvent", "EntityMethodToDomainEvent"),
@@ -476,7 +477,7 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
-    fun `accepts rpc adapter evidence as an open entry role without synthetic entry nodes`() {
+    fun `does not accept unimplemented rpc adapter evidence by relationship suffix`() {
         val planner = FlowArtifactPlanner()
         val model = CanonicalModel(
             analysisGraph = AnalysisGraphModel(
@@ -492,18 +493,14 @@ class FlowArtifactPlannerTest {
         )
 
         val plan = planner.plan(config(), model)
-        val jsonContent = plan.first().context["jsonContent"] as String
-
-        assertEquals("flows/OrderRpcAdapter_submit.json", plan.first().outputPath)
-        assertTrue(jsonContent.contains("OrderRpcAdapter::submit"))
-        assertTrue(jsonContent.contains("SubmitOrderCmd"))
-        assertTrue(jsonContent.contains("RpcAdapterMethodToCommand"))
-        assertFalse(jsonContent.contains("\"type\": \"entry\""))
+        assertEquals(listOf("flows/index.json"), plan.map { it.outputPath })
+        val jsonContent = plan.single().context["jsonContent"] as String
+        assertTrue(jsonContent.contains("\"flowCount\": 0"))
     }
     @Test
     fun `contracts arbitrary hidden paths with fan out merge cycle and source evidence`() {
         val nodes = listOf(
-            node("Job::run", "jobmethod"),
+            node("Job::run", "temporaltriggermethod"),
             node("StartCmd", "command"),
             node("StartHandler", "commandhandler"),
             node("Aggregate::stepA", "entitymethod"),
@@ -519,7 +516,7 @@ class FlowArtifactPlannerTest {
         val projection = projectCausalGraph(
             nodesById = nodesById,
             edges = listOf(
-                edge("Job::run", "StartCmd", "JobMethodToCommand"),
+                edge("Job::run", "StartCmd", "TemporalTriggerMethodToCommand"),
                 edge("StartCmd", "StartHandler", "CommandToCommandHandler"),
                 edge("StartHandler", "Aggregate::stepA", "CommandHandlerToEntityMethod"),
                 edge("Aggregate::stepA", "Aggregate::stepB", "EntityMethodToEntityMethod"),
@@ -538,7 +535,7 @@ class FlowArtifactPlannerTest {
         assertEquals(setOf("Job::run"), projection.entryNodeIds)
         assertEquals(
             setOf(
-                "Job::run->StartCmd:JobMethodToCommand",
+                "Job::run->StartCmd:TemporalTriggerMethodToCommand",
                 "StartCmd->EventA:CommandToDomainEvent",
                 "StartCmd->EventB:CommandToDomainEvent",
                 "EventA->FollowCmd:DomainEventToCommand",

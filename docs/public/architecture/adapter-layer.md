@@ -4,7 +4,7 @@ Adapter layer 是 cap4k 项目连接外部世界和 application layer 的协议�
 
 ## 负责
 
-Adapter layer 负责 Controller、adapter-private DTO、query adapter、capability-handler、persistence adapter 和 protocol conversion。Controller 接收 HTTP request 并调用 application entry；adapter-private DTO 描述外部接口字段；query adapter 把读取结果组织成接口需要的 shape；capability-handler 执行 external capability request；persistence adapter 处理存储协议和技术映射。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。
+Adapter layer 负责 handwritten Controller、Endpoint Provider Handler、typed transport binding、必要的 adapter-private DTO、query adapter、capability-handler、persistence adapter 和 protocol conversion。普通 Controller 接收 HTTP request 并调用 application entry；Endpoint Provider Handler 显式映射 published Request/Response 与本地 Command/Query，`EndpointMvcBinding` 只声明 Spring MVC method、route 与不可消除的协议映射；adapter-private DTO 只用于 published Endpoint shape 无法直接表达的特殊协议字段。query adapter 把读取结果组织成接口需要的 shape；capability-handler 执行 external capability request；persistence adapter 处理存储协议和技术映射。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。
 
 adapter 的目标是隔离协议差异。它可以处理 request/response mapping、status code、header、external error、callback schema、storage mapping、serialization 和技术容错，但这些转换不应该改变业务真相。
 
@@ -14,11 +14,11 @@ Adapter layer 不负责 Aggregate invariant、Factory 创建规则、Domain Even
 
 如果 Controller 或 capability-handler 中出现“内容是否可发布”“paid publication 是否符合业务条件”“媒体处理完成后是否推进状态”这类判断，应检查这些逻辑是否应该移到 domain 或 application 的手写位置。
 
-## 生成骨架
+## Framework 与生成边界
 
-cap4k generation 可以为 Controller、Query handler、capability-handler、persistence adapter 以及 integration-event transport/runtime wiring references 提供稳定骨架。骨架帮助 adapter layer 保持清晰入口，例如 `ContentController`、`ReviewController`、`QueryController`、`AdvancedPaidPublicationController`、`GetContentDetailQryHandler`、`TriggerMediaProcessingHandler` 或 `MediaProcessingCallbackIntegrationEvent` typed event dispatch references。
+cap4k 不再生成 framework-level API Payload、Controller 或 Endpoint HTTP binding。Endpoint 的 published Request/Response 由 contract module 中的 `endpoint` design artifact 生成；Provider Handler 与 typed `EndpointMvcBinding` 是 adapter-owned checked-in source。框架只 materialize route、复用 Spring MVC codec、通过 `Mediator.endpoints` dispatch，并提供最小协议失败映射。Query handler、capability-handler、persistence adapter 与 integration-event transport/runtime wiring 继续遵守各自现有 ownership。
 
-生成骨架负责协议入口和结构一致性，不负责业务规则。handwritten mapping 可以补齐外部字段到内部语义的转换、错误处理、返回格式和技术容错，但不应把 business decision 写进协议适配代码。
+Framework-owned runtime 负责稳定的协议执行机制，不替作者决定 method、route、status、header 或 published-to-local semantic mapping。handwritten mapping 可以补齐外部字段到内部语义的转换、错误处理、返回格式和技术容错，但不应把 business decision 写进协议适配代码。
 
 ## 手写逻辑
 
@@ -49,4 +49,4 @@ Adapter layer 可以依赖 application/domain 暴露的 entry 和 contract，但
 
 ## 审核
 
-审核 adapter layer 时，先看每个 Controller、Payload、Query handler、capability-handler 和 persistence adapter 是否只做 protocol conversion 或 technical mapping。对 inbound Integration Event，单独确认 cap4k integration-event transport adapter/runtime 负责 HTTP/message consumption、parse/register/dispatch typed integration event；业务项目的 application-layer inbound integration subscriber 只解释 typed external fact、处理幂等并委托 Command/application behavior。最后确认业务规则没有被写入 status code mapping、callback parsing、external error handling 或 persistence mapping 中。
+审核 adapter layer 时，先看每个 Controller、Endpoint Provider Handler、typed binding、adapter-private DTO、Query handler、capability-handler 和 persistence adapter 是否只做 protocol conversion、published-to-local mapping 或 technical mapping。对 inbound Integration Event，单独确认 cap4k integration-event transport adapter/runtime 负责 HTTP/message consumption、parse/register/dispatch typed integration event；业务项目的 application-layer inbound integration subscriber 只解释 typed external fact、处理幂等并委托 Command/application behavior。最后确认业务规则没有被写入 status code mapping、callback parsing、external error handling 或 persistence mapping 中。

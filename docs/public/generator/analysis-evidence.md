@@ -85,7 +85,7 @@ analysis plan 的价值是让 observation output 可审查。它不说明业务�
 
 flow evidence 可以帮助作者检查：
 
-- Actor、Event、Time 三类概念入口是否由真实 detector evidence 委托到正确 Command。当前生产 detector 仅包括 Spring HTTP Controller method（Actor）、无上游 Inbound Integration Event（Event）和 Spring `@Scheduled` method（Time）。
+- Actor、Event、Time 三类概念入口是否由真实 detector evidence 委托到正确 Command。当前生产 detector 包括 Spring HTTP Controller method 与 typed Spring MVC `EndpointMvcBinding` registration（Actor）、无上游 Inbound Integration Event（Event）和 Spring `@Scheduled` method（Time）。Endpoint HTTP registration 通过 generated Request/operation identity 跨类、跨文件关联独立 Provider Handler；到 Command 的关系可形成 Flow root，到 Query 的关系只保留在 raw Graph。
 - `@Scheduled` method 只有直接发送 Command 时才建立 `TemporalTriggerMethodToCommand` 默认因果边；仅发送 Query、调用 Capability 或执行纯技术逻辑不会形成 Flow。
 - Command、Domain Event、Integration Event 之间的业务因果链是否连到预期后继。
 - Command Handler、Event Handler 与 Entity Method 被隐藏后，任意长度的中间路径是否正确收缩为可见节点之间的因果边。

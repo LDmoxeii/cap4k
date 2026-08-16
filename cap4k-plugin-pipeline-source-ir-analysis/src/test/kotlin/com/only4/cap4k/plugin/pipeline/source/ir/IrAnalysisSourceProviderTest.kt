@@ -13,6 +13,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.writeText
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -647,6 +648,63 @@ class IrAnalysisSourceProviderTest {
         assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
         assertEquals(AgentSnapshotStatus.INVALID, snapshot.aggregateStructure.status)
         assertTrue(snapshot.aggregateStructure.diagnostics.single().id.contains("missing-aggregate-elements"))
+    }
+
+    @Test
+    fun `collect authenticates endpoint http binding against generated contract metadata across input dirs`() {
+        val contractDir = Files.createTempDirectory("cap4k-ir-endpoint-contract")
+        val adapterDir = Files.createTempDirectory("cap4k-ir-endpoint-adapter")
+        contractDir.resolve("nodes.json").writeText("[]")
+        contractDir.resolve("rels.json").writeText("[]")
+        contractDir.writeEmptyAggregateElements()
+        contractDir.resolve("design-elements.json").writeText(
+            """[{"tag":"endpoint","package":"booking","name":"CreateBooking","operationName":"booking.create","carrierQualifiedName":"com.acme.endpoint.contract.CreateBookingEndpoint","artifacts":[{"family":"endpoint"}],"fields":[],"resultFields":[]}]"""
+        )
+        adapterDir.resolve("nodes.json").writeText(
+            """[
+              {"id":"endpoint-http:booking.create","name":"booking.create [POST /api/bookings]","fullName":"endpoint-http:booking.create","type":"endpointhttpbinding","metadataOwner":"com.acme.endpoint.contract.CreateBookingEndpoint"},
+              {"id":"com.acme.CreateBookingCommand","name":"CreateBookingCommand","fullName":"com.acme.CreateBookingCommand","type":"command"}
+            ]"""
+        )
+        adapterDir.resolve("rels.json").writeText(
+            """[{"fromId":"endpoint-http:booking.create","toId":"com.acme.CreateBookingCommand","type":"EndpointHttpBindingToCommand"}]"""
+        )
+        adapterDir.writeEmptyAggregateElements()
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(contractDir.toString(), adapterDir.toString()))
+
+        assertEquals(AgentSnapshotStatus.OK, snapshot.graph.status)
+        assertTrue(snapshot.graph.nodes.any { it.id == "endpoint-http:booking.create" })
+        assertTrue(snapshot.graph.relationships.any { it.type == "EndpointHttpBindingToCommand" })
+    }
+
+    @Test
+    fun `collect rejects endpoint http binding without matching generated carrier metadata`() {
+        val contractDir = Files.createTempDirectory("cap4k-ir-endpoint-contract-mismatch")
+        val adapterDir = Files.createTempDirectory("cap4k-ir-endpoint-adapter-mismatch")
+        contractDir.resolve("nodes.json").writeText("[]")
+        contractDir.resolve("rels.json").writeText("[]")
+        contractDir.writeEmptyAggregateElements()
+        contractDir.resolve("design-elements.json").writeText(
+            """[{"tag":"endpoint","package":"booking","name":"CreateBooking","operationName":"booking.create","carrierQualifiedName":"com.acme.endpoint.contract.OtherEndpoint","artifacts":[{"family":"endpoint"}],"fields":[],"resultFields":[]}]"""
+        )
+        adapterDir.resolve("nodes.json").writeText(
+            """[
+              {"id":"endpoint-http:booking.create","name":"booking.create [POST /api/bookings]","fullName":"endpoint-http:booking.create","type":"endpointhttpbinding","metadataOwner":"com.acme.endpoint.contract.CreateBookingEndpoint"},
+              {"id":"com.acme.CreateBookingCommand","name":"CreateBookingCommand","fullName":"com.acme.CreateBookingCommand","type":"command"}
+            ]"""
+        )
+        adapterDir.resolve("rels.json").writeText(
+            """[{"fromId":"endpoint-http:booking.create","toId":"com.acme.CreateBookingCommand","type":"EndpointHttpBindingToCommand"}]"""
+        )
+        adapterDir.writeEmptyAggregateElements()
+
+        val snapshot = IrAnalysisSourceProvider().collect(config(contractDir.toString(), adapterDir.toString()))
+
+        assertEquals(AgentSnapshotStatus.INVALID, snapshot.graph.status)
+        assertFalse(snapshot.graph.nodes.any { it.id == "endpoint-http:booking.create" })
+        assertFalse(snapshot.graph.relationships.any { it.type == "EndpointHttpBindingToCommand" })
+        assertTrue(snapshot.graph.diagnostics.any { it.id.contains("endpoint-binding-provenance") })
     }
 
     private fun Path.writeEmptyAggregateElements() {

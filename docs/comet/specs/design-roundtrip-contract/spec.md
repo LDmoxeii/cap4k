@@ -64,11 +64,11 @@ Analyzer may exclude these properties only after proving that the analyzed prima
 
 An `endpoint` block represents exactly one published Actor operation. `endpoint` is the tactical building block name; Actor remains the Analyzer/Flow trigger-source interpretation and is not encoded into the tag name. `operationName` is the required stable logical identity and is distinct from its Kotlin package/type identity. The source and canonical assembler MUST reject blank or duplicate operation names and duplicate canonical type identities.
 
-`fields` defines the ordered Request shape and `resultFields` defines the ordered Response shape. Both use dedicated ActorEndpoint semantic roles. ActorEndpoint MUST NOT be inferred from Command, Query or Capability declarations, and its Request/Response MUST NOT implement those internal application markers.
+`fields` defines the ordered Request shape and `resultFields` defines the ordered Response shape. Both use dedicated Endpoint semantic roles. Endpoint MUST NOT be inferred from Command, Query or Capability declarations, and its Request/Response MUST NOT implement those internal application markers.
 
 The default generated carrier is one Kotlin operation object. Its nested Request implements the lightweight `EndpointRequest<Response>` marker; the object owns the nested Response and exposes the stable operation identity as framework-owned constant metadata. Handler implementation and dispatch belong to the Endpoint Mediator family, not the published contract artifact. The carrier MUST contain no HTTP/RPC route, provider, client, retry, timeout, discovery, Spring or persistence behavior.
 
-ActorEndpoint declaration and compile-time Design metadata are Design Projection evidence only. They MUST NOT create Analyzer Graph Actor nodes, causal relationships or Flow roots without a real transport binding detector.
+Endpoint declaration and compile-time Design metadata are Design Projection evidence only. They MUST NOT create Analyzer Graph Actor nodes, causal relationships or Flow roots without a real transport binding detector.
 ## Event semantics
 
 Domain Event and Integration Event fields and nested DTOs use the same supported stable default-expression subset as other design payloads. Generator MUST render defaults and Analyzer MUST recover their normalized semantics.
@@ -118,7 +118,7 @@ Round-trip comparison may ignore:
 - omitted values versus the same effective default;
 - type spelling that resolves to the same canonical identity.
 
-It MUST compare tag, package, name, description, aggregate ownership, effective artifact family/variant, ordered payload/result/nested fields, resolved type/nullability/default semantics, page semantics, ActorEndpoint operationName/EndpointRequest semantics, event direction, persist/eventName, and runtime annotations/interfaces.
+It MUST compare tag, package, name, description, aggregate ownership, effective artifact family/variant, ordered payload/result/nested fields, resolved type/nullability/default semantics, page semantics, Endpoint operationName/EndpointRequest semantics, event direction, persist/eventName, and runtime annotations/interfaces.
 
 ## Analysis metadata and completeness
 
@@ -153,7 +153,7 @@ One dedicated real functional gate MUST use two clean temporary project copies:
 5. Project B builds canonical projection `C1`, asserts normalized `C0 == C1`, regenerates all artifacts, and compiles every generated module.
 6. The gate compares both generations' framework-owned skeleton structure and runtime annotation/interface semantics so projection comparison omissions cannot create a false positive.
 
-The rich fixture MUST cover all seven tags and explicitly assert meaningful shape coverage: ordinary and page Query; ActorEndpoint operationName, Request/Response and EndpointRequest marker semantics; optional-secondary selected and explicit non-default primary-only forms; inbound and outbound Integration Events; persisted, transient-payload, and marker-without-fields Domain Events; Strong IDs; enums; Value Objects; external canonical FQNs; nested List/Set/Map/Array/nullability/defaults including U+000C; nested DTO order; and a legal `entity` field.
+The rich fixture MUST cover all seven tags and explicitly assert meaningful shape coverage: ordinary and page Query; Endpoint operationName, Request/Response and EndpointRequest marker semantics; optional-secondary selected and explicit non-default primary-only forms; inbound and outbound Integration Events; persisted, transient-payload, and marker-without-fields Domain Events; Strong IDs; enums; Value Objects; external canonical FQNs; nested List/Set/Map/Array/nullability/defaults including U+000C; nested DTO order; and a legal `entity` field.
 
 Focused module tests MUST cover invalid artifacts, Domain Service payloads, page root collisions and non-root counterexamples, page mismatches, missing event names, exact runtime/metadata conflicts, subscriber direction literals, recursive semantic Entity payloads, final-identity primitive arrays, order preservation, incomplete per-directory analysis, U+000C recovery, and business-body invariance.
 

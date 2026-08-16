@@ -1,12 +1,12 @@
 # Application Layer
 
-Application layer 是 cap4k 项目的用例编排层。它把外部入口转换后的意图组织成 Command、Query、Capability、Endpoint Handler、Subscriber 或 Scheduled Reaction，调用 domain layer，并把外部能力表达成 application-facing contract。
+Application layer 是 cap4k 项目的用例编排层。它把 adapter 转换后的意图组织成 Command、Query、Capability、Subscriber 或 Scheduled Reaction，调用 domain layer，并把外部能力表达成 application-facing contract。
 
 ## 负责
 
-Application layer 组织 [Command](../concepts/execution-and-ownership/command.md)、[Query](../concepts/execution-and-ownership/query.md)、[Actor Endpoint](../concepts/execution-and-ownership/actor-endpoint.md) Handler、[Subscriber](../concepts/execution-and-ownership/subscriber.md)、[Scheduled Reaction](../concepts/execution-and-ownership/scheduled-reaction.md) 和 [External Capability](../concepts/execution-and-ownership/external-capability-anti-corruption-layer.md)。它使用 [Unit Of Work](../concepts/execution-and-ownership/unit-of-work.md) 与 [Mediator](../concepts/execution-and-ownership/mediator.md) 这些框架能力，而不是重新实现它们。
+Application layer 组织 [Command](../concepts/execution-and-ownership/command.md)、[Query](../concepts/execution-and-ownership/query.md)、[Subscriber](../concepts/execution-and-ownership/subscriber.md)、[Scheduled Reaction](../concepts/execution-and-ownership/scheduled-reaction.md) 和 [External Capability](../concepts/execution-and-ownership/external-capability-anti-corruption-layer.md)。它使用 [Unit Of Work](../concepts/execution-and-ownership/unit-of-work.md) 与 [Mediator](../concepts/execution-and-ownership/mediator.md) 这些框架能力，而不是重新实现它们。
 
-Command 处理改变业务状态的意图，并自动拥有 REQUIRED transaction 与 UoW completion。Query 处理读取观察，不创建 write UoW。Capability 表达上下文外部行为，不拥有本地事务。Endpoint Handler 把 published Request 转换成本地 Command/Query 或其他 application semantics。Subscriber 处理 Domain Event 或 Integration Event 之后的反应；Scheduled Reaction 表达定时或轮询触发的 application reaction。
+Command 处理改变业务状态的意图，并自动拥有 REQUIRED transaction 与 UoW completion。Query 处理读取观察，不创建 write UoW。Capability 表达上下文外部行为，不拥有本地事务。adapter-owned Provider Endpoint Handler 把 published Request 显式转换成本地 Command/Query，再由 application 执行用例。Subscriber 处理 Domain Event 或 Integration Event 之后的反应；Scheduled Reaction 表达定时或轮询触发的 application reaction。
 
 ## 不负责
 
@@ -16,7 +16,7 @@ Application layer 也不应该把领域不变量挪到 handler 里。Command han
 
 ## 生成骨架
 
-cap4k generation 可以为 Command、Query、Capability、Endpoint contract、Subscriber 和相关 handler wiring 提供稳定骨架；Endpoint Handler 仍由 Provider/Consumer 在本进程实现。Scheduled Reaction 仍保持为 application/job implementation surface；项目需要按技术设计显式放置 `MediaProcessingPollingFallbackJob` 这类入口，而不是假定存在 design-json generator 提供的内置 Job skeleton。
+cap4k generation 可以为 Command、Query、Capability、Endpoint contract、Subscriber 和相关 handler wiring 提供稳定骨架；Provider Endpoint Handler 与 HTTP binding 是 adapter-owned checked-in code，当前不由 authoring generator 生成或覆盖。Scheduled Reaction 仍保持为 application/job implementation surface；项目需要按技术设计显式放置 `MediaProcessingPollingFallbackJob` 这类入口，而不是假定存在 design-json generator 提供的内置 Job skeleton。
 
 这些骨架与手写 Job surface 让 `PublishContentCmd`、`StartMediaProcessingCmd`、`GetContentDetailQry`、`ContentPublicationReadyDomainEventSubscriber`、`MediaProcessingPollingFallbackJob`、`TriggerMediaProcessing` 和 `GetMediaProcessingStatus` 这类入口可被一致定位。
 
@@ -30,7 +30,7 @@ cap4k generation 可以为 Command、Query、Capability、Endpoint contract、Su
 
 ## 依赖方向
 
-Application layer 可以依赖 dependency-leaf contract module、domain layer 和 application-level abstractions。它不依赖 adapter 或 start。adapter 可以调用 application 的 Command、Query、Capability 或 Endpoint contract，start 可以装配 application bean，但 application 不应 import Controller、adapter-private DTO、Capability Handler implementation 或 Spring Boot application class。
+Application layer 可以依赖 dependency-leaf contract module、domain layer 和 application-level abstractions。它不依赖 adapter 或 start。adapter 可以调用 application 的 Command、Query、Capability，也可以依赖 Endpoint contract 并通过 Provider Handler 映射到本地用例；start 可以装配 application bean，但 application 不应 import Controller、adapter-private DTO、Capability Handler implementation 或 Spring Boot application class。
 
 当外部协议需要进入 application layer 时，adapter 应先把它转换成 Command、Query、Integration Event 或 external capability result。application layer 的参数应该表达用例语言，而不是传递 HTTP body 或 callback raw schema。
 

@@ -12,6 +12,8 @@ enum class RelationshipType {
     ControllerMethodToQuery,
     ControllerMethodToCapability,
     TemporalTriggerMethodToCommand,
+    EndpointHttpBindingToCommand,
+    EndpointHttpBindingToQuery,
     QuerySenderMethodToQuery,
     CapabilitySenderMethodToCapability,
     ValidatorToQuery,

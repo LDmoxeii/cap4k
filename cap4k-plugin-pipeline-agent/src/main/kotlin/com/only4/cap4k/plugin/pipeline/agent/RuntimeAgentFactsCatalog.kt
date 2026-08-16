@@ -19,6 +19,12 @@ object RuntimeAgentFactsCatalog {
             starterModule = "cap4k-ddd-core-starter",
         ),
         capability(
+            capabilityId = "runtime.endpoint-http-provider",
+            displayName = "Endpoint HTTP Provider",
+            implementationModule = "ddd-endpoint-http",
+            starterModule = "cap4k-ddd-endpoint-http-starter",
+        ),
+        capability(
             capabilityId = "runtime.identifier-allocation",
             displayName = "Identifier Allocation",
             implementationModule = "ddd-core",

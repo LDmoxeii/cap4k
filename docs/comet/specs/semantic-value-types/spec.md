@@ -23,7 +23,7 @@ The immediate consumer is issue #115's reusable owned-child creation value, but 
 
 ## Building-block roles
 
-- Command request/response, Query request/response, Capability request/response, ActorEndpoint request/response, Domain Event, Integration Event, Value Object, Creation Intent, and Factory Payload shall remain distinct semantic roles.
+- Command request/response, Query request/response, Capability request/response, Endpoint request/response, Domain Event, Integration Event, Value Object, Creation Intent, and Factory Payload shall remain distinct semantic roles.
 - These roles shall share the same canonical structured-value definition for fields, nested values, collections, nullability, defaults, and referenced type identity.
 - A Command or Event shall not become a persisted domain Value Object merely because its payload has value semantics.
 - Intent, fact, routing, request/result direction, event persistence, and other building-block behavior shall remain owned by the corresponding semantic role.
@@ -34,7 +34,7 @@ The immediate consumer is issue #115's reusable owned-child creation value, but 
 ## Migration breadth
 
 - Issue #115 shall migrate every existing structured building-block role to the shared canonical value definition and resolved type tree in one coherent change.
-- The migration shall cover Command, Query, Capability, ActorEndpoint, Domain Event, Integration Event, Value Object, Creation Intent, and root Factory payload field structures, including result structures where the owning role defines them.
+- The migration shall cover Command, Query, Capability, Endpoint, Domain Event, Integration Event, Value Object, Creation Intent, and root Factory payload field structures, including result structures where the owning role defines them.
 - Each role shall retain its own identity, lifecycle, planner behavior, artifact family, annotations, persistence/routing semantics, and template ownership.
 - The migration shall preserve the established generated API intent and checked-in hand-written workflow; it shall not rewrite existing checked-in artifacts merely because their canonical source changed.
 - A second legacy canonical field structure based on unresolved `type: String` shall not remain for migrated roles.

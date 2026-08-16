@@ -145,7 +145,7 @@ class DefaultCanonicalAssemblerTest {
         ).model
 
         val block = model.designBlocks.single()
-        val endpoint = model.actorEndpoints.single()
+        val endpoint = model.endpoints.single()
         assertEquals(listOf(ArtifactSelectionModel("endpoint")), block.artifacts)
         assertEquals("booking.create", endpoint.operationName)
         assertEquals("com.acme.demo.contract.endpoints.booking", endpoint.packageName)

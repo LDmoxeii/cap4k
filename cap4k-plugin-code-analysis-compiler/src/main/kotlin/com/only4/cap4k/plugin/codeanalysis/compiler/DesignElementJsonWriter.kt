@@ -16,6 +16,9 @@ class DesignElementJsonWriter {
                 append("\"package\":\"").append(escape(element.`package`)).append("\",")
                 append("\"name\":\"").append(escape(element.name)).append("\",")
                 append("\"description\":\"").append(escape(element.description)).append("\"")
+                element.carrierQualifiedName.takeIf { it.isNotBlank() }?.let { value ->
+                    append(",\"carrierQualifiedName\":\"").append(escape(value)).append("\"")
+                }
                 if (element.aggregates.isNotEmpty()) {
                     append(",\"aggregates\":")
                     appendStringList(element.aggregates)

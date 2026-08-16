@@ -82,6 +82,7 @@ Agent contract version 4 保留 `runtime.json` 的 `cap4k.agent.runtime.v3`。�
 | Capability ID | Contract / implementation owner | Starter owner |
 | --- | --- | --- |
 | `runtime.core-dispatch` | `ddd-core` | `cap4k-ddd-core-starter` |
+| `runtime.endpoint-http-provider` | `ddd-endpoint-http` | `cap4k-ddd-endpoint-http-starter` |
 | `runtime.identifier-allocation` | `ddd-core` | `cap4k-ddd-core-starter` |
 | `runtime.local-domain-event` | `ddd-core` | `cap4k-ddd-core-starter` |
 | `runtime.jpa-persistence` | `ddd-domain-repo-jpa` | `cap4k-ddd-jpa-starter` |

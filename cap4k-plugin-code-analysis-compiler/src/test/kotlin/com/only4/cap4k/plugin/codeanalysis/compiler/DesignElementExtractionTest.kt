@@ -93,6 +93,10 @@ class DesignElementExtractionTest {
         val relationships = outputDir.resolve("rels.json").toFile().readText()
         val endpoint = findObject(extractTopLevelObjects(json), "endpoint", "CreateBooking")
         assertTrue(endpoint.contains("\"operationName\":\"booking.create\""), endpoint)
+        assertTrue(
+            endpoint.contains("\"carrierQualifiedName\":\"demo.contract.endpoints.CreateBookingEndpoint\""),
+            endpoint,
+        )
         assertTrue(endpoint.contains("\"name\":\"details.note\",\"type\":\"String?\",\"defaultValue\":\"null\""), endpoint)
         assertTrue(endpoint.contains("\"name\":\"details.tags\",\"type\":\"List<String>\",\"defaultValue\":\"emptyList()\""), endpoint)
         assertTrue(endpoint.contains("\"resultFields\":[{\"name\":\"bookingId\",\"type\":\"Long\"}"), endpoint)

@@ -16,7 +16,7 @@ Keep the live cap4k generator descriptor, canonical model, planner registry, ren
 ### API Payload capability retirement
 - The Design JSON descriptor, Pipeline API, canonical assembler, planner registry, renderer presets, Gradle DSL/layout projection, Drawing Board and Analyzer MUST expose no `api_payload`, `api-payload`, `API Payload`, `designApiPayload`, API Payload semantic role, planner, template or tactical node.
 - The former API Payload generator, template, dedicated fixtures and unannotated Request/Response wrapper heuristic MUST be deleted rather than disabled or retained as compatibility surfaces.
-- Published external API structure belongs to ActorEndpoint Request/Response. Adapter-private intermediate DTOs remain ordinary handwritten implementation types and MUST NOT become generated or analyzed tactical carriers.
+- Published external API structure belongs to Endpoint Request/Response. Adapter-private intermediate DTOs remain ordinary handwritten implementation types and MUST NOT become generated or analyzed tactical carriers.
 - Query retains its `page` variant. No replacement API-payload or generic transport-payload family is introduced.
 - AgentFacts and current Public Docs MUST derive and project the reduced seven-tag surface from production descriptors and registries.
 
