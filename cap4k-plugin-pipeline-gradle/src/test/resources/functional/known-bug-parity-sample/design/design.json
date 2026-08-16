@@ -69,10 +69,11 @@
     ]
   },
   {
-    "tag": "api_payload",
+    "tag": "endpoint",
     "package": "message",
-    "name": "CreateUserMessagePayload",
-    "description": "create user message payload",
+    "name": "CreateUserMessageEndpoint",
+    "operationName": "user-message.create",
+    "description": "create user message endpoint",
     "aggregates": [],
     "fields": [
       {

@@ -21,7 +21,7 @@ generator 不是独立于 authoring 的学习入口。第一次学习 cap4k 时�
 
 - [Gradle Plugin](../reference/gradle-plugin.md)：plugin id、public Gradle tasks 和任务职责。
 - [Generator DSL](../reference/generator-dsl.md)：Gradle extension 中 project、sources、types、generators 和 analysis 相关配置。
-- [Design JSON](../reference/design-json.md)：`command`、`query`、`capability`、`api_payload`、`endpoint`、`domain_event`、`integration_event`、`domain_service` 等 tag。
+- [Design JSON](../reference/design-json.md)：`command`、`query`、`capability`、`endpoint`、`domain_event`、`integration_event`、`domain_service` 等 tag。
 - [Value Object Manifest](../reference/value-object-manifest.md) 与 [Enum Manifest](../reference/enum-manifest.md)：类型输入格式。
 - [Plan JSON](../reference/plan-json.md)：`plan.json` item、ownership 字段和 conflict behavior。
 - [Outputs](../reference/outputs.md)：`CHECKED_IN_SOURCE`、`GENERATED_SOURCE`、`OUTPUT_ARTIFACT` 和输出根。

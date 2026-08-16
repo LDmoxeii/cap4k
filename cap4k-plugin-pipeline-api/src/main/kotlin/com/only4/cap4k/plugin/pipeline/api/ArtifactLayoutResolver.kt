@@ -51,10 +51,6 @@ class ArtifactLayoutResolver(
 
     fun designCapabilityHandlerPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designCapabilityHandler, designPackage)
-
-    fun designApiPayloadPackage(designPackage: String): String =
-        packageFromLayout(artifactLayout.designApiPayload, designPackage)
-
     fun designDomainEventPackage(designPackage: String): String =
         packageFromLayout(artifactLayout.designDomainEvent, designPackage)
 
@@ -137,7 +133,6 @@ class ArtifactLayoutResolver(
         "designCapability" to artifactLayout.designCapability,
         "designQueryHandler" to artifactLayout.designQueryHandler,
         "designCapabilityHandler" to artifactLayout.designCapabilityHandler,
-        "designApiPayload" to artifactLayout.designApiPayload,
         "designDomainEvent" to artifactLayout.designDomainEvent,
         "designDomainEventHandler" to artifactLayout.designDomainEventHandler,
         "designIntegrationEvent" to artifactLayout.designIntegrationEvent,

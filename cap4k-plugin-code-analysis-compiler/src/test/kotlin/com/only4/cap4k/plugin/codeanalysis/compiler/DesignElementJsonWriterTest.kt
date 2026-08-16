@@ -12,15 +12,15 @@ class DesignElementJsonWriterTest {
     fun `serializes public design block schema with fields artifacts and defaults`() {
         val elements = listOf(
             DesignElement(
-                tag = "api_payload",
+                tag = "query",
                 `package` = "account",
                 name = "batchSaveAccountList",
                 description = "batch save accounts",
                 aggregates = emptyList(),
                 persist = true,
                 artifacts = listOf(
-                    DesignArtifact(family = "api-payload", variant = "list"),
-                    DesignArtifact(family = "api-payload-handler"),
+                    DesignArtifact(family = "query", variant = "page"),
+                    DesignArtifact(family = "query-handler"),
                 ),
                 fields = listOf(
                     DesignField("globalId", "String", "0"),
@@ -36,7 +36,7 @@ class DesignElementJsonWriterTest {
         assertTrue(json.contains("\"defaultValue\":\"0\""))
         assertFalse(json.contains("\"nullable\""))
         assertTrue(json.contains("\"persist\":true"))
-        assertTrue(json.contains("\"artifacts\":[{\"family\":\"api-payload\",\"variant\":\"list\"},{\"family\":\"api-payload-handler\"}]"))
+        assertTrue(json.contains("\"artifacts\":[{\"family\":\"query\",\"variant\":\"page\"},{\"family\":\"query-handler\"}]"))
         assertTrue(json.contains("\"fields\":["))
         assertTrue(json.contains("\"resultFields\":["))
         assertTrue(json.contains("\"account.accountNumber\""))

@@ -36,61 +36,6 @@ import java.nio.file.Path
 class DrawingBoardArtifactPlannerTest {
 
     @Test
-    fun `plans one artifact per non empty supported tag group in order`() {
-        val planner = DrawingBoardArtifactPlanner()
-
-        val plan = planner.plan(config(), model())
-
-        assertEquals(
-            listOf(
-                "drawing_board_command",
-                "drawing_board_query",
-                "drawing_board_capability",
-                "drawing_board_api_payload",
-                "drawing_board_domain_event",
-                "drawing_board_integration_event",
-                "drawing_board_domain_service",
-            ),
-            plan.map { it.outputPath.removePrefix("design/").removeSuffix(".json") }
-        )
-        assertEquals(
-            listOf(
-                "drawing-board/document.json.peb",
-                "drawing-board/document.json.peb",
-                "drawing-board/document.json.peb",
-                "drawing-board/document.json.peb",
-                "drawing-board/document.json.peb",
-                "drawing-board/document.json.peb",
-                "drawing-board/document.json.peb",
-            ),
-            plan.map { it.templateId },
-        )
-        assertEquals(PipelineCapabilityActivation.EXPLICIT_CONFIGURATION, planner.descriptor.activation)
-        assertEquals(
-            listOf(
-                "Normalized Design Projection Evidence",
-                "Aggregate Structure Evidence Output",
-            ),
-            planner.descriptor.tacticalCarriers,
-        )
-        assertEquals("drawing-board", plan.first().generatorId)
-        assertEquals("project", plan.first().moduleRole)
-        assertEquals("command", plan.first().context["drawingBoardTag"])
-        assertEquals("query", plan[1].context["drawingBoardTag"])
-        assertEquals("capability", plan[2].context["drawingBoardTag"])
-        assertEquals("api_payload", plan[3].context["drawingBoardTag"])
-        assertEquals("domain_event", plan[4].context["drawingBoardTag"])
-        assertEquals("integration_event", plan[5].context["drawingBoardTag"])
-        assertEquals("domain_service", plan[6].context["drawingBoardTag"])
-        assertTrue(plan.all { it.outputKind == ArtifactOutputKind.OUTPUT_ARTIFACT })
-        assertTrue(plan.all { it.resolvedOutputRoot == "design" })
-        assertEquals(
-            listOf(PipelinePublicTasks.ANALYSIS_PLAN, PipelinePublicTasks.ANALYSIS_GENERATE),
-            planner.descriptor.tasks,
-        )
-    }
-
-    @Test
     fun `plans endpoint drawing board with operation identity and endpoint artifact`() {
         val endpoint = DrawingBoardElementModel(
             tag = "endpoint",
@@ -308,11 +253,6 @@ class DrawingBoardArtifactPlannerTest {
                         name = "OrderPolicyService",
                         description = "order policy service",
                         artifacts = listOf(ArtifactSelectionModel("domain-service")),
-                        request = semanticValue(
-                            "orders.domain",
-                            "OrderPolicyService.Request",
-                            SemanticValueRole.API_PAYLOAD_REQUEST,
-                        ),
                     ),
                 ),
             ),
@@ -458,11 +398,6 @@ class DrawingBoardArtifactPlannerTest {
                             name = "OrderPolicyService",
                             description = "order policy service",
                             artifacts = listOf(ArtifactSelectionModel("domain-service")),
-                            request = semanticValue(
-                                "orders.domain",
-                                "OrderPolicyService.Request",
-                                SemanticValueRole.API_PAYLOAD_REQUEST,
-                            ),
                         ),
                     ),
                 ),
@@ -570,17 +505,7 @@ class DrawingBoardArtifactPlannerTest {
                             SemanticValueRole.QUERY_REQUEST,
                         ),
                     ),
-                    DrawingBoardElementModel(
-                        tag = "api_payload",
-                        packageName = "orders.payload",
-                        name = "OrderPayload",
-                        description = "payload",
-                        request = semanticValue(
-                            "orders.payload",
-                            "OrderPayload.Request",
-                            SemanticValueRole.API_PAYLOAD_REQUEST,
-                        ),
-                    ),
+
                     DrawingBoardElementModel(
                         tag = "domain_event",
                         packageName = "orders.domain",
@@ -610,11 +535,6 @@ class DrawingBoardArtifactPlannerTest {
                         packageName = "orders.domain",
                         name = "OrderPolicyService",
                         description = "order policy service",
-                        request = semanticValue(
-                            "orders.domain",
-                            "OrderPolicyService.Request",
-                            SemanticValueRole.API_PAYLOAD_REQUEST,
-                        ),
                     ),
                     DrawingBoardElementModel(
                         tag = "ignored",
@@ -624,7 +544,7 @@ class DrawingBoardArtifactPlannerTest {
                         request = semanticValue(
                             "orders.ignored",
                             "Ignored.Request",
-                            SemanticValueRole.API_PAYLOAD_REQUEST,
+                            SemanticValueRole.QUERY_REQUEST,
                         ),
                     ),
                 ),

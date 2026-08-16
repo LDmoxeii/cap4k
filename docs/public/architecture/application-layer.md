@@ -30,7 +30,7 @@ cap4k generation 可以为 Command、Query、Capability、Endpoint contract、Su
 
 ## 依赖方向
 
-Application layer 可以依赖 dependency-leaf contract module、domain layer 和 application-level abstractions。它不依赖 adapter 或 start。adapter 可以调用 application 的 Command、Query、Capability 或 Endpoint contract，start 可以装配 application bean，但 application 不应 import Controller、API Payload、Capability Handler implementation 或 Spring Boot application class。
+Application layer 可以依赖 dependency-leaf contract module、domain layer 和 application-level abstractions。它不依赖 adapter 或 start。adapter 可以调用 application 的 Command、Query、Capability 或 Endpoint contract，start 可以装配 application bean，但 application 不应 import Controller、adapter-private DTO、Capability Handler implementation 或 Spring Boot application class。
 
 当外部协议需要进入 application layer 时，adapter 应先把它转换成 Command、Query、Integration Event 或 external capability result。application layer 的参数应该表达用例语言，而不是传递 HTTP body 或 callback raw schema。
 

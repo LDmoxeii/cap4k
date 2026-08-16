@@ -11,7 +11,7 @@ cap4k public docs 使用 [Architecture](../architecture/index.md) 中的四层�
 - contract role：Endpoint Request/Response、Integration Event payload 和轻量 contract API；它是依赖叶子，不承载 Handler 或 transport。
 - domain layer：Aggregate、Entity、Value Object、Factory、Domain Service 和 Domain Event。
 - application layer：独立的 Command、Query、Capability、Endpoint Handler，以及 Subscriber 和 Scheduled Reaction；外层 Command 自动拥有 REQUIRED transaction 与 Unit of Work completion，入口路由使用 Mediator。
-- adapter layer：Controller、API Payload、query adapter、capability-handler、persistence adapter，以及 cap4k framework integration-event transport adapter/runtime；typed inbound Integration Event 的业务解释由 application inbound subscriber 承担。
+- adapter layer：Controller、adapter-private DTO、query adapter、capability-handler、persistence adapter，以及 cap4k framework integration-event transport adapter/runtime；typed inbound Integration Event 的业务解释由 application inbound subscriber 承担。
 - start layer：Spring Boot runtime assembly、local startup、runtime config 和 smoke path。
 
 依赖方向向内。domain 不知道 HTTP、callback、capability-handler 或 start assembly。application 可以组织用例，但不承载领域不变量。adapter 处理协议转换，但不决定业务真相。start 装配 runtime，但不承载业务规则。

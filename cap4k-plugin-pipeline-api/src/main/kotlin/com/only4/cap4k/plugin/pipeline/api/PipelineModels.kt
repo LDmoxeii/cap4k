@@ -104,11 +104,11 @@ data class DesignBlockModel(
     val persist: Boolean? = null,
     val artifacts: List<ArtifactSelectionModel>,
     val artifactsDeclared: Boolean = true,
-    val request: SemanticValueDefinition,
+    val request: SemanticValueDefinition? = null,
     val response: SemanticValueDefinition? = null,
 ) {
     val fields: List<SemanticValueField>
-        get() = request.fields
+        get() = request?.fields.orEmpty()
 
     val resultFields: List<SemanticValueField>
         get() = response?.fields.orEmpty()
@@ -550,13 +550,13 @@ data class DrawingBoardElementModel(
     val artifacts: List<ArtifactSelectionModel> = emptyList(),
     val artifactsDeclared: Boolean = artifacts.isNotEmpty(),
     val persist: Boolean? = null,
-    val request: SemanticValueDefinition,
+    val request: SemanticValueDefinition? = null,
     val response: SemanticValueDefinition? = null,
     val eventName: String? = null,
     val operationName: String? = null,
 ) {
     val fields: List<SemanticValueField>
-        get() = request.fields
+        get() = request?.fields.orEmpty()
 
     val resultFields: List<SemanticValueField>
         get() = response?.fields.orEmpty()
@@ -583,7 +583,6 @@ private fun defaultDrawingBoardArtifactsFor(tag: String): List<ArtifactSelection
         "command" -> listOf(ArtifactSelectionModel("command"))
         "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
         "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
-        "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
         "endpoint" -> listOf(ArtifactSelectionModel("endpoint"))
         "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
         "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))

@@ -73,7 +73,6 @@ class Cap4kAgentSnapshotTaskTest {
         )
         assertEquals(
             listOf(
-                "API Payload",
                 "Actor Endpoint",
                 "Capability",
                 "Command",

@@ -33,7 +33,7 @@ schema 与 design inputs 一起决定 generated skeleton 如何连接 persistenc
 阅读 `plan.json` 时，可以检查：
 
 - `CreateContentDraftCmd`、`SubmitContentForReviewCmd`、`ApproveContentReviewCmd`、`StartMediaProcessingCmd`、`MarkMediaProcessingSucceededCmd`、`RecordContentMediaReadyCmd`、`PublishContentCmd` 是否落在 application module。
-- API payload、controller、query adapter、Capability Handler 是否落在 adapter module。
+- controller、query adapter、Capability Handler 是否落在 adapter module；协议私有 DTO 是否保持为 adapter 手写实现类型。
 - Value Object、enum、factory、domain event 是否落在 domain module，DB Source 派生的 provider-private Repository carrier 是否落在 adapter module。
 - `conflictPolicy` 是否保护已有手写逻辑。
 

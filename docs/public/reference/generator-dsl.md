@@ -188,14 +188,13 @@ layout {
     designQuery { packageRoot.set("application.queries") }
     designCapability { packageRoot.set("application.capabilities") }
     designCapabilityHandler { packageRoot.set("adapter.application.capabilities") }
-    designApiPayload { packageRoot.set("adapter.portal.api.payload") }
     designEndpoint { packageRoot.set("contract.endpoints") }
     flow { outputRoot.set("analysis/flows") }
     drawingBoard { outputRoot.set("analysis/drawing-board") }
 }
 ```
 
-公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designCapability`, `designQueryHandler`, `designCapabilityHandler`, `designApiPayload`, `designEndpoint`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。`designEndpoint` 与 `designIntegrationEvent` 默认输出到 contract role；`designIntegrationEventSubscriber` 仍输出到 application role。
+公开 layout blocks 包括 `aggregate`, `aggregateSchema`, `aggregateRepository`, `aggregateSharedEnum`, `designCommand`, `designQuery`, `designCapability`, `designQueryHandler`, `designCapabilityHandler`, `designEndpoint`, `designDomainEvent`, `designDomainEventHandler`, `designIntegrationEvent`, `designIntegrationEventSubscriber`, `flow`, `drawingBoard`。`designEndpoint` 与 `designIntegrationEvent` 默认输出到 contract role；`designIntegrationEventSubscriber` 仍输出到 application role。
 
 ## `pipelineExtensions { }`
 

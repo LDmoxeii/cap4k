@@ -28,7 +28,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.commandTypeName(),
         description = block.description,
-        request = block.request,
+        request = block.requireRequest(),
         response = block.response,
     )
 
@@ -40,7 +40,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.queryTypeName(),
         description = block.description,
-        request = block.request,
+        request = block.requireRequest(),
         response = block.response,
         pageRequest = pageRequest,
     )
@@ -52,25 +52,12 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.capabilityTypeName(),
         description = block.description,
-        request = block.request,
+        request = block.requireRequest(),
         response = block.response,
     )
 
     fun createForEndpointBlock(packageName: String, block: DesignBlockModel): DesignRenderModel = createForBlock(
-        packageName, block.endpointTypeName(), block.description, block.request, block.response
-    )
-
-    fun createForApiPayloadBlock(
-        packageName: String,
-        block: DesignBlockModel,
-        pageRequest: Boolean,
-    ): DesignRenderModel = createForBlock(
-        packageName = packageName,
-        typeName = block.apiPayloadTypeName(),
-        description = block.description,
-        request = block.request,
-        response = block.response,
-        pageRequest = pageRequest,
+        packageName, block.endpointTypeName(), block.description, block.requireRequest(), block.response
     )
 
     fun createForDomainEventBlock(
@@ -80,7 +67,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.domainEventTypeName(),
         description = block.description,
-        request = block.request,
+        request = block.requireRequest(),
         response = null,
     )
 
@@ -91,7 +78,7 @@ internal object DesignPayloadRenderModelFactory {
         packageName = packageName,
         typeName = block.integrationEventTypeName(),
         description = block.description,
-        request = block.request,
+        request = block.requireRequest(),
         response = null,
     )
 
@@ -127,6 +114,9 @@ internal object DesignPayloadRenderModelFactory {
         )
     }
 }
+
+private fun DesignBlockModel.requireRequest(): SemanticValueDefinition =
+    requireNotNull(request) { "design block $tag $name is missing its canonical request" }
 
 private class SemanticTypeRenderer(
     private val packageName: String,

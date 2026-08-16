@@ -146,8 +146,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
         .convention("adapter.application.queries")
     val designCapabilityHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention("adapter.application.capabilities")
-    val designApiPayload: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
-        .convention("adapter.portal.api.payload")
     val designDomainEvent: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
         .convention(packageRoot = "domain.aggregates", packageSuffix = "events")
     val designDomainEventHandler: PackageLayoutExtension = objects.newInstance(PackageLayoutExtension::class.java)
@@ -201,10 +199,6 @@ open class Cap4kLayoutExtension @Inject constructor(objects: ObjectFactory) {
 
     fun designCapabilityHandler(block: PackageLayoutExtension.() -> Unit) {
         designCapabilityHandler.block()
-    }
-
-    fun designApiPayload(block: PackageLayoutExtension.() -> Unit) {
-        designApiPayload.block()
     }
 
     fun designDomainEvent(block: PackageLayoutExtension.() -> Unit) {

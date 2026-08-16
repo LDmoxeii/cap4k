@@ -9,7 +9,7 @@ generator input projection 是把已经形成的业务意图、模型和技术�
 输入投影要覆盖这些 surface：
 
 - DB schema：Aggregate table、ID、引用、enum type marker、Value Object type marker、unique constraint 和外键。
-- `design/design.json`：Command、Query、Capability、API Payload、Endpoint、Domain Event、Integration Event、Domain Service 等 building blocks。
+- `design/design.json`：Command、Query、Capability、Endpoint、Domain Event、Integration Event、Domain Service 等 building blocks。
 - `design/value-objects.json`：通过 `types.valueObjectManifest` 管理 Value Object。
 - `design/enums.json`：通过 `types.enumManifest` 管理 Business Enum。
 - module layout：可选的 dependency-leaf contract，以及 domain、application、adapter、start 的物理模块位置。
@@ -38,7 +38,6 @@ schema 可以帮助 generator 理解字段、类型和 persistence mapping，但
 
 - `command`：例如 `CreateContentDraft`、`ApproveContentReview`、`StartMediaProcessing`、`MarkMediaProcessingSucceeded`、`RecordContentMediaReady`、`PublishContent`、paid publication commands。
 - `query`：例如 `GetContentDetail`、`GetMediaProcessingStatus`、`GetPaidPublicationStatus`、`ListSubmittedMediaProcessingTasksForPolling`。
-- `api_payload`：HTTP payload 和 result shape。
 - `endpoint`：一个 transport-neutral published operation，使用显式 `operationName` 与 Request/Response shape。
 - `capability`：例如 `TriggerMediaProcessing`、`GetMediaProcessingStatus`、paid publication external capabilities。
 - `domain_event`：例如 `ContentPublicationReady`、`MediaProcessingSucceeded`。

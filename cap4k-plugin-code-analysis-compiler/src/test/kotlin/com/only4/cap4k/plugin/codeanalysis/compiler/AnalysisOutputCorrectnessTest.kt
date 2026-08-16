@@ -121,7 +121,7 @@ class AnalysisOutputCorrectnessTest {
     }
 
     @Test
-    fun `form feed default is recovered as a Kotlin supported unicode literal`() {
+    fun `command field form feed default is recovered as a Kotlin supported unicode literal`() {
         val json = compileDesignElements(
             eventContractSources(
                 fileName = "FormFeedPayload.kt",
@@ -129,11 +129,10 @@ class AnalysisOutputCorrectnessTest {
                     package demo.application.api
 
                     @com.only4.cap4k.analysis.metadata.DesignBlockMetadata(
-                        tag = "api",
-                        packageName = "orders.api",
-                        name = "FormFeedPayload",
-                        family = "api-payload",
-                        variant = "request",
+                        tag = "command",
+                        packageName = "orders.commands",
+                        name = "FormFeedCommand",
+                        family = "command",
                     )
                     data class FormFeedPayload(val marker: String = "\u000c")
                 """.trimIndent(),
@@ -643,6 +642,28 @@ class AnalysisOutputCorrectnessTest {
                 nodes,
             )
         }
+    }
+
+    @Test
+    fun `ordinary unannotated request response wrapper emits no tactical node`() {
+        val outputDir = compileWithCap4kPlugin(
+            listOf(
+                SourceFile.kotlin(
+                    "OrdinaryWrapper.kt",
+                    """
+                        package demo.application.transport
+
+                        object OrdinaryWrapper {
+                            data class Request(val value: String)
+                            data class Response(val accepted: Boolean)
+                        }
+                    """.trimIndent(),
+                ),
+            )
+        )
+
+        val nodes = outputDir.resolve("nodes.json").toFile().readText()
+        assertEquals("[]", nodes)
     }
 
     @Test

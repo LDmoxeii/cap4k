@@ -33,7 +33,6 @@ class DesignJsonSourceProvider : SourceProvider {
             "Command",
             "Query",
             "Capability",
-            "API Payload",
             "Actor Endpoint",
             "Domain Event",
             "Integration Event",
@@ -59,14 +58,13 @@ class DesignJsonSourceProvider : SourceProvider {
         "command",
         "query",
         "capability",
-        "api_payload",
         "endpoint",
         "domain_event",
         "integration_event",
         "domain_service",
     )
     private val removedPublicFields = listOf("desc", "requestFields", "responseFields", "traits", "role", "scope", "entity")
-    private val resultFieldTags = setOf("command", "query", "capability", "api_payload", "endpoint")
+    private val resultFieldTags = setOf("command", "query", "capability", "endpoint")
     private val eventNameTags = setOf("domain_event", "integration_event")
     private val selfToken = Regex("""(?<![A-Za-z0-9_.])self(?![A-Za-z0-9_])""", RegexOption.IGNORE_CASE)
 
@@ -284,7 +282,6 @@ class DesignJsonSourceProvider : SourceProvider {
     ) {
         val pageFamily = when (tag) {
             "query" -> "query"
-            "api_payload" -> "api-payload"
             else -> return
         }
         if (artifacts.orEmpty().none { it.family == pageFamily && it.variant == "page" }) return

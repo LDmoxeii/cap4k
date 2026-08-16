@@ -7,6 +7,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":demo-contract"))
     implementation(project(":demo-domain"))
     implementation(project(":demo-application"))
     implementation("io.github.ldmoxeii:ddd-core:0.6.0-dev")

@@ -74,10 +74,11 @@
     ]
   },
   {
-    "tag": "api_payload",
+    "tag": "endpoint",
     "package": "order",
-    "name": "SubmitOrderPayload",
-    "description": "submit order payload",
+    "name": "SubmitOrderEndpoint",
+    "operationName": "order.submit",
+    "description": "submit order endpoint",
     "aggregates": [],
     "fields": [
       {

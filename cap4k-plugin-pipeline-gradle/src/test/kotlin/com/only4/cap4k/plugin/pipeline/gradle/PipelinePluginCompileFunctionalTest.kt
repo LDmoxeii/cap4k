@@ -119,36 +119,7 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `api payload generation participates in adapter compileKotlin`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-compile")
-        FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-api-payload-compile-sample")
-
-        val beforeGenerateCompileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-adapter:compileKotlin")
-            .buildAndFail()
-        assertEquals(
-            TaskOutcome.FAILED,
-            beforeGenerateCompileResult.task(":demo-adapter:compileKotlin")?.outcome
-        )
-        assertTrue(beforeGenerateCompileResult.output.contains("SubmitOrderPayload"))
-
-        val generateResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerate")
-            .build()
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-adapter:compileKotlin")
-            .build()
-
-        assertGeneratedFilesExist(
-            projectDir,
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
-        )
-        assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
-    }
-
-    @Test
-    fun `nested recursive design payload generation participates in adapter compileKotlin`() {
+    fun `nested recursive endpoint contract generation participates in contract compileKotlin`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-design-nested-recursion-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "design-nested-recursion-compile-sample")
 
@@ -156,17 +127,18 @@ class PipelinePluginCompileFunctionalTest {
             .runner(projectDir, "cap4kGenerate")
             .build()
         val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-adapter:compileKotlin")
+            .runner(projectDir, ":demo-contract:compileKotlin")
             .build()
 
-        val payloadFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/video/SyncVideoPostProcessStatus.kt",
+        val endpointFile = projectDir.resolve(
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/endpoints/video/SyncVideoPostProcessStatus.kt",
         )
-        val content = payloadFile.readText()
+        val content = endpointFile.readText()
 
+        assertTrue(content.contains("const val OPERATION_NAME: String = \"video.post-process-status.sync\""))
         assertGeneratedFilesExist(
             projectDir,
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/video/SyncVideoPostProcessStatus.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/endpoints/video/SyncVideoPostProcessStatus.kt",
         )
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
@@ -177,7 +149,7 @@ class PipelinePluginCompileFunctionalTest {
                 val fileList: List<FileItem>,
                 val itemList: List<Item>,
                 val externalItem: com.acme.shared.Item
-            ) {
+            ) : EndpointRequest<Response> {
             """.trimIndent(),
         )
         assertContainsNormalized(
@@ -1650,7 +1622,7 @@ class PipelinePluginCompileFunctionalTest {
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/order/read/FindOrderQryHandler.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/capabilities/authorize/IssueTokenHandler.kt",
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/order/SubmitOrderPayload.kt",
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/endpoints/order/SubmitOrderEndpoint.kt",
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/order/events/OrderCreatedDomainEvent.kt",
             "demo-application/src/main/kotlin/com/acme/demo/application/subscribers/domain/order/OrderCreatedDomainEventSubscriber.kt",
             "demo-contract/src/main/kotlin/com/acme/demo/contract/events/integration/inbound/payment/integration/PaymentReceivedIntegrationEvent.kt",

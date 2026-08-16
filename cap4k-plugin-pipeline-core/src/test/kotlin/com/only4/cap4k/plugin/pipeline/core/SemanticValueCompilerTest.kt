@@ -404,7 +404,7 @@ class SemanticValueCompilerTest {
     fun `compiles nested paths into flattened Kotlin identities before rendering`() {
         val definition = SemanticValueCompiler(CanonicalTypeCatalog()).compile(
             identity = identity("com.acme.api", "Payload.Request", CanonicalTypeKind.NESTED_VALUE),
-            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            role = SemanticValueRole.VALUE_OBJECT,
             fields = listOf(
                 SemanticFieldSnapshot("files", "List<FileItem>"),
                 SemanticFieldSnapshot("files[].index", "Int"),
@@ -424,7 +424,7 @@ class SemanticValueCompilerTest {
     fun `compiles Array nested paths without changing their container shape`() {
         val definition = SemanticValueCompiler(CanonicalTypeCatalog()).compile(
             identity = identity("com.acme.api", "Payload.Request", CanonicalTypeKind.NESTED_VALUE),
-            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            role = SemanticValueRole.VALUE_OBJECT,
             fields = listOf(
                 SemanticFieldSnapshot("items", "Array<Item>"),
                 SemanticFieldSnapshot("items[].name", "String"),
@@ -441,7 +441,7 @@ class SemanticValueCompilerTest {
     fun `infers Item once for an undeclared items collection path`() {
         val definition = SemanticValueCompiler(CanonicalTypeCatalog()).compile(
             identity = identity("com.acme.api", "Payload.Request", CanonicalTypeKind.NESTED_VALUE),
-            role = SemanticValueRole.API_PAYLOAD_REQUEST,
+            role = SemanticValueRole.VALUE_OBJECT,
             fields = listOf(SemanticFieldSnapshot("items[].name", "String")),
         )
 

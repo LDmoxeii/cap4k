@@ -81,7 +81,6 @@ class DrawingBoardArtifactPlanner : GeneratorProvider {
             "command",
             "query",
             "capability",
-            "api_payload",
             "endpoint",
             "domain_event",
             "integration_event",
@@ -121,7 +120,11 @@ private fun DrawingBoardElementModel.toRenderModel(): DrawingBoardRenderElement 
         designJsonArtifacts = designJsonArtifacts.sortedWith(ArtifactComparator),
         includeDesignJsonArtifacts = includeDesignJsonArtifacts,
         persist = persist,
-        fields = request.toSourceFields(),
+        fields = when (tag) {
+            "domain_service" -> emptyList()
+            else -> requireNotNull(request) { "drawing-board element $tag $name is missing its canonical request" }
+                .toSourceFields()
+        },
         resultFields = response?.toSourceFields().orEmpty(),
         eventName = eventName,
         operationName = operationName,

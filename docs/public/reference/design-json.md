@@ -22,7 +22,6 @@
 | `command` | 状态变更的 application intent | Command skeleton |
 | `query` | read-side observation intent | Query contract / handler surface |
 | `capability` | external capability contract | Capability call / handler surface |
-| `api_payload` | adapter-facing payload/result shape | payload classes |
 | `endpoint` | transport-neutral published Actor operation | contract Request / Response |
 | `domain_event` | domain fact contract | domain event / subscriber or handler shell |
 | `integration_event` | published language event contract | integration event / inbound subscriber shell |
@@ -38,7 +37,7 @@
 | `description` | string | 可读 description。 |
 | `aggregates` | string array | 关联的 aggregate names；普通 tag 可用空数组表示不绑定具体 aggregate。`domain_event` 必须且只能声明一个 owner aggregate；该值只表达归属，不贡献 payload。 |
 | `fields` | field array | input fields。 |
-| `resultFields` | field array | 允许用于 `command`、`query`、`capability`、`api_payload` 和 `endpoint` 的 result shape；在 `command` 上表达 command outcome，在 `endpoint` 上表达 published Response。 |
+| `resultFields` | field array | 允许用于 `command`、`query`、`capability` 和 `endpoint` 的 result shape；在 `command` 上表达 command outcome，在 `endpoint` 上表达 published Response。 |
 | `operationName` | string | 只允许用于 `endpoint`，且必须是非空稳定 published operation identity。它不从 Kotlin type、HTTP route 或 RPC service name 推导。 |
 | `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 以及 `persist: true` 的 `domain_event` 必填。 |
 | `persist` | boolean | 只允许用于 `domain_event`。 |
@@ -52,7 +51,7 @@ field item 常见 shape：
 
 `type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>`、`Array<T>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、primitive array、tuple 或任意 generic type。Primitive array 会在最终 canonical identity 解析后拒绝，因此 `kotlin.IntArray`、指向它的 alias、short-name evidence 及递归容器位置都不能绕过校验；`Array<Int>` 仍受支持，业务类型 `com.acme.IntArray` 不会仅因 simple name 被拒绝。Domain Event 的递归 Entity 检查同样遍历 `Array<T>` element。`nullable` 只能由 type expression 的 `?` 表达，schema 不接受独立 nullability 字段。
 
-`PageData<Item>` 是 query / API result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。`query` 或 `api-payload` 的 `page` variant 会派生 `pageNum: Int = 1` 和 `pageSize: Int = 10`；作者不能声明根路径为 `pageNum` / `pageSize` 的 field，因此 `pageNum.value`、`pageSize[].value` 同样非法，`filter.pageNum`、`filters[].pageSize` 不冲突。非 page block 可以把这些根字段当作普通业务字段。
+`PageData<Item>` 是 Query result 专用的 page envelope，不属于通用 generic type algebra，也不能用于普通 request/value field。`query` 的 `page` variant 会派生 `pageNum: Int = 1` 和 `pageSize: Int = 10`；作者不能声明根路径为 `pageNum` / `pageSize` 的 field，因此 `pageNum.value`、`pageSize[].value` 同样非法，`filter.pageNum`、`filters[].pageSize` 不冲突。非 page block 可以把这些根字段当作普通业务字段。
 
 ## Artifact Selection
 
@@ -63,7 +62,6 @@ field item 常见 shape：
 | `command` | `command` | none |
 | `query` | `query`（可用 `page` variant） | `query-handler` |
 | `capability` | `capability` | `capability-handler` |
-| `api_payload` | `api-payload`（可用 `page` variant） | none |
 | `endpoint` | `endpoint` | none |
 | `domain_event` | `domain-event` | `domain-subscriber` |
 | `integration_event` | `integration-event`（`inbound` / `outbound`） | `integration-subscriber`，仅 inbound |
@@ -90,7 +88,7 @@ field item 常见 shape：
 
 `command` 表达写入意图。读取其他 aggregate 或 external fact 可以用于 zero-trust validation，但写入 ownership 仍应收敛到目标 aggregate 和 application command boundary。
 
-`command.fields` 表达 Command payload，`command.resultFields` 表达 Command outcome payload。Command、Query、Capability、API Payload、Endpoint、Domain Event 和 Integration Event 的 structured fields 都进入同一 canonical semantic-value compiler，但各自 role 和输出 family 仍保持独立。省略或声明空 `command.resultFields` 时仍保持无结果 response 形态。
+`command.fields` 表达 Command payload，`command.resultFields` 表达 Command outcome payload。Command、Query、Capability、Endpoint、Domain Event 和 Integration Event 的 structured fields 都进入同一 canonical semantic-value compiler，但各自 role 和输出 family 仍保持独立。省略或声明空 `command.resultFields` 时仍保持无结果 response 形态。
 
 ## 最小 Query
 
@@ -136,7 +134,7 @@ field item 常见 shape：
 ]
 ```
 
-一个 `endpoint` 表达一个 transport-neutral published operation。generator 在 `project.contractModulePath` 指向的依赖叶子模块生成一个 operation object；其中 `Request` 实现轻量 `EndpointRequest<Response>`，`Response` 与 Request 同属该 object，并通过 `OPERATION_NAME` 保留显式 `operationName`。Endpoint contract 不实现 Command、Query 或 Capability marker，也不包含 HTTP/RPC route、client、provider、retry 或 discovery 配置。
+一个 `endpoint` 表达一个 transport-neutral published API operation，也是框架发布 Request / Response schema 的唯一 Design JSON contract。adapter-private DTO 只是协议映射实现类型，不是 framework capability。generator 在 `project.contractModulePath` 指向的依赖叶子模块生成一个 operation object；其中 `Request` 实现轻量 `EndpointRequest<Response>`，`Response` 与 Request 同属该 object，并通过 `OPERATION_NAME` 保留显式 `operationName`。Endpoint contract 不实现 Command、Query 或 Capability marker，也不包含 HTTP/RPC route、client、provider、retry 或 discovery 配置。
 
 本阶段只提供 contract 与 `Mediator.endpoints` dispatch family。Provider 的本地实现和未来 Consumer RPC proxy 都以本进程的 `EndpointHandler<Request, Response>` 接入；业务代码通过 `Mediator.endpoints.send/sendAsync` 调用，不直接调用 Handler/proxy。HTTP/RPC binding 属于后续能力，不由 `endpoint` Design JSON 自动生成。
 
@@ -192,7 +190,6 @@ field item 常见 shape：
 | `command` | 不应作为 read shortcut；状态变化放在 command path。 |
 | `query` | 不应 mutate aggregate 或修复状态。 |
 | `capability` | 表达 application-facing external capability，不放 adapter protocol details。 |
-| `api_payload` | 表达 payload shape，不替代 command/query 边界。 |
 | `endpoint` | 表达一个显式 published operation；必须声明 `operationName`，不得携带 transport binding 或复用内部 Command/Query/Capability marker。 |
 | `domain_event` | 表达业务事实，不表达技术 continuation step；`persist: true` 时必须声明非空 `eventName`，`persist` 只允许在这里使用；`fields` 是完整 payload，`aggregates` 仅表达归属，resolved field graph 不得包含 Aggregate/Entity。 |
 | `integration_event` | 表达 service boundary published language；必须声明 `eventName`。 |

@@ -4,7 +4,7 @@ Adapter layer 是 cap4k 项目连接外部世界和 application layer 的协议�
 
 ## 负责
 
-Adapter layer 负责 Controller、API Payload、query adapter、capability-handler、persistence adapter 和 protocol conversion。Controller 接收 HTTP request 并调用 application entry；API Payload 描述外部接口字段；query adapter 把读取结果组织成接口需要的 shape；capability-handler 执行 external capability request；persistence adapter 处理存储协议和技术映射。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。
+Adapter layer 负责 Controller、adapter-private DTO、query adapter、capability-handler、persistence adapter 和 protocol conversion。Controller 接收 HTTP request 并调用 application entry；adapter-private DTO 描述外部接口字段；query adapter 把读取结果组织成接口需要的 shape；capability-handler 执行 external capability request；persistence adapter 处理存储协议和技术映射。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。
 
 adapter 的目标是隔离协议差异。它可以处理 request/response mapping、status code、header、external error、callback schema、storage mapping、serialization 和技术容错，但这些转换不应该改变业务真相。
 
@@ -16,7 +16,7 @@ Adapter layer 不负责 Aggregate invariant、Factory 创建规则、Domain Even
 
 ## 生成骨架
 
-cap4k generation 可以为 Controller、API Payload、Query handler、capability-handler、persistence adapter 以及 integration-event transport/runtime wiring references 提供稳定骨架。骨架帮助 adapter layer 保持清晰入口，例如 `ContentController`、`ReviewController`、`QueryController`、`AdvancedPaidPublicationController`、`GetContentDetailQryHandler`、`TriggerMediaProcessingHandler` 或 `MediaProcessingCallbackIntegrationEvent` typed event dispatch references。
+cap4k generation 可以为 Controller、Query handler、capability-handler、persistence adapter 以及 integration-event transport/runtime wiring references 提供稳定骨架。骨架帮助 adapter layer 保持清晰入口，例如 `ContentController`、`ReviewController`、`QueryController`、`AdvancedPaidPublicationController`、`GetContentDetailQryHandler`、`TriggerMediaProcessingHandler` 或 `MediaProcessingCallbackIntegrationEvent` typed event dispatch references。
 
 生成骨架负责协议入口和结构一致性，不负责业务规则。handwritten mapping 可以补齐外部字段到内部语义的转换、错误处理、返回格式和技术容错，但不应把 business decision 写进协议适配代码。
 
