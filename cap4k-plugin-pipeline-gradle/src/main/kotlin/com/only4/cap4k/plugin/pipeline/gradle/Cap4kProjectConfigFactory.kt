@@ -229,7 +229,6 @@ class Cap4kProjectConfigFactory {
             designCapability = extension.layout.designCapability.toPackageLayout("designCapability"),
             designQueryHandler = extension.layout.designQueryHandler.toPackageLayout("designQueryHandler"),
             designCapabilityHandler = extension.layout.designCapabilityHandler.toPackageLayout("designCapabilityHandler"),
-            designApiPayload = extension.layout.designApiPayload.toPackageLayout("designApiPayload"),
             designDomainEvent = extension.layout.designDomainEvent.toPackageLayout("designDomainEvent"),
             designDomainEventHandler = extension.layout.designDomainEventHandler.toPackageLayout(
                 "designDomainEventHandler"

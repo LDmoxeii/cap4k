@@ -89,7 +89,6 @@ data class ArtifactLayoutConfig(
     val designCapability: PackageLayout = PackageLayout("application.capabilities"),
     val designQueryHandler: PackageLayout = PackageLayout("adapter.application.queries"),
     val designCapabilityHandler: PackageLayout = PackageLayout("adapter.application.capabilities"),
-    val designApiPayload: PackageLayout = PackageLayout("adapter.portal.api.payload"),
     val designDomainEvent: PackageLayout = PackageLayout(
         packageRoot = "domain.aggregates",
         packageSuffix = "events",

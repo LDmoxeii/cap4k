@@ -25,7 +25,6 @@ import com.only4.cap4k.plugin.pipeline.core.FilesystemArtifactExporter
 import com.only4.cap4k.plugin.pipeline.core.NoopArtifactExporter
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.AggregateArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.aggregate.EnumManifestArtifactPlanner
-import com.only4.cap4k.plugin.pipeline.generator.design.DesignApiPayloadArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCapabilityArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCapabilityHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignCommandArtifactPlanner
@@ -180,7 +179,6 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "query-handler",
     "capability",
     "capability-handler",
-    "api-payload",
     "endpoint",
     "domain-event",
     "domain-subscriber",
@@ -965,7 +963,6 @@ internal fun builtInAuthoringGeneratorProviders(): List<GeneratorProvider> = lis
     DesignQueryHandlerArtifactPlanner(),
     DesignCapabilityArtifactPlanner(),
     DesignCapabilityHandlerArtifactPlanner(),
-    DesignApiPayloadArtifactPlanner(),
     DesignEndpointArtifactPlanner(),
     DesignDomainEventArtifactPlanner(),
     DesignDomainEventHandlerArtifactPlanner(),

@@ -22,7 +22,6 @@ internal fun DesignBlockModel.capabilityTypeName(): String = name.normalizeUpper
 
 internal fun DesignBlockModel.endpointTypeName(): String = name.normalizeUpperCamelTypeName()
 
-internal fun DesignBlockModel.apiPayloadTypeName(): String = name.normalizeUpperCamelTypeName()
 
 internal fun DesignBlockModel.domainEventTypeName(): String = name.toDomainEventTypeName()
 

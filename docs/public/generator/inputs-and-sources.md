@@ -39,7 +39,6 @@ DB/schema comments 的 supported annotation closed set、relation metadata 依�
 - `command`
 - `query`
 - `capability`
-- `api_payload`
 - `domain_event`
 - `integration_event`
 - `domain_service`

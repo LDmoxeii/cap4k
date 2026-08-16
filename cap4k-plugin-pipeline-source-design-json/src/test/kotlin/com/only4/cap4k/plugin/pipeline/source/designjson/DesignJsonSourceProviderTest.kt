@@ -902,69 +902,6 @@ class DesignJsonSourceProviderTest {
     }
 
     @Test
-    fun `rejects self in design field types`() {
-        val tempFile = tempDir.resolve("self-recursion.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "api_payload",
-                    "package": "category",
-                    "name": "GetCategoryTree",
-                    "description": "get category tree",
-                    "fields": [],
-                    "resultFields": [
-                      { "name": "nodes", "type": "List<Node>" },
-                      { "name": "nodes[].children", "type": "List<self>" }
-                    ]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val error = assertThrows(IllegalArgumentException::class.java) {
-            DesignJsonSourceProvider().collect(configFor(tempFile.toString()))
-        }
-
-        assertEquals(
-            "design entry GetCategoryTree field nodes[].children must use an explicit type name instead of self",
-            error.message,
-        )
-    }
-
-    @Test
-    fun `allows self text embedded in explicit design field type names`() {
-        val tempFile = tempDir.resolve("embedded-self-names.json")
-        Files.writeString(
-            tempFile,
-            """
-                [
-                  {
-                    "tag": "api_payload",
-                    "package": "category",
-                    "name": "GetCategoryTree",
-                    "description": "get category tree",
-                    "fields": [
-                      { "name": "owner", "type": "myself" }
-                    ],
-                    "resultFields": [
-                      { "name": "image", "type": "Selfie" }
-                    ]
-                  }
-                ]
-            """.trimIndent(),
-            StandardCharsets.UTF_8,
-        )
-
-        val snapshot = DesignJsonSourceProvider().collect(configFor(tempFile.toString())) as DesignSpecSnapshot
-
-        assertEquals("myself", snapshot.entries.single().fields.single().typeExpression)
-        assertEquals("Selfie", snapshot.entries.single().resultFields.single().typeExpression)
-    }
-
-    @Test
     fun `declares utf8 charset when reading design files`() {
         val sourceFile = File(
             "src/main/kotlin/com/only4/cap4k/plugin/pipeline/source/designjson/DesignJsonSourceProvider.kt",

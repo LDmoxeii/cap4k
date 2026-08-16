@@ -18,15 +18,16 @@ internal fun CanonicalModel.validateDomainEventPayloads() {
 }
 
 internal fun DesignBlockModel.validateDomainEventPayload(model: CanonicalModel) {
+    val eventValue = requireNotNull(request) { "domain_event $name is missing its canonical event value" }
     val entityTypes = model.entities
         .map { entity -> "${entity.packageName}.${entity.name}" }
         .toSet()
     val inspectableValues = buildMap {
-        request.collectDefinitionsInto(this)
+        eventValue.collectDefinitionsInto(this)
         model.valueObjects.forEach { valueObject -> valueObject.definition.collectDefinitionsInto(this) }
     }
 
-    request.fields.forEach { field ->
+    eventValue.fields.forEach { field ->
         val fieldPath = field.sourcePath.ifBlank { "fields.${field.name}" }
         validateDomainEventType(
             eventName = name,

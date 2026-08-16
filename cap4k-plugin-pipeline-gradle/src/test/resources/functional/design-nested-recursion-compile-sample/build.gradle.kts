@@ -5,7 +5,7 @@ plugins {
 cap4k {
     project {
         basePackage.set("com.acme.demo")
-        adapterModulePath.set("demo-adapter")
+        contractModulePath.set("demo-contract")
     }
     sources {
         designJson {

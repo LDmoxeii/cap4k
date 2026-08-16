@@ -14,4 +14,4 @@ dependencyResolutionManagement {
 includeBuild("__CAP4K_REPO_ROOT__")
 
 rootProject.name = "design-nested-recursion-compile-sample"
-include("demo-adapter")
+include("demo-contract")

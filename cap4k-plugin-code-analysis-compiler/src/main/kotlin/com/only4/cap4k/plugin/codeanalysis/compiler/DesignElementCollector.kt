@@ -138,8 +138,7 @@ class DesignElementCollector(
         when (family) {
             "command",
             "query",
-            "capability",
-            "api-payload" -> findNestedClass(declaration, "Request") ?: declaration
+            "capability" -> findNestedClass(declaration, "Request") ?: declaration
             "endpoint" -> findNestedClass(declaration, "Request")
             "domain-event",
             "integration-event" -> declaration
@@ -147,7 +146,7 @@ class DesignElementCollector(
         }
 
     private fun String.hasResultFields(): Boolean =
-        this == "command" || this == "query" || this == "capability" || this == "api-payload" || this == "endpoint"
+        this == "command" || this == "query" || this == "capability" || this == "endpoint"
 
     private fun validateAndFilterPageFields(
         carrier: IrClass,
@@ -160,7 +159,7 @@ class DesignElementCollector(
         if (variant != "page") {
             return fields
         }
-        require(family == "query" || family == "api-payload") {
+        require(family == "query") {
             "DesignBlockMetadata for $tag $name declares page variant on unsupported artifact family: $family"
         }
         require(carrier.isOrImplements(pageRequestFq)) {

@@ -50,7 +50,7 @@ generation 的作用是维护结构和合同，不是完成业务实现。生成
 
 plan review 要把 output 分成几类：
 
-- checked-in skeletons：例如 Command、Query、Capability、Subscriber、API Payload 或 adapter surface；首次生成后作为普通仓库源码维护，不自动追随 template 更新。
+- checked-in skeletons：例如 Command、Query、Capability、Subscriber 或 adapter surface；首次生成后作为普通仓库源码维护，不自动追随 template 更新。
 - build-owned generated source：构建期维护的输出，不应成为手写业务规则位置。
 - handwritten logic locations：作者在 skeleton 暴露的 surface 中维护业务判断、状态推进、补偿、幂等和协议转换。
 - evidence files：`plan.json`、analysis plan、flow output、drawing-board output，用来审查结构和 ownership。

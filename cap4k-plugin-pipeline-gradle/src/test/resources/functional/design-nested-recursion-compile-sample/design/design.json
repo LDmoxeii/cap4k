@@ -1,8 +1,9 @@
 [
   {
-    "tag": "api_payload",
+    "tag": "endpoint",
     "package": "video",
     "name": "SyncVideoPostProcessStatus",
+    "operationName": "video.post-process-status.sync",
     "description": "sync video post process status",
     "aggregates": [],
     "fields": [

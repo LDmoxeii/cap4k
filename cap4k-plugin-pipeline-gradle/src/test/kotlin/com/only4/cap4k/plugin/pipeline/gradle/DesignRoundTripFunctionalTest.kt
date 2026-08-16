@@ -172,7 +172,7 @@ class DesignRoundTripFunctionalTest {
 
         val ordinaryQuery = blocks.single { it.tag == "query" && it.name == "FindOrderSummary" }
         assertEquals(listOf(ArtifactProjection("query", "")), ordinaryQuery.artifacts)
-        assertTrue(ordinaryQuery.request.fields.isNotEmpty())
+        assertTrue(ordinaryQuery.requireRequest().fields.isNotEmpty())
         assertTrue(ordinaryQuery.response?.fields?.isNotEmpty() == true)
 
         val pageQuery = blocks.single { it.tag == "query" && it.name == "FindOrders" }
@@ -182,17 +182,12 @@ class DesignRoundTripFunctionalTest {
         val endpoint = blocks.single { it.tag == "endpoint" && it.name == "CreateOrder" }
         assertEquals("order.create", endpoint.operationName)
         assertEquals(listOf(ArtifactProjection("endpoint", "")), endpoint.artifacts)
-        assertEquals("ENDPOINT_REQUEST", endpoint.request.role)
+        assertEquals("ENDPOINT_REQUEST", endpoint.requireRequest().role)
         assertEquals("ENDPOINT_RESPONSE", endpoint.response?.role)
-        assertTrue(endpoint.request.fields.isNotEmpty())
-        assertTrue(endpoint.request.nestedDefinitions.isNotEmpty())
+        assertTrue(endpoint.requireRequest().fields.isNotEmpty())
+        assertTrue(endpoint.requireRequest().nestedDefinitions.isNotEmpty())
         assertTrue(endpoint.response?.fields?.isNotEmpty() == true)
         assertTrue(endpoint.response?.nestedDefinitions?.isNotEmpty() == true)
-
-        val ordinaryApiPayload = blocks.single { it.tag == "api_payload" && it.name == "OrderSearchPayload" }
-        assertEquals(listOf(ArtifactProjection("api-payload", "")), ordinaryApiPayload.artifacts)
-        val pageApiPayload = blocks.single { it.tag == "api_payload" && it.name == "OrderPagePayload" }
-        assertEquals(listOf(ArtifactProjection("api-payload", "page")), pageApiPayload.artifacts)
 
         assertTrue(
             blocks.any { block -> block.artifacts.any { it.family in SecondaryArtifactFamilies } },
@@ -202,19 +197,19 @@ class DesignRoundTripFunctionalTest {
         val persisted = blocks.single { it.tag == "domain_event" && it.name == "OrderConfirmed" }
         assertEquals(true, persisted.persist)
         assertEquals("order.confirmed", persisted.eventName)
-        assertTrue(persisted.request.fields.isNotEmpty())
+        assertTrue(persisted.requireRequest().fields.isNotEmpty())
         assertTrue(persisted.artifacts.contains(ArtifactProjection("domain-subscriber", "")))
 
         val transientPayload = blocks.single { it.tag == "domain_event" && it.name == "OrderObserved" }
         assertEquals(false, transientPayload.persist)
         assertTrue(transientPayload.eventName.isEmpty())
-        assertTrue(transientPayload.request.fields.isNotEmpty())
+        assertTrue(transientPayload.requireRequest().fields.isNotEmpty())
         assertEquals(listOf(ArtifactProjection("domain-event", "")), transientPayload.artifacts)
 
         val marker = blocks.single { it.tag == "domain_event" && it.name == "OrderHeartbeat" }
         assertEquals(false, marker.persist)
         assertTrue(marker.eventName.isEmpty())
-        assertTrue(marker.request.fields.isEmpty())
+        assertTrue(marker.requireRequest().fields.isEmpty())
         assertTrue(marker.artifacts.contains(ArtifactProjection("domain-subscriber", "")))
 
         val integrationEvents = blocks.filter { it.tag == "integration_event" }
@@ -227,14 +222,20 @@ class DesignRoundTripFunctionalTest {
             "Rich fixture must cover outbound Integration Events",
         )
 
+        val domainService = blocks.single { it.tag == "domain_service" }
+        assertEquals(null, domainService.request)
+
         val defaults = blocks.flatMap { block ->
-            block.request.defaultExpressions() + block.response?.defaultExpressions().orEmpty()
+            block.request?.defaultExpressions().orEmpty() + block.response?.defaultExpressions().orEmpty()
         }
         assertTrue(
             defaults.any { it.contains("\\u000c") },
             "Rich fixture must carry a U+000C string default as a Kotlin Unicode escape",
         )
     }
+
+    private fun BlockProjection.requireRequest(): ValueProjection =
+        requireNotNull(request) { "$tag $name is missing its canonical request" }
 
     private fun ValueProjection.defaultExpressions(): List<String> =
         fields.mapNotNull(FieldProjection::defaultValue) +
@@ -595,7 +596,7 @@ $registeredPaths
         artifacts = artifacts
             .map { artifact -> ArtifactProjection(artifact.family, artifact.variant) }
             .sortedWith(compareBy(ArtifactProjection::family, ArtifactProjection::variant)),
-        request = request.toProjection(),
+        request = request?.toProjection(),
         response = response?.toProjection(),
     )
 
@@ -772,7 +773,7 @@ $registeredPaths
         val operationName: String,
         val persist: Boolean?,
         val artifacts: List<ArtifactProjection>,
-        val request: ValueProjection,
+        val request: ValueProjection?,
         val response: ValueProjection?,
     )
 
@@ -830,7 +831,6 @@ $registeredPaths
             "query",
             "capability",
             "endpoint",
-            "api_payload",
             "domain_event",
             "integration_event",
             "domain_service",
@@ -848,7 +848,6 @@ $registeredPaths
             "capability",
             "capability-handler",
             "endpoint",
-            "api-payload",
             "domain-event",
             "domain-subscriber",
             "integration-event",

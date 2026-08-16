@@ -24,7 +24,7 @@
 | 错误 | 正确合同 |
 | --- | --- |
 | 让 `query` repair 或 mutate aggregate state。 | Query 只观察。 |
-| 让 `command` 为了 UI convenience 返回 read model。 | Command 表达 state-changing intent；read shapes 属于 Query 或 API payload result fields。 |
+| 让 `command` 为了 UI convenience 返回 read model。 | Command 表达 state-changing intent；published read shapes 属于 Query 或 Endpoint response；protocol-private shape 由 adapter 手写映射。 |
 | 让 controller 承载 business state decisions。 | Controller 把 protocol input 转成 Command/Query 并委托。 |
 | 直接持久化 owned child，或依赖手动 `save()` 完成 Command。 | Existing root 通过 Repository 保持 managed，创建/删除 root 分别通过 Factory/Repository 表达；外层 Command 自动稳定化和提交。 |
 

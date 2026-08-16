@@ -18,7 +18,6 @@ class DesignProviderDescriptorTest {
             DesignQueryHandlerArtifactPlanner(),
             DesignCapabilityArtifactPlanner(),
             DesignCapabilityHandlerArtifactPlanner(),
-            DesignApiPayloadArtifactPlanner(),
             DesignDomainEventArtifactPlanner(),
             DesignDomainEventHandlerArtifactPlanner(),
             DesignDomainServiceArtifactPlanner(),

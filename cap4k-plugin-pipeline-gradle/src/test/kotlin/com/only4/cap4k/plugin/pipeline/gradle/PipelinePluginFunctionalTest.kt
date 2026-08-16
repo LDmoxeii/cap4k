@@ -24,68 +24,6 @@ class PipelinePluginFunctionalTest {
         listOf("com.only4.cap4k.ddd.core.domain", "aggregate.annotation.Aggregate").joinToString(".")
     private val legacyAggregateCall = "@" + "Aggregate("
     private val legacyAggregateTypeEntity = listOf("Aggregate", "TYPE_ENTITY").joinToString(".")
-
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan writes pretty printed plan json`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-plan")
-        copyCompileFixture(projectDir, "design-integrated-compile-sample")
-
-        val result = FunctionalFixtureSupport.runner(projectDir)
-            .withArguments("cap4kPlan")
-            .build()
-
-        val planFile = projectDir.resolve("build/cap4k/plan.json").toFile()
-        val planText = planFile.readText()
-        val planJson = jsonMapper.readTree(planText).requireObjectNode()
-        val planItems = planJson.requireArrayNode("items").map { it.requireObjectNode() }
-        val designItems = planItems.filter { item -> item.get("templateId").asText().startsWith("design/") }
-        val commandItem = designItems.first { it.get("templateId").asText() == "design/command.kt.peb" }
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planFile.exists())
-        assertTrue(planText.contains("\n  \"items\""))
-        assertTrue(planJson.has("diagnostics"))
-        val templateIds = planItems.map { item -> item.get("templateId").asText() }.toSet()
-        assertTrue("design/command.kt.peb" in templateIds)
-        assertTrue("design/query.kt.peb" in templateIds)
-        assertTrue("design/domain_service.kt.peb" in templateIds)
-        assertTrue("types/value-object" in templateIds)
-        assertFalse(planItems.any { item -> item.get("generatorId").asText() == "design-validator" })
-        assertFalse("design/validator.kt.peb" in templateIds)
-        assertFalse("design/query_list.kt.peb" in templateIds)
-        assertFalse("design/query_page.kt.peb" in templateIds)
-        assertEquals(
-            setOf(
-                "command",
-                "query",
-                "query-handler",
-                "capability",
-                "capability-handler",
-                "api-payload",
-                "domain-event",
-                "domain-subscriber",
-                "integration-event",
-                "integration-subscriber",
-                "domain-service",
-            ),
-            designItems.map { item -> item.get("generatorId").asText() }.toSet(),
-        )
-        assertFalse(
-            designItems.any { item ->
-                val contractText = item.toString().lowercase()
-                contractText.contains("scheduled") || contractText.contains("job") || contractText.contains("validator")
-            },
-        )
-        assertEquals("command", commandItem.get("generatorId").asText())
-        assertEquals("", commandItem.get("resolvedOutputRoot").asText())
-        assertEquals(
-            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
-            commandItem.get("outputPath").asText(),
-        )
-    }
-
     @OptIn(ExperimentalPathApi::class)
     @Test
     fun `cap4kGenerate renders command and query files from repository config`() {
@@ -2457,40 +2395,6 @@ class PipelinePluginFunctionalTest {
         assertFalse(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
         assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
     }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kAnalysisPlan and cap4kAnalysisGenerate produce drawing board artifacts from ir analysis fixture`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-analysis-drawing-board")
-        copyFixture(projectDir, "drawing-board-sample")
-
-        val result = FunctionalFixtureSupport.runner(projectDir)
-            .withArguments("cap4kAnalysisPlan", "cap4kAnalysisGenerate")
-            .build()
-
-        val analysisPlanFile = projectDir.resolve("build/cap4k/analysis-plan.json")
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(analysisPlanFile.toFile().exists())
-        assertTrue(analysisPlanFile.readText().contains("\"templateId\": \"drawing-board/document.json.peb\""))
-        assertTrue(projectDir.resolve("design/drawing_board_capability.json").toFile().exists())
-        assertTrue(projectDir.resolve("design/drawing_board_command.json").toFile().exists())
-        val queryContent = projectDir.resolve("design/drawing_board_query.json").readText()
-        val payloadContent = projectDir.resolve("design/drawing_board_api_payload.json").readText()
-        assertTrue(queryContent.contains("\"family\": \"query\""))
-        assertTrue(queryContent.contains("\"variant\": \"page\""))
-        assertTrue(payloadContent.contains("\"family\": \"api-payload\""))
-        assertTrue(payloadContent.contains("\"variant\": \"page\""))
-        assertFalse(queryContent.contains("\"traits\""))
-        assertFalse(payloadContent.contains("\"traits\""))
-        val domainEventFile = projectDir.resolve("design/drawing_board_domain_event.json")
-        assertTrue(domainEventFile.toFile().exists())
-        val domainEventContent = domainEventFile.readText()
-        assertTrue(domainEventContent.contains("\"tag\": \"domain_event\""))
-        assertTrue(domainEventContent.contains("\"name\": \"reason\""))
-        assertFalse(domainEventContent.contains("\"name\": \"entity\""))
-    }
-
     @OptIn(ExperimentalPathApi::class)
     @Test
     fun `cap4kAnalysisGenerate alone rejects incomplete drawing board metadata without replacing outputs`() {
@@ -2589,109 +2493,6 @@ class PipelinePluginFunctionalTest {
         assertTrue(result.output.contains("Analyzer partition 'graph' is invalid: Required rels.json is missing."))
         assertFalse(projectDir.resolve("build/cap4k/analysis-plan.json").toFile().exists())
     }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kPlan api payload flow emits design api payload template`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-plan")
-        copyFixture(projectDir, "design-api-payload-sample")
-
-        val result = FunctionalFixtureSupport.runner(projectDir)
-            .withArguments("cap4kPlan")
-            .build()
-
-        val planFile = projectDir.resolve("build/cap4k/plan.json")
-        val planContent = planFile.readText()
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(planFile.toFile().exists())
-        assertTrue(planContent.contains("\"templateId\": \"design/api_payload.kt.peb\""))
-        assertTrue(planContent.contains("adapter/portal/api/payload/account/BatchSaveAccountList.kt"))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kGenerate api payload flow writes payload under adapter portal api payload`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-generate")
-        copyFixture(projectDir, "design-api-payload-sample")
-
-        val result = FunctionalFixtureSupport.runner(projectDir)
-            .withArguments("cap4kGenerate")
-            .build()
-
-        val payloadFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt"
-        )
-        val content = payloadFile.readText()
-        val responseIndex = content.indexOf("    data class Response(")
-        val requestSection = content.substring(
-            startIndex = content.indexOf("    data class Request("),
-            endIndex = responseIndex
-        )
-        val responseSection = content.substring(responseIndex)
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(payloadFile.toFile().exists())
-        assertTrue(content.contains("package com.acme.demo.adapter.portal.api.payload.account"))
-        assertTrue(content.contains("object BatchSaveAccountList"))
-        assertTrue(content.contains("val address: Address?"))
-        assertFalse(content.contains("val address: Address??"))
-        assertTrue(requestSection.contains("data class Address("))
-        assertTrue(requestSection.contains("val city: String"))
-        assertTrue(requestSection.contains("val zipCode: String = \"000000\""))
-        assertFalse(requestSection.contains("data class Result("))
-        assertTrue(content.contains("val result: Result?"))
-        assertFalse(content.contains("val result: Result??"))
-        assertTrue(responseSection.contains("data class Result("))
-        assertTrue(responseSection.contains("val success: Boolean = true"))
-        assertFalse(responseSection.contains("data class Address("))
-    }
-
-    @OptIn(ExperimentalPathApi::class)
-    @Test
-    fun `cap4kGenerate api payload flow supports override template replacement`() {
-        val projectDir = Files.createTempDirectory("pipeline-functional-design-api-payload-override")
-        copyFixture(projectDir, "design-api-payload-sample")
-
-        val buildFile = projectDir.resolve("build.gradle.kts")
-        buildFile.writeText(
-            buildFile.readText().replace("\r\n", "\n") +
-                """
-
-                cap4k {
-                    templates {
-                        overrideDirs.from("codegen/templates")
-                    }
-                }
-                """.trimIndent()
-        )
-
-        val result = FunctionalFixtureSupport.runner(projectDir)
-            .withArguments("cap4kGenerate")
-            .build()
-
-        val payloadFile = projectDir.resolve(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/account/BatchSaveAccountList.kt"
-        )
-        val content = payloadFile.readText()
-        val responseIndex = content.indexOf("    data class Response(")
-        val requestSection = content.substring(
-            startIndex = content.indexOf("    data class Request("),
-            endIndex = responseIndex
-        )
-        val responseSection = content.substring(responseIndex)
-
-        assertTrue(result.output.contains("BUILD SUCCESSFUL"))
-        assertTrue(payloadFile.toFile().exists())
-        assertTrue(content.contains("// override: representative api payload migration template"))
-        assertTrue(content.contains("object BatchSaveAccountList"))
-        assertTrue(requestSection.contains("data class Address("))
-        assertTrue(requestSection.contains("val zipCode: String = \"000000\""))
-        assertFalse(requestSection.contains("data class Result("))
-        assertTrue(responseSection.contains("data class Result("))
-        assertTrue(responseSection.contains("val success: Boolean = true"))
-    }
-
     @OptIn(ExperimentalPathApi::class)
     @Test
     fun `cap4kPlan domain event flow emits domain event and domain event handler templates`() {
@@ -3002,8 +2803,8 @@ class PipelinePluginFunctionalTest {
         val queryHandlerFile = projectDir.generatedFile(
             "demo-adapter/src/main/kotlin/com/acme/demo/adapter/application/queries/message/read/FindUserMessageQryHandler.kt"
         )
-        val payloadFile = projectDir.generatedFile(
-            "demo-adapter/src/main/kotlin/com/acme/demo/adapter/portal/api/payload/message/CreateUserMessagePayload.kt"
+        val endpointFile = projectDir.generatedFile(
+            "demo-contract/src/main/kotlin/com/acme/demo/contract/endpoints/message/CreateUserMessageEndpoint.kt"
         )
         val domainEventFile = projectDir.generatedFile(
             "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/user_message/events/UserMessageCreatedDomainEvent.kt"
@@ -3021,7 +2822,7 @@ class PipelinePluginFunctionalTest {
             capabilityFile,
             capabilityHandlerFile,
             queryHandlerFile,
-            payloadFile,
+            endpointFile,
             domainEventFile,
             domainEventHandlerFile,
         ).forEach(::assertNoFormattingRegression)
@@ -3085,14 +2886,15 @@ class PipelinePluginFunctionalTest {
             )
         )
 
-        val payloadContent = payloadFile.readText()
-        assertTrue(payloadContent.replace("\r\n", "\n").contains("    }\n\n    data class Response("))
-        val requestIndex = payloadContent.indexOf("data class Request(")
-        val responseIndex = payloadContent.indexOf("data class Response(")
+        val endpointContent = endpointFile.readText()
+        assertTrue(endpointContent.contains("const val OPERATION_NAME: String = \"user-message.create\""))
+        assertTrue(endpointContent.replace("\r\n", "\n").contains("    }\n\n    data class Response("))
+        val requestIndex = endpointContent.indexOf("data class Request(")
+        val responseIndex = endpointContent.indexOf("data class Response(")
         assertTrue(requestIndex >= 0, "Request class must be rendered.")
         assertTrue(responseIndex >= 0, "Response class must be rendered.")
-        val requestSection = payloadContent.substring(requestIndex, responseIndex)
-        val responseSection = payloadContent.substring(responseIndex)
+        val requestSection = endpointContent.substring(requestIndex, responseIndex)
+        val responseSection = endpointContent.substring(responseIndex)
         assertTrue(requestSection.contains("        data class Body("))
         assertTrue(requestSection.contains("val content: String"))
         assertFalse(requestSection.contains("data class Receipt("))

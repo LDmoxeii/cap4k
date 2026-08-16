@@ -60,29 +60,6 @@
     ]
   },
   {
-    "tag": "api_payload",
-    "package": "orders.read",
-    "name": "FindOrderPage",
-    "description": "find order page payload",
-    "artifacts": [
-      {
-        "family": "api-payload",
-        "variant": "page"
-      }
-    ],
-    "fields": [],
-    "resultFields": [
-      {
-        "name": "page",
-        "type": "PageData<Item>"
-      },
-      {
-        "name": "page.list[].orderId",
-        "type": "Long"
-      }
-    ]
-  },
-  {
     "tag": "domain_event",
     "package": "orders.events",
     "name": "OrderCreated",

@@ -354,10 +354,6 @@ private class GraphCollector(
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.domainservice))
             requireDesignBlockMetadata(fqcn, declaration)
         }
-        if (declaration.isUnannotatedApiPayloadCandidate()) {
-            addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.apipayload))
-            requireDesignBlockMetadata(fqcn, declaration)
-        }
 
         if (options.scanSpring && declaration.hasAnnotation(restController)) {
             addNode(Node(id = fqcn, name = classDisplayName, fullName = fqcn, type = NodeType.controller))
@@ -862,20 +858,6 @@ private class GraphCollector(
             current = current.parent as? IrClass
         }
         return null
-    }
-
-    private fun IrClass.isUnannotatedApiPayloadCandidate(): Boolean {
-        if (findEnclosingAnnotation(designBlockMetadataAnn) != null || parent is IrClass) {
-            return false
-        }
-        val request = declarations.filterIsInstance<IrClass>().firstOrNull { it.name.asString() == "Request" }
-            ?: return false
-        val response = declarations.filterIsInstance<IrClass>().firstOrNull { it.name.asString() == "Response" }
-            ?: return false
-        val requestUsesApplicationContract = request.isOrImplements(commandInterfaceFq) ||
-            request.isOrImplements(queryInterfaceFq) ||
-            request.isOrImplements(capabilityCallFq)
-        return !requestUsesApplicationContract && response.name.asString() == "Response"
     }
 
     private fun addRel(rel: Relationship) {

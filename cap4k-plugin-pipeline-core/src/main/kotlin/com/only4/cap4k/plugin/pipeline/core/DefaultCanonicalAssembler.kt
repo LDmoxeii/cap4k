@@ -327,7 +327,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             .values
             .toList()
         val actorEndpoints = designBlocks.filter { it.tag == "endpoint" }.map { block ->
-            ActorEndpointModel(block.operationName, block.request.identity.packageName, block.request.identity.typePath.first(), block.description, block.aggregates, block.request, requireNotNull(block.response))
+            val request = requireNotNull(block.request) { "endpoint ${block.name} is missing its canonical request" }
+            ActorEndpointModel(
+                operationName = block.operationName,
+                packageName = request.identity.packageName,
+                typeName = request.identity.typePath.first(),
+                description = block.description,
+                aggregates = block.aggregates,
+                request = request,
+                response = requireNotNull(block.response) { "endpoint ${block.name} is missing its canonical response" },
+            )
         }
         actorEndpoints.groupBy { it.operationName }.filterValues { it.size > 1 }.keys.firstOrNull()?.let { duplicate ->
             throw IllegalArgumentException("duplicate endpoint operationName: $duplicate")
@@ -347,7 +356,9 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                     aggregateName = aggregateName,
                     aggregatePackageName = aggregate.rootPackageName,
                     persist = block.persist ?: false,
-                    value = block.request,
+                    value = requireNotNull(block.request) {
+                        "domain_event ${block.name} is missing its canonical event value"
+                    },
                 )
             }
             .toList()
@@ -744,7 +755,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" -> "${name}Cmd"
             "query" -> "${name}Qry"
             "capability" -> name.normalizeUpperCamelTypeName()
-            "api_payload" -> name.normalizeUpperCamelTypeName()
             "endpoint" -> name.normalizeUpperCamelTypeName()
             "domain_event" -> name.toDomainEventTypeName()
             "integration_event" -> name.toIntegrationEventTypeName()
@@ -754,7 +764,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" -> artifactLayout.designCommandPackage(packageName)
             "query" -> artifactLayout.designQueryPackage(packageName)
             "capability" -> artifactLayout.designCapabilityPackage(packageName)
-            "api_payload" -> artifactLayout.designApiPayloadPackage(packageName)
             "endpoint" -> artifactLayout.designEndpointPackage(packageName)
             "domain_event" -> {
                 val aggregateName = resolveDomainEventAggregateName(this)
@@ -780,19 +789,21 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "domain_service" -> artifactLayout.designDomainServicePackage(packageName)
             else -> error("Unsupported design tag: $tag")
         }
-        val requestIdentity = CanonicalTypeIdentity(
-            packageName = resolvedPackageName,
-            typePath = if (tag in EventPayloadTags) listOf(typeName) else listOf(typeName, "Request"),
-            kind = CanonicalTypeKind.NESTED_VALUE,
-            ownerAggregateName = aggregates.singleOrNull(),
-        )
-        val requestRole = requestRoleFor(tag)
-        val request = compiler.compile(
-            identity = requestIdentity,
-            role = requestRole,
-            fields = fields,
-            aggregateContext = aggregates,
-        )
+        val request = if (tag == "domain_service") {
+            null
+        } else {
+            compiler.compile(
+                identity = CanonicalTypeIdentity(
+                    packageName = resolvedPackageName,
+                    typePath = if (tag in EventPayloadTags) listOf(typeName) else listOf(typeName, "Request"),
+                    kind = CanonicalTypeKind.NESTED_VALUE,
+                    ownerAggregateName = aggregates.singleOrNull(),
+                ),
+                role = requestRoleFor(tag),
+                fields = fields,
+                aggregateContext = aggregates,
+            )
+        }
         val response = if (tag in ResultFieldTags) {
             compiler.compile(
                 identity = CanonicalTypeIdentity(
@@ -829,19 +840,16 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         "command" -> SemanticValueRole.COMMAND_REQUEST
         "query" -> SemanticValueRole.QUERY_REQUEST
         "capability" -> SemanticValueRole.CAPABILITY_REQUEST
-        "api_payload" -> SemanticValueRole.API_PAYLOAD_REQUEST
         "endpoint" -> SemanticValueRole.ENDPOINT_REQUEST
         "domain_event" -> SemanticValueRole.DOMAIN_EVENT
         "integration_event" -> SemanticValueRole.INTEGRATION_EVENT
-        "domain_service" -> SemanticValueRole.API_PAYLOAD_REQUEST
-        else -> error("Unsupported design tag: $tag")
+        else -> error("Design tag $tag does not declare a request payload")
     }
 
     private fun responseRoleFor(tag: String): SemanticValueRole = when (tag) {
         "command" -> SemanticValueRole.COMMAND_RESPONSE
         "query" -> SemanticValueRole.QUERY_RESPONSE
         "capability" -> SemanticValueRole.CAPABILITY_RESPONSE
-        "api_payload" -> SemanticValueRole.API_PAYLOAD_RESPONSE
         "endpoint" -> SemanticValueRole.ENDPOINT_RESPONSE
         else -> error("Design tag $tag does not support a response payload")
     }
@@ -991,7 +999,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" -> listOf(ArtifactSelectionModel("command"))
             "query" -> listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler"))
             "capability" -> listOf(ArtifactSelectionModel("capability"), ArtifactSelectionModel("capability-handler"))
-            "api_payload" -> listOf(ArtifactSelectionModel("api-payload"))
             "endpoint" -> listOf(ArtifactSelectionModel("endpoint"))
             "domain_event" -> listOf(ArtifactSelectionModel("domain-event"), ArtifactSelectionModel("domain-subscriber"))
             "integration_event" -> listOf(ArtifactSelectionModel("integration-event", "outbound"))
@@ -1056,7 +1063,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" -> "command"
             "query" -> "query"
             "capability" -> "capability"
-            "api_payload" -> "api_payload"
             "endpoint" -> "endpoint"
             "domain_event" -> "domain_event"
             "integration_event" -> "integration_event"
@@ -1096,7 +1102,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             operationName = mergeStringMetadata(context, "operationName", existing.operationName, incoming.operationName),
             persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
             artifacts = artifacts,
-            request = mergeSemanticValueDefinition(context, "fields", existing.request, incoming.request),
+            request = mergeNullableSemanticValueDefinition(context, "fields", existing.request, incoming.request),
             response = when {
                 existing.response == null -> incoming.response
                 incoming.response == null -> existing.response
@@ -1144,6 +1150,17 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         if (existing == null) return incoming
         require(existing == incoming) { "conflicting design block metadata for $context: $field" }
         return existing
+    }
+
+    private fun mergeNullableSemanticValueDefinition(
+        context: String,
+        field: String,
+        existing: SemanticValueDefinition?,
+        incoming: SemanticValueDefinition?,
+    ): SemanticValueDefinition? = when {
+        existing == null -> incoming
+        incoming == null -> existing
+        else -> mergeSemanticValueDefinition(context, field, existing, incoming)
     }
 
     private fun mergeSemanticValueDefinition(
@@ -1204,7 +1221,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             artifacts = artifacts,
             artifactsDeclared = existing.artifactsDeclared || incoming.artifactsDeclared,
             persist = mergeBooleanMetadata(context, "persist", existing.persist, incoming.persist),
-            request = mergeSemanticValueDefinition(context, "fields", existing.request, incoming.request),
+            request = mergeNullableSemanticValueDefinition(context, "fields", existing.request, incoming.request),
             response = when {
                 existing.response == null -> incoming.response
                 incoming.response == null -> existing.response
@@ -1448,7 +1465,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             })
             addAll(valueObjects.flatMap { valueObject -> valueObject.definition.declarationIdentities() })
             addAll(designBlocks.flatMap { block ->
-                block.request.declarationIdentities() + block.response?.declarationIdentities().orEmpty()
+                block.request?.declarationIdentities().orEmpty() + block.response?.declarationIdentities().orEmpty()
             })
             addAll(domainEvents.flatMap { event -> event.value.declarationIdentities() })
             addAll(aggregateCreationGraphs.flatMap { graph ->
@@ -1463,7 +1480,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             addAll(domainServices.map { service -> "${service.packageName}.${service.name}" })
             addAll(valueObjects.flatMap { valueObject -> valueObject.definition.artifactDeclarationFqns() })
             addAll(designBlocks.flatMap { block ->
-                block.request.artifactDeclarationFqns() + block.response?.artifactDeclarationFqns().orEmpty()
+                block.request?.artifactDeclarationFqns().orEmpty() + block.response?.artifactDeclarationFqns().orEmpty()
             })
             addAll(domainEvents.flatMap { event -> event.value.artifactDeclarationFqns() })
             addAll(aggregateCreationGraphs.flatMap { graph ->
@@ -1993,14 +2010,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command",
             "query",
             "capability",
-            "api_payload",
             "endpoint",
             "domain_event",
             "integration_event",
             "domain_service",
         )
-        val ResultFieldTags = setOf("command", "query", "capability", "api_payload", "endpoint")
-        val PageEnvelopeTags = setOf("query", "api_payload")
+        val ResultFieldTags = setOf("command", "query", "capability", "endpoint")
+        val PageEnvelopeTags = setOf("query")
         val EventPayloadTags = setOf("domain_event", "integration_event")
         val EventNameTags = setOf("domain_event", "integration_event")
         val SupportedArtifactFamilies = linkedMapOf(
@@ -2009,7 +2025,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "query-handler" to setOf(""),
             "capability" to setOf(""),
             "capability-handler" to setOf(""),
-            "api-payload" to setOf("", "page"),
             "endpoint" to setOf(""),
             "domain-event" to setOf(""),
             "domain-subscriber" to setOf(""),
@@ -2021,7 +2036,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" to setOf("command"),
             "query" to setOf("query", "query-handler"),
             "capability" to setOf("capability", "capability-handler"),
-            "api_payload" to setOf("api-payload"),
             "endpoint" to setOf("endpoint"),
             "domain_event" to setOf("domain-event", "domain-subscriber"),
             "integration_event" to setOf("integration-event", "integration-subscriber"),
@@ -2031,7 +2045,6 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             "command" to "command",
             "query" to "query",
             "capability" to "capability",
-            "api_payload" to "api-payload",
             "endpoint" to "endpoint",
             "domain_event" to "domain-event",
             "integration_event" to "integration-event",
@@ -2039,16 +2052,14 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         )
         val PageArtifactFamilyByTag = mapOf(
             "query" to "query",
-            "api_payload" to "api-payload",
         )
         val PageFieldNames = setOf("pageNum", "pageSize")
-        val VariantFamilies = setOf("query", "api-payload", "integration-event")
+        val VariantFamilies = setOf("query", "integration-event")
 
         val SupportedDrawingBoardTags = setOf(
             "command",
             "query",
             "capability",
-            "api_payload",
             "endpoint",
             "domain_event",
             "integration_event",

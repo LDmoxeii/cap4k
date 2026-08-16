@@ -8,17 +8,17 @@ cap4k 项目的 Clean Architecture mental model 是：业务规则在内层，�
 
 Contract module 只承载 transport-neutral published shapes 和轻量 marker/annotation。它不依赖任何本服务实现层；Provider application/adapter 与 Consumer application/transport adapter 可以单向依赖它。
 
-Domain layer 是最内层。它负责 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Entity](../concepts/modeling-building-blocks/entity.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、[Factory](../concepts/modeling-building-blocks/factory.md)、[Domain Service](../concepts/modeling-building-blocks/domain-service.md) 和 [Domain Event](../concepts/modeling-building-blocks/domain-event.md)。它不应知道 Controller、API Payload、HTTP status、external service payload、Spring Boot startup 或数据库实现细节。
+Domain layer 是最内层。它负责 [Aggregate](../concepts/modeling-building-blocks/aggregate.md)、[Entity](../concepts/modeling-building-blocks/entity.md)、[Value Object](../concepts/modeling-building-blocks/value-object.md)、[Factory](../concepts/modeling-building-blocks/factory.md)、[Domain Service](../concepts/modeling-building-blocks/domain-service.md) 和 [Domain Event](../concepts/modeling-building-blocks/domain-event.md)。它不应知道 Controller、adapter-private DTO、HTTP status、external service payload、Spring Boot startup 或数据库实现细节。
 
 Application layer 负责用例编排。Command Handler 处理写入意图并自动拥有 REQUIRED transaction/UoW，Query Handler 处理读取意图，Capability Handler 适配外部能力，Subscriber 和 Scheduled Reaction 处理事实之后的反应。Repository 提供 Aggregate 读取和访问边界，Mediator 暴露独立的 Command/Query/Capability/Endpoint routing；业务不变量仍由 domain layer 表达。
 
-Adapter layer 负责协议转换。Controller 接收 HTTP request，API Payload 描述对外接口字段，capability-handler 调用外部能力，persistence adapter 处理存储实现。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。adapter 可以做 mapping、错误码转换、鉴权上下文翻译和外部协议容错，但不应该成为业务真相层。
+Adapter layer 负责协议转换。Controller 接收 HTTP request，adapter-private DTO 描述对外接口字段，capability-handler 调用外部能力，persistence adapter 处理存储实现。对 inbound Integration Event，cap4k integration-event transport adapter/runtime 消费 HTTP/message protocol，解析、注册并分发 typed integration event；业务项目的 application-layer inbound integration subscriber 接收 typed external fact，处理幂等和语义翻译，并在需要改变状态时委托 Command/application behavior。adapter 可以做 mapping、错误码转换、鉴权上下文翻译和外部协议容错，但不应该成为业务真相层。
 
 Start layer 负责 runtime assembly。它把各模块放进 Spring Boot 运行时，提供 local startup、runtime config、bean wiring 和 smoke path。start layer 可以依赖其他模块进行装配，但不应该新增业务判断，也不应该让 inner layers 反向依赖它。
 
 ## Generation Supports The Model
 
-cap4k generation 支持这套 layer model 的方式，是把 design tags 转换成稳定骨架、命名、目录和 wiring 入口。例如 domain event、integration event、endpoint、command、query、subscriber、capability、api payload 等输入可以让项目拥有一致的结构；真正的状态转移、业务不变量、查询语义、外部能力语义、异常处理和恢复策略仍属于 handwritten logic。
+cap4k generation 支持这套 layer model 的方式，是把 design tags 转换成稳定骨架、命名、目录和 wiring 入口。例如 domain event、integration event、endpoint、command、query、subscriber、capability 等输入可以让项目拥有一致的结构；真正的状态转移、业务不变量、查询语义、外部能力语义、异常处理和恢复策略仍属于 handwritten logic。
 
 这个边界很重要。generated skeleton 提供的是 shape，不是业务结论。团队可以在 `ContentBehavior.kt`、`ContentFactory.kt`、`PublishContentCmd`、`GetContentDetailQry`、`ContentPublicationReadyDomainEventSubscriber` 或 `TriggerMediaProcessingHandler` 这样的手写位置表达业务含义，同时让生成骨架保持可审查的入口和命名。
 

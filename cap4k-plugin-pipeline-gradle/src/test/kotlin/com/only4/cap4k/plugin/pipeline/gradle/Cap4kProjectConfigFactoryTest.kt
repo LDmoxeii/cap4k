@@ -269,7 +269,6 @@ class Cap4kProjectConfigFactoryTest {
             "designCapability",
             "designCapabilityHandler",
             "designValidator",
-            "designApiPayload",
             "designDomainEvent",
             "designDomainEventHandler",
             "designIntegrationEvent",

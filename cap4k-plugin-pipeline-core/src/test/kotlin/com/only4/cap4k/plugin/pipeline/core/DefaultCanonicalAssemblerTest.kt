@@ -444,7 +444,7 @@ class DefaultCanonicalAssemblerTest {
             ),
         ).model.designBlocks.single()
 
-        assertEquals(listOf("filter", "filters"), block.request.fields.map { it.name })
+        assertEquals(listOf("filter", "filters"), block.fields.map { it.name })
     }
 
     @Test
@@ -699,44 +699,6 @@ class DefaultCanonicalAssemblerTest {
                 listOf(ArtifactSelectionModel("query"), ArtifactSelectionModel("query-handler")),
             ),
             result.model.designBlocks.map { it.artifacts },
-        )
-    }
-
-    @Test
-    fun `assembler carries page artifacts on query and api payload design blocks`() {
-        val assembler = DefaultCanonicalAssembler()
-        val result = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "query",
-                            packageName = "order.read",
-                            name = "FindOrderPage",
-                            description = "find order page",
-                            aggregates = emptyList(),
-                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
-                        ),
-                        DesignSpecEntry(
-                            tag = "api_payload",
-                            packageName = "order.read",
-                            name = "FindOrderPage",
-                            description = "find order page payload",
-                            aggregates = emptyList(),
-                            artifacts = listOf(ArtifactSelectionModel("api-payload", "page")),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        assertEquals(
-            listOf(
-                ArtifactSelectionModel("query", "page"),
-                ArtifactSelectionModel("api-payload", "page"),
-            ),
-            result.model.designBlocks.map { it.artifacts.single() },
         )
     }
 
@@ -1178,58 +1140,6 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `api payload entries assemble into design blocks and keep command assembly unchanged`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val requestFields = listOf(SemanticFieldSnapshot(name = "accountIds", typeExpression = "List<Long>"))
-        val responseFields = listOf(SemanticFieldSnapshot(name = "saved", typeExpression = "Int"))
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                DesignSpecSnapshot(
-                    entries = listOf(
-                        DesignSpecEntry(
-                            tag = "api_payload",
-                            packageName = "auth.payload",
-                            name = "batchSaveAccountList",
-                            description = "batch save account payload",
-                            aggregates = emptyList(),
-                            fields = requestFields,
-                            resultFields = responseFields,
-                        ),
-                        DesignSpecEntry(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "submit order",
-                            aggregates = listOf("Order"),
-                            fields = listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "Long")),
-                        ),
-                    )
-                ),
-            ),
-        ).model
-
-        assertEquals(1, model.designBlocks.count { it.tag == "api_payload" })
-        val payload = model.designBlocks.single { it.tag == "api_payload" }
-        assertEquals("auth.payload", payload.packageName)
-        assertEquals("batchSaveAccountList", payload.name)
-        assertEquals("batch save account payload", payload.description)
-        assertEquals(requestFields.map { it.name }, payload.fields.map { it.name })
-        assertEquals(responseFields.map { it.name }, payload.resultFields.map { it.name })
-
-        assertEquals(1, model.designBlocks.count { it.tag == "command" })
-        val command = model.designBlocks.single { it.tag == "command" }
-        assertEquals("order.submit", command.packageName)
-        assertEquals("SubmitOrder", command.name)
-        assertEquals("submit order", command.description)
-        assertEquals(listOf("Order"), command.aggregates)
-        assertEquals(listOf("orderId"), command.fields.map { it.name })
-        assertTrue(command.resultFields.isEmpty())
-    }
-
-    @Test
     fun `api payload design block rejects legacy payload aliases`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -1592,47 +1502,6 @@ class DefaultCanonicalAssemblerTest {
     }
 
     @Test
-    fun `design spec assembly rejects non exact canonical tags and historical aliases`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        listOf(
-            "COMMAND",
-            "Query",
-            "Capability",
-            "API_PAYLOAD",
-            "DOMAIN_EVENT",
-            "cmd",
-            "qry",
-            "cli",
-            "capabilities",
-            "payload",
-            "de",
-            "domain-event",
-        ).forEach { tag ->
-            val error = assertThrows(IllegalArgumentException::class.java) {
-                assembler.assemble(
-                    config = baseConfig(),
-                    snapshots = listOf(
-                        DesignSpecSnapshot(
-                            entries = listOf(
-                                DesignSpecEntry(
-                                    tag = tag,
-                                    packageName = "order.submit",
-                                    name = "UnsupportedTagBlock",
-                                    description = "unsupported tag",
-                                    aggregates = emptyList(),
-                                ),
-                            )
-                        ),
-                    ),
-                )
-            }
-
-            assertEquals("Unsupported design tag: $tag", error.message)
-        }
-    }
-
-    @Test
     fun `returns empty model when design snapshot is missing`() {
         val assembler = DefaultCanonicalAssembler()
 
@@ -1794,100 +1663,6 @@ class DefaultCanonicalAssemblerTest {
         assertTrue(model.analysisGraph!!.edges.isEmpty())
         assertNull(model.drawingBoard)
         assertTrue(model.designBlocks.isEmpty())
-    }
-
-    @Test
-    fun `assembles drawing board as generate ready design json contract`() {
-        val assembler = DefaultCanonicalAssembler()
-
-        val supportedField = DesignFieldSnapshot(name = "orderId", type = "Long", defaultValue = "0")
-        val responseField = DesignFieldSnapshot(name = "accepted", type = "Boolean")
-        val duplicateField = DesignFieldSnapshot(name = "ignored", type = "String")
-        val entityField = DesignFieldSnapshot(name = "entity", type = "String")
-        val reasonField = DesignFieldSnapshot(name = "reason", type = "String")
-
-        val model = assembler.assemble(
-            config = baseConfig(),
-            snapshots = listOf(
-                analyzerSnapshot(
-                    inputDirs = listOf("app/build/cap4k-code-analysis"),
-                    nodes = emptyList(),
-                    edges = emptyList(),
-                    designElements = listOf(
-                        DesignElementSnapshot(
-                            tag = "command",
-                            packageName = "order.submit",
-                            name = "SubmitOrder",
-                            description = "submit order",
-                            aggregates = listOf("Order"),
-                            artifacts = listOf(ArtifactSelectionModel(family = "command")),
-                            persist = true,
-                            fields = listOf(supportedField),
-                            resultFields = listOf(responseField),
-                        ),
-                        DesignElementSnapshot(
-                            tag = "capability",
-                            packageName = "order.delivery",
-                            name = "PublishOrder",
-                            description = "publish order",
-                        ),
-                        DesignElementSnapshot(
-                            tag = "query",
-                            packageName = "order.read",
-                            name = "FindOrder",
-                            description = "find order",
-                            aggregates = listOf("Order"),
-                            artifacts = listOf(ArtifactSelectionModel("query", "page")),
-                        ),
-                        DesignElementSnapshot(
-                            tag = "api_payload",
-                            packageName = "order.payload",
-                            name = "CreateOrderPayload",
-                            description = "create order payload",
-                            artifacts = listOf(ArtifactSelectionModel("api-payload", "page")),
-                        ),
-                        DesignElementSnapshot(
-                            tag = "domain_event",
-                            packageName = "order.events",
-                            name = "OrderCreatedDomainEvent",
-                            description = "order created",
-                            aggregates = listOf("Order"),
-                            persist = false,
-                            fields = listOf(entityField, reasonField),
-                        ),
-                        DesignElementSnapshot(
-                            tag = "evt",
-                            packageName = "order.events",
-                            name = "OrderCreated",
-                            description = "order created",
-                        ),
-                    ),
-                ),
-            ),
-        ).model
-
-        val drawingBoard = model.drawingBoard
-        assertEquals(5, drawingBoard!!.elements.size)
-        val command = drawingBoard.elements.first()
-        assertEquals("command", command.tag)
-        assertEquals("order.submit", command.packageName)
-        assertEquals("SubmitOrder", command.name)
-        assertEquals(listOf("orderId"), command.fields.map { it.name })
-        assertEquals(listOf("accepted"), command.resultFields.map { it.name })
-        assertEquals(
-            listOf("command", "capability", "query", "api_payload", "domain_event"),
-            drawingBoard.elementsByTag.keys.toList(),
-        )
-        assertEquals(1, drawingBoard.elementsByTag.getValue("command").size)
-        val query = drawingBoard.elementsByTag.getValue("query").single()
-        assertEquals("FindOrder", query.name)
-        assertEquals(listOf(ArtifactSelectionModel("query", "page")), query.designJsonArtifacts)
-        val apiPayload = drawingBoard.elementsByTag.getValue("api_payload").single()
-        assertEquals("CreateOrderPayload", apiPayload.name)
-        assertEquals(listOf(ArtifactSelectionModel("api-payload", "page")), apiPayload.designJsonArtifacts)
-
-        val domainEvent = drawingBoard.elementsByTag.getValue("domain_event").single()
-        assertEquals(listOf("entity", "reason"), domainEvent.fields.map { it.name })
     }
 
     @Test

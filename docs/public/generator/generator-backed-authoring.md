@@ -2,7 +2,7 @@
 
 generator-backed authoring 是用 generator 固化 architecture control。作者先在业务意图、模型和技术设计中决定边界，再把这些决定投影到 schema、`design/design.json`、`types.valueObjectManifest`、`types.enumManifest` 和 Gradle extension。generator 读取这些显式输入，产出稳定 code slots、checked-in skeleton、build-owned generated source 和可审查 evidence。
 
-它不是业务判断替代品，也不是业务规则作者。generator 可以让 Command、Query、Capability、Endpoint、Subscriber、API payload、Repository adapter、Factory、Value Object 和 enum 等结构保持一致；它不能替作者判断一个聚合何时改变状态、持久化编排何时恢复或补偿、一个 external capability 如何处理失败，或一个 Query 是否应该暴露某个业务视图。
+它不是业务判断替代品，也不是业务规则作者。generator 可以让 Command、Query、Capability、Endpoint、Subscriber、Repository adapter、Factory、Value Object 和 enum 等结构保持一致；它不能替作者判断一个聚合何时改变状态、持久化编排何时恢复或补偿、一个 external capability 如何处理失败，或一个 Query 是否应该暴露某个业务视图。
 
 ## Architecture Control
 
