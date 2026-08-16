@@ -128,7 +128,9 @@ Pull request policy:
 - the head must be an unqualified same-repository short-lived branch, not `master` or another long-lived branch
 - release workflow and governance changes follow the same working-branch -> `master` path as other changes
 - before opening a pull request, use `scripts/create-pr.ps1` so tracked PR templates are discovered case-insensitively, the completed body is validated against the template headings, and the created PR body is checked after creation
-- direct `gh pr create` usage is reserved for cases where `scripts/create-pr.ps1` cannot run; when using it directly, first discover templates with `git ls-files | rg -i '(^|/)(pull_request_template\.md|pull_request_template/.*\.md)$'`, fill the tracked template, and validate the final body with `scripts/validate-pr-body.ps1 -Base <base-branch> -RequireChangeType`
+- after Verify passes and Archive permits a PR, choosing `finish=pull-request` authorizes the current Agent to generate the repository-owned Native PR authoring artifact from accepted artifacts, the diff, capability facts, and the tracked template during PR finish before provider invocation; do not ask again for title or body
+- this Git-management, untracked authoring artifact does not depend on `cap4k-authoring` or any external Skill; it binds both the accepted pre-Archive commit and a complete Git tree snapshot of the accepted working tree, the provider permits only Runtime-owned Archive progression between that snapshot and the final Archive head, retries with the same accepted evidence reuse the artifact, and changed evidence requires regeneration
+- do not bypass the Native provider or `scripts/create-pr.ps1` with direct `gh pr create`
 
 CI and branch protection contract:
 

@@ -1,0 +1,852 @@
+schema: comet.native.v4
+name: enable-comet-pr-finish-provider
+language: zh-CN
+phase: archive
+status: done
+state_version: 32
+brief: brief.md
+spec_changes:
+  - capability: repository-pr-finish
+    operation: create
+    source: specs/repository-pr-finish/spec.md
+workspace:
+  isolation: worktree
+  change_branch: feature/enable-comet-pr-finish-provider
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: done
+  goal_cycle: 3
+  iteration: 2
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: null
+acceptance:
+  - id: A1
+    source: brief.md
+    text: "A1: `.comet/config.yaml` 使用项目相对 PowerShell adapter 后，Comet 可发现该
+      provider，且原有 Native snapshot 配置保持不变。"
+    result: passed
+    reason:
+      text: Config exposes the repository-command adapter with the existing snapshot
+        settings unchanged.
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: "A2: adapter 只接受 `comet.native.pull-request-finish-input.v1`，拒绝错误 schema、非
+      `master` base、非法 head、无效 Git OID 和越界输入；stdout 成功时只包含一个 result JSON。"
+    result: passed
+    reason:
+      text: Provider strictly validates the v1 input, repository identity, bounds and
+        stdout/stderr contract.
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: "A3: 用户选择 `finish=pull-request` 后，Native Agent 自动生成符合 tracked template 的
+      repository-owned authoring artifact，不展示 title/body 二次确认；artifact 同时绑定
+      change、base、head、已验收的 pre-Archive commit identity、当前已验收 working tree 的完整
+      Git tree snapshot identity（`source.preArchiveTreeSha`）、来源
+      state/verification identity、换行规范化后的 brief/Spec/template 内容散列与内容指纹。"
+    result: passed
+    reason:
+      text: Authoring artifact binds change, branches, accepted state/verification,
+        commit/tree, normalized source hashes and fingerprint without a second
+        copy confirmation.
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: "A4: authoring artifact 中的语义内容覆盖 Summary、Issue/Acceptance、六个 capability
+      surfaces、shared contracts、propagation closure、composition/sibling
+      responsibility、audit focus、实际 verification、Agent Review 和 release note；本地
+      validator 使用当前 diff 与 capability facts 验证承重字段后才允许远端 mutation。"
+    result: passed
+    reason:
+      text: Tracked template and repository validator enforce all reviewer-context and
+        capability-closure sections before remote mutation.
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: "A5: 没有现有 PR 时，provider 通过 `scripts/create-pr.ps1` 创建唯一 PR，并仅在远端 body
+      重新通过仓库 validator 后返回 `created` 与 `remoteVerified: true`。"
+    result: passed
+    reason:
+      text: Zero-open-PR path delegates exactly one creation to create-pr and returns
+        created only after remote validation.
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: "A6: 已有唯一 open PR 时，provider 不重复创建；它只在远端 title/body 与 authoring artifact
+      一致且 identity 合规时复用并重新核验该 PR，返回 `reused`。任何漂移都 fail closed。"
+    result: passed
+    reason:
+      text: Unique open PR is reused only when full identity, title and body match;
+        drift fails closed.
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: "A7: authoring artifact 缺失、过期、指纹不符、含占位符、无法唯一定位，或
+      `source.preArchiveTreeSha` 缺失、无效、不是 tree、与已验收 working tree 不一致，或 snapshot
+      后 final Archive head 出现非 Runtime Archive progression 路径变化，或 body
+      validation 未通过时，provider 在创建或修改远端 PR 前失败，且不声称 remote verification 成功。"
+    result: passed
+    reason:
+      text: Artifact, snapshot, exact progression and body validation all precede
+        remote mutation; optional selection handling is correct.
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: "A8: provider 的 number、URL、base、head 与精确 Archive head SHA 进入 result；Comet
+      随后仍独立执行通用远端 identity 核验。"
+    result: passed
+    reason:
+      text: Result preserves PR number, URL, base, head and exact Archive SHA while
+        Comet retains independent identity verification.
+      truncated: false
+  - id: A9
+    source: brief.md
+    text: "A9: PR workflow tests 覆盖 authoring contract、pre-Archive commit/tree
+      双重绑定、真实 `core.autocrlf=true` checkout 下的稳定文本散列、snapshot 缺失/非法/篡改与 snapshot
+      后非 Archive 路径变化、JSON contract、create/reuse、失败恢复、stdout/stderr 边界和
+      root-script CI classification；既有手工 `create-pr.ps1` dry-run 入口继续通过。"
+    result: passed
+    reason:
+      text: Workflow tests cover the complete contract plus present/removed,
+        absent/reused and absent/introduced selection cases.
+      truncated: false
+  - id: A10
+    source: brief.md
+    text: "A10:
+      `scripts/validate-capability-contract.ps1`、`scripts/test-capability-contr\
+      act.ps1`、Skill/Runtime/PR workflow guards 与必要 Gradle
+      检查均通过，或明确记录真实的无关环境阻塞。"
+    result: passed
+    reason:
+      text: Parser, PR workflow, capability/Skill/Runtime guards, 182-task Gradle
+        check and diff check all passed.
+      truncated: false
+  - id: A11
+    source: specs/repository-pr-finish/spec.md
+    text: cap4k owns the semantic and deterministic policy for pull requests created
+      by Comet Native Archive. Comet owns the generic finish transaction; the
+      repository owns the reviewer context, template, capability-closure
+      validation, create/reuse policy, and remote body verification.
+    result: passed
+    reason:
+      text: Implementation preserves Comet transaction ownership and repository
+        semantic/validation ownership.
+      truncated: false
+  - id: A12
+    source: specs/repository-pr-finish/spec.md
+    text: A user selection of `finish=pull-request` authorizes the current Native
+      Agent to author the PR title and body from accepted change evidence.
+    result: passed
+    reason:
+      text: finish=pull-request authorizes AI title/body authoring from accepted
+        evidence.
+      truncated: false
+  - id: A13
+    source: specs/repository-pr-finish/spec.md
+    text: The Agent MUST NOT ask for a second title/body confirmation.
+    result: passed
+    reason:
+      text: No additional title/body confirmation gate is introduced.
+      truncated: false
+  - id: A14
+    source: specs/repository-pr-finish/spec.md
+    text: Automatic authoring MUST occur only after Native Verify has accepted the
+      current candidate and Archive permits pull-request finish.
+    result: passed
+    reason:
+      text: Artifact is accepted only from passing Verify identity and the direct
+        archived state successor.
+      truncated: false
+  - id: A15
+    source: specs/repository-pr-finish/spec.md
+    text: The authored content is untrusted until the repository validator accepts
+      its structure, current diff, capability facts, and identity bindings.
+    result: passed
+    reason:
+      text: Authored content remains untrusted until deterministic artifact, diff,
+        facts and body validation succeeds.
+      truncated: false
+  - id: A16
+    source: specs/repository-pr-finish/spec.md
+    text: "The Agent MUST derive PR reviewer context from the current tracked PR
+      template and the following available evidence:"
+    result: passed
+    reason:
+      text: Authoring derives from the tracked template and accepted repository
+        evidence.
+      truncated: false
+  - id: A17
+    source: specs/repository-pr-finish/spec.md
+    text: active change name, branch, target branch, and accepted Native state;
+    result: passed
+    reason:
+      text: Change, branch, target and accepted Native state identity are bound.
+      truncated: false
+  - id: A18
+    source: specs/repository-pr-finish/spec.md
+    text: brief, complete target Specs, verification result, and acceptance outcomes;
+    result: passed
+    reason:
+      text: Brief, complete Specs, verification identity and acceptance evidence are
+        hash/path checked.
+      truncated: false
+  - id: A19
+    source: specs/repository-pr-finish/spec.md
+    text: owning Issue hierarchy when one exists;
+    result: passed
+    reason:
+      text: Issue hierarchy and acceptance references are structurally validated.
+      truncated: false
+  - id: A20
+    source: specs/repository-pr-finish/spec.md
+    text: current `origin/master...finalHead` diff and changed-path classification
+      as PR evidence, without assuming the accepted pre-Archive commit alone
+      contains all implementation changes;
+    result: passed
+    reason:
+      text: PR evidence uses origin/master...finalHead while snapshot-to-final Archive
+        progression is checked separately.
+      truncated: false
+  - id: A21
+    source: specs/repository-pr-finish/spec.md
+    text: generated capability facts and propagation closure;
+    result: passed
+    reason:
+      text: Capability facts are regenerated, hashed and validated with the
+        propagation closure.
+      truncated: false
+  - id: A22
+    source: specs/repository-pr-finish/spec.md
+    text: actual checks run, skipped, failed, or blocked.
+    result: passed
+    reason:
+      text: Template requires actual checks or explicit justified skips.
+      truncated: false
+  - id: A23
+    source: specs/repository-pr-finish/spec.md
+    text: "The repository-owned authoring artifact MUST:"
+    result: passed
+    reason:
+      text: Versioned repository-owned authoring artifact contract is fully
+        implemented.
+      truncated: false
+  - id: A24
+    source: specs/repository-pr-finish/spec.md
+    text: use a versioned schema;
+    result: passed
+    reason:
+      text: Only cap4k.native-pr-authoring.v1 is accepted.
+      truncated: false
+  - id: A25
+    source: specs/repository-pr-finish/spec.md
+    text: contain the exact title and body to be published;
+    result: passed
+    reason:
+      text: Artifact stores exact title/body and remote values are compared after
+        normalization.
+      truncated: false
+  - id: A26
+    source: specs/repository-pr-finish/spec.md
+    text: identify the change, base, and head;
+    result: passed
+    reason:
+      text: Artifact precisely identifies change, master base and short-lived head.
+      truncated: false
+  - id: A27
+    source: specs/repository-pr-finish/spec.md
+    text: record both the accepted pre-Archive commit identity and
+      `source.preArchiveTreeSha`, the complete Git tree snapshot identity of the
+      accepted working tree from which it was authored; the Native Agent MUST
+      create that tree through an isolated temporary Git index equivalent to
+      reading `HEAD`, staging all working-tree changes, and writing the tree,
+      without changing the real index, committing the snapshot, or adding it to
+      product source;
+    result: passed
+    reason:
+      text: Commit/tree are both bound and the fixture proves isolated-index
+        snapshotting leaves the real index unchanged.
+      truncated: false
+  - id: A28
+    source: specs/repository-pr-finish/spec.md
+    text: include a deterministic content fingerprint; hashes of tracked UTF-8 text
+      sources MUST normalize CRLF and CR to LF before SHA-256 so Git checkout
+      line-ending policy cannot change their identity;
+    result: passed
+    reason:
+      text: Fingerprint is deterministic and tracked UTF-8 text hashing is stable
+        across CRLF/CR/LF checkout representations.
+      truncated: false
+  - id: A29
+    source: specs/repository-pr-finish/spec.md
+    text: remain local and reusable for an Archive retry without being committed as
+      product source.
+    result: passed
+    reason:
+      text: Artifact stays in Git management storage and remains reusable for
+        identical Archive retries.
+      truncated: false
+  - id: A30
+    source: specs/repository-pr-finish/spec.md
+    text: AI owns semantic synthesis such as Summary, Audit Focus, boundary
+      explanations, risk, composition, and sibling responsibility. Deterministic
+      scripts MUST NOT fabricate these narratives from fixed sentence templates.
+    result: passed
+    reason:
+      text: Scripts validate semantic evidence but do not fabricate AI-owned
+        narrative.
+      truncated: false
+  - id: A31
+    source: specs/repository-pr-finish/spec.md
+    text: "The configured provider MUST:"
+    result: passed
+    reason:
+      text: Repository-command provider implements the required input, preflight,
+        repository entry and result contract.
+      truncated: false
+  - id: A32
+    source: specs/repository-pr-finish/spec.md
+    text: accept only `comet.native.pull-request-finish-input.v1` on stdin;
+    result: passed
+    reason:
+      text: Only comet.native.pull-request-finish-input.v1 with exact properties is
+        accepted.
+      truncated: false
+  - id: A33
+    source: specs/repository-pr-finish/spec.md
+    text: emit only one `comet.native.pull-request-finish-result.v1` JSON object on
+      stdout when successful;
+    result: passed
+    reason:
+      text: Successful stdout is exactly one compact result v1 JSON object.
+      truncated: false
+  - id: A34
+    source: specs/repository-pr-finish/spec.md
+    text: write diagnostics only to stderr;
+    result: passed
+    reason:
+      text: Diagnostics are stderr-only and failure stdout remains empty.
+      truncated: false
+  - id: A35
+    source: specs/repository-pr-finish/spec.md
+    text: validate schema, base, head, the accepted pre-Archive commit identity,
+      `source.preArchiveTreeSha` as an existing Git tree object, path
+      containment, and bounded input before remote mutation;
+    result: passed
+    reason:
+      text: Schema, branch, commit/tree, containment and size checks occur before
+        create-pr.
+      truncated: false
+  - id: A36
+    source: specs/repository-pr-finish/spec.md
+    text: require a current repository-owned authoring artifact and fail closed for
+      missing, stale, ambiguous, placeholder-bearing, or fingerprint-mismatched
+      content; missing, invalid, non-tree, or tampered snapshot identity; or any
+      difference between the snapshot tree and the final Archive head tree
+      outside Runtime-owned Archive progression such as active-change-to-archive
+      movement, canonical Spec publication, and `.comet/current-change.json`
+      updates;
+    result: passed
+    reason:
+      text: Exact tree/blob/path verification fails closed; selection removal is
+        conditional on pre-snapshot presence and absence must remain absence.
+      truncated: false
+  - id: A37
+    source: specs/repository-pr-finish/spec.md
+    text: invoke the repository PR entry rather than duplicating its template or
+      validation logic;
+    result: passed
+    reason:
+      text: Provider delegates to scripts/create-pr.ps1 instead of duplicating
+        repository PR logic.
+      truncated: false
+  - id: A38
+    source: specs/repository-pr-finish/spec.md
+    text: "return `remoteVerified: true` only after repository validation succeeds
+      against the remote PR."
+    result: passed
+    reason:
+      text: remoteVerified=true is emitted only after repository and remote
+        verification succeeds.
+      truncated: false
+  - id: A39
+    source: specs/repository-pr-finish/spec.md
+    text: Comet remains responsible for commit, push, provider invocation,
+      independent remote PR identity verification, recovery state, and worktree
+      cleanup.
+    result: passed
+    reason:
+      text: Commit, push, generic recovery, remote identity verification and cleanup
+        remain Comet responsibilities.
+      truncated: false
+  - id: A40
+    source: specs/repository-pr-finish/spec.md
+    text: "`scripts/create-pr.ps1` is the single repository entry for manual and
+      Native-created pull requests. It MUST:"
+    result: passed
+    reason:
+      text: Manual and Native flows share scripts/create-pr.ps1.
+      truncated: false
+  - id: A41
+    source: specs/repository-pr-finish/spec.md
+    text: enforce `master` as base and a same-repository short-lived head;
+    result: passed
+    reason:
+      text: create-pr enforces master base and an unqualified short-lived
+        same-repository head.
+      truncated: false
+  - id: A42
+    source: specs/repository-pr-finish/spec.md
+    text: discover the tracked PR template case-insensitively;
+    result: passed
+    reason:
+      text: Tracked PR template discovery remains case-insensitive.
+      truncated: false
+  - id: A43
+    source: specs/repository-pr-finish/spec.md
+    text: validate the authored body before remote mutation using
+      `origin/master...finalHead` changed-files and capability-facts evidence
+      available to CI, while separately comparing the accepted working-tree
+      snapshot with the final Archive head tree so implementation already
+      present in the snapshot is not misclassified as Archive-only progression;
+    result: passed
+    reason:
+      text: Body uses final PR diff/facts while accepted snapshot and Archive
+        progression are independently compared; absent selection is not
+        misclassified.
+      truncated: false
+  - id: A44
+    source: specs/repository-pr-finish/spec.md
+    text: create exactly one PR when none exists;
+    result: passed
+    reason:
+      text: No-open-PR path creates exactly one PR.
+      truncated: false
+  - id: A45
+    source: specs/repository-pr-finish/spec.md
+    text: reuse a unique open PR only when its title, body, base, head, accepted
+      pre-Archive commit identity, accepted tree snapshot identity, and expected
+      remote identity remain consistent with the authoring artifact;
+    result: passed
+    reason:
+      text: Reuse requires a unique PR and consistent remote, accepted commit/tree and
+        authored content identity.
+      truncated: false
+  - id: A46
+    source: specs/repository-pr-finish/spec.md
+    text: fail closed rather than editing a drifted existing PR;
+    result: passed
+    reason:
+      text: Drifted existing PRs fail closed and are never edited.
+      truncated: false
+  - id: A47
+    source: specs/repository-pr-finish/spec.md
+    text: fetch and revalidate the remote body after creation or reuse;
+    result: passed
+    reason:
+      text: Creation/reuse is followed by remote fetch and body/identity revalidation.
+      truncated: false
+  - id: A48
+    source: specs/repository-pr-finish/spec.md
+    text: provide a machine-readable result to the thin Comet adapter while
+      preserving the supported manual dry-run entry.
+    result: passed
+    reason:
+      text: Machine-readable result and existing manual dry-run both remain supported.
+      truncated: false
+  - id: A49
+    source: specs/repository-pr-finish/spec.md
+    text: "The authored PR body MUST preserve the tracked template and provide
+      non-placeholder evidence for:"
+    result: passed
+    reason:
+      text: Tracked template headings/options are preserved and placeholders are
+        rejected.
+      truncated: false
+  - id: A50
+    source: specs/repository-pr-finish/spec.md
+    text: Summary and target/change type;
+    result: passed
+    reason:
+      text: Summary, target and change type receive concrete validated content.
+      truncated: false
+  - id: A51
+    source: specs/repository-pr-finish/spec.md
+    text: Issue hierarchy and Acceptance IDs;
+    result: passed
+    reason:
+      text: Issue hierarchy and acceptance IDs are validated.
+      truncated: false
+  - id: A52
+    source: specs/repository-pr-finish/spec.md
+    text: Runtime, Generator, Analyzer, AgentFacts, Public Docs, and Skill impact;
+    result: passed
+    reason:
+      text: All six capability surfaces are covered and aligned with diff-derived
+        closure.
+      truncated: false
+  - id: A53
+    source: specs/repository-pr-finish/spec.md
+    text: shared contracts and propagation closure;
+    result: passed
+    reason:
+      text: Shared contracts and propagation closure are mandatory and checked.
+      truncated: false
+  - id: A54
+    source: specs/repository-pr-finish/spec.md
+    text: composition evidence and sibling-slice responsibility;
+    result: passed
+    reason:
+      text: Composition and sibling-slice responsibility require concrete evidence.
+      truncated: false
+  - id: A55
+    source: specs/repository-pr-finish/spec.md
+    text: reviewer Audit Focus;
+    result: passed
+    reason:
+      text: Audit Focus remains a mandatory non-placeholder reviewer section.
+      truncated: false
+  - id: A56
+    source: specs/repository-pr-finish/spec.md
+    text: actual verification and any justified skips;
+    result: passed
+    reason:
+      text: Verification records actual checks or a concrete skip reason.
+      truncated: false
+  - id: A57
+    source: specs/repository-pr-finish/spec.md
+    text: Agent Review request state;
+    result: passed
+    reason:
+      text: Agent Review records exactly one supported state with explanation when not
+        requested.
+      truncated: false
+  - id: A58
+    source: specs/repository-pr-finish/spec.md
+    text: release note.
+    result: passed
+    reason:
+      text: Release Note is mandatory and non-placeholder.
+      truncated: false
+  - id: A59
+    source: specs/repository-pr-finish/spec.md
+    text: The template is a structured context contract for human and AI reviewers.
+      It is not a separate approval form.
+    result: passed
+    reason:
+      text: PR template acts as reviewer context, not another approval gate.
+      truncated: false
+  - id: A60
+    source: specs/repository-pr-finish/spec.md
+    text: Before any remote mutation, the flow MUST fail if the authoring artifact
+      or deterministic validation is invalid, including a missing, invalid,
+      non-tree, or tampered snapshot or any post-snapshot non-Archive path
+      change. Tests MUST cover the isolated-index snapshot without altering the
+      real index, stable source hashing under a real `core.autocrlf=true`
+      checkout, permitted Runtime Archive progression, and each fail-closed
+      snapshot case. After a PR has been observed, any provider failure MUST
+      preserve enough verified identity for safe retry without treating
+      unverified provider claims as trusted output. A failed finish MUST
+      preserve the PR and worktree and expose the Native recovery command.
+      Retrying with the same accepted commit, tree snapshot, and authored
+      content MUST reuse the unique PR rather than create a duplicate.
+    result: passed
+    reason:
+      text: Pre-mutation fail-closed and retry semantics are covered, including
+        isolated index, autocrlf and all optional-selection transitions.
+      truncated: false
+  - id: A61
+    source: specs/repository-pr-finish/spec.md
+    text: Native Builder/Verifier is the pre-PR acceptance loop. External AI
+      reviewers such as CodeRabbit form a post-PR advisory loop. Review findings
+      MUST be treated as untrusted input and independently checked against the
+      current SHA before code is changed.
+    result: passed
+    reason:
+      text: Native Verify remains the pre-PR gate and external AI findings remain
+        untrusted advisory input.
+      truncated: false
+  - id: A62
+    source: specs/repository-pr-finish/spec.md
+    text: The repository required `check` remains the deterministic merge gate.
+      CodeRabbit or another external AI review loop is deferred until
+      external-contributor pull requests create a concrete need. This capability
+      does not install CodeRabbit, make an AI review a required approval,
+      automate review-thread fixes, or automatically merge a PR.
+    result: passed
+    reason:
+      text: Required check remains the merge gate; no CodeRabbit requirement, auto-fix
+        or auto-merge was added.
+      truncated: false
+builder_handoff:
+  candidate_id: 1edd8438-af31-47ef-b773-fa0036511d10
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:af701faf-c092-42fe-bca3-f9ee28556307
+  iteration: 2
+  summary:
+    text: Repaired the Archive integration mismatch for optional
+      .comet/current-change.json. The provider now validates and permits removal
+      only when the selection exists in the accepted snapshot; when absent it
+      requires the path to remain absent and excludes it from the exact Runtime
+      progression set. PR workflow coverage now proves present-and-removed,
+      absent-through-Archive reuse, and absent-then-introduced fail-closed
+      behavior. All repository checks passed on the repaired working tree.
+    truncated: false
+  addressed_acceptance_ids:
+    - A7
+    - A9
+    - A35
+    - A36
+    - A43
+    - A60
+  checks:
+    - name:
+        text: PowerShell parser
+        truncated: false
+      result: passed
+      note:
+        text: scripts/comet-finish-pr.ps1 and scripts/test-pr-workflow.ps1 parsed with
+          zero errors.
+        truncated: false
+    - name:
+        text: PR workflow
+        truncated: false
+      result: passed
+      note:
+        text: scripts/test-pr-workflow.ps1 passed, including optional current-change
+          progression cases.
+        truncated: false
+    - name:
+        text: Capability and routing guards
+        truncated: false
+      result: passed
+      note:
+        text: Capability export/validation/tests, Skill validation, and current Runtime
+          facts validation passed.
+        truncated: false
+    - name:
+        text: Gradle check
+        truncated: false
+      result: passed
+      note:
+        text: "gradlew check succeeded: 182 actionable tasks."
+        truncated: false
+    - name:
+        text: Diff check
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check passed for repaired scripts.
+        truncated: false
+  checks_truncated: false
+  known_limits: []
+  known_limits_truncated: false
+  submitted_at: 2026-08-16T13:25:49.489Z
+blockers: []
+verification:
+  candidate_id: 1edd8438-af31-47ef-b773-fa0036511d10
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:ba61687d-ea11-43a7-99d4-a1289412ade1
+  iteration: 2
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks: []
+  summary:
+    text: "Independent read-only verification passed A1-A62 exactly once. The
+      optional .comet/current-change.json repair matches real Archive behavior:
+      present selections are validated and must be removed; absent selections
+      must remain absent and are excluded from the exact progression set;
+      post-snapshot introduction fails before any remote mutation. Focused tests
+      cover all three transitions, and the already completed parser, PR
+      workflow, capability/Skill/Runtime guards, 182-task Gradle check and diff
+      check provide sufficient current-candidate evidence. No additional checks
+      are required."
+    truncated: false
+  risks: []
+  risks_truncated: false
+  completed_at: 2026-08-16T13:30:11.386Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: 独立 Verifier 完整读取 brief、目标 Spec、state、AGENTS 及全部变更，审查 Archive 后 provider
+        时序、JSON/Git/path/artifact 边界、单一 create-pr 入口、远端复验和恢复幂等，并结合 Runtime 全部通过的
+        8 项检查确认 A1-A62 全部通过；未发现阻止 Verify 接受的问题。
+      truncated: false
+    completed_at: 2026-08-16T10:13:59.934Z
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: "Archive authoring preflight uncovered an invalidation: the current
+        provider compares preArchiveHeadSha to the final Archive head and
+        permits only Archive artifact paths, but the accepted implementation is
+        still uncommitted before Archive, so the Archive commit would also
+        contain implementation paths and the provider would fail every real
+        first run. Return to Build to bind the authored pre-Archive working tree
+        deterministically and reverify the real Archive ordering."
+      truncated: false
+    completed_at: 2026-08-16T10:24:24.338Z
+  - goal_cycle: 1
+    iteration: 2
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-08-16T10:46:40.420Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 1
+    outcome: fail
+    unresolved_ids:
+      - A7
+      - A9
+      - A35
+      - A36
+      - A45
+      - A60
+    summary:
+      text: 此前未提交实现与单次 Archive commit 的结构性时序缺陷已修复，但 accepted snapshot 仍可被替换成另一个有效
+        tree。下一轮 Build 需要把 preArchive commit/tree 与关键 source identity 纳入确定性
+        artifact digest 或等价 Archive 可验证绑定，收紧 Runtime Archive progression
+        证明，并补充有效 tree 篡改、允许路径内非 Runtime 漂移和真实 index 不变测试。
+      truncated: false
+    completed_at: 2026-08-16T11:21:33.822Z
+  - goal_cycle: 2
+    iteration: 2
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: "Independent read-only verification passed. A1-A62 were reviewed exactly
+        once against AGENTS, active state, brief, complete target Spec,
+        implementation diff and Runtime checks. The prior A7/A9/A35/A36/A45/A60
+        gaps are substantively repaired: fingerprint/source identity binds
+        preArchiveHeadSha and preArchiveTreeSha; exact tree/blob/path proof
+        replaces broad prefix allowlisting; recomputed-fingerprint valid-tree
+        replacement and allowed-path internal drift fail before remote mutation;
+        and isolated-index snapshot tests prove the real index tree and bytes
+        remain unchanged. No additional checks are required."
+      truncated: false
+    completed_at: 2026-08-16T12:05:56.066Z
+  - goal_cycle: 2
+    iteration: 2
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Local Runtime was unavailable at Archive ready; the synchronized
+        implementation must be verified again.
+      truncated: false
+    completed_at: 2026-08-16T12:34:05.719Z
+  - goal_cycle: 2
+    iteration: 2
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Archive provider failed on Windows with core.autocrlf because accepted
+        source hashes were computed from working-tree bytes and then compared
+        against normalized Git blob bytes. Return to Build to make hashing
+        representation-stable and add a real autocrlf regression test before
+        retrying Archive.
+      truncated: false
+    completed_at: 2026-08-16T12:34:05.999Z
+  - goal_cycle: 2
+    iteration: 3
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native confirmed acceptance criteria changed
+      truncated: false
+    completed_at: 2026-08-16T12:47:57.826Z
+  - goal_cycle: 3
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: Independent read-only verification passed A1-A62 exactly once. The tracked
+        UTF-8 brief, Spec, and template hashes are representation-stable across
+        CRLF/CR working-tree bytes and LF Git blobs, while capability facts
+        remain raw-byte hashed. A real core.autocrlf=true fixture proves the
+        byte difference and the create, reuse, snapshot identity, exact
+        path/blob, fingerprint, stdout/stderr, remote-validation, and
+        pre-mutation fail-closed boundaries remain intact. All five Runtime
+        check groups passed; no additional check is required.
+      truncated: false
+    completed_at: 2026-08-16T13:02:12.330Z
+  - goal_cycle: 3
+    iteration: 1
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Local Runtime was unavailable at Archive ready; the synchronized
+        implementation must be verified again.
+      truncated: false
+    completed_at: 2026-08-16T13:08:39.110Z
+  - goal_cycle: 3
+    iteration: 1
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: "Archive provider exposed a second real integration mismatch:
+        .comet/current-change.json is an optional local selection artifact and
+        is absent from this worktree's accepted snapshot and final Archive
+        commit, but the provider and focused fixture incorrectly required it to
+        exist pre-Archive and be removed during Archive. Return to Build to make
+        selection progression conditional: validate and require removal only
+        when the selection path exists in the accepted snapshot; when absent,
+        require it remain absent and omit it from the exact progression path
+        set. Add both present-and-removed and absent-through-Archive coverage
+        before re-verification."
+      truncated: false
+    completed_at: 2026-08-16T13:08:39.400Z
+  - goal_cycle: 3
+    iteration: 2
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: "Independent read-only verification passed A1-A62 exactly once. The
+        optional .comet/current-change.json repair matches real Archive
+        behavior: present selections are validated and must be removed; absent
+        selections must remain absent and are excluded from the exact
+        progression set; post-snapshot introduction fails before any remote
+        mutation. Focused tests cover all three transitions, and the already
+        completed parser, PR workflow, capability/Skill/Runtime guards, 182-task
+        Gradle check and diff check provide sufficient current-candidate
+        evidence. No additional checks are required."
+      truncated: false
+    completed_at: 2026-08-16T13:30:11.386Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: true
+created_at: 2026-08-16T06:28:33.881Z
