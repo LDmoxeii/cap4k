@@ -3,7 +3,7 @@ name: enable-comet-pr-finish-provider
 language: zh-CN
 phase: archive
 status: active
-state_version: 25
+state_version: 31
 brief: brief.md
 spec_changes:
   - capability: repository-pr-finish
@@ -17,7 +17,7 @@ workspace:
 loop:
   stage: archive-ready
   goal_cycle: 3
-  iteration: 1
+  iteration: 2
   attempt: 1
   retry_epoch: 0
   failed_iteration_count: 0
@@ -32,8 +32,8 @@ acceptance:
       provider，且原有 Native snapshot 配置保持不变。"
     result: passed
     reason:
-      text: Repository config points to the project-relative repository-command
-        provider and preserves the existing Native snapshot settings.
+      text: Config exposes the repository-command adapter with the existing snapshot
+        settings unchanged.
       truncated: false
   - id: A2
     source: brief.md
@@ -41,9 +41,8 @@ acceptance:
       `master` base、非法 head、无效 Git OID 和越界输入；stdout 成功时只包含一个 result JSON。"
     result: passed
     reason:
-      text: Adapter enforces exact v1 input/schema, master/base/head/OID/bounds rules,
-        with one JSON stdout object on success and stderr diagnostics on
-        failure.
+      text: Provider strictly validates the v1 input, repository identity, bounds and
+        stdout/stderr contract.
       truncated: false
   - id: A3
     source: brief.md
@@ -54,8 +53,9 @@ acceptance:
       state/verification identity、换行规范化后的 brief/Spec/template 内容散列与内容指纹。"
     result: passed
     reason:
-      text: Artifact binds accepted change/state/verification/head/tree plus canonical
-        brief, Spec, template hashes and deterministic fingerprint.
+      text: Authoring artifact binds change, branches, accepted state/verification,
+        commit/tree, normalized source hashes and fingerprint without a second
+        copy confirmation.
       truncated: false
   - id: A4
     source: brief.md
@@ -65,9 +65,8 @@ acceptance:
       validator 使用当前 diff 与 capability facts 验证承重字段后才允许远端 mutation。"
     result: passed
     reason:
-      text: Tracked template, current diff, capability facts, and deterministic body
-        validation preserve the required reviewer context before remote
-        mutation.
+      text: Tracked template and repository validator enforce all reviewer-context and
+        capability-closure sections before remote mutation.
       truncated: false
   - id: A5
     source: brief.md
@@ -75,8 +74,8 @@ acceptance:
       重新通过仓库 validator 后返回 `created` 与 `remoteVerified: true`。"
     result: passed
     reason:
-      text: The zero-open-PR path creates exactly one PR through create-pr.ps1 and
-        returns created only after remote body and identity revalidation.
+      text: Zero-open-PR path delegates exactly one creation to create-pr and returns
+        created only after remote validation.
       truncated: false
   - id: A6
     source: brief.md
@@ -84,8 +83,8 @@ acceptance:
       一致且 identity 合规时复用并重新核验该 PR，返回 `reused`。任何漂移都 fail closed。"
     result: passed
     reason:
-      text: The unique-open-PR path reuses without editing only when title, body,
-        base, head, SHA, and recovery identity remain exact.
+      text: Unique open PR is reused only when full identity, title and body match;
+        drift fails closed.
       truncated: false
   - id: A7
     source: brief.md
@@ -95,8 +94,8 @@ acceptance:
       validation 未通过时，provider 在创建或修改远端 PR 前失败，且不声称 remote verification 成功。"
     result: passed
     reason:
-      text: Missing, stale, placeholder-bearing, fingerprint/tree/path/drift-invalid
-        artifacts fail before any fake or real remote mutation.
+      text: Artifact, snapshot, exact progression and body validation all precede
+        remote mutation; optional selection handling is correct.
       truncated: false
   - id: A8
     source: brief.md
@@ -104,8 +103,8 @@ acceptance:
       随后仍独立执行通用远端 identity 核验。"
     result: passed
     reason:
-      text: Result projects PR number, URL, base, head, and exact final Archive SHA
-        while leaving generic remote identity verification to Comet.
+      text: Result preserves PR number, URL, base, head and exact Archive SHA while
+        Comet retains independent identity verification.
       truncated: false
   - id: A9
     source: brief.md
@@ -115,9 +114,8 @@ acceptance:
       root-script CI classification；既有手工 `create-pr.ps1` dry-run 入口继续通过。"
     result: passed
     reason:
-      text: Focused workflow tests cover isolated index, real core.autocrlf byte
-        differences, create/reuse, snapshot tampering, recovery, stdout/stderr,
-        and manual dry-run.
+      text: Workflow tests cover the complete contract plus present/removed,
+        absent/reused and absent/introduced selection cases.
       truncated: false
   - id: A10
     source: brief.md
@@ -127,8 +125,8 @@ acceptance:
       检查均通过，或明确记录真实的无关环境阻塞。"
     result: passed
     reason:
-      text: "All Runtime checks passed: parser, PR workflow, facts export, capability
-        contract, Skill, Runtime facts, full Gradle check, and git diff check."
+      text: Parser, PR workflow, capability/Skill/Runtime guards, 182-task Gradle
+        check and diff check all passed.
       truncated: false
   - id: A11
     source: specs/repository-pr-finish/spec.md
@@ -138,8 +136,8 @@ acceptance:
       validation, create/reuse policy, and remote body verification.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Implementation preserves Comet transaction ownership and repository
+        semantic/validation ownership.
       truncated: false
   - id: A12
     source: specs/repository-pr-finish/spec.md
@@ -147,16 +145,15 @@ acceptance:
       Agent to author the PR title and body from accepted change evidence.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: finish=pull-request authorizes AI title/body authoring from accepted
+        evidence.
       truncated: false
   - id: A13
     source: specs/repository-pr-finish/spec.md
     text: The Agent MUST NOT ask for a second title/body confirmation.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: No additional title/body confirmation gate is introduced.
       truncated: false
   - id: A14
     source: specs/repository-pr-finish/spec.md
@@ -164,8 +161,8 @@ acceptance:
       current candidate and Archive permits pull-request finish.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Artifact is accepted only from passing Verify identity and the direct
+        archived state successor.
       truncated: false
   - id: A15
     source: specs/repository-pr-finish/spec.md
@@ -173,8 +170,8 @@ acceptance:
       its structure, current diff, capability facts, and identity bindings.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Authored content remains untrusted until deterministic artifact, diff,
+        facts and body validation succeeds.
       truncated: false
   - id: A16
     source: specs/repository-pr-finish/spec.md
@@ -182,32 +179,30 @@ acceptance:
       template and the following available evidence:"
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Authoring derives from the tracked template and accepted repository
+        evidence.
       truncated: false
   - id: A17
     source: specs/repository-pr-finish/spec.md
     text: active change name, branch, target branch, and accepted Native state;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Change, branch, target and accepted Native state identity are bound.
       truncated: false
   - id: A18
     source: specs/repository-pr-finish/spec.md
     text: brief, complete target Specs, verification result, and acceptance outcomes;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Brief, complete Specs, verification identity and acceptance evidence are
+        hash/path checked.
       truncated: false
   - id: A19
     source: specs/repository-pr-finish/spec.md
     text: owning Issue hierarchy when one exists;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Issue hierarchy and acceptance references are structurally validated.
       truncated: false
   - id: A20
     source: specs/repository-pr-finish/spec.md
@@ -216,56 +211,53 @@ acceptance:
       contains all implementation changes;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: PR evidence uses origin/master...finalHead while snapshot-to-final Archive
+        progression is checked separately.
       truncated: false
   - id: A21
     source: specs/repository-pr-finish/spec.md
     text: generated capability facts and propagation closure;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Capability facts are regenerated, hashed and validated with the
+        propagation closure.
       truncated: false
   - id: A22
     source: specs/repository-pr-finish/spec.md
     text: actual checks run, skipped, failed, or blocked.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Template requires actual checks or explicit justified skips.
       truncated: false
   - id: A23
     source: specs/repository-pr-finish/spec.md
     text: "The repository-owned authoring artifact MUST:"
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Versioned repository-owned authoring artifact contract is fully
+        implemented.
       truncated: false
   - id: A24
     source: specs/repository-pr-finish/spec.md
     text: use a versioned schema;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Only cap4k.native-pr-authoring.v1 is accepted.
       truncated: false
   - id: A25
     source: specs/repository-pr-finish/spec.md
     text: contain the exact title and body to be published;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Artifact stores exact title/body and remote values are compared after
+        normalization.
       truncated: false
   - id: A26
     source: specs/repository-pr-finish/spec.md
     text: identify the change, base, and head;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Artifact precisely identifies change, master base and short-lived head.
       truncated: false
   - id: A27
     source: specs/repository-pr-finish/spec.md
@@ -278,8 +270,8 @@ acceptance:
       product source;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Commit/tree are both bound and the fixture proves isolated-index
+        snapshotting leaves the real index unchanged.
       truncated: false
   - id: A28
     source: specs/repository-pr-finish/spec.md
@@ -288,8 +280,8 @@ acceptance:
       line-ending policy cannot change their identity;
     result: passed
     reason:
-      text: Tracked UTF-8 text hashing strictly normalizes CRLF and CR to LF before
-        SHA-256; capability facts remain raw-byte hashed.
+      text: Fingerprint is deterministic and tracked UTF-8 text hashing is stable
+        across CRLF/CR/LF checkout representations.
       truncated: false
   - id: A29
     source: specs/repository-pr-finish/spec.md
@@ -297,8 +289,8 @@ acceptance:
       product source.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Artifact stays in Git management storage and remains reusable for
+        identical Archive retries.
       truncated: false
   - id: A30
     source: specs/repository-pr-finish/spec.md
@@ -307,24 +299,24 @@ acceptance:
       scripts MUST NOT fabricate these narratives from fixed sentence templates.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Scripts validate semantic evidence but do not fabricate AI-owned
+        narrative.
       truncated: false
   - id: A31
     source: specs/repository-pr-finish/spec.md
     text: "The configured provider MUST:"
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Repository-command provider implements the required input, preflight,
+        repository entry and result contract.
       truncated: false
   - id: A32
     source: specs/repository-pr-finish/spec.md
     text: accept only `comet.native.pull-request-finish-input.v1` on stdin;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Only comet.native.pull-request-finish-input.v1 with exact properties is
+        accepted.
       truncated: false
   - id: A33
     source: specs/repository-pr-finish/spec.md
@@ -332,16 +324,14 @@ acceptance:
       stdout when successful;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Successful stdout is exactly one compact result v1 JSON object.
       truncated: false
   - id: A34
     source: specs/repository-pr-finish/spec.md
     text: write diagnostics only to stderr;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Diagnostics are stderr-only and failure stdout remains empty.
       truncated: false
   - id: A35
     source: specs/repository-pr-finish/spec.md
@@ -350,8 +340,8 @@ acceptance:
       containment, and bounded input before remote mutation;
     result: passed
     reason:
-      text: All schema, branch, commit/tree object, path containment, and input bounds
-        checks happen before repository PR mutation.
+      text: Schema, branch, commit/tree, containment and size checks occur before
+        create-pr.
       truncated: false
   - id: A36
     source: specs/repository-pr-finish/spec.md
@@ -364,8 +354,8 @@ acceptance:
       updates;
     result: passed
     reason:
-      text: Exact active/archive path sets, immutable blobs, state/source identity,
-        canonical Specs, and allowed Archive progression are fail-closed.
+      text: Exact tree/blob/path verification fails closed; selection removal is
+        conditional on pre-snapshot presence and absence must remain absence.
       truncated: false
   - id: A37
     source: specs/repository-pr-finish/spec.md
@@ -373,8 +363,8 @@ acceptance:
       validation logic;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Provider delegates to scripts/create-pr.ps1 instead of duplicating
+        repository PR logic.
       truncated: false
   - id: A38
     source: specs/repository-pr-finish/spec.md
@@ -382,8 +372,8 @@ acceptance:
       against the remote PR."
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: remoteVerified=true is emitted only after repository and remote
+        verification succeeds.
       truncated: false
   - id: A39
     source: specs/repository-pr-finish/spec.md
@@ -392,8 +382,8 @@ acceptance:
       cleanup.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Commit, push, generic recovery, remote identity verification and cleanup
+        remain Comet responsibilities.
       truncated: false
   - id: A40
     source: specs/repository-pr-finish/spec.md
@@ -401,24 +391,22 @@ acceptance:
       Native-created pull requests. It MUST:"
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Manual and Native flows share scripts/create-pr.ps1.
       truncated: false
   - id: A41
     source: specs/repository-pr-finish/spec.md
     text: enforce `master` as base and a same-repository short-lived head;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: create-pr enforces master base and an unqualified short-lived
+        same-repository head.
       truncated: false
   - id: A42
     source: specs/repository-pr-finish/spec.md
     text: discover the tracked PR template case-insensitively;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Tracked PR template discovery remains case-insensitive.
       truncated: false
   - id: A43
     source: specs/repository-pr-finish/spec.md
@@ -429,17 +417,16 @@ acceptance:
       present in the snapshot is not misclassified as Archive-only progression;
     result: passed
     reason:
-      text: PR evidence uses origin/master...finalHead while accepted
-        snapshot-to-final progression is checked separately, avoiding
-        Archive-only misclassification.
+      text: Body uses final PR diff/facts while accepted snapshot and Archive
+        progression are independently compared; absent selection is not
+        misclassified.
       truncated: false
   - id: A44
     source: specs/repository-pr-finish/spec.md
     text: create exactly one PR when none exists;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: No-open-PR path creates exactly one PR.
       truncated: false
   - id: A45
     source: specs/repository-pr-finish/spec.md
@@ -448,24 +435,22 @@ acceptance:
       remote identity remain consistent with the authoring artifact;
     result: passed
     reason:
-      text: Reuse requires the unique PR and exact authored/recovery/head/tree
-        identity, with fingerprint binding both pre-Archive commit and tree.
+      text: Reuse requires a unique PR and consistent remote, accepted commit/tree and
+        authored content identity.
       truncated: false
   - id: A46
     source: specs/repository-pr-finish/spec.md
     text: fail closed rather than editing a drifted existing PR;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Drifted existing PRs fail closed and are never edited.
       truncated: false
   - id: A47
     source: specs/repository-pr-finish/spec.md
     text: fetch and revalidate the remote body after creation or reuse;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Creation/reuse is followed by remote fetch and body/identity revalidation.
       truncated: false
   - id: A48
     source: specs/repository-pr-finish/spec.md
@@ -473,8 +458,7 @@ acceptance:
       preserving the supported manual dry-run entry.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Machine-readable result and existing manual dry-run both remain supported.
       truncated: false
   - id: A49
     source: specs/repository-pr-finish/spec.md
@@ -482,80 +466,73 @@ acceptance:
       non-placeholder evidence for:"
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Tracked template headings/options are preserved and placeholders are
+        rejected.
       truncated: false
   - id: A50
     source: specs/repository-pr-finish/spec.md
     text: Summary and target/change type;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Summary, target and change type receive concrete validated content.
       truncated: false
   - id: A51
     source: specs/repository-pr-finish/spec.md
     text: Issue hierarchy and Acceptance IDs;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Issue hierarchy and acceptance IDs are validated.
       truncated: false
   - id: A52
     source: specs/repository-pr-finish/spec.md
     text: Runtime, Generator, Analyzer, AgentFacts, Public Docs, and Skill impact;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: All six capability surfaces are covered and aligned with diff-derived
+        closure.
       truncated: false
   - id: A53
     source: specs/repository-pr-finish/spec.md
     text: shared contracts and propagation closure;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Shared contracts and propagation closure are mandatory and checked.
       truncated: false
   - id: A54
     source: specs/repository-pr-finish/spec.md
     text: composition evidence and sibling-slice responsibility;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Composition and sibling-slice responsibility require concrete evidence.
       truncated: false
   - id: A55
     source: specs/repository-pr-finish/spec.md
     text: reviewer Audit Focus;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Audit Focus remains a mandatory non-placeholder reviewer section.
       truncated: false
   - id: A56
     source: specs/repository-pr-finish/spec.md
     text: actual verification and any justified skips;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Verification records actual checks or a concrete skip reason.
       truncated: false
   - id: A57
     source: specs/repository-pr-finish/spec.md
     text: Agent Review request state;
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Agent Review records exactly one supported state with explanation when not
+        requested.
       truncated: false
   - id: A58
     source: specs/repository-pr-finish/spec.md
     text: release note.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: Release Note is mandatory and non-placeholder.
       truncated: false
   - id: A59
     source: specs/repository-pr-finish/spec.md
@@ -563,8 +540,7 @@ acceptance:
       It is not a separate approval form.
     result: passed
     reason:
-      text: Independent read-only verification found this target Spec clause satisfied
-        by the implementation and the complete passed Runtime check evidence.
+      text: PR template acts as reviewer context, not another approval gate.
       truncated: false
   - id: A60
     source: specs/repository-pr-finish/spec.md
@@ -582,9 +558,8 @@ acceptance:
       content MUST reuse the unique PR rather than create a duplicate.
     result: passed
     reason:
-      text: Tests prove real-index preservation, autocrlf-stable hashing, permitted
-        Archive progression, every snapshot drift failure, untouched remote
-        state, and idempotent reuse.
+      text: Pre-mutation fail-closed and retry semantics are covered, including
+        isolated index, autocrlf and all optional-selection transitions.
       truncated: false
   - id: A61
     source: specs/repository-pr-finish/spec.md
@@ -594,8 +569,8 @@ acceptance:
       current SHA before code is changed.
     result: passed
     reason:
-      text: Native Builder/Verifier remains the pre-PR acceptance loop; external AI
-        review remains untrusted post-PR advisory input.
+      text: Native Verify remains the pre-PR gate and external AI findings remain
+        untrusted advisory input.
       truncated: false
   - id: A62
     source: specs/repository-pr-finish/spec.md
@@ -606,238 +581,97 @@ acceptance:
       automate review-thread fixes, or automatically merge a PR.
     result: passed
     reason:
-      text: The deterministic required check remains the merge gate; this change does
-        not install CodeRabbit, automate review fixes, or auto-merge.
+      text: Required check remains the merge gate; no CodeRabbit requirement, auto-fix
+        or auto-merge was added.
       truncated: false
 builder_handoff:
-  candidate_id: 225d7ce6-eae9-4b4c-8123-ecedb3560d3f
+  candidate_id: 1edd8438-af31-47ef-b773-fa0036511d10
   identity_provider: skill-coordinated
-  builder_execution_ref: skill-coordinated:builder:a31229ff-5a98-444f-8ce5-be13a7b4c722
-  iteration: 1
+  builder_execution_ref: skill-coordinated:builder:af701faf-c092-42fe-bca3-f9ee28556307
+  iteration: 2
   summary:
-    text: Made repository-owned PR authoring source hashes representation-stable
-      across Windows working-tree CRLF and Git blob LF forms. Tracked UTF-8
-      brief, Spec, and PR template content is now hashed after canonical
-      CRLF/CR-to-LF normalization, while generated capability-facts bytes retain
-      raw hashing. Added a real core.autocrlf=true Archive fixture proving
-      working bytes differ from Git blobs without invalidating the accepted
-      snapshot, while preserving strict schema, tree identity, post-snapshot
-      drift, fingerprint, and remote-mutation fail-closed checks.
+    text: Repaired the Archive integration mismatch for optional
+      .comet/current-change.json. The provider now validates and permits removal
+      only when the selection exists in the accepted snapshot; when absent it
+      requires the path to remain absent and excludes it from the exact Runtime
+      progression set. PR workflow coverage now proves present-and-removed,
+      absent-through-Archive reuse, and absent-then-introduced fail-closed
+      behavior. All repository checks passed on the repaired working tree.
     truncated: false
   addressed_acceptance_ids:
-    - A3
     - A7
     - A9
-    - A28
     - A35
     - A36
     - A43
-    - A45
     - A60
   checks:
     - name:
-        text: "PowerShell parser: scripts/comet-finish-pr.ps1 and
-          scripts/test-pr-workflow.ps1"
+        text: PowerShell parser
         truncated: false
       result: passed
       note:
-        text: Both scripts parsed with zero errors.
+        text: scripts/comet-finish-pr.ps1 and scripts/test-pr-workflow.ps1 parsed with
+          zero errors.
         truncated: false
     - name:
-        text: scripts/test-pr-workflow.ps1
+        text: PR workflow
         truncated: false
       result: passed
       note:
-        text: Full PR workflow matrix passed, including a real core.autocrlf=true
-          checkout and create/reuse/fail-closed cases.
+        text: scripts/test-pr-workflow.ps1 passed, including optional current-change
+          progression cases.
         truncated: false
     - name:
-        text: scripts/export-capability-contract-facts.ps1
+        text: Capability and routing guards
         truncated: false
       result: passed
       note:
-        text: Capability facts export completed.
+        text: Capability export/validation/tests, Skill validation, and current Runtime
+          facts validation passed.
         truncated: false
     - name:
-        text: scripts/validate-capability-contract.ps1
+        text: Gradle check
         truncated: false
       result: passed
       note:
-        text: Capability contract validation passed.
+        text: "gradlew check succeeded: 182 actionable tasks."
         truncated: false
     - name:
-        text: scripts/test-capability-contract.ps1
+        text: Diff check
         truncated: false
       result: passed
       note:
-        text: Capability contract validator tests passed.
-        truncated: false
-    - name:
-        text: Skill validation
-        truncated: false
-      result: passed
-      note:
-        text: cap4k skill validation passed.
-        truncated: false
-    - name:
-        text: Runtime facts guard
-        truncated: false
-      result: passed
-      note:
-        text: Current runtime facts contain no retired Runtime surfaces.
-        truncated: false
-    - name:
-        text: .\gradlew.bat check
-        truncated: false
-      result: passed
-      note:
-        text: BUILD SUCCESSFUL in 6m 3s; 182 actionable tasks.
-        truncated: false
-    - name:
-        text: git diff --check
-        truncated: false
-      result: passed
-      note:
-        text: No whitespace errors; only expected line-ending warnings.
+        text: git diff --check passed for repaired scripts.
         truncated: false
   checks_truncated: false
   known_limits: []
   known_limits_truncated: false
-  submitted_at: 2026-08-16T12:48:29.908Z
+  submitted_at: 2026-08-16T13:25:49.489Z
 blockers: []
 verification:
-  candidate_id: 225d7ce6-eae9-4b4c-8123-ecedb3560d3f
+  candidate_id: 1edd8438-af31-47ef-b773-fa0036511d10
   identity_provider: skill-coordinated
-  verifier_execution_ref: skill-coordinated:verifier:ec83e04d-b38a-4445-b0b9-ab27cf58b486
-  iteration: 1
+  verifier_execution_ref: skill-coordinated:verifier:ba61687d-ea11-43a7-99d4-a1289412ade1
+  iteration: 2
   attempt: 1
   assurance: skill-coordinated
   verdict: pass
-  checks:
-    - id: powershell-parser
-      name:
-        text: Parse PR finish PowerShell scripts
-        truncated: false
-      argv_display:
-        - text: -NoLogo
-          truncated: false
-        - text: -NoProfile
-          truncated: false
-        - text: -Command
-          truncated: false
-        - text: $errors = @();
-            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path
-            'scripts/comet-finish-pr.ps1'), [ref]$null, [ref]$errors) |
-            Out-Null;
-            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path
-            'scripts/test-pr-workflow.ps1'), [ref]$null, [ref]$errors) |
-            Out-Null; if ($errors.Count -ne 0) { $errors | ForEach-Object {
-            Write-Error $_ }; exit 1 }
-          truncated: false
-      argv_truncated: false
-      cwd_ref: .
-      status: passed
-      exit_code: 0
-      duration_ms: 476
-    - id: pr-workflow
-      name:
-        text: Repository PR workflow regression
-        truncated: false
-      argv_display:
-        - text: -NoLogo
-          truncated: false
-        - text: -NoProfile
-          truncated: false
-        - text: -File
-          truncated: false
-        - text: scripts/test-pr-workflow.ps1
-          truncated: false
-      argv_truncated: false
-      cwd_ref: .
-      status: passed
-      exit_code: 0
-      duration_ms: 102333
-    - id: capability-projections
-      name:
-        text: Capability facts, contract, Skill, and Runtime guards
-        truncated: false
-      argv_display:
-        - text: -NoLogo
-          truncated: false
-        - text: -NoProfile
-          truncated: false
-        - text: -Command
-          truncated: false
-        - text: "& 'scripts/export-capability-contract-facts.ps1'; if ($LASTEXITCODE -ne
-            0) { exit $LASTEXITCODE }; &
-            'scripts/validate-capability-contract.ps1'; if ($LASTEXITCODE -ne 0)
-            { exit $LASTEXITCODE }; & 'scripts/test-capability-contract.ps1'; if
-            ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; &
-            'skills/scripts/validate-cap4k-skills.ps1'; if ($LASTEXITCODE -ne 0)
-            { exit $LASTEXITCODE }; &
-            'scripts/validate-current-runtime-facts.ps1'; if ($LASTEXITCODE -ne
-            0) { exit $LASTEXITCODE }"
-          truncated: false
-      argv_truncated: false
-      cwd_ref: .
-      status: passed
-      exit_code: 0
-      duration_ms: 48087
-    - id: gradle-check
-      name:
-        text: Full Gradle check
-        truncated: false
-      argv_display:
-        - text: -NoLogo
-          truncated: false
-        - text: -NoProfile
-          truncated: false
-        - text: -Command
-          truncated: false
-        - text: "& '.\\gradlew.bat' check; exit $LASTEXITCODE"
-          truncated: false
-      argv_truncated: false
-      cwd_ref: .
-      status: passed
-      exit_code: 0
-      duration_ms: 357235
-    - id: diff-check
-      name:
-        text: Git whitespace check
-        truncated: false
-      argv_display:
-        - text: diff
-          truncated: false
-        - text: --check
-          truncated: false
-      argv_truncated: false
-      cwd_ref: .
-      status: passed
-      exit_code: 0
-      duration_ms: 103
+  checks: []
   summary:
-    text: Independent read-only verification passed A1-A62 exactly once. The tracked
-      UTF-8 brief, Spec, and template hashes are representation-stable across
-      CRLF/CR working-tree bytes and LF Git blobs, while capability facts remain
-      raw-byte hashed. A real core.autocrlf=true fixture proves the byte
-      difference and the create, reuse, snapshot identity, exact path/blob,
-      fingerprint, stdout/stderr, remote-validation, and pre-mutation
-      fail-closed boundaries remain intact. All five Runtime check groups
-      passed; no additional check is required.
+    text: "Independent read-only verification passed A1-A62 exactly once. The
+      optional .comet/current-change.json repair matches real Archive behavior:
+      present selections are validated and must be removed; absent selections
+      must remain absent and are excluded from the exact progression set;
+      post-snapshot introduction fails before any remote mutation. Focused tests
+      cover all three transitions, and the already completed parser, PR
+      workflow, capability/Skill/Runtime guards, 182-task Gradle check and diff
+      check provide sufficient current-candidate evidence. No additional checks
+      are required."
     truncated: false
-  risks:
-    - text: The worktree is intentionally still in Native Verify state; Runtime must
-        produce and commit final verification/archive artifacts atomically.
-      truncated: false
-    - text: Canonical text hashing applies only to tracked UTF-8 brief, Spec, and
-        template sources; generated capability facts intentionally retain
-        raw-byte SHA-256.
-      truncated: false
-    - text: The autocrlf regression proves an actual working-tree/Git-blob byte
-        difference rather than only setting core.autocrlf.
-      truncated: false
+  risks: []
   risks_truncated: false
-  completed_at: 2026-08-16T13:02:12.330Z
+  completed_at: 2026-08-16T13:30:11.386Z
 history:
   - goal_cycle: 1
     iteration: 1
@@ -957,6 +791,51 @@ history:
         check groups passed; no additional check is required.
       truncated: false
     completed_at: 2026-08-16T13:02:12.330Z
+  - goal_cycle: 3
+    iteration: 1
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Local Runtime was unavailable at Archive ready; the synchronized
+        implementation must be verified again.
+      truncated: false
+    completed_at: 2026-08-16T13:08:39.110Z
+  - goal_cycle: 3
+    iteration: 1
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: "Archive provider exposed a second real integration mismatch:
+        .comet/current-change.json is an optional local selection artifact and
+        is absent from this worktree's accepted snapshot and final Archive
+        commit, but the provider and focused fixture incorrectly required it to
+        exist pre-Archive and be removed during Archive. Return to Build to make
+        selection progression conditional: validate and require removal only
+        when the selection path exists in the accepted snapshot; when absent,
+        require it remain absent and omit it from the exact progression path
+        set. Add both present-and-removed and absent-through-Archive coverage
+        before re-verification."
+      truncated: false
+    completed_at: 2026-08-16T13:08:39.400Z
+  - goal_cycle: 3
+    iteration: 2
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: "Independent read-only verification passed A1-A62 exactly once. The
+        optional .comet/current-change.json repair matches real Archive
+        behavior: present selections are validated and must be removed; absent
+        selections must remain absent and are excluded from the exact
+        progression set; post-snapshot introduction fails before any remote
+        mutation. Focused tests cover all three transitions, and the already
+        completed parser, PR workflow, capability/Skill/Runtime guards, 182-task
+        Gradle check and diff check provide sufficient current-candidate
+        evidence. No additional checks are required."
+      truncated: false
+    completed_at: 2026-08-16T13:30:11.386Z
 history_overflow:
   dropped_entries: 0
   first_dropped_at: null

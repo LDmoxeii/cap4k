@@ -349,10 +349,18 @@ try {
     }
 
     $selectionPath = '.comet/current-change.json'
-    $selectionText = Get-TreeUtf8 $preTree $selectionPath 65536
-    try { $selection = $selectionText | ConvertFrom-Json -Depth 8 } catch { Fail 'pre-Archive current-change selection is invalid JSON.' }
-    if ($null -eq $selection -or $selection.schema -cne 'comet.selection.v2' -or $selection.change -cne $changeName) { Fail 'pre-Archive current-change selection does not identify the accepted change.' }
-    if ($null -ne (Get-TreeBlobOid $finalTree $selectionPath $false)) { Fail 'Final Archive head still contains .comet/current-change.json.' }
+    $preSelectionOid = Get-TreeBlobOid $preTree $selectionPath $false
+    $finalSelectionOid = Get-TreeBlobOid $finalTree $selectionPath $false
+    $selectionProgressionPaths = @()
+    if ($null -ne $preSelectionOid) {
+        $selectionText = Get-TreeUtf8 $preTree $selectionPath 65536
+        try { $selection = $selectionText | ConvertFrom-Json -Depth 8 } catch { Fail 'pre-Archive current-change selection is invalid JSON.' }
+        if ($null -eq $selection -or $selection.schema -cne 'comet.selection.v2' -or $selection.change -cne $changeName) { Fail 'pre-Archive current-change selection does not identify the accepted change.' }
+        if ($null -ne $finalSelectionOid) { Fail 'Final Archive head still contains .comet/current-change.json.' }
+        $selectionProgressionPaths = @($selectionPath)
+    } elseif ($null -ne $finalSelectionOid) {
+        Fail 'Final Archive head introduced .comet/current-change.json that was absent from the accepted snapshot.'
+    }
 
     $canonicalChanged = [Collections.Generic.List[string]]::new()
     foreach ($capability in $capabilities) {
@@ -367,7 +375,7 @@ try {
     }
     $archiveDiff = @(Invoke-GitCommand @('diff','--name-status','--find-renames',$preTree,$finalTree))
     $actualProgressionPaths = Get-ChangedPaths $archiveDiff
-    $expectedProgressionPaths = @($activePaths + $archivePathsInFinal + @($selectionPath) + @($canonicalChanged))
+    $expectedProgressionPaths = @($activePaths + $archivePathsInFinal + $selectionProgressionPaths + @($canonicalChanged))
     Assert-ExactPathSet $actualProgressionPaths $expectedProgressionPaths 'Post-authoring Archive changed-path set'
 
     Assert-Properties $artifact.source.facts @('sha256') @() 'artifact.source.facts'

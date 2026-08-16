@@ -550,6 +550,8 @@ created_at: 2026-08-16T00:00:00.000Z
     Write-Utf8File (Join-Path $activeSpecDir 'spec.md') $specText
     Write-Utf8File (Join-Path $activeRoot 'verification.md') $activeVerificationText
     Write-Utf8File (Join-Path $activeRoot 'comet-state.yaml') $activeStateText
+    $preArchiveTreeWithoutSelection = Get-WorkingTreeSha $providerRepo $tempRoot
+    if ((@(Invoke-TestGit $providerRepo @('cat-file','-t',$preArchiveTreeWithoutSelection))[0]).Trim() -cne 'tree') { throw 'Fixture pre-Archive snapshot without current-change selection is not a Git tree.' }
     Write-Utf8File (Join-Path $providerRepo '.comet/current-change.json') '{"schema":"comet.selection.v2","workflow":"native","change":"provider-test","branch":null}'
     $preArchiveTree = Get-WorkingTreeSha $providerRepo $tempRoot
     if ((@(Invoke-TestGit $providerRepo @('cat-file','-t',$preArchiveTree))[0]).Trim() -cne 'tree') { throw 'Fixture pre-Archive snapshot is not a Git tree.' }
@@ -610,6 +612,10 @@ created_at: 2026-08-16T00:00:00.000Z
         contentFingerprint = [ordered]@{ algorithm='sha256'; digest='' }
     }
     $artifact.contentFingerprint.digest = Get-AuthoringFingerprint $artifact
+    $artifactWithoutSelection = $artifact | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $artifactWithoutSelection.source.preArchiveTreeSha = $preArchiveTreeWithoutSelection
+    $artifactWithoutSelection.contentFingerprint.digest = Get-AuthoringFingerprint $artifactWithoutSelection
+    if ($artifactWithoutSelection.contentFingerprint.digest -ceq $artifact.contentFingerprint.digest) { throw 'Selection-absent fixture did not refresh the canonical fingerprint.' }
     $artifactPathText = (@(Invoke-TestGit $providerRepo @('rev-parse','--git-path','comet/pr-authoring/provider-test.json'))[0]).Trim()
     $artifactPath = if ([IO.Path]::IsPathRooted($artifactPathText)) { $artifactPathText } else { Join-Path $providerRepo $artifactPathText }
     function Write-ProviderArtifact([object] $Value) { Write-Utf8File $artifactPath ($Value | ConvertTo-Json -Depth 20) }
@@ -642,7 +648,14 @@ created_at: 2026-08-16T00:00:00.000Z
         $retryState = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
         if ([int]$retryState.createCount -ne 1) { throw 'Provider retry created a duplicate PR.' }
 
-        $driftState = $retryState
+        Write-ProviderArtifact $artifactWithoutSelection
+        $withoutSelectionProcess = Invoke-ProcessWithInput $finishProviderScript ($providerInput | ConvertTo-Json -Depth 10) 0 'pull-request-finish-result' $providerRepo
+        [void](Assert-ProviderSuccess $withoutSelectionProcess 'reused')
+        $withoutSelectionState = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([int]$withoutSelectionState.createCount -ne 1) { throw 'Selection-absent Archive retry created a duplicate PR.' }
+        Write-ProviderArtifact $artifact
+
+        $driftState = $withoutSelectionState
         @($driftState.pullRequests)[0].title = 'drifted title'
         Write-Utf8File $fakeStateFile ($driftState | ConvertTo-Json -Depth 10)
         $driftProcess = Invoke-ProcessWithInput $finishProviderScript ($providerInput | ConvertTo-Json -Depth 10) 1 'title' $providerRepo
@@ -746,6 +759,22 @@ created_at: 2026-08-16T00:00:00.000Z
         Assert-ProviderFailure $extraProcess
         $oversizedProcess = Invoke-ProcessWithInput $finishProviderScript ('x' * 1048577) 1 'exceeds 1048576 bytes' $providerRepo
         Assert-ProviderFailure $oversizedProcess
+
+        Write-ProviderArtifact $artifactWithoutSelection
+        Write-Utf8File (Join-Path $providerRepo '.comet/current-change.json') '{"schema":"comet.selection.v2","workflow":"native","change":"provider-test","branch":null}'
+        Invoke-TestGit $providerRepo @('add','.comet/current-change.json') | Out-Null
+        Invoke-TestGit $providerRepo @('commit','-m','introduce current-change after accepted snapshot') | Out-Null
+        $introducedSelectionHead = (@(Invoke-TestGit $providerRepo @('rev-parse','HEAD'))[0]).Trim()
+        $introducedSelectionInput = $providerInput | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $introducedSelectionInput.change.headSha = $introducedSelectionHead
+        $introducedSelectionInput.existingPullRequest = $null
+        $env:CAP4K_FAKE_HEAD_SHA = $introducedSelectionHead
+        $introducedSelectionProcess = Invoke-ProcessWithInput $finishProviderScript ($introducedSelectionInput | ConvertTo-Json -Depth 10) 1 'introduced .comet/current-change.json' $providerRepo
+        Assert-ProviderFailure $introducedSelectionProcess
+        Remove-Item -LiteralPath (Join-Path $providerRepo '.comet/current-change.json') -Force
+        Invoke-TestGit $providerRepo @('add','-A') | Out-Null
+        Invoke-TestGit $providerRepo @('commit','-m','restore absent current-change selection') | Out-Null
+        Write-ProviderArtifact $artifact
 
         Write-Utf8File (Join-Path $providerRepo 'post-snapshot-drift.txt') "unsupported post-snapshot drift`n"
         Invoke-TestGit $providerRepo @('add','post-snapshot-drift.txt') | Out-Null
