@@ -623,14 +623,26 @@ created_at: 2026-08-16T00:00:00.000Z
 
     $fakeGhBase64 = 'cGFyYW0oW1BhcmFtZXRlcihWYWx1ZUZyb21SZW1haW5pbmdBcmd1bWVudHMgPSAkdHJ1ZSldW3N0cmluZ1tdXSAkR2hBcmdzKQokRXJyb3JBY3Rpb25QcmVmZXJlbmNlID0gJ1N0b3AnCiRzdGF0ZSA9IEdldC1Db250ZW50IC1MaXRlcmFsUGF0aCAkZW52OkNBUDRLX0ZBS0VfR0hfU1RBVEUgLVJhdyAtRW5jb2RpbmcgVVRGOCB8IENvbnZlcnRGcm9tLUpzb24KW0lPLkZpbGVdOjpBcHBlbmRBbGxUZXh0KCRlbnY6Q0FQNEtfRkFLRV9HSF9MT0csICgoJEdoQXJncyAtam9pbiAiYHQiKSArICJgbiIpLCBbVGV4dC5VVEY4RW5jb2RpbmddOjpuZXcoJGZhbHNlKSkKJHBycyA9IEAoJHN0YXRlLnB1bGxSZXF1ZXN0cykKaWYgKCRHaEFyZ3MuQ291bnQgLWdlIDIgLWFuZCAkR2hBcmdzWzBdIC1lcSAncHInIC1hbmQgJEdoQXJnc1sxXSAtZXEgJ2xpc3QnKSB7CiAgICBbQ29uc29sZV06Ok91dC5Xcml0ZUxpbmUoKENvbnZlcnRUby1Kc29uIC1JbnB1dE9iamVjdCBAKCRwcnMpIC1EZXB0aCAxMCAtQ29tcHJlc3MpKTsgZXhpdCAwCn0KaWYgKCRHaEFyZ3MuQ291bnQgLWdlIDIgLWFuZCAkR2hBcmdzWzBdIC1lcSAncHInIC1hbmQgJEdoQXJnc1sxXSAtZXEgJ2NyZWF0ZScpIHsKICAgIGZ1bmN0aW9uIFZhbHVlQWZ0ZXIoW3N0cmluZ10gJE5hbWUpIHsgJGluZGV4ID0gW0FycmF5XTo6SW5kZXhPZigkR2hBcmdzLCAkTmFtZSk7IGlmICgkaW5kZXggLWx0IDAgLW9yICRpbmRleCArIDEgLWdlICRHaEFyZ3MuQ291bnQpIHsgdGhyb3cgIk1pc3NpbmcgJE5hbWUiIH07IHJldHVybiAkR2hBcmdzWyRpbmRleCArIDFdIH0KICAgICRudW1iZXIgPSAxMDEKICAgICR1cmwgPSAiaHR0cHM6Ly9naXRodWIuY29tL2V4YW1wbGUvY2FwNGsvcHVsbC8kbnVtYmVyIgogICAgJHByID0gW3BzY3VzdG9tb2JqZWN0XUB7IG51bWJlcj0kbnVtYmVyOyB1cmw9JHVybDsgc3RhdGU9J09QRU4nOyBiYXNlUmVmTmFtZT0oVmFsdWVBZnRlciAnLS1iYXNlJyk7IGhlYWRSZWZOYW1lPShWYWx1ZUFmdGVyICctLWhlYWQnKTsgaGVhZFJlZk9pZD0kZW52OkNBUDRLX0ZBS0VfSEVBRF9TSEE7IHRpdGxlPShWYWx1ZUFmdGVyICctLXRpdGxlJyk7IGJvZHk9W0lPLkZpbGVdOjpSZWFkQWxsVGV4dCgoVmFsdWVBZnRlciAnLS1ib2R5LWZpbGUnKSkgfQogICAgJHBycyA9IEAoJHBycykgKyAkcHIKICAgICRzdGF0ZS5wdWxsUmVxdWVzdHMgPSBAKCRwcnMpCiAgICAkc3RhdGUuY3JlYXRlQ291bnQgPSBbaW50XSRzdGF0ZS5jcmVhdGVDb3VudCArIDEKICAgIFtJTy5GaWxlXTo6V3JpdGVBbGxUZXh0KCRlbnY6Q0FQNEtfRkFLRV9HSF9TVEFURSwgKCRzdGF0ZSB8IENvbnZlcnRUby1Kc29uIC1EZXB0aCAxMCksIFtUZXh0LlVURjhFbmNvZGluZ106Om5ldygkZmFsc2UpKQogICAgW0NvbnNvbGVdOjpPdXQuV3JpdGVMaW5lKCR1cmwpOyBleGl0IDAKfQppZiAoJEdoQXJncy5Db3VudCAtZ2UgMyAtYW5kICRHaEFyZ3NbMF0gLWVxICdwcicgLWFuZCAkR2hBcmdzWzFdIC1lcSAndmlldycpIHsKICAgICRyZWYgPSBbc3RyaW5nXSRHaEFyZ3NbMl0KICAgICRtYXRjaCA9IEAoJHBycyB8IFdoZXJlLU9iamVjdCB7IFtzdHJpbmddJF8ubnVtYmVyIC1jZXEgJHJlZiAtb3IgW3N0cmluZ10kXy51cmwgLWNlcSAkcmVmIH0pCiAgICBpZiAoJG1hdGNoLkNvdW50IC1uZSAxKSB7IFtDb25zb2xlXTo6RXJyb3IuV3JpdGVMaW5lKCdub3QgZm91bmQnKTsgZXhpdCAxIH0KICAgIFtDb25zb2xlXTo6T3V0LldyaXRlTGluZSgoJG1hdGNoWzBdIHwgQ29udmVydFRvLUpzb24gLURlcHRoIDEwIC1Db21wcmVzcykpOyBleGl0IDAKfQpbQ29uc29sZV06OkVycm9yLldyaXRlTGluZSgidW5zdXBwb3J0ZWQgZmFrZSBnaCBpbnZvY2F0aW9uOiAkKCRHaEFyZ3MgLWpvaW4gJyAnKSIpOyBleGl0IDE='
     [IO.File]::WriteAllBytes((Join-Path $fakeBin 'fake-gh.ps1'), [Convert]::FromBase64String($fakeGhBase64))
-    Write-Utf8File (Join-Path $fakeBin 'gh.cmd') "@echo off`r`npwsh -NoProfile -ExecutionPolicy Bypass -File `"%~dp0fake-gh.ps1`" %*`r`n"
+    if ($IsWindows) {
+        Write-Utf8File (Join-Path $fakeBin 'gh.cmd') "@echo off`r`npwsh -NoProfile -ExecutionPolicy Bypass -File `"%~dp0fake-gh.ps1`" %*`r`n"
+    } else {
+        $fakeGhCommand = Join-Path $fakeBin 'gh'
+        $fakeGhWrapper = (@('#!/usr/bin/env pwsh', '& "$PSScriptRoot/fake-gh.ps1" @args', 'exit $LASTEXITCODE') -join "`n") + "`n"
+        Write-Utf8File $fakeGhCommand $fakeGhWrapper
+        & chmod +x -- $fakeGhCommand
+        if ($LASTEXITCODE -ne 0) { throw 'Failed to make the Unix fake gh wrapper executable.' }
+    }
     Write-Utf8File $fakeStateFile '{"pullRequests":[],"createCount":0}'
     Write-Utf8File $fakeLogFile ''
     $oldPath = $env:PATH
     $oldFakeState = $env:CAP4K_FAKE_GH_STATE
     $oldFakeLog = $env:CAP4K_FAKE_GH_LOG
     $oldFakeHead = $env:CAP4K_FAKE_HEAD_SHA
-    $env:PATH = "$fakeBin;$oldPath"
+    $env:PATH = "$fakeBin$([IO.Path]::PathSeparator)$oldPath"
+    $resolvedGhPath = [IO.Path]::GetFullPath((Get-Command gh -CommandType Application -ErrorAction Stop).Source)
+    $fakeBinPrefix = [IO.Path]::GetFullPath($fakeBin) + [IO.Path]::DirectorySeparatorChar
+    $pathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    if (-not $resolvedGhPath.StartsWith($fakeBinPrefix, $pathComparison)) { throw "Provider fixture resolved gh outside fake-bin: $resolvedGhPath" }
     $env:CAP4K_FAKE_GH_STATE = $fakeStateFile
     $env:CAP4K_FAKE_GH_LOG = $fakeLogFile
     $env:CAP4K_FAKE_HEAD_SHA = $providerHead
