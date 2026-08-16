@@ -13,7 +13,6 @@ The normal Design JSON language supports exactly these tags:
 - `command`
 - `query`
 - `capability`
-- `api_payload`
 - `endpoint`
 - `domain_event`
 - `integration_event`
@@ -21,7 +20,9 @@ The normal Design JSON language supports exactly these tags:
 
 Unknown tags and removed public fields MUST fail fast. Compatibility aliases and legacy dialects MUST NOT be retained.
 
-`fields` expresses the primary payload for every payload-bearing tag. `resultFields` is allowed only for `command`, `query`, `capability`, `api_payload`, and `endpoint`. `endpoint` additionally requires a non-blank `operationName`; `operationName` is invalid for every other tag. `domain_service` is a metadata-only anchor and MUST reject non-empty `fields` or `resultFields`; business operations remain handwritten and Analyzer MUST NOT infer them from method bodies.
+The removed `api_payload` tag, `api-payload` artifact family, `page` variant under that family, and all spelling aliases MUST be rejected as unsupported. Adapter-private DTOs are ordinary implementation types and MUST NOT be recovered as tactical design blocks.
+
+`fields` expresses the primary payload for every payload-bearing tag. `resultFields` is allowed only for `command`, `query`, `capability`, and `endpoint`. `endpoint` additionally requires a non-blank `operationName`; `operationName` is invalid for every other tag. `domain_service` is a metadata-only anchor and MUST reject non-empty `fields` or `resultFields`; business operations remain handwritten and Analyzer MUST NOT infer them from method bodies.
 
 ## Artifact selection
 
@@ -41,13 +42,12 @@ The compatible primary/secondary families are:
 | `command` | `command` | none |
 | `query` | `query` | `query-handler` |
 | `capability` | `capability` | `capability-handler` |
-| `api_payload` | `api-payload` | none |
 | `endpoint` | `endpoint` | none |
 | `domain_event` | `domain-event` | `domain-subscriber` |
 | `integration_event` | `integration-event` | `integration-subscriber` for inbound only |
 | `domain_service` | `domain-service` | none |
 
-`query` and `api-payload` primary artifacts optionally use variant `page`. `endpoint` has no variant. `integration-event` MUST use `inbound` or `outbound`. Other family variants are invalid. A handler/subscriber without its primary carrier is invalid. `integration-subscriber` with outbound is invalid and MUST NOT auto-add or auto-convert an inbound carrier.
+The `query` primary artifact optionally uses variant `page`. `endpoint` has no variant. `integration-event` MUST use `inbound` or `outbound`. Other family variants are invalid. A handler/subscriber without its primary carrier is invalid. `integration-subscriber` with outbound is invalid and MUST NOT auto-add or auto-convert an inbound carrier.
 
 ## Framework-derived page structure
 
@@ -153,7 +153,7 @@ One dedicated real functional gate MUST use two clean temporary project copies:
 5. Project B builds canonical projection `C1`, asserts normalized `C0 == C1`, regenerates all artifacts, and compiles every generated module.
 6. The gate compares both generations' framework-owned skeleton structure and runtime annotation/interface semantics so projection comparison omissions cannot create a false positive.
 
-The rich fixture MUST cover all eight tags and explicitly assert meaningful shape coverage: ordinary and page Query; ordinary and page API payload; ActorEndpoint operationName, Request/Response and EndpointRequest marker semantics; optional-secondary selected and explicit non-default primary-only forms; inbound and outbound Integration Events; persisted, transient-payload, and marker-without-fields Domain Events; Strong IDs; enums; Value Objects; external canonical FQNs; nested List/Set/Map/Array/nullability/defaults including U+000C; nested DTO order; and a legal `entity` field.
+The rich fixture MUST cover all seven tags and explicitly assert meaningful shape coverage: ordinary and page Query; ActorEndpoint operationName, Request/Response and EndpointRequest marker semantics; optional-secondary selected and explicit non-default primary-only forms; inbound and outbound Integration Events; persisted, transient-payload, and marker-without-fields Domain Events; Strong IDs; enums; Value Objects; external canonical FQNs; nested List/Set/Map/Array/nullability/defaults including U+000C; nested DTO order; and a legal `entity` field.
 
 Focused module tests MUST cover invalid artifacts, Domain Service payloads, page root collisions and non-root counterexamples, page mismatches, missing event names, exact runtime/metadata conflicts, subscriber direction literals, recursive semantic Entity payloads, final-identity primitive arrays, order preservation, incomplete per-directory analysis, U+000C recovery, and business-body invariance.
 
@@ -162,6 +162,3 @@ The functional fixture may use a temporary-project-unique H2 in-memory URL witho
 ## Compatibility
 
 This is a breaking current-contract repair. No alias, fallback dialect, silent semantic loss, deprecation path, or compatibility adapter is required.
-
-
-
