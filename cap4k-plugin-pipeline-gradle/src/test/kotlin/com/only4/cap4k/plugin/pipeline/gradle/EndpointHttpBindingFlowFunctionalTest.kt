@@ -69,7 +69,7 @@ class EndpointHttpBindingFlowFunctionalTest {
         assertEquals("EndpointHttpBindingToCommand", commandFlow.get("edges").single().get("type").asText())
         assertEquals(1, index.get("flowCount").asInt())
         assertEquals(1, index.get("entryTypeCounts").get("endpointhttpbinding").asInt())
-        assertTrue(mermaid.contains("booking.create [POST /api/bookings]"), mermaid)
+        assertTrue(mermaid.lineSequence().any { it == "  N2[\"booking.create [POST /api/bookings]\"]" }, mermaid)
         assertTrue(mermaid.contains("EndpointHttpBindingToCommand"), mermaid)
         assertFalse(mermaid.contains("EndpointHandler"), mermaid)
         assertFalse(commandFlow.toString().contains("resource.get"), commandFlow.toString())
