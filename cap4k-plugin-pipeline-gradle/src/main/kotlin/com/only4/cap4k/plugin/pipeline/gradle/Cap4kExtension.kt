@@ -58,6 +58,7 @@ internal typealias PipelineExtension = Cap4kExtension
 open class Cap4kProjectExtension @Inject constructor(objects: ObjectFactory) {
     val basePackage: Property<String> = objects.property(String::class.java)
     val contractModulePath: Property<String> = objects.property(String::class.java)
+    val endpointClientModulePath: Property<String> = objects.property(String::class.java)
     val applicationModulePath: Property<String> = objects.property(String::class.java)
     val domainModulePath: Property<String> = objects.property(String::class.java)
     val adapterModulePath: Property<String> = objects.property(String::class.java)
@@ -287,6 +288,7 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
         objects.newInstance(AggregateProjectionGeneratorExtension::class.java)
     val drawingBoard: DrawingBoardGeneratorExtension = objects.newInstance(DrawingBoardGeneratorExtension::class.java)
     val flow: FlowGeneratorExtension = objects.newInstance(FlowGeneratorExtension::class.java)
+    val endpointRpc: EndpointRpcGeneratorExtension = objects.newInstance(EndpointRpcGeneratorExtension::class.java)
 
     fun aggregate(block: AggregateGeneratorExtension.() -> Unit) {
         aggregate.configured = true
@@ -306,6 +308,11 @@ open class Cap4kGeneratorsExtension @Inject constructor(objects: ObjectFactory) 
     fun flow(block: FlowGeneratorExtension.() -> Unit) {
         flow.configured = true
         flow.block()
+    }
+
+    fun endpointRpc(block: EndpointRpcGeneratorExtension.() -> Unit) {
+        endpointRpc.configured = true
+        endpointRpc.block()
     }
 }
 
@@ -331,6 +338,12 @@ open class DrawingBoardGeneratorExtension @Inject constructor(objects: ObjectFac
 
 open class FlowGeneratorExtension @Inject constructor(objects: ObjectFactory) {
     internal var configured: Boolean = false
+}
+
+open class EndpointRpcGeneratorExtension @Inject constructor(objects: ObjectFactory) {
+    internal var configured: Boolean = false
+    val serviceId: Property<String> = objects.property(String::class.java)
+    val operationNames: ListProperty<String> = objects.listProperty(String::class.java)
 }
 
 open class Cap4kTemplatesExtension @Inject constructor(objects: ObjectFactory) {

@@ -136,7 +136,7 @@ field item 常见 shape：
 
 一个 `endpoint` 表达一个 transport-neutral published API operation，也是框架发布 Request / Response schema 的唯一 Design JSON contract。adapter-private DTO 只是协议映射实现类型，不是 framework capability。generator 在 `project.contractModulePath` 指向的依赖叶子模块生成一个 operation object；其中 `Request` 实现轻量 `EndpointRequest<Response>`，`Response` 与 Request 同属该 object，并通过 `OPERATION_NAME` 保留显式 `operationName`。Endpoint contract 不实现 Command、Query 或 Capability marker，也不包含 HTTP/RPC route、client、provider、retry 或 discovery 配置。
 
-本阶段只提供 contract 与 `Mediator.endpoints` dispatch family。Provider 的本地实现和未来 Consumer RPC proxy 都以本进程的 `EndpointHandler<Request, Response>` 接入；业务代码通过 `Mediator.endpoints.send/sendAsync` 调用，不直接调用 Handler/proxy。HTTP/RPC binding 属于后续能力，不由 `endpoint` Design JSON 自动生成。
+Provider 的本地实现和 generated RPC Consumer remote Handler 都以各自进程中的 `EndpointHandler<Request, Response>` 接入；业务代码通过 `Mediator.endpoints.send/sendAsync` 调用，不直接调用 Handler/proxy。Direct HTTP binding 由 adapter checked-in registration 声明；RPC exposure 则由独立 `generators.endpointRpc` 配置显式选择稳定 `serviceId` 与 `operationNames` 后生成 Provider registration 和 `endpoint-client` artifact。`endpoint` Design JSON 本身不会自动公开 HTTP/RPC，也不承载 route、address、timeout、auth、retry 或 discovery 配置。
 
 ## 最小 Domain Event
 

@@ -27,7 +27,7 @@ source generation 的概念顺序是：
 cap4kPlan -> cap4kGenerate
 ```
 
-build-owned generated source 的入口是：
+build-owned generated source 与 resource 的入口是：
 
 ```text
 cap4kGenerateSources
@@ -69,17 +69,18 @@ cap4kAnalysisPlan -> cap4kAnalysisGenerate
 
 ## cap4kGenerateSources
 
-`cap4kGenerateSources` 只输出 `GENERATED_SOURCE`。Generated Kotlin root 是每个 target module 下的：
+`cap4kGenerateSources` 输出 `GENERATED_SOURCE` 与 `GENERATED_RESOURCE`。每个 target module 的受管 roots 是：
 
 ```text
 <module>/build/generated/cap4k/main/kotlin
+<module>/build/generated/cap4k/main/resources
 ```
 
-该任务会把这些 roots 注册进 Kotlin `main` source set。运行 source generation 时，cap4k 会先清理受控的 `build/generated/cap4k/main/kotlin` root，再按当前计划重建；删除输入中的 persistence projection 或其他 generated artifact 后，旧 source 会随完整重建消失。这个 root 由 build 拥有，常见 `conflictPolicy` 是 `OVERWRITE`。作者不应把它作为长期手写业务逻辑位置，也不应把 generated source snapshot 当成设计输入。
+该任务会把 Kotlin root 注册进 Kotlin `main` source set，把 resource root 注册进 `main` resources，并建立 `compileKotlin` / `processResources` 对生成任务的依赖。运行 source generation 时，cap4k 会先清理受控 roots，再按当前计划重建；删除输入中的 persistence projection、Endpoint RPC selection 或其他 generated artifact 后，旧 source/resource 会随完整重建消失。这些 roots 由 build 拥有，常见 `conflictPolicy` 是 `OVERWRITE`。作者不应把它们作为长期手写业务逻辑或 metadata 位置，也不应把 generated snapshot 当成设计输入。
 
-如果需要修改业务行为，应回到 checked-in skeleton 的 handwritten slot、domain/application implementation、schema 或 design JSON，而不是手改 build-owned generated source。
+如果需要修改业务行为或装配 metadata，应回到 checked-in skeleton 的 handwritten slot、domain/application implementation、schema、design JSON 或 generator configuration，而不是手改 build-owned output。
 
-## Checked-In Source Vs Generated Source
+## Checked-In Source Vs Generated Outputs
 
 `CHECKED_IN_SOURCE` 和 `GENERATED_SOURCE` 的区别是 ownership，不只是路径差异。
 
@@ -97,7 +98,14 @@ cap4kAnalysisPlan -> cap4kAnalysisGenerate
 - 可以被再次生成覆盖。
 - 不作为长期手写业务区。
 
-`OUTPUT_ARTIFACT` 表示非源码 artifact output kind。内置 planner 常见 source 生成项主要落在前两类；具体仍以 `plan.json` 为准。
+`GENERATED_RESOURCE`：
+
+- 位于 `<module>/build/generated/cap4k/main/resources`。
+- build 负责维护并注册进 `main` resources。
+- 可以被再次生成覆盖。
+- 适合自动装配 metadata 等技术资源，不作为长期手写资源区。
+
+`OUTPUT_ARTIFACT` 表示非源码 artifact output kind；具体使用情况仍以 `plan.json` 为准。
 
 ## Analysis Task Boundary
 
@@ -118,7 +126,7 @@ analysis evidence 详见 [Analysis Evidence](analysis-evidence.md) 和 [Analysis
 使用 generation tasks 前后的审查重点是：
 
 - 先读 plan，再 materialize output。
-- 先区分 checked-in skeleton 和 build-owned generated source，再决定在哪里写业务逻辑。
+- 先区分 checked-in skeleton、build-owned generated source 与 generated resource，再决定在哪里写业务逻辑或装配 metadata。
 - 确认 checked-in item 固定 `SKIP`，并单独审查 build-owned output 的 `conflictPolicy`。
 - 先理解 analysis tasks 的观察边界，再把 flow/drawing-board evidence 用于 verification。
 

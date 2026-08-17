@@ -8,7 +8,8 @@ cap4k 的 output ownership 由 `outputKind`、output root、template 和 conflic
 | --- | --- | --- |
 | `CHECKED_IN_SOURCE` | `<module>/src/main/kotlin` | 首次 materialization 的 committed skeleton 或 type source；existing file 固定 SKIP。 |
 | `GENERATED_SOURCE` | `<module>/build/generated/cap4k/main/kotlin` | build-owned generated source；可被覆盖。 |
-| `OUTPUT_ARTIFACT` | artifact-specific root | non-source artifact output kind；built-in planners 常见 source generation items 主要使用前两类。 |
+| `GENERATED_RESOURCE` | `<module>/build/generated/cap4k/main/resources` | build-owned generated resource；可被覆盖并注册进 `main` resources。 |
+| `OUTPUT_ARTIFACT` | artifact-specific root | non-source artifact output kind；具体使用情况以 `plan.json` 为准。 |
 
 ## Checked-In Source
 
@@ -24,7 +25,7 @@ Factory、Behavior、Command、Query、Capability、Endpoint contract、Event、
 
 ## Generated Source
 
-`cap4kGenerateSources` 只导出 `GENERATED_SOURCE`。Generated Kotlin root：
+`cap4kGenerateSources` 同时导出 `GENERATED_SOURCE` 与 `GENERATED_RESOURCE`。Generated Kotlin root：
 
 ```text
 <module>/build/generated/cap4k/main/kotlin
@@ -33,6 +34,16 @@ Factory、Behavior、Command、Query、Capability、Endpoint contract、Event、
 这个 root 由 build 拥有。source generation 会在完整重建前清理受控的 `build/generated/cap4k/main/kotlin` root，再 materialize 当前计划，因此已经移除的 projection 不会留下 stale source。典型 conflict policy 是 `OVERWRITE`。不要把它作为长期 handwritten business area。
 
 显式 JSON persistence projection 产生的 `<ValueObjectName>JsonAttributeConverter` 属于这里；Value Object class 本身仍留在 checked-in domain source。
+
+## Generated Resource
+
+Generated resource root：
+
+```text
+<module>/build/generated/cap4k/main/resources
+```
+
+`GENERATED_RESOURCE` 与 generated Kotlin 一样由 build 拥有，并在完整重建前清理受控 root。Gradle 会把它注册进 `main` resources，并让资源消费任务依赖 `cap4kGenerateSources`。Endpoint RPC 的 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 属于这类输出；不要把生成的 metadata 复制到 checked-in resources 或直接手改。
 
 ## Output Artifact
 
@@ -52,6 +63,7 @@ Factory、Behavior、Command、Query、Capability、Endpoint contract、Event、
 | --- | --- |
 | file is under `src/main/kotlin` | 它是 first-materialized checked-in source；确认 `outputKind` 和 `templateId` 后直接按项目源码管理，后续 generation 会 SKIP。 |
 | file is under `build/generated/cap4k/main/kotlin` | build owns it；改 input、template 或 source skeleton，不手改 generated source。 |
+| file is under `build/generated/cap4k/main/resources` | build owns it；改 input、template 或 generator configuration，不手改 generated resource。 |
 | skeleton has empty handler body | 它可能是 intended handwritten slot；不要只因空实现而删除。 |
 | source snapshot was copied elsewhere | Snapshot 是 evidence 或 learning material，不是 active generator output。 |
 

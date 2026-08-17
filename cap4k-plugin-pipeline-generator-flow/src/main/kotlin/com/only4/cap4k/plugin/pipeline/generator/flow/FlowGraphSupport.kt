@@ -323,6 +323,7 @@ internal fun projectCausalGraph(
 private val explicitCommandTriggerRoles = mapOf(
     "ControllerMethodToCommand" to "controllermethod",
     "EndpointHttpBindingToCommand" to "endpointhttpbinding",
+    "EndpointRpcProviderBindingToCommand" to "endpointrpcproviderbinding",
     "TemporalTriggerMethodToCommand" to "temporaltriggermethod",
 )
 

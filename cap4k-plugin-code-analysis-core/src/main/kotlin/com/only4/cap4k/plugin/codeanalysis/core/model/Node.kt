@@ -14,6 +14,7 @@ enum class NodeType {
     controllermethod,
     temporaltriggermethod,
     endpointhttpbinding,
+    endpointrpcproviderbinding,
     commandsender,
     querysendermethod,
     capabilitysendermethod,

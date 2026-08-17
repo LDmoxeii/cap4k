@@ -1,0 +1,22 @@
+package {{ packageName }}
+
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+@org.springframework.context.annotation.Configuration(proxyBeanMethods = false)
+class EndpointRpcProviderBindings {
+{% for operation in operations %}
+    @org.springframework.context.annotation.Bean
+    fun {{ operation.beanMethodName }}ProviderBinding(): com.only4.cap4k.ddd.endpoint.rpc.EndpointRpcProviderBinding<{{ operation.requestFqn }}, {{ operation.responseFqn }}> =
+        com.only4.cap4k.ddd.endpoint.rpc.EndpointRpcProviderBinding(
+            serviceId = {{ serviceIdKotlinStringLiteral | raw }},
+            operationName = {{ operation.ownerFqn }}.OPERATION_NAME,
+            requestType = {{ operation.requestFqn }}::class,
+            responseType = {{ operation.responseFqn }}::class,
+        )
+{% if not loop.last %}
+{% endif %}
+{% endfor %}
+}
+

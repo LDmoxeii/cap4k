@@ -20,6 +20,8 @@ class RuntimeAgentFactsCatalogTest {
             setOf(
                 "runtime.core-dispatch",
                 "runtime.endpoint-http-provider",
+                "runtime.endpoint-rpc-provider",
+                "runtime.endpoint-rpc-consumer",
                 "runtime.identifier-allocation",
                 "runtime.local-domain-event",
                 "runtime.jpa-persistence",
@@ -35,6 +37,8 @@ class RuntimeAgentFactsCatalogTest {
             "ddd-endpoint-http",
             "cap4k-ddd-endpoint-http-starter",
         )
+        assertEndpointRpcOwnership(facts.getValue("runtime.endpoint-rpc-provider"))
+        assertEndpointRpcOwnership(facts.getValue("runtime.endpoint-rpc-consumer"))
         assertOwnership(facts.getValue("runtime.identifier-allocation"), "ddd-core", "cap4k-ddd-core-starter")
         assertOwnership(facts.getValue("runtime.local-domain-event"), "ddd-core", "cap4k-ddd-core-starter")
         assertOwnership(facts.getValue("runtime.jpa-persistence"), "ddd-domain-repo-jpa", "cap4k-ddd-jpa-starter")
@@ -119,6 +123,15 @@ class RuntimeAgentFactsCatalogTest {
                 providers = RuntimeAgentFactsCatalog.providers(),
             )
         ).isEmpty())
+    }
+
+    private fun assertEndpointRpcOwnership(
+        fact: com.only4.cap4k.plugin.pipeline.api.AgentRuntimeCapabilityFact,
+    ) {
+        assertEquals("ddd-endpoint-rpc", fact.ownership.contractModule)
+        assertEquals("ddd-endpoint-rpc-http", fact.ownership.implementationModule)
+        assertEquals("cap4k-ddd-endpoint-rpc-http-starter", fact.ownership.starterModule)
+        assertTrue(fact.providerIds.isEmpty())
     }
 
     private fun assertOwnership(

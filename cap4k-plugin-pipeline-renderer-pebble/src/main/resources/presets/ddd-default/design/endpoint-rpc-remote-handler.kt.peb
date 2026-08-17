@@ -1,0 +1,17 @@
+package {{ packageName }}
+
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+internal class {{ handlerTypeName }}(
+    invoker: com.only4.cap4k.ddd.endpoint.rpc.EndpointTransportInvoker,
+) : com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler<{{ requestFqn }}, {{ responseFqn }}> by
+    com.only4.cap4k.ddd.endpoint.rpc.RemoteEndpointHandler(
+        serviceId = {{ serviceIdKotlinStringLiteral | raw }},
+        operationName = {{ ownerFqn }}.OPERATION_NAME,
+        requestType = {{ requestFqn }}::class,
+        responseType = {{ responseFqn }}::class,
+        invoker = invoker,
+    )
+

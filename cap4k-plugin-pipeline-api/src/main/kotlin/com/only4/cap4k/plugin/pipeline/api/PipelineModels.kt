@@ -716,6 +716,7 @@ data class CanonicalAssemblyResult(
 enum class ArtifactOutputKind {
     CHECKED_IN_SOURCE,
     GENERATED_SOURCE,
+    GENERATED_RESOURCE,
     OUTPUT_ARTIFACT,
 }
 

@@ -16,7 +16,7 @@ Adapter layer 不负责 Aggregate invariant、Factory 创建规则、Domain Even
 
 ## Framework 与生成边界
 
-cap4k 不再生成 framework-level API Payload、Controller 或 Endpoint HTTP binding。Endpoint 的 published Request/Response 由 contract module 中的 `endpoint` design artifact 生成；Provider Handler 与 typed `EndpointMvcBinding` 是 adapter-owned checked-in source。框架只 materialize route、复用 Spring MVC codec、通过 `Mediator.endpoints` dispatch，并提供最小协议失败映射。Query handler、capability-handler、persistence adapter 与 integration-event transport/runtime wiring 继续遵守各自现有 ownership。
+cap4k 不再生成 framework-level API Payload、Controller 或 Endpoint HTTP binding。Endpoint 的 published Request/Response 由 contract module 中的 `endpoint` design artifact 生成；Provider Handler 与 typed `EndpointMvcBinding` 是 adapter-owned checked-in source。Endpoint RPC 启用后，框架从同一 canonical operation 生成 adapter 侧 Provider registration，并在 feature-scoped `endpoint-client` packaging module 生成 Consumer outbound `EndpointHandler` 与 auto-configuration；这些都是可替换的 build-owned source，不承载业务映射，也不把 `endpoint-client` 变成第五个 DDD layer。框架只 materialize route、复用应用 codec、通过 `Mediator.endpoints` dispatch，并提供最小协议失败映射。Query handler、capability-handler、persistence adapter 与 integration-event transport/runtime wiring 继续遵守各自现有 ownership。
 
 Framework-owned runtime 负责稳定的协议执行机制，不替作者决定 method、route、status、header 或 published-to-local semantic mapping。handwritten mapping 可以补齐外部字段到内部语义的转换、错误处理、返回格式和技术容错，但不应把 business decision 写进协议适配代码。
 

@@ -18,7 +18,7 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。analysis pla
 - `outputPath`
 - context 中的 aggregate、building block、module 和 package 信息
 
-这些字段共同回答 ownership 问题。比如 Command skeleton 如果是 `CHECKED_IN_SOURCE`，通常会落到 `<module>/src/main/kotlin`；build-owned generated Kotlin source 如果是 `GENERATED_SOURCE`，通常会落到 `<module>/build/generated/cap4k/main/kotlin`。
+这些字段共同回答 ownership 问题。比如 Command skeleton 如果是 `CHECKED_IN_SOURCE`，通常会落到 `<module>/src/main/kotlin`；build-owned generated Kotlin source 如果是 `GENERATED_SOURCE`，通常会落到 `<module>/build/generated/cap4k/main/kotlin`；build-owned metadata 如果是 `GENERATED_RESOURCE`，通常会落到 `<module>/build/generated/cap4k/main/resources`。
 
 ## Ownership Fields
 
@@ -30,19 +30,21 @@ source generation plan 的本地产物是 `build/cap4k/plan.json`。analysis pla
 
 - `CHECKED_IN_SOURCE`：仓库内的稳定 skeleton 或 type source，通常在 `<module>/src/main/kotlin`。
 - `GENERATED_SOURCE`：build-owned generated source，通常在 `<module>/build/generated/cap4k/main/kotlin`。
+- `GENERATED_RESOURCE`：build-owned generated resource，通常在 `<module>/build/generated/cap4k/main/resources`。
 - `OUTPUT_ARTIFACT`：非源码 evidence output；内置 flow 与 drawing-board planner 使用该类型。
 
 `resolvedOutputRoot` 表示实际输出根。它可以帮助作者检查 source root 是否落在预期 module，而不是只看文件名。
 
-`conflictPolicy` 表示遇到已有文件时如何处理。checked-in skeleton 固定使用 `SKIP`，只承诺第一次 materialization；build-owned generated source 通常使用 `OVERWRITE`，因为 build 拥有该 root。
+`conflictPolicy` 表示遇到已有文件时如何处理。checked-in skeleton 固定使用 `SKIP`，只承诺第一次 materialization；build-owned generated source/resource 通常使用 `OVERWRITE`，因为 build 拥有这些 roots。
 
 ## Generated Vs Handwritten Ownership
 
-plan review 要把输出分成三种不同责任：
+plan review 要把输出分成四种不同责任：
 
 - generated structure：generator 负责命名、位置、接口、模板和 wiring shape。
 - handwritten logic：作者负责业务判断、状态推进、幂等、补偿、协议转换和异常语义。
-- generated source：build 负责维护的 source root，作者不应把它当作长期手写区。
+- generated source：build 负责维护的 Kotlin source root，作者不应把它当作长期手写区。
+- generated resource：build 负责维护的 resource root，作者不应把它当作长期手写 metadata 区。
 
 `src/main/kotlin` 不自动等于某一种业务职责，但 `CHECKED_IN_SOURCE` materialize 后按普通提交源码维护。是否适合写业务逻辑，要结合 `outputKind`、`templateId` 和 building-block 责任判断；generator 不再对其中任何 section 承诺刷新。
 
@@ -66,6 +68,6 @@ checked-in source 不是 generator 与作者长期共享维护的文件。作者
 - `outputKind` 与预期 ownership 一致。
 - `resolvedOutputRoot` 指向正确 module 和 source root。
 - `conflictPolicy` 不会覆盖已有 handwritten logic。
-- checked-in skeleton、generated source 和 analysis evidence 没有混为一类。
+- checked-in skeleton、generated source、generated resource 和 analysis evidence 没有混为一类。
 
 如果发现错位，反馈路径是回到 [Inputs And Sources](inputs-and-sources.md)、[Generator Input Projection](../authoring/generator-input-projection.md) 或 [Technical Design](../authoring/technical-design.md)。generation 前停下来，是 plan evidence 的价值。

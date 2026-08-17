@@ -24,6 +24,14 @@ object RuntimeAgentFactsCatalog {
             implementationModule = "ddd-endpoint-http",
             starterModule = "cap4k-ddd-endpoint-http-starter",
         ),
+        endpointRpcCapability(
+            capabilityId = "runtime.endpoint-rpc-provider",
+            displayName = "Endpoint RPC Provider",
+        ),
+        endpointRpcCapability(
+            capabilityId = "runtime.endpoint-rpc-consumer",
+            displayName = "Endpoint RPC Consumer",
+        ),
         capability(
             capabilityId = "runtime.identifier-allocation",
             displayName = "Identifier Allocation",
@@ -95,6 +103,19 @@ object RuntimeAgentFactsCatalog {
             contractModule = implementationModule,
             implementationModule = implementationModule,
             starterModule = starterModule,
+        ),
+    )
+
+    private fun endpointRpcCapability(
+        capabilityId: String,
+        displayName: String,
+    ) = AgentRuntimeCapabilityFact(
+        capabilityId = capabilityId,
+        displayName = displayName,
+        ownership = AgentRuntimeOwnership(
+            contractModule = "ddd-endpoint-rpc",
+            implementationModule = "ddd-endpoint-rpc-http",
+            starterModule = "cap4k-ddd-endpoint-rpc-http-starter",
         ),
     )
 

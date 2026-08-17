@@ -1,0 +1,19 @@
+package {{ packageName }}
+
+{% for import in imports(imports) -%}
+import {{ import }}
+{% endfor %}
+
+@org.springframework.boot.autoconfigure.AutoConfiguration
+class EndpointRpcClientAutoConfiguration {
+{% for operation in operations %}
+    @org.springframework.context.annotation.Bean
+    fun {{ operation.beanMethodName }}(
+        invoker: com.only4.cap4k.ddd.endpoint.rpc.EndpointTransportInvoker,
+    ): com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler<{{ operation.requestFqn }}, {{ operation.responseFqn }}> =
+        {{ operation.handlerTypeName }}(invoker)
+{% if not loop.last %}
+{% endif %}
+{% endfor %}
+}
+

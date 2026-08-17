@@ -51,7 +51,7 @@ class Cap4kIrGenerationExtension : IrGenerationExtension {
         moduleFragment.files.forEach { file ->
             file.accept(collector, null)
         }
-        collector.completeEndpointHttpEvidence()
+        collector.completeEndpointBindingEvidence()
 
         val fallback = options.outputDir
         val filePaths = moduleFragment.files.map { it.fileEntry.name }
@@ -118,6 +118,13 @@ private data class EndpointHttpBindingEvidence(
 ) {
     val nodeId: String get() = "endpoint-http:$operationName"
 }
+
+private data class EndpointRpcBindingEvidence(
+    val serviceId: String,
+    val operationName: String,
+    val operationOwnerFq: String,
+    val requestFq: String,
+) { val nodeId: String get() = "endpoint-rpc:$serviceId:$operationName" }
 
 private data class EndpointHandlerInvocation(
     val kind: ApplicationCallKind,
@@ -365,11 +372,13 @@ private class GraphCollector(
     private val domainEventCache: MutableMap<String, Boolean> = mutableMapOf()
     private val integrationEventCache: MutableMap<String, Boolean> = mutableMapOf()
     private val endpointHttpBindings = linkedMapOf<String, EndpointHttpBindingEvidence>()
+    private val endpointRpcBindings = linkedMapOf<String, EndpointRpcBindingEvidence>()
     private val endpointRequestByHandlerClass = mutableMapOf<String, String>()
     private val endpointHandlerInvocationsByRequest = mutableMapOf<String, MutableList<EndpointHandlerInvocation>>()
 
     private val restController = FqName("org.springframework.web.bind.annotation.RestController")
     private val scheduled = FqName("org.springframework.scheduling.annotation.Scheduled")
+    private val springBeanAnn = FqName("org.springframework.context.annotation.Bean")
     private val requestMappings = setOf(
         "org.springframework.web.bind.annotation.RequestMapping",
         "org.springframework.web.bind.annotation.GetMapping",
@@ -393,6 +402,7 @@ private class GraphCollector(
     private val endpointHandlerFq = FqName("com.only4.cap4k.ddd.core.application.endpoint.EndpointHandler")
     private val endpointRequestFq = FqName("com.only4.cap4k.contract.EndpointRequest")
     private val endpointMvcBindingFq = "com.only4.cap4k.ddd.endpoint.http.EndpointMvcBinding"
+    private val endpointRpcProviderBindingFq = "com.only4.cap4k.ddd.endpoint.rpc.EndpointRpcProviderBinding"
     private val commandSupervisorFq = FqName("com.only4.cap4k.ddd.core.application.command.CommandSupervisor")
     private val querySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.query.QuerySupervisor")
     private val capabilitySupervisorFq = FqName("com.only4.cap4k.ddd.core.application.capability.CapabilitySupervisor")
@@ -509,6 +519,7 @@ private class GraphCollector(
         val parentFqcn = parentClass?.fqNameWhenAvailable?.asString()
         val methodId = if (parentFqcn != null) "$parentFqcn::$methodName" else methodName
         val isReachableEndpointHandlerMethod = declaration in endpointHandlerReachableMethods
+        collectEndpointRpcProviderRegistration(declaration)
         val methodDisplayName = buildMethodDisplayName(parentClass, methodName)
         val entityMethodRef = resolveEntityMethodRef(declaration)
 
@@ -809,7 +820,7 @@ private class GraphCollector(
         )
     }
 
-    fun completeEndpointHttpEvidence() {
+    fun completeEndpointBindingEvidence() {
         endpointHttpBindings.values.sortedBy(EndpointHttpBindingEvidence::operationName).forEach { binding ->
             val displayName = "${binding.operationName} [${binding.method} ${binding.path}]"
             addNode(
@@ -832,6 +843,55 @@ private class GraphCollector(
                     addRel(Relationship(binding.nodeId, invocation.targetFq, relationshipType))
                 }
         }
+        endpointRpcBindings.values.sortedWith(compareBy(EndpointRpcBindingEvidence::serviceId, EndpointRpcBindingEvidence::operationName)).forEach { binding ->
+            addNode(Node(binding.nodeId, "${binding.serviceId}:${binding.operationName}", binding.nodeId, NodeType.endpointrpcproviderbinding, metadataOwner = binding.operationOwnerFq))
+            endpointHandlerInvocationsByRequest[binding.requestFq].orEmpty().distinct().forEach { invocation ->
+                val relationshipType = when (invocation.kind) {
+                    ApplicationCallKind.COMMAND -> RelationshipType.EndpointRpcProviderBindingToCommand
+                    ApplicationCallKind.QUERY -> RelationshipType.EndpointRpcProviderBindingToQuery
+                    ApplicationCallKind.CAPABILITY -> return@forEach
+                }
+                addRel(Relationship(binding.nodeId, invocation.targetFq, relationshipType))
+            }
+        }
+    }
+
+    private fun collectEndpointRpcProviderRegistration(declaration: IrFunction) {
+        if (!options.scanSpring || !declaration.hasAnnotation(springBeanAnn)) return
+        val returnClass = (declaration.returnType as? IrSimpleType)?.classifier?.owner as? IrClass ?: return
+        if (returnClass.fqNameWhenAvailable?.asString() != endpointRpcProviderBindingFq) return
+        val returnedExpression = when (val body = declaration.body) {
+            is IrExpressionBody -> body.expression
+            is IrBlockBody -> (body.statements.lastOrNull() as? IrReturn)?.value
+            else -> null
+        } ?: return
+        val bindingExpression = returnedExpression.unwrapExpression() as? IrFunctionAccessExpression ?: return
+        collectEndpointRpcBinding(bindingExpression)
+    }
+    private fun collectEndpointRpcBinding(expression: IrFunctionAccessExpression) {
+        val callee = expression.symbol.owner
+        val ownerClass = callee.parent as? IrClass ?: return
+        if (!ownerClass.isNestedWithin(endpointRpcProviderBindingFq)) return
+        fun argument(name: String): IrExpression? {
+            val index = callee.valueParameterIndex(name)
+            return if (index >= 0) expression.valueArgumentOrNull(index) else null
+        }
+        val serviceId = argument("serviceId").stringConstant()?.trim()?.takeIf(String::isNotEmpty) ?: return
+        val requestClass = argument("requestType").classReferenceClass() ?: return
+        val responseClass = argument("responseType").classReferenceClass() ?: return
+        val requestFq = requestClass.fqNameWhenAvailable?.asString() ?: return
+        val operationOwner = requestClass.parent as? IrClass ?: return
+        val operationOwnerFq = operationOwner.fqNameWhenAvailable?.asString() ?: return
+        if ((responseClass.parent as? IrClass)?.fqNameWhenAvailable?.asString() != operationOwnerFq) return
+        if (requestClass.name.asString() != "Request" || responseClass.name.asString() != "Response") return
+        val metadata = operationOwner.annotations.firstOrNull { it.symbol.owner.parentAsClass.fqNameWhenAvailable == designBlockMetadataAnn } ?: return
+        if (metadata.getStringArg("tag")?.trim() != "endpoint") return
+        val endpointResponseType = resolveTypeArgumentInHierarchyFromClass(requestClass, endpointRequestFq, 0) as? IrSimpleType ?: return
+        if (endpointResponseType.classifier?.owner as? IrClass != responseClass) return
+        val operationName = metadata.getStringArg("operationName")?.trim()?.takeIf(String::isNotEmpty) ?: return
+        if (!argument("operationName").referencesOperationNameOn(operationOwner, operationName, currentFile?.fileEntry, expression)) return
+        val binding = EndpointRpcBindingEvidence(serviceId, operationName, operationOwnerFq, requestFq)
+        endpointRpcBindings.putIfAbsent(binding.nodeId, binding)
     }
 
     private fun resolveRequestClassFromHandlerInterface(declaration: IrClass, handlerFq: FqName): IrClass? {
@@ -1357,7 +1417,7 @@ private fun IrExpression?.referencesOperationNameOn(
     operationOwner: IrClass,
     expectedOperationName: String,
     fileEntry: IrFileEntry?,
-    callExpression: IrCall,
+    callExpression: IrFunctionAccessExpression,
 ): Boolean {
     val expression = this?.unwrapExpression() ?: return false
     if (expression is IrConst) {
@@ -1392,7 +1452,7 @@ private fun IrExpression.hasGeneratedOperationNameSourceReference(source: String
     return source.substring(0, startOffset).trimEnd().endsWith("$ownerName.")
 }
 
-private fun IrCall.hasGeneratedOperationNameArgument(source: String, ownerName: String): Boolean {
+private fun IrFunctionAccessExpression.hasGeneratedOperationNameArgument(source: String, ownerName: String): Boolean {
     if (startOffset < 0 || endOffset <= startOffset || endOffset > source.length) return false
     val callSource = source.substring(startOffset, endOffset)
     val qualifiedOwner = "(?:[A-Za-z_][A-Za-z0-9_]*\\.)*${Regex.escape(ownerName)}"

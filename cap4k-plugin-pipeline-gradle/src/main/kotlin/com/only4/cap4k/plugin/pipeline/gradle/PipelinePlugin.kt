@@ -32,6 +32,7 @@ import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventArtifac
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainEventHandlerArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignDomainServiceArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignEndpointArtifactPlanner
+import com.only4.cap4k.plugin.pipeline.generator.design.DesignEndpointRpcArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignIntegrationEventSubscriberArtifactPlanner
 import com.only4.cap4k.plugin.pipeline.generator.design.DesignQueryArtifactPlanner
@@ -53,6 +54,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.SourceSetContainer
 import java.io.File
 import java.net.URLClassLoader
 import java.nio.file.AtomicMoveNotSupportedException
@@ -171,7 +173,8 @@ private const val JACKSON_MODULE_KOTLIN_COORDINATE =
 private const val CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME = "cap4kPipelineExtension"
 private const val GENERATED_SOURCE_MANAGED_ROOTS_STATE_VERSION = 1
 private const val GENERATED_SOURCE_MANAGED_ROOTS_STATE_PATH = "cap4k/generated-source-managed-roots.json"
-private val GENERATED_SOURCE_MANAGED_ROLES = setOf("domain", "adapter")
+private val GENERATED_SOURCE_MANAGED_ROLES = setOf("domain", "adapter", "endpoint-client", "endpoint-client-resources")
+private val GENERATED_OUTPUT_KINDS = setOf(ArtifactOutputKind.GENERATED_SOURCE, ArtifactOutputKind.GENERATED_RESOURCE)
 private val SOURCE_TASK_SOURCE_IDS = setOf("db", "design-json", "enum-manifest", "value-object-manifest")
 private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "command",
@@ -190,7 +193,7 @@ private val SOURCE_TASK_GENERATOR_IDS = setOf(
     "aggregate-projection",
 )
 private val GENERATED_SOURCE_TASK_SOURCE_IDS = setOf("db", "enum-manifest", "value-object-manifest")
-private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("types-value-object", "aggregate", "aggregate-projection")
+private val GENERATED_SOURCE_TASK_GENERATOR_IDS = setOf("types-value-object", "aggregate", "aggregate-projection", "endpoint-rpc")
 
 internal fun pipelineExtensionClasspath(project: Project): FileCollection =
     project.configurations.findByName(CAP4K_PIPELINE_EXTENSION_CONFIGURATION_NAME)
@@ -207,11 +210,13 @@ private fun hasEnabledRegularSource(extension: Cap4kExtension): Boolean = listOf
 
 private fun hasEnabledRegularGenerator(extension: Cap4kExtension): Boolean =
     extension.generators.aggregate.configured ||
-        extension.generators.aggregateProjection.configured
+        extension.generators.aggregateProjection.configured ||
+        extension.generators.endpointRpc.configured
 
 private fun hasConfiguredProjectLayout(extension: Cap4kExtension): Boolean =
     extension.project.basePackage.isPresent && listOf(
         extension.project.contractModulePath,
+        extension.project.endpointClientModulePath,
         extension.project.domainModulePath,
         extension.project.applicationModulePath,
         extension.project.adapterModulePath,
@@ -223,11 +228,17 @@ internal fun sourceTaskConfig(config: ProjectConfig): ProjectConfig =
         generators = config.generators.filterKeys { it in SOURCE_TASK_GENERATOR_IDS },
     )
 
-internal fun generatedSourceTaskConfig(config: ProjectConfig): ProjectConfig =
-    config.copy(
-        sources = config.sources.filterKeys { it in GENERATED_SOURCE_TASK_SOURCE_IDS },
+internal fun generatedSourceTaskConfig(config: ProjectConfig): ProjectConfig {
+    val sourceIds = if ("endpoint-rpc" in config.generators) {
+        GENERATED_SOURCE_TASK_SOURCE_IDS + "design-json"
+    } else {
+        GENERATED_SOURCE_TASK_SOURCE_IDS
+    }
+    return config.copy(
+        sources = config.sources.filterKeys { it in sourceIds },
         generators = config.generators.filterKeys { it in GENERATED_SOURCE_TASK_GENERATOR_IDS },
     )
+}
 
 internal fun analysisTaskConfig(config: ProjectConfig): ProjectConfig {
     val sourceIds = builtInAnalysisSourceProviders().mapTo(linkedSetOf(), SourceProvider::id)
@@ -432,6 +443,10 @@ internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     if ("value-object-manifest" in config.sources) {
         roles += "domain"
     }
+    if ("endpoint-rpc" in config.generators) {
+        roles += "adapter"
+        roles += "endpoint-client"
+    }
     return roles.filterTo(linkedSetOf()) { role -> role in config.modules }
 }
 
@@ -451,10 +466,14 @@ internal fun resolvedGeneratedKotlinSourceRoot(
     generatedKotlinSourceDirectory(rootProject, config, moduleRole)
         ?.toRootRelativeSlash(rootProject)
 
-internal fun generatedSourceOutputDirectories(rootProject: Project, config: ProjectConfig): List<File> =
-    generatedSourceModuleRoles(config).mapNotNull { role ->
+internal fun generatedSourceOutputDirectories(rootProject: Project, config: ProjectConfig): List<File> = buildList {
+    generatedSourceModuleRoles(config).mapNotNullTo(this) { role ->
         generatedKotlinSourceDirectory(rootProject, config, role)
     }
+    if ("endpoint-rpc" in config.generators) {
+        generatedResourceDirectory(rootProject, config, "endpoint-client")?.let(::add)
+    }
+}
 
 internal fun generatedSourceManagedOutputDirectories(rootProject: Project, config: ProjectConfig): List<File> =
     (generatedSourceOutputDirectories(rootProject, config) + readManagedGeneratedSourceOutputDirectories(rootProject))
@@ -476,13 +495,16 @@ internal fun ensureGeneratedSourceOutputDirectories(rootProject: Project, config
 }
 
 internal fun recordManagedGeneratedSourceOutputDirectories(rootProject: Project, config: ProjectConfig) {
-    val roots = generatedSourceModuleRoles(config)
-        .sorted()
-        .mapNotNull { role ->
+    val roots = buildMap {
+        generatedSourceModuleRoles(config).sorted().forEach { role ->
             generatedKotlinSourceDirectory(rootProject, config, role)
-                ?.let { directory -> role to directory.toRootRelativeSlash(rootProject) }
+                ?.let { directory -> put(role, directory.toRootRelativeSlash(rootProject)) }
         }
-        .toMap()
+        if ("endpoint-rpc" in config.generators) {
+            generatedResourceDirectory(rootProject, config, "endpoint-client")
+                ?.let { directory -> put("endpoint-client-resources", directory.toRootRelativeSlash(rootProject)) }
+        }
+    }
     val stateFile = generatedSourceManagedRootsStateFile(rootProject)
     require(stateFile.parentFile.mkdirs() || stateFile.parentFile.isDirectory) {
         "Failed to create Cap4k generated source state directory: ${stateFile.parentFile.absolutePath}"
@@ -552,8 +574,11 @@ private fun validateGeneratedSourceCleanupTarget(rootProject: Project, outputDir
     require(normalized.startsWith(rootPath)) {
         "Generated source cleanup target must stay under the root project directory: $normalized"
     }
-    require(normalized.endsWith(Path.of("build", "generated", "cap4k", "main", "kotlin"))) {
-        "Generated source cleanup target is not a Cap4k generated Kotlin root: $normalized"
+    require(
+        normalized.endsWith(Path.of("build", "generated", "cap4k", "main", "kotlin")) ||
+            normalized.endsWith(Path.of("build", "generated", "cap4k", "main", "resources"))
+    ) {
+        "Generated output cleanup target is not a Cap4k generated root: " + normalized
     }
 }
 
@@ -568,6 +593,12 @@ private fun generatedKotlinSourceDirectory(rootProject: Project, config: Project
     return moduleProject.layout.buildDirectory.dir("generated/cap4k/main/kotlin").get().asFile
 }
 
+private fun generatedResourceDirectory(rootProject: Project, config: ProjectConfig, moduleRole: String): File? {
+    val modulePath = config.modules[moduleRole] ?: return null
+    val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return null
+    return moduleProject.layout.buildDirectory.dir("generated/cap4k/main/resources").get().asFile
+}
+
 internal fun registerGeneratedKotlinSourceSets(rootProject: Project, config: ProjectConfig) {
     generatedSourceModuleRoles(config).forEach { role ->
         val modulePath = config.modules[role] ?: return@forEach
@@ -575,7 +606,19 @@ internal fun registerGeneratedKotlinSourceSets(rootProject: Project, config: Pro
         moduleProject.plugins.withId("org.jetbrains.kotlin.jvm") {
             registerGeneratedKotlinSourceDir(moduleProject)
         }
+        if (role == "endpoint-client" && "endpoint-rpc" in config.generators) {
+            moduleProject.plugins.withId("java") {
+                registerGeneratedResourceDir(moduleProject)
+            }
+        }
     }
+}
+
+private fun registerGeneratedResourceDir(moduleProject: Project) {
+    moduleProject.extensions.getByType(SourceSetContainer::class.java)
+        .named("main") { sourceSet ->
+            sourceSet.resources.srcDir(moduleProject.layout.buildDirectory.dir("generated/cap4k/main/resources"))
+        }
 }
 
 private fun registerGeneratedKotlinSourceDir(moduleProject: Project) {
@@ -604,13 +647,19 @@ internal fun wireGeneratedSourceCompilation(
     config.modules.keys.forEach { role ->
         val modulePath = config.modules[role] ?: return@forEach
         val moduleProject = resolveModuleProject(rootProject, modulePath) ?: return@forEach
-        moduleProject.tasks.matching { it.name in GENERATED_SOURCE_CONSUMER_TASK_NAMES }.configureEach { task ->
+        val consumerTaskNames = if (role == "endpoint-client" && "endpoint-rpc" in config.generators) {
+            GENERATED_SOURCE_AND_RESOURCE_CONSUMER_TASK_NAMES
+        } else {
+            GENERATED_SOURCE_CONSUMER_TASK_NAMES
+        }
+        moduleProject.tasks.matching { it.name in consumerTaskNames }.configureEach { task ->
             task.dependsOn(generateSourcesTask)
         }
     }
 }
 
 private val GENERATED_SOURCE_CONSUMER_TASK_NAMES = setOf("compileKotlin")
+private val GENERATED_SOURCE_AND_RESOURCE_CONSUMER_TASK_NAMES = setOf("compileKotlin", "processResources")
 
 internal fun inferDependencies(project: Project, config: ProjectConfig): List<Task> {
     val mergedDependencies = linkedSetOf<Task>()
@@ -726,6 +775,7 @@ internal fun generatedSourceTaskInputSnapshot(rootProject: Project, config: Proj
                 "generators" to linkedMapOf(
                     "aggregate" to sanitizedGeneratorSnapshot(config.generators["aggregate"]),
                     "aggregateProjection" to sanitizedGeneratorSnapshot(config.generators["aggregate-projection"]),
+                    "endpointRpc" to sanitizedGeneratorSnapshot(config.generators["endpoint-rpc"]),
                 ),
                 "artifactLayout" to config.artifactLayout,
                 "templates" to linkedMapOf(
@@ -784,6 +834,8 @@ internal fun generatedSourceTaskInputFiles(
     config: ProjectConfig,
 ): FileCollection {
     val inputs = mutableListOf<Any>()
+    config.sources["design-json"]?.options?.get("files").asStringList().mapTo(inputs) { project.file(it) }
+    config.sources["design-json"]?.options?.get("manifestFile")?.toString()?.takeIf(String::isNotBlank)?.let { inputs += project.file(it) }
     config.typeRegistry.enumManifestFiles.mapTo(inputs) { project.file(it) }
     config.typeRegistry.valueObjectManifestFiles.mapTo(inputs) { project.file(it) }
     config.sources["value-object-manifest"]
@@ -825,15 +877,23 @@ private fun rebaseGeneratedSourcePlanItem(
     config: ProjectConfig,
     item: ArtifactPlanItem,
 ): ArtifactPlanItem {
-    if (item.outputKind != ArtifactOutputKind.GENERATED_SOURCE) {
+    if (item.outputKind !in GENERATED_OUTPUT_KINDS) {
         return item
     }
     val moduleRoot = config.modules[item.moduleRole] ?: return item
-    val plannedRoot = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
-        .generatedKotlinSourceRoot(moduleRoot)
-        .toSlashPath()
-    val resolvedRoot = resolvedGeneratedKotlinSourceRoot(rootProject, config, item.moduleRole)
-        ?: return item
+    val plannedRoot = when (item.outputKind) {
+        ArtifactOutputKind.GENERATED_SOURCE -> ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
+            .generatedKotlinSourceRoot(moduleRoot)
+            .toSlashPath()
+        ArtifactOutputKind.GENERATED_RESOURCE -> (moduleRoot + "/build/generated/cap4k/main/resources").toSlashPath()
+        else -> return item
+    }
+    val resolvedRoot = when (item.outputKind) {
+        ArtifactOutputKind.GENERATED_SOURCE -> resolvedGeneratedKotlinSourceRoot(rootProject, config, item.moduleRole)
+        ArtifactOutputKind.GENERATED_RESOURCE -> generatedResourceDirectory(rootProject, config, item.moduleRole)
+            ?.toRootRelativeSlash(rootProject)
+        else -> null
+    } ?: return item
     val normalizedOutputPath = item.outputPath.toSlashPath()
     if (normalizedOutputPath != plannedRoot && !normalizedOutputPath.startsWith("$plannedRoot/")) {
         return item.copy(resolvedOutputRoot = resolvedRoot)
@@ -882,7 +942,7 @@ internal fun buildSourceRunner(
             val filesystemExporter = FilesystemArtifactExporter(project.projectDir.toPath())
             if (generatedSourcesOnly) {
                 FilteringArtifactExporter(filesystemExporter) { artifact ->
-                    artifact.outputKind == ArtifactOutputKind.GENERATED_SOURCE
+                    artifact.outputKind in GENERATED_OUTPUT_KINDS
                 }
             } else {
                 filesystemExporter
@@ -892,7 +952,7 @@ internal fun buildSourceRunner(
         },
         transformPlanItem = { item -> rebaseGeneratedSourcePlanItem(project.rootProject, config, item) },
         includePlanItem = if (generatedSourcesOnly) {
-            { item -> item.outputKind == ArtifactOutputKind.GENERATED_SOURCE }
+            { item -> item.outputKind in GENERATED_OUTPUT_KINDS }
         } else {
             { true }
         },
@@ -964,6 +1024,7 @@ internal fun builtInAuthoringGeneratorProviders(): List<GeneratorProvider> = lis
     DesignCapabilityArtifactPlanner(),
     DesignCapabilityHandlerArtifactPlanner(),
     DesignEndpointArtifactPlanner(),
+    DesignEndpointRpcArtifactPlanner(),
     DesignDomainEventArtifactPlanner(),
     DesignDomainEventHandlerArtifactPlanner(),
     DesignDomainServiceArtifactPlanner(),
