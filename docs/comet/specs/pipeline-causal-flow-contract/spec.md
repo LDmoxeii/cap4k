@@ -144,6 +144,7 @@ Entry JSON 至少包含：
 
 Index 至少包含 input identities、entry type summary、node/edge summary、`flowCount` 和每张 Flow 的 JSON/Mermaid reference。
 
+每个 `flows/<entry-slug>.mmd` MUST 是语法有效、可由 Mermaid flowchart parser 读取的文本。所有节点统一使用 quoted label 形式 `N["..."]`；节点名称中的方括号、花括号、路径分隔符、引号、反斜杠、换行和 HTML-sensitive 字符不得逃逸节点声明。Kotlin generator MUST 对 label 内容执行确定性转义，且不得通过修改 Analyzer display name、Flow JSON identity 或图拓扑来规避呈现语法。
 本合同不改变既有 JSON、Mermaid、index wire shape、output root、slug 规则或 `flow` identity。连续链修正与回归证据不得通过增加 process artifact、process index 或第二个 generator id 实现。
 
 ## Issue #55 收口规则
@@ -158,7 +159,7 @@ Issue #55 观察到旧项目中“外部事实到达 follow-up Command 后，后
 
 ## 算法、模板与用户定制边界
 
-- causal edge 选择、节点角色、入口资格、路径压缩、root、循环、去重和 Mermaid graph topology 由 Kotlin 生产代码拥有。
+- causal edge 选择、节点角色、入口资格、路径压缩、root、循环、去重、Mermaid graph topology、node label assembly 与转义由 Kotlin 生产代码拥有。
 - Generator planner 把已计算结果规划为 JSON、Mermaid 和 index artifacts。
 - Pebble 模板只负责写出 planner 提供的内容，不决定节点、边、入口、路径压缩或 Flow 数量。
 - 项目用户可以启用或禁用 `flow`、配置 output root，并按模板合同调整呈现；不能注入自定义遍历、root 或 stitching 算法。
@@ -189,7 +190,8 @@ Focused tests 必须覆盖：
 - 有上游节点不制造重复 root；
 - 两个真实入口和共享下游保持两张 Flow；
 - fan-out、merge、visible cycle、纯循环、稳定去重和 source evidence；
-- 合法零 Flow 与无效 Graph evidence 的区别。
+- 合法零 Flow 与无效 Graph evidence 的区别；
+- 含 `operation [METHOD /path/{id}]`、引号、反斜杠、换行与 HTML-sensitive 字符的节点名称生成单个语法有效的 quoted Mermaid label，并保持 JSON identity、节点/边数量和 relationship 不变。
 
 Gradle functional fixture 必须实际执行 `cap4kAnalysisPlan` 和 `cap4kAnalysisGenerate`，并核对：
 
