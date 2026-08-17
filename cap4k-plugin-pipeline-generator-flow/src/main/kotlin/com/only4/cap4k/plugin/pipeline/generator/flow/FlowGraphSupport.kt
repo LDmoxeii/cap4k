@@ -451,7 +451,7 @@ private fun renderMermaid(nodes: List<AnalysisNodeModel>, edges: List<AnalysisEd
     nodes.forEachIndexed { index, node ->
         val localId = "N${index + 1}"
         idMap[node.id] = localId
-        lines.add("  $localId[${sanitize(node.name.ifBlank { node.id })}]")
+        lines.add("  $localId[\"${escapeMermaidQuotedLabel(node.name.ifBlank { node.id })}\"]")
     }
 
     edges.forEach { edge ->
@@ -467,6 +467,17 @@ private fun renderMermaid(nodes: List<AnalysisNodeModel>, edges: List<AnalysisEd
 
 private fun shortName(id: String): String =
     id.substringAfterLast("::", id).substringAfterLast('.')
+
+private fun escapeMermaidQuotedLabel(text: String): String =
+    text
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\\", "&#92;")
+        .replace("\"", "&quot;")
+        .replace("\r\n", " ")
+        .replace("\n", " ")
+        .replace("\r", " ")
 
 private fun sanitize(text: String): String =
     text

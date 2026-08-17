@@ -89,6 +89,49 @@ class FlowArtifactPlannerTest {
     }
 
     @Test
+    fun `renders endpoint paths and special characters as deterministic quoted mermaid labels`() {
+        val planner = FlowArtifactPlanner()
+        val specialName = "quote \" slash \\ line\nnext &<>"
+        val model = CanonicalModel(
+            analysisGraph = AnalysisGraphModel(
+                inputDirs = listOf("app/build/cap4k-code-analysis"),
+                nodes = listOf(
+                    AnalysisNodeModel(
+                        id = "A-entry",
+                        name = "operation [POST /path/{id}]",
+                        fullName = "A-entry",
+                        type = "endpointhttpbinding",
+                    ),
+                    AnalysisNodeModel(
+                        id = "B-command",
+                        name = specialName,
+                        fullName = "B-command",
+                        type = "command",
+                    ),
+                ),
+                edges = listOf(
+                    edge("A-entry", "B-command", "EndpointHttpBindingToCommand"),
+                ),
+            ),
+        )
+
+        val plan = planner.plan(config(), model)
+        val jsonContent = plan.single { it.templateId == "flow/entry.json.peb" }.context["jsonContent"] as String
+        val mermaidText = plan.single { it.templateId == "flow/entry.mmd.peb" }.context["mermaidText"] as String
+
+        assertEquals(
+            """flowchart TD
+  N1["operation [POST /path/{id}]"]
+  N2["quote &quot; slash &#92; line next &amp;&lt;&gt;"]
+  N1 -->|EndpointHttpBindingToCommand| N2
+""",
+            mermaidText,
+        )
+        assertTrue(jsonContent.contains("operation [POST /path/{id}]"))
+        assertTrue(jsonContent.contains("quote \\\" slash \\\\ line\\nnext &<>"))
+    }
+
+    @Test
     fun `flow planner reads graph facts without validating aggregate structure metadata`() {
         val planner = FlowArtifactPlanner()
         val plan = planner.plan(
