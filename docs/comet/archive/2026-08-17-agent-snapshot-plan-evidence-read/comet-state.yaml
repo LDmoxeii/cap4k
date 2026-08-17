@@ -1,0 +1,203 @@
+schema: comet.native.v4
+name: agent-snapshot-plan-evidence-read
+language: zh-CN
+phase: archive
+status: done
+state_version: 7
+brief: brief.md
+spec_changes: []
+workspace:
+  isolation: current
+  change_branch: codex/fix-agent-snapshot-plan-evidence
+  target_branch: codex/fix-agent-snapshot-plan-evidence
+  finish: null
+loop:
+  stage: done
+  goal_cycle: 1
+  iteration: 1
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: null
+acceptance:
+  - id: A1
+    source: brief.md
+    text: A1：一个包含至少一个 ArtifactPlanItem 和非空 managed-field policies 的合法 plan 能被
+      `cap4kAgentSnapshot` 读取，ownership items 保留 generator、template、module
+      role、output path/kind/root 与 conflict policy。
+    result: passed
+    reason:
+      text: 合法 managed-policy PlanReport 经 Snapshot 私有 AgentPlanReport
+        投影读取；ownershipSection 从实际 ArtifactPlanItem 映射
+        generatorId、templateId、moduleRole、outputPath、outputKind、resolvedOutputRoot、conflictPolicy。任务回归逐字段断言全部保留，真实
+        TestKit fixture 也确认 ownership items 非空。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: A2：上述合法 plan 不再产生 `plan-evidence-invalid-*` diagnostic；plan evidence
+      freshness/status 正常，Snapshot 不因该计划读取路径而变成 partial。
+    result: passed
+    reason:
+      text: 任务级非 live managed-policy plan 断言 ownership status=OK、evidence
+        freshness=FRESH 且无 plan-evidence-invalid；真实 DB functional fixture 按现行
+        live-external-source 合同为 PARTIAL/UNKNOWN，但 items 非空且没有
+        plan-evidence-invalid，partial 原因明确来自 live external source 而非读取失败。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: A3：Snapshot 不需要实例化 `ManagedPolicySelectionProvenance` 或
+      `ManagedPolicyDefinitionOwner` 的具体子类；修复同时覆盖二者，不留下“修完 selection 后在
+      definitionOwner 再失败”的串联缺陷。
+    result: passed
+    reason:
+      text: readPlanReport 先校验 JSON，再投影为仅含 items/outcome/diagnostics/evidence 的私有
+        AgentPlanReport；投影不声明 managedFieldPolicies，因此不会实例化 selection 或
+        definitionOwner。回归同时覆盖 ExactColumnDefault 与 Extension。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: A4：`cap4kPlan` 写出的 plan JSON 字节合同和字段结构保持不变，不新增 type discriminator，不要求重写旧
+      plan。
+    result: passed
+    reason:
+      text: 改动仅替换 Snapshot reader 的目标类型；Cap4kPlanTask 仍以公开 PlanReport 和原 PipelineJson
+        writer 写出 plan。未修改公共模型、writer 或添加 Jackson discriminator，plan wire/API
+        不变。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: A5：损坏、缺字段或结构非法的 plan 仍产生可操作的 invalid evidence diagnostic，并保持既有降级语义。
+    result: passed
+    reason:
+      text: 显式结构校验、异常捕获和 plan-evidence-invalid warning 降级路径保留；缺少 items、evidence schema
+        非法与 functional corrupt-plan 回归继续通过。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: A6：任务级测试与 Gradle plugin functional test 覆盖 managed-policy plan → Agent
+      Snapshot 的真实链路；模块测试与 capability contract validators 通过。
+    result: passed
+    reason:
+      text: 独立 Verifier 重新运行 focused task/functional tests、完整 pipeline-gradle 模块
+        suite、capability facts export/validator 和 git diff --check，全部通过；Builder
+        的全仓 check 也已通过。
+      truncated: false
+builder_handoff:
+  candidate_id: d656e91c-782b-48c6-a1e1-b2d548c32a35
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:277def08-7ea0-462c-a5aa-4bdeabf17dbb
+  iteration: 1
+  summary:
+    text: Agent Snapshot now validates the saved plan JSON and deserializes only a
+      task-private projection of items, outcome, diagnostics, and evidence.
+      Managed policy provenance/definition-owner subtypes stay review-only, the
+      plan wire is unchanged, ownership items are preserved, and corrupt-plan
+      diagnostics remain intact. Added task-level and real Gradle TestKit
+      regressions.
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+  checks:
+    - name:
+        text: Cap4kAgentSnapshotTaskTest
+        truncated: false
+      result: passed
+      note:
+        text: 12 task tests passed, including managed-policy plan and corrupt-plan
+          regressions.
+        truncated: false
+    - name:
+        text: Cap4kAgentSnapshotFunctionalTest managed-policy chain
+        truncated: false
+      result: passed
+      note:
+        text: Real cap4kPlan + cap4kAgentSnapshot preserved non-empty ownership and
+          emitted no plan-evidence-invalid diagnostic.
+        truncated: false
+    - name:
+        text: cap4k-plugin-pipeline-gradle:test
+        truncated: false
+      result: passed
+      note:
+        text: Module test suite BUILD SUCCESSFUL in 10m 5s.
+        truncated: false
+    - name:
+        text: gradlew check
+        truncated: false
+      result: passed
+      note:
+        text: Full repository check BUILD SUCCESSFUL in 8m 13s.
+        truncated: false
+    - name:
+        text: capability contract export/validate
+        truncated: false
+      result: passed
+      note:
+        text: Facts align with Public Docs, Skill routing, and current-state content.
+        truncated: false
+    - name:
+        text: git diff --check
+        truncated: false
+      result: passed
+      note: null
+  checks_truncated: false
+  known_limits:
+    - text: Functional fixture uses a live DB source, so ownership freshness remains
+        UNKNOWN/PARTIAL by the existing live-external-input contract; the
+        regression proves this is not caused by plan parsing. The task-level
+        non-live plan remains FRESH/OK.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-17T09:38:08.951Z
+blockers: []
+verification:
+  candidate_id: d656e91c-782b-48c6-a1e1-b2d548c32a35
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:efccff86-09b6-4188-aff5-3bc8afadd696
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks: []
+  summary:
+    text: PASS：Snapshot-private plan projection 修复 managed-policy plan 读取缺陷，恢复
+      ownership 与非 live freshness/status；未改变 plan wire/API，无
+      discriminator；corrupt-plan 降级保持。
+    truncated: false
+  risks: []
+  risks_truncated: false
+  completed_at: 2026-08-17T09:49:39.507Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: PASS：Snapshot-private plan projection 修复 managed-policy plan 读取缺陷，恢复
+        ownership 与非 live freshness/status；未改变 plan wire/API，无
+        discriminator；corrupt-plan 降级保持。
+      truncated: false
+    completed_at: 2026-08-17T09:49:39.507Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: true
+created_at: 2026-08-17T09:04:23.780Z

@@ -4,6 +4,7 @@ import com.only4.cap4k.plugin.pipeline.json.PipelineJson
 import com.only4.cap4k.plugin.pipeline.agent.AgentHashing
 import com.only4.cap4k.plugin.pipeline.agent.AgentSnapshotCodec
 import com.only4.cap4k.plugin.pipeline.api.AggregateDiagnostics
+import com.only4.cap4k.plugin.pipeline.api.AgentEvidenceFreshness
 import com.only4.cap4k.plugin.pipeline.api.AgentManifest
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilitiesSection
 import com.only4.cap4k.plugin.pipeline.api.AgentCapabilityStatus
@@ -12,11 +13,25 @@ import com.only4.cap4k.plugin.pipeline.api.AgentOwnershipSection
 import com.only4.cap4k.plugin.pipeline.api.AgentProjectSection
 import com.only4.cap4k.plugin.pipeline.api.AgentRuntimeSection
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
+import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
+import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
+import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedCreationInputPolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedExplicitValuePolicy
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldLifecycle
+import com.only4.cap4k.plugin.pipeline.api.ManagedFieldRole
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicyDefinitionOwner
+import com.only4.cap4k.plugin.pipeline.api.ManagedPolicySelectionProvenance
+import com.only4.cap4k.plugin.pipeline.api.ManagedValueAuthority
+import com.only4.cap4k.plugin.pipeline.api.PersistenceParticipation
 import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.PlanOutcome
 import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import com.only4.cap4k.plugin.pipeline.api.PipelinePublicTasks
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedEntityPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedManagedFieldPolicy
+import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SourceConfig
 import com.only4.cap4k.plugin.pipeline.api.UnsupportedAggregateTable
 import org.gradle.api.GradleException
@@ -317,6 +332,83 @@ class Cap4kAgentSnapshotTaskTest {
         assertEquals(AgentSnapshotStatus.INVALID, readManifest(output).status)
         val diagnostics = output.resolve("diagnostics.json").readText(Charsets.UTF_8)
         assertTrue(diagnostics.contains("source-plan-failed"))
+    }
+
+    @Test
+    fun `managed policy plan projects ownership without deserializing policy provenance`() {
+        val project = project("agent-snapshot-managed-policy-plan")
+        val extension = project.extensions.getByType(Cap4kExtension::class.java)
+        extension.project.basePackage.set("com.acme.publishing")
+        val task = snapshotTask(project)
+        val config = sourceTaskConfig(task.configFactory.build(project, extension))
+        val item = ArtifactPlanItem(
+            generatorId = "aggregate",
+            moduleRole = "domain",
+            templateId = "aggregate/entity.kt",
+            outputPath = "publishing-domain/build/generated/cap4k/main/kotlin/Publication.kt",
+            context = mapOf("entityName" to "Publication"),
+            conflictPolicy = ConflictPolicy.FAIL,
+            outputKind = ArtifactOutputKind.GENERATED_SOURCE,
+            resolvedOutputRoot = "publishing-domain/build/generated/cap4k/main/kotlin",
+        )
+        val managedPolicy = ResolvedManagedEntityPolicy(
+            entityName = "Publication",
+            entityPackageName = "com.acme.publishing.domain",
+            tableName = "publication",
+            fields = listOf(
+                ResolvedManagedFieldPolicy(
+                    fieldName = "externalRef",
+                    columnName = "external_ref",
+                    fieldType = "String",
+                    nullable = false,
+                    selection = ManagedPolicySelectionProvenance.ExactColumnDefault("managedFields.columnDefaults.external_ref"),
+                    definitionOwner = ManagedPolicyDefinitionOwner.Extension("sample-extension", "external-reference"),
+                    policyKey = "initialization.external-reference",
+                    role = ManagedFieldRole.INITIALIZATION,
+                    creationInput = ManagedCreationInputPolicy.OPTIONAL,
+                    explicitValue = ManagedExplicitValuePolicy.PRESERVE_IF_VALID,
+                    lifecycles = setOf(ManagedFieldLifecycle.ENTITY_ADMISSION),
+                    handlerQualifier = null,
+                    handlerSlot = null,
+                    semanticValueType = "java.lang.String",
+                    valueAdapterQualifier = null,
+                    persistence = PersistenceParticipation(
+                        insert = ManagedValueAuthority.CALLER,
+                        update = ManagedValueAuthority.NONE,
+                    ),
+                )
+            ),
+            writeSurface = ResolvedWriteSurfacePolicy(createAllowedFields = listOf("externalRef")),
+        )
+        val planFile = project.layout.buildDirectory.file("cap4k/plan.json").get().asFile
+        planFile.parentFile.mkdirs()
+        planFile.writeText(
+            planWriter.writeValueAsString(
+                PlanReport(
+                    items = listOf(item),
+                    managedFieldPolicies = listOf(managedPolicy),
+                    evidence = planEvidence(project, config),
+                )
+            )
+        )
+
+        task.writeSnapshot()
+
+        val output = project.layout.buildDirectory.dir("cap4k/agent").get().asFile
+        val ownership = AgentSnapshotCodec().fromJson(
+            output.resolve("ownership.json").readText(Charsets.UTF_8),
+            AgentOwnershipSection::class.java,
+        )
+        assertEquals(AgentSnapshotStatus.OK, ownership.status)
+        assertEquals(AgentEvidenceFreshness.FRESH, ownership.evidence.single().freshness)
+        assertEquals(item.generatorId, ownership.items.single().generatorId)
+        assertEquals(item.moduleRole, ownership.items.single().moduleRole)
+        assertEquals(item.templateId, ownership.items.single().templateId)
+        assertEquals(item.outputPath, ownership.items.single().outputPath)
+        assertEquals(item.outputKind, ownership.items.single().outputKind)
+        assertEquals(item.resolvedOutputRoot, ownership.items.single().resolvedOutputRoot)
+        assertEquals(item.conflictPolicy, ownership.items.single().conflictPolicy)
+        assertFalse(output.resolve("diagnostics.json").readText(Charsets.UTF_8).contains("plan-evidence-invalid"))
     }
 
     @Test

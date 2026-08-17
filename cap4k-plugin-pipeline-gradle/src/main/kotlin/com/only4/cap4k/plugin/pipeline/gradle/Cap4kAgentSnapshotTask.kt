@@ -33,6 +33,7 @@ import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
 import com.only4.cap4k.plugin.pipeline.api.AgentValidationStatus
 import com.only4.cap4k.plugin.pipeline.api.ArtifactAddonProvider
 import com.only4.cap4k.plugin.pipeline.api.ArtifactOutputKind
+import com.only4.cap4k.plugin.pipeline.api.ArtifactPlanItem
 import com.only4.cap4k.plugin.pipeline.api.CAP4K_PLAN_EVIDENCE_SCHEMA
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.AnalyzerSnapshot
@@ -46,9 +47,9 @@ import com.only4.cap4k.plugin.pipeline.api.PipelineCapabilityProvenance
 import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirement
 import com.only4.cap4k.plugin.pipeline.api.PipelineInputRequirementMatch
 import com.only4.cap4k.plugin.pipeline.api.PipelineInputSafety
+import com.only4.cap4k.plugin.pipeline.api.PipelineDiagnostics
 import com.only4.cap4k.plugin.pipeline.api.PlanEvidence
 import com.only4.cap4k.plugin.pipeline.api.PlanOutcome
-import com.only4.cap4k.plugin.pipeline.api.PlanReport
 import com.only4.cap4k.plugin.pipeline.api.ProjectConfig
 import com.only4.cap4k.plugin.pipeline.api.ProjectLayout
 import com.only4.cap4k.plugin.pipeline.api.SourceProvider
@@ -913,7 +914,7 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
         file: File,
         redactor: AgentCredentialRedactor,
         diagnostics: MutableList<AgentDiagnostic>,
-    ): PlanReport? {
+    ): AgentPlanReport? {
         if (!file.isFile) {
             return null
         }
@@ -921,7 +922,7 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
             val mapper = PipelineJson.newMapper(includeNulls = true)
             val document = mapper.readTree(file.readText(Charsets.UTF_8))
             validatePlanReport(document)
-            mapper.treeToValue(document, PlanReport::class.java)
+            mapper.treeToValue(document, AgentPlanReport::class.java)
         } catch (failure: Exception) {
             diagnostics += diagnostic(
                 id = "plan-evidence-invalid-${stableSuffix(projectRelativePath(file))}",
@@ -1059,7 +1060,7 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
         require(value in allowedValues) { "$owner $field contains an unsupported value" }
     }
 
-    private fun appendPlanDiagnostics(report: PlanReport?, diagnostics: MutableList<AgentDiagnostic>) {
+    private fun appendPlanDiagnostics(report: AgentPlanReport?, diagnostics: MutableList<AgentDiagnostic>) {
         val planFailed = report != null && report.outcome != PlanOutcome.SUCCEEDED
         report?.diagnostics?.aggregate?.unsupportedTables.orEmpty()
             .groupBy { unsupported -> unsupported.tableName }
@@ -1108,7 +1109,7 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
         },
     )
 
-    private fun evidenceStatus(report: PlanReport?, freshness: AgentEvidenceFreshness): AgentSnapshotStatus =
+    private fun evidenceStatus(report: AgentPlanReport?, freshness: AgentEvidenceFreshness): AgentSnapshotStatus =
         if (report != null && report.outcome != PlanOutcome.SUCCEEDED) {
             AgentSnapshotStatus.INVALID
         } else if (report != null && freshness == AgentEvidenceFreshness.FRESH) {
@@ -1337,6 +1338,13 @@ abstract class Cap4kAgentSnapshotTask : DefaultTask() {
     )
 
     private fun stableSuffix(value: String): String = AgentHashing.sha256(value).take(12)
+
+    private data class AgentPlanReport(
+        val items: List<ArtifactPlanItem>,
+        val outcome: PlanOutcome = PlanOutcome.SUCCEEDED,
+        val diagnostics: PipelineDiagnostics? = null,
+        val evidence: PlanEvidence? = null,
+    )
 
     private data class ExtensionInspection(
         val capabilityDescriptors: List<PipelineCapabilityDescriptor> = emptyList(),
