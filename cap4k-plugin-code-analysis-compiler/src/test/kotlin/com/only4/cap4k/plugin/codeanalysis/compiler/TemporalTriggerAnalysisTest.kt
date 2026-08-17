@@ -17,9 +17,12 @@ class TemporalTriggerAnalysisTest {
         assertFalse("commandsendermethod" in nodeTypes)
         assertTrue("TemporalTriggerMethodToCommand" in relationshipTypes)
         assertTrue("endpointhttpbinding" in nodeTypes)
+        assertTrue("endpointrpcproviderbinding" in nodeTypes)
         assertFalse("apipayload" in nodeTypes)
         assertTrue("EndpointHttpBindingToCommand" in relationshipTypes)
         assertTrue("EndpointHttpBindingToQuery" in relationshipTypes)
+        assertTrue("EndpointRpcProviderBindingToCommand" in relationshipTypes)
+        assertTrue("EndpointRpcProviderBindingToQuery" in relationshipTypes)
         assertFalse("CommandSenderMethodToCommand" in relationshipTypes)
     }
 

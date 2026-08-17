@@ -103,10 +103,22 @@ fun getResourceHttpBinding() = EndpointMvcBinding.special(
 
 协议解析、缺失参数、类型转换与 Endpoint Bean Validation 失败映射为 400；其他异常继续交给应用已有的 MVC exception resolver。Route 仍由 Spring MVC `DispatcherServlet` 承载，因此继续经过应用的 servlet filter/security chain。首版没有 route-level auth DSL、结果 envelope 开关、multipart/streaming、动态 status、consumer proxy 或 client generation；这些不能通过把 Spring/HTTP metadata 塞回 published contract 来绕过。
 
-## Consumer boundary
+## Endpoint RPC Provider 与 Consumer
 
-当前没有 RPC Provider dispatcher 或 Consumer proxy generation。未来 Consumer transport proxy 可以在消费者进程实现同一个 `EndpointHandler<Request, Response>`，由业务代码继续无感调用 `Mediator.endpoints.send(...)`。若消费者不愿直接接受对方的 published language，可以先调用本地 Capability，再由 adapter-owned Capability Handler 映射到 Endpoint Request；Capability 是本地防腐边界，Endpoint 是双方共享的 published language。
+Sibling-service RPC 使用三层模块，而不是三个并列 binding：
+
+- `ddd-endpoint-rpc`：transport-neutral RPC ABI，拥有 typed Provider binding、Consumer invocation SPI、versioned envelope/codec 与安全 failure taxonomy；
+- `ddd-endpoint-rpc-http`：首个同步 unary HTTP/JSON backend，拥有 route resolution 与网络 invocation；
+- `cap4k-ddd-endpoint-rpc-http-starter`：Spring Boot Provider/Consumer assembly，拥有固定 Servlet endpoint、codec/configuration 与 bean materialization。
+
+Direct HTTP 通常承载 North-South 流量，RPC 通常承载 East-West 流量，但这只是典型部署说明，不是 contract、artifact、package、capability 或 Analyzer identity。RPC Provider 使用固定 `POST /cap4k/endpoints/rpc`，解码后只通过 `Mediator.endpoints.send(request)` 到达独立的 checked-in Provider Handler；transport 不直接查找 Handler，也不直接发送 Command/Query。
+
+RPC 发布必须显式配置稳定、非空的 `serviceId` 和非空、无重复的 selected `operationNames`。同一 canonical Endpoint model 生成 adapter module 中的 typed Provider registrations，以及 feature-scoped `endpoint-client` packaging module 中每 operation 一个 concrete remote `EndpointHandler<Request, Response>`、聚合 auto-configuration 和受管 registration metadata。`endpoint-client` 是 Provider 发布的 generated Consumer outbound adapter artifact，不是默认 `domain` / `application` / `adapter` / `start` 拓扑之外的第五层，也不承载 checked-in 业务代码；它只依赖 published contract 与 `ddd-endpoint-rpc`，具体 HTTP backend 由 Consumer `start` 通过 starter 选择。
+
+Consumer 业务代码只构造 published Request 并调用 `Mediator.endpoints.send/sendAsync`，不注入或直接调用 generated Handler、transport invoker 或 HTTP client。需要本地防腐语言时，使用 `Mediator.capabilities -> adapter-owned CapabilityHandler -> Mediator.endpoints`。默认 backend 使用 assembly-owned static `serviceId -> base URI` route map、positive connect/response timeout 与 request customizer；URI、credential、header、timeout 和 retry policy 不进入 contract 或 generated Handler。默认没有自动 retry；只有 Consumer 明确拥有幂等决策时，才可在 assembly 中提供 invoker decorator。
+
+当前不提供 OpenFeign、gRPC、Spring Cloud discovery/load-balancer、动态 fallback 或业务可注入的 service proxy。未来 backend 只能隐藏在 `EndpointTransportInvoker` / `EndpointRpcRouteResolver` 后，不能改变 Mediator-only 业务调用面。一个进程对同一 concrete Request 仍只能有一个适用 Handler，不会猜测 local/remote 优先级。
 
 ## Analyzer 与 Flow
 
-Endpoint contract declaration、Provider Handler 单独存在以及本地 `Mediator.endpoints` dispatch 都只是非入口证据。真实 typed `EndpointMvcBinding` registration 才生成 `endpointhttpbinding` Actor node；Analyzer 通过 generated Request/operation identity 跨类、跨文件关联独立 Provider Handler。`EndpointHttpBindingToCommand` 可以形成默认 Flow root，`EndpointHttpBindingToQuery` 只保留在 raw Graph，不增加默认 Flow 数量。
+Endpoint contract declaration、Provider Handler 单独存在以及本地 `Mediator.endpoints` dispatch 都只是非入口证据。真实 typed `EndpointMvcBinding` registration 才生成 `endpointhttpbinding` Actor node；真实 generated `EndpointRpcProviderBinding` registration 才生成 `endpointrpcproviderbinding` Actor node。Analyzer 通过 generated Request/operation identity 跨类、跨文件关联独立 Provider Handler。HTTP/RPC 到 Command 的协议专属关系可以分别形成默认 Flow root；到 Query 的关系只保留在 raw Graph，不增加默认 Flow 数量。generated Consumer remote Handler/client artifact 不是 Provider Actor evidence，也不会产生 Consumer Flow root；同一 operation 的 HTTP 与 RPC Provider registrations 保持两个独立 entry identity，即使它们共享 Handler 与下游节点。

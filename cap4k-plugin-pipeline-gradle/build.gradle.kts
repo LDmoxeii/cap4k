@@ -75,6 +75,7 @@ tasks.named<Test>("test") {
     // otherwise both builds can write the same Kotlin incremental-cache directory.
     dependsOn(
         ":ddd-core:jar",
+        ":ddd-endpoint-rpc:jar",
         ":ddd-domain-repo-jpa:jar",
         ":cap4k-ddd-core-starter:jar",
         ":cap4k-ddd-jpa-starter:jar",

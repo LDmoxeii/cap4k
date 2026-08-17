@@ -83,6 +83,8 @@ Agent contract version 4 保留 `runtime.json` 的 `cap4k.agent.runtime.v3`。�
 | --- | --- | --- |
 | `runtime.core-dispatch` | `ddd-core` | `cap4k-ddd-core-starter` |
 | `runtime.endpoint-http-provider` | `ddd-endpoint-http` | `cap4k-ddd-endpoint-http-starter` |
+| `runtime.endpoint-rpc-provider` | neutral contract: `ddd-endpoint-rpc`; HTTP/JSON implementation: `ddd-endpoint-rpc-http` | `cap4k-ddd-endpoint-rpc-http-starter` |
+| `runtime.endpoint-rpc-consumer` | neutral contract: `ddd-endpoint-rpc`; HTTP/JSON implementation: `ddd-endpoint-rpc-http` | `cap4k-ddd-endpoint-rpc-http-starter` |
 | `runtime.identifier-allocation` | `ddd-core` | `cap4k-ddd-core-starter` |
 | `runtime.local-domain-event` | `ddd-core` | `cap4k-ddd-core-starter` |
 | `runtime.jpa-persistence` | `ddd-domain-repo-jpa` | `cap4k-ddd-jpa-starter` |
@@ -90,6 +92,8 @@ Agent contract version 4 保留 `runtime.json` 的 `cap4k.agent.runtime.v3`。�
 | `runtime.reliable-event` | `ddd-domain-event-jpa` | `cap4k-ddd-domain-event-jpa-starter` |
 | `runtime.integration-event-transport` | shared contract: `ddd-core` | concrete provider owns implementation/starter |
 <!-- /CAPABILITY_CONTRACT:RUNTIME_CAPABILITIES -->
+
+Endpoint RPC 的两个 capability facts 分别表达 Provider ingress 与 Consumer egress，但共享 neutral ABI、HTTP/JSON backend 和 starter ownership。它们只证明当前 framework 支持该能力：静态 snapshot 仍将 `applicationAssembly` 标为 `unknown`，将 `runtimeObservation` 与 `verification` 标为 `not_performed`，不会声称 client artifact、route map、credential、timeout、远端服务或 fixed Provider route 已在当前应用装配或观测。它们没有 Integration Event provider identity，也不会加入下面的 transport provider catalog。
 
 <!-- CAPABILITY_CONTRACT:RUNTIME_PROVIDERS -->
 Integration Event transport provider facts 使用与 Runtime registry 注册完全相同的 identity：

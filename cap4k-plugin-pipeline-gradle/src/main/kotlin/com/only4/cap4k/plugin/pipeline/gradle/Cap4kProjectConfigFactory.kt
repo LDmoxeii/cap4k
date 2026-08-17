@@ -45,6 +45,7 @@ class Cap4kProjectConfigFactory {
             aggregateProjectionConfigured = extension.generators.aggregateProjection.configured,
             drawingBoardConfigured = extension.generators.drawingBoard.configured,
             flowConfigured = extension.generators.flow.configured,
+            endpointRpcConfigured = extension.generators.endpointRpc.configured,
         )
 
         validateProjectRules(extension, generatorStates)
@@ -95,6 +96,30 @@ class Cap4kProjectConfigFactory {
                 "aggregateProjection"
             )
         }
+        if (generators.endpointRpcConfigured) {
+            extension.project.contractModulePath.requiredWhenEnabled("project.contractModulePath", "endpointRpc")
+            extension.project.adapterModulePath.requiredWhenEnabled("project.adapterModulePath", "endpointRpc")
+            extension.project.endpointClientModulePath.requiredWhenEnabled("project.endpointClientModulePath", "endpointRpc")
+            val moduleRoles = linkedMapOf(
+                "contract" to extension.project.contractModulePath.required("project.contractModulePath"),
+                "adapter" to extension.project.adapterModulePath.required("project.adapterModulePath"),
+                "endpoint-client" to extension.project.endpointClientModulePath.required("project.endpointClientModulePath"),
+            )
+            val conflict = moduleRoles.entries.groupBy { normalizeModuleIdentity(it.value) }
+                .entries
+                .firstOrNull { it.value.size > 1 }
+            require(conflict == null) {
+                val roles = conflict!!.value.joinToString(", ") { it.key }
+                "endpointRpc module roles must resolve to distinct Gradle projects; roles [$roles] conflict at '${conflict.key}'."
+            }
+            val serviceId = extension.generators.endpointRpc.serviceId.normalized()
+            require(serviceId.isNotEmpty()) { "generators.endpointRpc.serviceId must not be blank when endpointRpc is enabled." }
+            val operationNames = extension.generators.endpointRpc.operationNames.normalizedValues()
+            require(operationNames.isNotEmpty()) { "generators.endpointRpc.operationNames must not be empty when endpointRpc is enabled." }
+            require(operationNames.size == operationNames.toSet().size) {
+                "generators.endpointRpc.operationNames must not contain duplicates."
+            }
+        }
     }
 
     private fun buildModules(
@@ -103,6 +128,7 @@ class Cap4kProjectConfigFactory {
         generators: GeneratorStates,
     ): Map<String, String> = buildMap {
         extension.project.contractModulePath.optionalValue()?.let { put("contract", it) }
+        extension.project.endpointClientModulePath.optionalValue()?.let { put("endpoint-client", it) }
         extension.project.domainModulePath.optionalValue()?.let { put("domain", it) }
         extension.project.applicationModulePath.optionalValue()?.let { put("application", it) }
         extension.project.adapterModulePath.optionalValue()?.let { put("adapter", it) }
@@ -119,6 +145,11 @@ class Cap4kProjectConfigFactory {
         }
         if (generators.aggregateProjectionConfigured) {
             put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
+        }
+        if (generators.endpointRpcConfigured) {
+            put("contract", extension.project.contractModulePath.required("project.contractModulePath"))
+            put("adapter", extension.project.adapterModulePath.required("project.adapterModulePath"))
+            put("endpoint-client", extension.project.endpointClientModulePath.required("project.endpointClientModulePath"))
         }
         if (sources.enumManifestConfigured || sources.valueObjectManifestConfigured) {
             put("domain", extension.project.domainModulePath.required("project.domainModulePath"))
@@ -212,6 +243,17 @@ class Cap4kProjectConfigFactory {
         }
         if (states.flowConfigured) {
             put("flow", GeneratorConfig())
+        }
+        if (states.endpointRpcConfigured) {
+            put(
+                "endpoint-rpc",
+                GeneratorConfig(
+                    options = linkedMapOf(
+                        "serviceId" to extension.generators.endpointRpc.serviceId.normalized(),
+                        "operationNames" to extension.generators.endpointRpc.operationNames.normalizedValues(),
+                    ),
+                ),
+            )
         }
     }
 
@@ -403,6 +445,7 @@ private data class GeneratorStates(
     val aggregateProjectionConfigured: Boolean,
     val drawingBoardConfigured: Boolean,
     val flowConfigured: Boolean,
+    val endpointRpcConfigured: Boolean,
 )
 
 private fun Property<String>.required(path: String): String =
@@ -576,3 +619,14 @@ private val reservedTypeNames = setOf(
     "Triple",
     "Unit",
 )
+
+private fun normalizeModuleIdentity(value: String): String {
+    val segments = value.trim()
+        .replace('\\', '/')
+        .trim('/')
+        .trim(':')
+        .replace(':', '/')
+        .split('/')
+        .filter { it.isNotBlank() && it != "." }
+    return ":" + segments.joinToString(":")
+}

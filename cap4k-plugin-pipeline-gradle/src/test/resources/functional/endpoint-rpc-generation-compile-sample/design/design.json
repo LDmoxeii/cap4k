@@ -1,0 +1,15 @@
+[
+  {
+    "tag": "endpoint",
+    "package": "booking",
+    "name": "CreateBookingEndpoint",
+    "operationName": "booking.create",
+    "description": "create booking",
+    "fields": [
+      { "name": "customerId", "type": "String" }
+    ],
+    "resultFields": [
+      { "name": "bookingId", "type": "String" }
+    ]
+  }
+]

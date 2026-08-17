@@ -104,6 +104,8 @@ class Cap4kAgentSnapshotTaskTest {
             listOf(
                 "runtime.core-dispatch",
                 "runtime.endpoint-http-provider",
+                "runtime.endpoint-rpc-consumer",
+                "runtime.endpoint-rpc-provider",
                 "runtime.identifier-allocation",
                 "runtime.integration-event-transport",
                 "runtime.jpa-persistence",

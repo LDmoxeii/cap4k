@@ -18,7 +18,7 @@ plugins {
 | `cap4kAgentSnapshot` | `build_evidence_only` | `false` | 已解析 Gradle configuration、本地 inputs 与既有 evidence | `build/cap4k/agent/` manifest-first snapshot |
 | `cap4kPlan` | `build_evidence_only` | `true` | DB/schema、`design-json`、`enum-manifest`、`value-object-manifest`、Gradle extension | `build/cap4k/plan.json` |
 | `cap4kGenerate` | `managed_outputs` | `true` | source-generation plan | 写出 source-generation plan 中的文件 |
-| `cap4kGenerateSources` | `managed_outputs` | `true` | generated source task config | `<module>/build/generated/cap4k/main/kotlin` |
+| `cap4kGenerateSources` | `managed_outputs` | `true` | generated source/resource task config | `<module>/build/generated/cap4k/main/kotlin` 与 `<module>/build/generated/cap4k/main/resources` |
 | `cap4kAnalysisPlan` | `build_evidence_only` | `false` | `sources.irAnalysis.inputDirs` | `build/cap4k/analysis-plan.json` |
 | `cap4kAnalysisGenerate` | `managed_outputs` | `false` | analysis plan | 导出 analysis artifacts，尤其是 flow 和 drawing-board |
 <!-- /CAPABILITY_CONTRACT:PUBLIC_TASKS -->
@@ -56,7 +56,7 @@ cap4k {
 | --- | --- |
 | `cap4kAgentSnapshot` | read-only project/capability inspection；默认不连接 live external source。 |
 | `cap4kPlan` / `cap4kGenerate` | ordinary source generation，读取 DB/schema、design JSON 和 type manifests。 |
-| `cap4kGenerateSources` | 只输出 `GENERATED_SOURCE`，root 在 `<module>/build/generated/cap4k/main/kotlin`。 |
+| `cap4kGenerateSources` | 输出 `GENERATED_SOURCE` 与 `GENERATED_RESOURCE`，roots 分别在 `<module>/build/generated/cap4k/main/kotlin` 与 `<module>/build/generated/cap4k/main/resources`。 |
 | `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` | analysis/observation path，使用 source id `ir-analysis` 和 generator ids `flow`、`drawing-board`。 |
 
 新项目结构由官方 GitHub Template 或团队自己的模板/人工流程建立；pipeline plugin 不提供项目初始化 task 或 DSL。

@@ -1,6 +1,6 @@
 # Generator Backed Authoring
 
-generator-backed authoring 是用 generator 固化 architecture control。作者先在业务意图、模型和技术设计中决定边界，再把这些决定投影到 schema、`design/design.json`、`types.valueObjectManifest`、`types.enumManifest` 和 Gradle extension。generator 读取这些显式输入，产出稳定 code slots、checked-in skeleton、build-owned generated source 和可审查 evidence。
+generator-backed authoring 是用 generator 固化 architecture control。作者先在业务意图、模型和技术设计中决定边界，再把这些决定投影到 schema、`design/design.json`、`types.valueObjectManifest`、`types.enumManifest` 和 Gradle extension。generator 读取这些显式输入，产出稳定 code slots、checked-in skeleton、build-owned generated source/resource 和可审查 evidence。
 
 它不是业务判断替代品，也不是业务规则作者。generator 可以让 Command、Query、Capability、Endpoint、Subscriber、Repository adapter、Factory、Value Object 和 enum 等结构保持一致；它不能替作者判断一个聚合何时改变状态、持久化编排何时恢复或补偿、一个 external capability 如何处理失败，或一个 Query 是否应该暴露某个业务视图。
 
@@ -12,6 +12,7 @@ architecture control 指的是：generator 把项目已经写明的结构事实�
 - 当前项目事实来自按需读取的 `build/cap4k/agent/` snapshot；生成计划证据来自 `build/cap4k/plan.json`。
 - checked-in skeleton 通常落在 `<module>/src/main/kotlin`，只由 generator 首次 materialize，之后作为仓库中的稳定入口维护。
 - generated source 通常落在 `<module>/build/generated/cap4k/main/kotlin`，由 build 维护。
+- generated resource 通常落在 `<module>/build/generated/cap4k/main/resources`，由 build 维护并注册进 `main` resources。
 - analysis evidence 来自 `cap4kAnalysisPlan` / `cap4kAnalysisGenerate`，服务于 flow 和 drawing-board 观察。
 
 这些输出帮助团队控制命名、包结构、层级位置、模板选择和 ownership。它们不说明业务含义已经正确；业务含义仍要靠手写 implementation、tests、HTTP examples 和 analysis evidence 共同验证。
@@ -36,7 +37,7 @@ generator-backed authoring 要求每次生成前后都有证据可读：
 - `cap4kPlan` 生成本地 `build/cap4k/plan.json`，用于审查 source generation ownership。
 - `cap4kAgentSnapshot` 生成本地 `build/cap4k/agent/` 分区快照，用于发现当前 project、capability、input、ownership、runtime、analysis 和 diagnostics。
 - `cap4kGenerate` 根据已审查计划和输入 materialize checked-in skeleton 与正常 source-generation artifacts。
-- `cap4kGenerateSources` 只输出 `GENERATED_SOURCE`，并把 build-owned generated Kotlin root 注册进 Kotlin `main` source set。
+- `cap4kGenerateSources` 输出 `GENERATED_SOURCE` 与 `GENERATED_RESOURCE`，并把 build-owned Kotlin/resource roots 注册进对应的 `main` source sets。
 - `cap4kAnalysisPlan` 与 `cap4kAnalysisGenerate` 使用 analysis input，产出 flow 与 drawing-board observation evidence。
 
 这些 evidence 可以回答“generator 打算写什么、写在哪里、谁拥有、如何处理冲突、现有代码结构如何连接”。它们不回答“业务规则是否合理”。如果 evidence 暴露错位，反馈应回到 [Business Intent And Modeling](../authoring/business-intent-and-modeling.md)、[Technical Design](../authoring/technical-design.md) 或 [Generator Input Projection](../authoring/generator-input-projection.md)。

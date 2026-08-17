@@ -85,14 +85,14 @@ analysis plan 的价值是让 observation output 可审查。它不说明业务�
 
 flow evidence 可以帮助作者检查：
 
-- Actor、Event、Time 三类概念入口是否由真实 detector evidence 委托到正确 Command。当前生产 detector 包括 Spring HTTP Controller method 与 typed Spring MVC `EndpointMvcBinding` registration（Actor）、无上游 Inbound Integration Event（Event）和 Spring `@Scheduled` method（Time）。Endpoint HTTP registration 通过 generated Request/operation identity 跨类、跨文件关联独立 Provider Handler；到 Command 的关系可形成 Flow root，到 Query 的关系只保留在 raw Graph。
+- Actor、Event、Time 三类概念入口是否由真实 detector evidence 委托到正确 Command。当前生产 detector 包括 Spring HTTP Controller method、typed Spring MVC `EndpointMvcBinding` registration 与 generated `EndpointRpcProviderBinding` registration（Actor）、无上游 Inbound Integration Event（Event）和 Spring `@Scheduled` method（Time）。Endpoint HTTP/RPC Provider registration 通过 generated Request/operation identity 跨类、跨文件关联独立 Provider Handler；各自到 Command 的协议专属关系可形成独立 Flow root，到 Query 的关系只保留在 raw Graph。generated RPC Consumer handler/client artifact 不是 Actor evidence 或 Flow root。
 - `@Scheduled` method 只有直接发送 Command 时才建立 `TemporalTriggerMethodToCommand` 默认因果边；仅发送 Query、调用 Capability 或执行纯技术逻辑不会形成 Flow。
 - Command、Domain Event、Integration Event 之间的业务因果链是否连到预期后继。
 - Command Handler、Event Handler 与 Entity Method 被隐藏后，任意长度的中间路径是否正确收缩为可见节点之间的因果边。
 - root 是否在投影完成后由真实入口证据与零入度共同决定，而不是把孤立 Command/Event 伪装成入口。
 - 分支、汇合、共享后缀和循环是否保持有限、稳定且可审查；默认 Flow 不自动拼接跨入口 process。
 
-Flow 可以由未来新增的真实 RPC、CLI 等 adapter detector 扩展，但不会仅凭任意 `*ToCommand` 后缀或普通内部方法发送 Command 来伪造入口。旧 `commandsendermethod` / `CommandSenderMethodToCommand` fallback 已删除。Temporal Trigger 直接使用真实 scheduled method 节点；它不是抽象 Entry、scheduler runtime、Job generator，也不表达 cron、misfire、retry 或 process stitching。
+Flow 可以由未来新增的真实 CLI 等 adapter detector 扩展，但不会仅凭任意 `*ToCommand` 后缀或普通内部方法发送 Command 来伪造入口。旧 `commandsendermethod` / `CommandSenderMethodToCommand` fallback 已删除。Temporal Trigger 直接使用真实 scheduled method 节点；它不是抽象 Entry、scheduler runtime、Job generator，也不表达 cron、misfire、retry 或 process stitching。
 
 连续的 raw graph evidence 从同一个真实入口延伸到 follow-up Command 时，应留在一张 Flow 中。两个各自具有入口证据、投影后均为零入度的真实入口应生成两张 Flow，即使共享下游后缀。阅读这种结果时，通过 `index.json`、稳定 entry identity 和共享可见节点建立关联，不要把共享后缀解释成自动 process stitching 的依据。
 

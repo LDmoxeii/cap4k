@@ -20,6 +20,8 @@ include("cap4k-analysis-metadata")
 include("cap4k-contract-api")
 include("ddd-core")
 include("ddd-endpoint-http")
+include("ddd-endpoint-rpc")
+include("ddd-endpoint-rpc-http")
 include("ddd-application-command-jpa")
 include("ddd-domain-event-jpa", "ddd-domain-repo-jpa")
 include(
@@ -30,6 +32,7 @@ include(
 include(
     "cap4k-ddd-core-starter",
     "cap4k-ddd-endpoint-http-starter",
+    "cap4k-ddd-endpoint-rpc-http-starter",
     "cap4k-ddd-jpa-starter",
     "cap4k-ddd-command-jpa-starter",
     "cap4k-ddd-domain-event-jpa-starter",

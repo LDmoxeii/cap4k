@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | `generatorId` | planned item 的 generator 来源 | 是否能被 DB/schema、design JSON、type manifest、analysis input 或 addon 解释？ |
 | `templateId` | selected template id | 是否匹配预期 artifact family？ |
-| `outputKind` | ownership kind | 是 `CHECKED_IN_SOURCE`、`GENERATED_SOURCE` 还是 `OUTPUT_ARTIFACT`？ |
+| `outputKind` | ownership kind | 是 `CHECKED_IN_SOURCE`、`GENERATED_SOURCE`、`GENERATED_RESOURCE` 还是 `OUTPUT_ARTIFACT`？ |
 | `resolvedOutputRoot` | optional resolved output root metadata | 是否能解释 generated/artifact root；checked-in source 可以为空，也可以由 planner 提供 source root。 |
 | `conflictPolicy` | existing file handling | 会不会覆盖 handwritten logic？ |
 | `outputPath` | repo-relative planned path | file name、package path、module placement 是否合理？ |
@@ -38,7 +38,7 @@
 }
 ```
 
-字段名是 review contract；实际 item 可能包含更多 context。`outputPath` 始终是完整的 repo-relative 目标路径，不要再把它和 `resolvedOutputRoot` 重新拼接。`resolvedOutputRoot` 是可选的 root metadata：checked-in source 可以为空，也可以由 planner 提供 source root；Gradle 对 generated source rebase 后会更新为实际 generated root。
+字段名是 review contract；实际 item 可能包含更多 context。`outputPath` 始终是完整的 repo-relative 目标路径，不要再把它和 `resolvedOutputRoot` 重新拼接。`resolvedOutputRoot` 是可选的 root metadata：checked-in source 可以为空，也可以由 planner 提供 source root；Gradle 对 generated source/resource rebase 后会更新为实际 generated root。
 
 当前内建 design generator ids 使用 `command`、`query`、`domain-service` 这类稳定短 id。
 
@@ -49,6 +49,7 @@
 | --- | --- |
 | `CHECKED_IN_SOURCE` | first-materialized committed source skeleton or type source，通常位于 `<module>/src/main/kotlin`；existing file 固定 SKIP。 |
 | `GENERATED_SOURCE` | build-owned generated source，位于 `<module>/build/generated/cap4k/main/kotlin`。 |
+| `GENERATED_RESOURCE` | build-owned generated resource，位于 `<module>/build/generated/cap4k/main/resources`；例如生成的 Spring auto-configuration metadata。 |
 | `OUTPUT_ARTIFACT` | non-source evidence output；内置 flow 与 drawing-board planner 使用此 ownership。 |
 <!-- /CAPABILITY_CONTRACT:OUTPUT_KINDS -->
 
@@ -57,7 +58,7 @@
 | `conflictPolicy` | 典型用途 |
 | --- | --- |
 | `SKIP` | 所有 checked-in source；generator 不覆盖、合并或刷新已有文件。 |
-| `OVERWRITE` | build-owned generated source 或明确要重新生成的 artifacts。 |
+| `OVERWRITE` | build-owned generated source/resource 或明确要重新生成的 artifacts。 |
 | `FAIL` | 明确要求已有文件阻止 materialization 的严格输出。 |
 
 `CHECKED_IN_SOURCE` 的 policy 不受 source-generation template override 改写：plan 必须呈现 `SKIP`。作者需要更新 skeleton 时，应通过版本控制自行删除旧文件、重新 materialize 并审查差异。

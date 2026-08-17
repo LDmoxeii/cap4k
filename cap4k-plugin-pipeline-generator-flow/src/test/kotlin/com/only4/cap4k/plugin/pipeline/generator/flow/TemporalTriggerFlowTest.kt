@@ -144,6 +144,55 @@ class TemporalTriggerFlowTest {
         assertTrue((queryPlan.single().context.getValue("jsonContent") as String).contains("\"flowCount\": 0"))
     }
 
+    @Test
+    fun `endpoint rpc provider command binding is actor root while query binding is graph only`() {
+        val commandPlan = plan(
+            nodes = listOf(node("endpoint-rpc:booking-service:booking.create", "endpointrpcproviderbinding"), node("demo.CreateBookingCmd", "command")),
+            edges = listOf(edge("endpoint-rpc:booking-service:booking.create", "demo.CreateBookingCmd", "EndpointRpcProviderBindingToCommand")),
+        )
+        assertEquals(3, commandPlan.size)
+        val commandIndex = commandPlan.single { it.templateId == "flow/index.json.peb" }.context.getValue("jsonContent") as String
+        assertTrue(commandIndex.contains("\"flowCount\": 1"), commandIndex)
+        assertTrue(commandIndex.contains("\"endpointrpcproviderbinding\": 1"), commandIndex)
+
+        val queryPlan = plan(
+            nodes = listOf(node("endpoint-rpc:booking-service:booking.read", "endpointrpcproviderbinding"), node("demo.ReadBookingQuery", "query")),
+            edges = listOf(edge("endpoint-rpc:booking-service:booking.read", "demo.ReadBookingQuery", "EndpointRpcProviderBindingToQuery")),
+        )
+        assertEquals(listOf("flow/index.json.peb"), queryPlan.map { it.templateId })
+        assertTrue((queryPlan.single().context.getValue("jsonContent") as String).contains("\"flowCount\": 0"))
+    }
+
+    @Test
+    fun `http and rpc Provider bindings for one operation remain two actor roots with shared command`() {
+        val flowPlan = plan(
+            nodes = listOf(
+                node("endpoint-http:booking.create", "endpointhttpbinding"),
+                node("endpoint-rpc:booking-service:booking.create", "endpointrpcproviderbinding"),
+                node("demo.CreateBookingCmd", "command"),
+            ),
+            edges = listOf(
+                edge("endpoint-http:booking.create", "demo.CreateBookingCmd", "EndpointHttpBindingToCommand"),
+                edge(
+                    "endpoint-rpc:booking-service:booking.create",
+                    "demo.CreateBookingCmd",
+                    "EndpointRpcProviderBindingToCommand",
+                ),
+            ),
+        )
+
+        assertEquals(5, flowPlan.size)
+        val index = flowPlan.single { it.templateId == "flow/index.json.peb" }.context.getValue("jsonContent") as String
+        assertTrue(index.contains("\"flowCount\": 2"), index)
+        assertTrue(index.contains("\"endpointhttpbinding\": 1"), index)
+        assertTrue(index.contains("\"endpointrpcproviderbinding\": 1"), index)
+        val entries = flowPlan.filter { it.templateId == "flow/entry.json.peb" }
+            .map { it.context.getValue("jsonContent") as String }
+        assertEquals(2, entries.size)
+        assertTrue(entries.any { it.contains("endpoint-http:booking.create") })
+        assertTrue(entries.any { it.contains("endpoint-rpc:booking-service:booking.create") })
+        assertTrue(entries.all { it.contains("demo.CreateBookingCmd") })
+    }
     private fun plan(
         nodes: List<AnalysisNodeModel>,
         edges: List<AnalysisEdgeModel>,
