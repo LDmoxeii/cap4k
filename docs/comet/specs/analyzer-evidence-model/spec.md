@@ -60,13 +60,14 @@ AnalyzerSnapshot
 - 最小事实粒度为稳定 node identity 和 directed relationship identity。
 - Graph 可以保留 Query、Capability、Validator、read-side dependency 和其他低层技术关系；它们保留在 Graph 不代表进入默认 causal Flow。
 - 默认业务因果入口按触发来源解释为 Actor、Event、Time 三类，但分类不是封闭 NodeType allowlist。每个当前支持入口都必须由生产 Analyzer 观察到实际代码节点及明确 relationship evidence；未来 adapter 通过新增真实 detector 扩展，不由 Flow、文档或 generic fallback 猜测。
-- Actor 当前生产 evidence 包含两类真实 Spring HTTP entry：annotated Controller method，以及 typed `EndpointMvcBinding` Spring MVC Provider registration。Endpoint detector 必须把 registration 与 generated operation/Request evidence及独立 Provider `EndpointHandler` 的显式 Command/Query invocation关联，不得假设 binding 与 Handler 同类/同文件。RPC、GraphQL、CLI、Admin 与 workflow task 属于 Actor 概念家族，但在没有对应 Analyzer detector 前不得声明为当前支持。
+- Actor 当前生产 evidence 包含三类真实 entry：annotated Spring HTTP Controller method、typed `EndpointMvcBinding` Spring MVC Provider registration，以及 typed `EndpointRpcProviderBinding` RPC Provider registration。Endpoint detectors 必须把 registration 与 generated operation/Request evidence及独立 Provider `EndpointHandler` 的显式 Command/Query invocation关联，不得假设 binding 与 Handler 同类/同文件。Consumer RPC proxy不是入站Actor evidence。GraphQL、CLI、Admin 与 workflow task 属于 Actor 概念家族，但在没有对应 Analyzer detector 前不得声明为当前支持。
 - Event 当前生产 evidence 为无上游 Inbound Integration Event 经实际 `@EventListener` Handler 到 Command。Domain Event Handler、outbound Integration Event 和有上游 Integration Event 是已有因果链 continuation，不是新入口。
 - Time 当前生产 evidence 为带 `org.springframework.scheduling.annotation.Scheduled` 的实际 method。Analyzer 必须使用该 method 的稳定 identity，生成 `temporaltriggermethod` node；当方法直接发送 Command 时生成 `TemporalTriggerMethodToCommand` relationship。只执行 Query、Capability 或纯技术逻辑的 scheduled method 不产生默认 causal entry evidence。
 - `commandsendermethod` NodeType 与 `CommandSenderMethodToCommand` RelationshipType 完全删除。普通未分类方法即使直接发送 Command，也不得生成 generic sender node、relationship、alias、deprecated value 或迁移桥；需要成为入口时必须先实现明确 trigger detector。
 - typed Endpoint HTTP entry 的 Graph node type MUST be `endpointhttpbinding`，stable node identity MUST derive from binding kind plus referenced operation identity，并保留真实 method/route作为安全的静态 evidence而不得包含credential/header value。Command mapping MUST use `EndpointHttpBindingToCommand`; Query mapping MUST use `EndpointHttpBindingToQuery`。两类relationship都由Analyzer观察Provider Handler的显式调用后投影，不由binding mapper直接dispatch或名称猜测产生。
-- Endpoint contract declaration、Provider Handler单独存在、local `Mediator.endpoints` dispatch或缺失真实typed registration都不得产生`endpointhttpbinding` node或上述relationships。同一个WebMvc.fn binding不得再被annotated Controller detector重复观察；ordinary Controller detector行为保持不变。
-- 已退休 API Payload 的separator-free残留必须闭合：`NodeType.apipayload` 与 IR Drawing Board candidate `apipayload` MUST be removed without alias, deprecated value or compatibility mapping。Endpoint Design Projection仍使用`endpoint` tactical tag，与Graph entry node `endpointhttpbinding`职责分离。
+- typed Endpoint RPC Provider entry 的 Graph node type MUST be `endpointrpcproviderbinding`，stable node identity MUST derive from `endpoint-rpc:<serviceId>:<operationName>`。Command mapping MUST use `EndpointRpcProviderBindingToCommand`; Query mapping MUST use `EndpointRpcProviderBindingToQuery`。Analyzer必须认证direct `OPERATION_NAME` reference、Request/Response owner、Endpoint metadata provenance与production registration，再与handle-reachable Provider Handler invocation关联。
+- Endpoint contract declaration、Provider Handler单独存在、Consumer remote Handler/client artifact、local `Mediator.endpoints` dispatch、copied operation literal或缺失真实typed registration都不得产生Endpoint HTTP/RPC Provider node或上述relationships。同一个WebMvc.fn binding不得再被annotated Controller detector重复观察；ordinary Controller detector行为保持不变。
+- 已退休 API Payload 的separator-free残留必须闭合：`NodeType.apipayload` 与 IR Drawing Board candidate `apipayload` MUST be removed without alias, deprecated value or compatibility mapping。Endpoint Design Projection仍使用`endpoint` tactical tag，与Graph entry nodes `endpointhttpbinding`、`endpointrpcproviderbinding`职责分离。
 - Graph 不是通用 Kotlin AST、CFG 或 runtime trace，也不证明业务设计正确或运行时顺序。
 - 同一 node identity 的 `name`、`fullName` 和 `type` 必须一致；等价重复稳定去重，`missingMetadata` 可以稳定合并，非空 `metadataOwner` 冲突必须失败并保留来源诊断。
 - Relationship 以稳定的 from/to/type/label identity 去重；任何丢失 endpoint 或无效 identity 必须形成 Graph diagnostic，不得由其他分区补齐。
@@ -141,18 +142,18 @@ Analyzer collect、parse 或 merge 异常不得再被 `.getOrNull()` 静默吞�
 
 生产 capability declarations 必须派生并公开以下直接 consumer 关系：
 
-- Graph（annotated Controller、typed Endpoint HTTP、Inbound Integration Event、Temporal Trigger等实际detectors）→ Pipeline Flow；
+- Graph（annotated Controller、typed Endpoint HTTP、typed Endpoint RPC Provider、Inbound Integration Event、Temporal Trigger等实际detectors）→ Pipeline Flow；
 - Design Projection → Drawing Board；
 - Aggregate Structure → structure evidence output。
 
-IR Analysis production descriptor MUST identify both annotated Spring HTTP Controller and typed Spring MVC Endpoint binding as current Actor detectors. Descriptor, facts, Public Docs and Skill MUST NOT imply that contract declaration or Handler-only code is an HTTP entry.
+IR Analysis production descriptor MUST identify annotated Spring HTTP Controller, typed Spring MVC Endpoint binding and typed Endpoint RPC Provider binding as current Actor detectors. Descriptor, facts, Public Docs and Skill MUST NOT imply that contract declaration, Handler-only code, Consumer proxy or local Endpoint dispatch is a transport entry.
 
 `CapabilityContractFacts`、AgentFacts、Public Docs 和 Skill 按依赖图传播；只有实际代码完成的 schema、status、outputs 和 consumer contract 才能声明为当前支持能力。canonical spec 可以先于实现，但不能冒充当前代码事实。
 
 ## 验证合同
 
-- API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区，并证明 `temporaltriggermethod` / `TemporalTriggerMethodToCommand`、`endpointhttpbinding` / `EndpointHttpBindingToCommand|Query` 是明确trigger evidence，generic Command sender与`apipayload`类型已经删除。
-- IR compiler/source tests 覆盖 Spring `@Scheduled` method detection、Temporal Trigger 到 Command、typed Endpoint HTTP registration detection、generated operation/type provenance、cross-file Provider Handler association、Command/Query relationships、local-only negatives、Controller coexistence、scheduled Query/Capability 非 Flow 入口、普通方法不再产生 generic Command sender，以及每目录 required/optional/empty/invalid raw、metadata completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
+- API tests 证明只有一个权威 `AnalyzerSnapshot` 和三个强类型分区，并证明 `temporaltriggermethod` / `TemporalTriggerMethodToCommand`、`endpointhttpbinding` / `EndpointHttpBindingToCommand|Query`、`endpointrpcproviderbinding` / `EndpointRpcProviderBindingToCommand|Query` 是明确trigger evidence，generic Command sender与`apipayload`类型已经删除。
+- IR compiler/source tests 覆盖 Spring `@Scheduled` method detection、Temporal Trigger 到 Command、typed Endpoint HTTP与RPC Provider registration detection、generated operation/type provenance、cross-file Provider Handler association、Command/Query relationships、contract/Handler/Consumer/local-dispatch/copied-literal negatives、Controller coexistence、scheduled Query/Capability 非 Flow 入口、普通方法不再产生 generic Command sender，以及每目录 required/optional/empty/invalid raw、metadata completeness、稳定来源、node/edge/design/aggregate 去重与冲突。
 - Canonical tests 证明三个分区各自进入唯一 owner，消费者不会跨分区读取。
 - Agent codec/service/task/functional tests 证明分区 schema、manifest、counts、freshness、outputs、diagnostics 和状态聚合。
 - Capability facts 与 validator tests 证明子契约和传播闭包由生产代码派生。
@@ -165,4 +166,4 @@ IR Analysis production descriptor MUST identify both annotated Spring HTTP Contr
 - 自动把 Analyzer output 注册为 Generator input；
 - 把 Aggregate Structure 改造成 Design JSON 或 SQL/Schema projection；
 - 从 runtime trace 或任意 Kotlin 结构推断缺失设计。
-- 在本合同中新增 RPC、GraphQL、CLI、workflow、CDC、WebFlux 或非 Spring scheduling detector；这些入口只能在后续生产 evidence Change 中扩展。Spring MVC Endpoint Provider detector是当前合同的唯一新增HTTP detector。
+- 在本合同中新增 GraphQL、CLI、workflow、CDC、WebFlux 或非 Spring scheduling detector；这些入口只能在后续生产 evidence Change 中扩展。Spring MVC Endpoint与Endpoint RPC Provider detectors是当前明确支持的Endpoint Actor detectors。

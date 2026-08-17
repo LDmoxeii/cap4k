@@ -176,11 +176,13 @@ The shipped Spring MVC Provider binding MUST:
 - reference the existing generated `OPERATION_NAME` plus Request/Response type evidence;
 - keep method, route, codec, status, headers, security and error mapping outside the contract module;
 - materialize a real route that invokes `Mediator.endpoints.send(request)`;
-- reuse the same binding-neutral local Provider Handler that a future RPC binding would use.
+- reuse the same binding-neutral local Provider Handler that the shipped RPC binding also uses.
 
-A future RPC Provider dispatcher MAY invoke the same Mediator family, and a future Consumer proxy MAY implement `EndpointHandler<Request, Response>`. Service discovery, timeout, retry, topology and protocol client/stub details MUST remain absent from the canonical contract and `ddd-core`.
+The shipped RPC Provider dispatcher MUST invoke the same Mediator family, and the shipped generated Consumer proxy MUST implement `EndpointHandler<Request, Response>`. RPC service identity and explicit operation selection belong to the binding/client projection; service discovery, address, timeout, retry, topology, authentication, codec and protocol client/stub details MUST remain absent from the canonical contract and `ddd-core`.
 
-One operation MAY have zero or multiple Provider bindings of different kinds. Binding identity and lifecycle MUST NOT redefine operation identity. The first HTTP capability allows at most one HTTP binding per operation, but that protocol-specific cardinality is not part of the canonical Endpoint contract.
+The shipped RPC client artifact MUST be generated outside the contract module and depend on the published contract in one direction. Consumer business code MUST invoke the remote operation only through `Mediator.endpoints`; Feign/gRPC interfaces, `EndpointTransportInvoker` and generated remote Handlers remain transport/runtime implementation details.
+
+One operation MAY have zero or multiple Provider bindings of different kinds. Binding identity and lifecycle MUST NOT redefine operation identity. HTTP and RPC protocol-specific cardinality and service grouping belong to their binding capabilities, not the canonical Endpoint contract.
 
 ## Analyzer and Flow
 
@@ -189,19 +191,19 @@ Analyzer Design Projection MUST recover Endpoint operation identity, Request/Res
 Analyzer Graph and Flow MUST treat a contract declaration, Provider Handler existence and local Endpoint Mediator dispatch as non-transport-entry evidence. Generating, compiling or locally dispatching an Endpoint Request alone MUST NOT create:
 
 - an Actor graph node;
-- an Endpoint HTTP binding-to-Command/Query relationship;
+- an Endpoint HTTP or RPC Provider binding-to-Command/Query relationship;
 - a Flow root;
 - a flow count change.
 
-A real typed Spring MVC binding is production Actor evidence. Analyzer MUST join that binding to the independent Provider Handler through generated operation/Request evidence without assuming a shared class or file. Command-oriented HTTP evidence can create a default Flow root; Query-oriented evidence remains raw Graph-only. Future RPC or other Actor evidence still requires its own production detector.
+Real typed Spring MVC and Endpoint RPC Provider bindings are production Actor evidence. Analyzer MUST join each binding to the independent Provider Handler through generated operation/Request evidence without assuming a shared class or file. Command-oriented HTTP or RPC Provider evidence can create a default Flow root; Query-oriented evidence remains raw Graph-only. Consumer RPC proxy, contract-only, Handler-only and local Endpoint dispatch remain non-entry evidence.
 
 ## Capability projections
 
-Production descriptors and registries MUST declare the Endpoint authoring/runtime capabilities, tactical carrier, required source, tasks, output ownership and module role. The shipped Endpoint HTTP capability MUST additionally declare its Runtime implementation/starter ownership and Analyzer detector/relationship evidence. AgentFacts MUST derive project module, artifact and Runtime ownership facts from these production contracts rather than a second handwritten catalog.
+Production descriptors and registries MUST declare the Endpoint authoring/runtime capabilities, tactical carrier, required source, tasks, output ownership and module roles. The shipped Endpoint HTTP capability MUST declare its Runtime implementation/starter ownership and Analyzer detector/relationship evidence. The shipped Endpoint RPC capability MUST declare Provider/Consumer Runtime ownership, explicit binding selection, generated Provider/client outputs, the `endpoint-client` role and RPC Provider Analyzer evidence. AgentFacts MUST derive project module, artifact and Runtime ownership facts from these production contracts rather than a second handwritten catalog.
 
-Public Docs and the authoring Skill MUST describe only shipped behavior. They MUST describe the published contract, Endpoint Mediator family, independent Provider Handler and Spring MVC Provider binding while keeping RPC Provider, Consumer proxy, service discovery and client generation explicit non-goals.
+Public Docs and the authoring Skill MUST describe only shipped behavior. They MUST describe the published contract, Endpoint Mediator family, independent Provider Handler, Spring MVC Provider binding and the generated RPC client artifact whose remote Handlers remain behind `Mediator.endpoints`. Feign/gRPC backends, dynamic discovery, automatic retry and local/remote Handler coexistence remain explicit non-goals.
 
-Runtime, Generator, Analyzer, AgentFacts, Public Docs and Skill impact MUST each be recorded as modified, verified-no-change or not-applicable with evidence. Generator/Renderer/Design Projection remain unchanged for HTTP binding authoring because the existing generated operation structure is the contract evidence consumed by Runtime and Analyzer.
+Runtime, Generator, Analyzer, AgentFacts, Public Docs and Skill impact MUST each be recorded as modified, verified-no-change or not-applicable with evidence. HTTP binding authoring leaves Generator/Renderer unchanged; RPC binding adds generated Provider/client projections while preserving the existing Endpoint contract generator and Design Projection.
 
 ## Verification
 
@@ -212,19 +214,17 @@ Focused and functional evidence MUST demonstrate:
 3. deterministic checked-in contract planning and rendering;
 4. compile-valid generated Request/Response using `EndpointRequest` from a leaf contract module;
 5. EndpointSupervisor sync/async dispatch, unique Handler selection, validation, scope and failure semantics;
-6. Provider Handler and future Consumer proxy Handler semantics both remain mediated rather than directly invoked, including direct Consumer Endpoint use and Capability anti-corruption mapping;
-7. Provider-side single-direction dependency on contract and absence of Spring/HTTP metadata from generated contracts;
+6. Provider business Handler and generated Consumer remote Handler semantics both remain mediated rather than directly invoked, including direct Consumer Endpoint use and Capability anti-corruption mapping;
+7. Provider/client single-direction dependency on contract and absence of Spring/HTTP/RPC metadata from generated contracts;
 8. typed Spring MVC Provider registration and WebMvc.fn route materialization invoke the independent Provider Handler only through `Mediator.endpoints`;
-9. one operation can exist Handler-only and can later add different binding kinds without changing contract/Handler identity;
-10. Integration Event payload placement in contract and subscriber placement in application;
-11. unchanged event direction, topology and runtime delivery semantics;
-12. Analyzer/Drawing Board semantic round-trip remains unchanged while real HTTP binding evidence creates only the accepted Graph/Flow Actor entry;
-13. descriptor, registry, AgentFacts, docs and Skill propagation;
-14. unchanged Generator/Renderer/Design Projection behavior and unchanged existing domain/application/adapter artifact ownership outside the declared binding capability.
+9. typed RPC Provider registration and generated Consumer Handler/client artifact complete a real remote roundtrip while business code still invokes only `Mediator.endpoints`;
+10. one operation can exist Handler-only or expose HTTP and RPC independently without changing contract/Handler identity;
+11. Integration Event payload placement in contract and subscriber placement in application;
+12. unchanged event direction, topology and runtime delivery semantics;
+13. Analyzer/Drawing Board semantic round-trip remains unchanged while real HTTP/RPC Provider binding evidence creates only the accepted Graph/Flow Actor entries;
+14. descriptor, registry, AgentFacts, docs and Skill propagation;
+15. unchanged Endpoint contract rendering and unchanged existing domain/application artifact ownership outside the declared RPC generated Provider/client projections.
 
 ## Compatibility
 
 This is an intentional breaking architecture change. The former `actor-endpoint-contract` capability name and `ActorEndpoint` product vocabulary are removed. No alias, fallback capability, duplicate API, fallback package, duplicate annotation, old application-owned Integration Event generation or migration bridge is required.
-
-
-

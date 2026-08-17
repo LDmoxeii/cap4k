@@ -21,9 +21,17 @@ The confirmed active capability identities are:
 - `runtime.reliable-command`;
 - `runtime.reliable-event`;
 - `runtime.integration-event-transport`;
-- `runtime.endpoint-http-provider`.
+- `runtime.endpoint-http-provider`;
+- `runtime.endpoint-rpc-provider`;
+- `runtime.endpoint-rpc-consumer`.
 
 The Endpoint HTTP Provider capability MUST declare implementation ownership in `ddd-endpoint-http` and starter ownership in `cap4k-ddd-endpoint-http-starter`. It has no Integration Event provider identity and MUST NOT be added to the Integration Event static provider catalog. Its static fact MUST describe typed Spring MVC registration, WebMvc.fn materialization and mediated Provider dispatch without claiming application assembly, live route activation or HTTP health observation.
+
+The Endpoint RPC Provider capability MUST declare implementation ownership in `ddd-endpoint-rpc-http` and starter ownership in `cap4k-ddd-endpoint-rpc-http-starter`. Its static fact MUST describe typed Provider registration, fixed HTTP/JSON RPC materialization and mediated inbound dispatch without claiming current application assembly or live route activation.
+
+The Endpoint RPC Consumer capability MUST declare implementation ownership in `ddd-endpoint-rpc-http` and starter ownership in `cap4k-ddd-endpoint-rpc-http-starter`. Its static fact MUST describe generated remote `EndpointHandler` client artifacts, generic transport invocation and Mediator-only business use without claiming that any client artifact, route map, credential, timeout or remote service is assembled or observed.
+
+Endpoint RPC capability identities have no Integration Event provider identity and MUST NOT be added to the Integration Event static provider catalog.
 
 
 ### Static provider catalog
@@ -78,7 +86,7 @@ strategic DDD quality, or Analyzer business truth.
 
 ## Acceptance
 
-- Manifest generation exposes the confirmed capability catalog including `runtime.endpoint-http-provider`, its exact implementation/starter ownership, and the unchanged exact Integration Event provider IDs.
+- Manifest generation exposes the confirmed capability catalog including `runtime.endpoint-http-provider`, `runtime.endpoint-rpc-provider` and `runtime.endpoint-rpc-consumer`, their exact implementation/starter ownership, and the unchanged exact Integration Event provider IDs.
 - Static assembly/state fields remain `UNKNOWN`; observation/verification remain `NOT_PERFORMED`.
 - Registry tests prove sorted snapshots, duplicate rejection, reporter fencing, close/re-register, and
   exact transport identities.
