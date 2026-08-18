@@ -1,0 +1,941 @@
+schema: comet.native.v4
+name: enum-manifest-extensible-checked-in
+language: zh-CN
+phase: archive
+status: done
+state_version: 8
+brief: brief.md
+spec_changes:
+  - capability: enum-manifest-domain-type
+    operation: create
+    source: specs/enum-manifest-domain-type/spec.md
+workspace:
+  isolation: worktree
+  change_branch: feature/enum-manifest-extensible-checked-in
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: done
+  goal_cycle: 1
+  iteration: 1
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: null
+acceptance:
+  - id: A1
+    source: brief.md
+    text: A1：带 `fields` 声明的 enum manifest 能生成额外 constructor property；每个 item
+      必须显式给出每个声明属性的类型正确值。Payment 的 `ChannelResultDisposition` 使用真实 `group`
+      属性，领域代码消费该属性而不是把它作为无用展示字段。
+    result: passed
+    reason:
+      text: Payment manifest 声明 group/terminal，生成 typed
+        properties；ChannelResultRecordingOutcome 与 enum 方法实际消费这些属性。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: A2：未声明的 item key、缺失必填值、错误 literal 类型、非法/重复/reserved property、重复 enum
+      constant、重复 persisted `value`、小数或越界 value 均在 source/canonical 阶段给出包含
+      enum/item/property identity 的确定性诊断。
+    result: passed
+    reason:
+      text: Source 与 canonical 校验覆盖
+        unknown/missing/type/reserved/duplicate/non-integral/out-of-range，并携带
+        path、enum、item、property identity。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: A3：manifest enum 与 local enum 的 Kotlin artifact 均位于 domain
+      `src/main/kotlin`，plan/AgentFacts 显示 `CHECKED_IN_SOURCE` 与 `SKIP`；clean 删除
+      build 目录后仍可编译。
+    result: passed
+    reason:
+      text: Payment 五个 manifest enum 的 plan/ownership 均为
+        domain/src/main/kotlin、CHECKED_IN_SOURCE、SKIP；clean build 已通过。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: A4：第一次 materialization 后向 enum 添加实际领域方法；再次运行 plan/generate/generateSources
+      不覆盖该方法，enum 文件 hash 保持不变。
+    result: passed
+    reason:
+      text: Gradle functional test 验证作者添加 isTerminal 后 generateSources 与 clean compile
+        保持文件逐字不变；Payment 保留多个作者方法。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: "A5：生成 enum 保持 `value: Int`、`description: String`、`valueOfOrNull` 和 nested
+      `Converter`；现有 JPA `@Convert(converter = Enum.Converter::class)` 与整数
+      round-trip 不漂移。"
+    result: passed
+    reason:
+      text: 模板和 Payment enum 保留 value:Int、description、valueOfOrNull、nested
+        Converter；H2 测试验证整数存储及 typed enum reload。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: A6：没有 `fields` 的旧 manifest 保持源码兼容，生成的基础 enum API 不因新增扩展能力而改变。
+    result: passed
+    reason:
+      text: 无 fields declaration 继续投影 legacy definitions；Payment 其余四个 enum 保留旧基础 API。
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: A7：canonical catalog 的 definition equality/ambiguity 同时比较 property schema
+      与各 item 的类型化值，不静默丢弃未知字段。
+    result: passed
+    reason:
+      text: Canonical catalog descriptor/equality 包含 ordered properties 与 typed item
+        values；冲突测试覆盖 schema/value 差异。
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: A8：Generator descriptor、plan.json、AgentFacts、Public Docs、Skill 与真实 Payment
+      Composite consumer 对 enum ownership 和能力描述一致。
+    result: passed
+    reason:
+      text: Descriptor、Payment plan、ownership AgentFacts、public enum reference、Skill
+        ownership 文档均一致描述 CHECKED_IN_SOURCE+SKIP。
+      truncated: false
+  - id: A9
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Cap4k shall model manifest-authored Business Enum declarations as stable,
+      typed domain types that can carry explicit business properties in addition
+      to their persisted integer identity and human-readable description. The
+      generated enum class is first-materialized into checked-in domain source
+      so project authors can add domain behavior without later generation
+      overwriting it.
+    result: passed
+    reason:
+      text: Canonical typed values、checked-in enum 及 Payment 作者领域方法共同实现可演进 typed
+        domain type。
+      truncated: false
+  - id: A10
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`types.enumManifest` remains the authoring entry point and the manifest
+      root remains a JSON array."
+    result: passed
+    reason:
+      text: Provider 仍由 types.enumManifest 文件输入并强制 manifest root 为 JSON array。
+      truncated: false
+  - id: A11
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Each enum entry shall declare `name`, `package`, optional `aggregates`,
+      optional `fields`, and required `items`.
+    result: passed
+    reason:
+      text: Provider schema 允许 name/package/aggregates/fields/items，并要求
+        name、package、items。
+      truncated: false
+  - id: A12
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Omitting `fields` shall preserve the existing `value` / `name` / `desc`
+      item shape.
+    result: passed
+    reason:
+      text: fields 缺省为空且 legacy definitions compatibility test 通过。
+      truncated: false
+  - id: A13
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`fields` shall be an ordered array of property declarations. Each
+      declaration shall contain exactly a property `name` and a semantic `type`
+      expression."
+    result: passed
+    reason:
+      text: fields 按 JSON array 顺序解析，每项严格只允许 name/type。
+      truncated: false
+  - id: A14
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`fields` defines property identity, type, and constructor order only. It
+      shall not define a default value."
+    result: passed
+    reason:
+      text: FIELD_KEYS 仅含 name/type，default 等额外成员被严格拒绝。
+      truncated: false
+  - id: A15
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Every item shall explicitly provide a value for every declared custom
+      property. A nullable property shall use an explicit JSON `null`; omission
+      shall not imply `null`.
+    result: passed
+    reason:
+      text: Provider 用 item.has 区分缺失和显式 null；canonical 仅在 nullable type 接受 Null。
+      truncated: false
+  - id: A16
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "Every item shall continue to provide:"
+    result: passed
+    reason:
+      text: 每个 item 继续强制读取 value、name、desc。
+      truncated: false
+  - id: A17
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`value`: the stable persisted integer identity;"
+    result: passed
+    reason:
+      text: value 通过 requiredPersistedInt 编译为稳定 Int identity。
+      truncated: false
+  - id: A18
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`name`: the Kotlin enum constant identity;"
+    result: passed
+    reason:
+      text: name 经过 Kotlin identifier、reserved 和 duplicate constant 校验。
+      truncated: false
+  - id: A19
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`desc`: the authoring description projected as generated `description`."
+    result: passed
+    reason:
+      text: desc 进入 canonical description，并由模板生成 description property。
+      truncated: false
+  - id: A20
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Item properties not declared by `fields` shall be rejected rather than
+      silently discarded.
+    result: passed
+    reason:
+      text: item requireAllowedKeys 使用 built-ins 加声明字段集合，未知 key 在 source 阶段失败。
+      truncated: false
+  - id: A21
+    source: specs/enum-manifest-domain-type/spec.md
+    text: The first supported custom-property types are `String`, `Boolean`, `Byte`,
+      `Short`, `Int`, `Long`, `Float`, `Double`, `BigInteger`, and `BigDecimal`,
+      including explicit nullability where supported by the canonical type
+      expression.
+    result: passed
+    reason:
+      text: canonical compiler 与 planner 明确覆盖
+        String、Boolean、Byte、Short、Int、Long、Float、Double、BigInteger、BigDecimal 及
+        nullability。
+      truncated: false
+  - id: A22
+    source: specs/enum-manifest-domain-type/spec.md
+    text: A custom property may reference a resolved canonical enum type. Its item
+      value shall be the exact referenced enum constant name encoded as a JSON
+      string; canonical compilation shall resolve and validate the constant
+      before planning.
+    result: passed
+    reason:
+      text: SemanticNamedTypeRef 被限制为 canonical ENUM，并在 planning 前验证目标常量集合。
+      truncated: false
+  - id: A23
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Integral and decimal JSON literals shall be validated against the declared
+      target type and numeric range without passing unchecked source text to the
+      renderer.
+    result: passed
+    reason:
+      text: 整数使用 exact range conversion；Float/Double 检查 overflow 和 nonzero
+        underflow；renderer 仅接收 typed values。
+      truncated: false
+  - id: A24
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Collections, `Map`, Value Object construction, arbitrary object
+      construction, and raw Kotlin expressions are unsupported in this
+      capability.
+    result: passed
+    reason:
+      text: List/Set/Array/Map 在 enum property validation 中拒绝，其他 named type 必须为
+        canonical ENUM。
+      truncated: false
+  - id: A25
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Symbol identity, FQN resolution, literal validation, rendered type, and
+      imports shall be decided before the template boundary. Pebble shall
+      consume already validated typed context and shall not parse type
+      expressions or infer literals.
+    result: passed
+    reason:
+      text: 类型解析和 literal compilation 位于 canonical 阶段；planner 仅渲染
+        SemanticTypeRef/SemanticEnumValue，Pebble 不解析类型。
+      truncated: false
+  - id: A26
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Source snapshots and the canonical enum definition shall retain the
+      ordered custom-property schema and a typed value for every item/property
+      pair.
+    result: passed
+    reason:
+      text: EnumDeclarationSnapshot 保存 ordered fields 和 keyed
+        literals；SharedEnumDefinition 保存 ordered properties 与 typed value lists。
+      truncated: false
+  - id: A27
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Canonical enum equality and ambiguity checks shall compare enum identity,
+      scope, built-in item members, ordered property schema, and all typed item
+      values.
+    result: passed
+    reason:
+      text: Canonical catalog 冲突比较包含 identity/scope/items/properties，测试验证 property
+        schema 与 typed values 差异。
+      truncated: false
+  - id: A28
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Unknown item members or unresolved values shall never be dropped while
+      compiling to the canonical model.
+    result: passed
+    reason:
+      text: 未知 item member 在 source 阶段直接拒绝；未解析 enum reference 在 canonical compilation
+        失败。
+      truncated: false
+  - id: A29
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`name` remains enum constant identity and shall not automatically become
+      a constructor property."
+    result: passed
+    reason:
+      text: 生成 constructor 仅含 value、description 和 fields；name 仅作为 enum constant
+        identity。
+      truncated: false
+  - id: A30
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`value` remains the only built-in persisted numeric identity."
+    result: passed
+    reason:
+      text: 生成 API 中唯一内建持久化 identity 仍为 value:Int。
+      truncated: false
+  - id: A31
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "`desc` remains the authoring key while canonical and generated APIs
+      continue to expose `description`."
+    result: passed
+    reason:
+      text: authoring 输入继续读取 desc，canonical/template/API 使用 description。
+      truncated: false
+  - id: A32
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "Generation shall fail before rendering with enum, item, and property
+      identity when any of the following occurs:"
+    result: passed
+    reason:
+      text: Source/canonical 所有新校验均发生在 planner/renderer 前，错误消息包含相关 identity。
+      truncated: false
+  - id: A33
+    source: specs/enum-manifest-domain-type/spec.md
+    text: a declared property is missing from an item;
+    result: passed
+    reason:
+      text: missing properties source test 和 item.has 校验确认缺失声明属性确定性失败。
+      truncated: false
+  - id: A34
+    source: specs/enum-manifest-domain-type/spec.md
+    text: an undeclared property appears on an item;
+    result: passed
+    reason:
+      text: unknown fields source test 确认未声明 item property 确定性失败。
+      truncated: false
+  - id: A35
+    source: specs/enum-manifest-domain-type/spec.md
+    text: a property literal is incompatible with its declared type, nullability, or
+      numeric range;
+    result: passed
+    reason:
+      text: canonical literal compiler逐类型检查 JSON kind、nullability、整数范围及浮点范围。
+      truncated: false
+  - id: A36
+    source: specs/enum-manifest-domain-type/spec.md
+    text: a property name is duplicated, is not a valid Kotlin property identity, or
+      conflicts with a reserved generated enum member;
+    result: passed
+    reason:
+      text: property identifier、Kotlin keyword、reserved name 与 duplicate property 均在
+        source provider 校验。
+      truncated: false
+  - id: A37
+    source: specs/enum-manifest-domain-type/spec.md
+    text: an enum constant name is duplicated or invalid;
+    result: passed
+    reason:
+      text: constant identifier、reserved generated member 与 duplicate constant 均被校验。
+      truncated: false
+  - id: A38
+    source: specs/enum-manifest-domain-type/spec.md
+    text: a persisted `value` is duplicated, non-integral, or outside the supported
+      `Int` contract;
+    result: passed
+    reason:
+      text: persisted value 强制 JSON integral、Int exact range，并检查 duplicate value。
+      truncated: false
+  - id: A39
+    source: specs/enum-manifest-domain-type/spec.md
+    text: a referenced canonical enum type or constant is missing or ambiguous;
+    result: passed
+    reason:
+      text: canonical type catalog 处理 missing/ambiguous symbol，literal compiler 校验
+        missing referenced constant。
+      truncated: false
+  - id: A40
+    source: specs/enum-manifest-domain-type/spec.md
+    text: two declarations with the same canonical enum identity disagree on schema
+      or item values.
+    result: passed
+    reason:
+      text: 同 FQN declaration 的 properties 或 typed item values 不同会产生 conflicting
+        canonical enum definition。
+      truncated: false
+  - id: A41
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Diagnostics shall identify the manifest/source path and the relevant enum,
+      item, property, type, or value.
+    result: passed
+    reason:
+      text: 诊断由 sourcePath 加 enum/item/property/type/value 文本组成，相关测试断言了关键 identity。
+      truncated: false
+  - id: A42
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "Declared custom properties shall become typed constructor properties
+      after the existing `value: Int` and `description: String` properties, in
+      manifest `fields` order."
+    result: passed
+    reason:
+      text: 模板在 value:Int、description:String 后按 properties 顺序生成 typed constructor
+        properties。
+      truncated: false
+  - id: A43
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Each enum constant shall pass explicit constructor arguments for every
+      declared custom property.
+    result: passed
+    reason:
+      text: 每个 item 的 propertyValues 按 schema 编译，模板为每个常量输出全部显式参数。
+      truncated: false
+  - id: A44
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "The generated API shall preserve the existing enum FQN, `value: Int`,
+      `description: String`, `valueOfOrNull`, and nested JPA `Converter` shape."
+    result: passed
+    reason:
+      text: Payment 实际源码与 renderer test 均确认 FQN、value、description、valueOfOrNull 和
+        nested Converter 未漂移。
+      truncated: false
+  - id: A45
+    source: specs/enum-manifest-domain-type/spec.md
+    text: The nested converter shall continue to persist and restore the enum
+      through its stable integer `value`; custom properties shall not change the
+      database representation.
+    result: passed
+    reason:
+      text: Converter 仍以 Int 转换；Payment H2/JPA 报告确认 DB int 到同一 typed enum 的往返。
+      truncated: false
+  - id: A46
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Custom properties may be consumed by project-authored methods, derived
+      properties, and domain rules after first materialization.
+    result: passed
+    reason:
+      text: Payment enum 作者方法使用 group/terminal；ChannelResultRecordingOutcome 以
+        isTerminal/isRejected/isConflicting 等执行领域约束。
+      truncated: false
+  - id: A47
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Manifest-authored shared and aggregate-owned Business Enum Kotlin classes
+      shall be planned as `CHECKED_IN_SOURCE` with effective `SKIP` conflict
+      behavior under the domain module `src/main/kotlin` source root.
+    result: passed
+    reason:
+      text: EnumManifestArtifactPlanner 对 shared 和 aggregate-owned manifest enum 统一调用
+        checkedInKotlinArtifact，并显式 SKIP。
+      truncated: false
+  - id: A48
+    source: specs/enum-manifest-domain-type/spec.md
+    text: The enum class shall no longer be a `GENERATED_SOURCE` artifact under
+      `build/generated`.
+    result: passed
+    reason:
+      text: enum descriptor 只声明 CHECKED_IN_SOURCE；Payment plan 无 manifest Business
+        Enum 的 build/generated 输出。
+      truncated: false
+  - id: A49
+    source: specs/enum-manifest-domain-type/spec.md
+    text: First generation may materialize a missing checked-in enum file. Once
+      present, project source is the evolution authority and repeated
+      plan/generate/generateSources runs shall not overwrite it.
+    result: passed
+    reason:
+      text: functional test 验证首次 materialization 后 generateSources/clean
+        保留作者源码；Payment plan 为 SKIP。
+      truncated: false
+  - id: A50
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Cap4k shall not add managed regions, merge logic, patching, or automatic
+      synchronization for an already materialized enum source file.
+    result: passed
+    reason:
+      text: 实现只使用普通 checked-in SKIP 写入路径，未引入 managed region、merge、patch 或同步逻辑。
+      truncated: false
+  - id: A51
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Clean deletion of build directories shall not remove the checked-in enum
+      or make the project uncompilable.
+    result: passed
+    reason:
+      text: functional clean compile 与 Payment Composite clean build 均证明删除 build 后
+        checked-in enum 仍存在并可编译。
+      truncated: false
+  - id: A52
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Planner evidence, `plan.json`, AgentFacts ownership, descriptors, tests,
+      Public Docs, and the authoring Skill shall project the same checked-in
+      path, output kind, and conflict semantics.
+    result: passed
+    reason:
+      text: planner、plan.json、ownership.json、descriptor、tests、public docs 和 Skill
+        均投影相同路径、kind 与 SKIP semantics。
+      truncated: false
+  - id: A53
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Existing manifests without `fields` remain valid and preserve their
+      generated enum API and numeric converter behavior.
+    result: passed
+    reason:
+      text: legacy definitions compatibility test 与 Payment 无 fields enums 确认旧
+        manifest 和 converter API 保持有效。
+      truncated: false
+  - id: A54
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Existing enum FQNs and persisted numeric values shall not change because
+      ownership moves from build-owned output to checked-in source.
+    result: passed
+    reason:
+      text: Payment 既有 enum package/FQN 和 numeric values 未因 ownership 变化改变。
+      truncated: false
+  - id: A55
+    source: specs/enum-manifest-domain-type/spec.md
+    text: No compatibility alias, duplicate build-generated enum, or second enum FQN
+      shall be retained.
+    result: passed
+    reason:
+      text: Payment plan 和工作树检索只发现 src/main checked-in enum；build/generated 中不存在第二
+        Business Enum class/FQN。
+      truncated: false
+  - id: A56
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Consumers adopting the new generator shall first materialize and commit
+      the enum source; subsequent generation shall skip that file.
+    result: passed
+    reason:
+      text: cap4kGenerate 可物化缺失 enum，已存在文件由 ConflictPolicy.SKIP 保留；functional test
+        覆盖该流程。
+      truncated: false
+  - id: A57
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Changing an already persisted enum `value` remains a business/data
+      migration concern and is not automated by this capability.
+    result: passed
+    reason:
+      text: 实现未提供 persisted value 自动迁移或同步机制，文档明确将变更留给业务/数据迁移。
+      truncated: false
+  - id: A58
+    source: specs/enum-manifest-domain-type/spec.md
+    text: "Given a manifest enum with ordered `group: String` and `terminal:
+      Boolean` fields, each item explicitly supplies both values and generation
+      produces typed constructor properties and constants. Domain code can add
+      and preserve behavior that consumes those properties."
+    result: passed
+    reason:
+      text: Payment manifest 的 ordered group:String、terminal:Boolean
+        全部显式赋值，生成源码及领域方法均已验证。
+      truncated: false
+  - id: A59
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Given a declared custom property, an item that omits it fails
+      deterministically. A nullable property accepts an explicit `null` but
+      omission does not inherit a default or imply `null`.
+    result: passed
+    reason:
+      text: missing property source test 确认 omission 失败；Null 仅在 nullable canonical
+        type 下接受。
+      truncated: false
+  - id: A60
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Given an undeclared item key, an incompatible literal, an unresolved enum
+      constant reference, a duplicate property, or an invalid persisted value,
+      source/canonical compilation fails with enum/item/property evidence before
+      rendering.
+    result: passed
+    reason:
+      text: source/canonical tests及实现覆盖 unknown、incompatible literal、unresolved enum
+        constant、duplicate property、invalid persisted value。
+      truncated: false
+  - id: A61
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Given an enum first materialized under domain `src/main/kotlin`, a project
+      author adds a domain method. Re-running plan, generate, and
+      generateSources preserves the file byte-for-byte and reports checked-in
+      `SKIP` ownership.
+    result: passed
+    reason:
+      text: functional fixture 对作者修改前后内容直接 assertEquals；Payment checked-in enum
+        保留领域方法且 ownership 为 SKIP。
+      truncated: false
+  - id: A62
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Given a JPA field bound to the enum converter, an H2/JPA round trip
+      continues to persist the integer `value` and restore the same enum
+      constant even when the enum has custom properties.
+    result: passed
+    reason:
+      text: PaymentReferenceApplicationTests 在真实 H2/Spring JPA 中断言 DB decision Int，并清理
+        EntityManager 后恢复 typed enum/custom properties。
+      truncated: false
+  - id: A63
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Given an existing enum manifest with no `fields`, generation preserves the
+      current `value`, `description`, `valueOfOrNull`, and nested converter API
+      while changing only the artifact ownership and source location.
+    result: passed
+    reason:
+      text: 无 fields 的 Payment enums 和 functional legacy API 断言确认
+        value、description、valueOfOrNull、nested Converter 保持。
+      truncated: false
+  - id: A64
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Source provider, canonical assembler/catalog, type resolution, planner
+      context, renderer template, generator descriptor, AgentFacts, public
+      reference, authoring Skill, and functional/compile fixtures shall be
+      updated together.
+    result: passed
+    reason:
+      text: Source
+        provider、API/canonical、assembler、catalog、planner、template、descriptor、Gradle、AgentFacts、docs、Skill
+        与 fixtures 均有对应变更。
+      truncated: false
+  - id: A65
+    source: specs/enum-manifest-domain-type/spec.md
+    text: Focused evidence shall include source validation failures, canonical
+      equality/ambiguity, planner ownership/path, renderer output,
+      repeated-generation preservation, JPA converter round trip, and a real
+      Composite consumer using a custom business property.
+    result: passed
+    reason:
+      text: 现有 focused evidence 覆盖 validation、catalog
+        conflict、ownership/path、renderer、preservation、JPA roundtrip 和真实
+        Composite consumer。
+      truncated: false
+builder_handoff:
+  candidate_id: ddcf82f0-0501-419c-b16b-816d8fd486a5
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:093edfde-bfdc-4ed1-a297-e1c42d7f23cb
+  iteration: 1
+  summary:
+    text: Implemented extensible typed enum-manifest declarations end to end; moved
+      manifest Business Enum artifacts to checked-in domain source with SKIP
+      ownership; preserved integer/JPA API; added strict diagnostics, canonical
+      equality, collision-safe rendering, Gradle routing, docs/Skill
+      propagation, functional fixtures, and real Payment Composite consumption
+      with group/terminal domain behavior and H2/JPA persistence evidence.
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+    - A7
+    - A8
+    - A9
+    - A10
+    - A11
+    - A12
+    - A13
+    - A14
+    - A15
+    - A16
+    - A17
+    - A18
+    - A19
+    - A20
+    - A21
+    - A22
+    - A23
+    - A24
+    - A25
+    - A26
+    - A27
+    - A28
+    - A29
+    - A30
+    - A31
+    - A32
+    - A33
+    - A34
+    - A35
+    - A36
+    - A37
+    - A38
+    - A39
+    - A40
+    - A41
+    - A42
+    - A43
+    - A44
+    - A45
+    - A46
+    - A47
+    - A48
+    - A49
+    - A50
+    - A51
+    - A52
+    - A53
+    - A54
+    - A55
+    - A56
+    - A57
+    - A58
+    - A59
+    - A60
+    - A61
+    - A62
+    - A63
+    - A64
+    - A65
+  checks:
+    - name:
+        text: cap4k full Gradle check
+        truncated: false
+      result: passed
+      note:
+        text: .\\gradlew.bat check --no-daemon --console=plain; BUILD SUCCESSFUL in 10m
+          11s.
+        truncated: false
+    - name:
+        text: Payment Composite clean build
+        truncated: false
+      result: passed
+      note:
+        text: Explicit CAP4K_LOCAL_PATH to this worktree; clean build completed with 95
+          tasks.
+        truncated: false
+    - name:
+        text: Payment enum ownership and preservation
+        truncated: false
+      result: passed
+      note:
+        text: Five enum plan items are CHECKED_IN_SOURCE + SKIP under
+          domain/src/main/kotlin; repeated plan/generate preserved authored
+          method hash; no business enum exists under build/generated.
+        truncated: false
+    - name:
+        text: Payment domain and H2/JPA tests
+        truncated: false
+      result: passed
+      note:
+        text: Focused enum/outcome/domain tests and PaymentReferenceApplicationTests
+          passed; DB integer decision was asserted and entity reloaded as typed
+          enum with custom properties.
+        truncated: false
+    - name:
+        text: Payment analysis and AgentFacts
+        truncated: false
+      result: passed
+      note:
+        text: Plan 41 items, ownership 41 items, diagnostics empty, analysis OK; Mermaid
+          labels are quoted and parse-risk form is absent.
+        truncated: false
+    - name:
+        text: Capability facts export and validation
+        truncated: false
+      result: passed
+      note:
+        text: export-capability-contract-facts, validate-capability-contract, and
+          test-capability-contract passed.
+        truncated: false
+    - name:
+        text: Runtime facts validation
+        truncated: false
+      result: passed
+      note:
+        text: validate-current-runtime-facts passed with no retired Runtime surfaces.
+        truncated: false
+    - name:
+        text: PR and workflow guards
+        truncated: false
+      result: passed
+      note:
+        text: test-pr-workflow passed.
+        truncated: false
+    - name:
+        text: Changed public/change Markdown links
+        truncated: false
+      result: passed
+      note:
+        text: Changed public docs, Skill reference, brief and target spec links resolve.
+        truncated: false
+    - name:
+        text: Git whitespace validation
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check exited 0.
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: Payment AgentFacts manifest is partial only because the DB source is a
+        live external input whose freshness is UNKNOWN by contract; ownership
+        contains 41 items and diagnostics are empty.
+      truncated: false
+    - text: A broad scan of historical docs/superpowers/analysis files reports
+        pre-existing unrelated relative-link debt; all changed public, Skill,
+        brief, and target-spec surfaces pass the focused link validator.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-18T07:16:46.238Z
+blockers: []
+verification:
+  candidate_id: ddcf82f0-0501-419c-b16b-816d8fd486a5
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:878fb7d7-21d1-47d8-addc-b208c6c8d1b0
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: enum-core-suite
+      name:
+        text: Enum source canonical planner renderer suites
+        truncated: false
+      argv_display:
+        - text: :cap4k-plugin-pipeline-source-enum-manifest:test
+          truncated: false
+        - text: :cap4k-plugin-pipeline-api:test
+          truncated: false
+        - text: :cap4k-plugin-pipeline-core:test
+          truncated: false
+        - text: :cap4k-plugin-pipeline-generator-aggregate:test
+          truncated: false
+        - text: :cap4k-plugin-pipeline-renderer-pebble:test
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+        - text: --console=plain
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 18758
+    - id: enum-gradle-functional
+      name:
+        text: Enum Gradle ownership compile and AgentFacts evidence
+        truncated: false
+      argv_display:
+        - text: :cap4k-plugin-pipeline-gradle:test
+          truncated: false
+        - text: --tests
+          truncated: false
+        - text: com.only4.cap4k.plugin.pipeline.gradle.PipelinePluginCompileFunctionalTest.enum
+            manifest materializes checked in source that survives clean compile
+          truncated: false
+        - text: --tests
+          truncated: false
+        - text: com.only4.cap4k.plugin.pipeline.gradle.Cap4kAgentSnapshotFunctionalTest.enum
+            ownership snapshot reports checked in authoring source
+          truncated: false
+        - text: --no-daemon
+          truncated: false
+        - text: --console=plain
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 59020
+    - id: capability-contract
+      name:
+        text: Capability Public Docs and Skill projection guards
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/test-capability-contract.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 37672
+    - id: runtime-contract
+      name:
+        text: Current Runtime facts guard
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/validate-current-runtime-facts.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 7233
+    - id: diff-check
+      name:
+        text: Git whitespace validation
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 204
+  summary:
+    text: 独立验证通过：typed enum fields 的严格 schema、完整 scalar/canonical-enum literal
+      algebra、诊断、canonical 保真、collision-safe planning/rendering、checked-in SKIP
+      ownership、legacy API、nested Int converter、Payment 领域消费及真实 H2/JPA roundtrip
+      均有实现和通过的证据；descriptor、plan、AgentFacts、Public Docs 与 Skill 一致，且未发现
+      build/generated 下的第二 enum FQN。
+    truncated: false
+  risks: []
+  risks_truncated: false
+  completed_at: 2026-08-18T07:27:11.955Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: 独立验证通过：typed enum fields 的严格 schema、完整 scalar/canonical-enum literal
+        algebra、诊断、canonical 保真、collision-safe planning/rendering、checked-in
+        SKIP ownership、legacy API、nested Int converter、Payment 领域消费及真实 H2/JPA
+        roundtrip 均有实现和通过的证据；descriptor、plan、AgentFacts、Public Docs 与 Skill
+        一致，且未发现 build/generated 下的第二 enum FQN。
+      truncated: false
+    completed_at: 2026-08-18T07:27:11.955Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: true
+created_at: 2026-08-18T02:42:42.729Z

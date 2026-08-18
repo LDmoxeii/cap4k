@@ -437,9 +437,6 @@ internal fun generatedSourceModuleRoles(config: ProjectConfig): Set<String> {
     if ("aggregate-projection" in config.generators) {
         roles += "adapter"
     }
-    if ("enum-manifest" in config.sources) {
-        roles += "domain"
-    }
     if ("value-object-manifest" in config.sources) {
         roles += "domain"
     }

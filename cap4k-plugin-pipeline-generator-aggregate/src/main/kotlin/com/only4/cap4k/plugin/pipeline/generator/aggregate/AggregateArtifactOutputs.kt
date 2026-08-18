@@ -38,10 +38,11 @@ internal fun checkedInKotlinArtifact(
     templateId: String,
     context: Map<String, Any?>,
     conflictPolicy: ConflictPolicy = config.templates.conflictPolicy,
+    generatorId: String = "aggregate",
 ): ArtifactPlanItem {
     val moduleRoot = requireRelativeModule(config, moduleRole)
     return ArtifactPlanItem(
-        generatorId = "aggregate",
+        generatorId = generatorId,
         moduleRole = moduleRole,
         templateId = templateId,
         outputPath = artifactLayout.kotlinSourcePath(moduleRoot, packageName, typeName),

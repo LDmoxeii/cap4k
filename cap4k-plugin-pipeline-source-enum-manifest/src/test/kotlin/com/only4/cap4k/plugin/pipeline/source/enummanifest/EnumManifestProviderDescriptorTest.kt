@@ -7,10 +7,10 @@ import org.junit.jupiter.api.Test
 
 class EnumManifestProviderDescriptorTest {
     @Test
-    fun `descriptor exposes generated source lane`() {
+    fun `descriptor exposes authoring lane without generated source task`() {
         val descriptor = EnumManifestSourceProvider().descriptor
 
-        assertEquals(listOf(PipelineExecutionLane.GENERATED_SOURCE), descriptor.executionLanes)
-        assertEquals(PipelinePublicTasks.GENERATE_SOURCES, descriptor.tasks.last())
+        assertEquals(listOf(PipelineExecutionLane.AUTHORING), descriptor.executionLanes)
+        assertEquals(listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE), descriptor.tasks)
     }
 }

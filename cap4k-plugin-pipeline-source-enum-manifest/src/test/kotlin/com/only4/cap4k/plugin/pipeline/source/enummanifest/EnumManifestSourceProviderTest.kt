@@ -189,6 +189,81 @@ class EnumManifestSourceProviderTest {
         )
     }
 
+
+    @Test
+    fun `collects ordered typed enum property snapshots`() {
+        val projectDir = Files.createTempDirectory("enum-manifest-source-fields")
+        val manifest = projectDir.resolve("enums.json")
+        manifest.writeText(
+            """
+            [{
+              "name":"Disposition", "package":"shared",
+              "fields":[{"name":"group","type":"String"},{"name":"terminal","type":"Boolean"}],
+              "items":[{"value":0,"name":"RECEIVED","desc":"received","group":"pending","terminal":false}]
+            }]
+            """.trimIndent()
+        )
+        val declaration = EnumManifestSourceProvider().collect(configFor(manifest.toString())).declarations.single()
+        assertEquals(listOf("group", "terminal"), declaration.fields.map { it.name })
+        assertEquals(setOf("group", "terminal"), declaration.items.single().propertyValues.keys)
+    }
+
+    @Test
+    fun `rejects missing unknown and non integral enum data`() {
+        val cases = listOf(
+            """[{"name":"Status","package":"shared","fields":[{"name":"group","type":"String"}],"items":[{"value":0,"name":"A","desc":"a"}]}]""" to "missing properties group",
+            """[{"name":"Status","package":"shared","items":[{"value":0,"name":"A","desc":"a","group":"x"}]}]""" to "unknown fields group",
+            """[{"name":"Status","package":"shared","items":[{"value":1.5,"name":"A","desc":"a"}]}]""" to "must be a JSON integral number",
+        )
+        cases.forEachIndexed { index, (json, evidence) ->
+            val manifest = Files.createTempDirectory("enum-invalid-$index").resolve("enums.json")
+            manifest.writeText(json)
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                EnumManifestSourceProvider().collect(configFor(manifest.toString()))
+            }
+            check(error.message.orEmpty().contains(evidence)) { error.message.orEmpty() }
+        }
+    }
+
+    @Test
+    fun `typed declarations are not projected into lossy legacy definitions`() {
+        val manifest = Files.createTempDirectory("enum-fields-compat").resolve("enums.json")
+        manifest.writeText("""[{"name":"Status","package":"shared","fields":[{"name":"label","type":"String"}],"items":[{"value":1,"name":"ACTIVE","desc":"active","label":"Active"}]}]""")
+        val snapshot = EnumManifestSourceProvider().collect(configFor(manifest.toString()))
+        assertEquals(1, snapshot.declarations.size)
+        assertEquals(emptyList<String>(), snapshot.definitions.map { it.typeName })
+    }
+
+    @Test
+    fun `legacy definitions remain available for declarations without fields`() {
+        val manifest = Files.createTempDirectory("enum-legacy-compat").resolve("enums.json")
+        manifest.writeText("""[{"name":"Status","package":"shared","items":[{"value":1,"name":"ACTIVE","desc":"active"}]}]""")
+        val snapshot = EnumManifestSourceProvider().collect(configFor(manifest.toString()))
+        assertEquals(listOf("Status"), snapshot.definitions.map { it.typeName })
+    }
+
+    @Test
+    fun `duplicate JSON members fail with manifest path`() {
+        val manifest = Files.createTempDirectory("enum-duplicate-json").resolve("enums.json")
+        manifest.writeText("""[{"name":"Status","name":"Other","package":"shared","items":[{"value":1,"name":"ACTIVE","desc":"active"}]}]""")
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            EnumManifestSourceProvider().collect(configFor(manifest.toString()))
+        }
+        check(error.message.orEmpty().startsWith("enum manifest $manifest: invalid JSON:")) { error.message.orEmpty() }
+        check(error.message.orEmpty().contains("Duplicate field 'name'")) { error.message.orEmpty() }
+    }
+
+    @Test
+    fun `enum constants reject generated member names`() {
+        listOf("Converter", "valueOfOrNull", "entries", "values", "valueOf").forEach { reserved ->
+            val manifest = Files.createTempDirectory("enum-reserved-constant").resolve("enums.json")
+            manifest.writeText("""[{"name":"Status","package":"shared","items":[{"value":1,"name":"$reserved","desc":"reserved"}]}]""")
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                EnumManifestSourceProvider().collect(configFor(manifest.toString()))
+            }
+            check(error.message.orEmpty().contains("enum Status item $reserved")) { error.message.orEmpty() }
+        }
+    }
     private fun configFor(filePath: String): ProjectConfig =
         ProjectConfig(
             basePackage = "com.acme.demo",

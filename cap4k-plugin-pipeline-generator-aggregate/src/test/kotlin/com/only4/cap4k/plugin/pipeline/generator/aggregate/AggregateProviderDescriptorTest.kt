@@ -20,8 +20,9 @@ class AggregateProviderDescriptorTest {
     }
 
     @Test
-    fun `projection and enum providers declare generated source ownership`() {
+    fun `projection and enum providers declare their output ownership`() {
         assertEquals(listOf(ArtifactOutputKind.GENERATED_SOURCE), AggregateProjectionArtifactPlanner().descriptor.outputKinds)
-        assertEquals(listOf(ArtifactOutputKind.GENERATED_SOURCE), EnumManifestArtifactPlanner().descriptor.outputKinds)
+        assertEquals(listOf(ArtifactOutputKind.CHECKED_IN_SOURCE), EnumManifestArtifactPlanner().descriptor.outputKinds)
+        assertEquals(listOf(PipelinePublicTasks.PLAN, PipelinePublicTasks.GENERATE), EnumManifestArtifactPlanner().descriptor.tasks)
     }
 }

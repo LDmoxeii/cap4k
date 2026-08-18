@@ -49,7 +49,7 @@ internal class AggregateSemanticTypeRenderer(
         val rendered = when (type) {
             is SemanticBuiltinTypeRef -> AggregateSemanticRenderedType(
                 renderedType = type.kind.kotlinName,
-                imports = emptyList(),
+                imports = type.kind.kotlinImport?.let(::listOf).orEmpty(),
             )
 
             is SemanticNamedTypeRef -> renderNamed(type.symbol)
@@ -103,6 +103,12 @@ internal fun SemanticTypeRef.namedSymbols(): List<CanonicalTypeIdentity> = when 
     is SemanticMapTypeRef -> keyType.namedSymbols() + valueType.namedSymbols()
 }
 
+private val SemanticBuiltinType.kotlinImport: String?
+    get() = when (this) {
+        SemanticBuiltinType.BIG_DECIMAL -> "java.math.BigDecimal"
+        SemanticBuiltinType.BIG_INTEGER -> "java.math.BigInteger"
+        else -> null
+    }
 private val SemanticBuiltinType.kotlinName: String
     get() = when (this) {
         SemanticBuiltinType.ANY -> "Any"
@@ -111,6 +117,8 @@ private val SemanticBuiltinType.kotlinName: String
         SemanticBuiltinType.CHAR -> "Char"
         SemanticBuiltinType.DOUBLE -> "Double"
         SemanticBuiltinType.FLOAT -> "Float"
+        SemanticBuiltinType.BIG_DECIMAL -> "BigDecimal"
+        SemanticBuiltinType.BIG_INTEGER -> "BigInteger"
         SemanticBuiltinType.INT -> "Int"
         SemanticBuiltinType.LONG -> "Long"
         SemanticBuiltinType.NOTHING -> "Nothing"

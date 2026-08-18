@@ -31,6 +31,16 @@ import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.DesignSpecSnapshot
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
+import com.only4.cap4k.plugin.pipeline.api.EnumDeclarationSnapshot
+import com.only4.cap4k.plugin.pipeline.api.EnumLiteralSnapshot
+import com.only4.cap4k.plugin.pipeline.api.EnumPropertyModel
+import com.only4.cap4k.plugin.pipeline.api.SemanticArrayTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
+import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticEnumValue
+import com.only4.cap4k.plugin.pipeline.api.SemanticMapTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticSetTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticTypeRef
 import com.only4.cap4k.plugin.pipeline.api.EnumManifestSnapshot
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.AgentSnapshotStatus
@@ -81,7 +91,19 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
         val artifactLayout = ArtifactLayoutResolver(config.basePackage, config.artifactLayout)
         val designSnapshot = snapshots.filterIsInstance<DesignSpecSnapshot>().firstOrNull()
         val dbSnapshot = snapshots.filterIsInstance<DbSchemaSnapshot>().firstOrNull()
-        val sharedEnums = snapshots.filterIsInstance<EnumManifestSnapshot>().flatMap { it.definitions }
+        val enumSnapshots = snapshots.filterIsInstance<EnumManifestSnapshot>()
+        val enumDeclarations = enumSnapshots.flatMap { it.declarations }
+        val legacyEnumDefinitions = enumSnapshots.flatMap { snapshot ->
+            if (snapshot.declarations.isEmpty()) snapshot.definitions else emptyList()
+        }
+        var sharedEnums = legacyEnumDefinitions + enumDeclarations.map { declaration ->
+            com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition(
+                typeName = declaration.typeName,
+                packageName = declaration.packageName,
+                aggregates = declaration.aggregates,
+                items = declaration.items.map { item -> EnumItemModel(item.value, item.name, item.description) },
+            )
+        }
         val valueObjectDeclarations = snapshots.filterIsInstance<ValueObjectManifestSnapshot>().flatMap { it.declarations }
         val typeRegistry = TypeRegistryModel(config.typeRegistry.entries)
         val analysisSnapshot = snapshots.filterIsInstance<AnalyzerSnapshot>().firstOrNull()
@@ -304,6 +326,13 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             valueObjects = valueObjectDeclarations,
             designEntries = designEntries,
             recoveredDesignElements = analysisSnapshot?.designProjection?.designBlocks.orEmpty(),
+        )
+        sharedEnums = legacyEnumDefinitions + compileEnumDeclarations(
+            declarations = enumDeclarations,
+            catalog = semanticTypeCatalog,
+            artifactLayout = artifactLayout,
+            entities = entities,
+            legacyDefinitions = legacyEnumDefinitions,
         )
         val semanticCompiler = SemanticValueCompiler(semanticTypeCatalog)
         val valueObjects = valueObjectDeclarations.map { declaration ->
@@ -1499,6 +1528,195 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
             canonicalDeclarations = canonicalDeclarations,
             artifactDeclarationFqns = artifactDeclarations,
         )
+    }
+
+    private val EnumScalarBuiltinTypes = setOf(SemanticBuiltinType.STRING, SemanticBuiltinType.BOOLEAN, SemanticBuiltinType.BYTE, SemanticBuiltinType.SHORT, SemanticBuiltinType.INT, SemanticBuiltinType.LONG, SemanticBuiltinType.FLOAT, SemanticBuiltinType.DOUBLE, SemanticBuiltinType.BIG_INTEGER, SemanticBuiltinType.BIG_DECIMAL)
+
+    private fun compileEnumDeclarations(
+        declarations: List<EnumDeclarationSnapshot>,
+        catalog: CanonicalTypeCatalog,
+        artifactLayout: ArtifactLayoutResolver,
+        entities: List<EntityModel>,
+        legacyDefinitions: List<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition>,
+    ): List<com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition> {
+        val identities = declarations.associateWith { declaration ->
+            canonicalEnumIdentity(
+                artifactLayout,
+                entities,
+                com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition(
+                    declaration.typeName,
+                    declaration.packageName,
+                    declaration.items.map { EnumItemModel(it.value, it.name, it.description) },
+                    declaration.aggregates,
+                ),
+            )
+        }
+        val constantCandidates = buildList {
+            identities.forEach { (declaration, identity) ->
+                add(identity.fqn to declaration.items.mapTo(linkedSetOf()) { it.name })
+            }
+            legacyDefinitions.forEach { definition ->
+                add(
+                    canonicalEnumIdentity(artifactLayout, entities, definition).fqn to
+                        definition.items.mapTo(linkedSetOf()) { it.name }
+                )
+            }
+            entities.forEach { entity ->
+                entity.fields
+                    .filter { field -> field.typeBinding?.isNotBlank() == true && field.enumItems.isNotEmpty() }
+                    .forEach { field ->
+                        val fqn = "${artifactLayout.aggregateLocalEnumPackage(entity.packageName)}.${requireNotNull(field.typeBinding)}"
+                        add(fqn to field.enumItems.mapTo(linkedSetOf()) { it.name })
+                    }
+            }
+        }
+        val constantsByFqn = constantCandidates
+            .groupBy({ it.first }, { it.second })
+            .toSortedMap()
+            .mapValues { (fqn, candidates) ->
+                val distinct = candidates.distinct()
+                require(distinct.size == 1) {
+                    "conflicting canonical enum constants for $fqn: " +
+                        distinct.map { it.sorted().joinToString(prefix = "[", postfix = "]") }.sorted().joinToString(" vs ")
+                }
+                distinct.single()
+            }
+        return declarations.map { declaration ->
+            val identity = identities.getValue(declaration)
+            val properties = declaration.fields.map { field ->
+                val type = catalog.resolveExpression(
+                    expression = field.typeExpression,
+                    fieldPath = field.sourcePath,
+                    ownerPackageName = identity.packageName,
+                    aggregateContext = declaration.aggregates,
+                )
+                validateEnumPropertyType(type, field.sourcePath)
+                EnumPropertyModel(field.name, type)
+            }
+            com.only4.cap4k.plugin.pipeline.api.SharedEnumDefinition(
+                typeName = declaration.typeName,
+                packageName = declaration.packageName,
+                aggregates = declaration.aggregates,
+                properties = properties,
+                items = declaration.items.map { item ->
+                    EnumItemModel(
+                        value = item.value,
+                        name = item.name,
+                        description = item.description,
+                        propertyValues = properties.mapIndexed { index, property ->
+                            val field = declaration.fields[index]
+                            val literal = requireNotNull(item.propertyValues[field.name]) {
+                                "enum manifest ${item.sourcePath}: enum ${declaration.typeName} item ${item.name} missing property ${field.name}"
+                            }
+                            compileEnumLiteral(
+                                literal = literal,
+                                type = property.type,
+                                enumName = declaration.typeName,
+                                itemName = item.name,
+                                propertyName = field.name,
+                                constantsByFqn = constantsByFqn,
+                            )
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    private fun validateEnumPropertyType(type: SemanticTypeRef, sourcePath: String) {
+        when (type) {
+            is SemanticBuiltinTypeRef -> require(type.kind in EnumScalarBuiltinTypes) {
+                "enum manifest $sourcePath: unsupported enum property type ${type.kind}"
+            }
+            is SemanticNamedTypeRef -> require(type.symbol.kind == CanonicalTypeKind.ENUM) {
+                "enum manifest $sourcePath: enum property named type must resolve to canonical ENUM, got ${type.symbol.kind} ${type.symbol.fqn}"
+            }
+            is SemanticListTypeRef, is SemanticSetTypeRef, is SemanticArrayTypeRef, is SemanticMapTypeRef ->
+                throw IllegalArgumentException("enum manifest $sourcePath: collection enum property types are unsupported")
+        }
+    }
+
+    private fun compileEnumLiteral(
+        literal: EnumLiteralSnapshot,
+        type: SemanticTypeRef,
+        enumName: String,
+        itemName: String,
+        propertyName: String,
+        constantsByFqn: Map<String, Set<String>>,
+    ): SemanticEnumValue {
+        val identity = "${literal.sourcePath}: enum $enumName item $itemName property $propertyName"
+        if (literal is EnumLiteralSnapshot.Null) {
+            require(type.nullable) { "$identity is null but its type is not nullable" }
+            return SemanticEnumValue.Null
+        }
+        return when (type) {
+            is SemanticNamedTypeRef -> {
+                val string = literal as? EnumLiteralSnapshot.StringValue
+                    ?: throw IllegalArgumentException("$identity enum reference must be a JSON string constant name")
+                val constants = constantsByFqn[type.symbol.fqn]
+                    ?: throw IllegalArgumentException("$identity references enum ${type.symbol.fqn} without manifest constants")
+                require(string.value in constants) {
+                    "$identity references missing enum constant ${type.symbol.fqn}.${string.value}"
+                }
+                SemanticEnumValue.EnumConstantValue(type.symbol, string.value)
+            }
+            is SemanticBuiltinTypeRef -> compileBuiltinEnumLiteral(literal, type.kind, identity)
+            else -> throw IllegalArgumentException("$identity has unsupported structured type")
+        }
+    }
+
+    private fun compileBuiltinEnumLiteral(
+        literal: EnumLiteralSnapshot,
+        kind: SemanticBuiltinType,
+        identity: String,
+    ): SemanticEnumValue = when (kind) {
+        SemanticBuiltinType.STRING -> SemanticEnumValue.StringValue(
+            (literal as? EnumLiteralSnapshot.StringValue)?.value
+                ?: throw IllegalArgumentException("$identity must be a JSON string")
+        )
+        SemanticBuiltinType.BOOLEAN -> SemanticEnumValue.BooleanValue(
+            (literal as? EnumLiteralSnapshot.BooleanValue)?.value
+                ?: throw IllegalArgumentException("$identity must be a JSON boolean")
+        )
+        SemanticBuiltinType.BYTE -> SemanticEnumValue.ByteValue(exactIntegral(identity) { integral(literal, identity).byteValueExact() })
+        SemanticBuiltinType.SHORT -> SemanticEnumValue.ShortValue(exactIntegral(identity) { integral(literal, identity).shortValueExact() })
+        SemanticBuiltinType.INT -> SemanticEnumValue.IntValue(exactIntegral(identity) { integral(literal, identity).intValueExact() })
+        SemanticBuiltinType.LONG -> SemanticEnumValue.LongValue(exactIntegral(identity) { integral(literal, identity).longValueExact() })
+        SemanticBuiltinType.FLOAT -> SemanticEnumValue.FloatValue(checkedFloat(decimal(literal, identity), identity))
+        SemanticBuiltinType.DOUBLE -> SemanticEnumValue.DoubleValue(checkedDouble(decimal(literal, identity), identity))
+        SemanticBuiltinType.BIG_INTEGER -> SemanticEnumValue.BigIntegerValue(integral(literal, identity))
+        SemanticBuiltinType.BIG_DECIMAL -> SemanticEnumValue.BigDecimalValue(decimal(literal, identity))
+        else -> throw IllegalArgumentException("$identity has unsupported builtin type $kind")
+    }
+
+    private fun checkedFloat(value: java.math.BigDecimal, identity: String): Float {
+        val converted = value.toFloat()
+        require(converted.isFinite()) { "$identity is outside Float range" }
+        require(value.signum() == 0 || converted != 0.0f) { "$identity underflows Float to zero" }
+        return converted
+    }
+
+    private fun checkedDouble(value: java.math.BigDecimal, identity: String): Double {
+        val converted = value.toDouble()
+        require(converted.isFinite()) { "$identity is outside Double range" }
+        require(value.signum() == 0 || converted != 0.0) { "$identity underflows Double to zero" }
+        return converted
+    }
+
+    private inline fun <T> exactIntegral(identity: String, block: () -> T): T = try {
+        block()
+    } catch (_: ArithmeticException) {
+        throw IllegalArgumentException("$identity is outside the declared integral type range")
+    }
+
+    private fun integral(literal: EnumLiteralSnapshot, identity: String): java.math.BigInteger =
+        (literal as? EnumLiteralSnapshot.IntegerValue)?.value
+            ?: throw IllegalArgumentException("$identity must be a JSON integral number")
+
+    private fun decimal(literal: EnumLiteralSnapshot, identity: String): java.math.BigDecimal = when (literal) {
+        is EnumLiteralSnapshot.IntegerValue -> literal.value.toBigDecimal()
+        is EnumLiteralSnapshot.DecimalValue -> literal.value
+        else -> throw IllegalArgumentException("$identity must be a JSON number")
     }
 
     private fun canonicalEnumIdentity(

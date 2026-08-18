@@ -26,6 +26,7 @@ import com.only4.cap4k.plugin.pipeline.api.DbTableSnapshot
 import com.only4.cap4k.plugin.pipeline.api.ConflictPolicy
 import com.only4.cap4k.plugin.pipeline.api.EntityModel
 import com.only4.cap4k.plugin.pipeline.api.EnumItemModel
+import com.only4.cap4k.plugin.pipeline.api.EnumPropertyModel
 import com.only4.cap4k.plugin.pipeline.api.FieldModel
 import com.only4.cap4k.plugin.pipeline.api.GeneratorConfig
 import com.only4.cap4k.plugin.pipeline.api.OwnedRelationCardinality
@@ -48,6 +49,7 @@ import com.only4.cap4k.plugin.pipeline.api.ResolvedWriteSurfacePolicy
 import com.only4.cap4k.plugin.pipeline.api.SchemaModel
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinType
 import com.only4.cap4k.plugin.pipeline.api.SemanticBuiltinTypeRef
+import com.only4.cap4k.plugin.pipeline.api.SemanticEnumValue
 import com.only4.cap4k.plugin.pipeline.api.SemanticNamedTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticTypeRef
 import com.only4.cap4k.plugin.pipeline.api.SemanticValueDefinition
@@ -63,6 +65,8 @@ import com.only4.cap4k.plugin.pipeline.api.TemplateConfig
 import com.only4.cap4k.plugin.pipeline.api.UniqueConstraintModel
 import com.only4.cap4k.plugin.pipeline.api.ValueObjectModel
 import com.only4.cap4k.plugin.pipeline.core.DefaultCanonicalAssembler
+import java.math.BigDecimal
+import java.math.BigInteger
 import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -5088,7 +5092,7 @@ class AggregateArtifactPlannerTest {
 
         assertEquals("enum", sharedEnum.generatorId)
         assertEquals(
-            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
             sharedEnum.outputPath,
         )
         assertBuildingBlock(
@@ -5102,7 +5106,7 @@ class AggregateArtifactPlannerTest {
         )
         assertEquals("enum", ownedEnum.generatorId)
         assertEquals(
-            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/Visibility.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/Visibility.kt",
             ownedEnum.outputPath,
         )
         assertBuildingBlock(
@@ -5198,14 +5202,16 @@ class AggregateArtifactPlannerTest {
             aggregateEntityJpa = listOf(defaultAggregateEntityJpa(entity)),
         )
 
-        val items = planAggregate(
-            aggregateConfig(artifactLayout = artifactLayout),
-            model,
-        )
+        val config = aggregateConfig(artifactLayout = artifactLayout)
+        val items = planAggregate(config, model) + EnumManifestArtifactPlanner().plan(config, model)
 
         val localEnum = items.single {
             it.templateId == "aggregate/enum.kt.peb" &&
                 it.context["typeName"] == "Visibility"
+        }
+        val manifestEnum = items.single {
+            it.templateId == "aggregate/enum.kt.peb" &&
+                it.context["typeName"] == "Status"
         }
         val entityPlan = items.single { it.templateId == "aggregate/entity.kt.peb" }
         val schemaPlan = items.single { it.templateId == "aggregate/schema.kt.peb" }
@@ -5218,6 +5224,12 @@ class AggregateArtifactPlannerTest {
             "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/model/video_post/enums/Visibility.kt",
             localEnum.outputPath,
         )
+        assertEquals(
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/catalog/shared/types/Status.kt",
+            manifestEnum.outputPath,
+        )
+        assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, manifestEnum.outputKind)
+        assertEquals(ConflictPolicy.SKIP, manifestEnum.conflictPolicy)
         assertEquals("com.acme.demo.domain.model.video_post.enums", localEnum.context["packageName"])
         assertEquals(
             "com.acme.demo.domain.catalog.shared.types.Status",
@@ -5235,6 +5247,176 @@ class AggregateArtifactPlannerTest {
             "com.acme.demo.domain.model.video_post.enums.Visibility",
             schemaFields.single { it["name"] == "visibility" }["type"],
         )
+    }
+
+    @Test
+    fun `enum manifest planner emits checked in typed property render model`() {
+        val channelType = CanonicalTypeIdentity("com.acme.channel", listOf("Channel"), CanonicalTypeKind.ENUM)
+        val otherChannelType = CanonicalTypeIdentity("com.vendor.channel", listOf("Channel"), CanonicalTypeKind.ENUM)
+        val definition = SharedEnumDefinition(
+            typeName = "Disposition",
+            packageName = "shared",
+            properties = listOf(
+                EnumPropertyModel("group", SemanticBuiltinTypeRef(SemanticBuiltinType.STRING)),
+                EnumPropertyModel("terminal", SemanticBuiltinTypeRef(SemanticBuiltinType.BOOLEAN)),
+                EnumPropertyModel("small", SemanticBuiltinTypeRef(SemanticBuiltinType.BYTE)),
+                EnumPropertyModel("medium", SemanticBuiltinTypeRef(SemanticBuiltinType.SHORT)),
+                EnumPropertyModel("count", SemanticBuiltinTypeRef(SemanticBuiltinType.INT)),
+                EnumPropertyModel("large", SemanticBuiltinTypeRef(SemanticBuiltinType.LONG)),
+                EnumPropertyModel("ratio", SemanticBuiltinTypeRef(SemanticBuiltinType.FLOAT)),
+                EnumPropertyModel("score", SemanticBuiltinTypeRef(SemanticBuiltinType.DOUBLE)),
+                EnumPropertyModel("units", SemanticBuiltinTypeRef(SemanticBuiltinType.BIG_INTEGER)),
+                EnumPropertyModel("amount", SemanticBuiltinTypeRef(SemanticBuiltinType.BIG_DECIMAL, nullable = true)),
+                EnumPropertyModel("channel", SemanticNamedTypeRef(channelType)),
+                EnumPropertyModel("fallback", SemanticNamedTypeRef(otherChannelType, nullable = true)),
+            ),
+            items = listOf(
+                EnumItemModel(
+                    value = 1,
+                    name = "ACCEPTED",
+                    description = "accepted \"now\" ${'$'}value",
+                    propertyValues = listOf(
+                        SemanticEnumValue.StringValue("pay\n${'$'}group"),
+                        SemanticEnumValue.BooleanValue(true),
+                        SemanticEnumValue.ByteValue(1),
+                        SemanticEnumValue.ShortValue(2),
+                        SemanticEnumValue.IntValue(3),
+                        SemanticEnumValue.LongValue(4),
+                        SemanticEnumValue.FloatValue(1.5f),
+                        SemanticEnumValue.DoubleValue(2.5),
+                        SemanticEnumValue.BigIntegerValue(BigInteger("123456789012345678901234567890")),
+                        SemanticEnumValue.Null,
+                        SemanticEnumValue.EnumConstantValue(channelType, "API"),
+                        SemanticEnumValue.EnumConstantValue(otherChannelType, "BACKUP"),
+                    ),
+                )
+            ),
+        )
+
+        val item = EnumManifestArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(sharedEnums = listOf(definition)),
+        ).single()
+
+        assertAll(
+            { assertEquals("enum", item.generatorId) },
+            { assertEquals(ArtifactOutputKind.CHECKED_IN_SOURCE, item.outputKind) },
+            { assertEquals(ConflictPolicy.SKIP, item.conflictPolicy) },
+            { assertEquals("demo-domain/src/main/kotlin", item.resolvedOutputRoot) },
+            { assertEquals("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Disposition.kt", item.outputPath) },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val properties = item.context.getValue("properties") as List<Map<String, Any?>>
+                assertEquals(
+                    listOf("String", "Boolean", "Byte", "Short", "Int", "Long", "Float", "Double", "BigInteger", "BigDecimal?", "com.acme.channel.Channel", "com.vendor.channel.Channel?"),
+                    properties.map { it["renderedType"] },
+                )
+            },
+            {
+                @Suppress("UNCHECKED_CAST")
+                val renderedItems = item.context.getValue("items") as List<Map<String, Any?>>
+                assertEquals("\"accepted \\\"now\\\" \\${'$'}value\"", renderedItems.single()["descriptionKotlinExpression"])
+                assertEquals(
+                    listOf(
+                        "\"pay\\n\\${'$'}group\"", "true", "1.toByte()", "2.toShort()", "3", "4L", "1.5f", "2.5",
+                        "BigInteger(\"123456789012345678901234567890\")", "null", "com.acme.channel.Channel.API", "com.vendor.channel.Channel.BACKUP",
+                    ),
+                    renderedItems.single()["propertyExpressions"],
+                )
+            },
+            { assertEquals(listOf("java.math.BigDecimal", "java.math.BigInteger"), item.context["imports"]) },
+        )
+    }
+    @Test
+    fun `enum manifest planner fully qualifies names that collide with visible enum symbols`() {
+        val attributeConverter = CanonicalTypeIdentity("com.vendor.persistence", listOf("AttributeConverter"), CanonicalTypeKind.ENUM)
+        val designBlockMetadata = CanonicalTypeIdentity("com.vendor.metadata", listOf("DesignBlockMetadata"), CanonicalTypeKind.ENUM)
+        val externalBigInteger = CanonicalTypeIdentity("com.vendor.numbers", listOf("BigInteger"), CanonicalTypeKind.ENUM)
+        val sameAsDeclaration = CanonicalTypeIdentity("com.vendor.status", listOf("Disposition"), CanonicalTypeKind.ENUM)
+        val definition = SharedEnumDefinition(
+            typeName = "Disposition",
+            packageName = "shared",
+            properties = listOf(
+                EnumPropertyModel("converter", SemanticNamedTypeRef(attributeConverter)),
+                EnumPropertyModel("metadata", SemanticNamedTypeRef(designBlockMetadata)),
+                EnumPropertyModel("externalNumber", SemanticNamedTypeRef(externalBigInteger)),
+                EnumPropertyModel("units", SemanticBuiltinTypeRef(SemanticBuiltinType.BIG_INTEGER)),
+                EnumPropertyModel("sameName", SemanticNamedTypeRef(sameAsDeclaration)),
+            ),
+            items = listOf(
+                EnumItemModel(
+                    value = 1,
+                    name = "ONLY",
+                    description = "only",
+                    propertyValues = listOf(
+                        SemanticEnumValue.EnumConstantValue(attributeConverter, "VALUE"),
+                        SemanticEnumValue.EnumConstantValue(designBlockMetadata, "VALUE"),
+                        SemanticEnumValue.EnumConstantValue(externalBigInteger, "VALUE"),
+                        SemanticEnumValue.BigIntegerValue(BigInteger.ONE),
+                        SemanticEnumValue.EnumConstantValue(sameAsDeclaration, "VALUE"),
+                    ),
+                ),
+            ),
+        )
+
+        val item = EnumManifestArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(sharedEnums = listOf(definition)),
+        ).single()
+        @Suppress("UNCHECKED_CAST")
+        val properties = item.context.getValue("properties") as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val renderedItems = item.context.getValue("items") as List<Map<String, Any?>>
+
+        assertEquals(
+            listOf(
+                "com.vendor.persistence.AttributeConverter",
+                "com.vendor.metadata.DesignBlockMetadata",
+                "com.vendor.numbers.BigInteger",
+                "java.math.BigInteger",
+                "com.vendor.status.Disposition",
+            ),
+            properties.map { it["renderedType"] },
+        )
+        assertEquals(
+            listOf(
+                "com.vendor.persistence.AttributeConverter.VALUE",
+                "com.vendor.metadata.DesignBlockMetadata.VALUE",
+                "com.vendor.numbers.BigInteger.VALUE",
+                "java.math.BigInteger(\"1\")",
+                "com.vendor.status.Disposition.VALUE",
+            ),
+            renderedItems.single()["propertyExpressions"],
+        )
+        assertEquals(emptyList<String>(), item.context["imports"])
+
+        val currentBigInteger = EnumManifestArtifactPlanner().plan(
+            aggregateConfig(),
+            CanonicalModel(
+                sharedEnums = listOf(
+                    SharedEnumDefinition(
+                        typeName = "BigInteger",
+                        packageName = "shared",
+                        properties = listOf(EnumPropertyModel("units", SemanticBuiltinTypeRef(SemanticBuiltinType.BIG_INTEGER))),
+                        items = listOf(
+                            EnumItemModel(
+                                value = 1,
+                                name = "ONE",
+                                description = "one",
+                                propertyValues = listOf(SemanticEnumValue.BigIntegerValue(BigInteger.ONE)),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ).single()
+        @Suppress("UNCHECKED_CAST")
+        val currentBigIntegerProperties = currentBigInteger.context.getValue("properties") as List<Map<String, Any?>>
+        @Suppress("UNCHECKED_CAST")
+        val currentBigIntegerItems = currentBigInteger.context.getValue("items") as List<Map<String, Any?>>
+        assertEquals(listOf("java.math.BigInteger"), currentBigIntegerProperties.map { it["renderedType"] })
+        assertEquals(listOf("java.math.BigInteger(\"1\")"), currentBigIntegerItems.single()["propertyExpressions"])
+        assertEquals(emptyList<String>(), currentBigInteger.context["imports"])
     }
 
     @Test
@@ -5259,7 +5441,7 @@ class AggregateArtifactPlannerTest {
         val enumPlan = items.single { it.templateId == "aggregate/enum.kt.peb" }
 
         assertEquals(
-            "demo-domain/build/generated/cap4k/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
             enumPlan.outputPath,
         )
         assertEquals("com.acme.demo.domain.shared.enums", enumPlan.context["packageName"])

@@ -193,7 +193,7 @@ private class SemanticTypeRenderer(
         imports: MutableSet<String>,
     ): String {
         val rendered = when (type) {
-            is SemanticBuiltinTypeRef -> builtinTypeName(type.kind)
+            is SemanticBuiltinTypeRef -> renderBuiltin(type.kind, imports)
             is SemanticNamedTypeRef -> renderNamed(type.symbol, imports)
             is SemanticListTypeRef -> "List<${renderType(type.elementType, imports)}>"
             is SemanticSetTypeRef -> "Set<${renderType(type.elementType, imports)}>"
@@ -214,13 +214,18 @@ private class SemanticTypeRenderer(
         return identity.simpleName
     }
 
-    private fun builtinTypeName(type: SemanticBuiltinType): String = when (type) {
+    private fun renderBuiltin(
+        type: SemanticBuiltinType,
+        imports: MutableSet<String>,
+    ): String = when (type) {
         SemanticBuiltinType.ANY -> "Any"
         SemanticBuiltinType.BOOLEAN -> "Boolean"
         SemanticBuiltinType.BYTE -> "Byte"
         SemanticBuiltinType.CHAR -> "Char"
         SemanticBuiltinType.DOUBLE -> "Double"
         SemanticBuiltinType.FLOAT -> "Float"
+        SemanticBuiltinType.BIG_DECIMAL -> "BigDecimal".also { imports += "java.math.BigDecimal" }
+        SemanticBuiltinType.BIG_INTEGER -> "BigInteger".also { imports += "java.math.BigInteger" }
         SemanticBuiltinType.INT -> "Int"
         SemanticBuiltinType.LONG -> "Long"
         SemanticBuiltinType.NOTHING -> "Nothing"

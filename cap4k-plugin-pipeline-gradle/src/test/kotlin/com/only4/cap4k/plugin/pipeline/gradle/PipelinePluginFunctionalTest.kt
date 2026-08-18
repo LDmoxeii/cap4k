@@ -1789,19 +1789,26 @@ class PipelinePluginFunctionalTest {
         assertTrue(generateResult.output.contains("BUILD SUCCESSFUL"))
         assertTrue(planFile.toFile().exists())
         val planContent = planFile.readText()
+        assertPlanItemMetadata(
+            planContent = planContent,
+            templateId = "aggregate/enum.kt.peb",
+            outputPathSuffix = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            outputKind = "CHECKED_IN_SOURCE",
+            resolvedOutputRoot = "demo-domain/src/main/kotlin",
+            conflictPolicy = "SKIP",
+        )
+        assertTrue(planContent.contains("\"generatorId\": \"enum\""))
         assertTrue(planContent.contains("\"templateId\": \"aggregate/enum.kt.peb\""))
         assertFalse(planContent.contains("Translation.kt"))
         assertFalse(planContent.contains("only-engine-enum-translation"))
         assertTrue(
             projectDir.resolve(
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
             ).toFile().exists()
         )
         assertTrue(
             projectDir.resolve(
-                generatedSource(
-                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
-                )
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
             ).toFile().exists()
         )
         assertTrue(generatedEntity.contains("@Entity"))
@@ -1820,14 +1827,12 @@ class PipelinePluginFunctionalTest {
         )
         assertTrue(
             projectDir.resolve(
-                generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
             ).readText().contains("@jakarta.persistence.Converter(autoApply = false)")
         )
         assertTrue(
             projectDir.resolve(
-                generatedSource(
-                    "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
-                )
+                "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
             ).readText().contains("@jakarta.persistence.Converter(autoApply = false)")
         )
         assertFalse(generatedEntity.contains("@GeneratedValue"))
@@ -1835,6 +1840,18 @@ class PipelinePluginFunctionalTest {
         assertFalse(generatedEntity.contains("@DynamicInsert"))
         assertTrue(generatedEntity.contains("var status: Status = status"))
         assertFalse(generatedEntity.contains("class Status("))
+
+        val checkedInEnum = projectDir.resolve("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+        val authoredContent = checkedInEnum.readText().replace(
+            "companion object {",
+            "fun authorOwnedBehavior(): String = description\n\n    companion object {",
+        )
+        checkedInEnum.writeText(authoredContent)
+        val repeatedResult = FunctionalFixtureSupport.runner(projectDir)
+            .withArguments("cap4kPlan", "cap4kGenerate", "cap4kGenerateSources")
+            .build()
+        assertTrue(repeatedResult.output.contains("BUILD SUCCESSFUL"))
+        assertEquals(authoredContent, checkedInEnum.readText())
     }
 
     @OptIn(ExperimentalPathApi::class)

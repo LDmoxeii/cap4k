@@ -169,10 +169,16 @@ data class IrEdgeSnapshot(
     val label: String? = null,
 )
 
+data class EnumPropertyModel(
+    val name: String,
+    val type: SemanticTypeRef,
+)
+
 data class EnumItemModel(
     val value: Int,
     val name: String,
     val description: String,
+    val propertyValues: List<SemanticEnumValue> = emptyList(),
 )
 
 data class SharedEnumDefinition(
@@ -180,6 +186,7 @@ data class SharedEnumDefinition(
     val packageName: String,
     val items: List<EnumItemModel>,
     val aggregates: List<String> = emptyList(),
+    val properties: List<EnumPropertyModel> = emptyList(),
 )
 
 data class ValueObjectModel(
@@ -348,7 +355,8 @@ fun analyzerSnapshotStatus(partitions: Collection<AgentSnapshotStatus>): AgentSn
 
 data class EnumManifestSnapshot(
     override val id: String = "enum-manifest",
-    val definitions: List<SharedEnumDefinition>,
+    val declarations: List<EnumDeclarationSnapshot> = emptyList(),
+    val definitions: List<SharedEnumDefinition> = emptyList(),
 ) : SourceSnapshot
 
 data class ValueObjectManifestSnapshot(

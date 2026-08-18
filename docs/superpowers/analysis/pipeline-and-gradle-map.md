@@ -20,7 +20,7 @@ Plugin id 是 `io.github.ldmoxeii.cap4k.pipeline`。`PipelinePlugin.apply` 注�
 | Lane | Sources | Configured generator IDs |
 | --- | --- | --- |
 | ordinary source | `db`, `design-json`, `enum-manifest`, `value-object-manifest` | `command`, `query`, `query-handler`, `capability`, `capability-handler`, `api-payload`, `domain-event`, `domain-subscriber`, `domain-service`, `integration-event`, `integration-subscriber`, `types-value-object`, `aggregate`, `aggregate-projection` |
-| generated source | `db`, `enum-manifest`, `value-object-manifest` | `types-value-object`, `aggregate`, `aggregate-projection` |
+| generated source | `db`, `value-object-manifest` | `types-value-object`, `aggregate`, `aggregate-projection` |
 | analysis | `ir-analysis` | `flow`, `drawing-board` |
 
 Runner 实际安装的 planner catalog 来自 built-in provider 实例及已成功加载的 Pipeline Extension contribution；task config 负责输入/lane 收窄，不是第二套 capability truth。Activation 由 descriptor 的 `EXPLICIT_CONFIGURATION`、`INPUT_DRIVEN`、`INSTALLED` 元数据控制，runner 与 Agent effective view 使用同一规则。
@@ -42,7 +42,7 @@ Runner 实际安装的 planner catalog 来自 built-in provider 实例及已成�
 
 ## Generated Source Wiring
 
-`cap4kGenerateSources` 只导出 `GENERATED_SOURCE`。Gradle 将每个受影响 module 的实际 `<buildDirectory>/generated/cap4k/main/kotlin` 注册为 Kotlin `main` source dir，并让 `compileKotlin` 依赖该 task。Root state 文件只记录 cap4k-owned generated roots，用于安全清理已记录 root；不会保护或 merge 项目 root source。
+`cap4kGenerateSources` 只导出 `GENERATED_SOURCE`。manifest Business Enum 属于 ordinary authoring lane：`cap4kGenerate` 首次物化到 domain `src/main/kotlin`，使用 `CHECKED_IN_SOURCE + SKIP`，不接入此 task。Gradle 将每个受影响 module 的实际 `<buildDirectory>/generated/cap4k/main/kotlin` 注册为 Kotlin `main` source dir，并让 `compileKotlin` 依赖该 task。Root state 文件只记录 cap4k-owned generated roots，用于安全清理已记录 root；不会保护或 merge 项目 root source。
 
 ## Agent API Contract
 

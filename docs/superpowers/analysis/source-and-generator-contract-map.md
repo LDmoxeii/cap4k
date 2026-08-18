@@ -7,7 +7,8 @@
 ## Current Facts
 
 - 已确认的 `SourceProvider` / `SourceSnapshot` ID 包括 `db`、`design-json`、`enum-manifest`、`value-object-manifest`、`ir-analysis`。`db`、`design-json`、`enum-manifest`、`value-object-manifest` 属于 source generation 路径；`ir-analysis` 属于 analysis generation 路径。
-- source generation 和 analysis generation 是不同职责。`cap4kPlan` / `cap4kGenerate` 使用 `sourceTaskConfig`，筛选 `db`、`design-json`、`enum-manifest`、`value-object-manifest`。`cap4kGenerateSources` 使用 `generatedSourceTaskConfig`，只筛选 `db`、`enum-manifest`、`value-object-manifest`。`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 使用 `analysisTaskConfig`，只筛选 `ir-analysis`。`flow` 和 `drawing-board` 只属于 analysis task。
+- source generation 和 analysis generation 是不同职责。`cap4kPlan` / `cap4kGenerate` 使用 `sourceTaskConfig`，筛选 `db`、`design-json`、`enum-manifest`、`value-object-manifest`。`enum-manifest` 是 ordinary authoring input，其 Business Enum 产出 `CHECKED_IN_SOURCE + SKIP`。`cap4kGenerateSources` 的 `generatedSourceTaskConfig` 仍读取 `enum-manifest`，让 aggregate 等 build-owned generator 解析 canonical enum identity，但其 generator 过滤与 output-kind 过滤不会物化或覆盖 enum class。`cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 使用 `analysisTaskConfig`，只筛选 `ir-analysis`。`flow` 和 `drawing-board` 只属于 analysis task。
+- `enum-manifest` entry 支持有序显式 `fields` schema；item 必须逐项提供全部自定义属性，nullable 也必须显式 `null`，且 field declaration 不提供默认值。支持 `String`、`Boolean`、`Byte`、`Short`、`Int`、`Long`、`Float`、`Double`、`BigInteger`、`BigDecimal` 和 canonical enum constant reference；集合、Value Object 与 raw Kotlin expression 不在 contract 内。
 - Gradle task 另行筛选 source-generation generator IDs；`cap4kGenerateSources` 只保留 `types-value-object`、`aggregate`、`aggregate-projection`，并由 output kind 再限制为 `GENERATED_SOURCE`。
 - 已从源码确认的 source-generation generator IDs 包括 `aggregate`、`aggregate-projection`、`enum`、`types-value-object`、`command`、`query`、`query-handler`、`capability`、`capability-handler`、`api-payload`、`domain-event`、`domain-subscriber`、`integration-event`、`integration-subscriber`、`domain-service`。
 - 已从源码确认的 analysis generator IDs 是 `flow` 和 `drawing-board`。
@@ -42,7 +43,7 @@
 - Design tag contract: normal design-json tag 只能使用当前 supported tag set。任何新增 tag 必须同时更新 `DesignJsonSourceProvider`、`DefaultCanonicalAssembler`、drawing-board supported tags、generator tests 和 public fixture expectations。
 - Artifact selection contract: `artifacts = null` 表示使用 default artifact selection；`artifacts = []` 表示显式空选择。`DefaultCanonicalAssembler` 会校验 family / variant 组合，例如 `query` 允许 `query:page`，`api-payload` 允许 `api-payload:page`，`integration-event` 只允许 `inbound` / `outbound`。
 - `integration_event` contract: event shape、inbound/outbound 行为和 subscriber 选择是三层规则。event shape 由 `eventName`、`fields`、`resultFields` 限制决定；inbound/outbound 由 `integration-event` variant 决定；subscriber 由显式 `integration-subscriber` selection 决定，且只允许 inbound。
-- Source generation contract: `cap4kPlan` / `cap4kGenerate` 处理 checked-in skeleton 和普通生成计划；`cap4kGenerateSources` 只输出 `GENERATED_SOURCE`。不要把 analysis-only `flow` / `drawing-board` 加入普通 source generation task。
+- Source generation contract: `cap4kPlan` / `cap4kGenerate` 处理 checked-in skeleton 和普通生成计划；manifest Business Enum 首次物化到 domain `src/main/kotlin`，保持 `value` / `description` / `valueOfOrNull` / nested `Converter` API，并以 `CHECKED_IN_SOURCE + SKIP` 保护作者后续增加的领域逻辑。`cap4kGenerateSources` 只输出 `GENERATED_SOURCE`。不要把 analysis-only `flow` / `drawing-board` 加入普通 source generation task。
 - Analysis generation contract: `cap4kAnalysisPlan` / `cap4kAnalysisGenerate` 只从 `ir-analysis` 输入构建 `flow` 和 `drawing-board` 输出；它们是观察 / 分析产物，不是 source skeleton 的替代入口。
 
 ## Change Impact

@@ -841,7 +841,8 @@ class DefaultCanonicalAssemblerTest {
             )
         }
 
-        assertTrue(error.message!!.contains("Duplicate type simple name: Visibility"))
+        assertTrue(error.message!!.contains("conflicting canonical enum constants for"))
+        assertTrue(error.message!!.contains("Visibility"))
     }
 
     @Test
@@ -7236,6 +7237,144 @@ class DefaultCanonicalAssemblerTest {
         )
     }
 
+
+    @Test
+    fun `compiles typed enum properties and canonical enum references`() {
+        val target = com.only4.cap4k.plugin.pipeline.api.EnumDeclarationSnapshot(
+            typeName = "Target", packageName = "shared",
+            fields = listOf(com.only4.cap4k.plugin.pipeline.api.EnumFieldSnapshot("group", "String")),
+            items = listOf(com.only4.cap4k.plugin.pipeline.api.EnumItemSnapshot(
+                1, "ACTIVE", "active",
+                mapOf("group" to com.only4.cap4k.plugin.pipeline.api.EnumLiteralSnapshot.StringValue("live", "manifest.Target.ACTIVE.group"))
+            ))
+        )
+        val source = com.only4.cap4k.plugin.pipeline.api.EnumDeclarationSnapshot(
+            typeName = "Source", packageName = "shared",
+            fields = listOf(com.only4.cap4k.plugin.pipeline.api.EnumFieldSnapshot("target", "Target")),
+            items = listOf(com.only4.cap4k.plugin.pipeline.api.EnumItemSnapshot(
+                2, "READY", "ready",
+                mapOf("target" to com.only4.cap4k.plugin.pipeline.api.EnumLiteralSnapshot.StringValue("ACTIVE", "manifest.Source.READY.target"))
+            ))
+        )
+        val model = DefaultCanonicalAssembler().assemble(
+            baseConfig(), listOf(EnumManifestSnapshot(declarations = listOf(target, source)))
+        ).model
+        assertEquals("group", model.sharedEnums[0].properties.single().name)
+        assertEquals(
+            com.only4.cap4k.plugin.pipeline.api.SemanticEnumValue.StringValue("live"),
+            model.sharedEnums[0].items.single().propertyValues.single()
+        )
+        val ref = model.sharedEnums[1].items.single().propertyValues.single() as
+            com.only4.cap4k.plugin.pipeline.api.SemanticEnumValue.EnumConstantValue
+        assertEquals("ACTIVE", ref.constantName)
+        assertEquals("Target", ref.enumType.simpleName)
+    }
+
+    @Test
+    fun `canonical enum references can target legacy shared definitions`() {
+        val legacy = EnumManifestSnapshot(
+            definitions = listOf(
+                SharedEnumDefinition(
+                    typeName = "Target",
+                    packageName = "shared",
+                    items = listOf(EnumItemModel(1, "ACTIVE", "active")),
+                )
+            )
+        )
+        val source = com.only4.cap4k.plugin.pipeline.api.EnumDeclarationSnapshot(
+            typeName = "Source",
+            packageName = "shared",
+            fields = listOf(com.only4.cap4k.plugin.pipeline.api.EnumFieldSnapshot("target", "Target")),
+            items = listOf(
+                com.only4.cap4k.plugin.pipeline.api.EnumItemSnapshot(
+                    2,
+                    "READY",
+                    "ready",
+                    mapOf(
+                        "target" to com.only4.cap4k.plugin.pipeline.api.EnumLiteralSnapshot.StringValue(
+                            "ACTIVE",
+                            "manifest.Source.READY.target",
+                        )
+                    ),
+                )
+            ),
+        )
+
+        val model = DefaultCanonicalAssembler().assemble(
+            baseConfig(),
+            listOf(legacy, EnumManifestSnapshot(declarations = listOf(source))),
+        ).model
+
+        val reference = model.sharedEnums.last().items.single().propertyValues.single() as
+            com.only4.cap4k.plugin.pipeline.api.SemanticEnumValue.EnumConstantValue
+        assertEquals("ACTIVE", reference.constantName)
+        assertEquals("Target", reference.enumType.simpleName)
+    }
+
+    @Test
+    fun `floating enum properties reject nonzero underflow to zero`() {
+        listOf("Float" to "1e-1000", "Double" to "1e-10000").forEach { (type, literal) ->
+            val declaration = com.only4.cap4k.plugin.pipeline.api.EnumDeclarationSnapshot(
+                typeName = "Rates$type",
+                packageName = "shared",
+                fields = listOf(com.only4.cap4k.plugin.pipeline.api.EnumFieldSnapshot("rate", type)),
+                items = listOf(
+                    com.only4.cap4k.plugin.pipeline.api.EnumItemSnapshot(
+                        1,
+                        "TINY",
+                        "tiny",
+                        mapOf(
+                            "rate" to com.only4.cap4k.plugin.pipeline.api.EnumLiteralSnapshot.DecimalValue(
+                                java.math.BigDecimal(literal),
+                                "manifest.Rates$type.TINY.rate",
+                            )
+                        ),
+                    )
+                ),
+            )
+
+            val error = assertThrows(IllegalArgumentException::class.java) {
+                DefaultCanonicalAssembler().assemble(
+                    baseConfig(),
+                    listOf(EnumManifestSnapshot(declarations = listOf(declaration))),
+                )
+            }
+
+            assertTrue(error.message!!.contains("underflows $type to zero"))
+        }
+    }
+
+    @Test
+    fun `floating enum properties allow ordinary IEEE rounding`() {
+        val declaration = com.only4.cap4k.plugin.pipeline.api.EnumDeclarationSnapshot(
+            typeName = "Rates",
+            packageName = "shared",
+            fields = listOf(com.only4.cap4k.plugin.pipeline.api.EnumFieldSnapshot("rate", "Float")),
+            items = listOf(
+                com.only4.cap4k.plugin.pipeline.api.EnumItemSnapshot(
+                    1,
+                    "NORMAL",
+                    "normal",
+                    mapOf(
+                        "rate" to com.only4.cap4k.plugin.pipeline.api.EnumLiteralSnapshot.DecimalValue(
+                            java.math.BigDecimal("0.1000000000000000000001"),
+                            "manifest.Rates.NORMAL.rate",
+                        )
+                    ),
+                )
+            ),
+        )
+
+        val model = DefaultCanonicalAssembler().assemble(
+            baseConfig(),
+            listOf(EnumManifestSnapshot(declarations = listOf(declaration))),
+        ).model
+
+        assertEquals(
+            com.only4.cap4k.plugin.pipeline.api.SemanticEnumValue.FloatValue(0.1f),
+            model.sharedEnums.single().items.single().propertyValues.single(),
+        )
+    }
 }
 
 private fun DesignFieldSnapshot(
