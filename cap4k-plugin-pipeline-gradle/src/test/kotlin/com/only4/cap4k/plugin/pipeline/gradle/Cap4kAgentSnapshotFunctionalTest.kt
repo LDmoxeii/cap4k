@@ -80,6 +80,36 @@ class Cap4kAgentSnapshotFunctionalTest {
     }
 
     @Test
+    fun `generated managed policy plan publishes ownership without plan evidence diagnostics`() {
+        val projectDir = Files.createTempDirectory("agent-functional-plan-evidence")
+        FunctionalFixtureSupport.copyFixture(projectDir, "aggregate-minimal-sample")
+
+        val result = FunctionalFixtureSupport.runner(
+            projectDir,
+            "cap4kPlan",
+            "cap4kAgentSnapshot",
+        ).build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kPlan")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kAgentSnapshot")?.outcome)
+
+        val plan = jsonMapper.readTree(
+            projectDir.resolve("build/cap4k/plan.json").toFile().readText()
+        ).requireObjectNode()
+        assertTrue(plan.get("managedFieldPolicies").requireArrayNode().size() > 0)
+
+        val output = projectDir.resolve("build/cap4k/agent")
+        val ownership = jsonMapper.readTree(output.resolve("ownership.json").toFile().readText()).requireObjectNode()
+        assertEquals("partial", ownership.get("status").asText())
+        assertTrue(ownership.get("items").requireArrayNode().size() > 0)
+        val planEvidence = ownership.get("evidence").requireArrayNode().single()
+        assertEquals("unknown", planEvidence.get("freshness").asText())
+        assertTrue(planEvidence.get("reason").asText().contains("live external source"))
+        assertTrue(ownership.get("reason").asText().contains("live external source"))
+        assertTrue(!output.resolve("diagnostics.json").toFile().readText().contains("plan-evidence-invalid"))
+    }
+
+    @Test
     fun `invalid consumer task fails after writing diagnostic snapshot`() {
         val projectDir = Files.createTempDirectory("agent-functional-invalid")
         projectDir.resolve("settings.gradle.kts").writeText("rootProject.name = \"invalid-agent-sample\"\n")
