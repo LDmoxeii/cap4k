@@ -419,9 +419,9 @@ class PipelinePluginTest {
     }
 
     @Test
-    fun `generated source module roles include domain for enum manifest only`() {
+    fun `generated source module roles exclude checked in enum manifest output`() {
         assertEquals(
-            setOf("domain"),
+            emptySet<String>(),
             generatedSourceModuleRoles(
                 projectConfig(
                     modules = mapOf("domain" to "demo-domain"),

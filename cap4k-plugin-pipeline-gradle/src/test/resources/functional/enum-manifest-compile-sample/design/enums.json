@@ -2,9 +2,13 @@
   {
     "name": "Status",
     "package": "com.acme.demo.domain.shared.enums",
+    "fields": [
+      { "name": "group", "type": "String" },
+      { "name": "terminal", "type": "Boolean" }
+    ],
     "items": [
-      { "value": 0, "name": "DRAFT", "desc": "Draft" },
-      { "value": 1, "name": "PUBLISHED", "desc": "Published" }
+      { "value": 0, "name": "DRAFT", "desc": "Draft", "group": "draft", "terminal": false },
+      { "value": 1, "name": "PUBLISHED", "desc": "Published", "group": "published", "terminal": true }
     ]
   }
 ]

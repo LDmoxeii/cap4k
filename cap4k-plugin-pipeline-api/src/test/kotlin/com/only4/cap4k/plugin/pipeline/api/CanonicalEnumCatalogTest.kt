@@ -240,6 +240,117 @@ class CanonicalEnumCatalogTest {
     }
 
     @Test
+    fun `preserves local enum property schema and typed item values`() {
+        val properties = listOf(
+            EnumPropertyModel("group", SemanticBuiltinTypeRef(SemanticBuiltinType.STRING)),
+            EnumPropertyModel("terminal", SemanticBuiltinTypeRef(SemanticBuiltinType.BOOLEAN)),
+        )
+        val items = listOf(
+            EnumItemModel(
+                value = 0,
+                name = "DRAFT",
+                description = "Draft",
+                propertyValues = listOf(
+                    SemanticEnumValue.StringValue("draft"),
+                    SemanticEnumValue.BooleanValue(false),
+                ),
+            )
+        )
+        val entity = videoPostEntity(
+            fields = listOf(FieldModel("status", "Int", typeBinding = "Status"))
+        )
+
+        val catalog = CanonicalEnumCatalog.from(
+            CanonicalModel(
+                entities = listOf(entity),
+                sharedEnums = listOf(
+                    sharedEnum("Status", "ignored", items, aggregates = listOf("VideoPost"), properties = properties)
+                ),
+            ),
+            basePackage = "com.acme.demo",
+            typeRegistry = emptyMap(),
+        )
+
+        assertEquals(properties, catalog.localEnums.single().properties)
+        assertEquals(items, catalog.localEnums.single().items)
+    }
+
+    @Test
+    fun `rejects local enum definitions with unequal property schemas`() {
+        val items = listOf(EnumItemModel(0, "DRAFT", "Draft"))
+        val entity = videoPostEntity(
+            fields = listOf(FieldModel("status", "Int", typeBinding = "Status", enumItems = items))
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            CanonicalEnumCatalog.from(
+                CanonicalModel(
+                    entities = listOf(entity),
+                    sharedEnums = listOf(
+                        sharedEnum(
+                            "Status",
+                            "ignored",
+                            items,
+                            aggregates = listOf("VideoPost"),
+                            properties = listOf(
+                                EnumPropertyModel("terminal", SemanticBuiltinTypeRef(SemanticBuiltinType.BOOLEAN))
+                            ),
+                        )
+                    ),
+                ),
+                basePackage = "com.acme.demo",
+                typeRegistry = emptyMap(),
+            )
+        }
+
+        assertEquals(
+            "conflicting local enum definition for com.acme.demo.domain.aggregates.video_post.enums.Status",
+            error.message,
+        )
+    }
+
+    @Test
+    fun `rejects local enum definitions with unequal typed item values`() {
+        val fieldItems = listOf(
+            EnumItemModel(
+                0,
+                "DRAFT",
+                "Draft",
+                propertyValues = listOf(SemanticEnumValue.StringValue("draft")),
+            )
+        )
+        val manifestItems = listOf(
+            EnumItemModel(
+                0,
+                "DRAFT",
+                "Draft",
+                propertyValues = listOf(SemanticEnumValue.StringValue("pending")),
+            )
+        )
+        val entity = videoPostEntity(
+            fields = listOf(FieldModel("status", "Int", typeBinding = "Status", enumItems = fieldItems))
+        )
+
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            CanonicalEnumCatalog.from(
+                CanonicalModel(
+                    entities = listOf(entity),
+                    sharedEnums = listOf(
+                        sharedEnum("Status", "ignored", manifestItems, aggregates = listOf("VideoPost"))
+                    ),
+                ),
+                basePackage = "com.acme.demo",
+                typeRegistry = emptyMap(),
+            )
+        }
+
+        assertEquals(
+            "conflicting local enum definition for com.acme.demo.domain.aggregates.video_post.enums.Status",
+            error.message,
+        )
+    }
+
+    @Test
     fun `rejects unresolved non built in type binding`() {
         val field = FieldModel("payload", "String", typeBinding = "SubmitPayload")
         val catalog = CanonicalEnumCatalog.from(
@@ -263,12 +374,14 @@ class CanonicalEnumCatalogTest {
         packageName: String,
         items: List<EnumItemModel>,
         aggregates: List<String> = emptyList(),
+        properties: List<EnumPropertyModel> = emptyList(),
     ): SharedEnumDefinition =
         SharedEnumDefinition(
             typeName = typeName,
             packageName = packageName,
             items = items,
             aggregates = aggregates,
+            properties = properties,
         )
 
     private fun videoPostEntity(fields: List<FieldModel>): EntityModel =

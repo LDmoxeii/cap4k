@@ -22,10 +22,11 @@ import {{ import }}
 {% endif -%}
 enum class {{ typeName }}(
     val value: Int,
-    val description: String
+    val description: String{% for property in properties | default([]) %},
+    val {{ property.name }}: {{ property.renderedType }}{% endfor %}
 ) {
 {% for item in items %}
-    {{ item.name }}({{ item.value }}, "{{ item.description }}"){% if not loop.last %},{% else %};{% endif %}
+    {{ item.name }}({{ item.value }}, {% if item.descriptionKotlinExpression is defined %}{{ item.descriptionKotlinExpression | raw }}{% else %}"{{ item.description }}"{% endif %}{% for expression in item.propertyExpressions | default([]) %}, {{ expression | raw }}{% endfor %}){% if not loop.last %},{% else %};{% endif %}
 {% endfor %}
 
     companion object {

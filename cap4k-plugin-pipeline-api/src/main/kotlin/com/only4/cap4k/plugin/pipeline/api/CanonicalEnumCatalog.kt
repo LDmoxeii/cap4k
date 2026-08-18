@@ -9,6 +9,7 @@ data class CanonicalEnumDescriptor(
     val fqn: String,
     val items: List<EnumItemModel>,
     val shared: Boolean,
+    val properties: List<EnumPropertyModel> = emptyList(),
 )
 
 class CanonicalEnumCatalog private constructor(
@@ -142,6 +143,7 @@ class CanonicalEnumCatalog private constructor(
                         typeName = definition.typeName,
                         fqn = definition.fqn,
                         items = definition.enumItems,
+                        properties = definition.properties,
                         shared = true,
                     )
                 },
@@ -152,6 +154,7 @@ class CanonicalEnumCatalog private constructor(
                         typeName = key.typeBinding,
                         fqn = definition.fqn,
                         items = definition.enumItems,
+                        properties = definition.properties,
                         shared = false,
                     )
                 },
@@ -195,7 +198,7 @@ class CanonicalEnumCatalog private constructor(
                 } else {
                     "$packageName.${definition.typeName}"
                 }
-                SharedEnumDefinitionPlan(typeName = typeName, fqn = fqn, enumItems = definition.items)
+                SharedEnumDefinitionPlan(typeName = typeName, fqn = fqn, enumItems = definition.items, properties = definition.properties)
             }
         }
 
@@ -230,6 +233,7 @@ class CanonicalEnumCatalog private constructor(
                             fqn = buildLocalEnumFqn(entity, typeBinding, artifactLayout),
                             ownerScope = entity.tableName.lowercase(Locale.ROOT),
                             enumItems = field.enumItems,
+                            properties = emptyList(),
                         )
                     }
                 }
@@ -248,6 +252,7 @@ class CanonicalEnumCatalog private constructor(
                                 fqn = buildOwnedManifestEnumFqn(definition, artifactLayout),
                                 ownerScope = ownerAggregateName,
                                 enumItems = definition.items,
+                                properties = definition.properties,
                             )
                         )
                     }
@@ -259,6 +264,7 @@ class CanonicalEnumCatalog private constructor(
                             fqn = buildLocalEnumFqn(entity, definition.typeName, artifactLayout),
                             ownerScope = entity.tableName.lowercase(Locale.ROOT),
                             enumItems = definition.items,
+                            properties = definition.properties,
                         )
                     }
                 }
@@ -267,7 +273,7 @@ class CanonicalEnumCatalog private constructor(
             val grouped = (fieldDefinitions + manifestOwnedDefinitions).groupBy({ it.first }, { it.second })
 
             grouped.entries.firstOrNull { entry ->
-                entry.value.map { it.enumItems }.distinct().size > 1
+                entry.value.map { it.enumItems to it.properties }.distinct().size > 1
             }?.let { entry ->
                 throw IllegalArgumentException("conflicting local enum definition for ${entry.value.first().fqn}")
             }
@@ -388,12 +394,14 @@ private data class LocalEnumDefinition(
     val fqn: String,
     val ownerScope: String,
     val enumItems: List<EnumItemModel>,
+    val properties: List<EnumPropertyModel> = emptyList(),
 )
 
 private data class SharedEnumDefinitionPlan(
     val typeName: String,
     val fqn: String,
     val enumItems: List<EnumItemModel>,
+    val properties: List<EnumPropertyModel> = emptyList(),
 )
 
 private data class ValueObjectDefinitions(
@@ -404,6 +412,8 @@ private data class ValueObjectDefinitions(
 private val builtInTypeNames = setOf(
     "Any",
     "Array",
+    "BigDecimal",
+    "BigInteger",
     "Boolean",
     "Byte",
     "Char",

@@ -1487,24 +1487,26 @@ class PipelinePluginCompileFunctionalTest {
         val projectDir = Files.createTempDirectory("pipeline-functional-aggregate-enum-domain-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "aggregate-enum-compile-sample")
 
+        val authoringResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerate").build()
         val compileResult = FunctionalFixtureSupport
             .runner(projectDir, ":demo-domain:compileKotlin")
             .build()
+        assertEquals(TaskOutcome.SUCCESS, authoringResult.task(":cap4kGenerate")?.outcome)
         val generatedEntity = projectDir.resolve(
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
         ).readText()
         val generatedSharedEnum = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"
         ).readText()
         val generatedLocalEnum = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt")
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"
         ).readText()
 
         assertGeneratedFilesExist(
             projectDir,
             generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt"),
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"),
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt"),
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt",
+            "demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/enums/VideoPostVisibility.kt",
         )
         assertTrue(generatedEntity.contains("@Entity"))
         assertTrue(generatedEntity.contains("@Table(name = \"video_post\")"))
@@ -1530,34 +1532,52 @@ class PipelinePluginCompileFunctionalTest {
     }
 
     @Test
-    fun `enum manifest only generation participates in domain compileKotlin`() {
+    fun `enum manifest materializes checked in source that survives clean compile`() {
         val projectDir = Files.createTempDirectory("pipeline-functional-enum-manifest-domain-compile")
         FunctionalFixtureSupport.copyCompileFixture(projectDir, "enum-manifest-compile-sample")
 
-        val beforeGenerateCompileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-domain:compileKotlin", "-x", "cap4kGenerateSources")
-            .buildAndFail()
-        assertEquals(
-            TaskOutcome.FAILED,
-            beforeGenerateCompileResult.task(":demo-domain:compileKotlin")?.outcome,
-        )
-        assertTrue(beforeGenerateCompileResult.output.contains("Status"))
-
-        val compileResult = FunctionalFixtureSupport
-            .runner(projectDir, ":demo-domain:compileKotlin")
-            .build()
-        val generatedEnum = projectDir.resolve(
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
-        ).readText()
-
-        assertGeneratedFilesExist(
-            projectDir,
-            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt"),
-        )
+        val generateResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerate").build()
+        val enumPath = projectDir.resolve("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+        val generatedEnum = enumPath.readText()
+        assertEquals(TaskOutcome.SUCCESS, generateResult.task(":cap4kGenerate")?.outcome)
         assertTrue(generatedEnum.contains("enum class Status"))
         assertTrue(generatedEnum.contains("class Converter : AttributeConverter<Status, Int>"))
-        assertEquals(TaskOutcome.SUCCESS, compileResult.task(":cap4kGenerateSources")?.outcome)
-        assertTrue(compileResult.output.contains("BUILD SUCCESSFUL"))
+
+        val authoredEnum = generatedEnum.replace(
+            "companion object {",
+            "fun isTerminal(): Boolean = terminal\n\n    companion object {",
+        )
+        enumPath.writeText(authoredEnum)
+        val generateSourcesResult = FunctionalFixtureSupport.runner(projectDir, "cap4kGenerateSources").build()
+        val generatedEntityPath = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/aggregates/video_post/VideoPost.kt")
+        )
+        val generatedEnumPath = projectDir.resolve(
+            generatedSource("demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Status.kt")
+        )
+        val generatedEntity = generatedEntityPath.readText()
+        assertEquals(TaskOutcome.SUCCESS, generateSourcesResult.task(":cap4kGenerateSources")?.outcome)
+        assertEquals(authoredEnum, enumPath.readText())
+        assertTrue(generatedEntityPath.toFile().exists())
+        assertTrue(generatedEntity.contains("import com.acme.demo.domain.shared.enums.Status"))
+        assertTrue(generatedEntity.contains("var status: Status = status"))
+        assertTrue(generatedEntity.contains("@Convert(converter = Status.Converter::class)"))
+        assertFalse(generatedEnumPath.toFile().exists())
+
+        val cleanCompileResult = FunctionalFixtureSupport.runner(projectDir, "clean", ":demo-domain:compileKotlin").build()
+        assertTrue(enumPath.toFile().exists())
+        assertEquals(authoredEnum, enumPath.readText())
+        assertTrue(generatedEntityPath.toFile().exists())
+        assertFalse(generatedEnumPath.toFile().exists())
+        assertTrue(cleanCompileResult.output.contains("BUILD SUCCESSFUL"))
+
+        val converterRoundTripResult = FunctionalFixtureSupport
+            .runner(projectDir, ":demo-domain:verifyEnumConverterRoundTrip")
+            .build()
+        assertEquals(
+            TaskOutcome.SUCCESS,
+            converterRoundTripResult.task(":demo-domain:verifyEnumConverterRoundTrip")?.outcome,
+        )
     }
 
 

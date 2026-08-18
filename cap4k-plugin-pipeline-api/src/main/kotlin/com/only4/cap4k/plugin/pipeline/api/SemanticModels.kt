@@ -45,6 +45,8 @@ enum class SemanticBuiltinType {
     CHAR,
     DOUBLE,
     FLOAT,
+    BIG_DECIMAL,
+    BIG_INTEGER,
     INT,
     LONG,
     NOTHING,
@@ -52,6 +54,54 @@ enum class SemanticBuiltinType {
     SHORT,
     STRING,
     UNIT,
+}
+
+sealed interface EnumLiteralSnapshot {
+    val sourcePath: String
+
+    data class Null(override val sourcePath: String) : EnumLiteralSnapshot
+    data class StringValue(val value: String, override val sourcePath: String) : EnumLiteralSnapshot
+    data class BooleanValue(val value: Boolean, override val sourcePath: String) : EnumLiteralSnapshot
+    data class IntegerValue(val value: java.math.BigInteger, override val sourcePath: String) : EnumLiteralSnapshot
+    data class DecimalValue(val value: java.math.BigDecimal, override val sourcePath: String) : EnumLiteralSnapshot
+}
+
+data class EnumFieldSnapshot(
+    val name: String,
+    val typeExpression: String,
+    val sourcePath: String = name,
+)
+
+data class EnumItemSnapshot(
+    val value: Int,
+    val name: String,
+    val description: String,
+    val propertyValues: Map<String, EnumLiteralSnapshot> = emptyMap(),
+    val sourcePath: String = name,
+)
+
+data class EnumDeclarationSnapshot(
+    val typeName: String,
+    val packageName: String,
+    val items: List<EnumItemSnapshot>,
+    val aggregates: List<String> = emptyList(),
+    val fields: List<EnumFieldSnapshot> = emptyList(),
+    val sourcePath: String = typeName,
+)
+
+sealed interface SemanticEnumValue {
+    data object Null : SemanticEnumValue
+    data class StringValue(val value: String) : SemanticEnumValue
+    data class BooleanValue(val value: Boolean) : SemanticEnumValue
+    data class ByteValue(val value: Byte) : SemanticEnumValue
+    data class ShortValue(val value: Short) : SemanticEnumValue
+    data class IntValue(val value: Int) : SemanticEnumValue
+    data class LongValue(val value: Long) : SemanticEnumValue
+    data class FloatValue(val value: Float) : SemanticEnumValue
+    data class DoubleValue(val value: Double) : SemanticEnumValue
+    data class BigIntegerValue(val value: java.math.BigInteger) : SemanticEnumValue
+    data class BigDecimalValue(val value: java.math.BigDecimal) : SemanticEnumValue
+    data class EnumConstantValue(val enumType: CanonicalTypeIdentity, val constantName: String) : SemanticEnumValue
 }
 
 sealed interface SemanticTypeRef {

@@ -51,7 +51,9 @@ DB/schema comments 的 supported annotation closed set、relation metadata 依�
 
 `types.valueObjectManifest` 用来声明 Value Object，尤其是 JSON-backed composite value、字段、owner 和 storage 方式。它帮助 generator 生成可提交的类型结构，并让 schema marker 与 domain type 对齐。
 
-`types.enumManifest` 用来声明 Business Enum。它帮助 schema、domain type、payload 和输出代码使用统一 enum 名称，减少裸值漂移。
+`types.enumManifest` 用来声明 Business Enum。除既有 `value` / `name` / `desc` shape 外，可通过有序 `fields` 显式声明类型化 constructor properties；每个 item 必须提供所有声明属性，nullable 属性也要显式写 `null`，且 schema 不提供默认值。首版支持 `String`、`Boolean`、`Byte`、`Short`、`Int`、`Long`、`Float`、`Double`、`BigInteger`、`BigDecimal` 和 canonical enum constant reference，不支持集合、Value Object 或 raw Kotlin expression。
+
+manifest Business Enum 由 `cap4kGenerate` 首次物化到 domain `src/main/kotlin`，plan ownership 为 `CHECKED_IN_SOURCE`、conflict policy 为 `SKIP`。作者可在 checked-in enum 中增加领域逻辑；后续 manifest 变化不会覆盖既有文件。它是 ordinary authoring source；`cap4kGenerateSources` 可以读取 manifest 以解析其他 build-owned artifacts 的类型，但不会物化或覆盖 Business Enum。基础 `value`、`description`、`valueOfOrNull` 和 nested `Converter` API 保持不变。
 
 如果一个类型缺少值语义，不应为了生成方便放进 value-object manifest。如果一个 enum 实际隐藏复杂 policy，应回到 domain modeling 设计 policy，而不是把 enum 当作全部业务规则。
 

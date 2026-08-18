@@ -110,6 +110,28 @@ class Cap4kAgentSnapshotFunctionalTest {
     }
 
     @Test
+    fun `enum ownership snapshot reports checked in authoring source`() {
+        val projectDir = Files.createTempDirectory("agent-functional-enum-ownership")
+        FunctionalFixtureSupport.copyFixture(projectDir, "aggregate-enum-sample")
+
+        val result = FunctionalFixtureSupport.runner(projectDir, "cap4kPlan", "cap4kAgentSnapshot").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kPlan")?.outcome)
+        assertEquals(TaskOutcome.SUCCESS, result.task(":cap4kAgentSnapshot")?.outcome)
+        val ownership = jsonMapper.readTree(
+            projectDir.resolve("build/cap4k/agent/ownership.json").toFile().readText()
+        ).requireObjectNode()
+        val enumItem = ownership.get("items").requireArrayNode()
+            .single { item ->
+                item.get("generatorId").asText() == "enum" &&
+                    item.get("outputPath").asText().endsWith("domain/shared/enums/Status.kt")
+            }
+        assertEquals("checked_in_source", enumItem.get("outputKind").asText())
+        assertEquals("skip", enumItem.get("conflictPolicy").asText())
+        assertEquals("demo-domain/src/main/kotlin", enumItem.get("resolvedOutputRoot").asText())
+    }
+
+    @Test
     fun `invalid consumer task fails after writing diagnostic snapshot`() {
         val projectDir = Files.createTempDirectory("agent-functional-invalid")
         projectDir.resolve("settings.gradle.kts").writeText("rootProject.name = \"invalid-agent-sample\"\n")

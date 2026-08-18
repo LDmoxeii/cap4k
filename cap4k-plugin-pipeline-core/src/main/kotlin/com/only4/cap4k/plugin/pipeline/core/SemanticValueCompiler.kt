@@ -359,8 +359,12 @@ class CanonicalTypeCatalog(
     }
 
     private fun builtin(token: String, nullable: Boolean): SemanticBuiltinTypeRef? {
-        val normalized = token.removePrefix("kotlin.").uppercase(Locale.ROOT)
-        val kind = runCatching { SemanticBuiltinType.valueOf(normalized) }.getOrNull() ?: return null
+        val normalized = token.removePrefix("kotlin.").removePrefix("java.math.").uppercase(Locale.ROOT)
+        val kind = when (normalized) {
+            "BIGINTEGER" -> SemanticBuiltinType.BIG_INTEGER
+            "BIGDECIMAL" -> SemanticBuiltinType.BIG_DECIMAL
+            else -> runCatching { SemanticBuiltinType.valueOf(normalized) }.getOrNull() ?: return null
+        }
         return SemanticBuiltinTypeRef(kind = kind, nullable = nullable)
     }
 

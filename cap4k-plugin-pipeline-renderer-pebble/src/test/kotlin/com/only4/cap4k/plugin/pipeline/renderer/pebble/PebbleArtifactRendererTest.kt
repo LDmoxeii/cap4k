@@ -8365,6 +8365,102 @@ class PebbleArtifactRendererTest {
     }
 
     @Test
+    fun `enum template renders typed properties and keeps converter api stable`() {
+        val content = renderTemplate(
+            templateId = "aggregate/enum.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Disposition.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.enums",
+                "typeName" to "Disposition",
+                "imports" to listOf("java.math.BigDecimal", "com.acme.channel.Channel"),
+                "properties" to listOf(
+                    mapOf("name" to "group", "renderedType" to "String"),
+                    mapOf("name" to "amount", "renderedType" to "BigDecimal?"),
+                    mapOf("name" to "channel", "renderedType" to "Channel"),
+                ),
+                "items" to listOf(
+                    mapOf(
+                        "value" to 1,
+                        "name" to "ACCEPTED",
+                        "descriptionKotlinExpression" to "\"accepted \\\"now\\\"\"",
+                        "propertyExpressions" to listOf("\"payment\"", "BigDecimal(\"1.2300\")", "Channel.API"),
+                    ),
+                    mapOf(
+                        "value" to 2,
+                        "name" to "REJECTED",
+                        "descriptionKotlinExpression" to "\"rejected\"",
+                        "propertyExpressions" to listOf("\"payment\"", "null", "Channel.API"),
+                    ),
+                ),
+            ),
+        )
+
+        assertTrue(content.contains("import com.acme.channel.Channel"))
+        assertTrue(content.contains("import java.math.BigDecimal"))
+        assertTrue(content.contains("val description: String,"))
+        assertTrue(content.contains("val group: String,"))
+        assertTrue(content.contains("val amount: BigDecimal?,"))
+        assertTrue(content.contains("val channel: Channel"))
+        assertTrue(content.contains("ACCEPTED(1, \"accepted \\\"now\\\"\", \"payment\", BigDecimal(\"1.2300\"), Channel.API),"))
+        assertTrue(content.contains("REJECTED(2, \"rejected\", \"payment\", null, Channel.API);"))
+        assertTrue(content.contains("fun valueOfOrNull(value: Int?): Disposition? = enumMap[value]"))
+        assertTrue(content.contains("class Converter : AttributeConverter<Disposition, Int>"))
+        assertTrue(content.contains("return attribute?.value"))
+        assertTrue(content.contains("return valueOfOrNull(dbData)"))
+    }
+    @Test
+    fun `enum template preserves fully qualified collision-safe property expressions`() {
+        val content = renderTemplate(
+            templateId = "aggregate/enum.kt.peb",
+            outputPath = "demo-domain/src/main/kotlin/com/acme/demo/domain/shared/enums/Disposition.kt",
+            context = mapOf(
+                "packageName" to "com.acme.demo.domain.shared.enums",
+                "typeName" to "Disposition",
+                "imports" to emptyList<String>(),
+                "properties" to listOf(
+                    mapOf("name" to "converter", "renderedType" to "com.vendor.persistence.AttributeConverter"),
+                    mapOf("name" to "metadata", "renderedType" to "com.vendor.metadata.DesignBlockMetadata"),
+                    mapOf("name" to "units", "renderedType" to "java.math.BigInteger"),
+                    mapOf("name" to "sameName", "renderedType" to "com.vendor.status.Disposition"),
+                ),
+                "items" to listOf(
+                    mapOf(
+                        "value" to 1,
+                        "name" to "ONLY",
+                        "descriptionKotlinExpression" to "\"only\"",
+                        "propertyExpressions" to listOf(
+                            "com.vendor.persistence.AttributeConverter.VALUE",
+                            "com.vendor.metadata.DesignBlockMetadata.VALUE",
+                            "java.math.BigInteger(\"1\")",
+                            "com.vendor.status.Disposition.VALUE",
+                        ),
+                    ),
+                ),
+                "buildingBlock" to buildingBlockContext(
+                    tag = "enum",
+                    name = "Disposition",
+                    packageName = "shared",
+                    family = "enum",
+                ),
+            ),
+        )
+
+        assertTrue(content.contains("import com.only4.cap4k.analysis.metadata.DesignBlockMetadata"))
+        assertTrue(content.contains("import jakarta.persistence.AttributeConverter"))
+        assertFalse(content.contains("import com.vendor.persistence.AttributeConverter"))
+        assertFalse(content.contains("import com.vendor.metadata.DesignBlockMetadata"))
+        assertFalse(content.contains("import java.math.BigInteger"))
+        assertTrue(content.contains("val converter: com.vendor.persistence.AttributeConverter,"))
+        assertTrue(content.contains("val metadata: com.vendor.metadata.DesignBlockMetadata,"))
+        assertTrue(content.contains("val units: java.math.BigInteger,"))
+        assertTrue(content.contains("val sameName: com.vendor.status.Disposition"))
+        assertTrue(content.contains("com.vendor.persistence.AttributeConverter.VALUE"))
+        assertTrue(content.contains("com.vendor.metadata.DesignBlockMetadata.VALUE"))
+        assertTrue(content.contains("java.math.BigInteger(\"1\")"))
+        assertTrue(content.contains("com.vendor.status.Disposition.VALUE"))
+    }
+
+    @Test
     fun `integration event preset renders event annotation with literal event name and variant subscribers`() {
         val overrideDir = Files.createTempDirectory("cap4k-override-empty-design-integration-event")
         val renderer = PebbleArtifactRenderer(
