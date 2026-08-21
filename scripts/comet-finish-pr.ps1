@@ -111,6 +111,39 @@ function Get-YamlSection([string] $Text, [string] $Name) {
     }
     return ($section -join "`n")
 }
+function Get-SpecChanges([string] $Text, [string] $Context = 'state') {
+    $lines = $Text -split "\r?\n"
+    $headers = [Collections.Generic.List[int]]::new()
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^spec_changes:') { $headers.Add($i) }
+    }
+    if ($headers.Count -eq 0) { Fail "$Context is missing 'spec_changes'." }
+    if ($headers.Count -ne 1) { Fail "$Context has ambiguous 'spec_changes' declarations." }
+
+    $headerIndex = $headers[0]
+    $header = $lines[$headerIndex]
+    if ($header -ceq 'spec_changes: []') {
+        for ($i = $headerIndex + 1; $i -lt $lines.Count; $i++) {
+            if ($lines[$i] -match '^\S') { break }
+            if (-not [string]::IsNullOrWhiteSpace($lines[$i])) { Fail "$Context has invalid inline 'spec_changes' continuation." }
+        }
+        return [pscustomobject]@{ Sources = @(); Capabilities = @() }
+    }
+    if ($header -cne 'spec_changes:') { Fail "$Context has invalid inline 'spec_changes'." }
+
+    $sectionLines = [Collections.Generic.List[string]]::new()
+    for ($i = $headerIndex + 1; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -match '^\S') { break }
+        $sectionLines.Add($lines[$i])
+    }
+    $section = $sectionLines -join "`n"
+    $specMatches = [regex]::Matches($section, '(?m)^\s+source:\s*(?<source>\S+)\s*$')
+    $capabilityMatches = [regex]::Matches($section, '(?m)^\s+-\s+capability:\s*(?<capability>[a-z0-9][a-z0-9.-]*)\s*$')
+    $sources = @($specMatches | ForEach-Object { $_.Groups['source'].Value })
+    $capabilities = @($capabilityMatches | ForEach-Object { $_.Groups['capability'].Value })
+    if ($sources.Count -eq 0 -or $sources.Count -ne $capabilities.Count) { Fail "$Context spec_changes are incomplete." }
+    return [pscustomobject]@{ Sources = $sources; Capabilities = $capabilities }
+}
 function Get-SectionScalar([string] $Section, [string] $Name, [string] $Context) {
     $match = [regex]::Match($Section, '(?m)^\s+' + [regex]::Escape($Name) + ':\s*(?<value>.*?)\s*$')
     if (-not $match.Success) { Fail "$Context is missing '$Name'." }
@@ -164,6 +197,11 @@ function Get-BytesSha256([byte[]] $Bytes) { return [Convert]::ToHexString([Secur
 function Assert-ExactPathSet([string[]] $Actual, [string[]] $Expected, [string] $Name) {
     $actualSet = @($Actual | Sort-Object -Unique); $expectedSet = @($Expected | Sort-Object -Unique)
     if ($actualSet.Count -ne $expectedSet.Count -or @(Compare-Object -ReferenceObject $expectedSet -DifferenceObject $actualSet -CaseSensitive).Count -ne 0) { Fail "$Name does not exactly match Runtime-owned Archive progression. Expected [$($expectedSet -join ', ')]; actual [$($actualSet -join ', ')]." }
+}
+function Assert-ExactSpecChangeSet([object] $Actual, [object] $Expected, [string] $Name) {
+    $actualPairs = @(@(for ($i = 0; $i -lt $Actual.Sources.Count; $i++) { "$($Actual.Capabilities[$i])`n$($Actual.Sources[$i])" }) | Sort-Object)
+    $expectedPairs = @(@(for ($i = 0; $i -lt $Expected.Sources.Count; $i++) { "$($Expected.Capabilities[$i])`n$($Expected.Sources[$i])" }) | Sort-Object)
+    if ($actualPairs.Count -ne $expectedPairs.Count -or @(Compare-Object -ReferenceObject $expectedPairs -DifferenceObject $actualPairs -CaseSensitive).Count -ne 0) { Fail "$Name capability/source mappings do not exactly match the accepted pre-Archive state." }
 }
 
 $tempFiles = [Collections.Generic.List[string]]::new()
@@ -244,12 +282,9 @@ try {
 
     $briefRef = Get-YamlScalar $stateText 'brief'
     [void](Check-HashAt $artifact.source.brief $briefRef 'artifact.source.brief' $archiveRoot)
-    $specSection = Get-YamlSection $stateText 'spec_changes'
-    $specMatches = [regex]::Matches($specSection, '(?m)^\s+source:\s*(?<source>\S+)\s*$')
-    $capabilityMatches = [regex]::Matches($specSection, '(?m)^\s+-\s+capability:\s*(?<capability>[a-z0-9][a-z0-9.-]*)\s*$')
-    $expectedSpecs = @($specMatches | ForEach-Object { $_.Groups['source'].Value })
-    $capabilities = @($capabilityMatches | ForEach-Object { $_.Groups['capability'].Value })
-    if ($expectedSpecs.Count -eq 0 -or $expectedSpecs.Count -ne $capabilities.Count) { Fail 'Archived Native spec_changes are incomplete.' }
+    $archivedSpecChanges = Get-SpecChanges $stateText 'Archived Native state'
+    $expectedSpecs = @($archivedSpecChanges.Sources)
+    $capabilities = @($archivedSpecChanges.Capabilities)
     if ($artifact.source.specs -isnot [array] -or $artifact.source.specs.Count -ne $expectedSpecs.Count) { Fail 'artifact.source.specs must exactly cover the archived change Specs.' }
     $providedSpecPaths = @($artifact.source.specs | ForEach-Object { [string]$_.path })
     if (@($providedSpecPaths | Sort-Object -Unique).Count -ne $providedSpecPaths.Count) { Fail 'artifact.source.specs contains duplicate paths.' }
@@ -340,8 +375,9 @@ try {
     if ($activeBriefRef -cne [string]$artifact.source.brief.path) { Fail 'pre-Archive brief path does not match artifact.source.brief.' }
     $activeBriefBytes = Get-GitObjectBytes "$preTree`:$activeRel/$activeBriefRef" $MaxArtifactBytes
     if ((Get-CanonicalTextSha256 $activeBriefBytes 'pre-Archive brief') -cne ([string]$artifact.source.brief.sha256).ToLowerInvariant()) { Fail 'pre-Archive brief hash does not match artifact.source.brief.' }
-    $activeSpecSection = Get-YamlSection $activeStateText 'spec_changes'
-    $activeSpecPaths = @([regex]::Matches($activeSpecSection, '(?m)^\s+source:\s*(?<source>\S+)\s*$') | ForEach-Object { $_.Groups['source'].Value })
+    $activeSpecChanges = Get-SpecChanges $activeStateText 'pre-Archive state'
+    Assert-ExactSpecChangeSet $archivedSpecChanges $activeSpecChanges 'Archived Native state spec_changes'
+    $activeSpecPaths = @($activeSpecChanges.Sources)
     Assert-ExactPathSet $activeSpecPaths $providedSpecPaths 'pre-Archive state Spec paths'
     foreach ($specSource in $artifact.source.specs) {
         $specBytes = Get-GitObjectBytes "$preTree`:$activeRel/$([string]$specSource.path)" $MaxArtifactBytes

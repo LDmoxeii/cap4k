@@ -1,0 +1,969 @@
+schema: comet.native.v4
+name: fix-native-pr-finish-zero-spec
+language: zh-CN
+phase: archive
+status: active
+state_version: 11
+brief: brief.md
+spec_changes:
+  - capability: repository-pr-finish
+    operation: modify
+    source: specs/repository-pr-finish/spec.md
+workspace:
+  isolation: worktree
+  change_branch: fix/native-pr-finish-zero-spec
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: archive-ready
+  goal_cycle: 2
+  iteration: 1
+  attempt: 2
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: archive
+acceptance:
+  - id: A1
+    source: brief.md
+    text: "A1: archived state 使用 `spec_changes: []` 且 authoring artifact 使用
+      `source.specs: []` 时，provider 能创建 PR，并在相同 evidence 重试时复用同一 PR，不产生重复 PR。"
+    result: passed
+    reason:
+      text: Zero-spec fixture uses exact state/artifact empty sets and proves create
+        then retry reuse without a duplicate PR.
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: "A2: zero-spec 路径仍要求 pre-Archive active root 到 Archive root 的精确
+      Runtime-owned progression，不能夹带 canonical spec 或其他额外路径。"
+    result: passed
+    reason:
+      text: Exact snapshot-to-Archive path validation remains enforced; zero-spec
+        tests reject any extra canonical or unrelated path.
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: "A3: 非空 spec change 的既有 create/reuse、hash、canonical publication 与
+      exact-set 校验继续通过，且 pre-Archive/Archive capability-source mapping 必须完全一致。"
+    result: passed
+    reason:
+      text: Existing nonempty Spec create/reuse, hash, canonical publication, and
+        exact capability/source mapping regressions pass.
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: "A4: 非法 inline `spec_changes` 值、state/artifact specs
+      数量、路径、capability/source identity 不匹配时，在任何远端 mutation 前 fail closed。"
+    result: passed
+    reason:
+      text: Malformed inline values, artifact shape/count mismatch, mapping drift, and
+        extra paths fail before remote mutation.
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: "A5: `scripts/test-pr-workflow.ps1`、`gradlew.bat check`、capability facts
+      export/validation、Skill validation、Runtime facts 与 capability-contract
+      tests 全部通过。"
+    result: passed
+    reason:
+      text: "Attempt 2 Runtime checks are authoritative and all passed with exit code
+        0: provider suite, full Gradle check, governance checks, and git diff
+        check."
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: "A6: `repository-pr-finish` canonical Spec 为
+      `modified`；Runtime、Generator、Analyzer、AgentFacts、Public Docs、Skill 的传播结论为
+      `verified-no-change` 或 `not-applicable`。"
+    result: passed
+    reason:
+      text: repository-pr-finish is modified; Runtime, AgentFacts, and Skill are
+        verified-no-change; Generator, Analyzer, and Public Docs are not
+        applicable.
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: "A7: Archive 将完整目标 Spec 精确发布到
+      `docs/comet/specs/repository-pr-finish/spec.md`，并能通过旧 provider 的非空 Spec
+      路径完成本修复的 PR finish；合并后的 provider 能处理后续真正的 zero-spec change。"
+    result: passed
+    reason:
+      text: The active full target Spec is publishable through the old nonempty path,
+        while the updated provider is proven to support future true zero-spec
+        changes.
+      truncated: false
+  - id: A8
+    source: specs/repository-pr-finish/spec.md
+    text: cap4k owns the semantic and deterministic policy for pull requests created
+      by Comet Native Archive. Comet owns the generic finish transaction; the
+      repository owns the reviewer context, template, capability-closure
+      validation, create/reuse policy, and remote body verification.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A9
+    source: specs/repository-pr-finish/spec.md
+    text: A user selection of `finish=pull-request` authorizes the current Native
+      Agent to author the PR title and body from accepted change evidence.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A10
+    source: specs/repository-pr-finish/spec.md
+    text: The Agent MUST NOT ask for a second title/body confirmation.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A11
+    source: specs/repository-pr-finish/spec.md
+    text: Automatic authoring MUST occur only after Native Verify has accepted the
+      current candidate and Archive permits pull-request finish.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A12
+    source: specs/repository-pr-finish/spec.md
+    text: The authored content is untrusted until the repository validator accepts
+      its structure, current diff, capability facts, and identity bindings.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A13
+    source: specs/repository-pr-finish/spec.md
+    text: "The Agent MUST derive PR reviewer context from the current tracked PR
+      template and the following available evidence:"
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A14
+    source: specs/repository-pr-finish/spec.md
+    text: active change name, branch, target branch, and accepted Native state;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A15
+    source: specs/repository-pr-finish/spec.md
+    text: brief, complete target Specs, verification result, and acceptance outcomes;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A16
+    source: specs/repository-pr-finish/spec.md
+    text: owning Issue hierarchy when one exists;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A17
+    source: specs/repository-pr-finish/spec.md
+    text: current `origin/master...finalHead` diff and changed-path classification
+      as PR evidence, without assuming the accepted pre-Archive commit alone
+      contains all implementation changes;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A18
+    source: specs/repository-pr-finish/spec.md
+    text: generated capability facts and propagation closure;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A19
+    source: specs/repository-pr-finish/spec.md
+    text: actual checks run, skipped, failed, or blocked.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A20
+    source: specs/repository-pr-finish/spec.md
+    text: "The repository-owned authoring artifact MUST:"
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A21
+    source: specs/repository-pr-finish/spec.md
+    text: use a versioned schema;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A22
+    source: specs/repository-pr-finish/spec.md
+    text: contain the exact title and body to be published;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A23
+    source: specs/repository-pr-finish/spec.md
+    text: identify the change, base, and head;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A24
+    source: specs/repository-pr-finish/spec.md
+    text: record both the accepted pre-Archive commit identity and
+      `source.preArchiveTreeSha`, the complete Git tree snapshot identity of the
+      accepted working tree from which it was authored; the Native Agent MUST
+      create that tree through an isolated temporary Git index equivalent to
+      reading `HEAD`, staging all working-tree changes, and writing the tree,
+      without changing the real index, committing the snapshot, or adding it to
+      product source;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A25
+    source: specs/repository-pr-finish/spec.md
+    text: include a deterministic content fingerprint; hashes of tracked UTF-8 text
+      sources MUST normalize CRLF and CR to LF before SHA-256 so Git checkout
+      line-ending policy cannot change their identity;
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A26
+    source: specs/repository-pr-finish/spec.md
+    text: remain local and reusable for an Archive retry without being committed as
+      product source.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A27
+    source: specs/repository-pr-finish/spec.md
+    text: AI owns semantic synthesis such as Summary, Audit Focus, boundary
+      explanations, risk, composition, and sibling responsibility. Deterministic
+      scripts MUST NOT fabricate these narratives from fixed sentence templates.
+    result: passed
+    reason:
+      text: Independent review confirms the repository-owned PR authoring artifact
+        contract, accepted evidence bindings, semantic authoring boundary, and
+        deterministic fingerprint/snapshot rules remain enforced.
+      truncated: false
+  - id: A28
+    source: specs/repository-pr-finish/spec.md
+    text: "The configured provider MUST:"
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A29
+    source: specs/repository-pr-finish/spec.md
+    text: accept only `comet.native.pull-request-finish-input.v1` on stdin;
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A30
+    source: specs/repository-pr-finish/spec.md
+    text: emit only one `comet.native.pull-request-finish-result.v1` JSON object on
+      stdout when successful;
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A31
+    source: specs/repository-pr-finish/spec.md
+    text: write diagnostics only to stderr;
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A32
+    source: specs/repository-pr-finish/spec.md
+    text: validate schema, base, head, the accepted pre-Archive commit identity,
+      `source.preArchiveTreeSha` as an existing Git tree object, path
+      containment, and bounded input before remote mutation;
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A33
+    source: specs/repository-pr-finish/spec.md
+    text: require a current repository-owned authoring artifact and fail closed for
+      missing, stale, ambiguous, placeholder-bearing, or fingerprint-mismatched
+      content; missing, invalid, non-tree, or tampered snapshot identity; or any
+      difference between the snapshot tree and the final Archive head tree
+      outside Runtime-owned Archive progression such as active-change-to-archive
+      movement, canonical Spec publication, and `.comet/current-change.json`
+      updates;
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A34
+    source: specs/repository-pr-finish/spec.md
+    text: invoke the repository PR entry rather than duplicating its template or
+      validation logic;
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A35
+    source: specs/repository-pr-finish/spec.md
+    text: "return `remoteVerified: true` only after repository validation succeeds
+      against the remote PR."
+    result: passed
+    reason:
+      text: Independent review confirms the configured provider preserves strict
+        input/output schemas, fail-closed validation, repository entry
+        delegation, and remote verification before success.
+      truncated: false
+  - id: A36
+    source: specs/repository-pr-finish/spec.md
+    text: "A Native change MAY legitimately contain no capability Spec change. The
+      only supported empty representation in both accepted pre-Archive state and
+      archived state is the exact inline YAML sequence `spec_changes: []`."
+    result: passed
+    reason:
+      text: Independent review and focused regressions confirm exact zero-spec
+        syntax/empty-array semantics, exact active/archive capability-source
+        pairing, and unchanged nonempty behavior.
+      truncated: false
+  - id: A37
+    source: specs/repository-pr-finish/spec.md
+    text: Any other inline `spec_changes` representation, including a scalar,
+      mapping, quoted value, commented value, or alternative list spelling, MUST
+      fail closed before remote mutation rather than being interpreted as empty.
+    result: passed
+    reason:
+      text: Independent review and focused regressions confirm exact zero-spec
+        syntax/empty-array semantics, exact active/archive capability-source
+        pairing, and unchanged nonempty behavior.
+      truncated: false
+  - id: A38
+    source: specs/repository-pr-finish/spec.md
+    text: For a zero-spec change, the accepted pre-Archive state and archived state
+      MUST both declare the exact empty sequence, and the repository-owned
+      authoring artifact MUST contain an exact empty JSON array at
+      `source.specs`.
+    result: passed
+    reason:
+      text: Independent review and focused regressions confirm exact zero-spec
+        syntax/empty-array semantics, exact active/archive capability-source
+        pairing, and unchanged nonempty behavior.
+      truncated: false
+  - id: A39
+    source: specs/repository-pr-finish/spec.md
+    text: For a nonempty change, the capability/source pairs declared by accepted
+      pre-Archive state and archived state MUST match exactly; source-only
+      equality is insufficient.
+    result: passed
+    reason:
+      text: Independent review and focused regressions confirm exact zero-spec
+        syntax/empty-array semantics, exact active/archive capability-source
+        pairing, and unchanged nonempty behavior.
+      truncated: false
+  - id: A40
+    source: specs/repository-pr-finish/spec.md
+    text: An empty Spec set MUST NOT weaken brief, verification identity, accepted
+      commit/tree snapshot, fingerprint, template, capability facts,
+      Runtime-owned Archive progression, create/reuse identity, remote body
+      verification, or any other provider validation.
+    result: passed
+    reason:
+      text: Independent review and focused regressions confirm exact zero-spec
+        syntax/empty-array semantics, exact active/archive capability-source
+        pairing, and unchanged nonempty behavior.
+      truncated: false
+  - id: A41
+    source: specs/repository-pr-finish/spec.md
+    text: Existing nonempty block-list parsing, Spec hashes, capability mapping,
+      canonical publication, and exact changed-path validation remain
+      authoritative.
+    result: passed
+    reason:
+      text: Independent review and focused regressions confirm exact zero-spec
+        syntax/empty-array semantics, exact active/archive capability-source
+        pairing, and unchanged nonempty behavior.
+      truncated: false
+  - id: A42
+    source: specs/repository-pr-finish/spec.md
+    text: Comet remains responsible for commit, push, provider invocation,
+      independent remote PR identity verification, recovery state, and worktree
+      cleanup.
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A43
+    source: specs/repository-pr-finish/spec.md
+    text: "`scripts/create-pr.ps1` is the single repository entry for manual and
+      Native-created pull requests. It MUST:"
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A44
+    source: specs/repository-pr-finish/spec.md
+    text: enforce `master` as base and a same-repository short-lived head;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A45
+    source: specs/repository-pr-finish/spec.md
+    text: discover the tracked PR template case-insensitively;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A46
+    source: specs/repository-pr-finish/spec.md
+    text: validate the authored body before remote mutation using
+      `origin/master...finalHead` changed-files and capability-facts evidence
+      available to CI, while separately comparing the accepted working-tree
+      snapshot with the final Archive head tree so implementation already
+      present in the snapshot is not misclassified as Archive-only progression;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A47
+    source: specs/repository-pr-finish/spec.md
+    text: create exactly one PR when none exists;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A48
+    source: specs/repository-pr-finish/spec.md
+    text: reuse a unique open PR only when its title, body, base, head, accepted
+      pre-Archive commit identity, accepted tree snapshot identity, and expected
+      remote identity remain consistent with the authoring artifact;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A49
+    source: specs/repository-pr-finish/spec.md
+    text: fail closed rather than editing a drifted existing PR;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A50
+    source: specs/repository-pr-finish/spec.md
+    text: fetch and revalidate the remote body after creation or reuse;
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A51
+    source: specs/repository-pr-finish/spec.md
+    text: provide a machine-readable result to the thin Comet adapter while
+      preserving the supported manual dry-run entry.
+    result: passed
+    reason:
+      text: Independent review confirms Comet transaction ownership and
+        scripts/create-pr.ps1 create/reuse, identity, diff, template, and
+        remote-body verification contracts remain intact.
+      truncated: false
+  - id: A52
+    source: specs/repository-pr-finish/spec.md
+    text: "The authored PR body MUST preserve the tracked template and provide
+      non-placeholder evidence for:"
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A53
+    source: specs/repository-pr-finish/spec.md
+    text: Summary and target/change type;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A54
+    source: specs/repository-pr-finish/spec.md
+    text: Issue hierarchy and Acceptance IDs;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A55
+    source: specs/repository-pr-finish/spec.md
+    text: Runtime, Generator, Analyzer, AgentFacts, Public Docs, and Skill impact;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A56
+    source: specs/repository-pr-finish/spec.md
+    text: shared contracts and propagation closure;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A57
+    source: specs/repository-pr-finish/spec.md
+    text: composition evidence and sibling-slice responsibility;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A58
+    source: specs/repository-pr-finish/spec.md
+    text: reviewer Audit Focus;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A59
+    source: specs/repository-pr-finish/spec.md
+    text: actual verification and any justified skips;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A60
+    source: specs/repository-pr-finish/spec.md
+    text: Agent Review request state;
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A61
+    source: specs/repository-pr-finish/spec.md
+    text: release note.
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A62
+    source: specs/repository-pr-finish/spec.md
+    text: The template is a structured context contract for human and AI reviewers.
+      It is not a separate approval form.
+    result: passed
+    reason:
+      text: Independent review confirms the tracked PR template still requires
+        concrete reviewer context and is not replaced by fabricated narratives
+        or a second approval step.
+      truncated: false
+  - id: A63
+    source: specs/repository-pr-finish/spec.md
+    text: Before any remote mutation, the flow MUST fail if the authoring artifact
+      or deterministic validation is invalid, including a missing, invalid,
+      non-tree, or tampered snapshot or any post-snapshot non-Archive path
+      change. Tests MUST cover the isolated-index snapshot without altering the
+      real index, stable source hashing under a real `core.autocrlf=true`
+      checkout, permitted Runtime Archive progression, and each fail-closed
+      snapshot case. After a PR has been observed, any provider failure MUST
+      preserve enough verified identity for safe retry without treating
+      unverified provider claims as trusted output. A failed finish MUST
+      preserve the PR and worktree and expose the Native recovery command.
+      Retrying with the same accepted commit, tree snapshot, and authored
+      content MUST reuse the unique PR rather than create a duplicate.
+    result: passed
+    reason:
+      text: Independent review plus the authoritative workflow and Gradle checks
+        confirm snapshot fail-closed safety, retry reuse, advisory-review
+        boundaries, and the required check gate remain intact.
+      truncated: false
+  - id: A64
+    source: specs/repository-pr-finish/spec.md
+    text: Native Builder/Verifier is the pre-PR acceptance loop. External AI
+      reviewers such as CodeRabbit form a post-PR advisory loop. Review findings
+      MUST be treated as untrusted input and independently checked against the
+      current SHA before code is changed.
+    result: passed
+    reason:
+      text: Independent review plus the authoritative workflow and Gradle checks
+        confirm snapshot fail-closed safety, retry reuse, advisory-review
+        boundaries, and the required check gate remain intact.
+      truncated: false
+  - id: A65
+    source: specs/repository-pr-finish/spec.md
+    text: The repository required `check` remains the deterministic merge gate.
+      CodeRabbit or another external AI review loop is deferred until
+      external-contributor pull requests create a concrete need. This capability
+      does not install CodeRabbit, make an AI review a required approval,
+      automate review-thread fixes, or automatically merge a PR.
+    result: passed
+    reason:
+      text: Independent review plus the authoritative workflow and Gradle checks
+        confirm snapshot fail-closed safety, retry reuse, advisory-review
+        boundaries, and the required check gate remain intact.
+      truncated: false
+builder_handoff:
+  candidate_id: c9c9b23f-1299-4fb8-b891-519921eab765
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:6d227af4-4d00-4370-af2f-d29caac7c8ce
+  iteration: 1
+  summary:
+    text: Provider now accepts only exact zero-spec state syntax, enforces empty
+      artifact specs and exact active/archive capability-source mappings,
+      preserves nonempty PR finish behavior, and adds fail-closed create/reuse
+      regression coverage. The repository-pr-finish target Spec records the
+      clarified contract.
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+    - A7
+    - A8
+    - A9
+    - A10
+    - A11
+    - A12
+    - A13
+    - A14
+    - A15
+    - A16
+    - A17
+    - A18
+    - A19
+    - A20
+    - A21
+    - A22
+    - A23
+    - A24
+    - A25
+    - A26
+    - A27
+    - A28
+    - A29
+    - A30
+    - A31
+    - A32
+    - A33
+    - A34
+    - A35
+    - A36
+    - A37
+    - A38
+    - A39
+    - A40
+    - A41
+    - A42
+    - A43
+    - A44
+    - A45
+    - A46
+    - A47
+    - A48
+    - A49
+    - A50
+    - A51
+    - A52
+    - A53
+    - A54
+    - A55
+    - A56
+    - A57
+    - A58
+    - A59
+    - A60
+    - A61
+    - A62
+    - A63
+    - A64
+    - A65
+  checks:
+    - name:
+        text: pr-workflow-provider
+        truncated: false
+      result: passed
+      note:
+        text: PowerShell syntax validation and scripts/test-pr-workflow.ps1 passed,
+          including zero-spec create/reuse, malformed YAML, artifact-shape,
+          mapping-drift, and extra canonical-path cases.
+        truncated: false
+    - name:
+        text: gradle-check
+        truncated: false
+      result: passed
+      note:
+        text: "gradlew.bat check --no-daemon --console=plain: BUILD SUCCESSFUL in 8m
+          21s; 208 actionable tasks, 1 executed and 207 up-to-date."
+        truncated: false
+    - name:
+        text: capability-governance
+        truncated: false
+      result: passed
+      note:
+        text: Capability facts export/validation, Skill validation, current Runtime
+          facts validation, and capability-contract tests all passed.
+        truncated: false
+    - name:
+        text: git-diff-check
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check passed; changed product paths are limited to the provider
+          and its workflow tests, plus the active Comet brief/full target
+          Spec/state.
+        truncated: false
+    - name:
+        text: independent-candidate-audit
+        truncated: false
+      result: passed
+      note:
+        text: Independent read-only audit found no implementation or target-Spec blocker
+          and recommended the candidate enter Verify.
+        truncated: false
+  checks_truncated: false
+  known_limits: []
+  known_limits_truncated: false
+  submitted_at: 2026-08-21T07:13:32.097Z
+blockers: []
+verification:
+  candidate_id: c9c9b23f-1299-4fb8-b891-519921eab765
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:aee8d201-fdf8-4e69-a744-4590a5a93e09
+  iteration: 1
+  attempt: 2
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: pr-workflow-provider
+      name:
+        text: PR workflow provider regression suite
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -File
+          truncated: false
+        - text: scripts/test-pr-workflow.ps1
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 165310
+    - id: full-gradle-check
+      name:
+        text: Full Gradle check
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: "& .\\gradlew.bat check --no-daemon --console=plain; exit $LASTEXITCODE"
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 454900
+    - id: capability-governance
+      name:
+        text: Capability, Skill, and Runtime governance checks
+        truncated: false
+      argv_display:
+        - text: -NoProfile
+          truncated: false
+        - text: -ExecutionPolicy
+          truncated: false
+        - text: Bypass
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference='Stop'; &
+            ./scripts/export-capability-contract-facts.ps1; if ($LASTEXITCODE
+            -ne 0) { exit $LASTEXITCODE }; &
+            ./scripts/validate-capability-contract.ps1; if ($LASTEXITCODE -ne 0)
+            { exit $LASTEXITCODE }; &
+            ./skills/scripts/validate-cap4k-skills.ps1; if ($LASTEXITCODE -ne 0)
+            { exit $LASTEXITCODE }; &
+            ./scripts/validate-current-runtime-facts.ps1; if ($LASTEXITCODE -ne
+            0) { exit $LASTEXITCODE }; & ./scripts/test-capability-contract.ps1;
+            exit $LASTEXITCODE
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 57387
+    - id: git-diff-check
+      name:
+        text: Git whitespace validation
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 114
+  summary:
+    text: Independent verification passed A1-A65. Exact zero-spec syntax and empty
+      artifact semantics are enforced, nonempty behavior remains compatible, and
+      all authoritative Runtime checks passed for the same candidate.
+    truncated: false
+  risks:
+    - text: A7 canonical publication and the real PR finish occur after Verify during
+        Archive; this verdict confirms the mechanism and accepted candidate, not
+        a completed Archive.
+      truncated: false
+    - text: The zero-spec YAML parser is intentionally strict; any future Runtime
+        serialization change must update the canonical contract, provider, and
+        tests together.
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-08-21T07:34:36.709Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 0
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Native target specification declarations changed
+      truncated: false
+    completed_at: 2026-08-21T06:34:31.747Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: "Native Verifier response was invalid: Native Verifier check ID
+        pr-workflow-provider conflicts with a Runtime check"
+      truncated: false
+    completed_at: 2026-08-21T07:29:45.431Z
+  - goal_cycle: 2
+    iteration: 1
+    attempt: 2
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: Independent verification passed A1-A65. Exact zero-spec syntax and empty
+        artifact semantics are enforced, nonempty behavior remains compatible,
+        and all authoritative Runtime checks passed for the same candidate.
+      truncated: false
+    completed_at: 2026-08-21T07:34:36.709Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-21T06:16:38.840Z
