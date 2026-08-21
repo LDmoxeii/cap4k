@@ -663,6 +663,16 @@ created_at: 2026-08-16T00:00:00.000Z
         $retryState = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
         if ([int]$retryState.createCount -ne 1) { throw 'Provider retry created a duplicate PR.' }
 
+        $remoteStateBeforeCapabilityDrift = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $remoteLogBeforeCapabilityDrift = @((Get-Content -LiteralPath $fakeLogFile -Encoding UTF8) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+        Write-Utf8File (Join-Path $archiveRoot 'comet-state.yaml') ($stateText.Replace('capability: repository-pr-finish', 'capability: repository-pr-finish-renamed'))
+        $capabilityDriftProcess = Invoke-ProcessWithInput $finishProviderScript ($providerInput | ConvertTo-Json -Depth 10) 1 'capability/source mappings' $providerRepo
+        Assert-ProviderFailure $capabilityDriftProcess
+        $remoteStateAfterCapabilityDrift = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $remoteLogAfterCapabilityDrift = @((Get-Content -LiteralPath $fakeLogFile -Encoding UTF8) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+        if ([int]$remoteStateAfterCapabilityDrift.createCount -ne [int]$remoteStateBeforeCapabilityDrift.createCount -or @($remoteStateAfterCapabilityDrift.pullRequests).Count -ne @($remoteStateBeforeCapabilityDrift.pullRequests).Count -or $remoteLogAfterCapabilityDrift -ne $remoteLogBeforeCapabilityDrift) { throw 'Archived capability/source drift reached the fake remote create/reuse path.' }
+        Write-Utf8File (Join-Path $archiveRoot 'comet-state.yaml') $stateText
+
         Write-ProviderArtifact $artifactWithoutSelection
         $withoutSelectionProcess = Invoke-ProcessWithInput $finishProviderScript ($providerInput | ConvertTo-Json -Depth 10) 0 'pull-request-finish-result' $providerRepo
         [void](Assert-ProviderSuccess $withoutSelectionProcess 'reused')
@@ -804,6 +814,202 @@ created_at: 2026-08-16T00:00:00.000Z
 
         $finalFakeState = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
         if ([int]$finalFakeState.createCount -ne 1) { throw 'A failure or retry path performed an unexpected remote create.' }
+
+        Invoke-TestGit $providerRepo @('switch','master') | Out-Null
+        Invoke-TestGit $providerRepo @('switch','-c','feature/zero-spec-provider-test') | Out-Null
+        $zeroPreArchiveHead = (@(Invoke-TestGit $providerRepo @('rev-parse','HEAD'))[0]).Trim()
+        $zeroActiveRoot = Join-Path $providerRepo 'docs/comet/changes/zero-spec-provider-test'
+        $zeroArchiveRoot = Join-Path $providerRepo 'docs/comet/archive/2026-08-21-zero-spec-provider-test'
+        New-Item -ItemType Directory -Path $zeroActiveRoot -Force | Out-Null
+        Write-Utf8File (Join-Path $providerRepo 'implementation-zero-spec.txt') "accepted implementation without a Spec delta`n"
+        $zeroBriefText = "# Outcome`n`nImplementation-only provider fixture.`n"
+        $zeroActiveVerificationText = @"
+---
+generated_from_state_version: 6
+---
+
+# Verification
+
+- Result: **Passed**
+- Iteration: 1
+- Verifier attempt: 1
+"@
+        $zeroArchivedVerificationText = $zeroActiveVerificationText.Replace('generated_from_state_version: 6', 'generated_from_state_version: 7')
+        $zeroActiveStateText = @"
+schema: comet.native.v4
+name: zero-spec-provider-test
+language: zh-CN
+phase: verify
+status: active
+state_version: 6
+brief: brief.md
+spec_changes: []
+workspace:
+  isolation: worktree
+  change_branch: feature/zero-spec-provider-test
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: await-user
+  goal_cycle: 1
+  iteration: 1
+  attempt: 1
+verification:
+  candidate_id: candidate-zero-spec-provider-test
+  identity_provider: skill-coordinated
+  verifier_execution_ref: verifier-zero-spec-provider-test
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  completed_at: 2026-08-21T01:02:03.000Z
+history: []
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-21T00:00:00.000Z
+"@
+        $zeroArchivedStateText = $zeroActiveStateText.Replace('phase: verify', 'phase: archive').Replace('status: active', 'status: done').Replace('state_version: 6', 'state_version: 7').Replace('archived: false', 'archived: true')
+        Write-Utf8File (Join-Path $zeroActiveRoot 'brief.md') $zeroBriefText
+        Write-Utf8File (Join-Path $zeroActiveRoot 'verification.md') $zeroActiveVerificationText
+        Write-Utf8File (Join-Path $zeroActiveRoot 'comet-state.yaml') $zeroActiveStateText
+        Write-Utf8File (Join-Path $providerRepo '.comet/current-change.json') '{"schema":"comet.selection.v2","workflow":"native","change":"zero-spec-provider-test","branch":null}'
+        $zeroPreArchiveTree = Get-WorkingTreeSha $providerRepo $tempRoot
+        if ((@(Invoke-TestGit $providerRepo @('cat-file','-t',$zeroPreArchiveTree))[0]).Trim() -cne 'tree') { throw 'Zero-spec pre-Archive snapshot is not a Git tree.' }
+        Write-Utf8File (Join-Path $zeroActiveRoot 'comet-state.yaml') ($zeroActiveStateText.Replace('spec_changes: []', 'spec_changes: [ ]'))
+        $zeroMalformedActiveTree = Get-WorkingTreeSha $providerRepo $tempRoot
+        if ($zeroMalformedActiveTree -ceq $zeroPreArchiveTree) { throw 'Malformed active zero-spec fixture did not create a distinct Git tree.' }
+        $zeroNonemptySpecBlock = "spec_changes:`n  - capability: unexpected-capability`n    operation: create`n    source: specs/unexpected-capability/spec.md"
+        Write-Utf8File (Join-Path $zeroActiveRoot 'comet-state.yaml') ($zeroActiveStateText.Replace('spec_changes: []', $zeroNonemptySpecBlock))
+        $zeroNonemptyActiveTree = Get-WorkingTreeSha $providerRepo $tempRoot
+        if ($zeroNonemptyActiveTree -ceq $zeroPreArchiveTree) { throw 'Nonempty active zero-spec mismatch fixture did not create a distinct Git tree.' }
+        Write-Utf8File (Join-Path $zeroActiveRoot 'comet-state.yaml') $zeroActiveStateText
+
+        Remove-Item -LiteralPath $zeroActiveRoot -Recurse -Force
+        New-Item -ItemType Directory -Path $zeroArchiveRoot -Force | Out-Null
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'brief.md') $zeroBriefText
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'verification.md') $zeroArchivedVerificationText
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') $zeroArchivedStateText
+        Remove-Item -LiteralPath (Join-Path $providerRepo '.comet/current-change.json') -Force
+        Invoke-TestGit $providerRepo @('add','-A') | Out-Null
+        Invoke-TestGit $providerRepo @('commit','-m','chore(native): archive zero-spec provider test') | Out-Null
+        $zeroProviderHead = (@(Invoke-TestGit $providerRepo @('rev-parse','HEAD'))[0]).Trim()
+        if (Test-Path -LiteralPath (Join-Path $providerRepo 'docs/comet/specs/zero-spec-provider-test')) { throw 'Zero-spec fixture must not publish a canonical Spec.' }
+        $zeroProgressionPaths = @(Invoke-TestGit $providerRepo @('diff','--name-only',$zeroPreArchiveTree,"$zeroProviderHead^{tree}"))
+        if (@($zeroProgressionPaths | Where-Object { $_ -like 'docs/comet/specs/*' }).Count -ne 0) { throw 'Zero-spec Archive progression unexpectedly changed a canonical Spec path.' }
+
+        $zeroFactsOutput = Join-Path $tempRoot 'zero-spec-provider-facts.json'
+        & (Join-Path $providerRepo 'scripts/export-capability-contract-facts.ps1') -OutputFile $zeroFactsOutput | Out-Null
+        $zeroTitle = 'Allow Native PR finish without Spec changes'
+        $zeroBody = New-ValidPrBody -Statuses $noCapabilityStatuses -ChangedNodes 'N/A - implementation-only fixture has no product capability contract delta'
+        $zeroArtifact = [ordered]@{
+            schema = 'cap4k.native-pr-authoring.v1'
+            change = 'zero-spec-provider-test'
+            baseBranch = 'master'
+            headBranch = 'feature/zero-spec-provider-test'
+            title = $zeroTitle
+            body = $zeroBody
+            source = [ordered]@{
+                stateVersion = 6
+                verificationResult = 'pass'
+                verification = [ordered]@{ path='verification.md'; candidateId='candidate-zero-spec-provider-test'; verifierExecutionRef='verifier-zero-spec-provider-test'; iteration=1; attempt=1 }
+                brief = [ordered]@{ path='brief.md'; sha256=(Get-CanonicalTextSha256 (Join-Path $zeroArchiveRoot 'brief.md')) }
+                specs = @()
+                template = [ordered]@{ path='.github/PULL_REQUEST_TEMPLATE.md'; sha256=(Get-CanonicalTextSha256 (Join-Path $providerRepo '.github/PULL_REQUEST_TEMPLATE.md')) }
+                preArchiveHeadSha = $zeroPreArchiveHead
+                preArchiveTreeSha = $zeroPreArchiveTree
+                facts = [ordered]@{ sha256=(Get-Sha256Hex $zeroFactsOutput) }
+            }
+            contentFingerprint = [ordered]@{ algorithm='sha256'; digest='' }
+        }
+        $zeroArtifact.contentFingerprint.digest = Get-AuthoringFingerprint $zeroArtifact
+        $zeroArtifactPathText = (@(Invoke-TestGit $providerRepo @('rev-parse','--git-path','comet/pr-authoring/zero-spec-provider-test.json'))[0]).Trim()
+        $zeroArtifactPath = if ([IO.Path]::IsPathRooted($zeroArtifactPathText)) { $zeroArtifactPathText } else { Join-Path $providerRepo $zeroArtifactPathText }
+        Write-Utf8File $zeroArtifactPath ($zeroArtifact | ConvertTo-Json -Depth 20)
+        Write-Utf8File $fakeStateFile '{"pullRequests":[],"createCount":0}'
+        Write-Utf8File $fakeLogFile ''
+        $env:CAP4K_FAKE_HEAD_SHA = $zeroProviderHead
+        $zeroProviderInput = [ordered]@{ schema='comet.native.pull-request-finish-input.v1'; projectRoot=$providerRepo; change=[ordered]@{ name='zero-spec-provider-test'; branch='feature/zero-spec-provider-test'; headSha=$zeroProviderHead }; target=[ordered]@{ branch='master' }; remote='origin'; transactionId='transaction-zero-spec-provider-test'; existingPullRequest=$null }
+        $zeroCreatedProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 0 'pull-request-finish-result' $providerRepo
+        [void](Assert-ProviderSuccess $zeroCreatedProcess 'created')
+        $zeroCreatedState = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([int]$zeroCreatedState.createCount -ne 1 -or @($zeroCreatedState.pullRequests).Count -ne 1) { throw 'Zero-spec provider path did not create exactly one PR.' }
+        $zeroRemotePr = @($zeroCreatedState.pullRequests)[0]
+        $zeroProviderInput.existingPullRequest = [ordered]@{ number=[long]$zeroRemotePr.number; url=[string]$zeroRemotePr.url; baseBranch=[string]$zeroRemotePr.baseRefName; headBranch=[string]$zeroRemotePr.headRefName; headSha=[string]$zeroRemotePr.headRefOid; state='OPEN' }
+        $zeroReusedProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 0 'pull-request-finish-result' $providerRepo
+        [void](Assert-ProviderSuccess $zeroReusedProcess 'reused')
+        $zeroReusedState = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ([int]$zeroReusedState.createCount -ne 1) { throw 'Zero-spec provider retry created a duplicate PR.' }
+
+        $zeroExtraCanonicalPath = Join-Path $providerRepo 'docs/comet/specs/unexpected-zero-spec/spec.md'
+        New-Item -ItemType Directory -Path (Split-Path -Parent $zeroExtraCanonicalPath) -Force | Out-Null
+        Write-Utf8File $zeroExtraCanonicalPath "# Unexpected zero-spec canonical publication`n"
+        Invoke-TestGit $providerRepo @('add','docs/comet/specs/unexpected-zero-spec/spec.md') | Out-Null
+        Invoke-TestGit $providerRepo @('commit','-m','introduce forbidden zero-spec canonical publication') | Out-Null
+        $zeroExtraCanonicalHead = (@(Invoke-TestGit $providerRepo @('rev-parse','HEAD'))[0]).Trim()
+        $zeroExtraCanonicalInput = $zeroProviderInput | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+        $zeroExtraCanonicalInput.change.headSha = $zeroExtraCanonicalHead
+        $zeroExtraCanonicalInput.existingPullRequest = $null
+        $env:CAP4K_FAKE_HEAD_SHA = $zeroExtraCanonicalHead
+        $zeroExtraCanonicalProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroExtraCanonicalInput | ConvertTo-Json -Depth 10) 1 'changed-path set does not exactly match Runtime-owned Archive progression' $providerRepo
+        Assert-ProviderFailure $zeroExtraCanonicalProcess
+        Invoke-TestGit $providerRepo @('reset','--hard',$zeroProviderHead) | Out-Null
+        $env:CAP4K_FAKE_HEAD_SHA = $zeroProviderHead
+
+        $zeroRemoteStateBeforeMalformed = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $zeroRemoteLogBeforeMalformed = @((Get-Content -LiteralPath $fakeLogFile -Encoding UTF8) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+        $malformedInlineValues = @('{}', '[ ]', 'null', "'[]'", '[] # comment')
+        foreach ($malformedInlineValue in $malformedInlineValues) {
+            Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') ($zeroArchivedStateText.Replace('spec_changes: []', "spec_changes: $malformedInlineValue"))
+            $zeroMalformedProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 "invalid inline 'spec_changes'" $providerRepo
+            Assert-ProviderFailure $zeroMalformedProcess
+        }
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') ($zeroArchivedStateText + "`nspec_changes: []`n")
+        $zeroDuplicateKeyProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 "ambiguous 'spec_changes' declarations" $providerRepo
+        Assert-ProviderFailure $zeroDuplicateKeyProcess
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') ($zeroArchivedStateText.Replace('spec_changes: []', "spec_changes: []`n  - capability: unexpected-capability"))
+        $zeroInlineContinuationProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 "invalid inline 'spec_changes' continuation" $providerRepo
+        Assert-ProviderFailure $zeroInlineContinuationProcess
+
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') $zeroArchivedStateText
+        $zeroArtifactWithUnexpectedSpec = $zeroArtifact | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $zeroArtifactWithUnexpectedSpec.source.specs = @([pscustomobject]@{ path='specs/unexpected-capability/spec.md'; sha256=('0' * 64) })
+        Write-Utf8File $zeroArtifactPath ($zeroArtifactWithUnexpectedSpec | ConvertTo-Json -Depth 20)
+        $zeroUnexpectedSpecProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 'artifact.source.specs must exactly cover the archived change Specs' $providerRepo
+        Assert-ProviderFailure $zeroUnexpectedSpecProcess
+        $zeroArtifactWithObjectSpecs = $zeroArtifact | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $zeroArtifactWithObjectSpecs.source.specs = [pscustomobject]@{ path='specs/unexpected-capability/spec.md'; sha256=('0' * 64) }
+        Write-Utf8File $zeroArtifactPath ($zeroArtifactWithObjectSpecs | ConvertTo-Json -Depth 20)
+        $zeroObjectSpecsProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 'artifact.source.specs must exactly cover the archived change Specs' $providerRepo
+        Assert-ProviderFailure $zeroObjectSpecsProcess
+        $zeroArtifactWithNullSpecs = $zeroArtifact | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $zeroArtifactWithNullSpecs.source.specs = $null
+        Write-Utf8File $zeroArtifactPath ($zeroArtifactWithNullSpecs | ConvertTo-Json -Depth 20)
+        $zeroNullSpecsProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 'artifact.source.specs must exactly cover the archived change Specs' $providerRepo
+        Assert-ProviderFailure $zeroNullSpecsProcess
+        Write-Utf8File $zeroArtifactPath ($zeroArtifact | ConvertTo-Json -Depth 20)
+
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') ($zeroArchivedStateText.Replace('spec_changes: []', $zeroNonemptySpecBlock))
+        $zeroArchivedNonemptyProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 'artifact.source.specs must exactly cover the archived change Specs' $providerRepo
+        Assert-ProviderFailure $zeroArchivedNonemptyProcess
+        Write-Utf8File (Join-Path $zeroArchiveRoot 'comet-state.yaml') $zeroArchivedStateText
+
+        $zeroMalformedActiveArtifact = $zeroArtifact | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $zeroMalformedActiveArtifact.source.preArchiveTreeSha = $zeroMalformedActiveTree
+        $zeroMalformedActiveArtifact.contentFingerprint.digest = Get-AuthoringFingerprint $zeroMalformedActiveArtifact
+        Write-Utf8File $zeroArtifactPath ($zeroMalformedActiveArtifact | ConvertTo-Json -Depth 20)
+        $zeroMalformedActiveProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 "invalid inline 'spec_changes'" $providerRepo
+        Assert-ProviderFailure $zeroMalformedActiveProcess
+        $zeroNonemptyActiveArtifact = $zeroArtifact | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $zeroNonemptyActiveArtifact.source.preArchiveTreeSha = $zeroNonemptyActiveTree
+        $zeroNonemptyActiveArtifact.contentFingerprint.digest = Get-AuthoringFingerprint $zeroNonemptyActiveArtifact
+        Write-Utf8File $zeroArtifactPath ($zeroNonemptyActiveArtifact | ConvertTo-Json -Depth 20)
+        $zeroNonemptyActiveProcess = Invoke-ProcessWithInput $finishProviderScript ($zeroProviderInput | ConvertTo-Json -Depth 10) 1 'capability/source mappings do not exactly match' $providerRepo
+        Assert-ProviderFailure $zeroNonemptyActiveProcess
+        Write-Utf8File $zeroArtifactPath ($zeroArtifact | ConvertTo-Json -Depth 20)
+        $zeroRemoteStateAfterMalformed = Get-Content -LiteralPath $fakeStateFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        $zeroRemoteLogAfterMalformed = @((Get-Content -LiteralPath $fakeLogFile -Encoding UTF8) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+        if ([int]$zeroRemoteStateAfterMalformed.createCount -ne [int]$zeroRemoteStateBeforeMalformed.createCount -or @($zeroRemoteStateAfterMalformed.pullRequests).Count -ne @($zeroRemoteStateBeforeMalformed.pullRequests).Count -or $zeroRemoteLogAfterMalformed -ne $zeroRemoteLogBeforeMalformed) { throw 'Malformed inline zero-spec state reached the fake remote create/reuse path.' }
     } finally {
         $env:PATH = $oldPath
         $env:CAP4K_FAKE_GH_STATE = $oldFakeState
