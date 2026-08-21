@@ -45,6 +45,15 @@ The configured provider MUST:
 - invoke the repository PR entry rather than duplicating its template or validation logic;
 - return `remoteVerified: true` only after repository validation succeeds against the remote PR.
 
+### Zero-Spec and Spec-Mapping Integrity
+
+- A Native change MAY legitimately contain no capability Spec change. The only supported empty representation in both accepted pre-Archive state and archived state is the exact inline YAML sequence `spec_changes: []`.
+- Any other inline `spec_changes` representation, including a scalar, mapping, quoted value, commented value, or alternative list spelling, MUST fail closed before remote mutation rather than being interpreted as empty.
+- For a zero-spec change, the accepted pre-Archive state and archived state MUST both declare the exact empty sequence, and the repository-owned authoring artifact MUST contain an exact empty JSON array at `source.specs`.
+- For a nonempty change, the capability/source pairs declared by accepted pre-Archive state and archived state MUST match exactly; source-only equality is insufficient.
+- An empty Spec set MUST NOT weaken brief, verification identity, accepted commit/tree snapshot, fingerprint, template, capability facts, Runtime-owned Archive progression, create/reuse identity, remote body verification, or any other provider validation.
+- Existing nonempty block-list parsing, Spec hashes, capability mapping, canonical publication, and exact changed-path validation remain authoritative.
+
 Comet remains responsible for commit, push, provider invocation, independent remote PR identity verification, recovery state, and worktree cleanup.
 
 ## Repository PR entry
