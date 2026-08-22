@@ -49,7 +49,7 @@ class CompositeBuildConsumerFunctionalTest {
         ).build()
 
         assertTrue(
-            Regex("(?m)^project :.*:${Regex.escape(dependency)} \\(by composite build\\)$")
+            Regex("(?m)^project '?[^\\r\\n]*:${Regex.escape(dependency)}'? \\(by composite build\\)$")
                 .containsMatchIn(insight.output),
             "Expected $dependency to resolve from the included cap4k build. Output:\n${insight.output}",
         )

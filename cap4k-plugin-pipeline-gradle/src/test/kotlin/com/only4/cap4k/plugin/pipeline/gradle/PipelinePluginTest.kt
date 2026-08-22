@@ -27,6 +27,7 @@ import com.only4.cap4k.plugin.pipeline.generator.types.ValueObjectArtifactPlanne
 import com.only4.cap4k.plugin.pipeline.renderer.pebble.PresetTemplateResolver
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.Classpath
+import org.gradle.work.DisableCachingByDefault
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -127,6 +128,22 @@ class PipelinePluginTest {
             val task = project.tasks.named(taskName).get()
             val classpath = getter.invoke(task) as FileCollection
             assertEquals(setOf(addonJar), classpath.files)
+        }
+    }
+
+    @Test
+    fun `pipeline task types declare explicit cacheability contracts`() {
+        val taskTypes = setOf(
+            Cap4kPlanTask::class.java,
+            Cap4kGenerateTask::class.java,
+            Cap4kGenerateSourcesTask::class.java,
+            Cap4kAnalysisPlanTask::class.java,
+            Cap4kAnalysisGenerateTask::class.java,
+            Cap4kAgentSnapshotTask::class.java,
+        )
+
+        taskTypes.forEach { taskType ->
+            assertNotNull(taskType.getAnnotation(DisableCachingByDefault::class.java))
         }
     }
 

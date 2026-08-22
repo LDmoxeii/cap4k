@@ -1,0 +1,360 @@
+schema: comet.native.v4
+name: deliver-gradle-wrapper-9-6-1
+language: zh-CN
+phase: archive
+status: active
+state_version: 7
+brief: brief.md
+spec_changes: []
+workspace:
+  isolation: worktree
+  change_branch: fix/deliver-gradle-wrapper-9-6-1
+  target_branch: master
+  finish: pull-request
+loop:
+  stage: archive-ready
+  goal_cycle: 1
+  iteration: 1
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: archive
+acceptance:
+  - id: A1
+    source: brief.md
+    text: "A1: `./gradlew.bat --version` 报告 Gradle 9.6.1，仓库不要求安装或调用全局 Gradle。"
+    result: passed
+    reason:
+      text: Runtime 权威检查 wrapper-version-help-plugin-validation
+        status=passed、exit_code=0；Wrapper --version 报告 Gradle 9.6.1，并使用仓库
+        gradlew.bat。
+      truncated: false
+  - id: A2
+    source: brief.md
+    text: "A2: Wrapper 四个受跟踪文件由 Gradle 9.6.1 完整刷新，distribution 为 `bin`，URL
+      校验开启，且没有本机绝对路径。"
+    result: passed
+    reason:
+      text: 已确认四个 Wrapper 跟踪文件存在；gradle-wrapper.properties 指向
+        https://services.gradle.org/distributions/gradle-9.6.1-bin.zip，validateDistributionUrl=true，并包含官方
+        retries=0、retryBackOffMs=500；Wrapper 范围未检出本机绝对路径。
+      truncated: false
+  - id: A3
+    source: brief.md
+    text: "A3: `./gradlew.bat help --no-daemon --console=plain` 和
+      `:cap4k-plugin-pipeline-gradle:validatePlugins` 在 JDK 17 下成功。"
+    result: passed
+    reason:
+      text: Runtime 权威检查 wrapper-version-help-plugin-validation
+        status=passed、exit_code=0，确认 JDK 17 下 help 与
+        :cap4k-plugin-pipeline-gradle:validatePlugins 成功。
+      truncated: false
+  - id: A4
+    source: brief.md
+    text: "A4: buildSrc 测试与全仓 `./gradlew.bat check` 在 Gradle 9.6.1 下通过，兼容修改保持在六个
+      task cacheability 合同、两个 stale fixture include 和 dependencyInsight
+      断言的最小范围。"
+    result: passed
+    reason:
+      text: Runtime 权威检查 full-gradle-verification-sequential
+        status=passed、exit_code=0（555817ms），覆盖 buildSrc test 与全仓 check。静态审查确认六个
+        DefaultTask 均显式声明
+        @DisableCachingByDefault，且测试逐一断言该合同；Cap4kGenerateSourcesTask 未恢复
+        @CacheableTask。测试兼容调整限于 Gradle 9.6.1 所需的 fixture/dependencyInsight
+        范围，未见产品能力扩张。
+      truncated: false
+  - id: A5
+    source: brief.md
+    text: "A5: capability facts 导出/校验、Skill 校验、Runtime facts、capability contract
+      tests、PR workflow guards 全部通过；Runtime/Generator/Analyzer/AgentFacts/Public
+      Docs/Skill 的传播结论为 `verified-no-change` 或 `not-applicable`。"
+    result: passed
+    reason:
+      text: Runtime 权威检查 capability-governance status=passed、exit_code=0（222875ms），覆盖
+        facts 导出、capability contract 校验、Skill、Runtime facts、contract tests 与 PR
+        workflow guards。实现范围是 Wrapper、Gradle task cacheability 元数据及测试/fixture
+        兼容，不改变 Runtime、Generator、Analyzer、AgentFacts、Public Docs 或 Skill
+        产品合同，因此传播分类为 verified-no-change/not-applicable。
+      truncated: false
+  - id: A6
+    source: brief.md
+    text: "A6: `git diff --check` 通过；连续两次官方 Wrapper 任务不改变四个 Wrapper 文件的哈希，也不产生其他未解释的
+      tracked drift。"
+    result: passed
+    reason:
+      text: Runtime 权威检查 wrapper-stability-and-diff status=passed、exit_code=0；git diff
+        --check、绝对路径扫描通过，连续两次官方 Gradle 9.6.1 bin Wrapper 任务后四文件哈希稳定且没有未解释
+        tracked drift。
+      truncated: false
+  - id: A7
+    source: brief.md
+    text: "A7:
+      `cap4k-reference-payment/.worktrees/build-payment-merchant-settlement`
+      使用自身 Gradle 9.6.1 Wrapper和显式 `-Pcap4k.local.path=<本 change worktree>` 完成
+      Composite Build smoke，日志确认本地 cap4k included build 被加载。"
+    result: passed
+    reason:
+      text: Runtime 权威检查 payment-composite-smoke status=passed、exit_code=0；payment B4
+        worktree 使用自身 Gradle 9.6.1 Wrapper及显式 -Pcap4k.local.path 指向本
+        candidate，cap4kPlan、application/adapter compileKotlin 与 start:test
+        成功，日志确认 included build 从本地 cap4k 加载。
+      truncated: false
+  - id: A8
+    source: brief.md
+    text: "A8: 已知 Gradle 10 弃用与现有非阻塞警告被准确记录；没有伪装为已修复，也没有借机扩大依赖升级范围。"
+    result: passed
+    reason:
+      text: 已明确记录非阻塞项：Gradle 10 Task.project execution-time access、payment Kotlin DSL
+        delegated-property、既有 CriteriaQuery nullability 与 scheduler annotation
+        警告，以及非阻塞 LF/CRLF 提示；Wrapper 稳定性检查已区分换行提示与 tracked drift。静态审查仍见 Kotlin
+        2.2.20、Spring Boot 3.5.6、Foojay 0.8.0，未发现借机扩大依赖升级范围。
+      truncated: false
+builder_handoff:
+  candidate_id: 6b65bc75-fc93-4776-937b-a90d84568a53
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:ded4e379-3c43-4022-a03b-cd8c8e097ad0
+  iteration: 1
+  summary:
+    text: 从最新 master 重放并验证 Gradle 9.6.1 Wrapper 升级；保留已合并的 zero-spec PR finish
+      provider 修复，15 个非 Comet 文件完成迁移，开发期检查全部通过。
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+    - A7
+    - A8
+  checks:
+    - name:
+        text: wrapper-version-help-plugin-validation
+        truncated: false
+      result: passed
+      note:
+        text: Gradle 9.6.1 / JDK 17；help 与 validatePlugins 通过。
+        truncated: false
+    - name:
+        text: buildsrc-and-full-check
+        truncated: false
+      result: passed
+      note:
+        text: buildSrc tests 与全仓 check 通过；217 actionable tasks。
+        truncated: false
+    - name:
+        text: capability-governance
+        truncated: false
+      result: passed
+      note:
+        text: facts 导出、capability/Skill/Runtime 校验、capability contract 与 PR workflow
+          guards 全部通过。
+        truncated: false
+    - name:
+        text: wrapper-stability-and-diff
+        truncated: false
+      result: passed
+      note:
+        text: 官方 Wrapper 完成一次工作树换行归一化后，连续两次执行均 UP-TO-DATE，四文件哈希稳定；diff check 与绝对路径扫描通过。
+        truncated: false
+    - name:
+        text: payment-composite-smoke
+        truncated: false
+      result: passed
+      note:
+        text: 显式本地路径加载 deliver-gradle-wrapper-9-6-1 included build；payment
+          plan/compile/start tests 通过。
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: Gradle 10 的 Task.project execution-time access 仍是后续迁移项。
+      truncated: false
+    - text: Payment Kotlin DSL delegated-property 警告仍是下游 Gradle 10 迁移项。
+      truncated: false
+    - text: Git LF/CRLF 工作树提示不阻塞；连续官方 Wrapper 生成已证明稳定。
+      truncated: false
+    - text: 既有生成 CriteriaQuery nullability 与 scheduler annotation 警告仍为非阻塞项。
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-21T12:18:11.019Z
+blockers: []
+verification:
+  candidate_id: 6b65bc75-fc93-4776-937b-a90d84568a53
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:87c3994d-3761-418b-86e5-4b70e435f673
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: wrapper-version-help-plugin-validation
+      name:
+        text: Wrapper version, help, and Gradle plugin validation
+        truncated: false
+      argv_display:
+        - text: -NoLogo
+          truncated: false
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference='Stop'; .\gradlew.bat --version; if ($LASTEXITCODE
+            -ne 0) { exit $LASTEXITCODE }; .\gradlew.bat help
+            :cap4k-plugin-pipeline-gradle:validatePlugins --no-daemon
+            --console=plain --warning-mode=all; exit $LASTEXITCODE
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 6709
+    - id: full-gradle-verification-sequential
+      name:
+        text: buildSrc tests and full repository check, sequential
+        truncated: false
+      argv_display:
+        - text: -NoLogo
+          truncated: false
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference='Stop'; Push-Location buildSrc; try {
+            ..\gradlew.bat test --no-daemon --console=plain --warning-mode=all;
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE } } finally {
+            Pop-Location }; .\gradlew.bat check --no-daemon --console=plain
+            --warning-mode=all; exit $LASTEXITCODE
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 555817
+    - id: capability-governance
+      name:
+        text: Capability, Skill, Runtime, and PR workflow governance
+        truncated: false
+      argv_display:
+        - text: -NoLogo
+          truncated: false
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference='Stop';
+            $commands=@('.\scripts\export-capability-contract-facts.ps1','.\scripts\validate-capability-contract.ps1','.\skills\scripts\validate-cap4k-skills.ps1','.\scripts\validate-current-runtime-facts.ps1','.\scripts\test-capability-contract.ps1','.\scripts\test-pr-workflow.ps1');
+            foreach($command in $commands){ & $command; if($LASTEXITCODE -ne 0){
+            exit $LASTEXITCODE } }; exit 0
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 222875
+    - id: wrapper-stability-and-diff
+      name:
+        text: Wrapper repeatability, diff check, and absolute-path guard
+        truncated: false
+      argv_display:
+        - text: -NoLogo
+          truncated: false
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: "$ErrorActionPreference='Stop';
+            $files=@('gradle/wrapper/gradle-wrapper.properties','gradle/wrapper\
+            /gradle-wrapper.jar','gradlew','gradlew.bat'); $before=@{};
+            foreach($file in $files){$before[$file]=(Get-FileHash -Algorithm
+            SHA256 -LiteralPath $file).Hash}; 1..2 | ForEach-Object {
+            .\\gradlew.bat wrapper --gradle-version 9.6.1 --distribution-type
+            bin --no-daemon --console=plain; if($LASTEXITCODE -ne 0){exit
+            $LASTEXITCODE} }; foreach($file in $files){$after=(Get-FileHash
+            -Algorithm SHA256 -LiteralPath $file).Hash; if($after -ne
+            $before[$file]){throw \"Wrapper hash drift: $file\"}}; git diff
+            --check; if($LASTEXITCODE -ne 0){exit $LASTEXITCODE};
+            $matches=Select-String -Path
+            'gradle/wrapper/gradle-wrapper.properties','gradlew','gradlew.bat'
+            -Pattern 'C:/Users/|C:\\\\Users\\|only-workspace' -SimpleMatch;
+            if($matches){$matches | ForEach-Object { Write-Error $_.Line }; exit
+            1}; exit 0"
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 10075
+    - id: payment-composite-smoke
+      name:
+        text: Payment B4 explicit local Composite Build smoke
+        truncated: false
+      argv_display:
+        - text: -NoLogo
+          truncated: false
+        - text: -NoProfile
+          truncated: false
+        - text: -Command
+          truncated: false
+        - text: $ErrorActionPreference='Stop';
+            $cap4k=(Get-Location).Path.Replace('\','/');
+            $payment='C:/Users/LD_moxeii/Documents/code/only-workspace/cap4k-reference-payment/.worktrees/build-payment-merchant-settlement';
+            Remove-Item Env:CAP4K_LOCAL_PATH -ErrorAction SilentlyContinue;
+            Push-Location $payment; try { .\gradlew.bat
+            "-Pcap4k.local.path=$cap4k" cap4kPlan :application:compileKotlin
+            :adapter:compileKotlin :start:test --no-daemon --console=plain
+            --warning-mode=all; exit $LASTEXITCODE } finally { Pop-Location }
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 19690
+  summary:
+    text: candidate 6b65bc75-fc93-4776-937b-a90d84568a53 在 iteration 1 / attempt 1
+      满足 A1-A8。五项 Runtime 权威检查全部 passed 且 exit_code=0；独立静态审查确认 Gradle 9.6.1 bin
+      Wrapper 配置、四文件存在、六个 task 的明确禁用缓存合同、相应合同测试、Composite dependencyInsight
+      断言及依赖版本边界。未发现阻塞项，可进入 Archive/finish。
+    truncated: false
+  risks:
+    - text: Gradle 10 对 Task.project execution-time access 的弃用仍需后续独立迁移。
+      truncated: false
+    - text: 下游 payment Kotlin DSL delegated-property 警告在 Gradle 10 迁移前仍存在。
+      truncated: false
+    - text: 既有生成代码 CriteriaQuery nullability 与 scheduler annotation 警告仍存在，但本次完整检查与
+        Composite smoke 证明其不阻塞当前 Gradle 9.6.1 交付。
+      truncated: false
+    - text: Windows Git LF/CRLF 提示可能继续出现，但两次官方 Wrapper 再生成后的哈希稳定性已证明没有实际 tracked
+        drift。
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-08-21T12:36:21.766Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: candidate 6b65bc75-fc93-4776-937b-a90d84568a53 在 iteration 1 / attempt 1
+        满足 A1-A8。五项 Runtime 权威检查全部 passed 且 exit_code=0；独立静态审查确认 Gradle 9.6.1
+        bin Wrapper 配置、四文件存在、六个 task 的明确禁用缓存合同、相应合同测试、Composite
+        dependencyInsight 断言及依赖版本边界。未发现阻塞项，可进入 Archive/finish。
+      truncated: false
+    completed_at: 2026-08-21T12:36:21.766Z
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pass
+verification_report: verification.md
+archived: false
+created_at: 2026-08-21T08:59:19.794Z

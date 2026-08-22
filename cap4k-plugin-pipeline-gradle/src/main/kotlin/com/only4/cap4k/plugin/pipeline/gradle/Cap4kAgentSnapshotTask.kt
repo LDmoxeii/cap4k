@@ -62,12 +62,14 @@ import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
+@DisableCachingByDefault(because = "Always refreshes a diagnostic snapshot from broad live project state")
 abstract class Cap4kAgentSnapshotTask : DefaultTask() {
     init {
         outputs.upToDateWhen { false }

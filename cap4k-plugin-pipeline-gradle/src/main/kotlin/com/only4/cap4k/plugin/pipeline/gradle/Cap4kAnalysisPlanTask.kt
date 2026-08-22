@@ -9,7 +9,9 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 
+@DisableCachingByDefault(because = "Produces a diagnostic plan from project configuration and undeclared analysis inputs")
 abstract class Cap4kAnalysisPlanTask : DefaultTask() {
     @get:Internal
     lateinit var extension: Cap4kExtension
