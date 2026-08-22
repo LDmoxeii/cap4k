@@ -11,8 +11,10 @@ import org.gradle.api.tasks.OutputDirectories
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 import java.io.File
 
+@DisableCachingByDefault(because = "Uses local managed-root history to clean stale generated outputs safely")
 abstract class Cap4kGenerateSourcesTask : DefaultTask() {
     init {
         outputs.upToDateWhen {

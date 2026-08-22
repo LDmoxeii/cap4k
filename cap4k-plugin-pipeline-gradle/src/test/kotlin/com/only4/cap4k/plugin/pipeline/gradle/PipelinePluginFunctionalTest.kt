@@ -1267,15 +1267,16 @@ class PipelinePluginFunctionalTest {
         )
 
         val firstResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerateSources")
+            .runner(projectDir, "cap4kGenerateSources", "--build-cache")
             .build()
         val secondResult = FunctionalFixtureSupport
-            .runner(projectDir, "cap4kGenerateSources")
+            .runner(projectDir, "cap4kGenerateSources", "--build-cache")
             .build()
 
         assertEquals(TaskOutcome.SUCCESS, firstResult.task(":cap4kGenerateSources")?.outcome)
         assertEquals(TaskOutcome.SUCCESS, secondResult.task(":cap4kGenerateSources")?.outcome)
         assertFalse(secondResult.output.contains(":cap4kGenerateSources UP-TO-DATE"))
+        assertFalse(secondResult.output.contains(":cap4kGenerateSources FROM-CACHE"))
     }
 
     @OptIn(ExperimentalPathApi::class)

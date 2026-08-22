@@ -5,7 +5,9 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.Classpath
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 
+@DisableCachingByDefault(because = "Generates and merges author-owned source files with conflict-policy side effects")
 abstract class Cap4kGenerateTask : DefaultTask() {
     @get:Internal
     lateinit var extension: Cap4kExtension
