@@ -31,6 +31,7 @@ class DesignCommandArtifactPlannerTest {
                     type = SemanticNamedTypeRef(
                         CanonicalTypeIdentity("com.acme.order", listOf("OrderId"), CanonicalTypeKind.STRONG_ID),
                     ),
+                    description = "订单标识",
                 ),
                 SemanticValueField(
                     name = "note",
@@ -42,7 +43,13 @@ class DesignCommandArtifactPlannerTest {
         val response = definition(
             path = "SubmitOrderCmd.Response",
             role = SemanticValueRole.COMMAND_RESPONSE,
-            fields = listOf(SemanticValueField("accepted", SemanticBuiltinTypeRef(SemanticBuiltinType.BOOLEAN))),
+            fields = listOf(
+                SemanticValueField(
+                    "accepted",
+                    SemanticBuiltinTypeRef(SemanticBuiltinType.BOOLEAN),
+                    description = "是否受理",
+                ),
+            ),
         )
         val block = designBlock(
             tag = "command",
@@ -64,15 +71,30 @@ class DesignCommandArtifactPlannerTest {
         )
         assertEquals(
             listOf(
-                DesignRenderFieldModel("orderId", "OrderId"),
+                DesignRenderFieldModel("orderId", "OrderId", description = "订单标识"),
                 DesignRenderFieldModel("note", "String?", nullable = true, defaultValue = "null"),
             ),
             item.context["fields"],
         )
         assertEquals(listOf("com.acme.order.OrderId"), item.context["imports"])
         assertEquals(
-            listOf(DesignRenderFieldModel("accepted", "Boolean")),
+            listOf(DesignRenderFieldModel("accepted", "Boolean", description = "是否受理")),
             item.context["resultFields"],
+        )
+    }
+
+    @Test
+    fun `field render model sanitizes multiline and empty descriptions`() {
+        val field = DesignRenderFieldModel(
+            name = "note",
+            renderedType = "String",
+            description = "first line\nsecond */ line",
+        )
+
+        assertEquals("first line\n * second * / line", field.descriptionCommentText)
+        assertEquals(
+            "",
+            DesignRenderFieldModel("blank", "String", description = "  \n ").descriptionCommentText,
         )
     }
 

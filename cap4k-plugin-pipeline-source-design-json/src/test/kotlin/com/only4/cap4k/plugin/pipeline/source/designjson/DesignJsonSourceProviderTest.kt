@@ -172,10 +172,10 @@ class DesignJsonSourceProviderTest {
                     "name": "SubmitOrder",
                     "description": "submit order",
                     "aggregates": ["Order"],
-                    "fields": [{ "name": "orderId", "type": "OrderId" }],
+                    "fields": [{ "name": "orderId", "type": "OrderId", "description": "订单标识" }],
                     "resultFields": [
-                      { "name": "accepted", "type": "Boolean" },
-                      { "name": "receiptId", "type": "String?", "defaultValue": "null" }
+                      { "name": "accepted", "type": "Boolean", "description": "是否受理" },
+                      { "name": "receiptId", "type": "String?", "defaultValue": "null", "description": "   " }
                     ]
                   }
                 ]
@@ -190,12 +190,24 @@ class DesignJsonSourceProviderTest {
         assertEquals("SubmitOrder", entry.name)
         assertEquals(listOf("Order"), entry.aggregates)
         assertEquals(
-            listOf(SemanticFieldSnapshot(name = "orderId", typeExpression = "OrderId", sourcePath = "fields.orderId")),
+            listOf(
+                SemanticFieldSnapshot(
+                    name = "orderId",
+                    typeExpression = "OrderId",
+                    sourcePath = "fields.orderId",
+                    description = "订单标识",
+                ),
+            ),
             entry.fields,
         )
         assertEquals(
             listOf(
-                SemanticFieldSnapshot(name = "accepted", typeExpression = "Boolean", sourcePath = "resultFields.accepted"),
+                SemanticFieldSnapshot(
+                    name = "accepted",
+                    typeExpression = "Boolean",
+                    sourcePath = "resultFields.accepted",
+                    description = "是否受理",
+                ),
                 SemanticFieldSnapshot(
                     name = "receiptId",
                     typeExpression = "String?",
@@ -205,6 +217,7 @@ class DesignJsonSourceProviderTest {
             ),
             entry.resultFields,
         )
+        assertEquals(null, entry.resultFields[1].description)
     }
 
     @Test

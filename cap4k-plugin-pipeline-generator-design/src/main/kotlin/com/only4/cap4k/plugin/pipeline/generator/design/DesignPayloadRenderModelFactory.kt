@@ -186,6 +186,7 @@ private class SemanticTypeRenderer(
         renderedType = renderType(field.type, imports),
         nullable = field.type.nullable,
         defaultValue = field.defaultValue?.kotlinExpression,
+        description = field.description,
     )
 
     private fun renderType(
