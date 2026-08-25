@@ -80,6 +80,78 @@ class PipelinePluginCompileFunctionalTest {
         val pageQueryContent = projectDir.resolve(
             "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderPageQry.kt",
         ).readText()
+        val commandContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/commands/order/submit/SubmitOrderCmd.kt",
+        ).readText()
+        val ordinaryQueryContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/queries/order/read/FindOrderQry.kt",
+        ).readText()
+        val capabilityContent = projectDir.resolve(
+            "demo-application/src/main/kotlin/com/acme/demo/application/capabilities/authorize/IssueToken.kt",
+        ).readText()
+        assertContainsNormalized(
+            commandContent,
+            """
+            /**
+             * 订单标识
+             */
+            val orderId: Long
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            ordinaryQueryContent,
+            """
+            /**
+             * 查询订单标识
+             */
+            val orderId: Long
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            ordinaryQueryContent,
+            """
+            /**
+             * 结果订单标识
+             */
+            val orderId: Long
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            listQueryContent,
+            """
+            /**
+             * 订单条目
+             */
+            val items: List<Item>
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            listQueryContent,
+            """
+            /**
+             * 条目数量
+             */
+            val count: Int
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            capabilityContent,
+            """
+            /**
+             * 账号
+             */
+            val account: String
+            """.trimIndent(),
+        )
+        assertContainsNormalized(
+            capabilityContent,
+            """
+            /**
+             * 访问令牌
+             */
+            val token: String
+            """.trimIndent(),
+        )
         assertTrue(listQueryContent.contains("val items: List<Item>"))
         assertTrue(pageQueryContent.contains(") : PageRequest, Query<Response>"))
         assertTrue(pageQueryContent.contains("val page: PageData<Item>"))

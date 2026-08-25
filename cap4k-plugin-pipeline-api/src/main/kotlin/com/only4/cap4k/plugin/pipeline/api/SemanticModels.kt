@@ -6,6 +6,7 @@ data class SemanticFieldSnapshot(
     val typeExpression: String,
     val defaultValue: String? = null,
     val sourcePath: String = name,
+    val description: String? = null,
 )
 
 enum class CanonicalTypeKind {
@@ -149,6 +150,7 @@ data class SemanticValueField(
     val type: SemanticTypeRef,
     val defaultValue: SemanticDefaultExpression? = null,
     val sourcePath: String = name,
+    val description: String? = null,
 )
 
 enum class SemanticValueRole {

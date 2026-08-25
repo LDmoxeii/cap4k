@@ -6,9 +6,17 @@ internal data class DesignRenderFieldModel(
     val nullable: Boolean = false,
     // Kotlin-ready right-hand-side expression, not raw design input.
     val defaultValue: String? = null,
+    val description: String? = null,
 ) {
     val type: String
         get() = renderedType
+
+    val descriptionCommentText: String
+        get() = description
+            ?.takeIf { it.isNotBlank() }
+            ?.trim()
+            ?.toKDocCommentText()
+            .orEmpty()
 }
 
 internal data class DesignRenderNestedTypeModel(

@@ -10,7 +10,8 @@
     "fields": [
       {
         "name": "orderId",
-        "type": "Long"
+        "type": "Long",
+        "description": "订单标识"
       }
     ]
   },
@@ -25,13 +26,15 @@
     "fields": [
       {
         "name": "orderId",
-        "type": "Long"
+        "type": "Long",
+        "description": "查询订单标识"
       }
     ],
     "resultFields": [
       {
         "name": "orderId",
-        "type": "Long"
+        "type": "Long",
+        "description": "结果订单标识"
       }
     ]
   },
@@ -46,17 +49,20 @@
     "fields": [
       {
         "name": "customerId",
-        "type": "Long"
+        "type": "Long",
+        "description": "客户标识"
       }
     ],
     "resultFields": [
       {
         "name": "items",
-        "type": "List<Item>"
+        "type": "List<Item>",
+        "description": "订单条目"
       },
       {
         "name": "items[].count",
-        "type": "Int"
+        "type": "Int",
+        "description": "条目数量"
       }
     ]
   },
@@ -71,7 +77,8 @@
     "fields": [
       {
         "name": "keyword",
-        "type": "String"
+        "type": "String",
+        "description": "查询关键词"
       }
     ],
     "resultFields": [
@@ -81,7 +88,8 @@
       },
       {
         "name": "page.list[].total",
-        "type": "Long"
+        "type": "Long",
+        "description": "总条数"
       }
     ],
     "artifacts": [
@@ -105,13 +113,15 @@
     "fields": [
       {
         "name": "account",
-        "type": "String"
+        "type": "String",
+        "description": "账号"
       }
     ],
     "resultFields": [
       {
         "name": "token",
-        "type": "String"
+        "type": "String",
+        "description": "访问令牌"
       }
     ]
   }

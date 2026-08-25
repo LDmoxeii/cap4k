@@ -388,6 +388,11 @@ class DesignJsonSourceProvider : SourceProvider {
                     "design entry $entryName $fieldName[$index] field",
                 ),
                 sourcePath = "$fieldName.$name",
+                description = readOptionalString(
+                    field,
+                    "description",
+                    "design entry $entryName $fieldName[$index] field",
+                )?.trim()?.takeIf { it.isNotEmpty() },
             )
         }
     }

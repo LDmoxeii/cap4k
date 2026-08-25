@@ -689,6 +689,7 @@ class SemanticValueCompiler(
                 type = type,
                 defaultValue = SemanticDefaultCompiler.compile(child.declaration?.defaultValue, type, fieldPath),
                 sourcePath = fieldPath,
+                description = child.declaration?.description,
             )
         }
         return SemanticValueDefinition(

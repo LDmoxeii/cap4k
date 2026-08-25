@@ -18,6 +18,35 @@ import org.junit.jupiter.api.Test
 
 class SemanticValueCompilerTest {
     @Test
+    fun `preserves field descriptions through nested semantic value compilation`() {
+        val definition = SemanticValueCompiler(CanonicalTypeCatalog()).compile(
+            identity = identity("com.acme.api", "CreateOrder.Request", CanonicalTypeKind.NESTED_VALUE),
+            role = SemanticValueRole.COMMAND_REQUEST,
+            fields = listOf(
+                SemanticFieldSnapshot(
+                    name = "orderId",
+                    typeExpression = "String",
+                    description = "订单标识",
+                ),
+                SemanticFieldSnapshot(
+                    name = "details",
+                    typeExpression = "Details",
+                    description = "订单详情",
+                ),
+                SemanticFieldSnapshot(
+                    name = "details.note",
+                    typeExpression = "String",
+                    description = "备注",
+                ),
+            ),
+        )
+
+        assertEquals(listOf("orderId", "details"), definition.fields.map { it.name })
+        assertEquals(listOf("订单标识", "订单详情"), definition.fields.map { it.description })
+        assertEquals(listOf("备注"), definition.nestedDefinitions.single().fields.map { it.description })
+    }
+
+    @Test
     fun `parses recursive closed semantic type algebra with node nullability`() {
         val money = identity("com.acme.types", "Money", CanonicalTypeKind.VALUE_OBJECT)
         val type = CanonicalTypeCatalog(listOf(money)).resolveExpression(

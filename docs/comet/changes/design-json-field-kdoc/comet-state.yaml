@@ -1,0 +1,140 @@
+schema: comet.native.v4
+name: design-json-field-kdoc
+language: zh-CN
+phase: build
+status: active
+state_version: 2
+brief: brief.md
+spec_changes:
+  - capability: design-json-field-kdoc
+    operation: create
+    source: specs/design-json-field-kdoc/spec.md
+workspace:
+  isolation: worktree
+  change_branch: comet/design-json-field-kdoc
+  target_branch: master
+  finish: null
+loop:
+  stage: building
+  goal_cycle: 1
+  iteration: 1
+  attempt: 0
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: submit-builder-candidate
+acceptance:
+  - id: A1
+    source: specs/design-json-field-kdoc/spec.md
+    text: request field description - **GIVEN** a supported design entry contains a
+      field object with `name`, `type`, and a non-blank `description` - **WHEN**
+      cap4k parses the Design JSON and generates the corresponding Kotlin design
+      type - **THEN** the canonical field retains the description - **AND** the
+      generated Kotlin field is preceded by a KDoc block containing the
+      sanitized description - **AND** the field name, rendered type,
+      nullability, default value, order, and imports remain unchanged.
+    result: pending
+    reason: null
+  - id: A2
+    source: specs/design-json-field-kdoc/spec.md
+    text: result field description - **GIVEN** a supported design entry contains
+      `resultFields` with a non-blank field `description` - **WHEN** cap4k
+      generates the corresponding result fields - **THEN** each described result
+      field receives the same KDoc projection rules as request fields.
+    result: pending
+    reason: null
+  - id: A3
+    source: specs/design-json-field-kdoc/spec.md
+    text: nested field description - **GIVEN** a design field resolves to a nested
+      canonical value definition whose fields contain descriptions - **WHEN**
+      the generator renders nested Kotlin value types - **THEN** described
+      nested fields receive KDoc using the same sanitizer and omission rules.
+    result: pending
+    reason: null
+  - id: A4
+    source: specs/design-json-field-kdoc/spec.md
+    text: absent or blank description - **GIVEN** a field has no `description`, an
+      empty description, or whitespace-only description - **WHEN** the field is
+      rendered - **THEN** no empty KDoc block is generated - **AND** the
+      existing field output remains unchanged.
+    result: pending
+    reason: null
+  - id: A5
+    source: specs/design-json-field-kdoc/spec.md
+    text: unsafe KDoc text - **GIVEN** a field description contains `*/` - **WHEN**
+      cap4k renders the field KDoc - **THEN** the generated source remains
+      syntactically valid - **AND** the closing sequence is sanitized
+      consistently with existing description handling.
+    result: pending
+    reason: null
+  - id: A6
+    source: specs/design-json-field-kdoc/spec.md
+    text: backward-compatible parsing - **GIVEN** existing Design JSON without field
+      descriptions - **WHEN** it is parsed and generated - **THEN** parsing
+      succeeds and existing generated semantics remain unchanged.
+    result: pending
+    reason: null
+  - id: A7
+    source: specs/design-json-field-kdoc/spec.md
+    text: analyzer boundary - **GIVEN** generated Kotlin contains field KDoc from
+      Design JSON descriptions - **WHEN** the code-analysis pipeline processes
+      the generated source - **THEN** Analyzer continues to use design metadata
+      annotations as its description input - **AND** it does not need to parse
+      KDoc or ordinary comments.
+    result: pending
+    reason: null
+  - id: A8
+    source: specs/design-json-field-kdoc/spec.md
+    text: "A1: parser/model preservation is covered by focused source-provider/model
+      tests."
+    result: pending
+    reason: null
+  - id: A9
+    source: specs/design-json-field-kdoc/spec.md
+    text: "A2: render model and sanitizer behavior is covered by focused generator
+      tests, including missing, blank, multiline, and `*/` descriptions."
+    result: pending
+    reason: null
+  - id: A10
+    source: specs/design-json-field-kdoc/spec.md
+    text: "A3: every default design template that emits request/result/nested fields
+      projects field KDoc without changing existing field code."
+    result: pending
+    reason: null
+  - id: A11
+    source: specs/design-json-field-kdoc/spec.md
+    text: "A4: cap4k full relevant test suites and a clean build pass."
+    result: pending
+    reason: null
+  - id: A12
+    source: specs/design-json-field-kdoc/spec.md
+    text: "A5: an integration fixture with `design.json` field descriptions
+      generates compilable Kotlin containing the expected KDoc."
+    result: pending
+    reason: null
+  - id: A13
+    source: specs/design-json-field-kdoc/spec.md
+    text: "A6: Analyzer boundary and backward compatibility are explicitly tested or
+      verified."
+    result: pending
+    reason: null
+builder_handoff: null
+blockers: []
+verification: null
+history: []
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pending
+verification_report: null
+archived: false
+created_at: 2026-08-25T12:40:16.898Z

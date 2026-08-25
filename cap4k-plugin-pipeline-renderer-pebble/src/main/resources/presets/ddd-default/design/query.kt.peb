@@ -32,13 +32,19 @@ object {{ typeName }} {
         override val pageSize: Int = 10{% if fields.size > 0 %},{% endif %}
 {% endif -%}
 {%- for field in fields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% if field.descriptionCommentText is not empty %}        /**
+         * {{ field.descriptionCommentText | raw }}
+         */
+        {% endif %}        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     ) : {% if pageRequest %}PageRequest, {% endif %}Query<Response> {
 {%- for nestedType in nestedTypes %}
         data class {{ nestedType.name }}(
 {%- for field in nestedType.fields %}
-            val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% if field.descriptionCommentText is not empty %}            /**
+             * {{ field.descriptionCommentText | raw }}
+             */
+            {% endif %}            val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
         )
 {%- endfor %}
@@ -50,7 +56,10 @@ object {{ typeName }} {
         override val pageSize: Int = 10{% if fields.size > 0 %},{% endif %}
 {% endif -%}
 {%- for field in fields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% if field.descriptionCommentText is not empty %}        /**
+         * {{ field.descriptionCommentText | raw }}
+         */
+        {% endif %}        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     ) : {% if pageRequest %}PageRequest, {% endif %}Query<Response>
 {% endif %}
@@ -62,13 +71,19 @@ object {{ typeName }} {
 {% if resultNestedTypes.size > 0 %}
     data class Response(
 {%- for field in resultFields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% if field.descriptionCommentText is not empty %}        /**
+         * {{ field.descriptionCommentText | raw }}
+         */
+        {% endif %}        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     ) {
 {%- for nestedType in resultNestedTypes %}
         data class {{ nestedType.name }}(
 {%- for field in nestedType.fields %}
-            val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% if field.descriptionCommentText is not empty %}            /**
+             * {{ field.descriptionCommentText | raw }}
+             */
+            {% endif %}            val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
         )
 {%- endfor %}
@@ -76,7 +91,10 @@ object {{ typeName }} {
 {% else %}
     data class Response(
 {%- for field in resultFields %}
-        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
+{% if field.descriptionCommentText is not empty %}        /**
+         * {{ field.descriptionCommentText | raw }}
+         */
+        {% endif %}        val {{ field.name }}: {{ type(field) | raw }}{% if field.defaultValue %} = {{ field.defaultValue | raw }}{% endif %}{% if not loop.last %},{% endif %}
 {%- endfor %}
     )
 {% endif %}
