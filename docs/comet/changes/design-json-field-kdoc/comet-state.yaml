@@ -1,9 +1,9 @@
 schema: comet.native.v4
 name: design-json-field-kdoc
 language: zh-CN
-phase: build
+phase: archive
 status: active
-state_version: 2
+state_version: 7
 brief: brief.md
 spec_changes:
   - capability: design-json-field-kdoc
@@ -13,18 +13,18 @@ workspace:
   isolation: worktree
   change_branch: comet/design-json-field-kdoc
   target_branch: master
-  finish: null
+  finish: merge
 loop:
-  stage: building
+  stage: archive-ready
   goal_cycle: 1
   iteration: 1
-  attempt: 0
+  attempt: 1
   retry_epoch: 0
   failed_iteration_count: 0
   no_progress_count: 0
   execution_failure_count: 0
   previous_unresolved_ids: []
-  next_action: submit-builder-candidate
+  next_action: archive
 acceptance:
   - id: A1
     source: specs/design-json-field-kdoc/spec.md
@@ -35,47 +35,60 @@ acceptance:
       generated Kotlin field is preceded by a KDoc block containing the
       sanitized description - **AND** the field name, rendered type,
       nullability, default value, order, and imports remain unchanged.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: DesignJsonSourceProvider 读取并规范化请求字段 description，语义模型和默认模板保留字段语义并输出 KDoc。
+      truncated: false
   - id: A2
     source: specs/design-json-field-kdoc/spec.md
     text: result field description - **GIVEN** a supported design entry contains
       `resultFields` with a non-blank field `description` - **WHEN** cap4k
       generates the corresponding result fields - **THEN** each described result
       field receives the same KDoc projection rules as request fields.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: resultFields 走同一解析、语义、渲染和模板 KDoc 投影路径，已有源代码测试覆盖。
+      truncated: false
   - id: A3
     source: specs/design-json-field-kdoc/spec.md
     text: nested field description - **GIVEN** a design field resolves to a nested
       canonical value definition whose fields contain descriptions - **WHEN**
       the generator renders nested Kotlin value types - **THEN** described
       nested fields receive KDoc using the same sanitizer and omission rules.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: 嵌套 canonical value fields 的 description 通过 SemanticValueCompiler/PathNode
+        传递，嵌套模板输出 KDoc。
+      truncated: false
   - id: A4
     source: specs/design-json-field-kdoc/spec.md
     text: absent or blank description - **GIVEN** a field has no `description`, an
       empty description, or whitespace-only description - **WHEN** the field is
       rendered - **THEN** no empty KDoc block is generated - **AND** the
       existing field output remains unchanged.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: 缺失、空字符串和空白 description 归一为 null/空渲染文本，不生成空 KDoc，旧字段格式保持不变。
+      truncated: false
   - id: A5
     source: specs/design-json-field-kdoc/spec.md
     text: unsafe KDoc text - **GIVEN** a field description contains `*/` - **WHEN**
       cap4k renders the field KDoc - **THEN** the generated source remains
       syntactically valid - **AND** the closing sequence is sanitized
       consistently with existing description handling.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: KDoc sanitizer 将 */ 转为 * /，并有多行文本和生成编译验证，避免提前闭合注释。
+      truncated: false
   - id: A6
     source: specs/design-json-field-kdoc/spec.md
     text: backward-compatible parsing - **GIVEN** existing Design JSON without field
       descriptions - **WHEN** it is parsed and generated - **THEN** parsing
       succeeds and existing generated semantics remain unchanged.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: description 为可选尾部字段，旧 Design JSON 仍可解析；既有无描述 fixture 通过完整测试。
+      truncated: false
   - id: A7
     source: specs/design-json-field-kdoc/spec.md
     text: analyzer boundary - **GIVEN** generated Kotlin contains field KDoc from
@@ -83,47 +96,190 @@ acceptance:
       the generated source - **THEN** Analyzer continues to use design metadata
       annotations as its description input - **AND** it does not need to parse
       KDoc or ordinary comments.
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: Analyzer 继续以 design metadata annotation 为描述输入，未引入 KDoc/普通注释解析；边界行为与实现一致。
+      truncated: false
   - id: A8
     source: specs/design-json-field-kdoc/spec.md
     text: "A1: parser/model preservation is covered by focused source-provider/model
       tests."
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: source provider 与 SemanticValueCompiler focused tests 覆盖 parser/model
+        preservation。
+      truncated: false
   - id: A9
     source: specs/design-json-field-kdoc/spec.md
     text: "A2: render model and sanitizer behavior is covered by focused generator
       tests, including missing, blank, multiline, and `*/` descriptions."
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: render model/sanitizer tests 覆盖 missing、blank、multiline 和 */。
+      truncated: false
   - id: A10
     source: specs/design-json-field-kdoc/spec.md
     text: "A3: every default design template that emits request/result/nested fields
       projects field KDoc without changing existing field code."
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: capability、command、domain_event、endpoint、integration_event、query
+        六个默认模板均加入条件 KDoc 投影，嵌套字段也覆盖。
+      truncated: false
   - id: A11
     source: specs/design-json-field-kdoc/spec.md
     text: "A4: cap4k full relevant test suites and a clean build pass."
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: Runtime clean build 通过（340 actionable tasks），相关模块完整测试套件及 git diff --check
+        均通过。
+      truncated: false
   - id: A12
     source: specs/design-json-field-kdoc/spec.md
     text: "A5: an integration fixture with `design.json` field descriptions
       generates compilable Kotlin containing the expected KDoc."
-    result: pending
-    reason: null
+    result: passed
+    reason:
+      text: design-compile-sample 含请求、结果和嵌套
+        description，PipelinePluginCompileFunctionalTest 断言生成 KDoc 并完成
+        compileKotlin。
+      truncated: false
   - id: A13
     source: specs/design-json-field-kdoc/spec.md
     text: "A6: Analyzer boundary and backward compatibility are explicitly tested or
       verified."
-    result: pending
-    reason: null
-builder_handoff: null
+    result: passed
+    reason:
+      text: Analyzer 边界和向后兼容均有测试/代码审查证据；严格说 KDoc 忽略属于架构验证，但没有发现任何注释解析路径。
+      truncated: false
+builder_handoff:
+  candidate_id: b2a8e7be-521d-49a2-9255-bd239a5cebd4
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:25ece96a-1c57-4442-af7d-f54f18a18251
+  iteration: 1
+  summary:
+    text: 已将 design.json 字段 description 从 Design JSON 解析、语义模型、渲染模型传递到默认 Pebble
+      设计模板，并在生成 Kotlin 请求、结果及嵌套字段前输出安全 KDoc。空白描述省略，包含 */
+      的文本会被安全转义；同时补齐了单元、集成、分析器边界和文档验证。
+    truncated: false
+  addressed_acceptance_ids:
+    - A1
+    - A2
+    - A3
+    - A4
+    - A5
+    - A6
+    - A7
+    - A8
+    - A9
+    - A10
+    - A11
+    - A12
+    - A13
+  checks:
+    - name:
+        text: 相关模块完整测试套件
+        truncated: false
+      result: passed
+      note:
+        text: source-design-json、pipeline-core、generator-design、renderer-pebble、code-analysis-compiler、pipeline-gradle
+          全部通过。
+        truncated: false
+    - name:
+        text: cap4k clean build
+        truncated: false
+      result: passed
+      note:
+        text: .\gradlew.bat clean build --no-daemon --console=plain；BUILD SUCCESSFUL，340
+          actionable tasks。
+        truncated: false
+    - name:
+        text: capability contract validation
+        truncated: false
+      result: passed
+      note:
+        text: export-capability-contract-facts.ps1 与 validate-capability-contract.ps1
+          均通过。
+        truncated: false
+    - name:
+        text: git diff check
+        truncated: false
+      result: passed
+      note:
+        text: git diff --check 无输出。
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: Analyzer 明确不解析普通 Kotlin KDoc；边界测试确认它继续使用 design metadata annotation。
+      truncated: false
+    - text: 本 change 只覆盖生成设计类型的字段 KDoc，不扩展页面 envelope 根对象 description。
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-08-25T13:37:43.587Z
 blockers: []
-verification: null
-history: []
+verification:
+  candidate_id: b2a8e7be-521d-49a2-9255-bd239a5cebd4
+  identity_provider: skill-coordinated
+  verifier_execution_ref: skill-coordinated:verifier:07b0b183-70ae-431e-926b-d4a598d608fc
+  iteration: 1
+  attempt: 1
+  assurance: skill-coordinated
+  verdict: pass
+  checks:
+    - id: clean-build
+      name:
+        text: cap4k clean build
+        truncated: false
+      argv_display:
+        - text: /d
+          truncated: false
+        - text: /c
+          truncated: false
+        - text: gradlew.bat clean build --no-daemon --console=plain
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 520505
+    - id: diff-check
+      name:
+        text: git diff check
+        truncated: false
+      argv_display:
+        - text: diff
+          truncated: false
+        - text: --check
+          truncated: false
+      argv_truncated: false
+      cwd_ref: .
+      status: passed
+      exit_code: 0
+      duration_ms: 166
+  summary:
+    text: 独立只读审查确认 A1-A13 全部通过。字段 description 已从 Design JSON 贯穿到默认 Kotlin 设计类型字段
+      KDoc，空白省略、多行和 */ 安全处理、结果/嵌套字段、完整构建、集成编译和 Analyzer 边界均有证据。
+    truncated: false
+  risks:
+    - text: A7/A13 的 Analyzer 不解析 KDoc 结论主要由现有 metadata annotation 测试和实现审查确认，未新增一条把含
+        KDoc 的生成源码重新送入 Analyzer 的专门回归测试；风险低且不阻塞本 change。
+      truncated: false
+    - text: 模板使用 raw 输出，但输入先经过统一 description sanitizer；后续自定义模板若绕过
+        descriptionCommentText 不属于本 change 的默认模板契约。
+      truncated: false
+  risks_truncated: false
+  completed_at: 2026-08-25T13:52:14.204Z
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: pass
+    unresolved_ids: []
+    summary:
+      text: 独立只读审查确认 A1-A13 全部通过。字段 description 已从 Design JSON 贯穿到默认 Kotlin 设计类型字段
+        KDoc，空白省略、多行和 */ 安全处理、结果/嵌套字段、完整构建、集成编译和 Analyzer 边界均有证据。
+      truncated: false
+    completed_at: 2026-08-25T13:52:14.204Z
 history_overflow:
   dropped_entries: 0
   first_dropped_at: null
@@ -134,7 +290,7 @@ history_overflow:
     blocked: 0
     execution-error: 0
     recovery: 0
-verification_result: pending
-verification_report: null
+verification_result: pass
+verification_report: verification.md
 archived: false
 created_at: 2026-08-25T12:40:16.898Z
