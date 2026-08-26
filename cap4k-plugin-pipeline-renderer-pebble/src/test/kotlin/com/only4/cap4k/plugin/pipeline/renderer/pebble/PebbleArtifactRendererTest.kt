@@ -1602,7 +1602,12 @@ class PebbleArtifactRendererTest {
                 "aggregateName" to null,
                 "imports" to listOf("com.acme.demo.domain.shared.ids.AuthorId"),
                 "fields" to listOf(
-                    mapOf("name" to "authorId", "renderedType" to "AuthorId", "nullable" to false),
+                    mapOf(
+                        "name" to "authorId",
+                        "renderedType" to "AuthorId",
+                        "nullable" to false,
+                        "descriptionCommentText" to "作者标识",
+                    ),
                 ),
                 "resultFields" to emptyList<Map<String, Any?>>(),
                 "nestedTypes" to emptyList<Map<String, Any?>>(),
@@ -1613,6 +1618,7 @@ class PebbleArtifactRendererTest {
 
         assertReadableKotlin(content)
         assertTrue(content.contains("import com.acme.demo.domain.shared.ids.AuthorId"))
+        assertTrue(content.contains("* 作者标识"))
         assertTrue(content.contains("val authorId: AuthorId"))
     }
 

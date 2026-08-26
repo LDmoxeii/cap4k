@@ -38,6 +38,7 @@
 | `aggregates` | string array | 关联的 aggregate names；普通 tag 可用空数组表示不绑定具体 aggregate。`domain_event` 必须且只能声明一个 owner aggregate；该值只表达归属，不贡献 payload。 |
 | `fields` | field array | input fields。 |
 | `resultFields` | field array | 允许用于 `command`、`query`、`capability` 和 `endpoint` 的 result shape；在 `command` 上表达 command outcome，在 `endpoint` 上表达 published Response。 |
+| field `description` | string | 可选的人类可读字段说明；默认设计模板会在生成的 Kotlin 字段声明前输出 KDoc，不参与 Analyzer 的 KDoc 解析。 |
 | `operationName` | string | 只允许用于 `endpoint`，且必须是非空稳定 published operation identity。它不从 Kotlin type、HTTP route 或 RPC service name 推导。 |
 | `eventName` | string | 只允许用于 `domain_event` 和 `integration_event`；`integration_event` 以及 `persist: true` 的 `domain_event` 必填。 |
 | `persist` | boolean | 只允许用于 `domain_event`。 |
@@ -46,8 +47,10 @@
 field item 常见 shape：
 
 ```json
-{ "name": "snapshots", "type": "List<ContentSnapshot?>?" }
+{ "name": "snapshots", "type": "List<ContentSnapshot?>?", "description": "content snapshots" }
 ```
+
+`description` 是可选的人类可读字段说明。默认设计生成模板会把非空 `fields`、`resultFields` 以及嵌套字段的说明投影为 Kotlin 字段 KDoc；缺失或空白说明不会生成空 KDoc。该说明不改变字段类型、默认值或 Analyzer 的设计元数据读取边界。
 
 `type` 会在 source assembly 之后编译为 canonical structured type tree。支持 builtin、named type、`List<T>`、`Set<T>`、`Map<K, V>`、`Array<T>` 和递归 `?`；不支持 mutable collection、`Collection`、`Iterable`、`Sequence`、primitive array、tuple 或任意 generic type。Primitive array 会在最终 canonical identity 解析后拒绝，因此 `kotlin.IntArray`、指向它的 alias、short-name evidence 及递归容器位置都不能绕过校验；`Array<Int>` 仍受支持，业务类型 `com.acme.IntArray` 不会仅因 simple name 被拒绝。Domain Event 的递归 Entity 检查同样遍历 `Array<T>` element。`nullable` 只能由 type expression 的 `?` 表达，schema 不接受独立 nullability 字段。
 

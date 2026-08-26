@@ -34,8 +34,14 @@ class DesignElementExtractionTest {
                             family = "command",
                         )
                         object RealMetadataCmd {
-                            data class Request(val id: Long) : Command<Response>
-                            data class Response(val accepted: Boolean)
+                            data class Request(
+                                /** 订单标识 */
+                                val id: Long,
+                            ) : Command<Response>
+                            data class Response(
+                                /** 是否受理 */
+                                val accepted: Boolean,
+                            )
                         }
                     """.trimIndent(),
                 ),
@@ -46,6 +52,8 @@ class DesignElementExtractionTest {
         assertTrue(json.contains("\"name\":\"RealMetadata\""), json)
         assertTrue(json.contains("\"family\":\"command\""), json)
         assertTrue(json.contains("\"name\":\"id\",\"type\":\"Long\""), json)
+        assertFalse(json.contains("订单标识"), json)
+        assertFalse(json.contains("是否受理"), json)
     }
 
     @Test
