@@ -109,6 +109,7 @@ internal object AggregateRelationInference {
                     persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
                     backingCollectionName = fieldNames.collectionName,
                     singleAccessorName = if (cardinality == OwnedRelationCardinality.ONE) fieldNames.singleName else null,
+                    comment = binding.parentRefColumn.comment,
                 )
             }
 

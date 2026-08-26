@@ -82,6 +82,11 @@ internal object AggregateRelationPlanning {
                 "cascadeTypes" to relation.cascadeTypes.map { it.name },
                 "orphanRemoval" to relation.orphanRemoval,
                 "joinColumnNullable" to relation.joinColumnNullable,
+                "comment" to relation.comment
+                    .takeIf { it.isNotBlank() }
+                    ?.trim()
+                    ?.toKDocCommentText()
+                    .orEmpty(),
                 "owned" to relation.owned,
                 "parentRefColumn" to relation.parentRefColumn,
                 "ownedCardinality" to relation.ownedCardinality?.name,

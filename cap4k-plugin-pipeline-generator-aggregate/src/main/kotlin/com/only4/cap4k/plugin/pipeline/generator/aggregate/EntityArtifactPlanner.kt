@@ -234,6 +234,11 @@ internal class EntityArtifactPlanner : AggregateArtifactFamilyPlanner {
                             "generatedOwnId" to generatedOwnId,
                             "typeBinding" to field.typeBinding,
                             "enumItems" to field.enumItems,
+                            "comment" to field.comment
+                                .takeIf { it.isNotBlank() }
+                                ?.trim()
+                                ?.toKDocCommentText()
+                                .orEmpty(),
                             "columnName" to jpa.columnName,
                             "columnNameKotlinStringLiteral" to
                                 jpaIdentifierKotlinStringLiteral(jpa.columnName),

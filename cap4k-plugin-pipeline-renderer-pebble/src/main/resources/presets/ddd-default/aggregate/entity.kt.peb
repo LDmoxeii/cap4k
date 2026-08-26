@@ -76,6 +76,11 @@ class {{ typeName }} internal constructor(
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
+{% if field.comment is not empty %}
+    /**
+     * {{ field.comment | raw }}
+     */
+{% endif -%}
 {% if field.embeddedId %}    @EmbeddedId
     @AttributeOverride(name = "value", column = Column(name = {% if softDelete is defined and softDelete.enabled %}{{ field.columnNameKotlinStringLiteral | raw }}{% else %}"{{ field.columnName }}"{% endif %}, nullable = {{ field.attributeOverrideNullable }}, {% if field.attributeOverrideInsertable is not null %}insertable = {{ field.attributeOverrideInsertable }}, {% endif %}updatable = {{ field.attributeOverrideUpdatable }}{% if field.attributeOverrideLength is not null %}, length = {{ field.attributeOverrideLength }}{% endif %}))
 {% elseif field.strongId %}    @Embedded
@@ -98,6 +103,11 @@ class {{ typeName }} internal constructor(
 
 {% endfor -%}
 {% for relation in relationFields -%}
+{% if relation.comment is not empty %}
+    /**
+     * {{ relation.comment | raw }}
+     */
+{% endif -%}
 {% if relation.relationType == "MANY_TO_ONE" %}    @ManyToOne(fetch = FetchType.{{ relation.fetchType }})
 {% if relation.insertable is not null or relation.updatable is not null %}    @JoinColumn(name = {% if softDelete is defined and softDelete.enabled %}{{ relation.joinColumnKotlinStringLiteral | raw }}{% else %}"{{ relation.joinColumn }}"{% endif %}, nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %}, insertable = {{ relation.insertable }}, updatable = {{ relation.updatable }})
 {% else %}    @JoinColumn(name = {% if softDelete is defined and softDelete.enabled %}{{ relation.joinColumnKotlinStringLiteral | raw }}{% else %}"{{ relation.joinColumn }}"{% endif %}, nullable = {% if relation.joinColumnNullable is not null %}{{ relation.joinColumnNullable }}{% elseif relation.nullable is not null %}{{ relation.nullable }}{% else %}false{% endif %})

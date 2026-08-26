@@ -5845,6 +5845,7 @@ class AggregateArtifactPlannerTest {
                     name = "tenantId",
                     type = "Long",
                     columnName = "tenant_id",
+                    comment = "租户标识",
                 ),
                 FieldModel(
                     name = "createdBy",
@@ -5897,8 +5898,10 @@ class AggregateArtifactPlannerTest {
         val entityContext = planItems.single { it.templateId == "aggregate/entity.kt.peb" }.context
         @Suppress("UNCHECKED_CAST")
         val fields = entityContext["fields"] as List<Map<String, Any?>>
+        val tenantId = fields.single { it["name"] == "tenantId" }
 
         assertAll(
+            { assertEquals("租户标识", tenantId["comment"]) },
             { assertTrue(fields.all { "parentRef" !in it }) },
             { assertTrue(fields.all { "structural" + "ParentRef" !in it }) },
             { assertTrue(fields.all { "writePolicy" !in it }) },
@@ -7191,6 +7194,16 @@ class AggregateArtifactPlannerTest {
         assertEquals(aggregates, buildingBlock?.get("aggregates"), item.templateId)
         assertEquals(family, buildingBlock?.get("family"), item.templateId)
         assertEquals(variant, buildingBlock?.get("variant"), item.templateId)
+    }
+
+    @Test
+    fun `kdoc text escapes closing delimiters and keeps multiline content`() {
+        val source = "第一行\n第二行 */ \$"
+
+        val rendered = source.toKDocCommentText()
+
+        assertEquals("第一行\n * 第二行 * / \$", rendered)
+        assertFalse(rendered.contains("*/"))
     }
 
     private fun String.toTestKotlinStringLiteral(): String {

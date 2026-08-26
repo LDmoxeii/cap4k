@@ -11,6 +11,8 @@ data class FieldModel(
     val typeBinding: String? = null,
     val enumItems: List<EnumItemModel> = emptyList(),
     val columnName: String? = null,
+    /** Source-level field comment, preserved for generated KDoc. */
+    val comment: String = "",
 )
 
 data class ProjectModel(
@@ -423,6 +425,8 @@ data class AggregateRelationModel(
     val persistenceShape: OwnedRelationPersistenceShape? = null,
     val backingCollectionName: String? = null,
     val singleAccessorName: String? = null,
+    /** Source-level relation column comment, preserved for generated relation KDoc. */
+    val comment: String = "",
 )
 
 data class EntityModel(
