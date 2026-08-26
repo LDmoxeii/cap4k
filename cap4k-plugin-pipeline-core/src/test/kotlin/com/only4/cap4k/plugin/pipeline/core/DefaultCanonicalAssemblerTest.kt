@@ -2972,7 +2972,15 @@ class DefaultCanonicalAssemblerTest {
                     comment = "",
                     columns = listOf(
                         DbColumnSnapshot("id", "VARCHAR", "String", false, isPrimaryKey = true),
-                        DbColumnSnapshot("created_at", "TIMESTAMP", "java.time.Instant", false, inherited = true, managedRole = "initialization.request-context"),
+                        DbColumnSnapshot(
+                            "created_at",
+                            "TIMESTAMP",
+                            "java.time.Instant",
+                            false,
+                            comment = "创建时间",
+                            inherited = true,
+                            managedRole = "initialization.request-context",
+                        ),
                     ),
                     primaryKey = listOf("id"),
                     uniqueConstraints = emptyList(),
@@ -2984,6 +2992,7 @@ class DefaultCanonicalAssemblerTest {
         val field = model.entities.single().fields.single { it.name == "createdAt" }
 
         assertEquals("created_at", field.columnName)
+        assertEquals("创建时间", field.comment)
         assertEquals(
             "initialization.request-context",
             model.managedFieldPolicies.single().fields.single { it.fieldName == "createdAt" }.policyKey,
@@ -5271,6 +5280,7 @@ class DefaultCanonicalAssemblerTest {
                                     dbType = "BIGINT",
                                     kotlinType = "Long",
                                     nullable = false,
+                                    comment = "所属视频",
                                     referenceTable = "video_post",
                                     explicitRelationType = "MANY_TO_ONE",
                                 ),
@@ -5314,6 +5324,7 @@ class DefaultCanonicalAssemblerTest {
                 persistenceShape = OwnedRelationPersistenceShape.ONE_TO_MANY_JOIN_COLUMN,
                 backingCollectionName = "items",
                 singleAccessorName = null,
+                comment = "所属视频",
             ),
             result.model.aggregateRelations.single(),
         )

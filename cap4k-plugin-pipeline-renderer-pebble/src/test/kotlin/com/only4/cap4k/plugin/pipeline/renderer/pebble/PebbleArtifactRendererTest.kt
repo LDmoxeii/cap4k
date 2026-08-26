@@ -4397,6 +4397,7 @@ class PebbleArtifactRendererTest {
                                 "propertyInitializer" to "orderNo",
                                 "nullable" to true,
                                 "propertyNullable" to true,
+                                "comment" to "订单号",
                             )
                         ),
                         "fields" to listOf(
@@ -4484,6 +4485,10 @@ class PebbleArtifactRendererTest {
         assertFalse(entityContent.contains("data class Order("))
         assertTrue(entityContent.contains("orderNo: String?"))
         assertTrue(entityContent.contains("var orderNo: String? = orderNo"))
+        val orderNoKDoc = entityContent.indexOf("/**")
+        assertTrue(orderNoKDoc >= 0)
+        assertTrue(entityContent.indexOf("订单号", orderNoKDoc) > orderNoKDoc)
+        assertTrue(entityContent.indexOf("var orderNo: String? = orderNo", orderNoKDoc) > orderNoKDoc)
         assertFalse(entityContent.contains("jakarta.persistence"))
         assertTrue(repositoryContent.contains("@Repository"))
         assertTrue(repositoryContent.contains("internal open class OrderJpaRepositoryAdapter("))
@@ -4578,6 +4583,7 @@ class PebbleArtifactRendererTest {
                                 "relationType" to "MANY_TO_ONE",
                                 "fetchType" to "LAZY",
                                 "joinColumn" to "author_id",
+                                "comment" to "作者",
                                 "nullable" to true,
                                 "joinColumnNullable" to false,
                             ),
@@ -4656,6 +4662,9 @@ class PebbleArtifactRendererTest {
         assertTrue(content.contains("@ManyToOne(fetch = FetchType.LAZY)"))
         assertTrue(content.contains("@JoinColumn(name = \"author_id\", nullable = false)"))
         assertTrue(bodySection.contains("var author: UserProfile? = null"))
+        val authorKDoc = bodySection.indexOf("作者")
+        assertTrue(authorKDoc >= 0)
+        assertTrue(bodySection.indexOf("var author: UserProfile? = null", authorKDoc) > authorKDoc)
         assertTrue(content.contains("@OneToOne(fetch = FetchType.LAZY)"))
         assertTrue(bodySection.contains("@JoinColumn(name = \"cover_profile_id\", nullable = true)"))
         assertTrue(bodySection.contains("var coverProfile: CoverProfile? = null"))

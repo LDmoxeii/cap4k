@@ -25,3 +25,12 @@ internal fun String.toKotlinStringLiteral(): String {
     }
     return "\"$escaped\""
 }
+
+/**
+ * Converts source text to safe, line-oriented KDoc content for generated Kotlin.
+ * Closing comment delimiters are separated so database/design text cannot terminate the KDoc block.
+ */
+internal fun String.toKDocCommentText(): String =
+    replace("*/", "* /")
+        .lineSequence()
+        .joinToString("\n * ")

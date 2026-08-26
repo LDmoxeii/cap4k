@@ -80,6 +80,11 @@ class AggregateProjectionArtifactPlanner : GeneratorProvider {
                     "defaultValue" to null,
                     "typeBinding" to field.typeBinding,
                     "enumItems" to enumPlanning.resolveEnumItems(entity.packageName, field),
+                    "comment" to field.comment
+                        .takeIf { it.isNotBlank() }
+                        ?.trim()
+                        ?.toKDocCommentText()
+                        .orEmpty(),
                     "columnName" to jpa.columnName,
                     "isId" to jpa.isId,
                     "isVersion" to isVersionField,

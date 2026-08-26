@@ -250,6 +250,7 @@ class DefaultCanonicalAssembler : CanonicalAssembler {
                         typeBinding = column.typeBinding,
                         enumItems = column.enumItems,
                         columnName = column.name,
+                        comment = column.comment,
                     )
                 }
             val primaryKeyColumn = table.primaryKey.first()

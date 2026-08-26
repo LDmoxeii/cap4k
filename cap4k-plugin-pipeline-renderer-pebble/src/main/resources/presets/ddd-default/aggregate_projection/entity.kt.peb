@@ -50,6 +50,11 @@ class {{ typeName }}(
 {% endfor -%}
 ) {
 {% for field in scalarFields %}
+{% if field.comment is not empty %}
+    /**
+     * {{ field.comment | raw }}
+     */
+{% endif -%}
 {% if entityJpa.entityEnabled %}
 {% if field.isId %}
     @Id

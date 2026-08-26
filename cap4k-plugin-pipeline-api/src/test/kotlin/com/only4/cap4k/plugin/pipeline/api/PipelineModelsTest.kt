@@ -66,6 +66,12 @@ class PipelineModelsTest {
     }
 
     @Test
+    fun `field model preserves source comment with an empty default`() {
+        assertEquals("订单号", FieldModel("orderNo", "String", comment = "订单号").comment)
+        assertEquals("", FieldModel("orderNo", "String").comment)
+    }
+
+    @Test
     fun `db snapshot preserves exact identifier policy`() {
         val column = DbColumnSnapshot(
             name = "id",

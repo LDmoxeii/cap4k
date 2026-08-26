@@ -54,7 +54,11 @@ internal class SchemaArtifactPlanner : AggregateArtifactFamilyPlanner {
                     "defaultValue" to field.defaultValue,
                     "typeBinding" to field.typeBinding,
                     "enumItems" to field.enumItems,
-                    "comment" to "",
+                    "comment" to field.comment
+                        .takeIf { it.isNotBlank() }
+                        ?.trim()
+                        ?.toKDocCommentText()
+                        .orEmpty(),
                 )
             }
             val imports = fields
