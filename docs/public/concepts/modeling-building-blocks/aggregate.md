@@ -1,6 +1,6 @@
 # Aggregate
 
-Aggregate Root 是领域模型的事务一致性边界。它负责保护一组强相关对象的业务不变量，决定哪些状态变化可以在同一次命令处理中提交，哪些协作必须通过事件、应用层命令或外部能力拆开。Aggregate 不是数据库表的别名，也不是把所有相关字段放进一个大对象；它的边界来自业务规则对一致性的要求。
+Aggregate Root 是领域模型的事务一致性边界。它负责保护一组强相关对象的业务不变量；它的边界决定哪些不变量必须在该 Root 内保持一致。多个 Aggregate 是否由同一次本地 Command 协调并共同提交，则由应用用例与外层 Unit of Work 决定；一个 Aggregate 不应直接修改另一个 Aggregate。Aggregate 不是数据库表的别名，也不是把所有相关字段放进一个大对象；它的边界来自业务规则对一致性的要求。
 
 文档中说 Aggregate 时，可能指建模概念、聚合类型，也可能指运行时的某个 Aggregate Root instance。真正保护事务一致性的，是一次命令处理中被加载出来的 Root instance 及它拥有的内部对象集合。比如分类树插入节点时，如果一个 `CategoryTree` 或父分类聚合拥有同一父节点下的排序集合，那么让兄弟节点让位属于这个聚合的行为；如果每个 `Category` 节点都是独立聚合，则同一次调整多个兄弟节点已经是跨聚合协作，应由 application orchestration 或 Domain Service decision 明确组织。
 
@@ -10,6 +10,6 @@ Aggregate Root 是领域模型的事务一致性边界。它负责保护一组�
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，`ContentBehavior.kt` 是阅读 Aggregate 行为的直接锚点，展示 `Content` 如何围绕发布准备、review approval、媒体处理和 `ContentPublicationReadyDomainEvent` 保护边界。
 
-设计边界要围绕“一次事务必须一致”的问题来划定。跨聚合协作不应该靠一个 Aggregate 直接修改另一个 Aggregate；可以通过 Domain Event、Integration Event、可靠 Command、应用层编排，或在确有跨时间进度时选择 provider-owned orchestration。常见误用包括把 Aggregate 做成贫血数据容器、让内部 Entity 暴露独立保存入口、把外部 HTTP 协议字段放进 Aggregate、或为了代码复用把多个业务生命周期塞进一个 Root。
+设计边界要围绕“一次事务必须一致”的问题来划定。跨聚合协作不应该靠一个 Aggregate 直接修改另一个 Aggregate；可以通过 Domain Event、Integration Event、可靠 Command 或应用层编排。一个完整本地业务用例由 Application Command 协调多个 Aggregate 并不违反此边界，关键是各 Aggregate 仍只通过自己的行为保护不变量；跨时间进度才选择 provider-owned orchestration。常见误用包括把 Aggregate 做成贫血数据容器、让内部 Entity 暴露独立保存入口、把外部 HTTP 协议字段放进 Aggregate、或为了代码复用把多个业务生命周期塞进一个 Root。
 
 判断 Aggregate 是否用对时，可以看不变量是否集中在 Root 行为中，Command 是否只通过 Root 进入写入，Repository 是否只承担聚合级读取，外层 Command 是否自动完成 Unit of Work，领域事件是否发生在状态变化之后，以及生成骨架与手写业务逻辑的边界是否清晰。Root behavior 可选提供 `onCreate()` 和 `onDeleted()` 登记相应领域事实；空回调可删除，不提供泛化的更新回调生命周期。

@@ -6,13 +6,13 @@ Application layer 是 cap4k 项目的用例编排层。它把 adapter 转换后�
 
 Application layer 组织 [Command](../concepts/execution-and-ownership/command.md)、[Query](../concepts/execution-and-ownership/query.md)、[Subscriber](../concepts/execution-and-ownership/subscriber.md)、[Scheduled Reaction](../concepts/execution-and-ownership/scheduled-reaction.md) 和 [External Capability](../concepts/execution-and-ownership/external-capability-anti-corruption-layer.md)。它使用 [Unit Of Work](../concepts/execution-and-ownership/unit-of-work.md) 与 [Mediator](../concepts/execution-and-ownership/mediator.md) 这些框架能力，而不是重新实现它们。
 
-Command 处理改变业务状态的意图，并自动拥有 REQUIRED transaction 与 UoW completion。Query 处理读取观察，不创建 write UoW。Capability 表达上下文外部行为，不拥有本地事务。adapter-owned Provider Endpoint Handler 把 published Request 显式转换成本地 Command/Query，再由 application 执行用例。Subscriber 处理 Domain Event 或 Integration Event 之后的反应；Scheduled Reaction 表达定时或轮询触发的 application reaction。
+Command 处理改变业务状态的意图，并自动拥有 REQUIRED transaction 与 UoW completion；一个集中、可命名的 Command 用例可以协调多个相关 Aggregate。Query 处理读取观察，不创建 write UoW。Capability 表达上下文外部行为，不拥有本地事务。adapter-owned Provider Endpoint Handler 把 published Request 显式转换成本地 Command/Query，再由 application 执行用例。Subscriber 处理 Domain Event 或 Integration Event 之后的反应；Scheduled Reaction 表达定时或轮询触发的 application reaction。
 
 ## 不负责
 
 Application layer 不负责 HTTP payload details、Controller request mapping、API response shape、external service raw payload、Spring Boot startup 或具体 persistence implementation。它可以定义 `TriggerMediaProcessing` 这样的 external capability request class，但不应该知道 adapter 中如何发 HTTP、如何解析 callback body 或如何映射 status code。
 
-Application layer 也不应该把领域不变量挪到 handler 里。Command handler 可以做 zero-trust validation、读取并调用 Aggregate 行为；外层 Command 负责自动稳定化和完成 Unit of Work。内容是否可发布、状态如何转换、Domain Event 何时出现，应由 domain layer 的手写逻辑表达。
+Application layer 也不应该把领域不变量挪到 handler 里。Command handler 可以做 zero-trust validation、读取一个或多个相关 Aggregate 并调用其行为；外层 Command 负责自动稳定化和完成 Unit of Work。内容是否可发布、状态如何转换、Domain Event 何时出现，应由 domain layer 的手写逻辑表达。不要为了形式上的单聚合而制造没有独立业务意义的步骤 Command。
 
 ## 生成骨架
 

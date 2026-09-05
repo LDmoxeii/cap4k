@@ -6,10 +6,10 @@ cap4k 这样拆分，并不是要求项目引入完整 CQRS 基础设施，也�
 
 当一个用例需要改变内容状态、启动媒体处理、推进 paid publication，或者释放领域事件时，应走 Command 路径。当一个用例只是读取内容详情、媒体处理状态或 paid publication 状态时，应走 Query 路径。这样的分离让 application layer 更容易被阅读：看到 `PublishContentCmd` 就知道它表达写入意图，看到 `GetContentDetailQry` 就知道它表达读取观察。
 
-在 cap4k 项目中，Command handler 可以通过 Repository 加载 Aggregate 并调用 domain layer 暴露的行为。外层 Command 自动创建 REQUIRED transaction、稳定化并完成 Unit of Work，应用代码不需要 completion-oriented `save()`。Query handler 则可以面向 read model 或适合展示的数据结构组织读取，不创建 write UoW，也不应偷偷修改业务状态。Mediator 可以在运行时把 Command 或 Query 路由到对应 handler，但它只是入口 facade，不是把业务流程混在一起的 orchestration engine。
+在 cap4k 项目中，Command handler 可以通过 Repository 加载一个或多个相关 Aggregate 并调用 domain layer 暴露的行为；一个完整业务用例协调多个 Aggregate 不等于把不变量搬进 handler。外层 Command 自动创建 REQUIRED transaction、稳定化并完成 Unit of Work，应用代码不需要 completion-oriented `save()`。Query handler 则可以面向 read model 或适合展示的数据结构组织读取，不创建 write UoW，也不应偷偷修改业务状态。Mediator 可以在运行时把 Command 或 Query 路由到对应 handler，但它只是入口 facade，不是把业务流程混在一起的 orchestration engine。
 
 generator 可以依据 `command`、`query` 等 design tags 生成稳定骨架、命名和入口位置；业务决策、聚合行为、查询含义、异常处理和协作顺序仍属于手写逻辑。生成骨架降低的是组织成本，不会替代团队决定“这件事是写入还是读取”。
 
 参考项目入口是 [reference-content-studio.md](../../examples/reference-content-studio.md)。在 `cap4k-reference-content-studio` 中，可以把 `PublishContentCmd`、`StartMediaProcessingCmd`、`TryStartPaidPublicationCmd` 与 `GetContentDetailQry`、`GetMediaProcessingStatusQry`、`GetPaidPublicationStatusQry` 对照阅读，观察写入和读取如何分别落在 application workflow 中。
 
-设计边界的核心问题是“这个用例是否改变业务事实”。常见误用包括把查询方法放进 Command handler，为了复用把写入和读取塞进一个大 service，或者把 Command Query Separation 理解成必须建设完整 CQRS 系统。审查时可以看命名是否表达意图，写入是否通过聚合和提交边界完成，读取是否保持无副作用，以及 handler 是否让层级协作保持清晰。
+设计边界的核心问题是“这个用例是否改变业务事实，以及业务不变量由谁拥有”。常见误用包括把查询方法放进 Command handler，为了复用把写入和读取塞进一个大 service，仅因形式上的单聚合而拆出无独立语义的 Command，或者把 Command Query Separation 理解成必须建设完整 CQRS 系统。审查时可以看命名是否表达集中意图，写入是否通过相关 Aggregate 行为和提交边界完成，读取是否保持无副作用，以及 handler 是否让层级协作保持清晰。
