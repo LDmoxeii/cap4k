@@ -1,6 +1,6 @@
 # Unit of Work
 
-Unit of Work 是外层 Command 拥有的应用写入边界。它关注一次物理事务中哪些聚合变化、managed persistence enrichment、同步 Domain Event frontier、可靠 Command 和 Integration Event 登记应作为同一个应用结果稳定化并提交，而不是解释 JPA、事务代理或数据库内部机制的细节。
+Unit of Work 是外层 Command 拥有的应用写入边界。它关注一次物理事务中哪些聚合变化、managed persistence enrichment、同步 Domain Event frontier、可靠 Command 和 Integration Event 登记应作为同一个应用结果稳定化并提交，而不是解释 JPA、事务代理或数据库内部机制的细节。一个完整的本地业务 Command 可以让多个相关 Aggregate 的变化共同提交；这不等于应用代码获得公共 UoW 生命周期控制。
 
 Command handler 加载 Aggregate、调用领域行为并返回后，外层 Coordinator 自动反复执行候选变化识别、managed persistence enrichment、最终变化识别、provider flush 与同步事件 frontier，直到状态稳定。普通应用代码不需要调用 `save()`、`persist()` 或 `flush()`。Query 不创建 write UoW。
 

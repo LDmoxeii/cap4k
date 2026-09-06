@@ -6,7 +6,7 @@ routes:
     agent_sections: [project, capabilities, inputs, diagnostics]
     required_reads: []
   - id: select-carrier-input
-    trigger_examples: ["map this intent to cap4k", "choose a generator input"]
+    trigger_examples: ["map this intent to cap4k", "choose a generator input", "should this use case be one command or several?", "should this command coordinate multiple aggregates?", "这个流程应该拆成几个 Command", "这个 Command 是否应该协调多个聚合"]
     agent_sections: [capabilities, inputs, ownership, diagnostics]
     required_reads: [references/tactical-carriers.md]
   - id: plan-generate
@@ -14,7 +14,7 @@ routes:
     agent_sections: [inputs, ownership, diagnostics]
     required_reads: [references/ownership-boundaries.md]
   - id: implement-owned-logic
-    trigger_examples: ["implement this handler", "where may I write business logic?"]
+    trigger_examples: ["implement this handler", "where may I write business logic?", "how should I organize this command handler?", "这个 Command handler 是否承担了过多职责"]
     agent_sections: [ownership, runtime, diagnostics]
     required_reads: [references/ownership-boundaries.md, references/runtime-analysis-boundaries.md]
   - id: inspect-analysis

@@ -6,7 +6,7 @@ Query 表达一次读取和观察业务状态的应用层意图。它回答“�
 
 在 cap4k 中，`query` design tag 可以让 generator 生成 Query 与 handler 的稳定入口。生成骨架负责把读取用例放到可发现的位置；读取字段、筛选语义、权限上下文、read model 选择和错误表达需要手写。Query handler 可以为调用者准备结果，但不应把写入逻辑藏在“读取时顺便更新”的路径里。
 
-Query 与 Command 的协作边界来自意图差异。Command 通过 Repository 和 Aggregate 行为改变状态并由 Unit of Work 自动提交；Query 面向读取模型组织观察结果。Command 不调用 Query，需要当前写入判断时直接使用 Repository。Query 可以同步嵌套另一个 Query 并复用只读执行边界，但不能从 Query 内启动 `askAsync()`，避免执行器与 Caller Runs 形成不同事务快照。
+Query 与 Command 的协作边界来自意图差异。Command 通过 Repository 和 Aggregate 行为改变状态并由 Unit of Work 自动提交；Query 面向读取模型组织观察结果。Command 与 Query 是平级应用入口，Command 不调用 Query；需要当前写入判断时直接使用 Repository 或领域行为。应用入口若先 Query 再发 Command，应将它们视为两个明确步骤，不假定共享未提交状态或同一个写 UoW。Query 可以同步嵌套另一个 Query 并复用只读执行边界，但不能从 Query 内启动 `askAsync()`，避免执行器与 Caller Runs 形成不同事务快照。
 
 `Mediator.queries.askAsync(query)` 使用与 `ask()` 相同的阻塞 Handler 形态，把调用调度到有界 Query executor 以支持调用方并行组装多个结果。队列饱和时默认 Caller Runs，因此 async 表示并行机会，而不保证切换线程或立即返回；所有失败通过 `CompletionStage` 表达。
 

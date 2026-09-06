@@ -25,6 +25,8 @@
 | --- | --- |
 | 让 `query` repair 或 mutate aggregate state。 | Query 只观察。 |
 | 让 `command` 为了 UI convenience 返回 read model。 | Command 表达 state-changing intent；published read shapes 属于 Query 或 Endpoint response；protocol-private shape 由 adapter 手写映射。 |
+| 仅因一个业务用例涉及多个 Aggregate 就机械拆分 Command。 | 先保留集中、可命名的完整 Command；多个相关 Aggregate 可以由同一本地用例协调。只有独立业务意义、生命周期、复用或重试边界足以成立时才拆分。 |
+| 在 Command handler 中重写 Aggregate 的不变量或直接修改字段。 | 由对应 Aggregate/Domain Service 保护规则；Handler 负责输入、顺序和协作，不替代领域行为。 |
 | 让 controller 承载 business state decisions。 | Controller 把 protocol input 转成 Command/Query 并委托。 |
 | 直接持久化 owned child，或依赖手动 `save()` 完成 Command。 | Existing root 通过 Repository 保持 managed，创建/删除 root 分别通过 Factory/Repository 表达；外层 Command 自动稳定化和提交。 |
 
@@ -42,6 +44,7 @@
 | 错误 | 正确合同 |
 | --- | --- |
 | 把 cap4k 当成内置长流程编排器。 | 先组合 reliable Command 与 Integration Event；仍不足时选择显式 orchestration provider。 |
+| 把外部 Capability 调用误认为本地 UoW 可回滚。 | Unit of Work 只保证本地持久化边界；外部副作用需要自己的幂等、重试、补偿或对账策略。 |
 | 把 Domain Event 当作 technical continuation step。 | Domain Event 描述 aggregate state change 之后形成的 business fact。 |
 | 因为 `domain_event.aggregates` 声明了 owner，就把 Aggregate/Entity 放进 payload。 | `aggregates` 仅表达归属；payload 只来自显式 `fields`，使用 Strong ID、Value Object、标量或不可变 snapshot。运行时 Entity 拒绝规则不能放宽。 |
 | 通过 templates 或 addon magic 直接发布 outbound integration event payloads。 | Business code 从 application orchestration points attach outbound facts。 |
